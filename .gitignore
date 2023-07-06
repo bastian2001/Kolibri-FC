@@ -1,0 +1,17 @@
+~*
+
+# Previews Folders
+**/__Previews/
+
+# History Folders
+**/History/*
+
+# Project Logs
+Project\ Logs*/
+
+# Project Outputs
+Project\ Outputs*/
+
+# Altium files
+__Previews
+*.htm
