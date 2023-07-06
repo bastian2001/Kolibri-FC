@@ -1,0 +1,188 @@
+
+**** 07/06/23 13:30:50 ******* PSpice 17.4.0 (Nov 2018) ******* ID# 0 ********
+
+ ** Profile: "SCHEMATIC1-Sim 1"  [ C:\Users\bascs\Documents\Projekte\rp2040-fc\ina139-PSpiceFiles\SCHEMATIC1\Sim 1.sim ] 
+
+
+ ****     CIRCUIT DESCRIPTION
+
+
+******************************************************************************
+
+
+
+
+** Creating circuit file "Sim 1.cir" 
+** WARNING: THIS AUTOMATICALLY GENERATED FILE MAY BE OVERWRITTEN BY SUBSEQUENT SIMULATIONS
+
+*Libraries: 
+* Profile Libraries :
+* Local Libraries :
+* From [PSPICE NETLIST] section of C:\cds_spb_home\cdssetup\OrCAD_PSpiceTIPSpice_Install\17.4.0\PSpice.ini file:
+.lib "nom_pspti.lib" 
+.lib "nom.lib" 
+
+*Analysis directives: 
+.TRAN  0 100ms 0 
+.OPTIONS ADVCONV
+.OPTIONS FILEMODELSEARCH
+.PROBE64 V(alias(*)) I(alias(*)) W(alias(*)) D(alias(*)) NOISE(alias(*)) 
+.INC "..\SCHEMATIC1.net" 
+
+
+
+**** INCLUDING SCHEMATIC1.net ****
+* source INA139
+X_U1         N00240 0 N00109 N00167 N00214 INA169
+V_V1         N00109 0 25Vdc
+V_V3         N00214 0 5Vdc
+R_R1         N00240 0  27k TC=0,0 
+R_R2         N00167 N00109  0.5m TC=0,0 
+I_I1         N00167 0 DC 200Adc  
+
+**** RESUMING "Sim 1.cir" ****
+.END
+
+**** 07/06/23 13:30:50 ******* PSpice 17.4.0 (Nov 2018) ******* ID# 0 ********
+
+ ** Profile: "SCHEMATIC1-Sim 1"  [ C:\Users\bascs\Documents\Projekte\rp2040-fc\ina139-PSpiceFiles\SCHEMATIC1\Sim 1.sim ] 
+
+
+ ****     Diode MODEL PARAMETERS
+
+
+******************************************************************************
+
+
+
+
+               X_U1.DD         
+          IS   30.000000E-15 
+          BV   90            
+          RS   10            
+
+
+**** 07/06/23 13:30:50 ******* PSpice 17.4.0 (Nov 2018) ******* ID# 0 ********
+
+ ** Profile: "SCHEMATIC1-Sim 1"  [ C:\Users\bascs\Documents\Projekte\rp2040-fc\ina139-PSpiceFiles\SCHEMATIC1\Sim 1.sim ] 
+
+
+ ****     BJT MODEL PARAMETERS
+
+
+******************************************************************************
+
+
+
+
+               X_U1.QI         X_U1.QPI        
+               NPN             PNP             
+       LEVEL    1               1            
+          IS    1.000000E-15    1.000000E-15 
+          EG    1.2056          1.2056       
+          BF  200             200            
+          NF    1               1            
+         VAF  125             125            
+         IKF    6.000000E-03    6.000000E-03 
+         ISE   10.000000E-18   10.000000E-18 
+          BR     .1              .1          
+          NR    1               1            
+         VAR   15              15            
+         IKR    6.000000E-03    6.000000E-03 
+         ISC   10.000000E-18   10.000000E-18 
+          NC    1.5             1.5          
+         ISS    0               0            
+          RB    1.200000E+03    1.200000E+03 
+         RBM   65              65            
+         IRB   60.000000E-06   60.000000E-06 
+          RE    5               5            
+          RC  750             750            
+         CJE  500.000000E-15  500.000000E-15 
+         VJE     .77             .77         
+         MJE     .3              .3          
+         CJC  600.000000E-15  600.000000E-15 
+         VJC     .64             .64         
+         MJC     .425            .425        
+        XCJC    1               1            
+         CJS   50.000000E-15   50.000000E-15 
+         VJS     .58             .58         
+         MJS     .5              .5          
+          FC    0               0            
+          TF  300.000000E-12   50.000000E-09 
+         XTF    1               1            
+         ITF     .01             .01         
+         PTF    5               5            
+          TR    1.000000E-06    1.000000E-06 
+         XTB    1.5             1.5          
+         XTI    2.3             2.3          
+          KF  160.000000E-18  160.000000E-18 
+          AF    1               1            
+          CN    2.42            2.2          
+           D     .87             .52         
+
+
+**** 07/06/23 13:30:50 ******* PSpice 17.4.0 (Nov 2018) ******* ID# 0 ********
+
+ ** Profile: "SCHEMATIC1-Sim 1"  [ C:\Users\bascs\Documents\Projekte\rp2040-fc\ina139-PSpiceFiles\SCHEMATIC1\Sim 1.sim ] 
+
+
+ ****     INITIAL TRANSIENT SOLUTION       TEMPERATURE =   27.000 DEG C
+
+
+******************************************************************************
+
+
+
+ NODE   VOLTAGE     NODE   VOLTAGE     NODE   VOLTAGE     NODE   VOLTAGE
+
+
+(N00109)   25.0000 (N00167)   24.9000 (N00214)    5.0000 (N00240)    2.7380     
+
+(X_U1.6)    1.1426 (X_U1.7)   24.3330 (X_U1.8)   24.8940 (X_U1.9)   24.8940     
+
+(X_U1.10)    1.1919                   (X_U1.11)   24.8950                       
+
+(X_U1.12)    4.3854                   (X_U1.13)    3.4424                       
+
+(X_U1.14)     .5647                   (X_U1.15)    0.0000                       
+
+(X_U1.16)     .6136                   (X_U1.17)     .5646                       
+
+(X_U1.18)    2.7887                   (X_U1.19)    3.4424                       
+
+(X_U1.20)     .5647                   (X_U1.21)   24.5600                       
+
+(X_U1.22)     .6368                   (X_U1.23)    -.0212                   
+
+
+
+
+    VOLTAGE SOURCE CURRENTS
+    NAME         CURRENT
+
+    V_V1        -2.000E+02
+    V_V3        -4.641E-05
+    X_U1.V71     5.446E-06
+    X_U1.V74     2.124E-06
+
+    TOTAL POWER DISSIPATION   5.00E+03  WATTS
+
+
+
+          JOB CONCLUDED
+
+**** 07/06/23 13:30:50 ******* PSpice 17.4.0 (Nov 2018) ******* ID# 0 ********
+
+ ** Profile: "SCHEMATIC1-Sim 1"  [ C:\Users\bascs\Documents\Projekte\rp2040-fc\ina139-PSpiceFiles\SCHEMATIC1\Sim 1.sim ] 
+
+
+ ****     JOB STATISTICS SUMMARY
+
+
+******************************************************************************
+
+
+
+  License check-out time            =        2.98
+  Total job time (using Solver 1)   =         .38
+

@@ -1,0 +1,7 @@
+* source INA139
+X_U1         N00240 0 N00109 N00167 N00214 INA169
+V_V1         N00109 0 25Vdc
+V_V3         N00214 0 5Vdc
+R_R1         N00240 0  27k TC=0,0 
+R_R2         N00167 N00109  0.5m TC=0,0 
+I_I1         N00167 0 DC 200Adc  
