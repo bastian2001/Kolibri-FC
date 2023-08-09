@@ -2,29 +2,8 @@
 #include <Arduino.h>
 #include "elapsedMillis.h"
 
-typedef struct crsf_channels_s
-{
-	unsigned ch0 : 11;
-	unsigned ch1 : 11;
-	unsigned ch2 : 11;
-	unsigned ch3 : 11;
-	unsigned ch4 : 11;
-	unsigned ch5 : 11;
-	unsigned ch6 : 11;
-	unsigned ch7 : 11;
-	unsigned ch8 : 11;
-	unsigned ch9 : 11;
-	unsigned ch10 : 11;
-	unsigned ch11 : 11;
-	unsigned ch12 : 11;
-	unsigned ch13 : 11;
-	unsigned ch14 : 11;
-	unsigned ch15 : 11;
-} crsf_channels_t;
-
 class ExpressLRS
 {
-
 public:
 	ExpressLRS(SerialUART &elrsSerial, uint32_t baudrate, uint8_t pinTX = -1, uint8_t pinRX = -1);
 	~ExpressLRS();
@@ -44,8 +23,19 @@ public:
 	static const uint8_t ERROR_UNSUPPORTED_COMMAND = 0x03;
 	static const uint8_t ERROR_INVALID_PREFIX = 0x04;
 	static const uint8_t ERROR_INVALID_LENGTH = 0x05;
+	int16_t uplinkRssi[2] = {0};
+	uint8_t uplinkLinkQuality = 0;
+	int8_t uplinkSNR = 0;
+	uint8_t antennaSelection = 0;
+	uint8_t packetRate = 0;
+	uint8_t txPower = 0;
+	int16_t downlinkRssi = 0;
+	uint8_t downlinkLinkQuality = 0;
+	int8_t downlinkSNR = 0;
+	bool armed = false;
 
 private:
+	const uint16_t powerStates[9] = {0, 10, 25, 100, 500, 1000, 2000, 50, 250};
 	static const uint8_t RX_PREFIX = 0xC8;
 	static const uint8_t TX_PREFIX = 0xEC;
 	static const uint8_t LINK_STATISTICS = 0x14;
@@ -56,6 +46,7 @@ private:
 	static const uint8_t PARAMETER_READ = 0x2C;
 	static const uint8_t PARAMETER_WRITE = 0x2D;
 	static const uint8_t COMMAND = 0x32;
+	static const uint8_t FRAMETYPE_WHATEVER = 0x7A;
 	uint8_t msgBuffer[64] = {0};
 	uint8_t msgBufIndex = 0;
 	SerialUART &elrsSerial;

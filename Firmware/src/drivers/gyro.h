@@ -62,3 +62,5 @@ enum class GyroReg : uint8_t
 int gyroInit();
 
 extern const uint8_t bmi270_config_file[8192];
+
+void gyroGetData(uint16_t *buf);

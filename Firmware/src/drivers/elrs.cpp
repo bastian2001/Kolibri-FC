@@ -84,24 +84,44 @@ void ExpressLRS::processMessage()
 	}
 
 	msgCount++;
+	sinceLastMessage = 0;
 
 	switch (msgBuffer[2])
 	{
 	case LINK_STATISTICS:
-		break;
-	case RC_CHANNELS_PACKED:
 	{
-		if (size != 26) // 16 channels * 11 bits + 3 bytes header + 1 byte crc
+		if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc
 		{
-			Serial.println("ERROR_INVALID_LENGTH");
 			lastError = ERROR_INVALID_LENGTH;
 			errorFlag = true;
 			errorCount++;
 			break;
 		}
+		uplinkRssi[0] = -msgBuffer[3];
+		uplinkRssi[1] = -msgBuffer[4];
+		uplinkLinkQuality = msgBuffer[5];
+		uplinkSNR = msgBuffer[6];
+		antennaSelection = msgBuffer[7];
+		packetRate = msgBuffer[8];
+		txPower = powerStates[msgBuffer[9]];
+		downlinkRssi = -msgBuffer[10];
+		downlinkLinkQuality = msgBuffer[11];
+		downlinkSNR = msgBuffer[12];
+		break;
+	}
+	case RC_CHANNELS_PACKED:
+	{
+		if (size != 26) // 16 channels * 11 bits + 3 bytes header + 1 byte crc
+		{
+			lastError = ERROR_INVALID_LENGTH;
+			errorFlag = true;
+			errorCount++;
+			break;
+		}
+		sinceLastRCMessage = 0;
 		// crsf_channels_t *crsfChannels = (crsf_channels_t *)(&msgBuffer[3]); // somehow conversion through bit-fields does not work, so manual conversion
 		uint32_t decoder = msgBuffer[3] | (msgBuffer[4] << 8) | (msgBuffer[5] << 16) | (msgBuffer[6] << 24);
-		uint8_t pChannels[16];
+		uint16_t pChannels[16];
 		pChannels[0] = (decoder >> 0) & 0x7FF;	// 0...10
 		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
 		decoder >>= 16;							// 16
@@ -147,6 +167,14 @@ void ExpressLRS::processMessage()
 		// map pChannels to 1000-2000
 		for (uint8_t i = 0; i < 16; i++)
 			pChannels[i] = map(pChannels[i], 172, 1811, 988, 2012);
+
+		// check arming
+		// arming switch and already armed, or arming switch and throttle down (and not armed on boot)
+		if (pChannels[4] > 1500 && ((channels[4] < 1500 && channels[4] > 0 && pChannels[2] < 1020) || armed))
+			armed = true;
+		else
+			armed = false;
+
 		// update as fast as possible
 		for (uint8_t i = 0; i < 16; i++)
 			this->channels[i] = pChannels[i];
@@ -163,6 +191,9 @@ void ExpressLRS::processMessage()
 	case PARAMETER_WRITE:
 		break;
 	case COMMAND:
+		break;
+	case FRAMETYPE_WHATEVER:
+		// Seems like this is not an error, but idk what it is
 		break;
 	default:
 		lastError = ERROR_UNSUPPORTED_COMMAND;

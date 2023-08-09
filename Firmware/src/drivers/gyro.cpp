@@ -42,6 +42,10 @@ int gyroInit()
 	gpio_set_function(PIN_GYRO_SCK, GPIO_FUNC_SPI);
 	gpio_init(PIN_GYRO_CS);
 	gpio_set_dir(PIN_GYRO_CS, GPIO_OUT);
+	gpio_init(PIN_GYRO_INT1);
+	gpio_set_dir(PIN_GYRO_INT1, GPIO_IN);
+	gpio_init(PIN_GYRO_INT2);
+	gpio_set_dir(PIN_GYRO_INT2, GPIO_IN);
 	uint8_t data = 0;
 	regRead(SPI_GYRO, PIN_GYRO_CS, GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
 	data = 0;
@@ -90,6 +94,15 @@ int gyroInit()
 	// INT_MAP_DATA: err_int2, drdy_int2, fwm_int2, ffull_int2, err_int1, drdy_int1, fwm_int1, ffull_int1
 	data = 0b10000100;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INT_MAP_DATA, &data, 1, 500);
+	// INT1_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
+	data = 0b1010;
+	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INT1_IO_CTRL, &data, 1, 500);
+	// INT2_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
+	data = 0b1010;
+	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INT2_IO_CTRL, &data, 1, 500);
+	// INT_LATCH: int_latch(0)
+	data = 0x00;
+	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INT_LATCH, &data, 1, 500);
 
 	// test read
 	uint8_t buf[12];
@@ -100,6 +113,12 @@ int gyroInit()
 		Serial.print(" ");
 	}
 	return 0;
+}
+
+// read all 6 axes of the BMI270
+void gyroGetData(uint16_t *buf)
+{
+	regRead(SPI_GYRO, PIN_GYRO_CS, GyroReg::ACC_X_LSB, (uint8_t *)buf, 12, 500);
 }
 
 // config file needs to be uploaded to the BMI270 before it can be used

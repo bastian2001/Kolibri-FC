@@ -19,12 +19,23 @@ void setup()
 	gpio_init(PIN_LED_DEBUG);
 	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
 
+	// init speaker
+	initSpeaker();
+
+	// init gyro/accel pointer
+	gyroData = bmiData;
+	accelData = bmiData + 3;
+
+	// init ESCs
+	initESCs();
+
 	Serial.println("Setup complete");
-	delay(10);
+	// startBootupSound(); //annoying during development
 }
 
-elapsedMillis timer;
 elapsedMillis activityTimer;
+elapsedMillis gyroTimer;
+uint8_t gyroLastState = 0;
 void loop()
 {
 	if (activityTimer > 500)
@@ -33,15 +44,16 @@ void loop()
 		activityTimer = 0;
 	}
 	ELRS->loop();
-	if (timer > 10)
+	speakerLoop();
+	uint8_t gpio_state = digitalRead(PIN_GYRO_INT1);
+	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
+	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
+	if (gpio_state != gyroLastState)
 	{
-		// print all ELRS channels
-		for (int i = 0; i < 12; i++)
+		gyroLastState = gpio_state;
+		if (gpio_state == 1)
 		{
-			Serial.printf("%d ", ELRS->channels[i]);
+			pidLoop();
 		}
-		Serial.printf("\t%d %d", ELRS->errorCount, ELRS->msgCount);
-		Serial.println();
-		timer = 0;
 	}
 }

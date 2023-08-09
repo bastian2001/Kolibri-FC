@@ -10,6 +10,9 @@
 #include <vector>
 #include "elapsedMillis.h"
 #include "drivers/elrs.h"
+#include "drivers/speaker.h"
+#include "pid.h"
+#include "drivers/esc.h"
 
 #define SPI_GYRO spi0
 
