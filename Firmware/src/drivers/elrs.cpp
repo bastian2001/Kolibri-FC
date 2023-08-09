@@ -101,64 +101,55 @@ void ExpressLRS::processMessage()
 		}
 		// crsf_channels_t *crsfChannels = (crsf_channels_t *)(&msgBuffer[3]); // somehow conversion through bit-fields does not work, so manual conversion
 		uint32_t decoder = msgBuffer[3] | (msgBuffer[4] << 8) | (msgBuffer[5] << 16) | (msgBuffer[6] << 24);
-		channels[0] = (decoder >> 0) & 0x7FF;  // 0...10
-		channels[1] = (decoder >> 11) & 0x7FF; // 11...21
-		decoder >>= 16;						   // 16
+		uint8_t pChannels[16];
+		pChannels[0] = (decoder >> 0) & 0x7FF;	// 0...10
+		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
+		decoder >>= 16;							// 16
 		decoder |= (msgBuffer[7] << 16);
 		decoder |= (msgBuffer[8] << 24);
-		channels[2] = (decoder >> 6) & 0x7FF;  // 22...32
-		channels[3] = (decoder >> 17) & 0x7FF; // 33...43
-		decoder >>= 24;						   // 40
+		pChannels[2] = (decoder >> 6) & 0x7FF;	// 22...32
+		pChannels[3] = (decoder >> 17) & 0x7FF; // 33...43
+		decoder >>= 24;							// 40
 		decoder |= (msgBuffer[9] << 8);
 		decoder |= (msgBuffer[10] << 16);
 		decoder |= (msgBuffer[11] << 24);
-		channels[4] = (decoder >> 4) & 0x7FF;  // 44...54
-		channels[5] = (decoder >> 15) & 0x7FF; // 55...65
-		decoder >>= 16;						   // 56
+		pChannels[4] = (decoder >> 4) & 0x7FF;	// 44...54
+		pChannels[5] = (decoder >> 15) & 0x7FF; // 55...65
+		decoder >>= 16;							// 56
 		decoder |= (msgBuffer[12] << 16);
 		decoder |= (msgBuffer[13] << 24);
-		channels[6] = (decoder >> 10) & 0x7FF; // 66...76
-		channels[7] = (decoder >> 21) & 0x7FF; // 77...87
-		decoder = 0;						   // 88, aka shift right by 32 bits
+		pChannels[6] = (decoder >> 10) & 0x7FF; // 66...76
+		pChannels[7] = (decoder >> 21) & 0x7FF; // 77...87
+		decoder = 0;							// 88, aka shift right by 32 bits
 		decoder |= (msgBuffer[14] << 0);
 		decoder |= (msgBuffer[15] << 8);
 		decoder |= (msgBuffer[16] << 16);
 		decoder |= (msgBuffer[17] << 24);
-		channels[8] = (decoder >> 0) & 0x7FF;  // 88...98
-		channels[9] = (decoder >> 11) & 0x7FF; // 99...109
-		decoder >>= 16;						   // 104
+		pChannels[8] = (decoder >> 0) & 0x7FF;	// 88...98
+		pChannels[9] = (decoder >> 11) & 0x7FF; // 99...109
+		decoder >>= 16;							// 104
 		decoder |= (msgBuffer[18] << 16);
 		decoder |= (msgBuffer[19] << 24);
-		channels[10] = (decoder >> 6) & 0x7FF;	// 110...120
-		channels[11] = (decoder >> 17) & 0x7FF; // 121...131
-		decoder >>= 24;							// 128
+		pChannels[10] = (decoder >> 6) & 0x7FF;	 // 110...120
+		pChannels[11] = (decoder >> 17) & 0x7FF; // 121...131
+		decoder >>= 24;							 // 128
 		decoder |= (msgBuffer[20] << 8);
 		decoder |= (msgBuffer[21] << 16);
 		decoder |= (msgBuffer[22] << 24);
-		channels[12] = (decoder >> 4) & 0x7FF;	// 132...142
-		channels[13] = (decoder >> 15) & 0x7FF; // 143...153
-		decoder >>= 16;							// 144
+		pChannels[12] = (decoder >> 4) & 0x7FF;	 // 132...142
+		pChannels[13] = (decoder >> 15) & 0x7FF; // 143...153
+		decoder >>= 16;							 // 144
 		decoder |= (msgBuffer[23] << 16);
 		decoder |= (msgBuffer[24] << 24);
-		channels[14] = (decoder >> 10) & 0x7FF; // 154...164
-		channels[15] = (decoder >> 21) & 0x7FF; // 165...175
+		pChannels[14] = (decoder >> 10) & 0x7FF; // 154...164
+		pChannels[15] = (decoder >> 21) & 0x7FF; // 165...175
 
-		// if (++counter == 30)
-		// {
-		// 	counter = 0;
-		// 	for (int i = 3; i < 25; i++)
-		// 	{
-		// 		for (int j = 7; j >= 0; j--)
-		// 		{
-		// 			// Serial.printf("%d", (msgBuffer[i] >> j) & 1);
-		// 		}
-		// 		// Serial.print(" ");
-		// 	}
-		// 	// Serial.println();
-		// }
-		// map channels to 1000-2000
+		// map pChannels to 1000-2000
 		for (uint8_t i = 0; i < 16; i++)
-			channels[i] = map(channels[i], 172, 1811, 988, 2012);
+			pChannels[i] = map(pChannels[i], 172, 1811, 988, 2012);
+		// update as fast as possible
+		for (uint8_t i = 0; i < 16; i++)
+			this->channels[i] = pChannels[i];
 		break;
 	}
 	case DEVICE_PING:
