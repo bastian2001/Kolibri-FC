@@ -7,5 +7,10 @@
 #include "pins.h"
 #include "elapsedMillis.h"
 #include "drivers/gyro.h"
+#include <vector>
+#include "elapsedMillis.h"
+#include "drivers/elrs.h"
 
 #define SPI_GYRO spi0
+
+extern ExpressLRS *ELRS;
