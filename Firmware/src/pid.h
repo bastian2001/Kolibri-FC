@@ -1,8 +1,11 @@
 #pragma once
 #include <Arduino.h>
 
-extern uint16_t bmiData[6];
-extern uint16_t *gyroData;
-extern uint16_t *accelData;
+extern int16_t bmiDataRaw[6];
+extern int16_t *gyroDataRaw;
+extern int16_t *accelDataRaw;
+extern int32_t imuData[6];
 
 void pidLoop();
+
+void initPID();

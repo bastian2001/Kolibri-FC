@@ -45,29 +45,14 @@ uint16_t appendChecksum(uint16_t data)
 	return (data << 4) | csum;
 }
 
-elapsedMillis motorOutputTimer = 0;
-bool sendOut = false;
 void sendThrottles(uint16_t throttles[4])
 {
-	if (motorOutputTimer > 250)
-	{
-		motorOutputTimer = 0;
-		sendOut = true;
-	}
 	for (int i = 0; i < 4; i++)
 	{
 		throttles[i] = constrain(throttles[i], 0, 2000);
 		if (throttles[i])
 			throttles[i] += 47;
-		throttles[i] = appendChecksum(throttles[i] << 1);
-		if (sendOut)
-		{
-			Serial.printf("Motor %d: %04X\t", i, throttles[i]);
-		}
-	}
-	if (sendOut)
-	{
-		Serial.println();
+		throttles[i] = appendChecksum(throttles[i] << 1 | 0);
 	}
 	motorPacket[0] = 0;
 	motorPacket[1] = 0;
@@ -80,9 +65,4 @@ void sendThrottles(uint16_t throttles[4])
 	}
 	pio_sm_put(escPio, escSm, motorPacket[0]);
 	pio_sm_put(escPio, escSm, motorPacket[1]);
-	if (sendOut)
-	{
-		Serial.printf("Motor packet: %08X %08X\n", motorPacket[0], motorPacket[1]);
-	}
-	sendOut = false;
 }

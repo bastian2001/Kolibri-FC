@@ -116,7 +116,7 @@ int gyroInit()
 }
 
 // read all 6 axes of the BMI270
-void gyroGetData(uint16_t *buf)
+void gyroGetData(int16_t *buf)
 {
 	regRead(SPI_GYRO, PIN_GYRO_CS, GyroReg::ACC_X_LSB, (uint8_t *)buf, 12, 500);
 }

@@ -44,6 +44,10 @@ void ExpressLRS::loop()
 	}
 	if (msgBufIndex >= 2 + msgBuffer[1] && msgBuffer[0] == RX_PREFIX)
 		processMessage();
+	if (sinceLastRCMessage > 500000)
+	{ // 500ms
+		armed = false;
+	}
 }
 
 // from https://github.com/catphish/openuav/blob/master/firmware/src/elrs.c
@@ -164,14 +168,32 @@ void ExpressLRS::processMessage()
 		pChannels[14] = (decoder >> 10) & 0x7FF; // 154...164
 		pChannels[15] = (decoder >> 21) & 0x7FF; // 165...175
 
-		// map pChannels to 1000-2000
-		for (uint8_t i = 0; i < 16; i++)
-			pChannels[i] = map(pChannels[i], 172, 1811, 988, 2012);
+		// map pChannels (joysticks) to 1000-2000
+		for (uint8_t i = 0; i < 4; i++)
+		{
+			pChannels[i] -= 172;
+			pChannels[i] *= 0.610128127f; //(2000-1000)/(1811-172)
+			pChannels[i] += 1000;		  // keep radio commands within 1000-2000
+			pChannels[i] = constrain(pChannels[i], 1000, 2000);
+		}
+		// map pChannels (switches) to 1000-2000
+		for (uint8_t i = 4; i < 16; i++)
+		{
+			pChannels[i] -= 172;
+			pChannels[i] *= 0.624771201f; //(2012-988)/(1811-172)
+			pChannels[i] += 988;
+			pChannels[i] = constrain(pChannels[i], 1000, 2000);
+		}
 
 		// check arming
 		// arming switch and already armed, or arming switch and throttle down (and not armed on boot)
 		if (pChannels[4] > 1500 && ((channels[4] < 1500 && channels[4] > 0 && pChannels[2] < 1020) || armed))
 			armed = true;
+		else if (pChannels[4] > 1500 && channels[4] < 1500)
+		{
+			armed = false;
+			makeSound(2500, 599, 70, 50);
+		}
 		else
 			armed = false;
 

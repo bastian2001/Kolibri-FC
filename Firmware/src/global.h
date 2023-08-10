@@ -13,6 +13,7 @@
 #include "drivers/speaker.h"
 #include "pid.h"
 #include "drivers/esc.h"
+#include "ESCPassthrough.h"
 
 #define SPI_GYRO spi0
 
