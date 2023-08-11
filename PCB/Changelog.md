@@ -13,17 +13,19 @@
         - There is only a spot for crystals but not for their capacitors, and the wiring is wrong for use with oscillators
         - Solution: Change wiring for oscillators
     4. No pullup on the CS line for the flash
-        - Solution: Add a pullup resistor to the CS line
+    5. Boot button flipped
 
 ### V0.2 (not finished yet)
 
--   Fixes for all 4 problems with v0.1
+-   Fixes for all 5 problems with v0.1
 -   Same stencil
 -   Improvements:
     -   0402/0201? solder bridges instead of 0603
     -   solder bridge to select 4.5V or 5V for the 4 pin SH1.0 connector
     -   Increased space for some components on the underside
     -   8 layers because that allows for free ENIG finish and POFV at JLCPCB
+    -   combine SPI for OSD and gyro?
+    -   put baro I2C on aux I2C of gyro?
 
 ### V0.3 (lookahead)
 

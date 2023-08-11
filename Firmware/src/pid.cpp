@@ -25,6 +25,7 @@ int32_t imuData[6] = {0, 0, 0, 0, 0, 0};
 int32_t kP = 0;
 int32_t kI = 0;
 int32_t kD = 0;
+int32_t iFalloff = 0;
 
 int32_t rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast;
 int64_t rollErrorSum, pitchErrorSum, yawErrorSum;
@@ -37,10 +38,15 @@ int32_t floatToFixedPoint(float f)
 void initPID()
 {
 	kP = floatToFixedPoint(.01f);
-	kI = floatToFixedPoint(.04f);
+	kI = floatToFixedPoint(.06f);
 	kD = floatToFixedPoint(.1f);
+	iFalloff = floatToFixedPoint(.998f);
 }
 
+int64_t multiply6464(int64_t a, int64_t b) // 48.16 signed multiplication
+{
+	return (int64_t)((a * b) >> 16);
+}
 int32_t multiply64(int64_t a, int64_t b) // 48.16 signed multiplication
 {
 	return (int32_t)((a * b) >> 16);
@@ -83,6 +89,9 @@ void pidLoop()
 		rollError = rollSetpoint - imuData[AXIS_ROLL];
 		pitchError = pitchSetpoint - imuData[AXIS_PITCH];
 		yawError = yawSetpoint - imuData[AXIS_YAW];
+		rollErrorSum = multiply6464(rollErrorSum, iFalloff);
+		pitchErrorSum = multiply6464(pitchErrorSum, iFalloff);
+		yawErrorSum = multiply6464(yawErrorSum, iFalloff);
 		rollErrorSum += rollError;
 		pitchErrorSum += pitchError;
 		yawErrorSum += yawError;
