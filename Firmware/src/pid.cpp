@@ -29,6 +29,7 @@ int32_t iFalloff = 0;
 
 int32_t rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast;
 int64_t rollErrorSum, pitchErrorSum, yawErrorSum;
+int32_t rateFactor;
 
 int32_t floatToFixedPoint(float f)
 {
@@ -37,10 +38,11 @@ int32_t floatToFixedPoint(float f)
 
 void initPID()
 {
-	kP = floatToFixedPoint(.01f);
-	kI = floatToFixedPoint(.06f);
-	kD = floatToFixedPoint(.1f);
-	iFalloff = floatToFixedPoint(.998f);
+	kP = floatToFixedPoint(3);
+	kI = floatToFixedPoint(.01);
+	kD = floatToFixedPoint(1.5);
+	iFalloff = floatToFixedPoint(.998);
+	rateFactor = floatToFixedPoint(1.8); // 900deg per second
 }
 
 int64_t multiply6464(int64_t a, int64_t b) // 48.16 signed multiplication
@@ -86,12 +88,18 @@ void pidLoop()
 		rollSetpoint = ((int32_t)ELRS->channels[0] - 1500) << 16; // 500 deg per second linear range
 		pitchSetpoint = ((int32_t)ELRS->channels[1] - 1500) << 16;
 		yawSetpoint = ((int32_t)ELRS->channels[3] - 1500) << 16;
+		rollSetpoint = multiply(rollSetpoint, rateFactor);
+		pitchSetpoint = multiply(pitchSetpoint, rateFactor);
+		yawSetpoint = multiply(yawSetpoint, rateFactor);
 		rollError = rollSetpoint - imuData[AXIS_ROLL];
 		pitchError = pitchSetpoint - imuData[AXIS_PITCH];
 		yawError = yawSetpoint - imuData[AXIS_YAW];
-		rollErrorSum = multiply6464(rollErrorSum, iFalloff);
-		pitchErrorSum = multiply6464(pitchErrorSum, iFalloff);
-		yawErrorSum = multiply6464(yawErrorSum, iFalloff);
+		if (ELRS->channels[2] < 1020)
+		{
+			rollErrorSum = multiply6464(rollErrorSum, iFalloff);
+			pitchErrorSum = multiply6464(pitchErrorSum, iFalloff);
+			yawErrorSum = multiply6464(yawErrorSum, iFalloff);
+		}
 		rollErrorSum += rollError;
 		pitchErrorSum += pitchError;
 		yawErrorSum += yawError;
@@ -121,9 +129,13 @@ void pidLoop()
 			Serial.printf("\t%d\t%d\t%d\t%d", tRR, tRL, tFR, tFL);
 		}
 #endif
+		throttles[(uint8_t)MOTOR::RR] = map(tRR, 0, 2000, 50, 2000);
 		throttles[(uint8_t)MOTOR::RR] = constrain(tRR, 50, 2000);
+		throttles[(uint8_t)MOTOR::RL] = map(tRL, 0, 2000, 50, 2000);
 		throttles[(uint8_t)MOTOR::RL] = constrain(tRL, 50, 2000);
+		throttles[(uint8_t)MOTOR::FR] = map(tFR, 0, 2000, 50, 2000);
 		throttles[(uint8_t)MOTOR::FR] = constrain(tFR, 50, 2000);
+		throttles[(uint8_t)MOTOR::FL] = map(tFL, 0, 2000, 50, 2000);
 		throttles[(uint8_t)MOTOR::FL] = constrain(tFL, 50, 2000);
 		sendThrottles(throttles);
 		rollLast = imuData[AXIS_ROLL];
