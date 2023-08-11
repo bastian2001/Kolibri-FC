@@ -64,6 +64,7 @@ uint32_t multiply(uint32_t a, uint32_t b) // and unsigned version
 
 elapsedMillis printPidTimer;
 bool printPid = false;
+uint32_t takeoffCounter = 0;
 void pidLoop()
 {
 	printPid = false;
@@ -94,12 +95,17 @@ void pidLoop()
 		rollError = rollSetpoint - imuData[AXIS_ROLL];
 		pitchError = pitchSetpoint - imuData[AXIS_PITCH];
 		yawError = yawSetpoint - imuData[AXIS_YAW];
-		if (ELRS->channels[2] < 1020)
+		if (ELRS->channels[2] > 1020)
+			takeoffCounter++;
+		else if (takeoffCounter < 1000) // 1000 = ca. 0.6s
+			takeoffCounter = 0;			// if the quad hasn't "taken off" yet, reset the counter
+		if (takeoffCounter > 1000)		// disable i term falloff after takeoff
 		{
 			rollErrorSum = multiply6464(rollErrorSum, iFalloff);
 			pitchErrorSum = multiply6464(pitchErrorSum, iFalloff);
 			yawErrorSum = multiply6464(yawErrorSum, iFalloff);
 		}
+
 		rollErrorSum += rollError;
 		pitchErrorSum += pitchError;
 		yawErrorSum += yawError;
@@ -160,5 +166,6 @@ void pidLoop()
 		rollLast = 0;
 		pitchLast = 0;
 		yawLast = 0;
+		takeoffCounter = 0;
 	}
 }
