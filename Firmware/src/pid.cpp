@@ -62,17 +62,9 @@ uint32_t multiply(uint32_t a, uint32_t b) // and unsigned version
 	return (uint32_t)(((uint64_t)a * (uint64_t)b) >> 16);
 }
 
-elapsedMillis printPidTimer;
-bool printPid = false;
 uint32_t takeoffCounter = 0;
 void pidLoop()
 {
-	printPid = false;
-	if (printPidTimer > 200)
-	{
-		printPidTimer = 0;
-		printPid = true;
-	}
 	gyroGetData(bmiDataRaw);
 	for (int i = 0; i < 3; i++)
 	{
@@ -99,7 +91,7 @@ void pidLoop()
 			takeoffCounter++;
 		else if (takeoffCounter < 1000) // 1000 = ca. 0.6s
 			takeoffCounter = 0;			// if the quad hasn't "taken off" yet, reset the counter
-		if (takeoffCounter > 1000)		// disable i term falloff after takeoff
+		if (takeoffCounter < 1000)		// disable i term falloff after takeoff
 		{
 			rollErrorSum = multiply6464(rollErrorSum, iFalloff);
 			pitchErrorSum = multiply6464(pitchErrorSum, iFalloff);
@@ -112,16 +104,8 @@ void pidLoop()
 		int32_t rollTerm = multiply(kP, rollError) + multiply64(kI, rollErrorSum) + multiply(kD, imuData[AXIS_ROLL] - rollLast);
 		int32_t pitchTerm = multiply(kP, pitchError) + multiply64(kI, pitchErrorSum) + multiply(kD, imuData[AXIS_PITCH] - pitchLast);
 		int32_t yawTerm = multiply(kP, yawError) + multiply64(kI, yawErrorSum) + multiply(kD, imuData[AXIS_YAW] - yawLast);
-		if (printPid)
-		{
-			Serial.printf("\tP: %d\tI: %d\tD: %d\tTot: %d", multiply(kP, rollError) >> 16, multiply64(kI, rollErrorSum) >> 16, multiply(kD, imuData[AXIS_ROLL] - rollLast) >> 16, rollTerm >> 16);
-		}
 #ifdef PROPS_OUT
 #else
-		if (printPid)
-		{
-			Serial.printf("\t%d\t%d\t%d\t%d\t%d", rollTerm >> 16, pitchTerm >> 16, yawTerm >> 16, (ELRS->channels[2] - 1000) * 2, (ELRS->channels[2] - 1000) * 2 - (rollTerm >> 16) + (pitchTerm >> 16) - (yawTerm >> 16));
-		}
 		static int32_t tRR; // always recreating variables is slow, but exposing is bad, hence static
 		static int32_t tRL;
 		static int32_t tFR;
@@ -130,10 +114,6 @@ void pidLoop()
 		tFR = (ELRS->channels[2] - 1000) * 2 - (rollTerm >> 16) - (pitchTerm >> 16) + (yawTerm >> 16);
 		tRL = (ELRS->channels[2] - 1000) * 2 + (rollTerm >> 16) + (pitchTerm >> 16) + (yawTerm >> 16);
 		tFL = (ELRS->channels[2] - 1000) * 2 + (rollTerm >> 16) - (pitchTerm >> 16) - (yawTerm >> 16);
-		if (printPid)
-		{
-			Serial.printf("\t%d\t%d\t%d\t%d", tRR, tRL, tFR, tFL);
-		}
 #endif
 		throttles[(uint8_t)MOTOR::RR] = map(tRR, 0, 2000, 50, 2000);
 		throttles[(uint8_t)MOTOR::RR] = constrain(tRR, 50, 2000);
@@ -147,10 +127,6 @@ void pidLoop()
 		rollLast = imuData[AXIS_ROLL];
 		pitchLast = imuData[AXIS_PITCH];
 		yawLast = imuData[AXIS_YAW];
-		if (printPid)
-		{
-			Serial.println();
-		}
 	}
 	else
 	{

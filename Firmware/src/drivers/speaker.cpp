@@ -30,12 +30,23 @@ void startBootupSound()
 	makeSweepSound(1000, 4000, 2000, 300, 100);
 }
 
+uint8_t beeperOn = 0;
 void speakerLoop()
 {
+	if (!beeperOn && ELRS->channels[9] > 1500)
+	{
+		beeperOn = true;
+		makeSweepSound(1000, 5000, 65535, 600, 0);
+	}
+	else if (beeperOn && ELRS->channels[9] <= 1500)
+	{
+		beeperOn = false;
+		stopSound();
+	}
 	if (soundDuration > 0)
 	{
 		uint32_t sinceStart = soundStart;
-		if (sinceStart > soundDuration)
+		if (soundDuration != 65535 && sinceStart > soundDuration)
 		{
 			stopSound();
 		}
