@@ -7,10 +7,13 @@ void setup()
 	Serial.begin(115200);
 	Serial.println("Starting up");
 
-	// initialize the BMI270
+	// initialize the BMI270 and OSD
 	gyroInit();
+	// osdInit();
 
-	// init ELRS
+	initADC();
+
+	// init ELRS on pins 8 and 9 using Serial2 (UART1)
 	ELRS = new ExpressLRS(Serial2, 420000, 8, 9);
 
 	// init LEDs
@@ -19,14 +22,12 @@ void setup()
 	gpio_init(PIN_LED_DEBUG);
 	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
 
-	// init speaker
 	initSpeaker();
 
 	// init gyro/accel pointer
 	gyroDataRaw = bmiDataRaw + 3;
 	accelDataRaw = bmiDataRaw;
 
-	// init ESCs
 	initESCs();
 
 	// init PID constants
@@ -58,4 +59,6 @@ void loop()
 			pidLoop();
 		}
 	}
+	adcLoop();
+	// osdLoop();
 }

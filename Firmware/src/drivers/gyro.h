@@ -59,6 +59,11 @@ enum class GyroReg : uint8_t
 	CMD = 0x7E,
 };
 
+// gyro data, and by extension the PID loop, is the most time-sensitive task.
+// it gets priority, and once the data is read, the flag is set to FFFFFFFF so that
+// other tasks know it's safe to run without impacting the gyro data or PID loop.
+extern uint32_t gyroUpdateFlag;
+
 int gyroInit();
 
 extern const uint8_t bmi270_config_file[8192];

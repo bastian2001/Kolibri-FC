@@ -3,15 +3,16 @@
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
 // adapted from https://www.digikey.de/de/maker/projects/raspberry-pi-pico-rp2040-spi-example-with-micropython-and-cc/9706ea0cf3784ee98e35ff49188ee045
-int regRead(spi_inst_t *spi, const uint cs, const GyroReg reg, uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0)
+int regRead(spi_inst_t *spi, const uint cs, const uint8_t reg, uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0, uint8_t dummy = true)
 {
 	// Construct message (set ~W bit high)
-	uint8_t msg = 0x80 | (uint8_t)reg;
+	uint8_t msg = 0x80 | reg;
 
 	// Read from register
 	gpio_put(cs, 0);
 	spi_write_blocking(spi, &msg, 1);
-	spi_read_blocking(spi, 0, buf, 1); // +1 for dummy byte
+	if (dummy)
+		spi_read_blocking(spi, 0, buf, 1); // +1 for dummy byte
 	int num_bytes_read = spi_read_blocking(spi, 0, buf, nbytes);
 	gpio_put(cs, 1);
 
@@ -20,11 +21,11 @@ int regRead(spi_inst_t *spi, const uint cs, const GyroReg reg, uint8_t *buf, con
 	return num_bytes_read;
 }
 
-int regWrite(spi_inst_t *spi, const uint cs, const GyroReg reg, const uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0)
+int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0)
 {
 	// Write to register
 	gpio_put(cs, 0);
-	spi_write_blocking(spi, (uint8_t *)&reg, 1);
+	spi_write_blocking(spi, &reg, 1);
 	int bytes_written = spi_write_blocking(spi, buf, nbytes);
 	gpio_put(cs, 1);
 	if (delay > 0)
@@ -34,7 +35,7 @@ int regWrite(spi_inst_t *spi, const uint cs, const GyroReg reg, const uint8_t *b
 
 int gyroInit()
 {
-	Serial.println(spi_init(SPI_GYRO, 8000000));
+	spi_init(SPI_GYRO, 8000000);
 
 	spi_set_format(SPI_GYRO, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 	gpio_set_function(PIN_GYRO_MISO, GPIO_FUNC_SPI);
@@ -47,25 +48,24 @@ int gyroInit()
 	gpio_init(PIN_GYRO_INT2);
 	gpio_set_dir(PIN_GYRO_INT2, GPIO_IN);
 	uint8_t data = 0;
-	regRead(SPI_GYRO, PIN_GYRO_CS, GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
+	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
 	data = 0;
-	regRead(SPI_GYRO, PIN_GYRO_CS, GyroReg::CHIP_ID, &data, 1, 2); // read chip id
-	Serial.println(data, HEX);
+	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
 	if (data != 0x24)
 	{
 		Serial.println("Failed to load BMI270, wrong Chip ID"); // chip id should be 0x24
 		return 1;
 	}
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INIT_CTRL, &data, 1, 500);														  // prepare config load
-	Serial.println(regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500)); // load config
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_CTRL, &data, 1, 500);													   // prepare config load
+	Serial.println(regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500)); // load config
 	data = 1;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
 
 	// check initialization status
-	regRead(SPI_GYRO, PIN_GYRO_CS, GyroReg::INTERNAL_STATUS, &data, 1);
+	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INTERNAL_STATUS, &data, 1);
 	if (data & 1 != 1)
 	{
 		return Serial.println("Failed to load BMI270, wrong initialization status"); // initialization status should be 0x01
@@ -75,50 +75,44 @@ int gyroInit()
 	// enable performance mode (p. 22)
 	// PWR_CTRL: temp_en (3) | acc_en (2) | gyr_en (1) | aux_en (0)
 	data = 0b1110; // temp, accel and gyro enabled
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::PWR_CTRL, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::PWR_CTRL, &data, 1, 500);
 	// ACC_CONF: acc_filter_perf (7) | acc_bwp (6...4) | acc_odr (3...0)
 	data = 1 << 7 | 0x02 << 4 | 0x0C; // performance optimized, no averaging, 1600Hz
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::ACC_CONF, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_CONF, &data, 1, 500);
 	// ACC_RANGE: acc_range (1...0)
 	data = 0x03; // +/- 16g
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::ACC_RANGE, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_RANGE, &data, 1, 500);
 	// GYR_CONF: gyr_filter_perf (7) | gyr_noise_perf (6) | gyr_bwp (5...4) | gyr_odr (3...0)
 	data = 1 << 7 | 1 << 6 | 0x02 << 4 | 0x0C; // performance optimized, 1600Hz
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::GYR_CONF, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::GYR_CONF, &data, 1, 500);
 	// GYR_RANGE: ois_range (3) | gyr_range (2...0)
 	data = 0x00; // +/- 2000dps
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::GYR_RANGE, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::GYR_RANGE, &data, 1, 500);
 	data = 0x02;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::PWR_CONF, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::PWR_CONF, &data, 1, 500);
 
 	// INT_MAP_DATA: err_int2, drdy_int2, fwm_int2, ffull_int2, err_int1, drdy_int1, fwm_int1, ffull_int1
 	data = 0b10000100;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INT_MAP_DATA, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT_MAP_DATA, &data, 1, 500);
 	// INT1_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INT1_IO_CTRL, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT1_IO_CTRL, &data, 1, 500);
 	// INT2_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INT2_IO_CTRL, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT2_IO_CTRL, &data, 1, 500);
 	// INT_LATCH: int_latch(0)
 	data = 0x00;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, GyroReg::INT_LATCH, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT_LATCH, &data, 1, 500);
 
-	// test read
-	uint8_t buf[12];
-	regRead(SPI_GYRO, PIN_GYRO_CS, GyroReg::ACC_X_LSB, buf, 12, 500);
-	for (int i = 0; i < 6; i++)
-	{
-		Serial.printf("%04X", ((uint16_t *)buf)[i]);
-		Serial.print(" ");
-	}
 	return 0;
 }
 
+uint32_t gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
 void gyroGetData(int16_t *buf)
 {
-	regRead(SPI_GYRO, PIN_GYRO_CS, GyroReg::ACC_X_LSB, (uint8_t *)buf, 12, 500);
+	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12, 500);
+	gyroUpdateFlag = 0xFFFFFFFF;
 }
 
 // config file needs to be uploaded to the BMI270 before it can be used

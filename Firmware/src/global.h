@@ -13,7 +13,11 @@
 #include "drivers/speaker.h"
 #include "pid.h"
 #include "drivers/esc.h"
+#include "drivers/osd.h"
+#include "adc.h"
+#include "hardware/adc.h"
 
 #define SPI_GYRO spi0
+#define SPI_OSD spi1
 
 extern ExpressLRS *ELRS;
