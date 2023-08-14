@@ -1,6 +1,6 @@
 #include "global.h"
 
-float adcVoltage = 0;
+float adcVoltage = 0, pVoltage = 0;
 elapsedMillis adcTimer = 0;
 
 void initADC()
@@ -19,5 +19,14 @@ void adcLoop()
 		uint16_t raw = adc_read();
 		adcVoltage = (raw - 1930) * (10.f) / (3041 - 1930) + 10;
 		adcVoltage = constrain(adcVoltage, 0, 30);
+		if (pVoltage > 14 && adcVoltage <= 14)
+		{
+			makeSound(5000, 65535, 300, 300);
+		}
+		else if (adcVoltage > 14 && pVoltage <= 14)
+		{
+			stopSound();
+		}
+		pVoltage = adcVoltage;
 	}
 }
