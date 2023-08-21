@@ -168,22 +168,21 @@ void ExpressLRS::processMessage()
 		pChannels[14] = (decoder >> 10) & 0x7FF; // 154...164
 		pChannels[15] = (decoder >> 21) & 0x7FF; // 165...175
 
-		// map pChannels (joysticks) to 1000-2000
-		for (uint8_t i = 0; i < 4; i++)
+		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
+		for (uint8_t i = 0; i < 16; i++)
 		{
-			pChannels[i] -= 172;
-			pChannels[i] *= 0.610128127f; //(2000-1000)/(1811-172)
-			pChannels[i] += 1000;		  // keep radio commands within 1000-2000
-			pChannels[i] = constrain(pChannels[i], 1000, 2000);
-		}
-		// map pChannels (switches) to 1000-2000
-		for (uint8_t i = 4; i < 16; i++)
-		{
-			pChannels[i] -= 172;
-			pChannels[i] *= 0.624771201f; //(2012-988)/(1811-172)
+			if (i == 2)
+				continue;
+			pChannels[i] -= 174;
+			pChannels[i] *= 0.626f; //(2012-988)/(1811-174), scaled so that center = 1500
 			pChannels[i] += 988;
-			pChannels[i] = constrain(pChannels[i], 1000, 2000);
+			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
+		// map pChannels (throttle) to 1000-2000
+		pChannels[2] -= 174;
+		pChannels[2] *= 0.610874f; //(2000-1000)/(1811-174)
+		pChannels[2] += 1000;	   // keep radio commands within 1000-2000
+		pChannels[2] = constrain(pChannels[2], 1000, 2000);
 
 		// check arming
 		// arming switch and already armed, or arming switch and throttle down (and not armed on boot)
@@ -191,6 +190,7 @@ void ExpressLRS::processMessage()
 			armed = true;
 		else if (pChannels[4] > 1500 && channels[4] < 1500)
 		{
+			Serial.println(pChannels[2]);
 			armed = false;
 			makeSound(2500, 599, 70, 50);
 		}
@@ -199,7 +199,10 @@ void ExpressLRS::processMessage()
 
 		// update as fast as possible
 		for (uint8_t i = 0; i < 16; i++)
+		{
+			this->lastChannels[i] = this->channels[i];
 			this->channels[i] = pChannels[i];
+		}
 		break;
 	}
 	case DEVICE_PING:
@@ -229,4 +232,19 @@ void ExpressLRS::processMessage()
 	}
 
 	msgBufIndex = 0;
+}
+
+void ExpressLRS::getSmoothChannels(uint16_t smoothChannels[4])
+{
+	// one new RC message every 4ms = 4000µs, ELRS 250Hz
+	static uint32_t sum[4];
+	int sinceLast = sinceLastRCMessage;
+	if (sinceLast > 4000)
+		sinceLast = 4000;
+	for (int i = 0; i < 4; i++)
+	{
+		sum[i] = sinceLast * channels[i] + (4000 - sinceLast) * lastChannels[i];
+		sum[i] /= 4000;
+		smoothChannels[i] = sum[i];
+	}
 }

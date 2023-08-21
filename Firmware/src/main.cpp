@@ -10,6 +10,7 @@ void setup()
 	// initialize the BMI270 and OSD
 	gyroInit();
 	// osdInit();
+	initBaro();
 
 	initADC();
 
@@ -45,6 +46,11 @@ void loop()
 	{
 		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
 		activityTimer = 0;
+		if (checkBaroFinished()){
+			baroUpdate();
+			Serial.println(baroASL);
+		}
+		startBaroMeasure();
 	}
 	ELRS->loop();
 	speakerLoop();

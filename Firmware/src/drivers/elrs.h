@@ -9,6 +9,8 @@ public:
 	~ExpressLRS();
 	void loop();
 	uint16_t channels[16] = {0};
+	uint16_t lastChannels[16] = {0};
+	void getSmoothChannels(uint16_t smoothChannels[4]); // calculates the sticks' smooth position
 	elapsedMicros sinceLastRCMessage;
 	elapsedMicros sinceLastMessage;
 	bool isLinkUp = false;

@@ -8,6 +8,12 @@ int16_t *accelDataRaw;
 #define AXIS_PITCH 0
 #define AXIS_YAW 2
 
+#define P_SHIFT 11
+#define I_SHIFT 3
+#define D_SHIFT 10
+#define FF_SHIFT D_SHIFT
+#define S_SHIFT 8 // setpoint follow
+
 /*
  * To avoid a lot of floating point math, fixed point math is used.
  * The gyro data is 16 bit, with a range of +/- 2000 degrees per second.
@@ -25,11 +31,13 @@ int32_t imuData[6] = {0, 0, 0, 0, 0, 0};
 int32_t kP = 0;
 int32_t kI = 0;
 int32_t kD = 0;
+int32_t kFF = 0;
+int32_t kS = 0;
 int32_t iFalloff = 0;
 
-int32_t rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast;
+int32_t rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint;
 int64_t rollErrorSum, pitchErrorSum, yawErrorSum;
-int32_t rateFactor;
+int32_t rateFactors[5][3];
 
 int32_t floatToFixedPoint(float f)
 {
@@ -38,11 +46,20 @@ int32_t floatToFixedPoint(float f)
 
 void initPID()
 {
-	kP = floatToFixedPoint(3);
-	kI = floatToFixedPoint(.01);
-	kD = floatToFixedPoint(1.5);
+	kP = 80 << P_SHIFT;
+	kI = 82 << I_SHIFT;
+	kD = 70 << D_SHIFT;
+	kFF = 80 << FF_SHIFT;
+	kS = 25 << S_SHIFT;
 	iFalloff = floatToFixedPoint(.998);
-	rateFactor = floatToFixedPoint(1.8); // 900deg per second
+	for (int i = 0; i < 3; i++)
+	{
+		rateFactors[0][i] = floatToFixedPoint(100); // first order, center rate
+		rateFactors[1][i] = floatToFixedPoint(0);
+		rateFactors[2][i] = floatToFixedPoint(200);
+		rateFactors[3][i] = floatToFixedPoint(0);
+		rateFactors[4][i] = floatToFixedPoint(800);
+	}
 }
 
 int64_t multiply6464(int64_t a, int64_t b) // 48.16 signed multiplication
@@ -70,7 +87,7 @@ void pidLoop()
 	{
 		imuData[i] = (int32_t)gyroDataRaw[i]; // gyro data in range of -.5 ... +.5 due to fixed point math
 		imuData[i] *= 4000;					  // gyro data in range of -2000 ... +2000 (degrees per second)
-		imuData[i + 3] = (int32_t)accelDataRaw[i + 3];
+		imuData[i + 3] = (int32_t)accelDataRaw[i];
 		imuData[i + 3] *= 32;
 	}
 	imuData[AXIS_ROLL] = -imuData[AXIS_ROLL];
@@ -78,12 +95,36 @@ void pidLoop()
 	if (ELRS->armed)
 	{
 		// Quad armed
-		rollSetpoint = ((int32_t)ELRS->channels[0] - 1500) << 16; // 500 deg per second linear range
-		pitchSetpoint = ((int32_t)ELRS->channels[1] - 1500) << 16;
-		yawSetpoint = ((int32_t)ELRS->channels[3] - 1500) << 16;
-		rollSetpoint = multiply(rollSetpoint, rateFactor);
-		pitchSetpoint = multiply(pitchSetpoint, rateFactor);
-		yawSetpoint = multiply(yawSetpoint, rateFactor);
+		static int32_t polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
+		static uint16_t smoothChannels[4];
+		ELRS->getSmoothChannels(smoothChannels);
+		// calculate setpoints
+		polynomials[0][0] = ((int32_t)smoothChannels[0] - 1500) << 7; //-1...+1 in fixed point notation;
+		polynomials[0][1] = ((int32_t)smoothChannels[1] - 1500) << 7;
+		polynomials[0][2] = ((int32_t)smoothChannels[3] - 1500) << 7;
+		/* at full stick deflection, ...Raw values are either +1 or -1. That will make all the
+		 * polynomials also +/-1. Thus, the total rate for each axis is equal to the sum of all 5 rateFactors
+		 * of that axis. The center rate is the ratefactor[x][0].
+		 */
+		for (int i = 1; i < 5; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				polynomials[i][j] = multiply64(polynomials[i - 1][j], polynomials[0][j]);
+				if ((j & 1) && polynomials[0][j] < 0) // on second and fourth order, preserve initial sign
+					polynomials[i][j] *= -1;
+			}
+		}
+		rollSetpoint = 0;
+		pitchSetpoint = 0;
+		yawSetpoint = 0;
+		for (int i = 0; i < 5; i++)
+		{
+			rollSetpoint += multiply(rateFactors[i][0], polynomials[i][0]);
+			pitchSetpoint += multiply(rateFactors[i][1], polynomials[i][1]);
+			yawSetpoint += multiply(rateFactors[i][2], polynomials[i][2]);
+		}
+		// Serial.printf("%d %d %d\n", rollSetpoint >> 16, pitchSetpoint >> 16, yawSetpoint >> 16);
 		rollError = rollSetpoint - imuData[AXIS_ROLL];
 		pitchError = pitchSetpoint - imuData[AXIS_PITCH];
 		yawError = yawSetpoint - imuData[AXIS_YAW];
@@ -91,7 +132,7 @@ void pidLoop()
 			takeoffCounter++;
 		else if (takeoffCounter < 1000) // 1000 = ca. 0.6s
 			takeoffCounter = 0;			// if the quad hasn't "taken off" yet, reset the counter
-		if (takeoffCounter < 1000)		// disable i term falloff after takeoff
+		if (takeoffCounter < 1000)		// enable i term falloff (windup prevention) only before takeoff
 		{
 			rollErrorSum = multiply6464(rollErrorSum, iFalloff);
 			pitchErrorSum = multiply6464(pitchErrorSum, iFalloff);
@@ -101,19 +142,23 @@ void pidLoop()
 		rollErrorSum += rollError;
 		pitchErrorSum += pitchError;
 		yawErrorSum += yawError;
-		int32_t rollTerm = multiply(kP, rollError) + multiply64(kI, rollErrorSum) + multiply(kD, imuData[AXIS_ROLL] - rollLast);
-		int32_t pitchTerm = multiply(kP, pitchError) + multiply64(kI, pitchErrorSum) + multiply(kD, imuData[AXIS_PITCH] - pitchLast);
-		int32_t yawTerm = multiply(kP, yawError) + multiply64(kI, yawErrorSum) + multiply(kD, imuData[AXIS_YAW] - yawLast);
-#ifdef PROPS_OUT
-#else
-		static int32_t tRR; // always recreating variables is slow, but exposing is bad, hence static
+		int32_t rollTerm = multiply(kP, rollError) + multiply64(kI, rollErrorSum) + multiply(kD, imuData[AXIS_ROLL] - rollLast) + multiply(kFF, rollSetpoint - rollLastSetpoint) + multiply(kS, rollSetpoint);
+		int32_t pitchTerm = multiply(kP, pitchError) + multiply64(kI, pitchErrorSum) + multiply(kD, imuData[AXIS_PITCH] - pitchLast) + multiply(kFF, pitchSetpoint - pitchLastSetpoint) + multiply(kS, pitchSetpoint);
+		int32_t yawTerm = multiply(kP, yawError) + multiply64(kI, yawErrorSum) + multiply(kD, imuData[AXIS_YAW] - yawLast) + multiply(kFF, yawSetpoint - yawLastSetpoint) + multiply(kS, yawSetpoint);
+		static int32_t tRR;
 		static int32_t tRL;
 		static int32_t tFR;
 		static int32_t tFL;
-		tRR = (ELRS->channels[2] - 1000) * 2 - (rollTerm >> 16) + (pitchTerm >> 16) - (yawTerm >> 16);
-		tFR = (ELRS->channels[2] - 1000) * 2 - (rollTerm >> 16) - (pitchTerm >> 16) + (yawTerm >> 16);
-		tRL = (ELRS->channels[2] - 1000) * 2 + (rollTerm >> 16) + (pitchTerm >> 16) + (yawTerm >> 16);
-		tFL = (ELRS->channels[2] - 1000) * 2 + (rollTerm >> 16) - (pitchTerm >> 16) - (yawTerm >> 16);
+#ifdef PROPS_OUT
+		tRR = (smoothChannels[2] - 1000) * 2 - (rollTerm >> 16) + (pitchTerm >> 16) + (yawTerm >> 16);
+		tFR = (smoothChannels[2] - 1000) * 2 - (rollTerm >> 16) - (pitchTerm >> 16) - (yawTerm >> 16);
+		tRL = (smoothChannels[2] - 1000) * 2 + (rollTerm >> 16) + (pitchTerm >> 16) - (yawTerm >> 16);
+		tFL = (smoothChannels[2] - 1000) * 2 + (rollTerm >> 16) - (pitchTerm >> 16) + (yawTerm >> 16);
+#else
+		tRR = (smoothChannels[2] - 1000) * 2 - (rollTerm >> 16) + (pitchTerm >> 16) - (yawTerm >> 16);
+		tFR = (smoothChannels[2] - 1000) * 2 - (rollTerm >> 16) - (pitchTerm >> 16) + (yawTerm >> 16);
+		tRL = (smoothChannels[2] - 1000) * 2 + (rollTerm >> 16) + (pitchTerm >> 16) + (yawTerm >> 16);
+		tFL = (smoothChannels[2] - 1000) * 2 + (rollTerm >> 16) - (pitchTerm >> 16) - (yawTerm >> 16);
 #endif
 		throttles[(uint8_t)MOTOR::RR] = map(tRR, 0, 2000, 50, 2000);
 		throttles[(uint8_t)MOTOR::RR] = constrain(tRR, 50, 2000);
@@ -127,6 +172,9 @@ void pidLoop()
 		rollLast = imuData[AXIS_ROLL];
 		pitchLast = imuData[AXIS_PITCH];
 		yawLast = imuData[AXIS_YAW];
+		rollLastSetpoint = rollSetpoint;
+		pitchLastSetpoint = pitchSetpoint;
+		yawLastSetpoint = yawSetpoint;
 	}
 	else
 	{
@@ -135,7 +183,6 @@ void pidLoop()
 		for (int i = 0; i < 4; i++)
 			throttles[i] = 0;
 		sendThrottles(throttles);
-		ELRS->armed = false;
 		rollErrorSum = 0;
 		pitchErrorSum = 0;
 		yawErrorSum = 0;

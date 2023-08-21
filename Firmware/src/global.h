@@ -16,8 +16,11 @@
 #include "drivers/osd.h"
 #include "adc.h"
 #include "hardware/adc.h"
+#include "drivers/baro.h"
+#include "hardware/i2c.h"
 
 #define SPI_GYRO spi0
 #define SPI_OSD spi1
+#define BARO_I2C i2c1
 
 extern ExpressLRS *ELRS;
