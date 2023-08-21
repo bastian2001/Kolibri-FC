@@ -11,21 +11,20 @@
         - Solution: Place the diode in the correct spot on both bucks
     3. Oscillators
         - There is only a spot for crystals but not for their capacitors, and the wiring is wrong for use with oscillators
-        - Solution: Change wiring for oscillators
+        - Solution: Change wiring for oscillator for the RP2040
     4. No pullup on the CS line for the flash
     5. Boot button flipped
 
 ### V0.2 (not finished yet)
 
+-   Goal: A working PCB with some tests to make v0.3 the first final version
+    -   It uses the same stencil as v0.1, hence I had to make some compromises with regards to routing and other best practices. I didn't want to spend another 15$ on a stencil, when PCBs are so cheap in comparison.
 -   Fixes for all 5 problems with v0.1
 -   Same stencil
 -   Improvements:
-    -   0402/0201? solder bridges instead of 0603
-    -   solder bridge to select 4.5V or 5V for the 4 pin SH1.0 connector
-    -   Increased space for some components on the underside
+    -   0402 solder bridges instead of 0603
     -   8 layers because that allows for free ENIG finish and POFV at JLCPCB
-    -   combine SPI for OSD and gyro?
-    -   put baro I2C on aux I2C of gyro?
+    -   put baro I2C on aux I2C of gyro? => Solder bridge to test this out
 
 ### V0.3 (lookahead)
 
