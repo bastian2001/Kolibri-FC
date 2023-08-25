@@ -3,7 +3,8 @@
 elapsedMillis baroStarted = 0;
 bool baroMeasuring = false;
 
-int16_t baroASL = 0;
+int16_t baroASL = 0, baroATO; // above sea level, above takeoff
+int16_t takeoffOffset = 0;
 float baroPres = 0;
 uint8_t baroTemp = 0;
 bool baroDataReady = false;
@@ -37,6 +38,11 @@ bool checkBaroFinished()
 	return baroDataReady;
 }
 
+void baroSetOffset()
+{
+	takeoffOffset = baroASL;
+}
+
 void baroUpdate()
 {
 	if (!baroDataReady)
@@ -61,4 +67,19 @@ void baroUpdate()
 		baroASL = -16.087f * baroPres + 14146.f;
 	}
 	baroDataReady = false;
+}
+
+bool startBaro = false;
+void baroLoop()
+{
+	if (startBaro)
+	{
+		startBaro = false;
+		startBaroMeasure();
+	}
+	if (checkBaroFinished())
+	{
+		baroUpdate();
+		startBaro = true;
+	}
 }

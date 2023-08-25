@@ -187,7 +187,13 @@ void ExpressLRS::processMessage()
 		// check arming
 		// arming switch and already armed, or arming switch and throttle down (and not armed on boot)
 		if (pChannels[4] > 1500 && ((channels[4] < 1500 && channels[4] > 0 && pChannels[2] < 1020) || armed))
+		{
+			if (!armed)
+			{
+				startLogging();
+			}
 			armed = true;
+		}
 		else if (pChannels[4] > 1500 && channels[4] < 1500)
 		{
 			Serial.println(pChannels[2]);
@@ -196,6 +202,11 @@ void ExpressLRS::processMessage()
 		}
 		else
 			armed = false;
+		if (pChannels[4] < 1500 && channels[4] > 1500)
+		{
+			// disarming
+			endLogging();
+		}
 
 		// update as fast as possible
 		for (uint8_t i = 0; i < 16; i++)

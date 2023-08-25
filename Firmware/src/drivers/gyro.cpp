@@ -33,6 +33,22 @@ int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *b
 	return bytes_written;
 }
 
+uint8_t gyroLastState = 0;
+void gyroLoop()
+{
+	uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
+	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
+	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
+	if (gpioState != gyroLastState)
+	{
+		gyroLastState = gpioState;
+		if (gpioState == 1)
+		{
+			pidLoop();
+		}
+	}
+}
+
 int gyroInit()
 {
 	spi_init(SPI_GYRO, 8000000);
@@ -83,7 +99,7 @@ int gyroInit()
 	data = 0x03; // +/- 16g
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_RANGE, &data, 1, 500);
 	// GYR_CONF: gyr_filter_perf (7) | gyr_noise_perf (6) | gyr_bwp (5...4) | gyr_odr (3...0)
-	data = 1 << 7 | 1 << 6 | 0x02 << 4 | 0x0C; // performance optimized, 1600Hz
+	data = 1 << 7 | 1 << 6 | 0x02 << 4 | 0x0D; // performance optimized, 1600Hz
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::GYR_CONF, &data, 1, 500);
 	// GYR_RANGE: ois_range (3) | gyr_range (2...0)
 	data = 0x00; // +/- 2000dps

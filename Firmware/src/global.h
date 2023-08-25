@@ -18,6 +18,9 @@
 #include "hardware/adc.h"
 #include "drivers/baro.h"
 #include "hardware/i2c.h"
+#include "LittleFS.h"
+#include "blackbox.h"
+#include "hardware/watchdog.h"
 
 #define SPI_GYRO spi0
 #define SPI_OSD spi1

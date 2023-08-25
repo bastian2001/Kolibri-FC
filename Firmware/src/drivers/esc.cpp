@@ -45,7 +45,7 @@ uint16_t appendChecksum(uint16_t data)
 	return (data << 4) | csum;
 }
 
-void sendThrottles(uint16_t throttles[4])
+void sendThrottles(int16_t throttles[4])
 {
 	for (int i = 0; i < 4; i++)
 	{

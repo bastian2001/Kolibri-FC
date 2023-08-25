@@ -2,12 +2,11 @@
 
 void setup()
 {
-	// delay(10000);
+	delay(5000);
 	set_sys_clock_khz(132000, true);
 	Serial.begin(115200);
 	Serial.println("Starting up");
 
-	// initialize the BMI270 and OSD
 	gyroInit();
 	// osdInit();
 	initBaro();
@@ -30,6 +29,8 @@ void setup()
 	accelDataRaw = bmiDataRaw;
 
 	initESCs();
+	initBlackbox();
+	rp2040.wdt_begin(200);
 
 	// init PID constants
 	initPID();
@@ -39,32 +40,31 @@ void setup()
 }
 
 elapsedMillis activityTimer;
-uint8_t gyroLastState = 0;
 void loop()
 {
+	baroLoop();
+	ELRS->loop();
+	speakerLoop();
+	gyroLoop();
+	adcLoop();
+	// osdLoop();
+	if (Serial.available())
+	{
+		// read letter B and then the blackbox index to print
+		if (Serial.read() == 'B')
+		{
+			delay(1);
+			String s = "";
+			while (Serial.available())
+				s += (char)Serial.read();
+			int i = s.toInt();
+			printLogBin(i);
+		}
+	}
+	rp2040.wdt_reset();
 	if (activityTimer > 500)
 	{
 		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
 		activityTimer = 0;
-		if (checkBaroFinished()){
-			baroUpdate();
-			Serial.println(baroASL);
-		}
-		startBaroMeasure();
 	}
-	ELRS->loop();
-	speakerLoop();
-	uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
-	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
-	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
-	if (gpioState != gyroLastState)
-	{
-		gyroLastState = gpioState;
-		if (gpioState == 1)
-		{
-			pidLoop();
-		}
-	}
-	adcLoop();
-	// osdLoop();
 }

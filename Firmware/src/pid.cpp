@@ -4,15 +4,12 @@ int16_t bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
 int16_t *gyroDataRaw;
 int16_t *accelDataRaw;
 
-#define AXIS_ROLL 1
-#define AXIS_PITCH 0
-#define AXIS_YAW 2
-
 #define P_SHIFT 11
 #define I_SHIFT 3
 #define D_SHIFT 10
 #define FF_SHIFT D_SHIFT
 #define S_SHIFT 8 // setpoint follow
+#define IDLE_PERMILLE 25
 
 /*
  * To avoid a lot of floating point math, fixed point math is used.
@@ -24,7 +21,7 @@ int16_t *accelDataRaw;
  * Accel data is also 16.16 bit fixed point math, just the unit is g.
  */
 
-uint16_t throttles[4] = {0, 0, 0, 0};
+int16_t throttles[4];
 
 int32_t imuData[6] = {0, 0, 0, 0, 0, 0};
 
@@ -37,19 +34,26 @@ int32_t iFalloff = 0;
 
 int32_t rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint;
 int64_t rollErrorSum, pitchErrorSum, yawErrorSum;
-int32_t rateFactors[5][3];
+int32_t rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS;
+int32_t tRR, tRL, tFR, tFL;
 
-int32_t floatToFixedPoint(float f)
+uint32_t pidLoopCounter = 0;
+
+int32_t rateFactors[5][3];
+uint16_t smoothChannels[4];
+
+int32_t
+floatToFixedPoint(float f)
 {
 	return (int32_t)(f * 65536.0f);
 }
 
 void initPID()
 {
-	kP = 80 << P_SHIFT;
-	kI = 82 << I_SHIFT;
-	kD = 70 << D_SHIFT;
-	kFF = 80 << FF_SHIFT;
+	kP = 100 << P_SHIFT;
+	kI = 80 << I_SHIFT;
+	kD = 30 << D_SHIFT;
+	kFF = 100 << FF_SHIFT;
 	kS = 25 << S_SHIFT;
 	iFalloff = floatToFixedPoint(.998);
 	for (int i = 0; i < 3; i++)
@@ -96,7 +100,6 @@ void pidLoop()
 	{
 		// Quad armed
 		static int32_t polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
-		static uint16_t smoothChannels[4];
 		ELRS->getSmoothChannels(smoothChannels);
 		// calculate setpoints
 		polynomials[0][0] = ((int32_t)smoothChannels[0] - 1500) << 7; //-1...+1 in fixed point notation;
@@ -142,13 +145,24 @@ void pidLoop()
 		rollErrorSum += rollError;
 		pitchErrorSum += pitchError;
 		yawErrorSum += yawError;
-		int32_t rollTerm = multiply(kP, rollError) + multiply64(kI, rollErrorSum) + multiply(kD, imuData[AXIS_ROLL] - rollLast) + multiply(kFF, rollSetpoint - rollLastSetpoint) + multiply(kS, rollSetpoint);
-		int32_t pitchTerm = multiply(kP, pitchError) + multiply64(kI, pitchErrorSum) + multiply(kD, imuData[AXIS_PITCH] - pitchLast) + multiply(kFF, pitchSetpoint - pitchLastSetpoint) + multiply(kS, pitchSetpoint);
-		int32_t yawTerm = multiply(kP, yawError) + multiply64(kI, yawErrorSum) + multiply(kD, imuData[AXIS_YAW] - yawLast) + multiply(kFF, yawSetpoint - yawLastSetpoint) + multiply(kS, yawSetpoint);
-		static int32_t tRR;
-		static int32_t tRL;
-		static int32_t tFR;
-		static int32_t tFL;
+		rollP = multiply(kP, rollError);
+		pitchP = multiply(kP, pitchError);
+		yawP = multiply(kP, yawError);
+		rollI = multiply64(kI, rollErrorSum);
+		pitchI = multiply64(kI, pitchErrorSum);
+		yawI = multiply64(kI, yawErrorSum);
+		rollD = multiply(kD, imuData[AXIS_ROLL] - rollLast);
+		pitchD = multiply(kD, imuData[AXIS_PITCH] - pitchLast);
+		yawD = multiply(kD, imuData[AXIS_YAW] - yawLast);
+		rollFF = multiply(kFF, rollSetpoint - rollLastSetpoint);
+		pitchFF = multiply(kFF, pitchSetpoint - pitchLastSetpoint);
+		yawFF = multiply(kFF, yawSetpoint - yawLastSetpoint);
+		rollS = multiply(kS, rollSetpoint);
+		pitchS = multiply(kS, pitchSetpoint);
+		yawS = multiply(kS, yawSetpoint);
+		int32_t rollTerm = rollP + rollI + rollD + rollFF + rollS;
+		int32_t pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
+		int32_t yawTerm = yawP + yawI + yawD + yawFF + yawS;
 #ifdef PROPS_OUT
 		tRR = (smoothChannels[2] - 1000) * 2 - (rollTerm >> 16) + (pitchTerm >> 16) + (yawTerm >> 16);
 		tFR = (smoothChannels[2] - 1000) * 2 - (rollTerm >> 16) - (pitchTerm >> 16) - (yawTerm >> 16);
@@ -160,14 +174,22 @@ void pidLoop()
 		tRL = (smoothChannels[2] - 1000) * 2 + (rollTerm >> 16) + (pitchTerm >> 16) + (yawTerm >> 16);
 		tFL = (smoothChannels[2] - 1000) * 2 + (rollTerm >> 16) - (pitchTerm >> 16) - (yawTerm >> 16);
 #endif
-		throttles[(uint8_t)MOTOR::RR] = map(tRR, 0, 2000, 50, 2000);
-		throttles[(uint8_t)MOTOR::RR] = constrain(tRR, 50, 2000);
-		throttles[(uint8_t)MOTOR::RL] = map(tRL, 0, 2000, 50, 2000);
-		throttles[(uint8_t)MOTOR::RL] = constrain(tRL, 50, 2000);
-		throttles[(uint8_t)MOTOR::FR] = map(tFR, 0, 2000, 50, 2000);
-		throttles[(uint8_t)MOTOR::FR] = constrain(tFR, 50, 2000);
-		throttles[(uint8_t)MOTOR::FL] = map(tFL, 0, 2000, 50, 2000);
-		throttles[(uint8_t)MOTOR::FL] = constrain(tFL, 50, 2000);
+		throttles[(uint8_t)MOTOR::RR] = map(tRR, 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(uint8_t)MOTOR::RL] = map(tRL, 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(uint8_t)MOTOR::FR] = map(tFR, 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(uint8_t)MOTOR::FL] = map(tFL, 0, 2000, IDLE_PERMILLE * 2, 2000);
+		if (throttles[(uint8_t)MOTOR::RR] < IDLE_PERMILLE * 2)
+			throttles[(uint8_t)MOTOR::FL] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RR];
+		if (throttles[(uint8_t)MOTOR::FR] < IDLE_PERMILLE * 2)
+			throttles[(uint8_t)MOTOR::RL] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FR];
+		if (throttles[(uint8_t)MOTOR::RL] < IDLE_PERMILLE * 2)
+			throttles[(uint8_t)MOTOR::FR] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RL];
+		if (throttles[(uint8_t)MOTOR::FL] < IDLE_PERMILLE * 2)
+			throttles[(uint8_t)MOTOR::RR] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FL];
+		throttles[(uint8_t)MOTOR::RR] = constrain(throttles[(uint8_t)MOTOR::RR], IDLE_PERMILLE * 2, 2000);
+		throttles[(uint8_t)MOTOR::FR] = constrain(throttles[(uint8_t)MOTOR::FR], IDLE_PERMILLE * 2, 2000);
+		throttles[(uint8_t)MOTOR::RL] = constrain(throttles[(uint8_t)MOTOR::RL], IDLE_PERMILLE * 2, 2000);
+		throttles[(uint8_t)MOTOR::FL] = constrain(throttles[(uint8_t)MOTOR::FL], IDLE_PERMILLE * 2, 2000);
 		sendThrottles(throttles);
 		rollLast = imuData[AXIS_ROLL];
 		pitchLast = imuData[AXIS_PITCH];
@@ -175,6 +197,9 @@ void pidLoop()
 		rollLastSetpoint = rollSetpoint;
 		pitchLastSetpoint = pitchSetpoint;
 		yawLastSetpoint = yawSetpoint;
+		if ((pidLoopCounter & 1) == 0)
+			writeSingleFrame();
+		pidLoopCounter++;
 	}
 	else
 	{

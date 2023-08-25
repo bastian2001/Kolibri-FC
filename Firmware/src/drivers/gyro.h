@@ -69,3 +69,5 @@ int gyroInit();
 extern const uint8_t bmi270_config_file[8192];
 
 void gyroGetData(int16_t *buf);
+
+void gyroLoop();
