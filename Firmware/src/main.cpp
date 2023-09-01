@@ -8,7 +8,7 @@ void setup()
 	Serial.println("Starting up");
 
 	gyroInit();
-	// osdInit();
+	osdInit();
 	initBaro();
 
 	initADC();
@@ -21,6 +21,7 @@ void setup()
 	gpio_set_dir(PIN_LED_ACTIVITY, GPIO_OUT);
 	gpio_init(PIN_LED_DEBUG);
 	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
+	gpio_put(PIN_LED_DEBUG, 1);
 
 	initSpeaker();
 
@@ -47,19 +48,20 @@ void loop()
 	speakerLoop();
 	gyroLoop();
 	adcLoop();
-	// osdLoop();
+	osdLoop();
 	if (Serial.available())
 	{
 		// read letter B and then the blackbox index to print
-		if (Serial.read() == 'B')
-		{
-			delay(1);
-			String s = "";
-			while (Serial.available())
-				s += (char)Serial.read();
-			int i = s.toInt();
-			printLogBin(i);
-		}
+		// if (Serial.read() == 'B')
+		// {
+		// 	delay(1);
+		// 	String s = "";
+		// 	while (Serial.available())
+		// 		s += (char)Serial.read();
+		// 	int i = s.toInt();
+		// 	printLogBin(i);
+		// }
+		Serial.write(Serial.read());
 	}
 	rp2040.wdt_reset();
 	if (activityTimer > 500)

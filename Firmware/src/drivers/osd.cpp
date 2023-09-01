@@ -58,15 +58,10 @@ void osdLoop()
 			uint8_t data = 0;
 			osdTimer = 0;
 			regRead(SPI_OSD, PIN_OSD_CS, (uint8_t)OSDReg::VM1, &data, 1, 0, 0);
-			Serial.printf("%02X\n", data);
 			if (data && !(data & 0b01100000))
 			{
 				osdReady = true;
 			}
-			if (data & 1)
-				Serial.println("PAL detected");
-			if (data & 2)
-				Serial.println("NTSC detected");
 		}
 	}
 }
