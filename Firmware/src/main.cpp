@@ -2,7 +2,7 @@
 
 void setup()
 {
-	delay(5000);
+	// delay(5000);
 	set_sys_clock_khz(132000, true);
 	Serial.begin(115200);
 	Serial.println("Starting up");
@@ -43,26 +43,13 @@ void setup()
 elapsedMillis activityTimer;
 void loop()
 {
-	baroLoop();
+	// baroLoop();
 	ELRS->loop();
 	speakerLoop();
 	gyroLoop();
 	adcLoop();
 	osdLoop();
-	if (Serial.available())
-	{
-		// read letter B and then the blackbox index to print
-		// if (Serial.read() == 'B')
-		// {
-		// 	delay(1);
-		// 	String s = "";
-		// 	while (Serial.available())
-		// 		s += (char)Serial.read();
-		// 	int i = s.toInt();
-		// 	printLogBin(i);
-		// }
-		Serial.write(Serial.read());
-	}
+	serialLoop();
 	rp2040.wdt_reset();
 	if (activityTimer > 500)
 	{
