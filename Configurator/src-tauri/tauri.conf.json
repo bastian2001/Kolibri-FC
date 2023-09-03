@@ -61,7 +61,9 @@
 				"title": "Kolibri Configurator",
 				"width": 800,
 				"x": -1260,
-				"y": 250
+				"y": 250,
+				"minWidth": 800,
+				"minHeight": 600
 			}
 		]
 	}

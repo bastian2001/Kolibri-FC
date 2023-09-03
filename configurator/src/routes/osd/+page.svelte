@@ -1,0 +1,80 @@
+<script lang="ts">
+	import { invoke } from '@tauri-apps/api';
+	import { onMount, onDestroy } from 'svelte';
+	let cmah = 0;
+	let file = '';
+	const chars = [] as number[][];
+
+	function decode() {
+		const lines = file.split('\n');
+		for (let i = 0; i < lines.length - 1; i++) {
+			//each line has 8 0/1s, and those are one char each
+			const line = lines[i + 1];
+			if (!chars[Math.floor(i / 64)]) chars[Math.floor(i / 64)] = [];
+			chars[Math.floor(i / 64)][i % 64] = parseInt(line, 2);
+			if (!(i % 64)) {
+				console.log(Math.floor(i / 64));
+			}
+		}
+	}
+	function upload() {
+		const slice = [] as number[];
+		slice.push('O'.charCodeAt(0));
+		slice.push('S'.charCodeAt(0));
+		slice.push('D'.charCodeAt(0));
+		slice.push(cmah);
+		slice.push(...chars[cmah].slice(0, 54));
+		invoke('serial_write', { data: slice })
+			.then(() => {
+				console.log('sent', cmah);
+			})
+			.catch((e) => {
+				console.log(e);
+			});
+	}
+	function nextChar() {
+		cmah++;
+	}
+	function nextCharAndUpload() {
+		upload();
+		nextChar();
+	}
+	let int = 0;
+	onMount(() => {
+		int = setInterval(() => {
+			invoke('serial_read')
+				.then((d: unknown) => {
+					//uint8array to string
+					const data = d as number[];
+					let str = '';
+					for (let i = 0; i < data.length; i++) {
+						str += String.fromCharCode(data[i]);
+					}
+					console.log(str);
+				})
+				.catch((e) => {
+					// console.log(e);
+				});
+		}, 100);
+	});
+	onDestroy(() => {
+		clearInterval(int);
+	});
+</script>
+
+<div class="wrapper">
+	<textarea name="font" id="fontInput" cols="30" rows="10" bind:value={file} />
+	<button on:click={() => decode()}>Decode</button>
+	<button on:click={() => upload()}>Upload</button>
+	<button on:click={() => nextChar()}>Next Char</button>
+	<button on:click={() => nextCharAndUpload()}>Upload and next char</button>
+	<p>{cmah}</p>
+	<p>{JSON.stringify(chars[cmah])}</p>
+</div>
+
+<style>
+	button,
+	textarea {
+		color: black;
+	}
+</style>

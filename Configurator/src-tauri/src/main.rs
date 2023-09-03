@@ -49,9 +49,13 @@ fn serial_open(state: tauri::State<'_, MyState>, path: String) -> Result<(), Str
     match port {
         Ok(port) => {
             *state.port.lock().unwrap() = Some(port);
+            println!("Port opened");
             Ok(())
         }
-        Err(e) => Err(format!("{:?}", e)),
+        Err(e) => {
+            println!("{:?}", e);
+            Err(format!("{:?}", e))
+        }
     }
 }
 
@@ -60,7 +64,7 @@ fn serial_read(state: tauri::State<'_, MyState>) -> Result<Vec<u8>, String> {
     let mut port = state.port.lock().unwrap();
     match port.as_mut() {
         Some(port) => {
-            let mut buf: Vec<u8> = vec![0; 100];
+            let mut buf: Vec<u8> = vec![0; 10000];
             match port.read(buf.as_mut_slice()) {
                 Ok(t) => {
                     buf.resize(t, 0);
@@ -86,13 +90,7 @@ fn serial_write(state: tauri::State<'_, MyState>, data: Vec<u8>) -> Result<(), S
 }
 
 #[command]
-fn serial_close(state: tauri::State<'_, MyState>) -> Result<(), String> {
-    let mut port = state.port.lock().unwrap();
-    match port.as_mut() {
-        Some(port) => {
-            //close port by dropping
-			
-        }
-        None => Err("No port open".to_string()),
-    }
+fn serial_close(state: tauri::State<'_, MyState>) {
+    *state.port.lock().unwrap() = None;
+    println!("Port closed");
 }
