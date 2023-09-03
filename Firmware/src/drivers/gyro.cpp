@@ -127,7 +127,7 @@ uint32_t gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
 void gyroGetData(int16_t *buf)
 {
-	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12, 500);
+	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
 	gyroUpdateFlag = 0xFFFFFFFF;
 }
 
