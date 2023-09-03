@@ -33,7 +33,7 @@ void printLogBin(uint8_t logNum)
 	char path[32];
 	logNum %= 100;
 	snprintf(path, 32, "/logs%01d/%01d.rpbb", logNum / 10, logNum % 10);
-	Serial.printf("Printing %s\n", path);
+	// Serial.printf("Printing %s\n", path);
 	rp2040.wdt_reset();
 	File logFile = LittleFS.open(path, "r");
 	if (!logFile)
@@ -90,10 +90,10 @@ void startLogging()
 	};
 	blackboxFile.write(data, 7);
 	uint32_t time = millis();
-	blackboxFile.write((uint8_t *)time, 4); // timestamp unknown
-	blackboxFile.write((uint8_t)0);			// 3200Hz gyro
-	blackboxFile.write((uint8_t)2);			// half rate
-	blackboxFile.write((uint8_t)3);			// 2000deg/sec and 16g
+	blackboxFile.write((uint8_t *)&time, 4); // timestamp unknown
+	blackboxFile.write((uint8_t)0);			 // 3200Hz gyro
+	blackboxFile.write((uint8_t)2);			 // half rate
+	blackboxFile.write((uint8_t)3);			 // 2000deg/sec and 16g
 	blackboxFile.write((uint8_t *)rateFactors, 60);
 	for (int i = 0; i < 3; i++)
 	{
