@@ -40,3 +40,11 @@ void osdLoop();
 void updateElem(OSDElem elem, const char *str);
 
 void placeElem(OSDElem elem, uint8_t x, uint8_t y);
+
+void enableElem(OSDElem elem);
+void disableElem(OSDElem elem);
+
+void disableOSD();
+void enableOSD();
+
+void updateCharacter(uint8_t cmAddr, uint8_t data[54]);
