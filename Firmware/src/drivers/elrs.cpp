@@ -29,7 +29,7 @@ void ExpressLRS::loop()
 		errorFlag = true;
 		errorCount++;
 	}
-	while (elrsSerial.available())
+	for (int i = 0; i < 10 && elrsSerial.available(); i++)
 	{
 		msgBuffer[msgBufIndex++] = elrsSerial.read();
 		if (msgBufIndex > 64)
