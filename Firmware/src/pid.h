@@ -16,6 +16,7 @@ extern int64_t rollErrorSum, pitchErrorSum, yawErrorSum;
 extern uint16_t smoothChannels[4];
 extern int32_t tRR, tRL, tFR, tFL;
 extern int16_t throttles[4];
+extern uint32_t pidLoopCounter;
 
 void pidLoop();
 
