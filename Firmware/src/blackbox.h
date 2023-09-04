@@ -38,7 +38,7 @@
 #define LOG_HEAD_GYRO_ACCEL_RANGE 13
 #define LOG_HEAD_RATE_FACTORS 14
 #define LOG_HEAD_PID_GAINS 74
-#define LOG_HEAD_LOGGED_FIELDS 148
+#define LOG_HEAD_LOGGED_FIELDS 158
 
 extern uint64_t bbFlags;
 extern bool bbLogging;

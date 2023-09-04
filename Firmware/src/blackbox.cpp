@@ -83,7 +83,6 @@ void startLogging()
 	blackboxFile = LittleFS.open(path, "a");
 	if (!blackboxFile)
 		return;
-	Serial.printf("Logging to %s\n", path);
 	bbLogging = true;
 	const uint8_t data[] = {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 0 // magic bytes, version
@@ -106,6 +105,7 @@ void startLogging()
 		blackboxFile.write((uint8_t *)&iFalloff, 4);
 	}
 	blackboxFile.write((uint8_t *)&bbFlags, 8);
+	// 166 bytes header
 }
 
 void endLogging()
