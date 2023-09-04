@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { invoke } from '@tauri-apps/api';
-	import type { t } from '@tauri-apps/api/event-41a9edf5';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
+	import { port } from '../stores';
+	import type { Command } from '../stores';
 
 	let devices: string[] = [];
 
-	let interval: number;
+	let listInterval: number;
 
 	let device = {
 		path: '',
@@ -19,6 +20,8 @@
 		path: string;
 		img?: string;
 	};
+
+	let readInterval = -1;
 
 	const navElements = [
 		{
@@ -39,11 +42,7 @@
 		}
 	] as NavigatorElement[];
 
-	let log = ['test log', 'test log 2'] as string[];
-
-	// port.subscribe((p) => {
-	// 	device = p;
-	// });
+	let log = [] as string[];
 
 	function listDevices() {
 		invoke('serial_list').then((d: unknown) => {
@@ -79,19 +78,63 @@
 	}
 	onMount(() => {
 		listDevices();
-		interval = setInterval(() => {
+		listInterval = setInterval(() => {
 			listDevices();
 		}, 1000);
 	});
 	onDestroy(() => {
-		clearInterval(interval);
+		clearInterval(listInterval);
+		disconnect();
 	});
+	const rxBuf = [] as number[];
+	function serialRead() {
+		invoke('serial_read')
+			.then((d: unknown) => {
+				// console.log(d);
+				rxBuf.push(...(d as number[]));
+			})
+			.catch((e) => {})
+			.finally(() => {
+				if (rxBuf.length < 7) return;
+				if (rxBuf[0] != '_'.charCodeAt(0) || rxBuf[1] != 'K'.charCodeAt(0)) {
+					rxBuf.splice(0, rxBuf.length);
+					return;
+				}
+				const len = rxBuf[2] + rxBuf[3] * 256;
+				if (rxBuf.length < len + 7) return;
+				let checksum = 0;
+				for (let i = 2; i < len + 7; i++) checksum ^= rxBuf[i];
+				if (checksum !== 0) {
+					rxBuf.splice(0, rxBuf.length);
+					return;
+				}
+				const data = rxBuf.slice(6, len + 6);
+				const command = rxBuf[4] + rxBuf[5] * 256;
+				rxBuf.splice(0, len + 7);
+				let dataStr = '';
+				for (let i = 0; i < data.length; i++) {
+					dataStr += String.fromCharCode(data[i]);
+				}
+				let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
+				if (command < 0x4000) cmdType = 'request';
+				else if (command < 0x8000) cmdType = 'response';
+				else if (command < 0xc000) cmdType = 'error';
+				const c: Command = {
+					command,
+					data,
+					dataStr,
+					cmdType,
+					length: len
+				};
+				port.set(c);
+			});
+	}
 	function connect() {
 		if (device.connected) return;
 		invoke('serial_open', { path: device.path })
 			.then(() => {
 				device.connected = true;
-				console.log('connected');
+				readInterval = setInterval(serialRead, 20);
 			})
 			.catch((e) => {
 				console.log(e);
@@ -103,6 +146,8 @@
 		invoke('serial_close').then(() => {
 			device.connected = false;
 		});
+		clearInterval(readInterval);
+		readInterval = -1;
 	}
 </script>
 
