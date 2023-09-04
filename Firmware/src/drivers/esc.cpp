@@ -45,14 +45,15 @@ uint16_t appendChecksum(uint16_t data)
 	return (data << 4) | csum;
 }
 
-void sendThrottles(int16_t throttles[4])
+void sendThrottles(const int16_t throttles[4])
 {
+	static uint16_t t[4] = {0, 0, 0, 0};
 	for (int i = 0; i < 4; i++)
 	{
-		throttles[i] = constrain(throttles[i], 0, 2000);
-		if (throttles[i])
-			throttles[i] += 47;
-		throttles[i] = appendChecksum(throttles[i] << 1 | 0);
+		t[i] = constrain(throttles[i], 0, 2000);
+		if (t[i])
+			t[i] += 47;
+		t[i] = appendChecksum(throttles[i] << 1 | 0);
 	}
 	motorPacket[0] = 0;
 	motorPacket[1] = 0;
