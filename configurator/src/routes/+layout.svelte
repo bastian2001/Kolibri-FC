@@ -130,7 +130,6 @@
 			});
 	}
 	function connect() {
-		if (device.connected) return;
 		invoke('serial_open', { path: device.path })
 			.then(() => {
 				device.connected = true;
@@ -142,7 +141,6 @@
 			});
 	}
 	function disconnect() {
-		if (!device.connected) return;
 		invoke('serial_close').then(() => {
 			device.connected = false;
 		});
@@ -197,9 +195,10 @@
 
 <style>
 	.main {
-		display: grid;
-		grid-template-rows: 0fr 1fr 0fr;
-		height: 100%;
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+		overflow: hidden;
 	}
 
 	.header {
@@ -287,5 +286,10 @@
 		flex-grow: 1;
 		height: 100%;
 		box-sizing: border-box;
+	}
+	.pageContent {
+		flex-shrink: 1;
+		flex-grow: 1;
+		overflow: hidden;
 	}
 </style>

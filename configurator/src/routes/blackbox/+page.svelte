@@ -5,9 +5,12 @@
 	const ACC_RANGES = [2, 4, 8, 16];
 	const GYRO_RANGES = [2000, 1000, 500, 250, 125];
 
+	let dataViewer: HTMLDivElement;
+
 	let logNums = [] as { text: string; num: number }[];
 	type BBLog = {
 		frameCount: number;
+		rawFile: number[];
 		flags: string[];
 		frames: LogFrame[];
 		version: number[];
@@ -370,7 +373,8 @@
 				frequencyDivider: freqDiv,
 				rateFactors,
 				pidConstants,
-				framesPerSecond
+				framesPerSecond,
+				rawFile: binFile
 			};
 			resolveWhenReady(result);
 		}
@@ -449,7 +453,25 @@
 			console.log(data);
 		});
 	}
-	function downloadLog() {}
+	function prefixZeros(num: number, totalDigits: number) {
+		let str = num.toString();
+		while (str.length < totalDigits) str = '0' + str;
+		return str;
+	}
+	function downloadLog(type: 'rpbb' | 'json' = 'rpbb') {
+		getLog(selected).then((data) => {
+			const file = data.rawFile;
+			const blob = new Blob([new Uint8Array(file)], { type: 'application/octet-stream' });
+			const blobJSON = new Blob([JSON.stringify(data)], { type: 'application/json' });
+			const url = URL.createObjectURL(type === 'json' ? blobJSON : blob);
+			//download file
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `blackbox-${prefixZeros(selected, 2)}-${data.startTime}.${type}`;
+			a.click();
+			URL.revokeObjectURL(url);
+		});
+	}
 	function getLog(num: number): Promise<BBLog> {
 		port.sendCommand(ConfigCmd.BB_FILE_DOWNLOAD, [num]);
 		return new Promise((resolve, reject) => {
@@ -463,6 +485,14 @@
 
 	onMount(() => {
 		port.sendCommand(ConfigCmd.BB_FILE_LIST).catch(console.error);
+		dataViewer = document.getElementsByClassName('dataViewerWrapper')[0] as HTMLDivElement;
+		function onResize() {
+			const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+			canvas.height = dataViewer.clientHeight;
+			canvas.width = dataViewer.clientWidth;
+		}
+		window.addEventListener('resize', onResize);
+		onResize();
 	});
 	onDestroy(() => {});
 </script>
@@ -475,17 +505,22 @@
 			{/each}
 		</select>
 		<button on:click={() => openLog()}>Open</button>
-		<button on:click={() => downloadLog()}>Download</button>
+		<button on:click={() => downloadLog()}>Download BIN</button>
+		<button on:click={() => downloadLog('json')}>Download JSON</button>
 		<button on:click={() => deleteLog()}>Delete</button>
 		<button on:click={() => formatBB()}>Format</button>
 	</div>
-	<div class="dataViewer">Data Viewer</div>
+	<div class="dataViewerWrapper">
+		<canvas id="bbDataViewer" />
+	</div>
 </div>
 
 <style>
 	.blackbox {
 		width: 100%;
 		height: 100%;
+		display: grid;
+		grid-template-rows: 0fr 1fr;
 	}
 
 	.selector {
@@ -519,5 +554,10 @@
 		color: var(--text-color);
 		outline: none;
 		margin-left: 0.8rem;
+	}
+	canvas {
+		height: 100%;
+		width: 100%;
+		display: block;
 	}
 </style>
