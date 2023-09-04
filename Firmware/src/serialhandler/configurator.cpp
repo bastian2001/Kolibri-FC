@@ -70,23 +70,28 @@ void handleConfigCmd()
 			sendCommand(configMsgCommand | 0x8000, "File not found", strlen("File not found"));
 			break;
 		}
-		uint8_t buffer[1024];
+		uint8_t buffer[1027];
 		buffer[0] = fileNum;
 		uint16_t chunkNum = 0;
-		buffer[1] = chunkNum & 0xFF;
-		buffer[2] = chunkNum >> 8;
-		size_t bytesRead = logFile.read(buffer + 3, 1024 - 3);
+		size_t bytesRead;
 		while (bytesRead > 0)
 		{
-			chunkNum++;
+			rp2040.wdt_reset();
+			bytesRead = logFile.read(buffer + 3, 1024);
 			buffer[1] = chunkNum & 0xFF;
 			buffer[2] = chunkNum >> 8;
-			rp2040.wdt_reset();
 			sendCommand(configMsgCommand | 0x4000, (char *)buffer, bytesRead + 3);
 			Serial.flush();
-			bytesRead = logFile.read(buffer + 3, 1024 - 3);
+			chunkNum++;
 		}
 		logFile.close();
+		// finish frame includes 0xFFFF as chunk number, and then the actual max chunk number
+		buf[0] = fileNum;
+		buf[1] = 0xFF;
+		buf[2] = 0xFF;
+		buf[3] = chunkNum & 0xFF;
+		buf[4] = chunkNum >> 8;
+		sendCommand(configMsgCommand | 0x4000, buf, 5);
 	}
 	break;
 	case ConfigCmd::BB_FILE_DELETE:
@@ -134,18 +139,22 @@ void handleConfigCmd()
 			buffer[index++] = (logFile.size() >> 8) & 0xFF;
 			buffer[index++] = (logFile.size() >> 16) & 0xFF;
 			buffer[index++] = (logFile.size() >> 24) & 0xFF;
-			logFile.seek(4, SeekSet);
+			logFile.seek(LOG_HEAD_BB_VERSION, SeekSet);
 			// version, timestamp, pid and divider can directly be read from the file
 			for (int i = 0; i < 9; i++)
 				buffer[index++] = logFile.read();
-			logFile.seek(145, SeekCur);
+			logFile.seek(LOG_HEAD_LOGGED_FIELDS, SeekSet);
 			// flags
 			for (int i = 0; i < 8; i++)
 				buffer[index++] = logFile.read();
+			logFile.close();
 		}
 		sendCommand(configMsgCommand | 0x4000, (char *)buffer, index);
 	}
 	break;
+	case ConfigCmd::BB_FORMAT:
+		LittleFS.format();
+		break;
 	case ConfigCmd::WRITE_OSD_FONT_CHARACTER:
 		break;
 	default:
@@ -189,5 +198,6 @@ void configuratorHandleByte(uint8_t c, uint8_t _serialNum)
 			return;
 		}
 		handleConfigCmd();
+		configSerialBufferIndex = 0;
 	}
 }
