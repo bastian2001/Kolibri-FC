@@ -181,7 +181,6 @@ int handleFile(const string fname, bool print)
 		cout << "Error opening file \"" << fname << "\", terminating\n";
 		return 2;
 	}
-	file.ignore(23);
 
 	uint32_t magic = readUInt32();
 	bool b = magic == 0x99A12720;
@@ -272,7 +271,6 @@ int handleFile(const string fname, bool print)
 	int pos = file.tellg();
 	file.seekg(0, ios::end);
 	int end = file.tellg();
-	end -= 30;
 	end -= pos;
 	int frameCount = end / dataFrameLength;
 	if (print)
