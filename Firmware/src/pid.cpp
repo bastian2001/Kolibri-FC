@@ -96,8 +96,14 @@ void pidLoop()
 	}
 	imuData[AXIS_ROLL] = -imuData[AXIS_ROLL];
 	imuData[AXIS_YAW] = -imuData[AXIS_YAW];
+
 	if (ELRS->armed)
 	{
+		if ((pidLoopCounter % BB_FREQ_DIVIDER) == 0)
+		{
+			// Serial.printf("%8d %8d %8d\n", imuData[AXIS_ROLL] >> 16, imuData[AXIS_PITCH] >> 16, imuData[AXIS_YAW] >> 16);
+			// Serial.printf("%04X %04X %04X\n", gyroDataRaw[AXIS_ROLL], gyroDataRaw[AXIS_PITCH], gyroDataRaw[AXIS_YAW]);
+		}
 		// Quad armed
 		static int32_t polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
 		ELRS->getSmoothChannels(smoothChannels);
@@ -197,7 +203,7 @@ void pidLoop()
 		rollLastSetpoint = rollSetpoint;
 		pitchLastSetpoint = pitchSetpoint;
 		yawLastSetpoint = yawSetpoint;
-		if ((pidLoopCounter & 1) == 0)
+		if ((pidLoopCounter % BB_FREQ_DIVIDER) == 0)
 			writeSingleFrame();
 		pidLoopCounter++;
 	}

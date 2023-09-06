@@ -1,6 +1,6 @@
 # Blackbox
 
-The blackbox is being logged on the LittleFS of the flash chip. Blackbox files end in .rpbb.
+The blackbox is being logged on the LittleFS of the flash chip. Blackbox files end in .kbb.
 The format is binary, and the first 4 bytes are the magic sequence 0x20, 0x27, 0xA1, 0x99, the next 3 bytes indicate the used blackbox format version (binary).
 Magic bytes have the advantage of being able to indicate (not verify) the file type. Many formats use it, e.g. images.
 

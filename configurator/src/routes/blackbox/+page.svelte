@@ -458,19 +458,21 @@
 		while (str.length < totalDigits) str = '0' + str;
 		return str;
 	}
-	function downloadLog(type: 'rpbb' | 'json' = 'rpbb') {
-		getLog(selected).then((data) => {
-			const file = data.rawFile;
-			const blob = new Blob([new Uint8Array(file)], { type: 'application/octet-stream' });
-			const blobJSON = new Blob([JSON.stringify(data)], { type: 'application/json' });
-			const url = URL.createObjectURL(type === 'json' ? blobJSON : blob);
-			//download file
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `blackbox-${prefixZeros(selected, 2)}-${data.startTime}.${type}`;
-			a.click();
-			URL.revokeObjectURL(url);
-		});
+	function downloadLog(type: 'kbb' | 'json' = 'kbb') {
+		getLog(selected)
+			.then((data) => {
+				const file = data.rawFile;
+				const blob = new Blob([new Uint8Array(file)], { type: 'application/octet-stream' });
+				const blobJSON = new Blob([JSON.stringify(data)], { type: 'application/json' });
+				const url = URL.createObjectURL(type === 'json' ? blobJSON : blob);
+				//download file
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `blackbox-${prefixZeros(selected, 2)}-${data.startTime}.${type}`;
+				a.click();
+				URL.revokeObjectURL(url);
+			})
+			.catch(console.error);
 	}
 	function getLog(num: number): Promise<BBLog> {
 		port.sendCommand(ConfigCmd.BB_FILE_DOWNLOAD, [num]);

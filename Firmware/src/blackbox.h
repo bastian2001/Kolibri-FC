@@ -45,11 +45,15 @@ extern bool bbLogging;
 extern FSInfo64 fs_info;
 extern elapsedMillis infoAge;
 
+#define BB_FREQ_DIVIDER 2
+
 void initBlackbox();
 
 void startLogging();
 
 void endLogging();
+
+bool clearBlackbox();
 
 void writeSingleFrame();
 

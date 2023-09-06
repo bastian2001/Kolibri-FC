@@ -1,7 +1,7 @@
 const fs = require("fs").promises
 const path = require("path")
 //read file from variable fileName, and decode
-const fileName = path.resolve(__dirname, "36.rpbb.txt")
+const fileName = path.resolve(__dirname, "36.kbb.txt")
 
 const logFlags = [
 	["LOG_ROLL_ELRS_RAW", 2],

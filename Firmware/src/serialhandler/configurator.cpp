@@ -7,7 +7,7 @@ uint16_t configMsgCommand = 0;
 
 elapsedMillis configTimer = 0;
 
-void sendCommand(uint16_t command, const char *data, const uint16_t len)
+void sendCommand(uint16_t command, const char *data = nullptr, uint16_t len = 0)
 {
 	Serial.write('_');
 	Serial.write('K');
@@ -15,6 +15,9 @@ void sendCommand(uint16_t command, const char *data, const uint16_t len)
 	Serial.write(len >> 8);
 	Serial.write(command & 0xFF);
 	Serial.write(command >> 8);
+
+	if (data == nullptr)
+		len = 0;
 	uint8_t crc = (command & 0xFF) ^ (command >> 8) ^ (len & 0xFF) ^ (len >> 8);
 	for (int i = 0; i < len; i++)
 	{
@@ -50,7 +53,7 @@ void handleConfigCmd()
 		for (int i = 0; i < 100; i++)
 		{
 			rp2040.wdt_reset();
-			snprintf(shortbuf, 16, "/logs%01d/%01d.rpbb", i / 10, i % 10);
+			snprintf(shortbuf, 16, "/logs%01d/%01d.kbb", i / 10, i % 10);
 			if (LittleFS.exists(shortbuf))
 			{
 				buf[index++] = i;
@@ -63,7 +66,7 @@ void handleConfigCmd()
 	{
 		char path[32];
 		uint8_t fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
-		snprintf(path, 32, "/logs%01d/%01d.rpbb", fileNum / 10, fileNum % 10);
+		snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
 		File logFile = LittleFS.open(path, "r");
 		if (!logFile)
 		{
@@ -73,10 +76,11 @@ void handleConfigCmd()
 		uint8_t buffer[1027];
 		buffer[0] = fileNum;
 		uint16_t chunkNum = 0;
-		size_t bytesRead;
+		size_t bytesRead = 1;
 		while (bytesRead > 0)
 		{
 			rp2040.wdt_reset();
+			gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
 			bytesRead = logFile.read(buffer + 3, 1024);
 			buffer[1] = chunkNum & 0xFF;
 			buffer[2] = chunkNum >> 8;
@@ -99,7 +103,7 @@ void handleConfigCmd()
 		// data just includes one byte of file number
 		uint8_t fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
 		char path[32];
-		snprintf(path, 32, "/logs%01d/%01d.rpbb", fileNum / 10, fileNum % 10);
+		snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
 		if (LittleFS.remove(path))
 			sendCommand(configMsgCommand | 0x4000, (char *)&fileNum, 1);
 		else
@@ -130,7 +134,7 @@ void handleConfigCmd()
 			rp2040.wdt_reset();
 			char path[32];
 			uint8_t fileNum = fileNums[i];
-			snprintf(path, 32, "/logs%01d/%01d.rpbb", fileNum / 10, fileNum % 10);
+			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
 			File logFile = LittleFS.open(path, "r");
 			if (!logFile)
 				continue;
@@ -153,7 +157,10 @@ void handleConfigCmd()
 	}
 	break;
 	case ConfigCmd::BB_FORMAT:
-		LittleFS.format();
+		if (clearBlackbox())
+			sendCommand(configMsgCommand | 0x4000);
+		else
+			sendCommand(configMsgCommand | 0x8000);
 		break;
 	case ConfigCmd::WRITE_OSD_FONT_CHARACTER:
 		break;

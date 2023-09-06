@@ -122,8 +122,8 @@ int handleFile(string fname, bool print = true);
 
 int main()
 {
-	// list all .rpbb files in current directory
-	system("dir /b *.rpbb,*.txt > list.tmp");
+	// list all .kbb files in current directory
+	system("dir /b *.kbb,*.txt > list.tmp");
 	ifstream list("list.tmp");
 	string files[100];
 	int fileCount = 0;
@@ -413,9 +413,9 @@ int handleFile(const string fname, bool print)
 
 	string ofname = "./";
 	ofname += fname;
-	if (hasEnding(ofname, ".rpbb.txt"))
+	if (hasEnding(ofname, ".kbb.txt"))
 		ofname = ofname.substr(0, ofname.length() - 9);
-	else if (hasEnding(ofname, ".rpbb"))
+	else if (hasEnding(ofname, ".kbb"))
 		ofname = ofname.substr(0, ofname.length() - 5);
 	else if (hasEnding(ofname, ".txt"))
 		ofname = ofname.substr(0, ofname.length() - 4);

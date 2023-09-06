@@ -17,7 +17,8 @@ void initBlackbox()
 {
 	lfsReady = LittleFS.begin();
 	lfsReady = lfsReady && LittleFS.info64(fsInfo);
-	bbFlags = LOG_MOTOR_OUTPUTS;
+	// bbFlags = LOG_MOTOR_OUTPUTS | LOG_ROLL_GYRO_RAW | LOG_ROLL_PID_P | LOG_ROLL_PID_I | LOG_ROLL_PID_D | LOG_ROLL_PID_FF | LOG_ROLL_PID_S | LOG_PITCH_GYRO_RAW | LOG_YAW_GYRO_RAW | LOG_ROLL_SETPOINT;
+	bbFlags = LOG_ROLL_ELRS_RAW | LOG_ROLL_SETPOINT;
 }
 
 bool clearBlackbox()
@@ -32,7 +33,7 @@ void printLogBin(uint8_t logNum)
 {
 	char path[32];
 	logNum %= 100;
-	snprintf(path, 32, "/logs%01d/%01d.rpbb", logNum / 10, logNum % 10);
+	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
 	// Serial.printf("Printing %s\n", path);
 	rp2040.wdt_reset();
 	File logFile = LittleFS.open(path, "r");
@@ -68,7 +69,7 @@ void startLogging()
 	for (int i = 0; i < 100; i++)
 	{
 		rp2040.wdt_reset();
-		snprintf(path, 32, "/logs%01d/%01d.rpbb", ((i + currentLogNum) % 100) / 10, (i + currentLogNum) % 10);
+		snprintf(path, 32, "/logs%01d/%01d.kbb", ((i + currentLogNum) % 100) / 10, (i + currentLogNum) % 10);
 		if (!LittleFS.exists(path))
 		{
 			currentLogNum += i + 1;
@@ -91,8 +92,8 @@ void startLogging()
 	uint32_t time = millis();
 	blackboxFile.write((uint8_t *)&time, 4); // timestamp unknown
 	blackboxFile.write((uint8_t)0);			 // 3200Hz gyro
-	blackboxFile.write((uint8_t)2);			 // half rate
-	blackboxFile.write((uint8_t)3);			 // 2000deg/sec and 16g
+	blackboxFile.write((uint8_t)BB_FREQ_DIVIDER);
+	blackboxFile.write((uint8_t)3); // 2000deg/sec and 16g
 	blackboxFile.write((uint8_t *)rateFactors, 60);
 	for (int i = 0; i < 3; i++)
 	{
@@ -134,136 +135,143 @@ void writeSingleFrame()
 	}
 	if (currentBBFlags & LOG_ROLL_ELRS_RAW)
 	{
-		bbBuffer[bufferPos++] = ELRS->channels[0] >> 8;
 		bbBuffer[bufferPos++] = ELRS->channels[0];
+		bbBuffer[bufferPos++] = ELRS->channels[0] >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_ELRS_RAW)
 	{
-		bbBuffer[bufferPos++] = ELRS->channels[1] >> 8;
 		bbBuffer[bufferPos++] = ELRS->channels[1];
+		bbBuffer[bufferPos++] = ELRS->channels[1] >> 8;
 	}
 	if (currentBBFlags & LOG_THROTTLE_ELRS_RAW)
 	{
-		bbBuffer[bufferPos++] = ELRS->channels[2] >> 8;
 		bbBuffer[bufferPos++] = ELRS->channels[2];
+		bbBuffer[bufferPos++] = ELRS->channels[2] >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_ELRS_RAW)
 	{
-		bbBuffer[bufferPos++] = ELRS->channels[3] >> 8;
 		bbBuffer[bufferPos++] = ELRS->channels[3];
+		bbBuffer[bufferPos++] = ELRS->channels[3] >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_SETPOINT)
 	{
 		int16_t setpoint = (int16_t)(rollSetpoint >> 12);
-		bbBuffer[bufferPos++] = setpoint >> 8;
 		bbBuffer[bufferPos++] = setpoint;
+		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_SETPOINT)
 	{
 		int16_t setpoint = (int16_t)(pitchSetpoint >> 12);
-		bbBuffer[bufferPos++] = setpoint >> 8;
 		bbBuffer[bufferPos++] = setpoint;
+		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_THROTTLE_SETPOINT)
 	{
-		bbBuffer[bufferPos++] = smoothChannels[2] >> 8;
 		bbBuffer[bufferPos++] = smoothChannels[2];
+		bbBuffer[bufferPos++] = smoothChannels[2] >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_SETPOINT)
 	{
 		int16_t setpoint = (int16_t)(yawSetpoint >> 12);
-		bbBuffer[bufferPos++] = setpoint >> 8;
 		bbBuffer[bufferPos++] = setpoint;
+		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_GYRO_RAW)
 	{
-		bbBuffer[bufferPos++] = bmiDataRaw[0] >> 8;
-		bbBuffer[bufferPos++] = bmiDataRaw[0];
+		int16_t gyroData = (imuData[AXIS_ROLL] >> 12);
+		bbBuffer[bufferPos++] = gyroData;
+		bbBuffer[bufferPos++] = gyroData >> 8;
+		Serial.printf("%d ", gyroData / 16);
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW)
 	{
-		bbBuffer[bufferPos++] = bmiDataRaw[1] >> 8;
-		bbBuffer[bufferPos++] = bmiDataRaw[1];
+		int16_t gyroData = (imuData[AXIS_PITCH] >> 12);
+		bbBuffer[bufferPos++] = gyroData;
+		bbBuffer[bufferPos++] = gyroData >> 8;
+		Serial.printf("%d ", gyroData / 16);
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW)
 	{
-		bbBuffer[bufferPos++] = bmiDataRaw[2] >> 8;
-		bbBuffer[bufferPos++] = bmiDataRaw[2];
+		int16_t gyroData = (imuData[AXIS_YAW] >> 12);
+		bbBuffer[bufferPos++] = gyroData;
+		bbBuffer[bufferPos++] = gyroData >> 8;
+		Serial.printf("%d ", gyroData / 16);
 	}
+	Serial.println();
 	if (currentBBFlags & LOG_ROLL_PID_P)
 	{
-		bbBuffer[bufferPos++] = rollP >> 24;
 		bbBuffer[bufferPos++] = rollP >> 16;
+		bbBuffer[bufferPos++] = rollP >> 24;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_I)
 	{
-		bbBuffer[bufferPos++] = rollI >> 24;
 		bbBuffer[bufferPos++] = rollI >> 16;
+		bbBuffer[bufferPos++] = rollI >> 24;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_D)
 	{
-		bbBuffer[bufferPos++] = rollD >> 24;
 		bbBuffer[bufferPos++] = rollD >> 16;
+		bbBuffer[bufferPos++] = rollD >> 24;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_FF)
 	{
-		bbBuffer[bufferPos++] = rollFF >> 24;
 		bbBuffer[bufferPos++] = rollFF >> 16;
+		bbBuffer[bufferPos++] = rollFF >> 24;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_S)
 	{
-		bbBuffer[bufferPos++] = rollS >> 24;
 		bbBuffer[bufferPos++] = rollS >> 16;
+		bbBuffer[bufferPos++] = rollS >> 24;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_P)
 	{
-		bbBuffer[bufferPos++] = pitchP >> 24;
 		bbBuffer[bufferPos++] = pitchP >> 16;
+		bbBuffer[bufferPos++] = pitchP >> 24;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_I)
 	{
-		bbBuffer[bufferPos++] = pitchI >> 24;
 		bbBuffer[bufferPos++] = pitchI >> 16;
+		bbBuffer[bufferPos++] = pitchI >> 24;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_D)
 	{
-		bbBuffer[bufferPos++] = pitchD >> 24;
 		bbBuffer[bufferPos++] = pitchD >> 16;
+		bbBuffer[bufferPos++] = pitchD >> 24;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_FF)
 	{
-		bbBuffer[bufferPos++] = pitchFF >> 24;
 		bbBuffer[bufferPos++] = pitchFF >> 16;
+		bbBuffer[bufferPos++] = pitchFF >> 24;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_S)
 	{
-		bbBuffer[bufferPos++] = pitchS >> 24;
 		bbBuffer[bufferPos++] = pitchS >> 16;
+		bbBuffer[bufferPos++] = pitchS >> 24;
 	}
 	if (currentBBFlags & LOG_YAW_PID_P)
 	{
-		bbBuffer[bufferPos++] = yawP >> 24;
 		bbBuffer[bufferPos++] = yawP >> 16;
+		bbBuffer[bufferPos++] = yawP >> 24;
 	}
 	if (currentBBFlags & LOG_YAW_PID_I)
 	{
-		bbBuffer[bufferPos++] = yawI >> 24;
 		bbBuffer[bufferPos++] = yawI >> 16;
+		bbBuffer[bufferPos++] = yawI >> 24;
 	}
 	if (currentBBFlags & LOG_YAW_PID_D)
 	{
-		bbBuffer[bufferPos++] = yawD >> 24;
 		bbBuffer[bufferPos++] = yawD >> 16;
+		bbBuffer[bufferPos++] = yawD >> 24;
 	}
 	if (currentBBFlags & LOG_YAW_PID_FF)
 	{
-		bbBuffer[bufferPos++] = yawFF >> 24;
 		bbBuffer[bufferPos++] = yawFF >> 16;
+		bbBuffer[bufferPos++] = yawFF >> 24;
 	}
 	if (currentBBFlags & LOG_YAW_PID_S)
 	{
-		bbBuffer[bufferPos++] = yawS >> 24;
 		bbBuffer[bufferPos++] = yawS >> 16;
+		bbBuffer[bufferPos++] = yawS >> 24;
 	}
 	if (currentBBFlags & LOG_MOTOR_OUTPUTS)
 	{
@@ -277,8 +285,8 @@ void writeSingleFrame()
 	}
 	if (currentBBFlags & LOG_ALTITUDE)
 	{
-		bbBuffer[bufferPos++] = baroATO >> 8;
 		bbBuffer[bufferPos++] = baroATO;
+		bbBuffer[bufferPos++] = baroATO >> 8;
 	}
 	blackboxFile.write(bbBuffer, bufferPos);
 }
