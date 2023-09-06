@@ -21,7 +21,11 @@
 
 	let dataSlice = [] as LogFrame[];
 
-	$: dataSlice = loadedLog?.frames.slice(startFrame, endFrame + 1) || [];
+	$: dataSlice =
+		loadedLog?.frames.slice(
+			Math.max(0, Math.min(startFrame, endFrame)),
+			Math.max(0, Math.max(startFrame, endFrame))
+		) || [];
 	$: dataSlice, drawCanvas();
 
 	let logNums = [] as { text: string; num: number }[];
@@ -722,11 +726,12 @@
 		const height = dataViewer.clientHeight * 0.98; //1% free space top and bottom
 		const width = dataViewer.clientWidth;
 		let sliceAndSkip = dataSlice;
+		if (!sliceAndSkip.length) return;
 		while (sliceAndSkip.length > 2 * width) {
 			sliceAndSkip = sliceAndSkip.filter((_, i) => i % 2 == 0);
 		}
 		ctx.clearRect(0, 0, dataViewer.clientWidth, dataViewer.clientHeight);
-		const frameWidth = width / sliceAndSkip.length;
+		const frameWidth = width / (sliceAndSkip.length - 1);
 		const numGraphs = graphs.length;
 		const heightPerGraph = (height - dataViewer.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
 		let heightOffset = 0.01 * dataViewer.clientHeight;
@@ -1023,6 +1028,7 @@
 	}
 	.flagSelector {
 		width: 19rem;
+		overflow: auto;
 	}
 	.graphSelector {
 		padding: 0.8rem;
