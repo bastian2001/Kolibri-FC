@@ -46,10 +46,10 @@
 
 	function listDevices() {
 		invoke('serial_list').then((d: unknown) => {
-			devices = d as string[];
 			if (!device.connected) {
 				const newDevices: string[] = [];
-				for (const dev of devices) {
+				const scanned = d as string[];
+				for (const dev of scanned) {
 					if (!devices.includes(dev)) {
 						newDevices.push(dev);
 					}
@@ -59,7 +59,7 @@
 				} else if (newDevices.length > 1) {
 					//choose the first non-COM1-device
 					for (const dev of newDevices) {
-						if (!dev.startsWith('COM1')) {
+						if (dev !== 'COM1') {
 							device.path = dev;
 							break;
 						}
@@ -74,6 +74,8 @@
 					}
 				}
 			}
+
+			devices = d as string[];
 		});
 	}
 	onMount(() => {
@@ -205,7 +207,7 @@
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		border-bottom: 3px solid var(--border-color);
+		border-bottom: 3px solid var(--border-blue);
 	}
 	.kolibriLogo {
 		height: 3rem;
@@ -231,7 +233,7 @@
 		outline: none;
 	}
 	.connector select option {
-		color: #888;
+		color: #444;
 	}
 
 	.connectButton {
@@ -269,10 +271,10 @@
 		align-items: center;
 		justify-content: center;
 		padding: 0.5rem;
-		border-top: 3px solid var(--border-color);
+		border-top: 3px solid var(--border-blue);
 		color: var(--text-color);
 		text-decoration: none;
-		background-color: var(--background-color-light);
+		background-color: var(--background-blue);
 	}
 	.navElement.currentPage {
 		border-top: 3px solid transparent;
