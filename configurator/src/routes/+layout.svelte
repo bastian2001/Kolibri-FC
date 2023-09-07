@@ -39,6 +39,10 @@
 		{
 			name: 'OSD',
 			path: '/osd'
+		},
+		{
+			name: 'Motors',
+			path: '/motors'
 		}
 	] as NavigatorElement[];
 

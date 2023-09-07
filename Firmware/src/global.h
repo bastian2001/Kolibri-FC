@@ -27,5 +27,6 @@
 #define SPI_GYRO spi0
 #define SPI_OSD spi1
 #define BARO_I2C i2c1
+#define PROPS_OUT
 
 extern ExpressLRS *ELRS;

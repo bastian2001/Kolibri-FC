@@ -53,7 +53,7 @@ void sendThrottles(const int16_t throttles[4])
 		t[i] = constrain(throttles[i], 0, 2000);
 		if (t[i])
 			t[i] += 47;
-		t[i] = appendChecksum(throttles[i] << 1 | 0);
+		t[i] = appendChecksum(t[i] << 1 | 0);
 	}
 	motorPacket[0] = 0;
 	motorPacket[1] = 0;
@@ -61,8 +61,8 @@ void sendThrottles(const int16_t throttles[4])
 	{
 		int pos = i / 4;
 		int motor = i % 4;
-		motorPacket[0] |= ((throttles[motor] >> (pos + 8)) & 1) << i;
-		motorPacket[1] |= ((throttles[motor] >> pos) & 1) << i;
+		motorPacket[0] |= ((t[motor] >> (pos + 8)) & 1) << i;
+		motorPacket[1] |= ((t[motor] >> pos) & 1) << i;
 	}
 	pio_sm_put(escPio, escSm, motorPacket[0]);
 	pio_sm_put(escPio, escSm, motorPacket[1]);

@@ -17,8 +17,9 @@ void initBlackbox()
 {
 	lfsReady = LittleFS.begin();
 	lfsReady = lfsReady && LittleFS.info64(fsInfo);
-	// bbFlags = LOG_MOTOR_OUTPUTS | LOG_ROLL_GYRO_RAW | LOG_ROLL_PID_P | LOG_ROLL_PID_I | LOG_ROLL_PID_D | LOG_ROLL_PID_FF | LOG_ROLL_PID_S | LOG_PITCH_GYRO_RAW | LOG_YAW_GYRO_RAW | LOG_ROLL_SETPOINT;
-	bbFlags = LOG_ROLL_ELRS_RAW | LOG_ROLL_SETPOINT;
+	bbFlags = LOG_MOTOR_OUTPUTS | LOG_ROLL_GYRO_RAW | LOG_ROLL_PID_P | LOG_ROLL_PID_I | LOG_ROLL_PID_D | LOG_ROLL_PID_FF | LOG_ROLL_PID_S | LOG_PITCH_GYRO_RAW | LOG_PITCH_PID_P | LOG_PITCH_PID_I | LOG_PITCH_PID_D | LOG_PITCH_PID_FF | LOG_PITCH_PID_S | LOG_YAW_GYRO_RAW | LOG_YAW_PID_P | LOG_YAW_PID_I | LOG_YAW_PID_D | LOG_YAW_PID_FF | LOG_YAW_PID_S;
+	// bbFlags = LOG_ROLL_ELRS_RAW | LOG_ROLL_SETPOINT;
+	// bbFlags=LOG_MOTOR_OUTPUTS ;
 }
 
 bool clearBlackbox()
@@ -34,7 +35,6 @@ void printLogBin(uint8_t logNum)
 	char path[32];
 	logNum %= 100;
 	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
-	// Serial.printf("Printing %s\n", path);
 	rp2040.wdt_reset();
 	File logFile = LittleFS.open(path, "r");
 	if (!logFile)
@@ -181,23 +181,19 @@ void writeSingleFrame()
 		int16_t gyroData = (imuData[AXIS_ROLL] >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
-		Serial.printf("%d ", gyroData / 16);
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW)
 	{
 		int16_t gyroData = (imuData[AXIS_PITCH] >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
-		Serial.printf("%d ", gyroData / 16);
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW)
 	{
 		int16_t gyroData = (imuData[AXIS_YAW] >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
-		Serial.printf("%d ", gyroData / 16);
 	}
-	Serial.println();
 	if (currentBBFlags & LOG_ROLL_PID_P)
 	{
 		bbBuffer[bufferPos++] = rollP >> 16;

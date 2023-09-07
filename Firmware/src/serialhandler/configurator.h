@@ -22,6 +22,8 @@ enum class ConfigCmd
 	BB_FILE_DELETE,
 	BB_FORMAT,
 	WRITE_OSD_FONT_CHARACTER,
+	SET_MOTORS,
 };
 
 void configuratorHandleByte(uint8_t c, uint8_t serialNum);
+extern elapsedMillis configOverrideMotors;

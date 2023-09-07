@@ -184,18 +184,16 @@ void pidLoop()
 		throttles[(uint8_t)MOTOR::RL] = map(tRL, 0, 2000, IDLE_PERMILLE * 2, 2000);
 		throttles[(uint8_t)MOTOR::FR] = map(tFR, 0, 2000, IDLE_PERMILLE * 2, 2000);
 		throttles[(uint8_t)MOTOR::FL] = map(tFL, 0, 2000, IDLE_PERMILLE * 2, 2000);
-		if (throttles[(uint8_t)MOTOR::RR] < IDLE_PERMILLE * 2)
-			throttles[(uint8_t)MOTOR::FL] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RR];
-		if (throttles[(uint8_t)MOTOR::FR] < IDLE_PERMILLE * 2)
-			throttles[(uint8_t)MOTOR::RL] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FR];
-		if (throttles[(uint8_t)MOTOR::RL] < IDLE_PERMILLE * 2)
-			throttles[(uint8_t)MOTOR::FR] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RL];
-		if (throttles[(uint8_t)MOTOR::FL] < IDLE_PERMILLE * 2)
-			throttles[(uint8_t)MOTOR::RR] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FL];
-		throttles[(uint8_t)MOTOR::RR] = constrain(throttles[(uint8_t)MOTOR::RR], IDLE_PERMILLE * 2, 2000);
-		throttles[(uint8_t)MOTOR::FR] = constrain(throttles[(uint8_t)MOTOR::FR], IDLE_PERMILLE * 2, 2000);
-		throttles[(uint8_t)MOTOR::RL] = constrain(throttles[(uint8_t)MOTOR::RL], IDLE_PERMILLE * 2, 2000);
-		throttles[(uint8_t)MOTOR::FL] = constrain(throttles[(uint8_t)MOTOR::FL], IDLE_PERMILLE * 2, 2000);
+		// if (throttles[(uint8_t)MOTOR::RR] < IDLE_PERMILLE * 2)
+		// 	throttles[(uint8_t)MOTOR::FL] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RR];
+		// if (throttles[(uint8_t)MOTOR::FR] < IDLE_PERMILLE * 2)
+		// 	throttles[(uint8_t)MOTOR::RL] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FR];
+		// if (throttles[(uint8_t)MOTOR::RL] < IDLE_PERMILLE * 2)
+		// 	throttles[(uint8_t)MOTOR::FR] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RL];
+		// if (throttles[(uint8_t)MOTOR::FL] < IDLE_PERMILLE * 2)
+		// 	throttles[(uint8_t)MOTOR::RR] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FL];
+		for (int i = 0; i < 4; i++)
+			throttles[i] = constrain(throttles[i], IDLE_PERMILLE * 2, 2000);
 		sendThrottles(throttles);
 		rollLast = imuData[AXIS_ROLL];
 		pitchLast = imuData[AXIS_PITCH];
@@ -211,8 +209,9 @@ void pidLoop()
 	{
 		// Quad disarmed or RC disconnected
 		// all motors off
-		for (int i = 0; i < 4; i++)
-			throttles[i] = 0;
+		if (configOverrideMotors > 1000)
+			for (int i = 0; i < 4; i++)
+				throttles[i] = 0;
 		sendThrottles(throttles);
 		rollErrorSum = 0;
 		pitchErrorSum = 0;

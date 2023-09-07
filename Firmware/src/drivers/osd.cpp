@@ -137,7 +137,6 @@ void osdLoop()
 			{
 				osdReady = true;
 			}
-			// Serial.printf("%02X\n", data);
 			if (data & 1)
 			{
 				data = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output

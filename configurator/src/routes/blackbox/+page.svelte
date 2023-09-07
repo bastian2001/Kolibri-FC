@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { port, type Command, ConfigCmd } from '../../stores';
-	import { draw } from 'svelte/transition';
 	import TracePlacer from './tracePlacer.svelte';
 	type TraceInGraph = {
 		flagName: string;
@@ -868,10 +867,12 @@
 	}
 	function deleteGraph(g: number) {
 		graphs = graphs.filter((_, i) => i !== g);
+		graphs = [...graphs];
 		drawCanvas();
 	}
 	function deleteTrace(g: number, t: number) {
 		graphs[g] = graphs[g].filter((_, i) => i !== t);
+		graphs = [...graphs];
 		drawCanvas();
 	}
 

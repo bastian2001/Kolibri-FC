@@ -7,6 +7,8 @@ uint16_t configMsgCommand = 0;
 
 elapsedMillis configTimer = 0;
 
+elapsedMillis configOverrideMotors = 1001;
+
 void sendCommand(uint16_t command, const char *data = nullptr, uint16_t len = 0)
 {
 	Serial.write('_');
@@ -163,6 +165,13 @@ void handleConfigCmd()
 			sendCommand(configMsgCommand | 0x8000);
 		break;
 	case ConfigCmd::WRITE_OSD_FONT_CHARACTER:
+		break;
+	case ConfigCmd::SET_MOTORS:
+		throttles[(uint8_t)MOTOR::RR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 0] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 1] << 8);
+		throttles[(uint8_t)MOTOR::RL] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 2] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 3] << 8);
+		throttles[(uint8_t)MOTOR::FR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
+		throttles[(uint8_t)MOTOR::FL] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 6] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 7] << 8);
+		configOverrideMotors = 0;
 		break;
 	default:
 		Serial.printf("Unknown command: %d\n", configMsgCommand);
