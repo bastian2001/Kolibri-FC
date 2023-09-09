@@ -30,7 +30,7 @@ bool clearBlackbox()
 	return true;
 }
 
-void printLogBin(uint8_t logNum)
+void printLogBinRaw(uint8_t logNum)
 {
 	char path[32];
 	logNum %= 100;
@@ -39,16 +39,52 @@ void printLogBin(uint8_t logNum)
 	File logFile = LittleFS.open(path, "r");
 	if (!logFile)
 		return;
-	uint8_t buffer[1024];
-	size_t bytesRead = logFile.read(buffer, 1024);
+	uint32_t fileSize = logFile.size();
+	for (uint32_t i = 0; i < fileSize; i++)
+	{
+		Serial.write(logFile.read());
+		if ((i % 1024) == 0)
+		{
+			rp2040.wdt_reset();
+			Serial.flush();
+		}
+	}
+	logFile.close();
+}
+
+void printLogBin(uint8_t logNum)
+{
+	char path[32];
+	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
+	File logFile = LittleFS.open(path, "r");
+	if (!logFile)
+	{
+		sendCommand(((uint16_t)ConfigCmd::BB_FILE_DOWNLOAD) | 0x8000, "File not found", strlen("File not found"));
+		return;
+	}
+	uint8_t buffer[1027];
+	buffer[0] = logNum;
+	uint16_t chunkNum = 0;
+	size_t bytesRead = 1;
 	while (bytesRead > 0)
 	{
 		rp2040.wdt_reset();
-		Serial.write(buffer, bytesRead);
+		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
+		bytesRead = logFile.read(buffer + 3, 1024);
+		buffer[1] = chunkNum & 0xFF;
+		buffer[2] = chunkNum >> 8;
+		sendCommand(((uint16_t)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, bytesRead + 3);
 		Serial.flush();
-		bytesRead = logFile.read(buffer, 1024);
+		chunkNum++;
 	}
 	logFile.close();
+	// finish frame includes 0xFFFF as chunk number, and then the actual max chunk number
+	buffer[0] = logNum;
+	buffer[1] = 0xFF;
+	buffer[2] = 0xFF;
+	buffer[3] = chunkNum & 0xFF;
+	buffer[4] = chunkNum >> 8;
+	sendCommand(((uint16_t)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, 5);
 }
 
 void startLogging()

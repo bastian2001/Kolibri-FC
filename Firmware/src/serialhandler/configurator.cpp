@@ -9,7 +9,7 @@ elapsedMillis configTimer = 0;
 
 elapsedMillis configOverrideMotors = 1001;
 
-void sendCommand(uint16_t command, const char *data = nullptr, uint16_t len = 0)
+void sendCommand(uint16_t command, const char *data, uint16_t len)
 {
 	Serial.write('_');
 	Serial.write('K');
@@ -66,38 +66,8 @@ void handleConfigCmd()
 	break;
 	case ConfigCmd::BB_FILE_DOWNLOAD:
 	{
-		char path[32];
 		uint8_t fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
-		snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
-		File logFile = LittleFS.open(path, "r");
-		if (!logFile)
-		{
-			sendCommand(configMsgCommand | 0x8000, "File not found", strlen("File not found"));
-			break;
-		}
-		uint8_t buffer[1027];
-		buffer[0] = fileNum;
-		uint16_t chunkNum = 0;
-		size_t bytesRead = 1;
-		while (bytesRead > 0)
-		{
-			rp2040.wdt_reset();
-			gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
-			bytesRead = logFile.read(buffer + 3, 1024);
-			buffer[1] = chunkNum & 0xFF;
-			buffer[2] = chunkNum >> 8;
-			sendCommand(configMsgCommand | 0x4000, (char *)buffer, bytesRead + 3);
-			Serial.flush();
-			chunkNum++;
-		}
-		logFile.close();
-		// finish frame includes 0xFFFF as chunk number, and then the actual max chunk number
-		buf[0] = fileNum;
-		buf[1] = 0xFF;
-		buf[2] = 0xFF;
-		buf[3] = chunkNum & 0xFF;
-		buf[4] = chunkNum >> 8;
-		sendCommand(configMsgCommand | 0x4000, buf, 5);
+		printLogBin(fileNum);
 	}
 	break;
 	case ConfigCmd::BB_FILE_DELETE:
@@ -172,6 +142,9 @@ void handleConfigCmd()
 		throttles[(uint8_t)MOTOR::FR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
 		throttles[(uint8_t)MOTOR::FL] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 6] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 7] << 8);
 		configOverrideMotors = 0;
+		break;
+	case ConfigCmd::BB_FILE_DOWNLOAD_RAW:
+		printLogBinRaw(configSerialBuffer[CONFIG_BUFFER_DATA]);
 		break;
 	default:
 		Serial.printf("Unknown command: %d\n", configMsgCommand);
