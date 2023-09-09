@@ -4,11 +4,6 @@ int16_t bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
 int16_t *gyroDataRaw;
 int16_t *accelDataRaw;
 
-#define P_SHIFT 11
-#define I_SHIFT 3
-#define D_SHIFT 10
-#define FF_SHIFT D_SHIFT
-#define S_SHIFT 8 // setpoint follow
 #define IDLE_PERMILLE 25
 
 /*

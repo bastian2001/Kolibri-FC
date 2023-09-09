@@ -20,6 +20,8 @@
 
 	let dataSlice = [] as LogFrame[];
 
+	let drawFullCanvasTimeout = -1;
+
 	$: dataSlice =
 		loadedLog?.frames.slice(
 			Math.max(0, Math.min(startFrame, endFrame)),
@@ -341,7 +343,8 @@
 				}
 				selected = logNums[0].num;
 				logInfoPosition = 0;
-				logInfoInterval = setInterval(getLogInfo, 500);
+				//@ts-ignore
+				logInfoInterval = setInterval(getLogInfo, 100);
 				break;
 			case ConfigCmd.BB_FILE_INFO | 0x4000:
 				processLogInfo(command.data);
@@ -396,249 +399,255 @@
 			for (let i = 0; i < totalChunks; i++) {
 				if (!receivedChunks[i]) return;
 			}
-			const header = binFile.slice(0, 166);
-			const data = binFile.slice(166);
-			const magic = leBytesToInt(header.slice(0, 4));
-			if (magic !== 0x99a12720) {
-				rejectWrongFile(
-					'Wrong magic number: 0x' +
-						magic.toString(16) +
-						' instead of 0x99a12720, receivedChunks.length: ' +
-						receivedChunks.length +
-						', totalChunks: ' +
-						totalChunks
-				);
-				return;
-			}
-			const version = header.slice(4, 7);
-			const startTime = leBytesToInt(header.slice(7, 11));
-			const pidFreq = 3200 / (1 + header[11]);
-			const freqDiv = header[12];
-			const rangeByte = header[13];
-			const ranges = {
-				gyro: GYRO_RANGES[(rangeByte >> 2) & 0b111],
-				accel: ACC_RANGES[rangeByte & 0b11]
-			};
-			const rateFactors = [[], [], [], [], []] as number[][];
-			const rfBytes = header.slice(14, 74);
-			for (let i = 0; i < 5; i++)
-				for (let j = 0; j < 3; j++)
-					rateFactors[i][j] =
-						leBytesToInt(rfBytes.slice(i * 12 + j * 4, i * 12 + j * 4 + 4)) / 65536;
-			const pidConstants = [[], [], []] as number[][];
-			const pcBytes = header.slice(74, 158);
-			for (let i = 0; i < 3; i++)
-				for (let j = 0; j < 7; j++)
-					pidConstants[i][j] =
-						leBytesToInt(pcBytes.slice(i * 28 + j * 4, i * 28 + j * 4 + 4)) / 65536;
-			const flagsLow = leBytesToInt(header.slice(158, 162));
-			const flagsHigh = leBytesToInt(header.slice(162, 166));
-			const flags = [] as string[];
-			let frameSize = 0;
-			const offsets = {} as { [key: string]: number };
-			for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i; i++) {
-				const flagIsSet = flagsLow & (1 << i);
-				if (flagIsSet) {
-					flags.push(Object.keys(BB_ALL_FLAGS)[i]);
-					offsets[Object.keys(BB_ALL_FLAGS)[i]] = frameSize;
-					frameSize += i == 26 ? 6 : 2;
-				}
-			}
-			for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i + 32; i++) {
-				const flagIsSet = flagsHigh & (1 << i);
-				if (flagIsSet) flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
-			}
-			const framesPerSecond = pidFreq / freqDiv;
-			const frames = data.length / frameSize;
-			const log = [] as LogFrame[];
-			for (let i = 0; i < data.length; i += frameSize) {
-				const frame = {
-					elrs: {},
-					setpoint: {},
-					gyro: {},
-					pid: { roll: {}, pitch: {}, yaw: {} },
-					motors: {}
-				} as LogFrame;
-				if (flags.includes('LOG_ROLL_ELRS_RAW'))
-					frame.elrs.roll = leBytesToInt(
-						data.slice(i + offsets['LOG_ROLL_ELRS_RAW'], i + offsets['LOG_ROLL_ELRS_RAW'] + 2)
-					);
-				if (flags.includes('LOG_PITCH_ELRS_RAW'))
-					frame.elrs.pitch = leBytesToInt(
-						data.slice(i + offsets['LOG_PITCH_ELRS_RAW'], i + offsets['LOG_PITCH_ELRS_RAW'] + 2)
-					);
-				if (flags.includes('LOG_THROTTLE_ELRS_RAW'))
-					frame.elrs.throttle = leBytesToInt(
-						data.slice(
-							i + offsets['LOG_THROTTLE_ELRS_RAW'],
-							i + offsets['LOG_THROTTLE_ELRS_RAW'] + 2
-						)
-					);
-				if (flags.includes('LOG_YAW_ELRS_RAW'))
-					frame.elrs.yaw = leBytesToInt(
-						data.slice(i + offsets['LOG_YAW_ELRS_RAW'], i + offsets['LOG_YAW_ELRS_RAW'] + 2)
-					);
-				if (flags.includes('LOG_ROLL_SETPOINT'))
-					frame.setpoint.roll =
-						leBytesToInt(
-							data.slice(i + offsets['LOG_ROLL_SETPOINT'], i + offsets['LOG_ROLL_SETPOINT'] + 2),
-							true
-						) / 16; // data is 12.4 fixed point
-				if (flags.includes('LOG_PITCH_SETPOINT'))
-					frame.setpoint.pitch =
-						leBytesToInt(
-							data.slice(i + offsets['LOG_PITCH_SETPOINT'], i + offsets['LOG_PITCH_SETPOINT'] + 2),
-							true
-						) / 16;
-				if (flags.includes('LOG_THROTTLE_SETPOINT'))
-					frame.setpoint.throttle = leBytesToInt(
-						data.slice(
-							i + offsets['LOG_THROTTLE_SETPOINT'],
-							i + offsets['LOG_THROTTLE_SETPOINT'] + 2
-						)
-					);
-				if (flags.includes('LOG_YAW_SETPOINT'))
-					frame.setpoint.yaw =
-						leBytesToInt(
-							data.slice(i + offsets['LOG_YAW_SETPOINT'], i + offsets['LOG_YAW_SETPOINT'] + 2),
-							true
-						) / 16;
-				if (flags.includes('LOG_ROLL_GYRO_RAW'))
-					frame.gyro.roll =
-						leBytesToInt(
-							data.slice(i + offsets['LOG_ROLL_GYRO_RAW'], i + offsets['LOG_ROLL_GYRO_RAW'] + 2),
-							true
-						) / 16;
-				if (flags.includes('LOG_PITCH_GYRO_RAW'))
-					frame.gyro.pitch =
-						leBytesToInt(
-							data.slice(i + offsets['LOG_PITCH_GYRO_RAW'], i + offsets['LOG_PITCH_GYRO_RAW'] + 2),
-							true
-						) / 16;
-				if (flags.includes('LOG_YAW_GYRO_RAW'))
-					frame.gyro.yaw =
-						leBytesToInt(
-							data.slice(i + offsets['LOG_YAW_GYRO_RAW'], i + offsets['LOG_YAW_GYRO_RAW'] + 2),
-							true
-						) / 16;
-				if (flags.includes('LOG_ROLL_PID_P'))
-					frame.pid.roll.p = leBytesToInt(
-						data.slice(i + offsets['LOG_ROLL_PID_P'], i + offsets['LOG_ROLL_PID_P'] + 2),
-						true
-					);
-				if (flags.includes('LOG_ROLL_PID_I'))
-					frame.pid.roll.i = leBytesToInt(
-						data.slice(i + offsets['LOG_ROLL_PID_I'], i + offsets['LOG_ROLL_PID_I'] + 2),
-						true
-					);
-				if (flags.includes('LOG_ROLL_PID_D'))
-					frame.pid.roll.d = leBytesToInt(
-						data.slice(i + offsets['LOG_ROLL_PID_D'], i + offsets['LOG_ROLL_PID_D'] + 2),
-						true
-					);
-				if (flags.includes('LOG_ROLL_PID_FF'))
-					frame.pid.roll.ff = leBytesToInt(
-						data.slice(i + offsets['LOG_ROLL_PID_FF'], i + offsets['LOG_ROLL_PID_FF'] + 2),
-						true
-					);
-				if (flags.includes('LOG_ROLL_PID_S'))
-					frame.pid.roll.s = leBytesToInt(
-						data.slice(i + offsets['LOG_ROLL_PID_S'], i + offsets['LOG_ROLL_PID_S'] + 2),
-						true
-					);
-				if (flags.includes('LOG_PITCH_PID_P'))
-					frame.pid.pitch.p = leBytesToInt(
-						data.slice(i + offsets['LOG_PITCH_PID_P'], i + offsets['LOG_PITCH_PID_P'] + 2),
-						true
-					);
-				if (flags.includes('LOG_PITCH_PID_I'))
-					frame.pid.pitch.i = leBytesToInt(
-						data.slice(i + offsets['LOG_PITCH_PID_I'], i + offsets['LOG_PITCH_PID_I'] + 2),
-						true
-					);
-				if (flags.includes('LOG_PITCH_PID_D'))
-					frame.pid.pitch.d = leBytesToInt(
-						data.slice(i + offsets['LOG_PITCH_PID_D'], i + offsets['LOG_PITCH_PID_D'] + 2),
-						true
-					);
-				if (flags.includes('LOG_PITCH_PID_FF'))
-					frame.pid.pitch.ff = leBytesToInt(
-						data.slice(i + offsets['LOG_PITCH_PID_FF'], i + offsets['LOG_PITCH_PID_FF'] + 2),
-						true
-					);
-				if (flags.includes('LOG_PITCH_PID_S'))
-					frame.pid.pitch.s = leBytesToInt(
-						data.slice(i + offsets['LOG_PITCH_PID_S'], i + offsets['LOG_PITCH_PID_S'] + 2),
-						true
-					);
-				if (flags.includes('LOG_YAW_PID_P'))
-					frame.pid.yaw.p = leBytesToInt(
-						data.slice(i + offsets['LOG_YAW_PID_P'], i + offsets['LOG_YAW_PID_P'] + 2),
-						true
-					);
-				if (flags.includes('LOG_YAW_PID_I'))
-					frame.pid.yaw.i = leBytesToInt(
-						data.slice(i + offsets['LOG_YAW_PID_I'], i + offsets['LOG_YAW_PID_I'] + 2),
-						true
-					);
-				if (flags.includes('LOG_YAW_PID_D'))
-					frame.pid.yaw.d = leBytesToInt(
-						data.slice(i + offsets['LOG_YAW_PID_D'], i + offsets['LOG_YAW_PID_D'] + 2),
-						true
-					);
-				if (flags.includes('LOG_YAW_PID_FF'))
-					frame.pid.yaw.ff = leBytesToInt(
-						data.slice(i + offsets['LOG_YAW_PID_FF'], i + offsets['LOG_YAW_PID_FF'] + 2),
-						true
-					);
-				if (flags.includes('LOG_YAW_PID_S'))
-					frame.pid.yaw.s = leBytesToInt(
-						data.slice(i + offsets['LOG_YAW_PID_S'], i + offsets['LOG_YAW_PID_S'] + 2),
-						true
-					);
-				if (flags.includes('LOG_MOTOR_OUTPUTS')) {
-					const throttleBytes = data.slice(
-						i + offsets['LOG_MOTOR_OUTPUTS'],
-						i + offsets['LOG_MOTOR_OUTPUTS'] + 6
-					);
-					const motors23 = leBytesToInt(throttleBytes.slice(3, 6).reverse());
-					const motors01 = leBytesToInt(throttleBytes.slice(0, 3).reverse());
-					frame.motors.rr = motors01 >> 12;
-					frame.motors.fr = motors01 & 0xfff;
-					frame.motors.rl = motors23 >> 12;
-					frame.motors.fl = motors23 & 0xfff;
-				}
-				if (flags.includes('LOG_ALTITUDE'))
-					frame.altitude = leBytesToInt(
-						data.slice(i + offsets['LOG_ALTITUDE'], i + offsets['LOG_ALTITUDE'] + 2)
-					);
-				log.push(frame);
-			}
-			loadedLog = {
-				frameCount: frames,
-				flags,
-				frames: log,
-				version,
-				startTime,
-				ranges,
-				pidFrequency: pidFreq,
-				frequencyDivider: freqDiv,
-				rateFactors,
-				pidConstants,
-				framesPerSecond,
-				rawFile: binFile
-			};
-			resolveWhenReady(loadedLog);
+			decodeBinFile();
 		}
 	}
 
+	function decodeBinFile() {
+		const header = binFile.slice(0, 166);
+		const data = binFile.slice(166);
+		const magic = leBytesToInt(header.slice(0, 4));
+		if (magic !== 0x99a12720) {
+			rejectWrongFile(
+				'Wrong magic number: 0x' +
+					magic.toString(16) +
+					' instead of 0x99a12720, receivedChunks.length: ' +
+					receivedChunks.length +
+					', totalChunks: ' +
+					totalChunks
+			);
+			return;
+		}
+		const version = header.slice(4, 7);
+		const startTime = leBytesToInt(header.slice(7, 11));
+		const pidFreq = 3200 / (1 + header[11]);
+		const freqDiv = header[12];
+		const rangeByte = header[13];
+		const ranges = {
+			gyro: GYRO_RANGES[(rangeByte >> 2) & 0b111],
+			accel: ACC_RANGES[rangeByte & 0b11]
+		};
+		const rateFactors = [[], [], [], [], []] as number[][];
+		const rfBytes = header.slice(14, 74);
+		for (let i = 0; i < 5; i++)
+			for (let j = 0; j < 3; j++)
+				rateFactors[i][j] = leBytesToInt(rfBytes.slice(i * 12 + j * 4, i * 12 + j * 4 + 4)) / 65536;
+		const pidConstants = [[], [], []] as number[][];
+		const pcBytes = header.slice(74, 158);
+		for (let i = 0; i < 3; i++) {
+			pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 28, i * 28 + 4)) >> 11;
+			pidConstants[i][1] = leBytesToInt(pcBytes.slice(i * 28 + 4, i * 28 + 8)) >> 3;
+			pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 28 + 8, i * 28 + 12)) >> 10;
+			pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 28 + 12, i * 28 + 16)) >> 10;
+			pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 28 + 16, i * 28 + 20)) >> 8;
+			for (let j = 5; j < 7; j++)
+				pidConstants[i][j] =
+					leBytesToInt(pcBytes.slice(i * 28 + j * 4, i * 28 + j * 4 + 4)) / 65536;
+		}
+		const flagsLow = leBytesToInt(header.slice(158, 162));
+		const flagsHigh = leBytesToInt(header.slice(162, 166));
+		const flags = [] as string[];
+		let frameSize = 0;
+		const offsets = {} as { [key: string]: number };
+		for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i; i++) {
+			const flagIsSet = flagsLow & (1 << i);
+			if (flagIsSet) {
+				flags.push(Object.keys(BB_ALL_FLAGS)[i]);
+				offsets[Object.keys(BB_ALL_FLAGS)[i]] = frameSize;
+				frameSize += i == 26 ? 6 : 2;
+			}
+		}
+		for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i + 32; i++) {
+			const flagIsSet = flagsHigh & (1 << i);
+			if (flagIsSet) flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
+		}
+		const framesPerSecond = pidFreq / freqDiv;
+		const frames = data.length / frameSize;
+		const log = [] as LogFrame[];
+		for (let i = 0; i < data.length; i += frameSize) {
+			const frame = {
+				elrs: {},
+				setpoint: {},
+				gyro: {},
+				pid: { roll: {}, pitch: {}, yaw: {} },
+				motors: {}
+			} as LogFrame;
+			if (flags.includes('LOG_ROLL_ELRS_RAW'))
+				frame.elrs.roll = leBytesToInt(
+					data.slice(i + offsets['LOG_ROLL_ELRS_RAW'], i + offsets['LOG_ROLL_ELRS_RAW'] + 2)
+				);
+			if (flags.includes('LOG_PITCH_ELRS_RAW'))
+				frame.elrs.pitch = leBytesToInt(
+					data.slice(i + offsets['LOG_PITCH_ELRS_RAW'], i + offsets['LOG_PITCH_ELRS_RAW'] + 2)
+				);
+			if (flags.includes('LOG_THROTTLE_ELRS_RAW'))
+				frame.elrs.throttle = leBytesToInt(
+					data.slice(i + offsets['LOG_THROTTLE_ELRS_RAW'], i + offsets['LOG_THROTTLE_ELRS_RAW'] + 2)
+				);
+			if (flags.includes('LOG_YAW_ELRS_RAW'))
+				frame.elrs.yaw = leBytesToInt(
+					data.slice(i + offsets['LOG_YAW_ELRS_RAW'], i + offsets['LOG_YAW_ELRS_RAW'] + 2)
+				);
+			if (flags.includes('LOG_ROLL_SETPOINT'))
+				frame.setpoint.roll =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_ROLL_SETPOINT'], i + offsets['LOG_ROLL_SETPOINT'] + 2),
+						true
+					) / 16; // data is 12.4 fixed point
+			if (flags.includes('LOG_PITCH_SETPOINT'))
+				frame.setpoint.pitch =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_PITCH_SETPOINT'], i + offsets['LOG_PITCH_SETPOINT'] + 2),
+						true
+					) / 16;
+			if (flags.includes('LOG_THROTTLE_SETPOINT'))
+				frame.setpoint.throttle = leBytesToInt(
+					data.slice(i + offsets['LOG_THROTTLE_SETPOINT'], i + offsets['LOG_THROTTLE_SETPOINT'] + 2)
+				);
+			if (flags.includes('LOG_YAW_SETPOINT'))
+				frame.setpoint.yaw =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_YAW_SETPOINT'], i + offsets['LOG_YAW_SETPOINT'] + 2),
+						true
+					) / 16;
+			if (flags.includes('LOG_ROLL_GYRO_RAW'))
+				frame.gyro.roll =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_ROLL_GYRO_RAW'], i + offsets['LOG_ROLL_GYRO_RAW'] + 2),
+						true
+					) / 16;
+			if (flags.includes('LOG_PITCH_GYRO_RAW'))
+				frame.gyro.pitch =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_PITCH_GYRO_RAW'], i + offsets['LOG_PITCH_GYRO_RAW'] + 2),
+						true
+					) / 16;
+			if (flags.includes('LOG_YAW_GYRO_RAW'))
+				frame.gyro.yaw =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_YAW_GYRO_RAW'], i + offsets['LOG_YAW_GYRO_RAW'] + 2),
+						true
+					) / 16;
+			if (flags.includes('LOG_ROLL_PID_P'))
+				frame.pid.roll.p = leBytesToInt(
+					data.slice(i + offsets['LOG_ROLL_PID_P'], i + offsets['LOG_ROLL_PID_P'] + 2),
+					true
+				);
+			if (flags.includes('LOG_ROLL_PID_I'))
+				frame.pid.roll.i = leBytesToInt(
+					data.slice(i + offsets['LOG_ROLL_PID_I'], i + offsets['LOG_ROLL_PID_I'] + 2),
+					true
+				);
+			if (flags.includes('LOG_ROLL_PID_D'))
+				frame.pid.roll.d = leBytesToInt(
+					data.slice(i + offsets['LOG_ROLL_PID_D'], i + offsets['LOG_ROLL_PID_D'] + 2),
+					true
+				);
+			if (flags.includes('LOG_ROLL_PID_FF'))
+				frame.pid.roll.ff = leBytesToInt(
+					data.slice(i + offsets['LOG_ROLL_PID_FF'], i + offsets['LOG_ROLL_PID_FF'] + 2),
+					true
+				);
+			if (flags.includes('LOG_ROLL_PID_S'))
+				frame.pid.roll.s = leBytesToInt(
+					data.slice(i + offsets['LOG_ROLL_PID_S'], i + offsets['LOG_ROLL_PID_S'] + 2),
+					true
+				);
+			if (flags.includes('LOG_PITCH_PID_P'))
+				frame.pid.pitch.p = leBytesToInt(
+					data.slice(i + offsets['LOG_PITCH_PID_P'], i + offsets['LOG_PITCH_PID_P'] + 2),
+					true
+				);
+			if (flags.includes('LOG_PITCH_PID_I'))
+				frame.pid.pitch.i = leBytesToInt(
+					data.slice(i + offsets['LOG_PITCH_PID_I'], i + offsets['LOG_PITCH_PID_I'] + 2),
+					true
+				);
+			if (flags.includes('LOG_PITCH_PID_D'))
+				frame.pid.pitch.d = leBytesToInt(
+					data.slice(i + offsets['LOG_PITCH_PID_D'], i + offsets['LOG_PITCH_PID_D'] + 2),
+					true
+				);
+			if (flags.includes('LOG_PITCH_PID_FF'))
+				frame.pid.pitch.ff = leBytesToInt(
+					data.slice(i + offsets['LOG_PITCH_PID_FF'], i + offsets['LOG_PITCH_PID_FF'] + 2),
+					true
+				);
+			if (flags.includes('LOG_PITCH_PID_S'))
+				frame.pid.pitch.s = leBytesToInt(
+					data.slice(i + offsets['LOG_PITCH_PID_S'], i + offsets['LOG_PITCH_PID_S'] + 2),
+					true
+				);
+			if (flags.includes('LOG_YAW_PID_P'))
+				frame.pid.yaw.p = leBytesToInt(
+					data.slice(i + offsets['LOG_YAW_PID_P'], i + offsets['LOG_YAW_PID_P'] + 2),
+					true
+				);
+			if (flags.includes('LOG_YAW_PID_I'))
+				frame.pid.yaw.i = leBytesToInt(
+					data.slice(i + offsets['LOG_YAW_PID_I'], i + offsets['LOG_YAW_PID_I'] + 2),
+					true
+				);
+			if (flags.includes('LOG_YAW_PID_D'))
+				frame.pid.yaw.d = leBytesToInt(
+					data.slice(i + offsets['LOG_YAW_PID_D'], i + offsets['LOG_YAW_PID_D'] + 2),
+					true
+				);
+			if (flags.includes('LOG_YAW_PID_FF'))
+				frame.pid.yaw.ff = leBytesToInt(
+					data.slice(i + offsets['LOG_YAW_PID_FF'], i + offsets['LOG_YAW_PID_FF'] + 2),
+					true
+				);
+			if (flags.includes('LOG_YAW_PID_S'))
+				frame.pid.yaw.s = leBytesToInt(
+					data.slice(i + offsets['LOG_YAW_PID_S'], i + offsets['LOG_YAW_PID_S'] + 2),
+					true
+				);
+			if (flags.includes('LOG_MOTOR_OUTPUTS')) {
+				const throttleBytes = data.slice(
+					i + offsets['LOG_MOTOR_OUTPUTS'],
+					i + offsets['LOG_MOTOR_OUTPUTS'] + 6
+				);
+				const motors23 = leBytesToInt(throttleBytes.slice(3, 6).reverse());
+				const motors01 = leBytesToInt(throttleBytes.slice(0, 3).reverse());
+				frame.motors.rr = motors01 >> 12;
+				frame.motors.fr = motors01 & 0xfff;
+				frame.motors.rl = motors23 >> 12;
+				frame.motors.fl = motors23 & 0xfff;
+			}
+			if (flags.includes('LOG_ALTITUDE'))
+				frame.altitude = leBytesToInt(
+					data.slice(i + offsets['LOG_ALTITUDE'], i + offsets['LOG_ALTITUDE'] + 2)
+				);
+			log.push(frame);
+		}
+		loadedLog = {
+			frameCount: frames,
+			flags,
+			frames: log,
+			version,
+			startTime,
+			ranges,
+			pidFrequency: pidFreq,
+			frequencyDivider: freqDiv,
+			rateFactors,
+			pidConstants,
+			framesPerSecond,
+			rawFile: binFile
+		};
+		console.log(loadedLog);
+		resolveWhenReady(loadedLog);
+	}
+
 	let logInfoPosition = 0;
-	let logInfoInterval: number | NodeJS.Timer = -1;
+	let logInfoInterval: number = -1;
 	let selected = -1;
 	function getLogInfo() {
 		const infoNums = [] as number[];
 		for (let i = 0; i < 10; i++) {
 			if (logInfoPosition >= logNums.length) {
+				//Depending on the NodeJS version this may be a NodeJS.Timer rather than a number
+				//@ts-ignore
 				clearInterval(logInfoInterval);
 				break;
 			}
@@ -711,8 +720,12 @@
 		if (options.min !== undefined && current < options.min) return options.min;
 		return current;
 	}
-	function drawCanvas() {
+	function drawCanvas(allowShortening = true) {
 		if (!mounted) return;
+		if (allowShortening) {
+			clearTimeout(drawFullCanvasTimeout);
+			drawFullCanvasTimeout = setTimeout(() => drawCanvas(false), 250);
+		}
 		const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 		const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 		/**
@@ -726,8 +739,13 @@
 		const width = dataViewer.clientWidth;
 		let sliceAndSkip = dataSlice;
 		if (!sliceAndSkip.length) return;
-		while (sliceAndSkip.length > 2 * width) {
-			sliceAndSkip = sliceAndSkip.filter((_, i) => i % 2 == 0);
+		const everyNth = Math.floor(sliceAndSkip.length / width);
+		if (everyNth > 1 && allowShortening) {
+			const len = sliceAndSkip.length;
+			sliceAndSkip = [] as LogFrame[];
+			for (let i = 0; i < len; i += everyNth) {
+				sliceAndSkip.push(dataSlice[i]);
+			}
 		}
 		ctx.clearRect(0, 0, dataViewer.clientWidth, dataViewer.clientHeight);
 		const frameWidth = width / (sliceAndSkip.length - 1);
@@ -802,9 +820,9 @@
 			})
 			.catch(console.error);
 	}
-	function prefixZeros(num: number, totalDigits: number) {
+	function prefixZeros(num: number = 0, totalDigits: number, char: string = '0') {
 		let str = num.toString();
-		while (str.length < totalDigits) str = '0' + str;
+		while (str.length < totalDigits) str = char + str;
 		return str;
 	}
 	function downloadLog(type: 'kbb' | 'json' = 'kbb') {
@@ -822,6 +840,25 @@
 				URL.revokeObjectURL(url);
 			})
 			.catch(console.error);
+	}
+	function openLogFromKbb() {
+		const file = prompt('Paste the KBB file or JSON Array here');
+		if (!file) return;
+		if (file.startsWith('[') && file.endsWith(']')) {
+			//JSON array
+			try {
+				binFile = JSON.parse(file);
+			} catch (e) {
+				alert('Error parsing JSON: ' + e);
+			}
+		} else {
+			//KBB file
+			binFile = file.split('').map((c) => c.charCodeAt(0));
+		}
+		decodeBinFile();
+		startFrame = 0;
+		endFrame = loadedLog?.frameCount || 2 - 1;
+		drawCanvas();
 	}
 	function getLog(num: number): Promise<BBLog> {
 		binFileNumber = -1;
@@ -845,6 +882,7 @@
 			loadedLog = data as BBLog;
 			startFrame = 0;
 			endFrame = data.frameCount - 1;
+			console.log(loadedLog);
 			drawCanvas();
 		} catch (e) {
 			alert('Error parsing JSON: ' + e);
@@ -908,7 +946,9 @@
 		window.addEventListener('resize', onResize);
 		onResize();
 	});
-	onDestroy(() => {});
+	onDestroy(() => {
+		clearTimeout(drawFullCanvasTimeout);
+	});
 </script>
 
 <div class="blackbox">
@@ -919,11 +959,12 @@
 			{/each}
 		</select>
 		<button on:click={() => openLog()} disabled={selected === -1}>Open</button>
-		<button on:click={() => downloadLog()} disabled={selected === -1}>Download BIN</button>
+		<button on:click={() => downloadLog()} disabled={selected === -1}>Download KBB</button>
 		<button on:click={() => downloadLog('json')} disabled={selected === -1}>Download JSON</button>
 		<button on:click={() => deleteLog()} disabled={selected === -1}>Delete</button>
 		<button on:click={() => formatBB()}>Format</button>
 		<button on:click={() => openLogFromPromptJSON()}>Open JSON</button>
+		<button on:click={() => openLogFromKbb()}>Open KBB</button>
 	</div>
 	<div class="dataViewerWrapper">
 		<canvas id="bbDataViewer" />
@@ -961,6 +1002,78 @@
 			</div>
 		{/each}
 		<button class="addGraphButton" disabled={!loadedLog} on:click={addGraph}>Add Graph</button>
+		{#if loadedLog}
+			<div class="fileInfo" style="margin-top: .8rem">
+				<div>Blackbox Version: {loadedLog.version.join('.')}</div>
+				<div>Start Time: {loadedLog.startTime} ms</div>
+				<div>Frame Count: {loadedLog.frameCount}</div>
+				<div>PID Frequency: {loadedLog.pidFrequency} Hz</div>
+				<div>Frames per Second: {loadedLog.framesPerSecond} Hz</div>
+				<div style="white-space: preserve">Flags: {'\n  - ' + loadedLog.flags.join('\n  - ')}</div>
+				<div>File Size: {(loadedLog.rawFile.length / 1000).toFixed(1)} KB</div>
+				<div>
+					IMU Range: {loadedLog.ranges.gyro}°/sec, ±{loadedLog.ranges.accel}g
+				</div>
+				<div>
+					PID Gains:
+					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;P:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstants[0][0], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[1][0], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[2][0], 5, ' ')}
+					</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;I:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstants[0][1], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[1][1], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[2][1], 5, ' ')}
+					</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;D:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstants[0][2], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[1][2], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[2][2], 5, ' ')}
+					</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;FF:&nbsp;{prefixZeros(loadedLog.pidConstants[0][3], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[1][3], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[2][3], 5, ' ')}
+					</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;S:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstants[0][4], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[1][4], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstants[2][4], 5, ' ')}
+					</div>
+				</div>
+				<div class="rateFactors">
+					Rate Factors:
+					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;x^1:&nbsp;{prefixZeros(loadedLog.rateFactors[0][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[0][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[0][2], 5, ' ')}
+					</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;x^2:&nbsp;{prefixZeros(loadedLog.rateFactors[1][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[1][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[1][2], 5, ' ')}
+					</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;x^3:&nbsp;{prefixZeros(loadedLog.rateFactors[2][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[2][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[2][2], 5, ' ')}
+					</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;x^4:&nbsp;{prefixZeros(loadedLog.rateFactors[3][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[3][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[3][2], 5, ' ')}
+					</div>
+					<div style="white-space:pre-wrap">
+						&nbsp;&nbsp;x^5:&nbsp;{prefixZeros(loadedLog.rateFactors[4][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[4][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[4][2], 5, ' ')}
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 	<div class="timelineWrapper">
 		<input
@@ -1054,10 +1167,18 @@
 		padding: 0.8rem;
 		border-bottom: var(--border-color) 1px solid;
 	}
-	.graphSelector:last-of-type {
-		margin-bottom: 0.8rem;
+	.addGraphButton {
+		margin-top: 0.8rem;
 	}
 	.deleteGraph {
 		float: right;
+	}
+
+	.fileInfo {
+		margin-left: 0.5rem;
+	}
+	.fileInfo div {
+		font-family: monospace;
+		font-size: medium;
 	}
 </style>

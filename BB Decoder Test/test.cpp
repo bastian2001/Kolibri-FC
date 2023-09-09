@@ -91,7 +91,7 @@ Flag logFlags[] = {
 	{"LOG_YAW_PID_D", 2},
 	{"LOG_YAW_PID_FF", 2},
 	{"LOG_YAW_PID_S", 2},
-	{"LOG_MOTOR_OUTPUTS", 7},
+	{"LOG_MOTOR_OUTPUTS", 6},
 	{"LOG_ALTITUDE", 2},
 };
 
@@ -123,7 +123,8 @@ int handleFile(string fname, bool print = true);
 int main()
 {
 	// list all .kbb files in current directory
-	system("dir /b *.kbb,*.txt > list.tmp");
+	system("dir -1 | grep -e .kbb > list.tmp");
+	// system("dir /b *.kbb,*.txt > list.tmp");
 	ifstream list("list.tmp");
 	string files[100];
 	int fileCount = 0;
@@ -135,7 +136,8 @@ int main()
 	}
 	fileCount--;
 	list.close();
-	system("del list.tmp");
+	system("rm list.tmp");
+	// system("del list.tmp");
 	// ask user which file to open using 2 digit number, or to enter a path
 	cout << "\nSelect file to open\nLeave empty to do all\nEnter relative path to do another file"
 		 << endl;
@@ -233,7 +235,12 @@ int handleFile(const string fname, bool print)
 	double pidConstants[3][7];
 	for (int i = 0; i < 3; i++)
 	{
-		for (int j = 0; j < 7; j++)
+		pidConstants[i][0] = readInt32() >> 11;
+		pidConstants[i][1] = readInt32() >> 3;
+		pidConstants[i][2] = readInt32() >> 10;
+		pidConstants[i][3] = readInt32() >> 10;
+		pidConstants[i][4] = readInt32() >> 8;
+		for (int j = 5; j < 7; j++)
 		{
 			pidConstants[i][j] = (double)readInt32() / 65536.;
 		}
@@ -395,8 +402,6 @@ int handleFile(const string fname, bool print)
 			yawPIDS[i] = readInt16();
 		if (bbFlags & (1 << 26))
 		{
-			motorOutputs[i] = readUInt8(); // for now only
-			motorOutputs[i] <<= 8;		   // for now only
 			motorOutputs[i] |= readUInt8();
 			motorOutputs[i] <<= 8;
 			motorOutputs[i] |= readUInt8();
@@ -416,9 +421,9 @@ int handleFile(const string fname, bool print)
 	string ofname = "./";
 	ofname += fname;
 	if (hasEnding(ofname, ".kbb.txt"))
-		ofname = ofname.substr(0, ofname.length() - 9);
+		ofname = ofname.substr(0, ofname.length() - 8);
 	else if (hasEnding(ofname, ".kbb"))
-		ofname = ofname.substr(0, ofname.length() - 5);
+		ofname = ofname.substr(0, ofname.length() - 4);
 	else if (hasEnding(ofname, ".txt"))
 		ofname = ofname.substr(0, ofname.length() - 4);
 	ofname += ".json";
@@ -446,8 +451,8 @@ int handleFile(const string fname, bool print)
 	json << "\t\"ranges\": {\n";
 	const uint16_t gyroRanges[] = {2000, 1000, 500, 250, 125};
 	const uint16_t accelRanges[] = {2, 4, 8, 16};
-	json << "\t\t\"gyro\": " << gyroRanges[gyrAccelRange & 0b111] << ",\n";
-	json << "\t\t\"accel\": " << accelRanges[gyrAccelRange >> 3] << "\n";
+	json << "\t\t\"gyro\": " << gyroRanges[(gyrAccelRange >> 2) & 0b111] << ",\n";
+	json << "\t\t\"accel\": " << accelRanges[gyrAccelRange & 0b11] << "\n";
 	json << "\t},\n";
 	json << "\t\"rateFactors\": [\n";
 	for (int i = 0; i < 5; i++)
@@ -500,21 +505,21 @@ int handleFile(const string fname, bool print)
 		json << "\t\t\t},\n";
 		json << "\t\t\t\"setpoint\": {\n";
 		if (bbFlags & (1 << 4))
-			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"roll\": " << rollSetpoint[i] << "\n";
+			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"roll\": " << (float)(rollSetpoint[i] / 16.f) << "\n";
 		if (bbFlags & (1 << 5))
-			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"pitch\": " << pitchSetpoint[i] << "\n";
+			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"pitch\": " << (float)(pitchSetpoint[i] / 16.f) << "\n";
 		if (bbFlags & (1 << 6))
 			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"throttle\": " << throttleSetpoint[i] << "\n";
 		if (bbFlags & (1 << 7))
-			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"yaw\": " << yawSetpoint[i] << "\n";
+			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"yaw\": " << (float)(yawSetpoint[i] / 16.f) << "\n";
 		json << "\t\t\t},\n";
 		json << "\t\t\t\"gyro\": {\n";
 		if (bbFlags & (1 << 8))
-			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"roll\": " << rollGyroRaw[i] << "\n";
+			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"roll\": " << (float)(rollGyroRaw[i] / 16.f) << "\n";
 		if (bbFlags & (1 << 9))
-			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"pitch\": " << pitchGyroRaw[i] << "\n";
+			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"pitch\": " << (float)(pitchGyroRaw[i] / 16.f) << "\n";
 		if (bbFlags & (1 << 10))
-			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"yaw\": " << yawGyroRaw[i] << "\n";
+			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"yaw\": " << (float)(yawGyroRaw[i] / 16.f) << "\n";
 		json << "\t\t\t},\n";
 		json << "\t\t\t\"pid\": {\n";
 		json << "\t\t\t\t\"roll\": {\n";

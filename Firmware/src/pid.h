@@ -4,6 +4,12 @@
 #define AXIS_PITCH 0
 #define AXIS_YAW 2
 
+#define P_SHIFT 11
+#define I_SHIFT 3
+#define D_SHIFT 10
+#define FF_SHIFT D_SHIFT
+#define S_SHIFT 8 // setpoint follow
+
 extern int16_t bmiDataRaw[6];
 extern int16_t *gyroDataRaw;
 extern int16_t *accelDataRaw;

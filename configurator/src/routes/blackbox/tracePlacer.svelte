@@ -47,7 +47,7 @@
 	onMount(() => {
 		const h = Math.random() * 360;
 		const s = Math.random() * 0.5 + 0.5;
-		const l = Math.random() * 0.5 + 0.35; // 0.35 - 0.85
+		const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
 		color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
 	});
 </script>
