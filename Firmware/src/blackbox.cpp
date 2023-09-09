@@ -97,7 +97,6 @@ void startLogging()
 	maxFileSize = fsInfo.totalBytes - fsInfo.usedBytes - 50000;
 	if (maxFileSize < 20000)
 	{
-		clearBlackbox();
 		Serial.println("Not enough space for blackbox, cleared");
 		return;
 	}

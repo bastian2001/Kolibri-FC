@@ -190,7 +190,11 @@ int handleFile(const string fname, bool print)
 		printf("0x%08X", magic);
 		return 1;
 	}
-	string fileVersion = to_string(readUInt8()) + '.' + to_string(readUInt8()) + '.' + to_string(readUInt8());
+	uint8_t version[3];
+	version[0] = readUInt8();
+	version[1] = readUInt8();
+	version[2] = readUInt8();
+	string fileVersion = to_string(version[0]) + "." + to_string(version[1]) + "." + to_string(version[2]);
 	uint32_t startTime = readUInt32();
 	uint32_t pidLoopFreq = (3200 / (1 << readUInt8()));
 	uint32_t loopDivider = readUInt8();
@@ -409,8 +413,6 @@ int handleFile(const string fname, bool print)
 			altitude[i] = readUInt16();
 	}
 
-	file.close();
-
 	string ofname = "./";
 	ofname += fname;
 	if (hasEnding(ofname, ".kbb.txt"))
@@ -422,381 +424,150 @@ int handleFile(const string fname, bool print)
 	ofname += ".json";
 	ofstream json(ofname);
 	json << "{\n";
-	json << "\t\"version\": \"" << fileVersion << "\",\n";
+	json << "\t\"frameCount\": " << frameCount << ",\n";
+	json << "\t\"rawFile\": [\n";
+	file.seekg(0, ios::end);
+	int rawFileSize = file.tellg();
+	file.seekg(0, ios::beg);
+	for (int i = 0; i < rawFileSize; i++)
+	{
+		json << (int)readUInt8();
+		if (i < rawFileSize - 1)
+			json << ",";
+		if (i % 32 == 31)
+			json << "\n";
+	}
+	json << "\n\t],\n";
+	json << "\t\"version\": [" << to_string(version[0]) << "," << to_string(version[0]) << "," << to_string(version[0]) << "],\n";
 	json << "\t\"startTime\": " << startTime << ",\n";
-	json << "\t\"pidLoopFreq\": " << pidLoopFreq << ",\n";
-	json << "\t\"loopDivider\": " << loopDivider << ",\n";
-	json << "\t\"gyroRange\": " << (2000 >> (gyrAccelRange & 0b111)) << ",\n";
-	json << "\t\"accelRange\": " << (2 << (gyrAccelRange >> 3)) << ",\n";
-	json << "\t\"rateFactors\": {\n";
-	json << "\t\t\"roll\": [";
-	for (int i = 0; i < 5; i++)
-	{
-		json << rateFactors[i][0];
-		if (i < 4)
-			json << ", ";
-	}
-	json << "],\n";
-	json << "\t\t\"pitch\": [";
-	for (int i = 0; i < 5; i++)
-	{
-		json << rateFactors[i][1];
-		if (i < 4)
-			json << ", ";
-	}
-	json << "],\n";
-	json << "\t\t\"yaw\": [";
-	for (int i = 0; i < 5; i++)
-	{
-		json << rateFactors[i][2];
-		if (i < 4)
-			json << ", ";
-	}
-	json << "]\n";
+	json << "\t\"pidFrequency\": " << pidLoopFreq << ",\n";
+	json << "\t\"frequencyDivider\": " << loopDivider << ",\n";
+	json << "\t\"framesPerSecond\": " << logFreq << ",\n";
+	json << "\t\"ranges\": {\n";
+	const uint16_t gyroRanges[] = {2000, 1000, 500, 250, 125};
+	const uint16_t accelRanges[] = {2, 4, 8, 16};
+	json << "\t\t\"gyro\": " << gyroRanges[gyrAccelRange & 0b111] << ",\n";
+	json << "\t\t\"accel\": " << accelRanges[gyrAccelRange >> 3] << "\n";
 	json << "\t},\n";
-	json << "\t\"pidConstants\": {\n";
-	json << "\t\t\"roll\": {\n";
-	json << "\t\t\t\"kP\": " << pidConstants[0][0] << ",\n";
-	json << "\t\t\t\"kI\": " << pidConstants[0][1] << ",\n";
-	json << "\t\t\t\"kD\": " << pidConstants[0][2] << ",\n";
-	json << "\t\t\t\"kFF\": " << pidConstants[0][3] << ",\n";
-	json << "\t\t\t\"kS\": " << pidConstants[0][4] << ",\n";
-	json << "\t\t\t\"iFalloff\": " << pidConstants[0][5] << "\n";
-	json << "\t\t},\n";
-	json << "\t\t\"pitch\": {\n";
-	json << "\t\t\t\"kP\": " << pidConstants[1][0] << ",\n";
-	json << "\t\t\t\"kI\": " << pidConstants[1][1] << ",\n";
-	json << "\t\t\t\"kD\": " << pidConstants[1][2] << ",\n";
-	json << "\t\t\t\"kFF\": " << pidConstants[1][3] << ",\n";
-	json << "\t\t\t\"kS\": " << pidConstants[1][4] << ",\n";
-	json << "\t\t\t\"iFalloff\": " << pidConstants[1][5] << "\n";
-	json << "\t\t},\n";
-	json << "\t\t\"yaw\": {\n";
-	json << "\t\t\t\"kP\": " << pidConstants[2][0] << ",\n";
-	json << "\t\t\t\"kI\": " << pidConstants[2][1] << ",\n";
-	json << "\t\t\t\"kD\": " << pidConstants[2][2] << ",\n";
-	json << "\t\t\t\"kFF\": " << pidConstants[2][3] << ",\n";
-	json << "\t\t\t\"kS\": " << pidConstants[2][4] << ",\n";
-	json << "\t\t\t\"iFalloff\": " << pidConstants[2][5] << "\n";
-	json << "\t\t}\n";
-	json << "\t},\n";
-	json << "\t\"enabledFlags\": [\n";
+	json << "\t\"rateFactors\": [\n";
+	for (int i = 0; i < 5; i++)
+	{
+		json << "\t\t[";
+		for (int j = 0; j < 3; j++)
+		{
+			json << rateFactors[i][j];
+			if (j < 2)
+				json << ", ";
+		}
+		json << "\t\t]" << ((i == 4) ? "\n" : ",\n");
+	}
+	json << "\t],\n";
+
+	json << "\t\"pidConstants\": [\n";
+	for (int i = 0; i < 3; i++)
+	{
+		json << "\t\t[";
+		for (int j = 0; j < 7; j++)
+		{
+			json << pidConstants[i][j];
+			if (j < 6)
+				json << ", ";
+		}
+		json << "\t\t]" << ((i == 2) ? "\n" : ",\n");
+	}
+	json << "\t],\n";
+	json << "\t\"flags\": [\n";
 	string flags[(sizeof(logFlags)) / (sizeof(Flag))];
 	int j = 0;
 	for (int i = 0; i < (sizeof(logFlags)) / (sizeof(Flag)); i++)
 		if (bbFlags & (1 << i))
 			flags[j++] = logFlags[i].name;
 	json << "\t\t\"" << joinArray(flags, j, "\",\n\t\t\"") << "\"\n\t],\n";
-	json << "\t\"data\": {\n";
-	if (bbFlags & (1 << 0))
+	json << "\t\"frames\": [\n";
+	for (int i = 0; i < frameCount; i++)
 	{
-		json << "\t\t\"rollELRSRaw\": [";
-		for (int i = 0; i < frameCount; i++)
+		int elrsCount = 0, setpointCount = 0, gyroCount = 0, pidRollCount = 0, pidPitchCount = 0, pidYawCount = 0;
+		json << "\t\t{\n";
+		json << "\t\t\t\"elrs\": {\n";
+		if (bbFlags & (1 << 0))
+			json << (elrsCount++ ? "," : "") << "\t\t\t\t\"roll\": " << rollELRSRaw[i] << "\n";
+		if (bbFlags & (1 << 1))
+			json << (elrsCount++ ? "," : "") << "\t\t\t\t\"pitch\": " << pitchELRSRaw[i] << "\n";
+		if (bbFlags & (1 << 2))
+			json << (elrsCount++ ? "," : "") << "\t\t\t\t\"throttle\": " << throttleELRSRaw[i] << "\n";
+		if (bbFlags & (1 << 3))
+			json << (elrsCount++ ? "," : "") << "\t\t\t\t\"yaw\": " << yawELRSRaw[i] << "\n";
+		json << "\t\t\t},\n";
+		json << "\t\t\t\"setpoint\": {\n";
+		if (bbFlags & (1 << 4))
+			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"roll\": " << rollSetpoint[i] << "\n";
+		if (bbFlags & (1 << 5))
+			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"pitch\": " << pitchSetpoint[i] << "\n";
+		if (bbFlags & (1 << 6))
+			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"throttle\": " << throttleSetpoint[i] << "\n";
+		if (bbFlags & (1 << 7))
+			json << (setpointCount++ ? "," : "") << "\t\t\t\t\"yaw\": " << yawSetpoint[i] << "\n";
+		json << "\t\t\t},\n";
+		json << "\t\t\t\"gyro\": {\n";
+		if (bbFlags & (1 << 8))
+			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"roll\": " << rollGyroRaw[i] << "\n";
+		if (bbFlags & (1 << 9))
+			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"pitch\": " << pitchGyroRaw[i] << "\n";
+		if (bbFlags & (1 << 10))
+			json << (gyroCount++ ? "," : "") << "\t\t\t\t\"yaw\": " << yawGyroRaw[i] << "\n";
+		json << "\t\t\t},\n";
+		json << "\t\t\t\"pid\": {\n";
+		json << "\t\t\t\t\"roll\": {\n";
+		if (bbFlags & (1 << 11))
+			json << (pidRollCount++ ? "," : "") << "\t\t\t\t\t\"p\": " << rollPIDP[i] << "\n";
+		if (bbFlags & (1 << 12))
+			json << (pidRollCount++ ? "," : "") << "\t\t\t\t\t\"i\": " << rollPIDI[i] << "\n";
+		if (bbFlags & (1 << 13))
+			json << (pidRollCount++ ? "," : "") << "\t\t\t\t\t\"d\": " << rollPIDD[i] << "\n";
+		if (bbFlags & (1 << 14))
+			json << (pidRollCount++ ? "," : "") << "\t\t\t\t\t\"ff\": " << rollPIDFF[i] << "\n";
+		if (bbFlags & (1 << 15))
+			json << (pidRollCount++ ? "," : "") << "\t\t\t\t\t\"s\": " << rollPIDS[i] << "\n";
+		json << "\t\t\t\t},\n";
+		json << "\t\t\t\t\"pitch\": {\n";
+		if (bbFlags & (1 << 16))
+			json << (pidPitchCount++ ? "," : "") << "\t\t\t\t\t\"p\": " << pitchPIDP[i] << "\n";
+		if (bbFlags & (1 << 17))
+			json << (pidPitchCount++ ? "," : "") << "\t\t\t\t\t\"i\": " << pitchPIDI[i] << "\n";
+		if (bbFlags & (1 << 18))
+			json << (pidPitchCount++ ? "," : "") << "\t\t\t\t\t\"d\": " << pitchPIDD[i] << "\n";
+		if (bbFlags & (1 << 19))
+			json << (pidPitchCount++ ? "," : "") << "\t\t\t\t\t\"ff\": " << pitchPIDFF[i] << "\n";
+		if (bbFlags & (1 << 20))
+			json << (pidPitchCount++ ? "," : "") << "\t\t\t\t\t\"s\": " << pitchPIDS[i] << "\n";
+		json << "\t\t\t\t},\n";
+		json << "\t\t\t\t\"yaw\": {\n";
+		if (bbFlags & (1 << 21))
+			json << (pidYawCount++ ? "," : "") << "\t\t\t\t\t\"p\": " << yawPIDP[i] << "\n";
+		if (bbFlags & (1 << 22))
+			json << (pidYawCount++ ? "," : "") << "\t\t\t\t\t\"i\": " << yawPIDI[i] << "\n";
+		if (bbFlags & (1 << 23))
+			json << (pidYawCount++ ? "," : "") << "\t\t\t\t\t\"d\": " << yawPIDD[i] << "\n";
+		if (bbFlags & (1 << 24))
+			json << (pidYawCount++ ? "," : "") << "\t\t\t\t\t\"ff\": " << yawPIDFF[i] << "\n";
+		if (bbFlags & (1 << 25))
+			json << (pidYawCount++ ? "," : "") << "\t\t\t\t\t\"s\": " << yawPIDS[i] << "\n";
+		json << "\t\t\t\t}\n";
+		json << "\t\t\t},\n";
+		json << "\t\t\t\"motors\": {\n";
+		if (bbFlags & (1 << 26))
 		{
-			json << rollELRSRaw[i];
-			if (i < frameCount - 1)
-				json << ", ";
+			json << "\t\t\t\t\"rr\": " << ((motorOutputs[i] >> 36) & 0xFFF) << ",\n";
+			json << "\t\t\t\t\"rl\": " << ((motorOutputs[i] >> 24) & 0xFFF) << ",\n";
+			json << "\t\t\t\t\"fr\": " << ((motorOutputs[i] >> 12) & 0xFFF) << ",\n";
+			json << "\t\t\t\t\"fl\": " << ((motorOutputs[i] >> 0) & 0xFFF) << "\n";
 		}
-		json << "\n\t\t],\n";
+		json << "\t\t\t}" << ((bbFlags & (1 << 27)) ? ",\n" : "\n");
+		if (bbFlags & (1 << 27))
+			json << "\t\t\t\"altitude\": " << altitude[i] << "\n";
+		json << "\t\t}" << ((i == frameCount - 1) ? "\n" : ",\n");
 	}
-	if (bbFlags & (1 << 1))
-	{
-		json << "\t\t\"pitchELRSRaw\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << pitchELRSRaw[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 2))
-	{
-		json << "\t\t\"throttleELRSRaw\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << throttleELRSRaw[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 3))
-	{
-		json << "\t\t\"yawELRSRaw\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << yawELRSRaw[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 4))
-	{
-		json << "\t\t\"rollSetpoint\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << rollSetpoint[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 5))
-	{
-		json << "\t\t\"pitchSetpoint\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << pitchSetpoint[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 6))
-	{
-		json << "\t\t\"throttleSetpoint\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << throttleSetpoint[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 7))
-	{
-		json << "\t\t\"yawSetpoint\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << yawSetpoint[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 8))
-	{
-		json << "\t\t\"rollGyroRaw\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << rollGyroRaw[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 9))
-	{
-		json << "\t\t\"pitchGyroRaw\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << pitchGyroRaw[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 10))
-	{
-		json << "\t\t\"yawGyroRaw\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << yawGyroRaw[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 11))
-	{
-		json << "\t\t\"rollPIDP\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << rollPIDP[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 12))
-	{
-		json << "\t\t\"rollPIDI\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << rollPIDI[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 13))
-	{
-		json << "\t\t\"rollPIDD\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << rollPIDD[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 14))
-	{
-		json << "\t\t\"rollPIDFF\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << rollPIDFF[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 15))
-	{
-		json << "\t\t\"rollPIDS\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << rollPIDS[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 16))
-	{
-		json << "\t\t\"pitchPIDP\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << pitchPIDP[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 17))
-	{
-		json << "\t\t\"pitchPIDI\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << pitchPIDI[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 18))
-	{
-		json << "\t\t\"pitchPIDD\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << pitchPIDD[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 19))
-	{
-		json << "\t\t\"pitchPIDFF\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << pitchPIDFF[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 20))
-	{
-		json << "\t\t\"pitchPIDS\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << pitchPIDS[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 21))
-	{
-		json << "\t\t\"yawPIDP\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << yawPIDP[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 22))
-	{
-		json << "\t\t\"yawPIDI\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << yawPIDI[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 23))
-	{
-		json << "\t\t\"yawPIDD\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << yawPIDD[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 24))
-	{
-		json << "\t\t\"yawPIDFF\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << yawPIDFF[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 25))
-	{
-		json << "\t\t\"yawPIDS\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << yawPIDS[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 26))
-	{
-		json << "\t\t\"motorOutputs\": [\n\t\t\t";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << '[' << ((motorOutputs[i] >> 36) & 0xFFF) << ", " << ((motorOutputs[i] >> 24) & 0xFFF) << ", " << ((motorOutputs[i] >> 12) & 0xFFF) << ", " << (motorOutputs[i] & 0xFFF) << ']';
-			if (i < frameCount - 1)
-				json << ",\n\t\t\t";
-		}
-		json << "\n\t\t],\n";
-	}
-	if (bbFlags & (1 << 27))
-	{
-		json << "\t\t\"altitude\": [";
-		for (int i = 0; i < frameCount; i++)
-		{
-			json << altitude[i];
-			if (i < frameCount - 1)
-				json << ", ";
-		}
-		json << "\n\t\t],\n";
-	}
-	json << "\t}\n";
+	json << "\t]\n";
 	json << "}\n";
 	json.close();
 	if (print)

@@ -633,7 +633,7 @@
 	}
 
 	let logInfoPosition = 0;
-	let logInfoInterval = -1;
+	let logInfoInterval: number | NodeJS.Timer = -1;
 	let selected = -1;
 	function getLogInfo() {
 		const infoNums = [] as number[];
@@ -832,6 +832,24 @@
 			rejectWrongFile = reject;
 		});
 	}
+	function openLogFromPromptJSON() {
+		//use a js alert prompt to get the json file
+		const json = prompt('Paste the JSON file here');
+		if (!json) return;
+		try {
+			const data = JSON.parse(json);
+			if (data.version[0] !== 0) {
+				alert('Wrong version number: ' + data.version);
+				return;
+			}
+			loadedLog = data as BBLog;
+			startFrame = 0;
+			endFrame = data.frameCount - 1;
+			drawCanvas();
+		} catch (e) {
+			alert('Error parsing JSON: ' + e);
+		}
+	}
 	function formatBB() {
 		port.sendCommand(ConfigCmd.BB_FORMAT);
 	}
@@ -905,6 +923,7 @@
 		<button on:click={() => downloadLog('json')} disabled={selected === -1}>Download JSON</button>
 		<button on:click={() => deleteLog()} disabled={selected === -1}>Delete</button>
 		<button on:click={() => formatBB()}>Format</button>
+		<button on:click={() => openLogFromPromptJSON()}>Open JSON</button>
 	</div>
 	<div class="dataViewerWrapper">
 		<canvas id="bbDataViewer" />

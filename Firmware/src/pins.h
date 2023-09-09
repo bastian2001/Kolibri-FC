@@ -27,8 +27,8 @@ enum GYRO_SPI : uint8_t
 enum class MOTOR : uint8_t
 {
 	RR = 0,
-	RL,
 	FR,
+	RL,
 	FL,
 };
 #define PIN_GYRO_INT1 26

@@ -50,11 +50,11 @@ floatToFixedPoint(float f)
 
 void initPID()
 {
-	kP = 100 << P_SHIFT;
-	kI = 40 << I_SHIFT;
-	kD = 60 << D_SHIFT;
-	kFF = 100 << FF_SHIFT;
-	kS = 25 << S_SHIFT;
+	kP = 40 << P_SHIFT;
+	kI = 10 << I_SHIFT;
+	kD = 5 << D_SHIFT;
+	kFF = 3 << FF_SHIFT;
+	kS = 00 << S_SHIFT;
 	iFalloff = floatToFixedPoint(.998);
 	for (int i = 0; i < 3; i++)
 	{
