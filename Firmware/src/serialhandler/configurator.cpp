@@ -9,6 +9,15 @@ elapsedMillis configTimer = 0;
 
 elapsedMillis configOverrideMotors = 1001;
 
+elapsedMillis lastConfigPing = 0;
+bool configuratorConnected = false;
+
+void configuratorLoop()
+{
+	if (lastConfigPing > 1000)
+		configuratorConnected = false;
+}
+
 void sendCommand(uint16_t command, const char *data, uint16_t len)
 {
 	Serial.write('_');
@@ -36,8 +45,13 @@ void handleConfigCmd()
 	switch ((ConfigCmd)configMsgCommand)
 	{
 	case ConfigCmd::STATUS:
-		sendCommand(configMsgCommand | 0x4000, "Status report not available", strlen("Status report not available"));
-		break;
+	{
+		uint16_t voltage = adcVoltage * 100;
+		buf[len++] = voltage & 0xFF;
+		buf[len++] = voltage >> 8;
+		sendCommand(configMsgCommand | 0x4000, buf, len);
+	}
+	break;
 	case ConfigCmd::TASK_STATUS:
 		len = snprintf(buf, 256, "PID loop counter: %d", pidLoopCounter);
 		sendCommand(configMsgCommand | 0x4000, buf, len);
@@ -67,7 +81,12 @@ void handleConfigCmd()
 	case ConfigCmd::BB_FILE_DOWNLOAD:
 	{
 		uint8_t fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
-		printLogBin(fileNum);
+		int16_t chunkNum = -1;
+		if (configMsgLength > 1)
+		{
+			chunkNum = configSerialBuffer[CONFIG_BUFFER_DATA + 1] + (configSerialBuffer[CONFIG_BUFFER_DATA + 2] << 8);
+		}
+		printLogBin(fileNum, chunkNum);
 	}
 	break;
 	case ConfigCmd::BB_FILE_DELETE:
@@ -138,13 +157,22 @@ void handleConfigCmd()
 		break;
 	case ConfigCmd::SET_MOTORS:
 		throttles[(uint8_t)MOTOR::RR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 0] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 1] << 8);
-		throttles[(uint8_t)MOTOR::RL] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 2] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 3] << 8);
-		throttles[(uint8_t)MOTOR::FR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
+		throttles[(uint8_t)MOTOR::FR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 2] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 3] << 8);
+		throttles[(uint8_t)MOTOR::RL] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
 		throttles[(uint8_t)MOTOR::FL] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 6] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 7] << 8);
 		configOverrideMotors = 0;
 		break;
 	case ConfigCmd::BB_FILE_DOWNLOAD_RAW:
 		printLogBinRaw(configSerialBuffer[CONFIG_BUFFER_DATA]);
+		break;
+	case ConfigCmd::SET_DEBUG_LED:
+		gpio_put(PIN_LED_DEBUG, configSerialBuffer[CONFIG_BUFFER_DATA]);
+		sendCommand(configMsgCommand | 0x4000);
+		Serial.println("Set debug LED");
+		break;
+	case ConfigCmd::CONFIGURATOR_PING:
+		sendCommand(configMsgCommand | 0x4000);
+		configuratorConnected = true;
 		break;
 	default:
 		Serial.printf("Unknown command: %d\n", configMsgCommand);

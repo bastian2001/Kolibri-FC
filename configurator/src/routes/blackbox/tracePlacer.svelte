@@ -13,6 +13,7 @@
 	export let flags: string[];
 	export let autoRange: { min: number; max: number };
 	export let flagProps: { [key: string]: { name: string; unit: string } };
+	export let genFlagProps: { [key: string]: { name: string; unit: string } };
 
 	let autoRangeOn = true;
 	let flagName = '';
@@ -55,11 +56,18 @@
 <div class="wrapper">
 	<span class="colorMark" style:background-color={color}>&nbsp;</span>
 	<select name="flag" id="flagSelector" bind:value={flagName}>
-		{#each flags as flag}
+		{#each flags.filter((f) => {
+			return f.startsWith('LOG_');
+		}) as flag}
 			<option value={flag}>{flagProps[flag].name}</option>
 		{/each}
+		{#each flags.filter((f) => {
+			return f.startsWith('GEN_');
+		}) as flag}
+			<option value={flag}>{genFlagProps[flag].name} (Gen.)</option>
+		{/each}
 	</select>
-	{#if flagName === 'LOG_MOTOR_OUTPUTS'}
+	{#if flagName === 'LOG_MOTOR_OUTPUTS' || flagName === 'GEN_MOTOR_OUTPUTS'}
 		<select name="graphNum" id="graphNum" bind:value={modifier} style="width: auto">
 			{#each ['RR', 'FR', 'RL', 'FL'] as m}
 				<option value={m}>{m}</option>

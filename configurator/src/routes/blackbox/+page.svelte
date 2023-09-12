@@ -2,6 +2,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { port, type Command, ConfigCmd } from '../../stores';
 	import TracePlacer from './tracePlacer.svelte';
+	import { leBytesToInt } from '../../utils';
+
 	type TraceInGraph = {
 		flagName: string;
 		color: string;
@@ -45,7 +47,9 @@
 		frequencyDivider: number;
 		rateFactors: number[][];
 		pidConstants: number[][];
+		pidConstantsNice: number[][];
 		framesPerSecond: number;
+		isExact: boolean;
 	};
 
 	let loadedLog: BBLog | undefined;
@@ -330,6 +334,435 @@
 		};
 	};
 
+	const BB_GEN_FLAGS = {
+		GEN_ROLL_SETPOINT: {
+			name: 'Roll Setpoint',
+			replaces: 'LOG_ROLL_SETPOINT',
+			requires: ['LOG_ROLL_ELRS_RAW'],
+			unit: '°/sec',
+			exact: false
+		},
+		GEN_PITCH_SETPOINT: {
+			name: 'Pitch Setpoint',
+			replaces: 'LOG_PITCH_SETPOINT',
+			requires: ['LOG_PITCH_ELRS_RAW'],
+			unit: '°/sec',
+			exact: false
+		},
+		GEN_THROTTLE_SETPOINT: {
+			name: 'Throttle Setpoint',
+			replaces: 'LOG_THROTTLE_SETPOINT',
+			requires: ['LOG_THROTTLE_ELRS_RAW'],
+			unit: '°/sec',
+			exact: false
+		},
+		GEN_YAW_SETPOINT: {
+			name: 'Yaw Setpoint',
+			replaces: 'LOG_YAW_SETPOINT',
+			requires: ['LOG_YAW_ELRS_RAW'],
+			unit: '°/sec',
+			exact: false
+		},
+		GEN_ROLL_PID_P: {
+			name: 'Roll PID P',
+			replaces: 'LOG_ROLL_PID_P',
+			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT'], 'LOG_ROLL_GYRO_RAW'],
+			unit: '',
+			exact: true
+		},
+		GEN_ROLL_PID_I: {
+			name: 'Roll PID I',
+			replaces: 'LOG_ROLL_PID_I',
+			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT'], 'LOG_ROLL_GYRO_RAW'],
+			unit: '',
+			exact: false
+		},
+		GEN_ROLL_PID_D: {
+			name: 'Roll PID D',
+			replaces: 'LOG_ROLL_PID_D',
+			requires: ['LOG_ROLL_GYRO_RAW'],
+			unit: '',
+			exact: false
+		},
+		GEN_ROLL_PID_FF: {
+			name: 'Roll PID FF',
+			replaces: 'LOG_ROLL_PID_FF',
+			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT']],
+			unit: '',
+			exact: false
+		},
+		GEN_ROLL_PID_S: {
+			name: 'Roll PID S',
+			replaces: 'LOG_ROLL_PID_S',
+			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT']],
+			unit: '',
+			exact: true
+		},
+		GEN_PITCH_PID_P: {
+			name: 'Pitch PID P',
+			replaces: 'LOG_PITCH_PID_P',
+			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT'], 'LOG_PITCH_GYRO_RAW'],
+			unit: '',
+			exact: true
+		},
+		GEN_PITCH_PID_I: {
+			name: 'Pitch PID I',
+			replaces: 'LOG_PITCH_PID_I',
+			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT'], 'LOG_PITCH_GYRO_RAW'],
+			unit: '',
+			exact: false
+		},
+		GEN_PITCH_PID_D: {
+			name: 'Pitch PID D',
+			replaces: 'LOG_PITCH_PID_D',
+			requires: ['LOG_PITCH_GYRO_RAW'],
+			unit: '',
+			exact: false
+		},
+		GEN_PITCH_PID_FF: {
+			name: 'Pitch PID FF',
+			replaces: 'LOG_PITCH_PID_FF',
+			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT']],
+			unit: '',
+			exact: false
+		},
+		GEN_PITCH_PID_S: {
+			name: 'Pitch PID S',
+			replaces: 'LOG_PITCH_PID_S',
+			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT']],
+			unit: '',
+			exact: true
+		},
+		GEN_YAW_PID_P: {
+			name: 'Yaw PID P',
+			replaces: 'LOG_YAW_PID_P',
+			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT'], 'LOG_YAW_GYRO_RAW'],
+			unit: '',
+			exact: true
+		},
+		GEN_YAW_PID_I: {
+			name: 'Yaw PID I',
+			replaces: 'LOG_YAW_PID_I',
+			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT'], 'LOG_YAW_GYRO_RAW'],
+			unit: '',
+			exact: false
+		},
+		GEN_YAW_PID_D: {
+			name: 'Yaw PID D',
+			replaces: 'LOG_YAW_PID_D',
+			requires: ['LOG_YAW_GYRO_RAW'],
+			unit: '',
+			exact: false
+		},
+		GEN_YAW_PID_FF: {
+			name: 'Yaw PID FF',
+			replaces: 'LOG_YAW_PID_FF',
+			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT']],
+			unit: '',
+			exact: false
+		},
+		GEN_YAW_PID_S: {
+			name: 'Yaw PID S',
+			replaces: 'LOG_YAW_PID_S',
+			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT']],
+			unit: '',
+			exact: true
+		},
+		GEN_MOTOR_OUTPUTS: {
+			name: 'Motor Outputs',
+			replaces: 'LOG_MOTOR_OUTPUTS',
+			requires: [
+				['GEN_THROTTLE_SETPOINT', 'LOG_THROTTLE_SETPOINT'],
+				['LOG_ROLL_PID_P', 'GEN_ROLL_PID_P'],
+				['LOG_ROLL_PID_I', 'GEN_ROLL_PID_I'],
+				['LOG_ROLL_PID_D', 'GEN_ROLL_PID_D'],
+				['LOG_ROLL_PID_FF', 'GEN_ROLL_PID_FF'],
+				['LOG_ROLL_PID_S', 'GEN_ROLL_PID_S'],
+				['LOG_PITCH_PID_P', 'GEN_PITCH_PID_P'],
+				['LOG_PITCH_PID_I', 'GEN_PITCH_PID_I'],
+				['LOG_PITCH_PID_D', 'GEN_PITCH_PID_D'],
+				['LOG_PITCH_PID_FF', 'GEN_PITCH_PID_FF'],
+				['LOG_PITCH_PID_S', 'GEN_PITCH_PID_S'],
+				['LOG_YAW_PID_P', 'GEN_YAW_PID_P'],
+				['LOG_YAW_PID_I', 'GEN_YAW_PID_I'],
+				['LOG_YAW_PID_D', 'GEN_YAW_PID_D'],
+				['LOG_YAW_PID_FF', 'GEN_YAW_PID_FF'],
+				['LOG_YAW_PID_S', 'GEN_YAW_PID_S']
+			],
+			unit: '',
+			exact: true
+		}
+	} as {
+		[key: string]: {
+			name: string;
+			replaces: string;
+			requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
+			unit: string;
+			exact: boolean;
+		};
+	};
+
+	function fillLogWithGenFlags(log: BBLog) {
+		log.isExact = true;
+		const genFlags = Object.keys(BB_GEN_FLAGS);
+		for (let i = 0; i < genFlags.length; i++) {
+			const flagName = genFlags[i];
+			const flag = BB_GEN_FLAGS[flagName];
+			if (log.flags.includes(flag.replaces)) continue;
+			if (
+				flag.requires.every((r) => {
+					if (typeof r === 'string') return log.flags.includes(r);
+					if (Array.isArray(r)) {
+						for (const s of r) if (log.flags.includes(s)) return true;
+
+						return false;
+					}
+					return false;
+				})
+			) {
+				log.flags.push(flagName);
+				//generate entries
+				if (!flag.exact) log.isExact = false;
+				const path = BB_ALL_FLAGS[flag.replaces].path;
+				switch (flagName) {
+					case 'GEN_ROLL_SETPOINT':
+						log.frames.forEach((f) => {
+							const polynomials: number[] = [(f.elrs.roll! - 1500) / 512];
+							for (let i = 1; i < 5; i++) {
+								polynomials[i] = polynomials[0] * polynomials[i - 1];
+								if (polynomials[0] < 0) polynomials[i] = -polynomials[i];
+							}
+							f.setpoint.roll = 0;
+							for (let i = 0; i < 5; i++)
+								f.setpoint.roll! += polynomials[i] * log.rateFactors[i][0];
+						});
+						break;
+					case 'GEN_PITCH_SETPOINT':
+						log.frames.forEach((f) => {
+							const polynomials: number[] = [(f.elrs.pitch! - 1500) / 512];
+							for (let i = 1; i < 5; i++) {
+								polynomials[i] = polynomials[0] * polynomials[i - 1];
+								if (polynomials[0] < 0) polynomials[i] = -polynomials[i];
+							}
+							f.setpoint.pitch = 0;
+							for (let i = 0; i < 5; i++)
+								f.setpoint.pitch! += polynomials[i] * log.rateFactors[i][1];
+						});
+						break;
+					case 'GEN_THROTTLE_SETPOINT':
+						log.frames.forEach((f) => {
+							f.setpoint.throttle = f.elrs.throttle;
+						});
+						break;
+					case 'GEN_YAW_SETPOINT':
+						log.frames.forEach((f) => {
+							const polynomials: number[] = [(f.elrs.yaw! - 1500) / 512];
+							for (let i = 1; i < 5; i++) {
+								polynomials[i] = polynomials[0] * polynomials[i - 1];
+								if (polynomials[0] < 0) polynomials[i] = -polynomials[i];
+							}
+							f.setpoint.yaw = 0;
+							for (let i = 0; i < 5; i++) f.setpoint.yaw! += polynomials[i] * log.rateFactors[i][2];
+						});
+						break;
+					case 'GEN_ROLL_PID_P':
+						log.frames.forEach((f) => {
+							f.pid.roll.p = (f.setpoint.roll! - f.gyro.roll!) * log.pidConstants[0][0];
+						});
+						break;
+					case 'GEN_PITCH_PID_P':
+						log.frames.forEach((f) => {
+							f.pid.pitch.p = (f.setpoint.pitch! - f.gyro.pitch!) * log.pidConstants[1][0];
+						});
+						break;
+					case 'GEN_YAW_PID_P':
+						log.frames.forEach((f) => {
+							f.pid.yaw.p = (f.setpoint.yaw! - f.gyro.yaw!) * log.pidConstants[2][0];
+						});
+						break;
+					case 'GEN_ROLL_PID_D':
+						log.frames.forEach((f, i) => {
+							f.pid.roll.d =
+								(f.gyro.roll! - (log.frames[i - 1]?.gyro.roll || 0)) * log.pidConstants[0][2];
+						});
+						break;
+					case 'GEN_PITCH_PID_D':
+						log.frames.forEach((f, i) => {
+							f.pid.pitch.d =
+								(f.gyro.pitch! - (log.frames[i - 1]?.gyro.pitch || 0)) * log.pidConstants[1][2];
+						});
+						break;
+					case 'GEN_YAW_PID_D':
+						log.frames.forEach((f, i) => {
+							f.pid.yaw.d =
+								(f.gyro.yaw! - (log.frames[i - 1]?.gyro.yaw || 0)) * log.pidConstants[2][2];
+						});
+						break;
+					case 'GEN_ROLL_PID_FF':
+						log.frames.forEach((f) => {
+							f.pid.roll.ff =
+								(f.setpoint.roll! - log.frames[i - 1]?.setpoint.roll! || 0) *
+								log.pidConstants[0][3];
+						});
+						break;
+					case 'GEN_PITCH_PID_FF':
+						log.frames.forEach((f) => {
+							f.pid.pitch.ff =
+								(f.setpoint.pitch! - log.frames[i - 1]?.setpoint.pitch! || 0) *
+								log.pidConstants[1][3];
+						});
+						break;
+					case 'GEN_YAW_PID_FF':
+						log.frames.forEach((f) => {
+							f.pid.yaw.ff =
+								(f.setpoint.yaw! - log.frames[i - 1]?.setpoint.yaw! || 0) * log.pidConstants[2][3];
+						});
+						break;
+					case 'GEN_ROLL_PID_S':
+						log.frames.forEach((f) => {
+							f.pid.roll.s = f.setpoint.roll! * log.pidConstants[0][4];
+						});
+						break;
+					case 'GEN_PITCH_PID_S':
+						log.frames.forEach((f) => {
+							f.pid.pitch.s = f.setpoint.pitch! * log.pidConstants[1][4];
+						});
+						break;
+					case 'GEN_YAW_PID_S':
+						log.frames.forEach((f) => {
+							f.pid.yaw.s = f.setpoint.yaw! * log.pidConstants[2][4];
+						});
+						break;
+					case 'GEN_ROLL_PID_I':
+						{
+							let rollI = 0;
+							let takeoffCounter = 0;
+							log.frames.forEach((f) => {
+								rollI += f.setpoint.roll! - f.gyro.roll!;
+								if (f.setpoint.throttle! > 1020) takeoffCounter += log.frequencyDivider;
+								else if (takeoffCounter < 1000) takeoffCounter = 0;
+								if (takeoffCounter < 1000)
+									rollI *= Math.pow(log.pidConstants[0][6], log.frequencyDivider);
+								f.pid.roll.i = rollI * log.pidConstants[0][1];
+							});
+						}
+						break;
+					case 'GEN_PITCH_PID_I':
+						{
+							let pitchI = 0;
+							let takeoffCounter = 0;
+							log.frames.forEach((f) => {
+								pitchI += f.setpoint.pitch! - f.gyro.pitch!;
+								if (f.setpoint.throttle! > 1020) takeoffCounter += log.frequencyDivider;
+								else if (takeoffCounter < 1000) takeoffCounter = 0;
+								if (takeoffCounter < 1000)
+									pitchI *= Math.pow(log.pidConstants[1][6], log.frequencyDivider);
+								f.pid.pitch.i = pitchI * log.pidConstants[1][1];
+							});
+						}
+						break;
+					case 'GEN_YAW_PID_I':
+						{
+							let yawI = 0;
+							let takeoffCounter = 0;
+							log.frames.forEach((f) => {
+								yawI += f.setpoint.yaw! - f.gyro.yaw!;
+								if (f.setpoint.throttle! > 1020) takeoffCounter += log.frequencyDivider;
+								else if (takeoffCounter < 1000) takeoffCounter = 0;
+								if (takeoffCounter < 1000)
+									yawI *= Math.pow(log.pidConstants[2][6], log.frequencyDivider);
+								f.pid.yaw.i = yawI * log.pidConstants[2][1];
+							});
+						}
+						break;
+					case 'GEN_MOTOR_OUTPUTS':
+						log.frames.forEach((f) => {
+							const rollTerm =
+								f.pid.roll.p! + f.pid.roll.i! + f.pid.roll.d! + f.pid.roll.ff! + f.pid.roll.s!;
+							const pitchTerm =
+								f.pid.pitch.p! + f.pid.pitch.i! + f.pid.pitch.d! + f.pid.pitch.ff! + f.pid.pitch.s!;
+							const yawTerm =
+								f.pid.yaw.p! + f.pid.yaw.i! + f.pid.yaw.d! + f.pid.yaw.ff! + f.pid.yaw.s!;
+							f.motors = {
+								rr: (f.setpoint.throttle! - 1000) * 2 - rollTerm + pitchTerm + yawTerm,
+								fr: (f.setpoint.throttle! - 1000) * 2 - rollTerm - pitchTerm - yawTerm,
+								rl: (f.setpoint.throttle! - 1000) * 2 + rollTerm + pitchTerm - yawTerm,
+								fl: (f.setpoint.throttle! - 1000) * 2 + rollTerm - pitchTerm + yawTerm
+							};
+							f.motors.rr = map(f.motors.rr!, 0, 2000, 50, 2000);
+							f.motors.fr = map(f.motors.fr!, 0, 2000, 50, 2000);
+							f.motors.rl = map(f.motors.rl!, 0, 2000, 50, 2000);
+							f.motors.fl = map(f.motors.fl!, 0, 2000, 50, 2000);
+							if (f.motors.rr! > 2000) {
+								const diff = 2000 - f.motors.rr!;
+								f.motors.rr = 2000;
+								f.motors.fr! -= diff;
+								f.motors.rl! -= diff;
+								f.motors.fl! -= diff;
+							}
+							if (f.motors.fr! > 2000) {
+								const diff = 2000 - f.motors.fr!;
+								f.motors.fr = 2000;
+								f.motors.rr! -= diff;
+								f.motors.rl! -= diff;
+								f.motors.fl! -= diff;
+							}
+							if (f.motors.rl! > 2000) {
+								const diff = 2000 - f.motors.rl!;
+								f.motors.rl = 2000;
+								f.motors.rr! -= diff;
+								f.motors.fr! -= diff;
+								f.motors.fl! -= diff;
+							}
+							if (f.motors.fl! > 2000) {
+								const diff = 2000 - f.motors.fl!;
+								f.motors.fl = 2000;
+								f.motors.rr! -= diff;
+								f.motors.fr! -= diff;
+								f.motors.rl! -= diff;
+							}
+							if (f.motors.rr! < 50) {
+								const diff = 50 - f.motors.rr!;
+								f.motors.rr = 50;
+								f.motors.fr! += diff;
+								f.motors.rl! += diff;
+								f.motors.fl! += diff;
+							}
+							if (f.motors.fr! < 50) {
+								const diff = 50 - f.motors.fr!;
+								f.motors.fr = 50;
+								f.motors.rr! += diff;
+								f.motors.rl! += diff;
+								f.motors.fl! += diff;
+							}
+							if (f.motors.rl! < 50) {
+								const diff = 50 - f.motors.rl!;
+								f.motors.rl = 50;
+								f.motors.rr! += diff;
+								f.motors.fr! += diff;
+								f.motors.fl! += diff;
+							}
+							if (f.motors.fl! < 50) {
+								const diff = 50 - f.motors.fl!;
+								f.motors.fl = 50;
+								f.motors.rr! += diff;
+								f.motors.fr! += diff;
+								f.motors.rl! += diff;
+							}
+							f.motors.rr = Math.min(f.motors.rr!, 2000);
+							f.motors.fr = Math.min(f.motors.fr!, 2000);
+							f.motors.rl = Math.min(f.motors.rl!, 2000);
+							f.motors.fl = Math.min(f.motors.fl!, 2000);
+						});
+						break;
+				}
+			}
+		}
+	}
+	function map(value: number, inMin: number, inMax: number, outMin: number, outMax: number) {
+		return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+	}
+
 	$: handleCommand($port);
 
 	function handleCommand(command: Command) {
@@ -352,22 +785,14 @@
 			case ConfigCmd.BB_FILE_DOWNLOAD | 0x4000:
 				handleFileChunk(command.data);
 				break;
+			case ConfigCmd.CONFIGURATOR_PING | 0x4000:
+			case ConfigCmd.STATUS | 0x4000:
+				break;
 			case 0xffff: //pre-entered default command, do nothing
 				break;
 			default:
 				console.log({ ...command });
 		}
-	}
-
-	function leBytesToInt(bytes: number[], signed = false) {
-		let value = 0;
-		for (let i = 0; i < bytes.length; i++) {
-			value += bytes[i] * Math.pow(256, i);
-		}
-		if (signed && bytes[bytes.length - 1] & 0b10000000) {
-			value -= Math.pow(256, bytes.length);
-		}
-		return value;
 	}
 
 	function handleFileChunk(data: number[]) {
@@ -386,6 +811,7 @@
 		}
 		const chunkNum = leBytesToInt(data.slice(1, 3));
 		if (chunkNum === 0xffff) {
+			console.log('final chunk');
 			totalChunks = leBytesToInt(data.slice(3, 5));
 		} else {
 			const chunkSize = data.length - 3;
@@ -397,7 +823,11 @@
 		}
 		if (receivedChunks.length === totalChunks) {
 			for (let i = 0; i < totalChunks; i++) {
-				if (!receivedChunks[i]) return;
+				if (!receivedChunks[i]) {
+					console.log('Missing chunk: ' + i);
+					port.sendCommand(ConfigCmd.BB_FILE_DOWNLOAD, [binFileNumber, i & 0xff, (i >> 8) & 0xff]);
+					return;
+				}
 			}
 			decodeBinFile();
 		}
@@ -433,13 +863,24 @@
 			for (let j = 0; j < 3; j++)
 				rateFactors[i][j] = leBytesToInt(rfBytes.slice(i * 12 + j * 4, i * 12 + j * 4 + 4)) / 65536;
 		const pidConstants = [[], [], []] as number[][];
+		const pidConstantsNice = [[], [], []] as number[][];
 		const pcBytes = header.slice(74, 158);
 		for (let i = 0; i < 3; i++) {
-			pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 28, i * 28 + 4)) >> 11;
-			pidConstants[i][1] = leBytesToInt(pcBytes.slice(i * 28 + 4, i * 28 + 8)) >> 3;
-			pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 28 + 8, i * 28 + 12)) >> 10;
-			pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 28 + 12, i * 28 + 16)) >> 10;
-			pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 28 + 16, i * 28 + 20)) >> 8;
+			pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 28, i * 28 + 4));
+			pidConstantsNice[i][0] = pidConstants[i][0] >> 11;
+			pidConstants[i][0] /= 65536;
+			pidConstants[i][1] = leBytesToInt(pcBytes.slice(i * 28 + 4, i * 28 + 8));
+			pidConstantsNice[i][1] = pidConstants[i][1] >> 3;
+			pidConstants[i][1] /= 65536;
+			pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 28 + 8, i * 28 + 12));
+			pidConstantsNice[i][2] = pidConstants[i][2] >> 10;
+			pidConstants[i][2] /= 65536;
+			pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 28 + 12, i * 28 + 16));
+			pidConstantsNice[i][3] = pidConstants[i][3] >> 10;
+			pidConstants[i][3] /= 65536;
+			pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 28 + 16, i * 28 + 20));
+			pidConstantsNice[i][4] = pidConstants[i][4] >> 8;
+			pidConstants[i][4] /= 65536;
 			for (let j = 5; j < 7; j++)
 				pidConstants[i][j] =
 					leBytesToInt(pcBytes.slice(i * 28 + j * 4, i * 28 + j * 4 + 4)) / 65536;
@@ -633,9 +1074,11 @@
 			rateFactors,
 			pidConstants,
 			framesPerSecond,
-			rawFile: binFile
+			rawFile: binFile,
+			isExact: true,
+			pidConstantsNice
 		};
-		console.log(loadedLog);
+		fillLogWithGenFlags(loadedLog);
 		resolveWhenReady(loadedLog);
 	}
 
@@ -776,8 +1219,11 @@
 				const scale = heightPerGraph / range;
 				ctx.strokeStyle = trace.color;
 				ctx.lineWidth = trace.strokeWidth;
-				let path = BB_ALL_FLAGS[trace.flagName]?.path || '';
-				if (BB_ALL_FLAGS[trace.flagName]?.usesModifier) {
+				let bbFlag = BB_ALL_FLAGS[trace.flagName];
+				if (trace.flagName.startsWith('GEN_'))
+					bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
+				let path = bbFlag?.path || '';
+				if (bbFlag?.usesModifier) {
 					if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
 					else continue;
 				}
@@ -975,8 +1421,13 @@
 				{#each graph as trace, traceIndex}
 					<TracePlacer
 						flags={loadedLog?.flags || []}
-						autoRange={getAutoRangeByFlagName(trace.flagName)}
+						autoRange={getAutoRangeByFlagName(
+							trace.flagName.startsWith('GEN_')
+								? BB_GEN_FLAGS[trace.flagName].replaces
+								: trace.flagName
+						)}
 						flagProps={BB_ALL_FLAGS}
+						genFlagProps={BB_GEN_FLAGS}
 						on:update={(event) => {
 							updateTrace(event, graphIndex, traceIndex);
 						}}
@@ -1009,7 +1460,9 @@
 				<div>Frame Count: {loadedLog.frameCount}</div>
 				<div>PID Frequency: {loadedLog.pidFrequency} Hz</div>
 				<div>Frames per Second: {loadedLog.framesPerSecond} Hz</div>
-				<div style="white-space: preserve">Flags: {'\n  - ' + loadedLog.flags.join('\n  - ')}</div>
+				<div style="white-space: preserve">
+					Flags: {'\n  - ' + loadedLog.flags.filter((n) => n.startsWith('LOG_')).join('\n  - ')}
+				</div>
 				<div>File Size: {(loadedLog.rawFile.length / 1000).toFixed(1)} KB</div>
 				<div>
 					IMU Range: {loadedLog.ranges.gyro}°/sec, ±{loadedLog.ranges.accel}g
@@ -1018,29 +1471,29 @@
 					PID Gains:
 					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
 					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;P:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstants[0][0], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[1][0], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[2][0], 5, ' ')}
+						&nbsp;&nbsp;P:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][0], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][0], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][0], 5, ' ')}
 					</div>
 					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;I:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstants[0][1], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[1][1], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[2][1], 5, ' ')}
+						&nbsp;&nbsp;I:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][1], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][1], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][1], 5, ' ')}
 					</div>
 					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;D:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstants[0][2], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[1][2], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[2][2], 5, ' ')}
+						&nbsp;&nbsp;D:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][2], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][2], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][2], 5, ' ')}
 					</div>
 					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;FF:&nbsp;{prefixZeros(loadedLog.pidConstants[0][3], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[1][3], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[2][3], 5, ' ')}
+						&nbsp;&nbsp;FF:&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][3], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][3], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][3], 5, ' ')}
 					</div>
 					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;S:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstants[0][4], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[1][4], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstants[2][4], 5, ' ')}
+						&nbsp;&nbsp;S:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][4], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][4], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][4], 5, ' ')}
 					</div>
 				</div>
 				<div class="rateFactors">

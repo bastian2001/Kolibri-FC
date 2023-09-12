@@ -2,26 +2,24 @@
 	import { invoke } from '@tauri-apps/api';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
-	import { port } from '../stores';
+	import { port, ConfigCmd } from '../stores';
 	import type { Command } from '../stores';
+	import { leBytesToInt } from '../utils';
 
-	let devices: string[] = [];
+	let devices: any = [];
 
 	let listInterval: number;
 
-	let device = {
-		path: '',
-		baudRate: 115200,
-		connected: false
-	};
+	let battery = '';
+
+	let device: any;
+	let connected = false;
 
 	type NavigatorElement = {
 		name: string;
 		path: string;
 		img?: string;
 	};
-
-	let readInterval = -1;
 
 	const navElements = [
 		{
@@ -48,42 +46,19 @@
 
 	let log = [] as string[];
 
-	function listDevices() {
-		invoke('serial_list').then((d: unknown) => {
-			if (!device.connected) {
-				const newDevices: string[] = [];
-				const scanned = d as string[];
-				for (const dev of scanned) {
-					if (!devices.includes(dev)) {
-						newDevices.push(dev);
-					}
-				}
-				if (newDevices.length == 1) {
-					device.path = newDevices[0];
-				} else if (newDevices.length > 1) {
-					//choose the first non-COM1-device
-					for (const dev of newDevices) {
-						if (dev !== 'COM1') {
-							device.path = dev;
-							break;
-						}
-					}
-				} else if (devices.length == 0) {
-					//if current device is not available, select the first available device that is not COM1
-					for (const dev of devices) {
-						if (dev != 'COM1') {
-							device.path = dev;
-							break;
-						}
-					}
-				}
-			}
+	$: handleCommand($port);
+	function handleCommand(command: Command) {
+		switch (command.command) {
+			case ConfigCmd.STATUS | 0x4000:
+				battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
+				break;
+		}
+	}
 
-			devices = d as string[];
-		});
+	function listDevices() {
+		devices = port.getDevices();
 	}
 	onMount(() => {
-		listDevices();
 		listInterval = setInterval(() => {
 			listDevices();
 		}, 1000);
@@ -92,66 +67,15 @@
 		clearInterval(listInterval);
 		disconnect();
 	});
-	const rxBuf = [] as number[];
-	function serialRead() {
-		invoke('serial_read')
-			.then((d: unknown) => {
-				// console.log(d);
-				rxBuf.push(...(d as number[]));
-			})
-			.catch((e) => {})
-			.finally(() => {
-				if (rxBuf.length < 7) return;
-				if (rxBuf[0] != '_'.charCodeAt(0) || rxBuf[1] != 'K'.charCodeAt(0)) {
-					rxBuf.splice(0, rxBuf.length);
-					return;
-				}
-				const len = rxBuf[2] + rxBuf[3] * 256;
-				if (rxBuf.length < len + 7) return;
-				let checksum = 0;
-				for (let i = 2; i < len + 7; i++) checksum ^= rxBuf[i];
-				if (checksum !== 0) {
-					rxBuf.splice(0, rxBuf.length);
-					return;
-				}
-				const data = rxBuf.slice(6, len + 6);
-				const command = rxBuf[4] + rxBuf[5] * 256;
-				rxBuf.splice(0, len + 7);
-				let dataStr = '';
-				for (let i = 0; i < data.length; i++) {
-					dataStr += String.fromCharCode(data[i]);
-				}
-				let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
-				if (command < 0x4000) cmdType = 'request';
-				else if (command < 0x8000) cmdType = 'response';
-				else if (command < 0xc000) cmdType = 'error';
-				const c: Command = {
-					command,
-					data,
-					dataStr,
-					cmdType,
-					length: len
-				};
-				port.set(c);
-			});
-	}
 	function connect() {
-		invoke('serial_open', { path: device.path })
-			.then(() => {
-				device.connected = true;
-				readInterval = setInterval(serialRead, 20);
-			})
-			.catch((e) => {
-				console.log(e);
-				disconnect();
-			});
+		port.connect(device).then(() => {
+			connected = true;
+		});
 	}
 	function disconnect() {
-		invoke('serial_close').then(() => {
-			device.connected = false;
+		port.disconnect()?.then(() => {
+			connected = false;
 		});
-		clearInterval(readInterval);
-		readInterval = -1;
 	}
 </script>
 
@@ -164,19 +88,31 @@
 		/>
 		<div class="space" />
 		<div class="connector">
-			<select bind:value={device.path}>
+			<button
+				class="connectButton"
+				style="margin-right: 0.5rem"
+				on:click={() => {
+					port.addDevice();
+				}}>Add</button
+			>
+			<select bind:value={device}>
 				{#each devices as d}
-					<option value={d}>{d}</option>
+					<option value={d}>{d.getInfo().usbVendorId}:{d.getInfo().usbProductId}</option>
 				{/each}
 			</select>&nbsp;&nbsp;
-			{#if device.connected}
-				<button on:click={() => disconnect()} class="connectButton"> Disconnect </button>
+			{#if connected}
+				<button on:click={() => disconnect()} class="connectButton">Disconnect</button>
 			{:else if devices.length > 0}
 				<button on:click={() => connect()} class="connectButton">Connect</button>
 			{:else}
 				<span style="color: #888">No devices found</span>
-			{/if}
+			{/if}&nbsp;&nbsp;
 		</div>
+		{#if connected}
+			<div class="battery">
+				<p>Battery: {battery}</p>
+			</div>
+		{/if}
 		<div class="log">
 			{#each log as l}<p>{l}</p>{/each}
 		</div>

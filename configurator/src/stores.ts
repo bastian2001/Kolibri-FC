@@ -12,7 +12,11 @@ export const ConfigCmd = {
 	BB_FILE_DOWNLOAD: 7,
 	BB_FILE_DELETE: 8,
 	BB_FORMAT: 9,
-	WRITE_OSD_FONT_CHARACTER: 10
+	WRITE_OSD_FONT_CHARACTER: 10,
+	SET_MOTORS: 11,
+	BB_FILE_DOWNLOAD_RAW: 12,
+	SET_DEBUG_LED: 13,
+	CONFIGURATOR_PING: 14
 };
 
 export type Command = {
@@ -23,7 +27,10 @@ export type Command = {
 	cmdType: 'request' | 'response' | 'error' | 'info';
 };
 function createPort() {
-	const { subscribe, set, update } = writable({
+	let port: any = null;
+	let devices: any = [];
+	let reader: null | ReadableStreamDefaultReader = null;
+	const { subscribe, set } = writable({
 		command: 65535,
 		length: 0,
 		data: [],
@@ -59,15 +66,128 @@ function createPort() {
 			...data,
 			checksum
 		];
-		return new Promise((resolve, reject) => {
-			invoke('serial_write', { data: cmd }).then(resolve).catch(reject);
+		return new Promise((resolve: any, reject) => {
+			if (port === null) reject('Port is not open');
+			const writer: WritableStreamDefaultWriter = port.writable.getWriter();
+			writer
+				.write(new Uint8Array(cmd))
+				.then(() => {
+					writer.releaseLock();
+					resolve();
+				})
+				.catch((e) => {
+					disconnect();
+					reject(e);
+				});
 		});
 	};
+	const read = () => {
+		if (port === null) return;
+		//https://developer.mozilla.org/en-US/docs/Web/API/Streams_API/Using_readable_streams
+		reader = port.readable.getReader();
+		let serialRxBuffer: number[] = [];
+		reader!.read().then(function processReaderResult({ done, value }) {
+			if (done) {
+				reader!.releaseLock();
+				disconnect();
+				return;
+			}
+
+			serialRxBuffer = serialRxBuffer.concat(Array.from(value));
+			reader!.read().then(processReaderResult);
+
+			if (serialRxBuffer.length < 7) return;
+			if (serialRxBuffer[0] != '_'.charCodeAt(0) || serialRxBuffer[1] != 'K'.charCodeAt(0)) {
+				serialRxBuffer.splice(0, serialRxBuffer.length);
+				return;
+			}
+			const len = serialRxBuffer[2] + serialRxBuffer[3] * 256;
+			if (serialRxBuffer.length < len + 7) return;
+			let checksum = 0;
+			for (let i = 2; i < len + 7; i++) checksum ^= serialRxBuffer[i];
+			if (checksum !== 0) {
+				serialRxBuffer.splice(0, serialRxBuffer.length);
+				return;
+			}
+			const data = serialRxBuffer.slice(6, len + 6);
+			const command = serialRxBuffer[4] + serialRxBuffer[5] * 256;
+			serialRxBuffer.splice(0, len + 7);
+			let dataStr = '';
+			for (let i = 0; i < data.length; i++) {
+				dataStr += String.fromCharCode(data[i]);
+			}
+			let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
+			if (command < 0x4000) cmdType = 'request';
+			else if (command < 0x8000) cmdType = 'response';
+			else if (command < 0xc000) cmdType = 'error';
+			const c: Command = {
+				command,
+				data,
+				dataStr,
+				cmdType,
+				length: len
+			};
+			set(c);
+		});
+	};
+	let pingInterval: number = -1;
+	let statusInterval: number = -1;
+
+	const connect = (portToOpen: any) => {
+		return new Promise((resolve: any, reject) => {
+			if (port !== null) reject('Port is already open');
+			if (portToOpen === null) reject('Port is null');
+			portToOpen
+				.open({ baudRate: 115200 })
+				.then(() => {
+					port = portToOpen;
+					read();
+					pingInterval = setInterval(() => {
+						sendCommand(ConfigCmd.CONFIGURATOR_PING);
+					}, 200);
+					statusInterval = setInterval(() => {
+						sendCommand(ConfigCmd.STATUS);
+					}, 1000);
+					resolve();
+				})
+				.catch(reject);
+		});
+	};
+	const disconnect = () => {
+		if (port === null) return;
+		reader?.releaseLock();
+		return new Promise((resolve: any, reject) => {
+			port
+				.close()
+				.then(() => {
+					port = null;
+					resolve();
+				})
+				.catch(reject);
+		});
+	};
+	const addDevice = () => {
+		(navigator as any).serial.requestPort();
+	};
+	const getDevices = () => {
+		return devices;
+	};
+	function listDevices() {
+		(navigator as any).serial.getPorts().then((ports: any) => {
+			devices = ports;
+		});
+	}
+	setInterval(listDevices, 1000);
+	listDevices();
 
 	return {
 		subscribe,
 		set,
-		sendCommand
+		sendCommand,
+		addDevice,
+		connect,
+		disconnect,
+		getDevices
 	};
 }
 export const port = createPort();

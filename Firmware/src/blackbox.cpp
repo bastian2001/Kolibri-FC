@@ -17,9 +17,7 @@ void initBlackbox()
 {
 	lfsReady = LittleFS.begin();
 	lfsReady = lfsReady && LittleFS.info64(fsInfo);
-	bbFlags = LOG_MOTOR_OUTPUTS | LOG_ROLL_GYRO_RAW | LOG_ROLL_PID_P | LOG_ROLL_PID_I | LOG_ROLL_PID_D | LOG_ROLL_PID_FF | LOG_ROLL_PID_S | LOG_PITCH_GYRO_RAW | LOG_PITCH_PID_P | LOG_PITCH_PID_I | LOG_PITCH_PID_D | LOG_PITCH_PID_FF | LOG_PITCH_PID_S | LOG_YAW_GYRO_RAW | LOG_YAW_PID_P | LOG_YAW_PID_I | LOG_YAW_PID_D | LOG_YAW_PID_FF | LOG_YAW_PID_S;
-	// bbFlags = LOG_ROLL_ELRS_RAW | LOG_ROLL_SETPOINT;
-	// bbFlags=LOG_MOTOR_OUTPUTS ;
+	bbFlags = LOG_ROLL_ELRS_RAW | LOG_ROLL_GYRO_RAW | LOG_PITCH_ELRS_RAW | LOG_PITCH_GYRO_RAW | LOG_YAW_ELRS_RAW | LOG_YAW_GYRO_RAW | LOG_THROTTLE_SETPOINT;
 }
 
 bool clearBlackbox()
@@ -52,7 +50,7 @@ void printLogBinRaw(uint8_t logNum)
 	logFile.close();
 }
 
-void printLogBin(uint8_t logNum)
+void printLogBin(uint8_t logNum, int16_t singleChunk)
 {
 	char path[32];
 	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
@@ -65,6 +63,11 @@ void printLogBin(uint8_t logNum)
 	uint8_t buffer[1027];
 	buffer[0] = logNum;
 	uint16_t chunkNum = 0;
+	if (singleChunk >= 0)
+	{
+		chunkNum = singleChunk;
+		logFile.seek(chunkNum * 1024, SeekSet);
+	}
 	size_t bytesRead = 1;
 	while (bytesRead > 0)
 	{
@@ -76,9 +79,13 @@ void printLogBin(uint8_t logNum)
 		sendCommand(((uint16_t)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, bytesRead + 3);
 		Serial.flush();
 		chunkNum++;
+		if (singleChunk >= 0)
+			break;
 	}
 	logFile.close();
 	// finish frame includes 0xFFFF as chunk number, and then the actual max chunk number
+	if (singleChunk >= 0)
+		return;
 	buffer[0] = logNum;
 	buffer[1] = 0xFF;
 	buffer[2] = 0xFF;

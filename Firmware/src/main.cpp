@@ -50,6 +50,7 @@ void loop()
 	adcLoop();
 	osdLoop();
 	serialLoop();
+	configuratorLoop();
 	rp2040.wdt_reset();
 	if (activityTimer > 500)
 	{

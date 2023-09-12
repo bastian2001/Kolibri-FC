@@ -23,9 +23,12 @@ enum class ConfigCmd
 	BB_FORMAT,
 	WRITE_OSD_FONT_CHARACTER,
 	SET_MOTORS,
-	BB_FILE_DOWNLOAD_RAW
+	BB_FILE_DOWNLOAD_RAW,
+	SET_DEBUG_LED,
+	CONFIGURATOR_PING,
 };
 
 void sendCommand(uint16_t command, const char *data = nullptr, uint16_t len = 0);
 void configuratorHandleByte(uint8_t c, uint8_t serialNum);
 extern elapsedMillis configOverrideMotors;
+void configuratorLoop();

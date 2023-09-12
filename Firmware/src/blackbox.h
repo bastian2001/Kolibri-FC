@@ -57,5 +57,5 @@ bool clearBlackbox();
 
 void writeSingleFrame();
 
-void printLogBin(uint8_t logNum);
+void printLogBin(uint8_t logNum, int16_t chunkNum = -1);
 void printLogBinRaw(uint8_t logNum);

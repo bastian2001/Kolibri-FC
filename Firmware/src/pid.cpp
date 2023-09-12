@@ -115,8 +115,8 @@ void pidLoop()
 			for (int j = 0; j < 3; j++)
 			{
 				polynomials[i][j] = multiply64(polynomials[i - 1][j], polynomials[0][j]);
-				if ((j & 1) && polynomials[0][j] < 0) // on second and fourth order, preserve initial sign
-					polynomials[i][j] *= -1;
+				if (polynomials[0][j] < 0) // on second and fourth order, preserve initial sign
+					polynomials[i][j] = -polynomials[i][j];
 			}
 		}
 		rollSetpoint = 0;
@@ -179,16 +179,72 @@ void pidLoop()
 		throttles[(uint8_t)MOTOR::RL] = map(tRL, 0, 2000, IDLE_PERMILLE * 2, 2000);
 		throttles[(uint8_t)MOTOR::FR] = map(tFR, 0, 2000, IDLE_PERMILLE * 2, 2000);
 		throttles[(uint8_t)MOTOR::FL] = map(tFL, 0, 2000, IDLE_PERMILLE * 2, 2000);
-		// if (throttles[(uint8_t)MOTOR::RR] < IDLE_PERMILLE * 2)
-		// 	throttles[(uint8_t)MOTOR::FL] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RR];
-		// if (throttles[(uint8_t)MOTOR::FR] < IDLE_PERMILLE * 2)
-		// 	throttles[(uint8_t)MOTOR::RL] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FR];
-		// if (throttles[(uint8_t)MOTOR::RL] < IDLE_PERMILLE * 2)
-		// 	throttles[(uint8_t)MOTOR::FR] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RL];
-		// if (throttles[(uint8_t)MOTOR::FL] < IDLE_PERMILLE * 2)
-		// 	throttles[(uint8_t)MOTOR::RR] += IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FL];
+		if (throttles[(uint8_t)MOTOR::RR] > 2000)
+		{
+			int16_t diff = throttles[(uint8_t)MOTOR::RR] - 2000;
+			throttles[(uint8_t)MOTOR::RR] = 2000;
+			throttles[(uint8_t)MOTOR::FL] -= diff;
+			throttles[(uint8_t)MOTOR::FR] -= diff;
+			throttles[(uint8_t)MOTOR::RL] -= diff;
+		}
+		if (throttles[(uint8_t)MOTOR::RL] > 2000)
+		{
+			int16_t diff = throttles[(uint8_t)MOTOR::RL] - 2000;
+			throttles[(uint8_t)MOTOR::RL] = 2000;
+			throttles[(uint8_t)MOTOR::FL] -= diff;
+			throttles[(uint8_t)MOTOR::FR] -= diff;
+			throttles[(uint8_t)MOTOR::RR] -= diff;
+		}
+		if (throttles[(uint8_t)MOTOR::FR] > 2000)
+		{
+			int16_t diff = throttles[(uint8_t)MOTOR::FR] - 2000;
+			throttles[(uint8_t)MOTOR::FR] = 2000;
+			throttles[(uint8_t)MOTOR::FL] -= diff;
+			throttles[(uint8_t)MOTOR::RL] -= diff;
+			throttles[(uint8_t)MOTOR::RR] -= diff;
+		}
+		if (throttles[(uint8_t)MOTOR::FL] > 2000)
+		{
+			int16_t diff = throttles[(uint8_t)MOTOR::FL] - 2000;
+			throttles[(uint8_t)MOTOR::FL] = 2000;
+			throttles[(uint8_t)MOTOR::RL] -= diff;
+			throttles[(uint8_t)MOTOR::RR] -= diff;
+			throttles[(uint8_t)MOTOR::FR] -= diff;
+		}
+		if (throttles[(uint8_t)MOTOR::RR] < IDLE_PERMILLE * 2)
+		{
+			int16_t diff = IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RR];
+			throttles[(uint8_t)MOTOR::RR] = IDLE_PERMILLE * 2;
+			throttles[(uint8_t)MOTOR::FL] += diff;
+			throttles[(uint8_t)MOTOR::FR] += diff;
+			throttles[(uint8_t)MOTOR::RL] += diff;
+		}
+		if (throttles[(uint8_t)MOTOR::RL] < IDLE_PERMILLE * 2)
+		{
+			int16_t diff = IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RL];
+			throttles[(uint8_t)MOTOR::RL] = IDLE_PERMILLE * 2;
+			throttles[(uint8_t)MOTOR::FL] += diff;
+			throttles[(uint8_t)MOTOR::FR] += diff;
+			throttles[(uint8_t)MOTOR::RR] += diff;
+		}
+		if (throttles[(uint8_t)MOTOR::FR] < IDLE_PERMILLE * 2)
+		{
+			int16_t diff = IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FR];
+			throttles[(uint8_t)MOTOR::FR] = IDLE_PERMILLE * 2;
+			throttles[(uint8_t)MOTOR::FL] += diff;
+			throttles[(uint8_t)MOTOR::RL] += diff;
+			throttles[(uint8_t)MOTOR::RR] += diff;
+		}
+		if (throttles[(uint8_t)MOTOR::FL] < IDLE_PERMILLE * 2)
+		{
+			int16_t diff = IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FL];
+			throttles[(uint8_t)MOTOR::FL] = IDLE_PERMILLE * 2;
+			throttles[(uint8_t)MOTOR::RL] += diff;
+			throttles[(uint8_t)MOTOR::RR] += diff;
+			throttles[(uint8_t)MOTOR::FR] += diff;
+		}
 		for (int i = 0; i < 4; i++)
-			throttles[i] = constrain(throttles[i], IDLE_PERMILLE * 2, 2000);
+			throttles[i] = throttles[i] > 2000 ? 2000 : throttles[i];
 		sendThrottles(throttles);
 		rollLast = imuData[AXIS_ROLL];
 		pitchLast = imuData[AXIS_PITCH];
@@ -207,7 +263,24 @@ void pidLoop()
 		if (configOverrideMotors > 1000)
 			for (int i = 0; i < 4; i++)
 				throttles[i] = 0;
-		sendThrottles(throttles);
+		if (ELRS->channels[9] < 1500)
+			sendThrottles(throttles);
+		else
+		{
+			static elapsedMillis motorBeepTimer = 0;
+			if (motorBeepTimer > 500)
+				motorBeepTimer = 0;
+			if (motorBeepTimer < 200)
+			{
+				uint16_t motors[4] = {DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2};
+				sendRaw11Bit(motors);
+			}
+			else
+			{
+				uint16_t motors[4] = {0, 0, 0, 0};
+				sendRaw11Bit(motors);
+			}
+		}
 		rollErrorSum = 0;
 		pitchErrorSum = 0;
 		yawErrorSum = 0;

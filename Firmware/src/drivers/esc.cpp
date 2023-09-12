@@ -45,6 +45,33 @@ uint16_t appendChecksum(uint16_t data)
 	return (data << 4) | csum;
 }
 
+void sendRaw16Bit(const uint16_t raw[4])
+{
+	motorPacket[0] = 0;
+	motorPacket[1] = 0;
+	for (int i = 31; i >= 0; i--)
+	{
+		int pos = i / 4;
+		int motor = i % 4;
+		motorPacket[0] |= ((raw[motor] >> (pos + 8)) & 1) << i;
+		motorPacket[1] |= ((raw[motor] >> pos) & 1) << i;
+	}
+	pio_sm_put(escPio, escSm, motorPacket[0]);
+	pio_sm_put(escPio, escSm, motorPacket[1]);
+}
+
+void sendRaw11Bit(const uint16_t raw[4])
+{
+	static uint16_t t[4] = {0, 0, 0, 0};
+	for (int i = 0; i < 4; i++)
+	{
+		t[i] = constrain(raw[i], 0, 2047);
+		t[i] = appendChecksum(t[i] << 1 | 1);
+	}
+	Serial.println(t[0]);
+	sendRaw16Bit(t);
+}
+
 void sendThrottles(const int16_t throttles[4])
 {
 	static uint16_t t[4] = {0, 0, 0, 0};
@@ -55,15 +82,5 @@ void sendThrottles(const int16_t throttles[4])
 			t[i] += 47;
 		t[i] = appendChecksum(t[i] << 1 | 0);
 	}
-	motorPacket[0] = 0;
-	motorPacket[1] = 0;
-	for (int i = 31; i >= 0; i--)
-	{
-		int pos = i / 4;
-		int motor = i % 4;
-		motorPacket[0] |= ((t[motor] >> (pos + 8)) & 1) << i;
-		motorPacket[1] |= ((t[motor] >> pos) & 1) << i;
-	}
-	pio_sm_put(escPio, escSm, motorPacket[0]);
-	pio_sm_put(escPio, escSm, motorPacket[1]);
+	sendRaw16Bit(t);
 }
