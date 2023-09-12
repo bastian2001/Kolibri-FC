@@ -26,13 +26,13 @@ void adcLoop()
 			adc_select_input(PIN_ADC_VOLTAGE - 26);
 			uint16_t raw = adc_read();
 			adcVoltage = raw * (3.3f * 11.f / 4096.f);
-			if (pVoltage > 14 && adcVoltage <= 14)
-			{
-				makeSound(5000, 65535, 300, 300);
-			}
-			else if (adcVoltage > 14 && pVoltage <= 14)
+			if ((adcVoltage > 14 && pVoltage <= 14) || (adcVoltage < 4 && pVoltage >= 4))
 			{
 				stopSound();
+			}
+			else if (pVoltage > 14 && adcVoltage <= 14)
+			{
+				makeSound(5000, 65535, 300, 300);
 			}
 			uint8_t voltageStr[16] = {0};
 			uint8_t len = snprintf((char *)voltageStr, 16, "%.2f", adcVoltage);
