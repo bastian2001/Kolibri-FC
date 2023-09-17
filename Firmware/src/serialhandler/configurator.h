@@ -6,15 +6,16 @@
 #define CONFIG_BUFFER_COMMAND 4
 #define CONFIG_BUFFER_DATA 6
 
-// responses to commands have the command | 0x4000, followed by the data
-// errors have the command | 0x8000, followed by the error
-// indicators have a command starting with the 0x2000 bit set
+// responses to commands have the command | 0x4000, followed by the data, no separate response codes
+// When a command fails, the response code is command | 0x8000, followed by the error, no separate error codes.
+// indicators have a command starting with the 0xC000 bit set
 enum class ConfigCmd
 {
+	// commands/responses/errors
 	STATUS,
 	TASK_STATUS,
-	GET_SETTING,
-	SET_SETTING,
+	REBOOT,
+	SAVE_SETTINGS,
 	PLAY_SOUND,
 	BB_FILE_LIST,
 	BB_FILE_INFO,
@@ -26,6 +27,16 @@ enum class ConfigCmd
 	BB_FILE_DOWNLOAD_RAW,
 	SET_DEBUG_LED,
 	CONFIGURATOR_PING,
+	REBOOT_TO_BOOTLOADER,
+	GET_NAME,
+	SET_NAME,
+	GET_PIDS,
+	SET_PIDS,
+	GET_RATES,
+	SET_RATES,
+
+	// indicators
+	IND_MESSAGE = 0xC000,
 };
 
 void sendCommand(uint16_t command, const char *data = nullptr, uint16_t len = 0);

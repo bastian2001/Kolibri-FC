@@ -46,7 +46,7 @@ void handleConfigCmd()
 	{
 	case ConfigCmd::STATUS:
 	{
-		uint16_t voltage = adcVoltage * 100;
+		uint16_t voltage = adcVoltage;
 		buf[len++] = voltage & 0xFF;
 		buf[len++] = voltage >> 8;
 		sendCommand(configMsgCommand | 0x4000, buf, len);
@@ -56,12 +56,41 @@ void handleConfigCmd()
 		len = snprintf(buf, 256, "PID loop counter: %d", pidLoopCounter);
 		sendCommand(configMsgCommand | 0x4000, buf, len);
 		break;
-	case ConfigCmd::GET_SETTING:
+	case ConfigCmd::REBOOT:
+		sendCommand(configMsgCommand | 0x4000);
+		delay(100);
+		rp2040.reboot();
 		break;
-	case ConfigCmd::SET_SETTING:
+	case ConfigCmd::SAVE_SETTINGS:
+		rp2040.wdt_reset();
+		EEPROM.commit();
 		break;
 	case ConfigCmd::PLAY_SOUND:
-		break;
+	{
+		const uint16_t startFreq = random(1000, 5000);
+		const uint16_t endFreq = random(1000, 5000);
+		const uint16_t sweepDuration = random(400, 1000);
+		uint16_t pauseDuration = random(100, 1000);
+		const uint16_t pauseEn = random(0, 2);
+		pauseDuration *= pauseEn;
+		const uint16_t repeat = random(1, 11);
+		makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
+		uint8_t len = 0;
+		buf[len++] = startFreq & 0xFF;
+		buf[len++] = startFreq >> 8;
+		buf[len++] = endFreq & 0xFF;
+		buf[len++] = endFreq >> 8;
+		buf[len++] = sweepDuration & 0xFF;
+		buf[len++] = sweepDuration >> 8;
+		buf[len++] = pauseDuration & 0xFF;
+		buf[len++] = pauseDuration >> 8;
+		buf[len++] = pauseEn;
+		buf[len++] = repeat;
+		buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
+		buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
+		sendCommand(configMsgCommand | 0x4000, buf, len);
+	}
+	break;
 	case ConfigCmd::BB_FILE_LIST:
 	{
 		int index = 0;
@@ -154,6 +183,13 @@ void handleConfigCmd()
 			sendCommand(configMsgCommand | 0x8000);
 		break;
 	case ConfigCmd::WRITE_OSD_FONT_CHARACTER:
+		if (configMsgLength < 55)
+		{
+			sendCommand(configMsgCommand | 0x8000);
+			break;
+		}
+		updateCharacter(configSerialBuffer[CONFIG_BUFFER_DATA], &configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
+		sendCommand(configMsgCommand | 0x4000, (const char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 1);
 		break;
 	case ConfigCmd::SET_MOTORS:
 		throttles[(uint8_t)MOTOR::RR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 0] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 1] << 8);
@@ -174,6 +210,72 @@ void handleConfigCmd()
 		sendCommand(configMsgCommand | 0x4000);
 		configuratorConnected = true;
 		break;
+	case ConfigCmd::REBOOT_TO_BOOTLOADER:
+		sendCommand(configMsgCommand | 0x4000);
+		delay(100);
+		rp2040.rebootToBootloader();
+	case ConfigCmd::GET_NAME:
+	{
+		char name[20] = {0};
+		for (int i = 0; i < 20; i++)
+			name[i] = EEPROM.read((uint16_t)EEPROM_POS::UAV_NAME + i);
+		name[19] = '\0';
+		sendCommand(configMsgCommand | 0x4000, name, strlen(name));
+	}
+	case ConfigCmd::SET_NAME:
+	{
+		uint8_t len = configSerialBuffer[CONFIG_BUFFER_LENGTH];
+		if (len > 20)
+			sendCommand(configMsgCommand | 0x8000);
+		break;
+		for (int i = 0; i < len; i++)
+			EEPROM.write((uint16_t)EEPROM_POS::UAV_NAME + i, configSerialBuffer[CONFIG_BUFFER_DATA + i]);
+		sendCommand(configMsgCommand | 0x4000);
+		break;
+	}
+	case ConfigCmd::GET_PIDS:
+	{
+		uint16_t pids[3][7];
+		for (int i = 0; i < 3; i++)
+		{
+			pids[i][0] = pidGains[i][0] >> P_SHIFT;
+			pids[i][1] = pidGains[i][1] >> I_SHIFT;
+			pids[i][2] = pidGains[i][2] >> D_SHIFT;
+			pids[i][3] = pidGains[i][3] >> FF_SHIFT;
+			pids[i][4] = pidGains[i][4] >> S_SHIFT;
+			pids[i][5] = pidGains[i][5] & 0xFFFF;
+			pids[i][6] = 0;
+		}
+		sendCommand(configMsgCommand | 0x4000, (char *)pids, sizeof(pids));
+	}
+	break;
+	case ConfigCmd::SET_PIDS:
+	{
+		uint16_t pids[3][7];
+		memcpy(pids, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(pids));
+		for (int i = 0; i < 3; i++)
+		{
+			pidGains[i][0] = pids[i][0] << P_SHIFT;
+			pidGains[i][1] = pids[i][1] << I_SHIFT;
+			pidGains[i][2] = pids[i][2] << D_SHIFT;
+			pidGains[i][3] = pids[i][3] << FF_SHIFT;
+			pidGains[i][4] = pids[i][4] << S_SHIFT;
+			pidGains[i][5] = pids[i][5];
+		}
+		sendCommand(configMsgCommand | 0x4000);
+	}
+	break;
+	case ConfigCmd::GET_RATES:
+	{
+		uint16_t rates[5][3];
+		for (int i = 0; i < 3; i++)
+		{
+			rates[i][0] = rateFactors[i][0] >> 16;
+			rates[i][1] = rateFactors[i][1] >> 16;
+			rates[i][2] = rateFactors[i][2] >> 16;
+		}
+		sendCommand(configMsgCommand | 0x4000, (char *)rates, sizeof(rates));
+	}
 	default:
 		Serial.printf("Unknown command: %d\n", configMsgCommand);
 		break;

@@ -23,6 +23,8 @@
 #include "hardware/watchdog.h"
 #include "serial.h"
 #include "serialhandler/configurator.h"
+#include "EEPROM.h"
+#include "eepromPos.h"
 
 #define SPI_GYRO spi0
 #define SPI_OSD spi1

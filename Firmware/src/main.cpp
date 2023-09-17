@@ -6,6 +6,7 @@ void setup()
 	set_sys_clock_khz(132000, true);
 	Serial.begin(115200);
 	Serial.println("Starting up");
+	EEPROM.begin(4096);
 
 	gyroInit();
 	osdInit();

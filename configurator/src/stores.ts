@@ -1,11 +1,10 @@
 import { writable } from 'svelte/store';
-import { invoke } from '@tauri-apps/api';
 
 export const ConfigCmd = {
 	STATUS: 0,
 	TASK_STATUS: 1,
-	GET_SETTING: 2,
-	SET_SETTING: 3,
+	REBOOT: 2,
+	SAVE_SETTINGS: 3,
 	PLAY_SOUND: 4,
 	BB_FILE_LIST: 5,
 	BB_FILE_INFO: 6,
@@ -16,7 +15,15 @@ export const ConfigCmd = {
 	SET_MOTORS: 11,
 	BB_FILE_DOWNLOAD_RAW: 12,
 	SET_DEBUG_LED: 13,
-	CONFIGURATOR_PING: 14
+	CONFIGURATOR_PING: 14,
+	REBOOT_TO_BOOTLOADER: 15,
+	GET_NAME: 16,
+	SET_NAME: 17,
+	GET_PIDS: 18,
+	SET_PIDS: 19,
+	GET_RATES: 20,
+	SET_RATES: 21,
+	IND_MESSAGE: 0xc0000
 };
 
 export type Command = {
@@ -143,10 +150,10 @@ function createPort() {
 					port = portToOpen;
 					read();
 					pingInterval = setInterval(() => {
-						sendCommand(ConfigCmd.CONFIGURATOR_PING);
+						sendCommand(ConfigCmd.CONFIGURATOR_PING).catch(() => {});
 					}, 200);
 					statusInterval = setInterval(() => {
-						sendCommand(ConfigCmd.STATUS);
+						sendCommand(ConfigCmd.STATUS).catch(() => {});
 					}, 1000);
 					resolve();
 				})
