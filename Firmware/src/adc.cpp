@@ -1,6 +1,8 @@
 #include "global.h"
 
-float adcVoltage = 0, pVoltage = 0, adcCurrent = 0;
+uint16_t adcVoltage = 0, pVoltage = 0; // centivolts
+uint16_t emptyVoltage = 0;
+float adcCurrent = 0;
 elapsedMillis adcTimer = 0;
 
 void initADC()
@@ -12,6 +14,12 @@ void initADC()
 	placeElem(OSDElem::TOT_VOLTAGE, 1, 1);
 	enableElem(OSDElem::CURRENT);
 	placeElem(OSDElem::CURRENT, 1, 2);
+	EEPROM.get((uint16_t)EEPROM_POS::BATTERY_EMPTY_THRESHOLD, emptyVoltage);
+	if (!emptyVoltage)
+	{
+		emptyVoltage = 1400;
+		EEPROM.put((uint16_t)EEPROM_POS::BATTERY_EMPTY_THRESHOLD, emptyVoltage);
+	}
 }
 
 uint8_t adcType = 0; // 1 = voltage, 0 = current
@@ -24,18 +32,18 @@ void adcLoop()
 		if (adcType)
 		{
 			adc_select_input(PIN_ADC_VOLTAGE - 26);
-			uint16_t raw = adc_read();
-			adcVoltage = raw * (3.3f * 11.f / 4096.f);
-			if ((adcVoltage > 14 && pVoltage <= 14) || (adcVoltage < 4 && pVoltage >= 4))
+			uint32_t raw = adc_read();
+			adcVoltage = (raw * 3630U) / 4096U; // 36.3V full deflection, voltage divider is 11:1, and 4096 is 3.3V
+			if ((adcVoltage > emptyVoltage && pVoltage <= emptyVoltage) || (adcVoltage < 400 && pVoltage >= 400))
 			{
 				stopSound();
 			}
-			else if (pVoltage > 14 && adcVoltage <= 14)
+			else if (pVoltage > emptyVoltage && adcVoltage <= emptyVoltage)
 			{
 				makeSound(5000, 65535, 300, 300);
 			}
 			uint8_t voltageStr[16] = {0};
-			uint8_t len = snprintf((char *)voltageStr, 16, "%.2f", adcVoltage);
+			uint8_t len = sprintf((char *)voltageStr, "%2d.%2d", adcVoltage / 100, adcVoltage % 100);
 			voltageStr[len] = 0x06;
 			voltageStr[len + 1] = '\0';
 			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);

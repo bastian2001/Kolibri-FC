@@ -1,5 +1,5 @@
 
-extern float adcVoltage;
+extern uint16_t adcVoltage;
 
 void initADC();
 
