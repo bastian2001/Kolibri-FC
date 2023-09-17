@@ -36,7 +36,11 @@
 	function ledOff() {
 		port.sendCommand(ConfigCmd.SET_DEBUG_LED, [0]);
 	}
+	function playSound() {
+		port.sendCommand(ConfigCmd.PLAY_SOUND);
+	}
 </script>
 
 <button on:click={() => ledOn()}>LED On</button>
 <button on:click={() => ledOff()}>LED Off</button>
+<button on:click={() => playSound()}>Play Sound</button>
