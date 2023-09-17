@@ -12,12 +12,13 @@ int currentLogNum = 0;
 File blackboxFile;
 
 int32_t maxFileSize = 0;
+elapsedMicros frametime;
 
 void initBlackbox()
 {
 	lfsReady = LittleFS.begin();
 	lfsReady = lfsReady && LittleFS.info64(fsInfo);
-	bbFlags = LOG_ROLL_ELRS_RAW | LOG_ROLL_GYRO_RAW | LOG_PITCH_ELRS_RAW | LOG_PITCH_GYRO_RAW | LOG_YAW_ELRS_RAW | LOG_YAW_GYRO_RAW | LOG_THROTTLE_SETPOINT;
+	bbFlags = LOG_ROLL_SETPOINT | LOG_ROLL_GYRO_RAW | LOG_PITCH_SETPOINT | LOG_PITCH_GYRO_RAW | LOG_YAW_SETPOINT | LOG_YAW_GYRO_RAW | LOG_THROTTLE_SETPOINT | LOG_FRAMETIME;
 }
 
 bool clearBlackbox()
@@ -104,7 +105,6 @@ void startLogging()
 	maxFileSize = fsInfo.totalBytes - fsInfo.usedBytes - 50000;
 	if (maxFileSize < 20000)
 	{
-		Serial.println("Not enough space for blackbox, cleared");
 		return;
 	}
 	char path[32];
@@ -149,6 +149,7 @@ void startLogging()
 	}
 	blackboxFile.write((uint8_t *)&bbFlags, 8);
 	// 166 bytes header
+	frametime = 0;
 }
 
 void endLogging()
@@ -325,6 +326,13 @@ void writeSingleFrame()
 	{
 		bbBuffer[bufferPos++] = baroATO;
 		bbBuffer[bufferPos++] = baroATO >> 8;
+	}
+	if (currentBBFlags & LOG_FRAMETIME)
+	{
+		uint16_t ft = frametime;
+		frametime = 0;
+		bbBuffer[bufferPos++] = ft >> 8;
+		bbBuffer[bufferPos++] = ft;
 	}
 	blackboxFile.write(bbBuffer, bufferPos);
 }

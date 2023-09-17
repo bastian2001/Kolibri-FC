@@ -112,6 +112,7 @@
 			fl?: number;
 		};
 		altitude?: number;
+		frametime?: number;
 	};
 
 	const getGyroBBRange = (file: BBLog | undefined) => {
@@ -321,6 +322,13 @@
 			minValue: 0,
 			maxValue: 300,
 			unit: 'm'
+		},
+		LOG_FRAMETIME: {
+			name: 'Frametime',
+			path: 'frametime',
+			minValue: 0,
+			maxValue: 1000,
+			unit: 'µs'
 		}
 	} as {
 		[key: string]: {
@@ -1059,6 +1067,10 @@
 			if (flags.includes('LOG_ALTITUDE'))
 				frame.altitude = leBytesToInt(
 					data.slice(i + offsets['LOG_ALTITUDE'], i + offsets['LOG_ALTITUDE'] + 2)
+				);
+			if (flags.includes('LOG_FRAMETIME'))
+				frame.frametime = leBytesToInt(
+					data.slice(i + offsets['LOG_FRAMETIME'], i + offsets['LOG_FRAMETIME'] + 2)
 				);
 			log.push(frame);
 		}

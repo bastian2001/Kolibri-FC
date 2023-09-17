@@ -29,6 +29,7 @@
 #define LOG_YAW_PID_S 1 << 25
 #define LOG_MOTOR_OUTPUTS 1 << 26
 #define LOG_ALTITUDE 1 << 27
+#define LOG_FRAMETIME 1 << 28
 
 #define LOG_HEAD_MAGIC 0
 #define LOG_HEAD_BB_VERSION 4
