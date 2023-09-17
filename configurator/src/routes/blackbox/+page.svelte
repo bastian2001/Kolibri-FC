@@ -2,7 +2,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { port, type Command, ConfigCmd } from '../../stores';
 	import TracePlacer from './tracePlacer.svelte';
-	import { leBytesToInt } from '../../utils';
+	import Timeline from './timeline.svelte';
+	import { leBytesToInt, type BBLog, type LogFrame, getNestedProperty } from '../../utils';
 
 	type TraceInGraph = {
 		flagName: string;
@@ -32,25 +33,6 @@
 	$: dataSlice, drawCanvas();
 
 	let logNums = [] as { text: string; num: number }[];
-	type BBLog = {
-		frameCount: number;
-		rawFile: number[];
-		flags: string[];
-		frames: LogFrame[];
-		version: number[];
-		startTime: number;
-		ranges: {
-			gyro: number;
-			accel: number;
-		};
-		pidFrequency: number;
-		frequencyDivider: number;
-		rateFactors: number[][];
-		pidConstants: number[][];
-		pidConstantsNice: number[][];
-		framesPerSecond: number;
-		isExact: boolean;
-	};
 
 	let loadedLog: BBLog | undefined;
 
@@ -63,57 +45,6 @@
 	let startFrame = 0;
 	let endFrame = 0;
 	let mounted = false;
-
-	type LogFrame = {
-		elrs: {
-			roll?: number;
-			pitch?: number;
-			throttle?: number;
-			yaw?: number;
-		};
-		setpoint: {
-			roll?: number;
-			pitch?: number;
-			throttle?: number;
-			yaw?: number;
-		};
-		gyro: {
-			roll?: number;
-			pitch?: number;
-			yaw?: number;
-		};
-		pid: {
-			roll: {
-				p?: number;
-				i?: number;
-				d?: number;
-				ff?: number;
-				s?: number;
-			};
-			pitch: {
-				p?: number;
-				i?: number;
-				d?: number;
-				ff?: number;
-				s?: number;
-			};
-			yaw: {
-				p?: number;
-				i?: number;
-				d?: number;
-				ff?: number;
-				s?: number;
-			};
-		};
-		motors: {
-			rr?: number;
-			fr?: number;
-			rl?: number;
-			fl?: number;
-		};
-		altitude?: number;
-		frametime?: number;
-	};
 
 	const getGyroBBRange = (file: BBLog | undefined) => {
 		if (!file) return { max: -2000, min: 2000 };
@@ -1160,21 +1091,6 @@
 		}
 	}
 
-	function getNestedProperty(
-		obj: any,
-		path: string,
-		options: { defaultValue?: any; max?: number; min?: number } = {}
-	) {
-		const pathParts = path.split('.');
-		let current = obj;
-		for (let i = 0; i < pathParts.length; i++) {
-			if (current[pathParts[i]] === undefined) return options.defaultValue;
-			current = current[pathParts[i]];
-		}
-		if (options.max !== undefined && current > options.max) return options.max;
-		if (options.min !== undefined && current < options.min) return options.min;
-		return current;
-	}
 	const canvas = document.createElement('canvas');
 	function drawCanvas(allowShortening = true) {
 		if (!mounted) return;
@@ -1276,6 +1192,10 @@
 	let startEndFrame = 0;
 	const selectionCanvas = document.createElement('canvas');
 	function onMouseMove(e: MouseEvent) {
+		if (e.buttons !== 1) {
+			onMouseUp();
+			return;
+		}
 		if (trackingStartX === -1) return;
 		if (trackingStartX === -2) {
 			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
@@ -1321,6 +1241,7 @@
 			return;
 		}
 		trackingStartX = e.offsetX;
+		trackingEndX = e.offsetX;
 		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 		selectionCanvas.width = domCanvas.width;
 		selectionCanvas.height = domCanvas.height;
@@ -1339,10 +1260,15 @@
 		domCtx.drawImage(canvas, 0, 0);
 		domCtx.drawImage(selectionCanvas, 0, 0);
 	}
-	function onMouseUpOrLeave() {
+	function onMouseUp() {
 		if (trackingStartX === -1) return;
 		if (trackingStartX === -2) {
 			trackingStartX = -1;
+			return;
+		}
+		if (Math.abs(trackingStartX - trackingEndX) < 2) {
+			trackingStartX = -1;
+			drawCanvas(false);
 			return;
 		}
 		if (trackingStartX > trackingEndX) {
@@ -1521,9 +1447,8 @@
 		<canvas
 			id="bbDataViewer"
 			on:mousedown={onMouseDown}
-			on:mouseup={onMouseUpOrLeave}
+			on:mouseup={onMouseUp}
 			on:mousemove={onMouseMove}
-			on:mouseleave={onMouseUpOrLeave}
 			on:dblclick={() => {
 				startFrame = 0;
 				endFrame = (loadedLog?.frameCount || 1) - 1;
@@ -1645,24 +1570,15 @@
 		{/if}
 	</div>
 	<div class="timelineWrapper">
-		<input
-			type="number"
-			class="frameInput frameStart"
-			bind:value={startFrame}
-			step="1"
-			on:input|trusted={() => {
-				if (startFrame > (loadedLog?.frameCount || 1) - 1)
-					startFrame = (loadedLog?.frameCount || 1) - 1;
-			}}
-		/>
-		<input
-			type="number"
-			class="frameInput frameEnd"
-			bind:value={endFrame}
-			step="1"
-			on:input|trusted={() => {
-				if (endFrame > (loadedLog?.frameCount || 1) - 1)
-					endFrame = (loadedLog?.frameCount || 1) - 1;
+		<Timeline
+			{loadedLog}
+			flagProps={BB_ALL_FLAGS}
+			genFlagProps={BB_GEN_FLAGS}
+			{startFrame}
+			{endFrame}
+			on:update={(event) => {
+				startFrame = event.detail.startFrame;
+				endFrame = event.detail.endFrame;
 			}}
 		/>
 	</div>
