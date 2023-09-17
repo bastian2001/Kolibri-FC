@@ -41,6 +41,10 @@
 		{
 			name: 'Motors',
 			path: '/motors'
+		},
+		{
+			name: 'Tuning',
+			path: '/tuning'
 		}
 	] as NavigatorElement[];
 
@@ -51,6 +55,11 @@
 		switch (command.command) {
 			case ConfigCmd.STATUS | 0x4000:
 				battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
+				break;
+			case ConfigCmd.IND_MESSAGE:
+				log.push(command.dataStr);
+			case ConfigCmd.PLAY_SOUND | 0x4000:
+				console.log(command.data);
 				break;
 		}
 	}
