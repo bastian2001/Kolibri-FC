@@ -20,12 +20,16 @@ int16_t throttles[4];
 
 int32_t imuData[6] = {0, 0, 0, 0, 0, 0};
 
-int32_t kP = 0;
-int32_t kI = 0;
-int32_t kD = 0;
-int32_t kFF = 0;
-int32_t kS = 0;
-int32_t iFalloff = 0;
+enum
+{
+	P,
+	I,
+	D,
+	FF,
+	S,
+	iFalloff
+};
+int32_t pidGains[3][7];
 
 int32_t rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint;
 int64_t rollErrorSum, pitchErrorSum, yawErrorSum;
@@ -37,20 +41,22 @@ uint32_t pidLoopCounter = 0;
 int32_t rateFactors[5][3];
 uint16_t smoothChannels[4];
 
-int32_t
-floatToFixedPoint(float f)
+int32_t floatToFixedPoint(float f)
 {
 	return (int32_t)(f * 65536.0f);
 }
 
 void initPID()
 {
-	kP = 40 << P_SHIFT;
-	kI = 10 << I_SHIFT;
-	kD = 5 << D_SHIFT;
-	kFF = 3 << FF_SHIFT;
-	kS = 00 << S_SHIFT;
-	iFalloff = floatToFixedPoint(.998);
+	for (int i = 0; i < 3; i++)
+	{
+		pidGains[i][P] = 40 << P_SHIFT;
+		pidGains[i][I] = 20 << I_SHIFT;
+		pidGains[i][D] = 100 << D_SHIFT;
+		pidGains[i][FF] = 0 << FF_SHIFT;
+		pidGains[i][S] = 0 << S_SHIFT;
+		pidGains[i][iFalloff] = floatToFixedPoint(.998);
+	}
 	for (int i = 0; i < 3; i++)
 	{
 		rateFactors[0][i] = floatToFixedPoint(100); // first order, center rate
@@ -138,29 +144,29 @@ void pidLoop()
 			takeoffCounter = 0;			// if the quad hasn't "taken off" yet, reset the counter
 		if (takeoffCounter < 1000)		// enable i term falloff (windup prevention) only before takeoff
 		{
-			rollErrorSum = multiply6464(rollErrorSum, iFalloff);
-			pitchErrorSum = multiply6464(pitchErrorSum, iFalloff);
-			yawErrorSum = multiply6464(yawErrorSum, iFalloff);
+			rollErrorSum = multiply6464(rollErrorSum, pidGains[0][iFalloff]);
+			pitchErrorSum = multiply6464(pitchErrorSum, pidGains[1][iFalloff]);
+			yawErrorSum = multiply6464(yawErrorSum, pidGains[2][iFalloff]);
 		}
 
 		rollErrorSum += rollError;
 		pitchErrorSum += pitchError;
 		yawErrorSum += yawError;
-		rollP = multiply(kP, rollError);
-		pitchP = multiply(kP, pitchError);
-		yawP = multiply(kP, yawError);
-		rollI = multiply64(kI, rollErrorSum);
-		pitchI = multiply64(kI, pitchErrorSum);
-		yawI = multiply64(kI, yawErrorSum);
-		rollD = multiply(kD, imuData[AXIS_ROLL] - rollLast);
-		pitchD = multiply(kD, imuData[AXIS_PITCH] - pitchLast);
-		yawD = multiply(kD, imuData[AXIS_YAW] - yawLast);
-		rollFF = multiply(kFF, rollSetpoint - rollLastSetpoint);
-		pitchFF = multiply(kFF, pitchSetpoint - pitchLastSetpoint);
-		yawFF = multiply(kFF, yawSetpoint - yawLastSetpoint);
-		rollS = multiply(kS, rollSetpoint);
-		pitchS = multiply(kS, pitchSetpoint);
-		yawS = multiply(kS, yawSetpoint);
+		rollP = multiply(pidGains[0][P], rollError);
+		pitchP = multiply(pidGains[1][P], pitchError);
+		yawP = multiply(pidGains[2][P], yawError);
+		rollI = multiply64(pidGains[0][I], rollErrorSum);
+		pitchI = multiply64(pidGains[1][I], pitchErrorSum);
+		yawI = multiply64(pidGains[2][I], yawErrorSum);
+		rollD = multiply(pidGains[0][D], imuData[AXIS_ROLL] - rollLast);
+		pitchD = multiply(pidGains[1][D], imuData[AXIS_PITCH] - pitchLast);
+		yawD = multiply(pidGains[2][D], imuData[AXIS_YAW] - yawLast);
+		rollFF = multiply(pidGains[0][FF], rollSetpoint - rollLastSetpoint);
+		pitchFF = multiply(pidGains[1][FF], pitchSetpoint - pitchLastSetpoint);
+		yawFF = multiply(pidGains[2][FF], yawSetpoint - yawLastSetpoint);
+		rollS = multiply(pidGains[0][S], rollSetpoint);
+		pitchS = multiply(pidGains[1][S], pitchSetpoint);
+		yawS = multiply(pidGains[2][S], yawSetpoint);
 		int32_t rollTerm = rollP + rollI + rollD + rollFF + rollS;
 		int32_t pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 		int32_t yawTerm = yawP + yawI + yawD + yawFF + yawS;

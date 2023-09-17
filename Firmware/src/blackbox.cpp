@@ -137,16 +137,7 @@ void startLogging()
 	blackboxFile.write((uint8_t)BB_FREQ_DIVIDER);
 	blackboxFile.write((uint8_t)3); // 2000deg/sec and 16g
 	blackboxFile.write((uint8_t *)rateFactors, 60);
-	for (int i = 0; i < 3; i++)
-	{
-		blackboxFile.write((uint8_t *)&kP, 4);
-		blackboxFile.write((uint8_t *)&kI, 4);
-		blackboxFile.write((uint8_t *)&kD, 4);
-		blackboxFile.write((uint8_t *)&kFF, 4);
-		blackboxFile.write((uint8_t *)&kS, 4);
-		blackboxFile.write((uint8_t *)&iFalloff, 4);
-		blackboxFile.write((uint8_t *)&iFalloff, 4);
-	}
+	blackboxFile.write((uint8_t *)pidGains, 84);
 	blackboxFile.write((uint8_t *)&bbFlags, 8);
 	// 166 bytes header
 	frametime = 0;
