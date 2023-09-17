@@ -18,7 +18,8 @@ void initBlackbox()
 {
 	lfsReady = LittleFS.begin();
 	lfsReady = lfsReady && LittleFS.info64(fsInfo);
-	bbFlags = LOG_ROLL_SETPOINT | LOG_ROLL_GYRO_RAW | LOG_PITCH_SETPOINT | LOG_PITCH_GYRO_RAW | LOG_YAW_SETPOINT | LOG_YAW_GYRO_RAW | LOG_THROTTLE_SETPOINT | LOG_FRAMETIME;
+	// bbFlags = LOG_ROLL_SETPOINT | LOG_ROLL_GYRO_RAW | LOG_PITCH_SETPOINT | LOG_PITCH_GYRO_RAW | LOG_YAW_SETPOINT | LOG_YAW_GYRO_RAW | LOG_THROTTLE_SETPOINT | LOG_FRAMETIME;
+	bbFlags = LOG_FRAMETIME;
 }
 
 bool clearBlackbox()
@@ -322,8 +323,8 @@ void writeSingleFrame()
 	{
 		uint16_t ft = frametime;
 		frametime = 0;
-		bbBuffer[bufferPos++] = ft >> 8;
 		bbBuffer[bufferPos++] = ft;
+		bbBuffer[bufferPos++] = ft >> 8;
 	}
 	blackboxFile.write(bbBuffer, bufferPos);
 }

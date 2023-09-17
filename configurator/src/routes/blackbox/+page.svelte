@@ -27,7 +27,7 @@
 	$: dataSlice =
 		loadedLog?.frames.slice(
 			Math.max(0, Math.min(startFrame, endFrame)),
-			Math.max(0, Math.max(startFrame, endFrame))
+			Math.max(0, Math.max(startFrame, endFrame)) + 1
 		) || [];
 	$: dataSlice, drawCanvas();
 
@@ -127,7 +127,7 @@
 		const min = Math.min(
 			...file.frames.map((f) => Math.min(f.gyro.roll || 0, f.gyro.pitch || 0, f.gyro.yaw || 0))
 		);
-		const fullRange = Math.max(max, -min);
+		const fullRange = Math.round(Math.max(max, -min));
 		return { max: fullRange, min: -fullRange };
 	};
 
@@ -1175,13 +1175,16 @@
 		if (options.min !== undefined && current < options.min) return options.min;
 		return current;
 	}
+	const canvas = document.createElement('canvas');
 	function drawCanvas(allowShortening = true) {
 		if (!mounted) return;
 		if (allowShortening) {
 			clearTimeout(drawFullCanvasTimeout);
 			drawFullCanvasTimeout = setTimeout(() => drawCanvas(false), 250);
 		}
-		const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		canvas.width = domCanvas.width;
+		canvas.height = domCanvas.height;
 		const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 		/**
 		 * the drawing canvas has several graphs in it (in one column)
@@ -1195,7 +1198,7 @@
 		let sliceAndSkip = dataSlice;
 		if (!sliceAndSkip.length) return;
 		const everyNth = Math.floor(sliceAndSkip.length / width);
-		if (everyNth > 1 && allowShortening) {
+		if (everyNth > 2 && allowShortening) {
 			const len = sliceAndSkip.length;
 			sliceAndSkip = [] as LogFrame[];
 			for (let i = 0; i < len; i += everyNth) {
@@ -1263,6 +1266,96 @@
 			}
 			heightOffset += heightPerGraph + 0.02 * dataViewer.clientHeight;
 		}
+		domCanvas.getContext('2d')?.clearRect(0, 0, dataViewer.clientWidth, dataViewer.clientHeight);
+		domCanvas.getContext('2d')?.drawImage(canvas, 0, 0);
+	}
+	let trackingStartX = -1;
+	let trackingEndX = 0;
+	let firstX = 0;
+	let startStartFrame = 0;
+	let startEndFrame = 0;
+	const selectionCanvas = document.createElement('canvas');
+	function onMouseMove(e: MouseEvent) {
+		if (trackingStartX === -1) return;
+		if (trackingStartX === -2) {
+			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+			const ratio = (startStartFrame - startEndFrame) / domCanvas.width;
+			const diff = e.offsetX - firstX;
+			let deltaFrames = Math.floor(diff * ratio);
+			if (startEndFrame + deltaFrames > loadedLog!.frameCount - 1)
+				deltaFrames = loadedLog!.frameCount - 1 - startEndFrame;
+			if (startStartFrame + deltaFrames < 0) deltaFrames = -startStartFrame;
+			startFrame = startStartFrame + deltaFrames;
+			endFrame = startEndFrame + deltaFrames;
+			return;
+		}
+		trackingEndX = e.clientX;
+		const ctx = selectionCanvas.getContext('2d') as CanvasRenderingContext2D;
+		ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+		ctx.fillStyle = 'rgba(0,0,0,0.2)';
+		ctx.fillRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+		ctx.clearRect(trackingStartX, 0, trackingEndX - trackingStartX, selectionCanvas.height);
+		ctx.strokeStyle = 'white';
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(trackingStartX, 0);
+		ctx.lineTo(trackingStartX, selectionCanvas.height);
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.moveTo(trackingEndX, 0);
+		ctx.lineTo(trackingEndX, selectionCanvas.height);
+		ctx.stroke();
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
+		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+		domCtx.drawImage(canvas, 0, 0);
+		domCtx.drawImage(selectionCanvas, 0, 0);
+	}
+	function onMouseDown(e: MouseEvent) {
+		if (!loadedLog || e.button !== 0) return;
+		if (!e.shiftKey && (startFrame !== 0 || endFrame !== loadedLog.frameCount - 1)) {
+			trackingStartX = -2;
+			firstX = e.offsetX;
+			startStartFrame = startFrame;
+			startEndFrame = endFrame;
+			return;
+		}
+		trackingStartX = e.offsetX;
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		selectionCanvas.width = domCanvas.width;
+		selectionCanvas.height = domCanvas.height;
+		const ctx = selectionCanvas.getContext('2d') as CanvasRenderingContext2D;
+		ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+		ctx.fillStyle = 'rgba(0,0,0,0.2)';
+		ctx.fillRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+		ctx.strokeStyle = 'white';
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(trackingStartX, 0);
+		ctx.lineTo(trackingStartX, selectionCanvas.height);
+		ctx.stroke();
+		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
+		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+		domCtx.drawImage(canvas, 0, 0);
+		domCtx.drawImage(selectionCanvas, 0, 0);
+	}
+	function onMouseUpOrLeave() {
+		if (trackingStartX === -1) return;
+		if (trackingStartX === -2) {
+			trackingStartX = -1;
+			return;
+		}
+		if (trackingStartX > trackingEndX) {
+			const p = trackingStartX;
+			trackingStartX = trackingEndX;
+			trackingEndX = p;
+		}
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const pStart = startFrame;
+		startFrame =
+			startFrame + Math.floor((endFrame - startFrame) * (trackingStartX / domCanvas.width));
+		endFrame = pStart + Math.floor((endFrame - pStart) * (trackingEndX / domCanvas.width));
+		trackingStartX = -1;
 	}
 
 	function deleteLog() {
@@ -1315,7 +1408,7 @@
 		}
 		decodeBinFile();
 		startFrame = 0;
-		endFrame = loadedLog?.frameCount || 2 - 1;
+		endFrame = (loadedLog?.frameCount || 1) - 1;
 		drawCanvas();
 	}
 	function getLog(num: number): Promise<BBLog> {
@@ -1425,7 +1518,18 @@
 		<button on:click={() => openLogFromKbb()}>Open KBB</button>
 	</div>
 	<div class="dataViewerWrapper">
-		<canvas id="bbDataViewer" />
+		<canvas
+			id="bbDataViewer"
+			on:mousedown={onMouseDown}
+			on:mouseup={onMouseUpOrLeave}
+			on:mousemove={onMouseMove}
+			on:mouseleave={onMouseUpOrLeave}
+			on:dblclick={() => {
+				startFrame = 0;
+				endFrame = (loadedLog?.frameCount || 1) - 1;
+				drawCanvas();
+			}}
+		/>
 	</div>
 	<div class="flagSelector">
 		{#each graphs as graph, graphIndex}
