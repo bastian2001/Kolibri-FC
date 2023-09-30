@@ -64,6 +64,7 @@ void handleConfigCmd()
 	case ConfigCmd::SAVE_SETTINGS:
 		rp2040.wdt_reset();
 		EEPROM.commit();
+		sendCommand(configMsgCommand | 0x4000);
 		break;
 	case ConfigCmd::PLAY_SOUND:
 	{
@@ -262,23 +263,34 @@ void handleConfigCmd()
 			pidGains[i][4] = pids[i][4] << S_SHIFT;
 			pidGains[i][5] = pids[i][5];
 		}
+		EEPROM.put((uint16_t)EEPROM_POS::PID_GAINS, pidGains);
 		sendCommand(configMsgCommand | 0x4000);
 	}
 	break;
 	case ConfigCmd::GET_RATES:
 	{
-		uint16_t rates[5][3];
+		uint16_t rates[3][5];
 		for (int i = 0; i < 3; i++)
-		{
-			rates[i][0] = rateFactors[i][0] >> 16;
-			rates[i][1] = rateFactors[i][1] >> 16;
-			rates[i][2] = rateFactors[i][2] >> 16;
-		}
+			for (int j = 0; j < 5; j++)
+				rates[i][j] = rateFactors[j][i] >> 16;
 		sendCommand(configMsgCommand | 0x4000, (char *)rates, sizeof(rates));
 	}
+	break;
+	case ConfigCmd::SET_RATES:
+	{
+		uint16_t rates[3][5];
+		memcpy(rates, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(rates));
+		for (int i = 0; i < 3; i++)
+			for (int j = 0; j < 5; j++)
+				rateFactors[j][i] = rates[i][j] << 16;
+		sendCommand(configMsgCommand | 0x4000);
+		EEPROM.put((uint16_t)EEPROM_POS::RATE_FACTORS, rateFactors);
+	}
 	default:
-		Serial.printf("Unknown command: %d\n", configMsgCommand);
-		break;
+	{
+		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));
+	}
+	break;
 	}
 }
 

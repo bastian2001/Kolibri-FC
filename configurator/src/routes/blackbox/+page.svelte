@@ -1409,22 +1409,23 @@
 		drawCanvas();
 	}
 
+	function onResize() {
+		const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		canvas.height = dataViewer.clientHeight;
+		canvas.width = dataViewer.clientWidth;
+
+		drawCanvas();
+	}
 	onMount(() => {
 		mounted = true;
 		port.sendCommand(ConfigCmd.BB_FILE_LIST).catch(console.error);
 		dataViewer = document.getElementsByClassName('dataViewerWrapper')[0] as HTMLDivElement;
-		function onResize() {
-			const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-			canvas.height = dataViewer.clientHeight;
-			canvas.width = dataViewer.clientWidth;
-
-			drawCanvas();
-		}
 		window.addEventListener('resize', onResize);
 		onResize();
 	});
 	onDestroy(() => {
 		clearTimeout(drawFullCanvasTimeout);
+		window.removeEventListener('resize', onResize);
 	});
 </script>
 

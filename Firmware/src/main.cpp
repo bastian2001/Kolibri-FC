@@ -7,6 +7,7 @@ void setup()
 	Serial.begin(115200);
 	Serial.println("Starting up");
 	EEPROM.begin(4096);
+	readEEPROM();
 
 	gyroInit();
 	osdInit();
@@ -33,9 +34,6 @@ void setup()
 	initESCs();
 	initBlackbox();
 	rp2040.wdt_begin(200);
-
-	// init PID constants
-	initPID();
 
 	Serial.println("Setup complete");
 	// startBootupSound(); //annoying during development
