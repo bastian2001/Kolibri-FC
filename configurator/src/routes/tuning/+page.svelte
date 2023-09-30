@@ -158,7 +158,7 @@
 <style>
 	.wrapper {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
 		margin: 1.5rem;
 		gap: 0rem 3rem;
 	}
