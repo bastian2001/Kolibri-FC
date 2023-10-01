@@ -8,6 +8,7 @@ bool lfsReady = false;
 
 FSInfo64 fsInfo;
 int currentLogNum = 0;
+uint8_t bbFreqDivider = 2;
 
 File blackboxFile;
 
@@ -18,8 +19,6 @@ void initBlackbox()
 {
 	lfsReady = LittleFS.begin();
 	lfsReady = lfsReady && LittleFS.info64(fsInfo);
-	// bbFlags = LOG_ROLL_SETPOINT | LOG_ROLL_GYRO_RAW | LOG_PITCH_SETPOINT | LOG_PITCH_GYRO_RAW | LOG_YAW_SETPOINT | LOG_YAW_GYRO_RAW | LOG_THROTTLE_SETPOINT | LOG_FRAMETIME;
-	bbFlags = LOG_FRAMETIME;
 }
 
 bool clearBlackbox()
@@ -28,6 +27,18 @@ bool clearBlackbox()
 		return false;
 	LittleFS.format();
 	return true;
+}
+
+void setFlags(uint64_t flags)
+{
+	bbFlags = flags;
+	EEPROM.put((uint16_t)EEPROM_POS::BB_FLAGS, bbFlags);
+}
+void setDivider(uint8_t divider)
+{
+	if (divider > 0)
+		bbFreqDivider = divider;
+	EEPROM.put((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 }
 
 void printLogBinRaw(uint8_t logNum)
@@ -135,7 +146,7 @@ void startLogging()
 	uint32_t time = millis();
 	blackboxFile.write((uint8_t *)&time, 4); // timestamp unknown
 	blackboxFile.write((uint8_t)0);			 // 3200Hz gyro
-	blackboxFile.write((uint8_t)BB_FREQ_DIVIDER);
+	blackboxFile.write((uint8_t)bbFreqDivider);
 	blackboxFile.write((uint8_t)3); // 2000deg/sec and 16g
 	int32_t rf[5][3];
 	for (int i = 0; i < 5; i++)
@@ -154,9 +165,6 @@ void startLogging()
 
 void endLogging()
 {
-	// bbFlags <<= 1;
-	// if (!bbFlags)
-	// 	bbFlags = 1 << 0;
 	if (!lfsReady)
 		return;
 	rp2040.wdt_reset();

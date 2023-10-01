@@ -126,7 +126,7 @@ void pidLoop()
 		rollSetpoint = 0;
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
-		if (ELRS->channels[5] < 1300)
+		if (true)
 		{
 			// Rate mode
 			/* at full stick deflection, ...Raw values are either +1 or -1. That will make all the
@@ -148,10 +148,6 @@ void pidLoop()
 				pitchSetpoint += rateFactors[i][1] * polynomials[i][1];
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 			}
-		}
-		else
-		{
-			// Angle mode
 		}
 		rollError = rollSetpoint - imuData[AXIS_ROLL];
 		pitchError = pitchSetpoint - imuData[AXIS_PITCH];
@@ -276,7 +272,7 @@ void pidLoop()
 		rollLastSetpoint = rollSetpoint;
 		pitchLastSetpoint = pitchSetpoint;
 		yawLastSetpoint = yawSetpoint;
-		if ((pidLoopCounter % BB_FREQ_DIVIDER) == 0)
+		if ((pidLoopCounter % bbFreqDivider) == 0)
 			writeSingleFrame();
 		pidLoopCounter++;
 	}

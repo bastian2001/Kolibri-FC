@@ -34,6 +34,8 @@ enum class ConfigCmd
 	SET_PIDS,
 	GET_RATES,
 	SET_RATES,
+	GET_BB_SETTINGS,
+	SET_BB_SETTINGS,
 
 	// indicators
 	IND_MESSAGE = 0xC000,

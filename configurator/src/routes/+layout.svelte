@@ -243,4 +243,9 @@
 		flex-grow: 1;
 		overflow: hidden;
 	}
+
+	.battery p {
+		margin: 0;
+		padding: 0;
+	}
 </style>

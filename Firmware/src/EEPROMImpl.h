@@ -10,7 +10,8 @@ enum class EEPROM_POS : uint16_t
 	PROP_DIRECTION = 167,		   // 1 = PROPS_OUT, -1 = PROPS_IN
 	BATTERY_EMPTY_THRESHOLD = 168, // 2 bytes, centivolts
 	UAV_TYPE = 169,
-
+	BB_FLAGS = 170,
+	BB_FREQ_DIVIDER = 178,
 };
 
 void readEEPROM();

@@ -27,6 +27,7 @@
 		};
 	};
 	let canvas: HTMLCanvasElement;
+	let wrapper: HTMLDivElement;
 	const osCanvas = document.createElement('canvas');
 	const selCanvas = document.createElement('canvas');
 
@@ -35,8 +36,9 @@
 	$: endFrame, drawSelection();
 
 	function onResize() {
-		canvas.width = canvas.clientWidth;
-		canvas.height = canvas.clientHeight;
+		canvas.width = wrapper.clientWidth;
+		canvas.height = wrapper.clientHeight;
+		console.log(canvas.width, canvas.height);
 		osCanvas.width = canvas.width;
 		osCanvas.height = canvas.height;
 		selCanvas.width = canvas.width;
@@ -172,18 +174,15 @@
 	}
 
 	onMount(() => {
+		canvas = document.getElementById('bbTimeline') as HTMLCanvasElement;
+		wrapper = document.getElementById('bbTimelineWrapper') as HTMLDivElement;
 		onResize();
+		window.addEventListener('resize', onResize);
 	});
 </script>
 
-<div class="wrapper" on:mousemove={mouseMove} role="banner">
-	<canvas
-		bind:this={canvas}
-		height="32"
-		on:resize={onResize}
-		on:mousedown={mouseDown}
-		on:mouseup={mouseUp}
-	/>
+<div class="wrapper" id="bbTimelineWrapper" on:mousemove={mouseMove} role="banner">
+	<canvas height="32" id="bbTimeline" on:mousedown={mouseDown} on:mouseup={mouseUp} />
 	{#if currentlyTracking}
 		<div class="selector" />
 	{/if}
@@ -194,7 +193,6 @@
 		height: 2rem;
 	}
 	canvas {
-		/* background-color: rgba(0, 0, 0, 0.3); */
 		width: 100%;
 		height: 100%;
 	}

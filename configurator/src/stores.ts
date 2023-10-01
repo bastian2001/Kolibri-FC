@@ -23,6 +23,8 @@ export const ConfigCmd = {
 	SET_PIDS: 19,
 	GET_RATES: 20,
 	SET_RATES: 21,
+	GET_BB_SETTINGS: 22,
+	SET_BB_SETTINGS: 23,
 	IND_MESSAGE: 0xc0000
 };
 
@@ -37,6 +39,9 @@ function createPort() {
 	let port: any = null;
 	let devices: any = [];
 	let reader: null | ReadableStreamDefaultReader = null;
+
+	let resolveOnClose: any = null;
+	let rejectOnClose: any = null;
 	const { subscribe, set } = writable({
 		command: 65535,
 		length: 0,
@@ -96,7 +101,19 @@ function createPort() {
 		reader!.read().then(function processReaderResult({ done, value }) {
 			if (done) {
 				reader!.releaseLock();
-				disconnect();
+
+				port
+					.close()
+					.then(() => {
+						port = null;
+						clearInterval(pingInterval);
+						clearInterval(statusInterval);
+						resolveOnClose();
+					})
+					.catch(() => {
+						port = null;
+						rejectOnClose();
+					});
 				return;
 			}
 
@@ -162,15 +179,16 @@ function createPort() {
 	};
 	const disconnect = () => {
 		if (port === null) return;
-		reader?.releaseLock();
 		return new Promise((resolve: any, reject) => {
-			port
-				.close()
-				.then(() => {
-					port = null;
-					resolve();
-				})
-				.catch(reject);
+			resolveOnClose = resolve;
+			rejectOnClose = reject;
+			try {
+				reader?.cancel();
+				reader?.releaseLock();
+			} catch (e) {
+				console.error(e);
+				port = null;
+			}
 		});
 	};
 	const addDevice = () => {

@@ -17,6 +17,9 @@ void readEEPROM()
 			for (int j = 0; j < 3; j++)
 				rf[i][j] = rateFactors[i][j].getRaw();
 		EEPROM.put((uint16_t)EEPROM_POS::RATE_FACTORS, rf);
+		EEPROM.put((uint16_t)EEPROM_POS::BB_FLAGS, (uint64_t)0);
+		EEPROM.put((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, (uint8_t)2);
+
 		rp2040.wdt_reset();
 		EEPROM.commit();
 	}
@@ -30,4 +33,6 @@ void readEEPROM()
 	for (int i = 0; i < 5; i++)
 		for (int j = 0; j < 3; j++)
 			rateFactors[i][j].setRaw(rf[i][j]);
+	EEPROM.get((uint16_t)EEPROM_POS::BB_FLAGS, bbFlags);
+	EEPROM.get((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 }

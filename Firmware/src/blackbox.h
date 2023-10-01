@@ -45,8 +45,7 @@ extern uint64_t bbFlags;
 extern bool bbLogging;
 extern FSInfo64 fs_info;
 extern elapsedMillis infoAge;
-
-#define BB_FREQ_DIVIDER 2
+extern uint8_t bbFreqDivider;
 
 void initBlackbox();
 

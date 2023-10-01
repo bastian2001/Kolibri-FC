@@ -3,6 +3,7 @@
 	import { port, type Command, ConfigCmd } from '../../stores';
 	import TracePlacer from './tracePlacer.svelte';
 	import Timeline from './timeline.svelte';
+	import Settings from './settings.svelte';
 	import { leBytesToInt, type BBLog, type LogFrame, getNestedProperty } from '../../utils';
 
 	type TraceInGraph = {
@@ -45,6 +46,8 @@
 	let startFrame = 0;
 	let endFrame = 0;
 	let mounted = false;
+
+	let showSettings = false;
 
 	const getGyroBBRange = (file: BBLog | undefined) => {
 		if (!file) return { max: -2000, min: 2000 };
@@ -1443,7 +1446,11 @@
 		<button on:click={() => formatBB()}>Format</button>
 		<button on:click={() => openLogFromPromptJSON()}>Open JSON</button>
 		<button on:click={() => openLogFromKbb()}>Open KBB</button>
+		<button on:click={() => (showSettings = true)}>Settings</button>
 	</div>
+	{#if showSettings}
+		<Settings flags={BB_ALL_FLAGS} on:close={() => (showSettings = false)} />
+	{/if}
 	<div class="dataViewerWrapper">
 		<canvas
 			id="bbDataViewer"

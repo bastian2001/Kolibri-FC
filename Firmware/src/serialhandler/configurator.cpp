@@ -286,6 +286,26 @@ void handleConfigCmd()
 		sendCommand(configMsgCommand | 0x4000);
 		EEPROM.put((uint16_t)EEPROM_POS::RATE_FACTORS, rateFactors);
 	}
+	break;
+	case ConfigCmd::GET_BB_SETTINGS:
+	{
+		uint8_t bbSettings[9];
+		bbSettings[0] = bbFreqDivider;
+		memcpy(&bbSettings[1], &bbFlags, 8);
+		sendCommand(configMsgCommand | 0x4000, (char *)bbSettings, sizeof(bbSettings));
+	}
+	break;
+	case ConfigCmd::SET_BB_SETTINGS:
+	{
+		uint8_t bbSettings[9];
+		memcpy(bbSettings, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(bbSettings));
+		bbFreqDivider = bbSettings[0];
+		memcpy(&bbFlags, &bbSettings[1], 8);
+		sendCommand(configMsgCommand | 0x4000);
+		EEPROM.put((uint16_t)EEPROM_POS::BB_FLAGS, bbFlags);
+		EEPROM.put((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
+	}
+	break;
 	default:
 	{
 		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));
