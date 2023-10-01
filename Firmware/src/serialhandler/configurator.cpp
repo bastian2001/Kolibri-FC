@@ -239,12 +239,12 @@ void handleConfigCmd()
 		uint16_t pids[3][7];
 		for (int i = 0; i < 3; i++)
 		{
-			pids[i][0] = pidGains[i][0] >> P_SHIFT;
-			pids[i][1] = pidGains[i][1] >> I_SHIFT;
-			pids[i][2] = pidGains[i][2] >> D_SHIFT;
-			pids[i][3] = pidGains[i][3] >> FF_SHIFT;
-			pids[i][4] = pidGains[i][4] >> S_SHIFT;
-			pids[i][5] = pidGains[i][5] & 0xFFFF;
+			pids[i][0] = pidGains[i][0].getRaw() >> P_SHIFT;
+			pids[i][1] = pidGains[i][1].getRaw() >> I_SHIFT;
+			pids[i][2] = pidGains[i][2].getRaw() >> D_SHIFT;
+			pids[i][3] = pidGains[i][3].getRaw() >> FF_SHIFT;
+			pids[i][4] = pidGains[i][4].getRaw() >> S_SHIFT;
+			pids[i][5] = pidGains[i][5].getRaw() & 0xFFFF;
 			pids[i][6] = 0;
 		}
 		sendCommand(configMsgCommand | 0x4000, (char *)pids, sizeof(pids));
@@ -256,12 +256,12 @@ void handleConfigCmd()
 		memcpy(pids, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(pids));
 		for (int i = 0; i < 3; i++)
 		{
-			pidGains[i][0] = pids[i][0] << P_SHIFT;
-			pidGains[i][1] = pids[i][1] << I_SHIFT;
-			pidGains[i][2] = pids[i][2] << D_SHIFT;
-			pidGains[i][3] = pids[i][3] << FF_SHIFT;
-			pidGains[i][4] = pids[i][4] << S_SHIFT;
-			pidGains[i][5] = pids[i][5];
+			pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
+			pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
+			pidGains[i][2].setRaw(pids[i][2] << D_SHIFT);
+			pidGains[i][3].setRaw(pids[i][3] << FF_SHIFT);
+			pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
+			pidGains[i][5].setRaw(pids[i][5]);
 		}
 		EEPROM.put((uint16_t)EEPROM_POS::PID_GAINS, pidGains);
 		sendCommand(configMsgCommand | 0x4000);
@@ -272,7 +272,7 @@ void handleConfigCmd()
 		uint16_t rates[3][5];
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 5; j++)
-				rates[i][j] = rateFactors[j][i] >> 16;
+				rates[i][j] = rateFactors[j][i].getInt();
 		sendCommand(configMsgCommand | 0x4000, (char *)rates, sizeof(rates));
 	}
 	break;
@@ -282,7 +282,7 @@ void handleConfigCmd()
 		memcpy(rates, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(rates));
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 5; j++)
-				rateFactors[j][i] = rates[i][j] << 16;
+				rateFactors[j][i] = rates[i][j];
 		sendCommand(configMsgCommand | 0x4000);
 		EEPROM.put((uint16_t)EEPROM_POS::RATE_FACTORS, rateFactors);
 	}

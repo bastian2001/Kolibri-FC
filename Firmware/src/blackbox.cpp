@@ -137,8 +137,16 @@ void startLogging()
 	blackboxFile.write((uint8_t)0);			 // 3200Hz gyro
 	blackboxFile.write((uint8_t)BB_FREQ_DIVIDER);
 	blackboxFile.write((uint8_t)3); // 2000deg/sec and 16g
-	blackboxFile.write((uint8_t *)rateFactors, 60);
-	blackboxFile.write((uint8_t *)pidGains, 84);
+	int32_t rf[5][3];
+	for (int i = 0; i < 5; i++)
+		for (int j = 0; j < 3; j++)
+			rf[i][j] = rateFactors[i][j].getRaw();
+	blackboxFile.write((uint8_t *)rf, 60);
+	int32_t pg[3][7];
+	for (int i = 0; i < 3; i++)
+		for (int j = 0; j < 7; j++)
+			pg[i][j] = pidGains[i][j].getRaw();
+	blackboxFile.write((uint8_t *)pg, 84);
 	blackboxFile.write((uint8_t *)&bbFlags, 8);
 	// 166 bytes header
 	frametime = 0;
@@ -190,13 +198,13 @@ void writeSingleFrame()
 	}
 	if (currentBBFlags & LOG_ROLL_SETPOINT)
 	{
-		int16_t setpoint = (int16_t)(rollSetpoint >> 12);
+		int16_t setpoint = (int16_t)(rollSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_SETPOINT)
 	{
-		int16_t setpoint = (int16_t)(pitchSetpoint >> 12);
+		int16_t setpoint = (int16_t)(pitchSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
@@ -207,102 +215,102 @@ void writeSingleFrame()
 	}
 	if (currentBBFlags & LOG_YAW_SETPOINT)
 	{
-		int16_t setpoint = (int16_t)(yawSetpoint >> 12);
+		int16_t setpoint = (int16_t)(yawSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_GYRO_RAW)
 	{
-		int16_t gyroData = (imuData[AXIS_ROLL] >> 12);
+		int16_t gyroData = (imuData[AXIS_ROLL].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW)
 	{
-		int16_t gyroData = (imuData[AXIS_PITCH] >> 12);
+		int16_t gyroData = (imuData[AXIS_PITCH].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW)
 	{
-		int16_t gyroData = (imuData[AXIS_YAW] >> 12);
+		int16_t gyroData = (imuData[AXIS_YAW].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_P)
 	{
-		bbBuffer[bufferPos++] = rollP >> 16;
-		bbBuffer[bufferPos++] = rollP >> 24;
+		bbBuffer[bufferPos++] = rollP.getInt();
+		bbBuffer[bufferPos++] = rollP.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_I)
 	{
-		bbBuffer[bufferPos++] = rollI >> 16;
-		bbBuffer[bufferPos++] = rollI >> 24;
+		bbBuffer[bufferPos++] = rollI.getInt();
+		bbBuffer[bufferPos++] = rollI.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_D)
 	{
-		bbBuffer[bufferPos++] = rollD >> 16;
-		bbBuffer[bufferPos++] = rollD >> 24;
+		bbBuffer[bufferPos++] = rollD.getInt();
+		bbBuffer[bufferPos++] = rollD.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_FF)
 	{
-		bbBuffer[bufferPos++] = rollFF >> 16;
-		bbBuffer[bufferPos++] = rollFF >> 24;
+		bbBuffer[bufferPos++] = rollFF.getInt();
+		bbBuffer[bufferPos++] = rollFF.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_S)
 	{
-		bbBuffer[bufferPos++] = rollS >> 16;
-		bbBuffer[bufferPos++] = rollS >> 24;
+		bbBuffer[bufferPos++] = rollS.getInt();
+		bbBuffer[bufferPos++] = rollS.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_P)
 	{
-		bbBuffer[bufferPos++] = pitchP >> 16;
-		bbBuffer[bufferPos++] = pitchP >> 24;
+		bbBuffer[bufferPos++] = pitchP.getInt();
+		bbBuffer[bufferPos++] = pitchP.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_I)
 	{
-		bbBuffer[bufferPos++] = pitchI >> 16;
-		bbBuffer[bufferPos++] = pitchI >> 24;
+		bbBuffer[bufferPos++] = pitchI.getInt();
+		bbBuffer[bufferPos++] = pitchI.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_D)
 	{
-		bbBuffer[bufferPos++] = pitchD >> 16;
-		bbBuffer[bufferPos++] = pitchD >> 24;
+		bbBuffer[bufferPos++] = pitchD.getInt();
+		bbBuffer[bufferPos++] = pitchD.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_FF)
 	{
-		bbBuffer[bufferPos++] = pitchFF >> 16;
-		bbBuffer[bufferPos++] = pitchFF >> 24;
+		bbBuffer[bufferPos++] = pitchFF.getInt();
+		bbBuffer[bufferPos++] = pitchFF.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_PID_S)
 	{
-		bbBuffer[bufferPos++] = pitchS >> 16;
-		bbBuffer[bufferPos++] = pitchS >> 24;
+		bbBuffer[bufferPos++] = pitchS.getInt();
+		bbBuffer[bufferPos++] = pitchS.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_PID_P)
 	{
-		bbBuffer[bufferPos++] = yawP >> 16;
-		bbBuffer[bufferPos++] = yawP >> 24;
+		bbBuffer[bufferPos++] = yawP.getInt();
+		bbBuffer[bufferPos++] = yawP.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_PID_I)
 	{
-		bbBuffer[bufferPos++] = yawI >> 16;
-		bbBuffer[bufferPos++] = yawI >> 24;
+		bbBuffer[bufferPos++] = yawI.getInt();
+		bbBuffer[bufferPos++] = yawI.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_PID_D)
 	{
-		bbBuffer[bufferPos++] = yawD >> 16;
-		bbBuffer[bufferPos++] = yawD >> 24;
+		bbBuffer[bufferPos++] = yawD.getInt();
+		bbBuffer[bufferPos++] = yawD.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_PID_FF)
 	{
-		bbBuffer[bufferPos++] = yawFF >> 16;
-		bbBuffer[bufferPos++] = yawFF >> 24;
+		bbBuffer[bufferPos++] = yawFF.getInt();
+		bbBuffer[bufferPos++] = yawFF.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_PID_S)
 	{
-		bbBuffer[bufferPos++] = yawS >> 16;
-		bbBuffer[bufferPos++] = yawS >> 24;
+		bbBuffer[bufferPos++] = yawS.getInt();
+		bbBuffer[bufferPos++] = yawS.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_MOTOR_OUTPUTS)
 	{
