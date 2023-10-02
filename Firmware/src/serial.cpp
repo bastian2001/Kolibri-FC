@@ -8,7 +8,7 @@ HardwareSerial *serials[3] = {
 
 // 0 = serial, 1 = serial1, 2 = serial2
 uint32_t serialFunctions[3] = {
-	SERIAL_CONFIGURATOR,
+	SERIAL_DISABLED,
 	SERIAL_DISABLED,
 	SERIAL_DISABLED};
 
