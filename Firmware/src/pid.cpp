@@ -76,9 +76,6 @@ void     pidLoop() {
     imuData[AXIS_ROLL] = -imuData[AXIS_ROLL];
     imuData[AXIS_YAW]  = -imuData[AXIS_YAW];
 
-    imuUpdateFromGyro();
-    imuUpdateFromAccel();
-
     if (ELRS->armed) {
         // Quad armed
         static fixedPointInt32 polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
@@ -110,19 +107,7 @@ void     pidLoop() {
             }
         } else {
             // Angle mode
-            fixedPointInt32 pitch, roll;
-            imuGetXyTilt(pitch, roll);
-            roll *= RAD_TO_DEG;
-            pitch *= RAD_TO_DEG;
-            static elapsedMillis angleModeTimer = 0;
-            if (angleModeTimer > 50) {
-                angleModeTimer = 0;
-                Serial.printf("%9.1f,%9.1f\r\n", pitch.getFloat(), roll.getFloat());
-            }
-            fixedPointInt32 rollSetAngle  = TO_ANGLE * (smoothChannels[0] - 1500);
-            fixedPointInt32 pitchSetAngle = TO_ANGLE * (smoothChannels[1] - 1500);
-            rollSetpoint                  = (rollSetAngle - roll) * angleModeP;
-            pitchSetpoint                 = (pitchSetAngle - pitch) * angleModeP;
+
             for (int i = 1; i < 5; i++) {
                 polynomials[i][2] = polynomials[i - 1][2] * polynomials[0][2];
                 if (polynomials[0][2] < 0)

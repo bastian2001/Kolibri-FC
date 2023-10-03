@@ -1,7 +1,5 @@
 
 #include "EEPROM.h"
-#include <Arduino.h>
-#include <vector>
 #include "EEPROMImpl.h"
 #include "LittleFS.h"
 #include "adc.h"
@@ -20,14 +18,14 @@
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
 #include "hardware/watchdog.h"
-#include "imu.h"
 #include "pico/stdlib.h"
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/dshotx4.pio.h"
-#include "quaternion.h"
 #include "serial.h"
 #include "serialhandler/configurator.h"
+#include <Arduino.h>
+#include <vector>
 
 #define SPI_GYRO spi0
 #define SPI_OSD spi1

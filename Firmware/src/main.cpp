@@ -9,7 +9,6 @@ void setup() {
     readEEPROM();
 
     gyroInit();
-    imuInit();
     osdInit();
     initBaro();
 
