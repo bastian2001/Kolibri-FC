@@ -112,9 +112,9 @@ void     pidLoop() {
             // Angle mode
             fixedPointInt32 pitch, roll;
             imuGetXyTilt(pitch, roll);
-            static elapsedMillis angleModeTimer = 0;
             roll *= RAD_TO_DEG;
             pitch *= RAD_TO_DEG;
+            static elapsedMillis angleModeTimer = 0;
             if (angleModeTimer > 50) {
                 angleModeTimer = 0;
                 Serial.printf("%9.1f,%9.1f\r\n", pitch.getFloat(), roll.getFloat());

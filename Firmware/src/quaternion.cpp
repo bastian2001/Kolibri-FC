@@ -135,13 +135,10 @@ Quaternion *Quaternion::normalize() {
 }
 Quaternion Quaternion::operator*(Quaternion q) {
     Quaternion result;
-    if (debugQ) Serial.printf("q1: %.4f %.4f %.4f %.4f\n", w.getFloat(), v[0].getFloat(), v[1].getFloat(), v[2].getFloat());
-    if (debugQ) Serial.printf("q2: %.4f %.4f %.4f %.4f\n", q.w.getFloat(), q.v[0].getFloat(), q.v[1].getFloat(), q.v[2].getFloat());
     result.w    = w * q.w - v[0] * q.v[0] - v[1] * q.v[1] - v[2] * q.v[2];
     result.v[0] = v[0] * q.w + w * q.v[0] + v[1] * q.v[2] - v[2] * q.v[1];
     result.v[1] = w * q.v[1] - v[0] * q.v[2] + v[1] * q.w + v[2] * q.v[0];
     result.v[2] = w * q.v[2] + v[0] * q.v[1] - v[1] * q.v[0] + v[2] * q.w;
-    if (debugQ) Serial.printf("q: %.4f %.4f %.4f %.4f\n", result.w.getFloat(), result.v[0].getFloat(), result.v[1].getFloat(), result.v[2].getFloat());
     return result;
 }
 Quaternion Quaternion::operator*=(Quaternion q) {
@@ -159,9 +156,10 @@ void Quaternion::rotate(fixedPointInt32 v0[3], fixedPointInt32 out[3]) const {
     fixedPointInt32 xy = v[0] * v[1];
     fixedPointInt32 xz = v[0] * v[2];
     fixedPointInt32 yz = v[1] * v[2];
-    out[0]             = v0[0] * (ww + xx - yy - zz) + v0[1] * (xy - wz) * 2 + v0[2] * (xz + wy) * 2;
-    out[1]             = v0[0] * (xy + wz) * 2 + v0[1] * (ww - xx + yy - zz) + v0[2] * (yz - wx) * 2;
-    out[2]             = v0[0] * (xz - wy) * 2 + v0[1] * (yz + wx) * 2 + v0[2] * (ww - xx - yy + zz);
+
+    out[0] = v0[0] * (ww + xx - yy - zz) + v0[1] * (xy - wz) * 2 + v0[2] * (xz + wy) * 2;
+    out[1] = v0[0] * (xy + wz) * 2 + v0[1] * (ww - xx + yy - zz) + v0[2] * (yz - wx) * 2;
+    out[2] = v0[0] * (xz - wy) * 2 + v0[1] * (yz + wx) * 2 + v0[2] * (ww - xx - yy + zz);
 }
 
 fixedPointInt32 vectorDot(fixedPointInt32 v1[3], fixedPointInt32 v2[3]) {

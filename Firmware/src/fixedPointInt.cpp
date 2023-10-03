@@ -138,7 +138,7 @@ bool fixedPointInt32::operator==(const int32_t other) const {
     return this->value == (other << 16);
 }
 bool fixedPointInt32::operator==(const fixedPointInt32 other) const {
-	return this->value == other.getRaw();
+    return this->value == other.getRaw();
 }
 fixedPointInt32 fixedPointInt32::operator*(const fixedPointInt64 other) const {
     fixedPointInt32 result;
@@ -182,6 +182,9 @@ fixedPointInt64 fixedPointInt64::fromRaw(uint32_t v) {
 }
 fixedPointInt64::fixedPointInt64(const int32_t v) {
     this->value = v << 16;
+}
+fixedPointInt64::fixedPointInt64(const float v) {
+    this->value = (int64_t)(v * 65536);
 }
 fixedPointInt64 fixedPointInt64::setRaw(const int64_t v) {
     this->value = v;
@@ -236,7 +239,7 @@ fixedPointInt64 fixedPointInt64::operator=(const int other) {
     return *this;
 }
 fixedPointInt64 fixedPointInt64::operator=(const int64_t other) {
-    this->value = other;
+    this->value = other << 16;
     return *this;
 }
 fixedPointInt64 fixedPointInt64::operator=(const fixedPointInt32 other) {
