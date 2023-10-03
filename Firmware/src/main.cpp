@@ -42,33 +42,6 @@ elapsedMillis activityTimer;
 void          loop() {
     // baroLoop();
     ELRS->loop();
-    if (Serial.available()) {
-        delay(2);
-        String s = Serial.readStringUntil('\n');
-        if (s.charAt(0) == 'a' && s.charAt(1) == 'x') {
-            accelSign[0] = -accelSign[0];
-            Serial.printf("accelSign[0]:               %d\n", accelSign[0].getInt());
-        } else if (s.charAt(0) == 'a' && s.charAt(1) == 'y') {
-            accelSign[1] = -accelSign[1];
-            Serial.printf("accelSign[1]:               %d\n", accelSign[1].getInt());
-        } else if (s.charAt(0) == 'a' && s.charAt(1) == 'z') {
-            accelSign[2] = -accelSign[2];
-            Serial.printf("accelSign[2]:               %d\n", accelSign[2].getInt());
-        } else if (s.charAt(0) == 'g' && s.charAt(1) == 'x') {
-            gyroSign[0] = -gyroSign[0];
-            Serial.printf("gyroSign[0]:               %d\n", gyroSign[0].getInt());
-        } else if (s.charAt(0) == 'g' && s.charAt(1) == 'y') {
-            gyroSign[1] = -gyroSign[1];
-            Serial.printf("gyroSign[1]:               %d\n", gyroSign[1].getInt());
-        } else if (s.charAt(0) == 'g' && s.charAt(1) == 'z') {
-            gyroSign[2] = -gyroSign[2];
-            Serial.printf("gyroSign[2]:               %d\n", gyroSign[2].getInt());
-        } else if (s.charAt(0) == 'e') {
-            float e          = s.substring(1).toFloat();
-            ACCEL_UPDATE_EPS = fixedPointInt32::from(e);
-            Serial.printf("ACCEL_UPDATE_EPS:               %.4f\n", ACCEL_UPDATE_EPS.getFloat());
-        }
-    }
     speakerLoop();
     gyroLoop();
     adcLoop();
