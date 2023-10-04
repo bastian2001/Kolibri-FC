@@ -9,6 +9,7 @@ void setup() {
     readEEPROM();
 
     gyroInit();
+    imuInit();
     osdInit();
     initBaro();
 
@@ -39,7 +40,8 @@ void setup() {
 }
 
 elapsedMillis activityTimer;
-void          loop() {
+
+void loop() {
     // baroLoop();
     ELRS->loop();
     speakerLoop();

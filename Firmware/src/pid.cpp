@@ -76,6 +76,8 @@ void     pidLoop() {
     imuData[AXIS_ROLL] = -imuData[AXIS_ROLL];
     imuData[AXIS_YAW]  = -imuData[AXIS_YAW];
 
+    updateAttitude();
+
     if (ELRS->armed) {
         // Quad armed
         static fixedPointInt32 polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
@@ -107,7 +109,6 @@ void     pidLoop() {
             }
         } else {
             // Angle mode
-
             for (int i = 1; i < 5; i++) {
                 polynomials[i][2] = polynomials[i - 1][2] * polynomials[0][2];
                 if (polynomials[0][2] < 0)

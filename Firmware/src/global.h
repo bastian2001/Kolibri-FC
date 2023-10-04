@@ -18,6 +18,7 @@
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
 #include "hardware/watchdog.h"
+#include "imu.h"
 #include "pico/stdlib.h"
 #include "pid.h"
 #include "pins.h"
