@@ -109,6 +109,12 @@ void updateAttitude() {
     accelUp /= len;
     fixedPointInt32 pitchFromAccel = fastAtan2(accelUp, accelFwd) * (accelFwd * accelFwd + accelUp * accelUp);
     fixedPointInt32 rollFromAccel  = fastAtan2(accelUp, -accelRight) * (accelRight * accelRight + accelUp * accelUp);
+	fixedPointInt32 dRoll = rollFromAccel - roll;
+	fixedPointInt32 dPitch = pitchFromAccel - pitch;
+	if (dRoll > FAST_PI) rollFromAccel -= FAST_PI << 1;
+	else if (dRoll < -FAST_PI) rollFromAccel += FAST_PI << 1;
+	if (dPitch > FAST_PI) pitchFromAccel -= FAST_PI << 1;
+	else if (dPitch < -FAST_PI) pitchFromAccel += FAST_PI << 1;
 
     fixedPointInt32 totalRotation = sqrtf((gyroPitchFwd * gyroPitchFwd + gyroRollRight * gyroRollRight + gyroYawRight * gyroYawRight).getFloat());
 
