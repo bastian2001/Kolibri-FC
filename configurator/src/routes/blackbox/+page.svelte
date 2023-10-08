@@ -13,6 +13,7 @@
 		minValue: number;
 		maxValue: number;
 		modifier: any;
+		id: number;
 	};
 
 	let graphs = [[]] as TraceInGraph[][];
@@ -1379,7 +1380,8 @@
 			minValue: 0,
 			strokeWidth: 1,
 			flagName: '',
-			modifier: ''
+			modifier: '',
+			id: Math.random()
 		};
 		graphs[graphIndex] = [...graphs[graphIndex], defaultTrace];
 		drawCanvas();
@@ -1388,8 +1390,17 @@
 		graphs = [...graphs, []];
 		drawCanvas();
 	}
-	function updateTrace(event: any, graphIndex: number, traceIndex: number) {
-		graphs[graphIndex][traceIndex] = event.detail;
+	function updateTrace(event: any, graphIndex: number, traceIndex: number, id: number) {
+		const tr:TraceInGraph = event.detail;
+		graphs[graphIndex][traceIndex] = {
+			color: tr.color,
+			maxValue: tr.maxValue,
+			minValue: tr.minValue,
+			strokeWidth: 1,
+			flagName: tr.flagName,
+			modifier: tr.modifier,
+			id
+		};
 		drawCanvas();
 	}
 	function getAutoRangeByFlagName(flagName: string) {
@@ -1467,7 +1478,7 @@
 	<div class="flagSelector">
 		{#each graphs as graph, graphIndex}
 			<div class="graphSelector">
-				{#each graph as trace, traceIndex}
+				{#each graph as trace, traceIndex (trace.id)}
 					<TracePlacer
 						flags={loadedLog?.flags || []}
 						autoRange={getAutoRangeByFlagName(
@@ -1478,7 +1489,7 @@
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
 						on:update={(event) => {
-							updateTrace(event, graphIndex, traceIndex);
+							updateTrace(event, graphIndex, traceIndex, trace.id);
 						}}
 						on:delete={() => {
 							deleteTrace(graphIndex, traceIndex);

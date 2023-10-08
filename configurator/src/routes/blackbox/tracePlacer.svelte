@@ -9,6 +9,7 @@
 		minValue: number;
 		maxValue: number;
 		modifier: any;
+		id: number;
 	};
 	export let flags: string[];
 	export let autoRange: { min: number; max: number };
@@ -29,17 +30,14 @@
 		if (autoRange.max !== autoMax) autoMax = autoRange.max;
 	}
 
-	let traceInGraph: TraceInGraph;
+	let traceInGraph: TraceInGraph = {} as TraceInGraph;
 	$: {
-		traceInGraph = {
-			flagName,
-			color,
-			strokeWidth: 1,
-			autoRange: autoRangeOn,
-			minValue: autoRangeOn ? autoMin || 0 : minValue,
-			maxValue: autoRangeOn ? autoMax || 1 : maxValue,
-			modifier
-		};
+		traceInGraph.flagName = flagName;
+		traceInGraph.color = color;
+		traceInGraph.autoRange = autoRangeOn;
+		traceInGraph.minValue = autoRangeOn ? autoMin || 0 : minValue;
+		traceInGraph.maxValue = autoRangeOn ? autoMax || 1 : maxValue;
+		traceInGraph.modifier = modifier;
 		minValue = traceInGraph.minValue;
 		maxValue = traceInGraph.maxValue;
 		dispatch('update', traceInGraph);
