@@ -30,7 +30,7 @@ enum {
     iFalloff
 };
 fixedPointInt32 pidGains[3][7];
-fixedPointInt32 angleModeP;
+fixedPointInt32 angleModeP = 10;
 
 fixedPointInt32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint;
 fixedPointInt64 rollErrorSum, pitchErrorSum, yawErrorSum;
@@ -41,8 +41,8 @@ uint32_t pidLoopCounter = 0;
 
 fixedPointInt32 rateFactors[5][3];
 #undef RAD_TO_DEG
-const fixedPointInt32 RAD_TO_DEG = fixedPointInt32::from(180) / PI;
-const fixedPointInt32 TO_ANGLE   = fixedPointInt32::from(MAX_ANGLE) / fixedPointInt32::from(512);
+const fixedPointInt32 RAD_TO_DEG = fixedPointInt32(180) / PI;
+const fixedPointInt32 TO_ANGLE   = fixedPointInt32(MAX_ANGLE) / fixedPointInt32(512);
 uint16_t              smoothChannels[4];
 
 void initPID() {
@@ -61,7 +61,6 @@ void initPID() {
         rateFactors[3][i] = 0;
         rateFactors[4][i] = 800;
     }
-    angleModeP = 10;
 }
 
 uint32_t takeoffCounter = 0;
@@ -76,7 +75,7 @@ void     pidLoop() {
     imuData[AXIS_ROLL] = -imuData[AXIS_ROLL];
     imuData[AXIS_YAW]  = -imuData[AXIS_YAW];
 
-    updateAttitude();
+    // updateAttitude();
 
     if (ELRS->armed) {
         // Quad armed
@@ -109,11 +108,17 @@ void     pidLoop() {
             }
         } else {
             // Angle mode
+            fixedPointInt32 dRoll  = fixedPointInt32(smoothChannels[0] - 1500) * TO_ANGLE - (roll * RAD_TO_DEG);
+            fixedPointInt32 dPitch = fixedPointInt32(smoothChannels[1] - 1500) * TO_ANGLE - (pitch * RAD_TO_DEG);
+            rollSetpoint           = dRoll * angleModeP;
+            pitchSetpoint          = dPitch * angleModeP;
+            polynomials[0][2].setRaw(((int32_t)smoothChannels[3] - 1500) << 7);
             for (int i = 1; i < 5; i++) {
                 polynomials[i][2] = polynomials[i - 1][2] * polynomials[0][2];
                 if (polynomials[0][2] < 0)
                     polynomials[i][2] = -polynomials[i][2];
             }
+            yawSetpoint = 0;
             for (int i = 0; i < 5; i++)
                 yawSetpoint += rateFactors[i][2] * polynomials[i][2];
         }
@@ -122,7 +127,7 @@ void     pidLoop() {
         yawError   = yawSetpoint - imuData[AXIS_YAW];
         if (ELRS->channels[2] > 1020)
             takeoffCounter++;
-        else if (takeoffCounter < 1000) // 1000 = ca. 0.6s
+        else if (takeoffCounter < 1000) // 1000 = ca. 0.3s
             takeoffCounter = 0;         // if the quad hasn't "taken off" yet, reset the counter
         if (takeoffCounter < 1000)      // enable i term falloff (windup prevention) only before takeoff
         {
@@ -134,34 +139,35 @@ void     pidLoop() {
         rollErrorSum += rollError;
         pitchErrorSum += pitchError;
         yawErrorSum += yawError;
-        rollP                     = pidGains[0][P] * rollError;
-        pitchP                    = pidGains[1][P] * pitchError;
-        yawP                      = pidGains[2][P] * yawError;
-        rollI                     = pidGains[0][I] * rollErrorSum;
-        pitchI                    = pidGains[1][I] * pitchErrorSum;
-        yawI                      = pidGains[2][I] * yawErrorSum;
-        rollD                     = pidGains[0][D] * (imuData[AXIS_ROLL] - rollLast);
-        pitchD                    = pidGains[1][D] * (imuData[AXIS_PITCH] - pitchLast);
-        yawD                      = pidGains[2][D] * (imuData[AXIS_YAW] - yawLast);
-        rollFF                    = pidGains[0][FF] * (rollSetpoint - rollLastSetpoint);
-        pitchFF                   = pidGains[1][FF] * (pitchSetpoint - pitchLastSetpoint);
-        yawFF                     = pidGains[2][FF] * (yawSetpoint - yawLastSetpoint);
-        rollS                     = pidGains[0][S] * rollSetpoint;
-        pitchS                    = pidGains[1][S] * pitchSetpoint;
-        yawS                      = pidGains[2][S] * yawSetpoint;
+        rollP   = pidGains[0][P] * rollError;
+        pitchP  = pidGains[1][P] * pitchError;
+        yawP    = pidGains[2][P] * yawError;
+        rollI   = pidGains[0][I] * rollErrorSum;
+        pitchI  = pidGains[1][I] * pitchErrorSum;
+        yawI    = pidGains[2][I] * yawErrorSum;
+        rollD   = pidGains[0][D] * (imuData[AXIS_ROLL] - rollLast);
+        pitchD  = pidGains[1][D] * (imuData[AXIS_PITCH] - pitchLast);
+        yawD    = pidGains[2][D] * (imuData[AXIS_YAW] - yawLast);
+        rollFF  = pidGains[0][FF] * (rollSetpoint - rollLastSetpoint);
+        pitchFF = pidGains[1][FF] * (pitchSetpoint - pitchLastSetpoint);
+        yawFF   = pidGains[2][FF] * (yawSetpoint - yawLastSetpoint);
+        rollS   = pidGains[0][S] * rollSetpoint;
+        pitchS  = pidGains[1][S] * pitchSetpoint;
+        yawS    = pidGains[2][S] * yawSetpoint;
+
         fixedPointInt32 rollTerm  = rollP + rollI + rollD + rollFF + rollS;
         fixedPointInt32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
         fixedPointInt32 yawTerm   = yawP + yawI + yawD + yawFF + yawS;
 #ifdef PROPS_OUT
-        tRR = fixedPointInt32::from((smoothChannels[2] - 1000) * 2) - rollTerm + pitchTerm + yawTerm;
-        tFR = fixedPointInt32::from((smoothChannels[2] - 1000) * 2) - rollTerm - pitchTerm - yawTerm;
-        tRL = fixedPointInt32::from((smoothChannels[2] - 1000) * 2) + rollTerm + pitchTerm - yawTerm;
-        tFL = fixedPointInt32::from((smoothChannels[2] - 1000) * 2) + rollTerm - pitchTerm + yawTerm;
+        tRR = fixedPointInt32((smoothChannels[2] - 1000) * 2) - rollTerm + pitchTerm + yawTerm;
+        tFR = fixedPointInt32((smoothChannels[2] - 1000) * 2) - rollTerm - pitchTerm - yawTerm;
+        tRL = fixedPointInt32((smoothChannels[2] - 1000) * 2) + rollTerm + pitchTerm - yawTerm;
+        tFL = fixedPointInt32((smoothChannels[2] - 1000) * 2) + rollTerm - pitchTerm + yawTerm;
 #else
-        tRR = fixedPointInt32::from((smoothChannels[2] - 1000) * 2) - rollTerm + pitchTerm - yawTerm;
-        tFR = fixedPointInt32::from((smoothChannels[2] - 1000) * 2) - rollTerm - pitchTerm + yawTerm;
-        tRL = fixedPointInt32::from((smoothChannels[2] - 1000) * 2) + rollTerm + pitchTerm + yawTerm;
-        tFL = fixedPointInt32::from((smoothChannels[2] - 1000) * 2) + rollTerm - pitchTerm - yawTerm;
+        tRR = fixedPointInt32((smoothChannels[2] - 1000) * 2) - rollTerm + pitchTerm - yawTerm;
+        tFR = fixedPointInt32((smoothChannels[2] - 1000) * 2) - rollTerm - pitchTerm + yawTerm;
+        tRL = fixedPointInt32((smoothChannels[2] - 1000) * 2) + rollTerm + pitchTerm + yawTerm;
+        tFL = fixedPointInt32((smoothChannels[2] - 1000) * 2) + rollTerm - pitchTerm - yawTerm;
 #endif
         throttles[(uint8_t)MOTOR::RR] = map(tRR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
         throttles[(uint8_t)MOTOR::RL] = map(tRL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);

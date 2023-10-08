@@ -57,7 +57,7 @@
 				battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
 				break;
 			case ConfigCmd.IND_MESSAGE:
-				log.push(command.dataStr);
+				log = [...log, command.dataStr];
 			case ConfigCmd.PLAY_SOUND | 0x4000:
 				console.log(command.data);
 				break;

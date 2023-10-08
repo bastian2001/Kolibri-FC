@@ -4,22 +4,6 @@ fixedPointInt32 fixedPointInt32::fromRaw(const uint32_t v) {
     fixedPointInt32 result;
     return result.setRaw(v);
 }
-fixedPointInt32 fixedPointInt32::from(const float v) {
-    fixedPointInt32 result;
-    return result.setRaw((int32_t)(v * 65536));
-}
-fixedPointInt32 fixedPointInt32::from(const double v) {
-    fixedPointInt32 result;
-    return result.setRaw((int32_t)(v * 65536));
-}
-fixedPointInt32 fixedPointInt32::from(const int32_t v) {
-    fixedPointInt32 result;
-    return result.setRaw(v << 16);
-}
-fixedPointInt32 fixedPointInt32::from(const int v) {
-    fixedPointInt32 result;
-    return result.setRaw(v << 16);
-}
 fixedPointInt32::fixedPointInt32(const int32_t v) {
     this->value = v << 16;
 }
@@ -97,7 +81,7 @@ fixedPointInt32 fixedPointInt32::operator*(const int other) const {
     return result.setRaw(this->value * other);
 }
 fixedPointInt32 fixedPointInt32::operator*(const double other) const {
-    return *this * fixedPointInt32::from(other);
+    return *this * fixedPointInt32(other);
 }
 fixedPointInt32 fixedPointInt32::operator+=(const int other) {
     this->value += (other << 16);
@@ -112,7 +96,7 @@ fixedPointInt32 fixedPointInt32::operator*=(const int other) {
     return *this;
 }
 fixedPointInt32 fixedPointInt32::operator*=(const double other) {
-    return *this *= fixedPointInt32::from(other);
+    return *this *= fixedPointInt32(other);
 }
 fixedPointInt32 fixedPointInt32::operator=(const int32_t other) {
     this->value = (other << 16);

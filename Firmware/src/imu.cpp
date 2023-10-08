@@ -4,16 +4,23 @@ const fixedPointInt32 FAST_PI            = PI;
 const fixedPointInt32 FAST_PI_2          = PI / 2;
 const fixedPointInt32 RAW_TO_RAD_PER_SEC = PI * 4000 / 180; // 2000deg per second, but raw is only +/-.5
 const fixedPointInt32 RAW_TO_M_PER_SEC2  = 9.81 * 32;       // same reason, +/-16g
-const fixedPointInt32 FRAME_TIME         = fixedPointInt32::from(1) / fixedPointInt32::from(3200);
+const fixedPointInt32 FRAME_TIME         = fixedPointInt32(1) / fixedPointInt32(3200);
 const fixedPointInt32 FACULTY_FOUR       = 1. / 24.;
 const fixedPointInt32 FACULTY_SIX        = 1. / 720.;
 const fixedPointInt32 FAST_ACOS_A        = -0.939115566365855;
 const fixedPointInt32 FAST_ACOS_B        = 0.9217841528914573;
 const fixedPointInt32 FAST_ACOS_C        = -1.2845906244690837;
 const fixedPointInt32 FAST_ACOS_D        = 0.295624144969963174;
+const fixedPointInt32 QUARTER            = 0.25;
+const fixedPointInt32 ALPHA_997          = 0.997;
+const fixedPointInt32 SQRT_A             = 1.51658;
+const fixedPointInt32 SQRT_B             = 0.32969;
+const fixedPointInt32 SQRT_C             = 0.0358359;
+const fixedPointInt32 SQRT_D             = 0.00779041;
+const fixedPointInt32 TWO_POINT_THREE    = 2.3;
 
-// const fixedPointInt32 FILTER_ALPHA           = fixedPointInt32::from(.997);
-// const fixedPointInt32 FILTER_ONE_MINUS_ALPHA = fixedPointInt32::from(1) - FILTER_ALPHA;
+// const fixedPointInt32 FILTER_ALPHA           = fixedPointInt32(.997);
+// const fixedPointInt32 FILTER_ONE_MINUS_ALPHA = fixedPointInt32(1) - FILTER_ALPHA;
 
 fixedPointInt32 pitch, roll, yaw;
 
@@ -78,53 +85,68 @@ fixedPointInt32 fastAcos(fixedPointInt32 x) {
     return FAST_PI_2 + (FAST_ACOS_A * x + FAST_ACOS_B * xsq * x) / (FAST_ACOS_C * xsq + FAST_ACOS_D * xsq * xsq + 1);
 }
 fixedPointInt32 fastAsin(fixedPointInt32 x) { return FAST_PI_2 - fastAcos(x); }
+// Actually slower than normal root function:
+/* fixedPointInt32 fastSqrt(fixedPointInt32 x) {
+    fixedPointInt32 multiplier = 1;
+    if (x < 0) x = -x;
+    while (x > 4) {
+        x          = x >> 2;
+        multiplier = multiplier << 1;
+    }
+    while (x < 1) {
+        x          = x << 2;
+        multiplier = multiplier >> 1;
+    }
+    // taylor series around 2.3, constants from wolframalpha
+    // maximum deviation: 1.01 (instead of 1) at x=1, 2.12 (instead of 2) at x=4
+    fixedPointInt32 xConv  = x - TWO_POINT_THREE;
+    fixedPointInt32 xConv2 = xConv;
+    fixedPointInt32 out    = SQRT_A + SQRT_B * xConv2;
+    xConv2 *= xConv;
+    out -= SQRT_C * xConv2;
+    xConv2 *= xConv;
+    out += SQRT_D * xConv2;
+    return out * multiplier;
+}*/
 
 void updateAttitude() {
-
     fixedPointInt32 gyroPitchFwd  = fixedPointInt32::fromRaw(gyroDataRaw[0]) * RAW_TO_RAD_PER_SEC;
     fixedPointInt32 gyroRollRight = fixedPointInt32::fromRaw(-gyroDataRaw[1]) * RAW_TO_RAD_PER_SEC;
     fixedPointInt32 gyroYawRight  = fixedPointInt32::fromRaw(-gyroDataRaw[2]) * RAW_TO_RAD_PER_SEC;
 
-    fixedPointInt32 pitchFromGyro = pitch;
-    fixedPointInt32 rollFromGyro  = roll;
+    fixedPointInt32 pitchFromGyro = pitch + gyroPitchFwd * FRAME_TIME;
+    fixedPointInt32 rollFromGyro  = roll + gyroRollRight * FRAME_TIME;
 
-    pitchFromGyro += gyroPitchFwd * FRAME_TIME;
-    rollFromGyro += gyroRollRight * FRAME_TIME;
+    fixedPointInt32 accelRight = fixedPointInt32::fromRaw(-accelDataRaw[0]);
+    fixedPointInt32 accelFwd   = fixedPointInt32::fromRaw(accelDataRaw[1]);
+    fixedPointInt32 accelUp    = fixedPointInt32::fromRaw(accelDataRaw[2]);
 
-    fixedPointInt32 sinY  = fastSin(gyroYawRight * FRAME_TIME);
-    fixedPointInt32 sin2Y = sinY * sinY;
-
-    // pitchFromGyro += sinY * roll;   // questionable, but works at the extremes (+/-90 deg rotation per frame and during no rotation)
-    // rollFromGyro -= sinY * pitch;   // questionable too
-    // pitchFromGyro -= sin2Y * pitch; // questionable too
-    // rollFromGyro += sin2Y * roll;   // questionable too
-
-    fixedPointInt32 accelRight = fixedPointInt32::fromRaw(-accelDataRaw[0]) * RAW_TO_M_PER_SEC2;
-    fixedPointInt32 accelFwd   = fixedPointInt32::fromRaw(accelDataRaw[1]) * RAW_TO_M_PER_SEC2;
-    fixedPointInt32 accelUp    = fixedPointInt32::fromRaw(accelDataRaw[2]) * RAW_TO_M_PER_SEC2;
-
-    fixedPointInt32 len = sqrtf((accelRight * accelRight + accelFwd * accelFwd + accelUp * accelUp).getFloat());
-    accelRight /= len;
-    accelFwd /= len;
-    accelUp /= len;
+    fixedPointInt32 len = fixedPointInt32(1) / sqrtf((accelRight * accelRight + accelFwd * accelFwd + accelUp * accelUp).getFloat());
+    accelRight *= len;
+    accelFwd *= len;
+    accelUp *= len;
     fixedPointInt32 pitchFromAccel = fastAtan2(accelUp, accelFwd) * (accelFwd * accelFwd + accelUp * accelUp);
     fixedPointInt32 rollFromAccel  = fastAtan2(accelUp, -accelRight) * (accelRight * accelRight + accelUp * accelUp);
-	fixedPointInt32 dRoll = rollFromAccel - roll;
-	fixedPointInt32 dPitch = pitchFromAccel - pitch;
-	if (dRoll > FAST_PI) rollFromAccel -= FAST_PI << 1;
-	else if (dRoll < -FAST_PI) rollFromAccel += FAST_PI << 1;
-	if (dPitch > FAST_PI) pitchFromAccel -= FAST_PI << 1;
-	else if (dPitch < -FAST_PI) pitchFromAccel += FAST_PI << 1;
+    fixedPointInt32 dRoll          = rollFromAccel - roll;
+    fixedPointInt32 dPitch         = pitchFromAccel - pitch;
+    if (dRoll > FAST_PI)
+        rollFromAccel -= FAST_PI << 1;
+    else if (dRoll < -FAST_PI)
+        rollFromAccel += FAST_PI << 1;
+    if (dPitch > FAST_PI)
+        pitchFromAccel -= FAST_PI << 1;
+    else if (dPitch < -FAST_PI)
+        pitchFromAccel += FAST_PI << 1;
 
-    fixedPointInt32 totalRotation = sqrtf((gyroPitchFwd * gyroPitchFwd + gyroRollRight * gyroRollRight + gyroYawRight * gyroYawRight).getFloat());
+    fixedPointInt32 totalRotation = gyroPitchFwd * gyroPitchFwd + gyroRollRight * gyroRollRight + gyroYawRight * gyroYawRight;
 
     fixedPointInt32 alpha;
-    if (totalRotation > FAST_PI)
+    if (totalRotation > FAST_PI * FAST_PI)
         alpha = 1;
-    else if (totalRotation > 0.5)
-        alpha = map(totalRotation, 0.5, FAST_PI, 0.997, 1);
+    else if (totalRotation > QUARTER)
+        alpha = map(totalRotation, QUARTER, FAST_PI, ALPHA_997, 1);
     else
-        alpha = 0.997;
+        alpha = ALPHA_997;
     fixedPointInt32 beta = fixedPointInt32(1) - alpha;
 
     pitch = pitchFromGyro * alpha + pitchFromAccel * beta;

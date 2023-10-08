@@ -10,10 +10,6 @@ private:
 
 public:
     static fixedPointInt32 fromRaw(const uint32_t value);
-    static fixedPointInt32 from(const float value);
-    static fixedPointInt32 from(const double value);
-    static fixedPointInt32 from(const int32_t value);
-    static fixedPointInt32 from(const int value);
     fixedPointInt32(const int32_t value = 0);
     fixedPointInt32(const float value);
     fixedPointInt32(const double value);
