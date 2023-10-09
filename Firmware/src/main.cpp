@@ -44,7 +44,6 @@ elapsedMillis activityTimer;
 void loop() {
     // baroLoop();
     ELRS->loop();
-    speakerLoop();
     gyroLoop();
     adcLoop();
     osdLoop();
@@ -55,4 +54,11 @@ void loop() {
         gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
         activityTimer = 0;
     }
+}
+
+void setup1() {
+    delay(1000);
+}
+void loop1() {
+    speakerLoop();
 }
