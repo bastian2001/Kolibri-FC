@@ -150,6 +150,10 @@
 	}
 	function mouseUp() {
 		currentlyTracking = undefined;
+		const pStartFrame = startFrame;
+		startFrame = Math.min(startFrame, endFrame);
+		endFrame = Math.max(pStartFrame, endFrame);
+		drawSelection();
 	}
 	function mouseMove(e: MouseEvent) {
 		if (!loadedLog || !currentlyTracking) return;

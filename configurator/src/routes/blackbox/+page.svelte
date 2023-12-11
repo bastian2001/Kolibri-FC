@@ -1391,7 +1391,7 @@
 		drawCanvas();
 	}
 	function updateTrace(event: any, graphIndex: number, traceIndex: number, id: number) {
-		const tr:TraceInGraph = event.detail;
+		const tr: TraceInGraph = event.detail;
 		graphs[graphIndex][traceIndex] = {
 			color: tr.color,
 			maxValue: tr.maxValue,
@@ -1521,7 +1521,11 @@
 				<div>PID Frequency: {loadedLog.pidFrequency} Hz</div>
 				<div>Frames per Second: {loadedLog.framesPerSecond} Hz</div>
 				<div style="white-space: preserve">
-					Flags: {'\n  - ' + loadedLog.flags.filter((n) => n.startsWith('LOG_')).join('\n  - ')}
+					Flags: {'\n  - ' +
+						loadedLog.flags
+							.filter((n) => n.startsWith('LOG_'))
+							.map((el) => BB_ALL_FLAGS[el].name)
+							.join('\n  - ')}
 				</div>
 				<div>File Size: {(loadedLog.rawFile.length / 1000).toFixed(1)} KB</div>
 				<div>
