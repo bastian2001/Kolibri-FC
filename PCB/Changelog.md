@@ -15,7 +15,7 @@
     4. No pullup on the CS line for the flash
     5. Boot button flipped
 
-### V0.2 (not finished yet)
+### V0.2
 
 -   Goal: A working PCB with some tests to make v0.3 the first final version
     -   It uses the same stencil as v0.1, hence I had to make some compromises with regards to routing and other best practices. I didn't want to spend another 15$ on a stencil, when PCBs are so cheap in comparison.
@@ -26,8 +26,13 @@
     -   8 layers because that allows for free ENIG finish and POFV at JLCPCB
     -   put baro I2C on aux I2C of gyro? => Solder bridge to test this out
 
-### V0.3 (lookahead)
+### V0.3
 
--   Improvements:
-    -   New synchronous buck converters?
-    -   PMS150C or PMS154C to get more pins?
+-   Goal: V0.2 was generally working very well. Goal is to put in some new features especially blackbox on the SD card due to the slow flash writing. Since the microSD has its own buffer, it should be much faster.
+-   Improvements
+    -   ELRS with true diversity built in
+    -   SD card slot for blackbox
+    -   new SPI barometer
+    -   synchronous buck converters: smaller (, more efficient)
+-   Fixes
+    -   removed pullup on current sensor (A relic from the INA139)
