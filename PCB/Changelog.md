@@ -28,7 +28,7 @@
 
 ### V0.3
 
--   Goal: V0.2 was generally working very well. Goal is to put in some new features especially blackbox on the SD card due to the slow flash writing. Since the microSD has its own buffer, it should be much faster.
+-   Goal: V0.2 (and from a purely flying performance perspective v0.1 too) was generally working very well. Goal is to put in some new features especially blackbox on the SD card due to the slow flash writing. Since the microSD has its own buffer, it should be much faster.
 -   Improvements
     -   ELRS with true diversity built in
     -   SD card slot for blackbox
