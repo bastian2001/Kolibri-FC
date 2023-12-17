@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { invoke } from '@tauri-apps/api';
 
 export const ConfigCmd = {
 	STATUS: 0,
@@ -37,12 +38,12 @@ export type Command = {
 	cmdType: 'request' | 'response' | 'error' | 'info';
 };
 function createPort() {
-	let port: any = null;
-	let devices: any = [];
-	let reader: null | ReadableStreamDefaultReader = null;
+	// let port: any = null;
+	let devices: string[] = [];
+	// let reader: null | ReadableStreamDefaultReader = null;
 
-	let resolveOnClose: any = null;
-	let rejectOnClose: any = null;
+	// let resolveOnClose: any = null;
+	// let rejectOnClose: any = null;
 	const { subscribe, set } = writable({
 		command: 65535,
 		length: 0,
@@ -80,93 +81,66 @@ function createPort() {
 			checksum
 		];
 		return new Promise((resolve: any, reject) => {
-			if (port === null) reject('Port is not open');
-			const writer: WritableStreamDefaultWriter = port.writable.getWriter();
-			writer
-				.write(new Uint8Array(cmd))
-				.then(() => {
-					writer.releaseLock();
-					resolve();
-				})
+			invoke('serial_write', { data: cmd })
+				.then(resolve)
 				.catch((e) => {
-					disconnect();
 					reject(e);
 				});
 		});
 	};
+	const rxBuf = [] as number[];
 	const read = () => {
-		if (port === null) return;
-		//https://developer.mozilla.org/en-US/docs/Web/API/Streams_API/Using_readable_streams
-		reader = port.readable.getReader();
-		let serialRxBuffer: number[] = [];
-		reader!.read().then(function processReaderResult({ done, value }) {
-			if (done) {
-				reader!.releaseLock();
-
-				port
-					.close()
-					.then(() => {
-						port = null;
-						clearInterval(pingInterval);
-						clearInterval(statusInterval);
-						resolveOnClose();
-					})
-					.catch(() => {
-						port = null;
-						rejectOnClose();
-					});
-				return;
-			}
-
-			serialRxBuffer = serialRxBuffer.concat(Array.from(value));
-			reader!.read().then(processReaderResult);
-
-			if (serialRxBuffer.length < 7) return;
-			if (serialRxBuffer[0] != '_'.charCodeAt(0) || serialRxBuffer[1] != 'K'.charCodeAt(0)) {
-				serialRxBuffer.splice(0, serialRxBuffer.length);
-				return;
-			}
-			const len = serialRxBuffer[2] + serialRxBuffer[3] * 256;
-			if (serialRxBuffer.length < len + 7) return;
-			let checksum = 0;
-			for (let i = 2; i < len + 7; i++) checksum ^= serialRxBuffer[i];
-			if (checksum !== 0) {
-				serialRxBuffer.splice(0, serialRxBuffer.length);
-				return;
-			}
-			const data = serialRxBuffer.slice(6, len + 6);
-			const command = serialRxBuffer[4] + serialRxBuffer[5] * 256;
-			serialRxBuffer.splice(0, len + 7);
-			let dataStr = '';
-			for (let i = 0; i < data.length; i++) {
-				dataStr += String.fromCharCode(data[i]);
-			}
-			let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
-			if (command < 0x4000) cmdType = 'request';
-			else if (command < 0x8000) cmdType = 'response';
-			else if (command < 0xc000) cmdType = 'error';
-			const c: Command = {
-				command,
-				data,
-				dataStr,
-				cmdType,
-				length: len
-			};
-			set(c);
-		});
+		invoke('serial_read')
+			.then((d: unknown) => {
+				rxBuf.push(...(d as number[]));
+			})
+			.catch((e) => {
+				if (e !== 'Custom { kind: TimedOut, error: "Operation timed out" }') console.error(e);
+			})
+			.finally(() => {
+				while (rxBuf.length >= 7) {
+					if (rxBuf[0] != '_'.charCodeAt(0) || rxBuf[1] != 'K'.charCodeAt(0)) {
+						rxBuf.splice(0, rxBuf.length);
+					} else break;
+				}
+				const len = rxBuf[2] + rxBuf[3] * 256;
+				if (rxBuf.length < len + 7) return;
+				let checksum = 0;
+				for (let i = 2; i < len + 7; i++) checksum ^= rxBuf[i];
+				if (checksum !== 0) {
+					rxBuf.splice(0, rxBuf.length);
+					return;
+				}
+				const data = rxBuf.slice(6, len + 6);
+				const command = rxBuf[4] + rxBuf[5] * 256;
+				rxBuf.splice(0, len + 7);
+				let dataStr = '';
+				for (let i = 0; i < data.length; i++) {
+					dataStr += String.fromCharCode(data[i]);
+				}
+				let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
+				if (command < 0x4000) cmdType = 'request';
+				else if (command < 0x8000) cmdType = 'response';
+				else if (command < 0xc000) cmdType = 'error';
+				const c: Command = {
+					command,
+					data,
+					dataStr,
+					cmdType,
+					length: len
+				};
+				set(c);
+			});
 	};
 	let pingInterval: number = -1;
 	let statusInterval: number = -1;
+	let readInterval: number = -1;
 
 	const connect = (portToOpen: any) => {
 		return new Promise((resolve: any, reject) => {
-			if (port !== null) reject('Port is already open');
-			if (portToOpen === null) reject('Port is null');
-			portToOpen
-				.open({ baudRate: 115200 })
+			invoke('serial_open', { path: portToOpen })
 				.then(() => {
-					port = portToOpen;
-					read();
+					readInterval = setInterval(read, 20);
 					pingInterval = setInterval(() => {
 						sendCommand(ConfigCmd.CONFIGURATOR_PING).catch(() => {});
 					}, 200);
@@ -175,32 +149,35 @@ function createPort() {
 					}, 1000);
 					resolve();
 				})
-				.catch(reject);
+				.catch((e) => {
+					console.error(e);
+					disconnect();
+					reject(e);
+				});
 		});
 	};
 	const disconnect = () => {
-		if (port === null) return;
 		return new Promise((resolve: any, reject) => {
-			resolveOnClose = resolve;
-			rejectOnClose = reject;
-			try {
-				reader?.cancel();
-				reader?.releaseLock();
-			} catch (e) {
-				console.error(e);
-				port = null;
-			}
+			invoke('serial_close')
+				.then(() => {
+					resolve();
+				})
+				.catch(console.error)
+				.finally(() => {
+					clearInterval(readInterval);
+					clearInterval(pingInterval);
+					clearInterval(statusInterval);
+					readInterval = -1;
+					reject();
+				});
 		});
-	};
-	const addDevice = () => {
-		(navigator as any).serial.requestPort();
 	};
 	const getDevices = () => {
 		return devices;
 	};
 	function listDevices() {
-		(navigator as any).serial.getPorts().then((ports: any) => {
-			devices = ports;
+		invoke('serial_list').then((d: unknown) => {
+			devices = d as any;
 		});
 	}
 	setInterval(listDevices, 1000);
@@ -210,7 +187,6 @@ function createPort() {
 		subscribe,
 		set,
 		sendCommand,
-		addDevice,
 		connect,
 		disconnect,
 		getDevices

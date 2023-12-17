@@ -5,7 +5,7 @@ use serialport::new;
 use std::io;
 
 fn main() {
-    let mut port = new("COM13", 38400)
+    let mut port = new("COM14", 115200)
         .timeout(std::time::Duration::from_millis(0))
         .open()
         .expect("Failed to open port");

@@ -77,14 +77,24 @@
 		disconnect();
 	});
 	function connect() {
-		port.connect(device).then(() => {
-			connected = true;
-		});
+		port
+			.connect(device)
+			.then(() => {
+				connected = true;
+			})
+			.catch(() => {
+				connected = false;
+			});
 	}
 	function disconnect() {
-		port.disconnect()?.then(() => {
-			connected = false;
-		});
+		port
+			.disconnect()
+			.then(() => {
+				connected = false;
+			})
+			.catch(() => {
+				connected = false;
+			});
 	}
 </script>
 
@@ -97,16 +107,9 @@
 		/>
 		<div class="space" />
 		<div class="connector">
-			<button
-				class="connectButton"
-				style="margin-right: 0.5rem"
-				on:click={() => {
-					port.addDevice();
-				}}>Add</button
-			>
 			<select bind:value={device}>
 				{#each devices as d}
-					<option value={d}>{d.getInfo().usbVendorId}:{d.getInfo().usbProductId}</option>
+					<option value={d}>{d}</option>
 				{/each}
 			</select>&nbsp;&nbsp;
 			{#if connected}
