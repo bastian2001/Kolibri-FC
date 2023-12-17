@@ -42,7 +42,7 @@ void setup() {
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
-	// startBootupSound(); //annoying during development
+	startBootupSound(); //annoying during development
 }
 
 elapsedMillis activityTimer;
