@@ -75,7 +75,7 @@ void     pidLoop() {
     imuData[AXIS_ROLL] = -imuData[AXIS_ROLL];
     imuData[AXIS_YAW]  = -imuData[AXIS_YAW];
 
-    // updateAttitude();
+    updateAttitude();
 
     if (ELRS->armed) {
         // Quad armed

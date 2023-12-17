@@ -3,8 +3,7 @@
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
 // adapted from https://www.digikey.de/de/maker/projects/raspberry-pi-pico-rp2040-spi-example-with-micropython-and-cc/9706ea0cf3784ee98e35ff49188ee045
-int regRead(spi_inst_t *spi, const uint cs, const uint8_t reg, uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0, uint8_t dummy = true)
-{
+int regRead(spi_inst_t *spi, const uint cs, const uint8_t reg, uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0, uint8_t dummy = true) {
 	// Construct message (set ~W bit high)
 	uint8_t msg = 0x80 | reg;
 
@@ -21,8 +20,7 @@ int regRead(spi_inst_t *spi, const uint cs, const uint8_t reg, uint8_t *buf, con
 	return num_bytes_read;
 }
 
-int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0)
-{
+int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0) {
 	// Write to register
 	gpio_put(cs, 0);
 	spi_write_blocking(spi, &reg, 1);
@@ -33,24 +31,23 @@ int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *b
 	return bytes_written;
 }
 
-uint8_t gyroLastState = 0;
-void gyroLoop()
-{
+uint32_t	  gyroLastState = 0;
+elapsedMicros lastPIDLoop	= 0;
+
+void gyroLoop() {
 	uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
 	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
 	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
-	if (gpioState != gyroLastState)
-	{
+	lastPIDLoop = 0;
+	if (gpioState != gyroLastState) {
 		gyroLastState = gpioState;
-		if (gpioState == 1)
-		{
+		if (gpioState == 1) {
 			pidLoop();
 		}
 	}
 }
 
-int gyroInit()
-{
+int gyroInit() {
 	spi_init(SPI_GYRO, 8000000);
 
 	spi_set_format(SPI_GYRO, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
@@ -67,8 +64,7 @@ int gyroInit()
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
 	data = 0;
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
-	if (data != 0x24)
-	{
+	if (data != 0x24) {
 		Serial.println("Failed to load BMI270, wrong Chip ID"); // chip id should be 0x24
 		return 1;
 	}
@@ -82,8 +78,7 @@ int gyroInit()
 
 	// check initialization status
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INTERNAL_STATUS, &data, 1);
-	if (data & 1 != 1)
-	{
+	if (data & 1 != 1) {
 		return Serial.println("Failed to load BMI270, wrong initialization status"); // initialization status should be 0x01
 		return 2;
 	}
@@ -125,8 +120,7 @@ int gyroInit()
 
 uint32_t gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
-void gyroGetData(int16_t *buf)
-{
+void gyroGetData(int16_t *buf) {
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
 	gyroUpdateFlag = 0xFFFFFFFF;
 }

@@ -18,6 +18,8 @@ const fixedPointInt32 SQRT_B             = 0.32969;
 const fixedPointInt32 SQRT_C             = 0.0358359;
 const fixedPointInt32 SQRT_D             = 0.00779041;
 const fixedPointInt32 TWO_POINT_THREE    = 2.3;
+const fixedPointInt32 INVALID_LOW_THRES  = fixedPointInt32(9) / RAW_TO_M_PER_SEC2;
+const fixedPointInt32 INVALID_HIGH_THRES = fixedPointInt32(11) / RAW_TO_M_PER_SEC2;
 
 // const fixedPointInt32 FILTER_ALPHA           = fixedPointInt32(.997);
 // const fixedPointInt32 FILTER_ONE_MINUS_ALPHA = fixedPointInt32(1) - FILTER_ALPHA;
@@ -121,10 +123,11 @@ void updateAttitude() {
     fixedPointInt32 accelFwd   = fixedPointInt32::fromRaw(accelDataRaw[1]);
     fixedPointInt32 accelUp    = fixedPointInt32::fromRaw(accelDataRaw[2]);
 
-    fixedPointInt32 len = fixedPointInt32(1) / sqrtf((accelRight * accelRight + accelFwd * accelFwd + accelUp * accelUp).getFloat());
-    accelRight *= len;
-    accelFwd *= len;
-    accelUp *= len;
+    fixedPointInt32 len    = sqrtf((accelRight * accelRight + accelFwd * accelFwd + accelUp * accelUp).getFloat());
+    fixedPointInt32 invlen = fixedPointInt32(1) / len;
+    accelRight *= invlen;
+    accelFwd *= invlen;
+    accelUp *= invlen;
     fixedPointInt32 pitchFromAccel = fastAtan2(accelUp, accelFwd) * (accelFwd * accelFwd + accelUp * accelUp);
     fixedPointInt32 rollFromAccel  = fastAtan2(accelUp, -accelRight) * (accelRight * accelRight + accelUp * accelUp);
     fixedPointInt32 dRoll          = rollFromAccel - roll;
@@ -141,7 +144,7 @@ void updateAttitude() {
     fixedPointInt32 totalRotation = gyroPitchFwd * gyroPitchFwd + gyroRollRight * gyroRollRight + gyroYawRight * gyroYawRight;
 
     fixedPointInt32 alpha;
-    if (totalRotation > FAST_PI * FAST_PI)
+    if (len > INVALID_HIGH_THRES || len < INVALID_LOW_THRES || totalRotation > FAST_PI)
         alpha = 1;
     else if (totalRotation > QUARTER)
         alpha = map(totalRotation, QUARTER, FAST_PI, ALPHA_997, 1);

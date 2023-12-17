@@ -25,6 +25,7 @@
 #include "pioasm/dshotx4.pio.h"
 #include "serial.h"
 #include "serialhandler/configurator.h"
+#include <Adafruit_TinyUSB.h>
 #include <Arduino.h>
 #include <vector>
 
