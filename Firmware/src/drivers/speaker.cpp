@@ -50,7 +50,7 @@ void initSpeaker() {
 }
 
 void startBootupSound() {
-	makeRtttlSound("o=3,d=16b=300:c,c#,d,d#,e,f,f#,g,g#,a,a#,b,c4,2c4.-,c");
+	makeRtttlSound("o=3,d=16,b=300:c,c#,d,d#,e,f,f#,g,g#,a,a#,b,c4,2c4.-,c");
 	// makeRtttlSound("NokiaTune:d=4,o=5,b=160:8e6,8d6,4f#5,4g#5,8c#6,8b5,4d5,4e5,8b5,8a5,4c#5,4e5,1a5");
 }
 

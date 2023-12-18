@@ -79,7 +79,7 @@ int gyroInit() {
 	// check initialization status
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INTERNAL_STATUS, &data, 1);
 	if (data & 1 != 1) {
-		return Serial.println("Failed to load BMI270, wrong initialization status"); // initialization status should be 0x01
+		Serial.println("Failed to load BMI270, wrong initialization status"); // initialization status should be 0x01
 		return 2;
 	}
 

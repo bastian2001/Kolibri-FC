@@ -28,6 +28,7 @@ enum class GyroReg : uint8_t
 	INTERNAL_STATUS = 0x21,
 	TEMP_LSB = 0x22,
 	TEMP_MSB,
+	FEAT_PAGE = 0x2F,
 	FEATURES = 0x30,
 	ACC_CONF = 0x40,
 	ACC_RANGE = 0x41,

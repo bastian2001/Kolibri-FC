@@ -23,6 +23,7 @@
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/dshotx4.pio.h"
+#include "quaternion.h"
 #include "serial.h"
 #include "serialhandler/configurator.h"
 #include <Adafruit_TinyUSB.h>

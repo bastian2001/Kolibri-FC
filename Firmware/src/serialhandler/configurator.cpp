@@ -278,6 +278,20 @@ void handleConfigCmd() {
 		EEPROM.put((uint16_t)EEPROM_POS::BB_FLAGS, bbFlags);
 		EEPROM.put((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 	} break;
+	case ConfigCmd::GET_ROTATION: {
+		int rotationPitch = pitch.getRaw() >> 3;
+		int rotationRoll  = roll.getRaw() >> 3;
+		buf[0]			  = rotationPitch & 0xFF;
+		buf[1]			  = rotationPitch >> 8;
+		buf[2]			  = rotationRoll & 0xFF;
+		buf[3]			  = rotationRoll >> 8;
+		buf[4]			  = 0;
+		buf[5]			  = 0;
+		sendCommand(configMsgCommand | 0x4000, buf, 6);
+		// char text[64] = {0};
+		// snprintf(text, 64, "Pitch: %f, Roll: %f", pitch.getFloat(), roll.getFloat());
+		// sendCommand((uint16_t)ConfigCmd::IND_MESSAGE, text, strlen(text));
+	} break;
 	default: {
 		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));
 	} break;
