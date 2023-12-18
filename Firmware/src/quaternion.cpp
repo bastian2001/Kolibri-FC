@@ -20,16 +20,16 @@
 #include "global.h"
 #include <math.h>
 
-const float FAST_PI		  = PI;
-const float FAST_PI_2	  = PI / 2;
-const float FACULTY_THREE = 1. / 6.;
-const float FACULTY_FOUR  = 1. / 24.;
-const float FACULTY_FIVE  = 1. / 120.;
-const float FACULTY_SIX	  = 1. / 720.;
-const float FAST_ACOS_A	  = -0.939115566365855;
-const float FAST_ACOS_B	  = 0.9217841528914573;
-const float FAST_ACOS_C	  = -1.2845906244690837;
-const float FAST_ACOS_D	  = 0.295624144969963174;
+// const float FAST_PI		  = PI;
+// const float FAST_PI_2	  = PI / 2;
+// const float FACULTY_THREE = 1. / 6.;
+// const float FACULTY_FOUR  = 1. / 24.;
+// const float FACULTY_FIVE  = 1. / 120.;
+// const float FACULTY_SIX	  = 1. / 720.;
+// const float FAST_ACOS_A	  = -0.939115566365855;
+// const float FAST_ACOS_B	  = 0.9217841528914573;
+// const float FAST_ACOS_C	  = -1.2845906244690837;
+// const float FAST_ACOS_D	  = 0.295624144969963174;
 /*
 float fastAtan(float x) {
 	// https://www.dsprelated.com/showarticle/1052.php
@@ -133,7 +133,7 @@ float Quaternion_toAxisAngle(Quaternion *q, float output[3]) {
 	float angle	  = acosf(q->w) * 2;
 	float divider = 1 / sqrtf(1 - q->w * q->w);
 
-	if (divider == 0) {
+	if (isinf(divider)) {
 		// Arbitrary normalized axis
 		output[0] = 1;
 		output[1] = 0;
@@ -167,7 +167,13 @@ float Quaternion_norm(Quaternion *q) {
 }
 
 void Quaternion_normalize(Quaternion *q, Quaternion *output) {
-	float oneOverLen = 1 / Quaternion_norm(q);
+
+	float oneOverLen = 1.f / Quaternion_norm(q);
+	if (oneOverLen == 0) {
+		// Serial.printf("q: %f, %f, %f, %f\n", q->w, q->v[0], q->v[1], q->v[2]);
+		Quaternion_setIdentity(output);
+		return;
+	}
 	Quaternion_set(
 		q->w * oneOverLen,
 		q->v[0] * oneOverLen,
@@ -194,7 +200,7 @@ void Quaternion_multiply(Quaternion *q1, Quaternion *q2, Quaternion *output) {
 	*output = result;
 }
 
-void Quaternion_rotate(Quaternion *q, float v[3], float output[3]) {
+void Quaternion_rotate(const Quaternion *q, float v[3], float output[3]) {
 	float result[3];
 
 	float ww = q->w * q->w;
@@ -230,12 +236,12 @@ void Quaternion_rotate(Quaternion *q, float v[3], float output[3]) {
 }
 
 // Calculate the dot product of two 3D vectors
-void Vector_dot(float v1[3], float v2[3], float *output) {
+void Vector_dot(const float v1[3], const float v2[3], float *output) {
 	*output = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
 // Calculate the cross product of two 3D vectors
-void Vector_cross(float v1[3], float v2[3], float output[3]) {
+void Vector_cross(const float v1[3], const float v2[3], float output[3]) {
 	output[0] = v1[1] * v2[2] - v1[2] * v2[1];
 	output[1] = v1[2] * v2[0] - v1[0] * v2[2];
 	output[2] = v1[0] * v2[1] - v1[1] * v2[0];
@@ -244,7 +250,7 @@ void Vector_cross(float v1[3], float v2[3], float output[3]) {
 const float QUATERNION_EPS = 1e-5;
 const float ONE_MINUS_EPS  = 1 - QUATERNION_EPS;
 
-void Quaternion_from_unit_vecs(float v0[3], float v1[3], Quaternion *output) {
+void Quaternion_from_unit_vecs(const float v0[3], const float v1[3], Quaternion *output) {
 	float dot;
 	Vector_dot(v0, v1, &dot);
 
@@ -256,7 +262,7 @@ void Quaternion_from_unit_vecs(float v0[3], float v1[3], Quaternion *output) {
 		float cross[3];
 		float vTemp[3] = {1, 0, 0};
 		Vector_cross(vTemp, v0, cross);
-		Quaternion_fromAxisAngle(cross, FAST_PI, output);
+		Quaternion_fromAxisAngle(cross, PI, output);
 		return;
 	}
 

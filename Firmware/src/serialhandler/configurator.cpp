@@ -279,8 +279,8 @@ void handleConfigCmd() {
 		EEPROM.put((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 	} break;
 	case ConfigCmd::GET_ROTATION: {
-		int rotationPitch = (int)(pitch * 65536) >> 3;
-		int rotationRoll  = (int)(roll * 65536) >> 3;
+		int rotationPitch = pitch * 8192;
+		int rotationRoll  = roll * 8192;
 		buf[0]			  = rotationPitch & 0xFF;
 		buf[1]			  = rotationPitch >> 8;
 		buf[2]			  = rotationRoll & 0xFF;

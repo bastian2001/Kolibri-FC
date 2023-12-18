@@ -3,6 +3,7 @@
 uint8_t setupDone = 0b00;
 
 void setup() {
+	// delay(5000);
 	set_sys_clock_khz(264000, true);
 	Serial.begin(115200);
 	Serial.println("Starting up");
@@ -41,7 +42,7 @@ void setup() {
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
-	startBootupSound(); //annoying during development
+	startBootupSound(); // annoying during development
 }
 
 elapsedMillis activityTimer;
