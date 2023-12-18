@@ -734,7 +734,8 @@
 			case 0xffff: //pre-entered default command, do nothing
 				break;
 			default:
-				console.log({ ...command });
+				if (typeof command.command === 'number' && !Number.isNaN(command.command))
+					console.log({ ...command });
 		}
 	}
 

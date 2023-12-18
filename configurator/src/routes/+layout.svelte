@@ -15,6 +15,8 @@
 	let device: any;
 	let connected = false;
 
+	let logDiv = null as any;
+
 	type NavigatorElement = {
 		name: string;
 		path: string;
@@ -57,7 +59,18 @@
 				battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
 				break;
 			case ConfigCmd.IND_MESSAGE:
-				log = [...log, command.dataStr];
+				const date = new Date();
+				const str =
+					date.getHours().toString().padStart(2, '0') +
+					':' +
+					date.getMinutes().toString().padStart(2, '0') +
+					':' +
+					date.getSeconds().toString().padStart(2, '0') +
+					' -> ' +
+					command.dataStr;
+				log = [...log, str];
+				logDiv.scrollTop = logDiv.scrollHeight;
+				break;
 			case ConfigCmd.PLAY_SOUND | 0x4000:
 				console.log(command.data);
 				break;
@@ -125,7 +138,7 @@
 				<p>Battery: {battery}</p>
 			</div>
 		{/if}
-		<div class="log">
+		<div class="log" bind:this={logDiv}>
 			{#each log as l}<p>{l}</p>{/each}
 		</div>
 	</div>
@@ -201,10 +214,11 @@
 		min-width: 250px;
 		margin-left: 1rem;
 		background-color: var(--background-color-light);
-		height: 100%;
+		height: 3rem;
 		padding: 0 0.5rem;
 		color: var(--text-color);
 		font-size: 0.8rem;
+		overflow-y: scroll;
 	}
 	.log p {
 		margin: 3px 0;

@@ -27,6 +27,7 @@ export const ConfigCmd = {
 	SET_RATES: 22,
 	GET_BB_SETTINGS: 23,
 	SET_BB_SETTINGS: 24,
+	GET_ROTATION: 25,
 	IND_MESSAGE: 0xc000
 };
 
