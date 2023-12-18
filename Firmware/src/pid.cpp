@@ -70,8 +70,8 @@ void pidLoop() {
 	for (int i = 0; i < 3; i++) {
 		imuData[i].setRaw(gyroDataRaw[i]); // gyro data in range of -.5 ... +.5 due to fixed point math
 		imuData[i] *= 4000;				   // gyro data in range of -2000 ... +2000 (degrees per second)
-		// imuData[i + 3].setRaw(accelDataRaw[i]);
-		// imuData[i + 3] *= 32;
+										   // imuData[i + 3].setRaw(accelDataRaw[i]);
+										   // imuData[i + 3] *= 32;
 	}
 	imuData[AXIS_ROLL] = -imuData[AXIS_ROLL];
 	imuData[AXIS_YAW]  = -imuData[AXIS_YAW];
@@ -109,8 +109,8 @@ void pidLoop() {
 			}
 		} else {
 			// Angle mode
-			fixedPointInt32 dRoll  = fixedPointInt32(smoothChannels[0] - 1500) * TO_ANGLE - (roll * RAD_TO_DEG);
-			fixedPointInt32 dPitch = fixedPointInt32(smoothChannels[1] - 1500) * TO_ANGLE - (pitch * RAD_TO_DEG);
+			fixedPointInt32 dRoll  = fixedPointInt32(smoothChannels[0] - 1500) * TO_ANGLE - (RAD_TO_DEG * (double)roll);
+			fixedPointInt32 dPitch = fixedPointInt32(smoothChannels[1] - 1500) * TO_ANGLE - (RAD_TO_DEG * (double)pitch);
 			rollSetpoint		   = dRoll * angleModeP;
 			pitchSetpoint		   = dPitch * angleModeP;
 			polynomials[0][2].setRaw(((int32_t)smoothChannels[3] - 1500) << 7);

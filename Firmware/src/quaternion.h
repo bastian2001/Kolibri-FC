@@ -24,13 +24,13 @@
  * Data structure to hold a quaternion.
  */
 typedef struct quaternion {
-	fixedPointInt64 v[3], w;
+	float v[3], w;
 } Quaternion;
 
 /**
  * Sets the given values to the output quaternion.
  */
-void Quaternion_set(fixedPointInt64 w, fixedPointInt64 v1, fixedPointInt64 v2, fixedPointInt64 v3, Quaternion *output);
+void Quaternion_set(float w, float v1, float v2, float v3, Quaternion *output);
 
 /**
  * Sets quaternion to its identity.
@@ -44,7 +44,7 @@ void Quaternion_setIdentity(Quaternion *q);
  * @param angle
  *      Rotation angle in radians.
  */
-void Quaternion_fromAxisAngle(fixedPointInt32 axis[3], fixedPointInt64 angle, Quaternion *output);
+void Quaternion_fromAxisAngle(float axis[3], float angle, Quaternion *output);
 
 /**
  * Calculates the rotation vector and angle of a quaternion.
@@ -53,34 +53,34 @@ void Quaternion_fromAxisAngle(fixedPointInt32 axis[3], fixedPointInt64 angle, Qu
  * @return
  *      The rotation angle in radians.
  */
-fixedPointInt32 Quaternion_toAxisAngle(Quaternion *q, fixedPointInt32 output[3]);
+float Quaternion_toAxisAngle(Quaternion *q, float output[3]);
 
 /**
  * Set the quaternion to the equivalent a rotation around the X-axis.
  * @param angle
  *      Rotation angle in radians.
  */
-void Quaternion_fromXRotation(fixedPointInt64 angle, Quaternion *output);
+void Quaternion_fromXRotation(float angle, Quaternion *output);
 
 /**
  * Set the quaternion to the equivalent a rotation around the Y-axis.
  * @param angle
  *      Rotation angle in radians.
  */
-void Quaternion_fromYRotation(fixedPointInt64 angle, Quaternion *output);
+void Quaternion_fromYRotation(float angle, Quaternion *output);
 
 /**
  * Set the quaternion to the equivalent a rotation around the Z-axis.
  * @param angle
  *      Rotation angle in radians.
  */
-void Quaternion_fromZRotation(fixedPointInt64 angle, Quaternion *output);
+void Quaternion_fromZRotation(float angle, Quaternion *output);
 
 /**
  * Calculates the norm of a given quaternion:
  * norm = sqrt(w*w + v1*v1 + v2*v2 + v3*v3)
  */
-fixedPointInt32 Quaternion_norm(Quaternion *q);
+float Quaternion_norm(Quaternion *q);
 
 /**
  * Normalizes the quaternion.
@@ -99,18 +99,18 @@ void Quaternion_multiply(Quaternion *q1, Quaternion *q2, Quaternion *output);
 /**
  * Applies quaternion rotation to a given vector.
  */
-void Quaternion_rotate(Quaternion *q, fixedPointInt64 v[3], fixedPointInt64 output[3]);
+void Quaternion_rotate(Quaternion *q, float v[3], float output[3]);
 
-void Quaternion_from_unit_vecs(fixedPointInt32 v0[3], fixedPointInt32 v1[3], Quaternion *output);
+void Quaternion_from_unit_vecs(float v0[3], float v1[3], Quaternion *output);
 
 /**
  * Calculates the conjugate of the quaternion: (w, -v)
  */
 void Quaternion_conjugate(Quaternion *q, Quaternion *output);
-
-fixedPointInt32 fastSin(fixedPointInt32 x);
-fixedPointInt32 fastAtan2(fixedPointInt32 fp1, fixedPointInt32 fp2);
-fixedPointInt32 fastCos(fixedPointInt32 x);
-fixedPointInt32 fastSin(fixedPointInt32 x);
-fixedPointInt32 fastAcos(fixedPointInt32 x);
-fixedPointInt32 fastAsin(fixedPointInt32 x);
+/*
+float fastSin(float x);
+float fastAtan2(float fp1, float fp2);
+float fastCos(float x);
+float fastSin(float x);
+float fastAcos(float x);
+float fastAsin(float x);*/

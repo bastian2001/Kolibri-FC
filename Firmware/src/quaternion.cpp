@@ -20,28 +20,28 @@
 #include "global.h"
 #include <math.h>
 
-const fixedPointInt32 FAST_PI		= PI;
-const fixedPointInt32 FAST_PI_2		= PI / 2;
-const fixedPointInt32 FACULTY_THREE = 1. / 6.;
-const fixedPointInt32 FACULTY_FOUR	= 1. / 24.;
-const fixedPointInt32 FACULTY_FIVE	= 1. / 120.;
-const fixedPointInt32 FACULTY_SIX	= 1. / 720.;
-const fixedPointInt32 FAST_ACOS_A	= -0.939115566365855;
-const fixedPointInt32 FAST_ACOS_B	= 0.9217841528914573;
-const fixedPointInt32 FAST_ACOS_C	= -1.2845906244690837;
-const fixedPointInt32 FAST_ACOS_D	= 0.295624144969963174;
-
-fixedPointInt32 fastAtan(fixedPointInt32 x) {
+const float FAST_PI		  = PI;
+const float FAST_PI_2	  = PI / 2;
+const float FACULTY_THREE = 1. / 6.;
+const float FACULTY_FOUR  = 1. / 24.;
+const float FACULTY_FIVE  = 1. / 120.;
+const float FACULTY_SIX	  = 1. / 720.;
+const float FAST_ACOS_A	  = -0.939115566365855;
+const float FAST_ACOS_B	  = 0.9217841528914573;
+const float FAST_ACOS_C	  = -1.2845906244690837;
+const float FAST_ACOS_D	  = 0.295624144969963174;
+/*
+float fastAtan(float x) {
 	// https://www.dsprelated.com/showarticle/1052.php
 	if (x < 0) {
 		return -fastAtan(-x);
 	}
 	if (x > 1) {
-		return FAST_PI_2 - fastAtan(fixedPointInt32(1) / x);
+		return FAST_PI_2 - fastAtan(float(1) / x);
 	}
-	return x / (fixedPointInt32(1) + fixedPointInt32(0.28) * x * x);
+	return x / (float(1) + float(0.28) * x * x);
 }
-fixedPointInt32 fastAtan2(fixedPointInt32 fp1, fixedPointInt32 fp2) {
+float fastAtan2(float fp1, float fp2) {
 	if (fp1 == 0) // edge cases
 		if (fp2 >= 0)
 			return FAST_PI_2;
@@ -53,12 +53,12 @@ fixedPointInt32 fastAtan2(fixedPointInt32 fp1, fixedPointInt32 fp2) {
 	else
 		return fastAtan(fp2 / fp1) - FAST_PI; // less "normal" cases
 }
-fixedPointInt32 fastCos(fixedPointInt32 x) {
+float fastCos(float x) {
 	// taylor series approximation of cos(x) around 0, up to x^6
 	// deviation: max 0.001, at +/- 0.5pi
 	if (x < 0) x = -x;
 	x %= FAST_PI << 1;
-	fixedPointInt32 sign = 1;
+	float sign = 1;
 	if (x > FAST_PI) {
 		x -= FAST_PI;
 		sign = -sign;
@@ -69,16 +69,16 @@ fixedPointInt32 fastCos(fixedPointInt32 x) {
 	}
 	if (x > FAST_PI >> 2)
 		return -fastSin(x - FAST_PI_2);
-	fixedPointInt32 out	  = 1;
-	fixedPointInt32 expo2 = x * x;
-	fixedPointInt32 expo4 = expo2 * expo2;
+	float out	= 1;
+	float expo2 = x * x;
+	float expo4 = expo2 * expo2;
 	out -= expo2 >> 1;
 	out += FACULTY_FOUR * expo4;
 	out -= FACULTY_SIX * expo4 * expo2;
 	return sign * out;
 }
-fixedPointInt32 fastSin(fixedPointInt32 x) {
-	fixedPointInt32 sign = 1;
+float fastSin(float x) {
+	float sign = 1;
 	if (x < 0) {
 		x	 = -x;
 		sign = -sign;
@@ -94,21 +94,21 @@ fixedPointInt32 fastSin(fixedPointInt32 x) {
 	}
 	if (x > FAST_PI >> 2)
 		return fastCos(x - FAST_PI_2);
-	fixedPointInt32 out	  = x;
-	fixedPointInt32 expo2 = x * x;
-	fixedPointInt32 expo3 = expo2 * x;
+	float out	= x;
+	float expo2 = x * x;
+	float expo3 = expo2 * x;
 	out -= FACULTY_THREE * expo3;
 	out += FACULTY_FIVE * expo3 * expo2;
 	return sign * out;
 }
-fixedPointInt32 fastAcos(fixedPointInt32 x) {
+float fastAcos(float x) {
 	// https://stackoverflow.com/a/36387954/8807019
-	fixedPointInt32 xsq = x * x;
+	float xsq = x * x;
 	return FAST_PI_2 + (FAST_ACOS_A * x + FAST_ACOS_B * xsq * x) / (FAST_ACOS_C * xsq + FAST_ACOS_D * xsq * xsq + 1);
 }
-fixedPointInt32 fastAsin(fixedPointInt32 x) { return FAST_PI_2 - fastAcos(x); }
-
-void Quaternion_set(fixedPointInt64 w, fixedPointInt64 v1, fixedPointInt64 v2, fixedPointInt64 v3, Quaternion *output) {
+float fastAsin(float x) { return FAST_PI_2 - fastAcos(x); }
+*/
+void Quaternion_set(float w, float v1, float v2, float v3, Quaternion *output) {
 	output->w	 = w;
 	output->v[0] = v1;
 	output->v[1] = v2;
@@ -119,19 +119,19 @@ void Quaternion_setIdentity(Quaternion *q) {
 	Quaternion_set(1, 0, 0, 0, q);
 }
 
-void Quaternion_fromAxisAngle(fixedPointInt32 axis[3], fixedPointInt64 angle, Quaternion *output) {
+void Quaternion_fromAxisAngle(float axis[3], float angle, Quaternion *output) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/
-	output->w		  = fastCos((angle >> 1).toFixed32()).toFixed64();
-	fixedPointInt32 c = fastSin((angle >> 1).toFixed32());
-	output->v[0] = axis[0].toFixed64().multiply64(c);
-	output->v[1] = axis[1].toFixed64().multiply64(c);
-	output->v[2] = axis[2].toFixed64().multiply64(c);
+	output->w	 = cosf(angle * .5);
+	float c		 = sinf(angle * .5);
+	output->v[0] = axis[0] * c;
+	output->v[1] = axis[1] * c;
+	output->v[2] = axis[2] * c;
 }
 
-fixedPointInt32 Quaternion_toAxisAngle(Quaternion *q, fixedPointInt32 output[3]) {
+float Quaternion_toAxisAngle(Quaternion *q, float output[3]) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
-	fixedPointInt32 angle	= fastAcos((q->w).toFixed32()) * 2;
-	fixedPointInt32 divider = sqrtf((-(q->w * q->w).toFixed32() + 1).getFloat());
+	float angle	  = acosf(q->w) * 2;
+	float divider = 1 / sqrtf(1 - q->w * q->w);
 
 	if (divider == 0) {
 		// Arbitrary normalized axis
@@ -140,40 +140,39 @@ fixedPointInt32 Quaternion_toAxisAngle(Quaternion *q, fixedPointInt32 output[3])
 		output[2] = 0;
 	} else {
 		// Calculate the axis
-		output[0] = q->v[0].toFixed32() / divider;
-		output[1] = q->v[1].toFixed32() / divider;
-		output[2] = q->v[2].toFixed32() / divider;
+		output[0] = q->v[0] * divider;
+		output[1] = q->v[1] * divider;
+		output[2] = q->v[2] * divider;
 	}
 	return angle;
 }
 
-void Quaternion_fromXRotation(fixedPointInt64 angle, Quaternion *output) {
-	fixedPointInt32 axis[3] = {1, 0, 0};
+void Quaternion_fromXRotation(float angle, Quaternion *output) {
+	float axis[3] = {1, 0, 0};
 	Quaternion_fromAxisAngle(axis, angle, output);
 }
 
-void Quaternion_fromYRotation(fixedPointInt64 angle, Quaternion *output) {
-	fixedPointInt32 axis[3] = {0, 1, 0};
+void Quaternion_fromYRotation(float angle, Quaternion *output) {
+	float axis[3] = {0, 1, 0};
 	Quaternion_fromAxisAngle(axis, angle, output);
 }
 
-void Quaternion_fromZRotation(fixedPointInt64 angle, Quaternion *output) {
-	fixedPointInt32 axis[3] = {0, 0, 1};
+void Quaternion_fromZRotation(float angle, Quaternion *output) {
+	float axis[3] = {0, 0, 1};
 	Quaternion_fromAxisAngle(axis, angle, output);
 }
 
-fixedPointInt32 Quaternion_norm(Quaternion *q) {
-	return sqrtf((q->w * q->w + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]).getFloat());
+float Quaternion_norm(Quaternion *q) {
+	return sqrtf(q->w * q->w + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
 }
 
 void Quaternion_normalize(Quaternion *q, Quaternion *output) {
-	fixedPointInt32 len		   = Quaternion_norm(q);
-	fixedPointInt32 oneOverLen = fixedPointInt32(1) / len;
+	float oneOverLen = 1 / Quaternion_norm(q);
 	Quaternion_set(
-		q->w.multiply64(oneOverLen),
-		q->v[0].multiply64(oneOverLen),
-		q->v[1].multiply64(oneOverLen),
-		q->v[2].multiply64(oneOverLen),
+		q->w * oneOverLen,
+		q->v[0] * oneOverLen,
+		q->v[1] * oneOverLen,
+		q->v[2] * oneOverLen,
 		output);
 }
 
@@ -195,19 +194,19 @@ void Quaternion_multiply(Quaternion *q1, Quaternion *q2, Quaternion *output) {
 	*output = result;
 }
 
-void Quaternion_rotate(Quaternion *q, fixedPointInt64 v[3], fixedPointInt64 output[3]) {
-	fixedPointInt64 result[3];
+void Quaternion_rotate(Quaternion *q, float v[3], float output[3]) {
+	float result[3];
 
-	fixedPointInt64 ww = q->w * q->w;
-	fixedPointInt64 xx = q->v[0] * q->v[0];
-	fixedPointInt64 yy = q->v[1] * q->v[1];
-	fixedPointInt64 zz = q->v[2] * q->v[2];
-	fixedPointInt64 wx = q->w * q->v[0];
-	fixedPointInt64 wy = q->w * q->v[1];
-	fixedPointInt64 wz = q->w * q->v[2];
-	fixedPointInt64 xy = q->v[0] * q->v[1];
-	fixedPointInt64 xz = q->v[0] * q->v[2];
-	fixedPointInt64 yz = q->v[1] * q->v[2];
+	float ww = q->w * q->w;
+	float xx = q->v[0] * q->v[0];
+	float yy = q->v[1] * q->v[1];
+	float zz = q->v[2] * q->v[2];
+	float wx = q->w * q->v[0];
+	float wy = q->w * q->v[1];
+	float wz = q->w * q->v[2];
+	float xy = q->v[0] * q->v[1];
+	float xz = q->v[0] * q->v[2];
+	float yz = q->v[1] * q->v[2];
 
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
@@ -231,22 +230,22 @@ void Quaternion_rotate(Quaternion *q, fixedPointInt64 v[3], fixedPointInt64 outp
 }
 
 // Calculate the dot product of two 3D vectors
-void Vector_dot(fixedPointInt32 v1[3], fixedPointInt32 v2[3], fixedPointInt32 *output) {
+void Vector_dot(float v1[3], float v2[3], float *output) {
 	*output = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
 // Calculate the cross product of two 3D vectors
-void Vector_cross(fixedPointInt32 v1[3], fixedPointInt32 v2[3], fixedPointInt32 output[3]) {
+void Vector_cross(float v1[3], float v2[3], float output[3]) {
 	output[0] = v1[1] * v2[2] - v1[2] * v2[1];
 	output[1] = v1[2] * v2[0] - v1[0] * v2[2];
 	output[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
-const fixedPointInt32 QUATERNION_EPS = 1e-5;
-const fixedPointInt32 ONE_MINUS_EPS	 = fixedPointInt32(1) - QUATERNION_EPS;
+const float QUATERNION_EPS = 1e-5;
+const float ONE_MINUS_EPS  = 1 - QUATERNION_EPS;
 
-void Quaternion_from_unit_vecs(fixedPointInt32 v0[3], fixedPointInt32 v1[3], Quaternion *output) {
-	fixedPointInt32 dot;
+void Quaternion_from_unit_vecs(float v0[3], float v1[3], Quaternion *output) {
+	float dot;
 	Vector_dot(v0, v1, &dot);
 
 	if (dot > ONE_MINUS_EPS) {
@@ -254,18 +253,18 @@ void Quaternion_from_unit_vecs(fixedPointInt32 v0[3], fixedPointInt32 v1[3], Qua
 		return;
 	} else if (dot < -ONE_MINUS_EPS) {
 		// Rotate along any orthonormal vec to vec1 or vec2 as the axis.
-		fixedPointInt32 cross[3];
-		fixedPointInt32 vTemp[3] = {1, 0, 0};
+		float cross[3];
+		float vTemp[3] = {1, 0, 0};
 		Vector_cross(vTemp, v0, cross);
-		Quaternion_fromAxisAngle(cross, FAST_PI.toFixed64(), output);
+		Quaternion_fromAxisAngle(cross, FAST_PI, output);
 		return;
 	}
 
-	fixedPointInt32 w = dot + 1;
-	fixedPointInt32 v[3];
+	float w = dot + 1;
+	float v[3];
 	Vector_cross(v0, v1, v);
 
-	Quaternion_set(w.toFixed64(), v[0].toFixed64(), v[1].toFixed64(), v[2].toFixed64(), output);
+	Quaternion_set(w, v[0], v[1], v[2], output);
 	Quaternion_normalize(output, output);
 }
 
