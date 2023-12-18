@@ -281,15 +281,16 @@ void handleConfigCmd() {
 	case ConfigCmd::GET_ROTATION: {
 		int rotationPitch = pitch * 8192;
 		int rotationRoll  = roll * 8192;
+		int rotationYaw	  = yaw * 8192;
 		buf[0]			  = rotationPitch & 0xFF;
 		buf[1]			  = rotationPitch >> 8;
 		buf[2]			  = rotationRoll & 0xFF;
 		buf[3]			  = rotationRoll >> 8;
-		buf[4]			  = 0;
-		buf[5]			  = 0;
+		buf[4]			  = rotationYaw & 0xFF;
+		buf[5]			  = rotationYaw >> 8;
 		sendCommand(configMsgCommand | 0x4000, buf, 6);
 		// char text[64] = {0};
-		// snprintf(text, 64, "Pitch: %f, Roll: %f", pitch.getFloat(), roll.getFloat());
+		// snprintf(text, 64, "yaw: %f", yaw);
 		// sendCommand((uint16_t)ConfigCmd::IND_MESSAGE, text, strlen(text));
 	} break;
 	default: {

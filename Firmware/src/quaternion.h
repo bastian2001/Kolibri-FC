@@ -56,21 +56,21 @@ void Quaternion_fromAxisAngle(float axis[3], float angle, Quaternion *output);
 float Quaternion_toAxisAngle(Quaternion *q, float output[3]);
 
 /**
- * Set the quaternion to the equivalent a rotation around the X-axis.
+ * Set the quaternion to the equivalent a rotation around the X-axis. WARNING: assumes angle close to 0
  * @param angle
  *      Rotation angle in radians.
  */
 void Quaternion_fromXRotation(float angle, Quaternion *output);
 
 /**
- * Set the quaternion to the equivalent a rotation around the Y-axis.
+ * Set the quaternion to the equivalent a rotation around the Y-axis. WARNING: assumes angle close to 0
  * @param angle
  *      Rotation angle in radians.
  */
 void Quaternion_fromYRotation(float angle, Quaternion *output);
 
 /**
- * Set the quaternion to the equivalent a rotation around the Z-axis.
+ * Set the quaternion to the equivalent a rotation around the Z-axis. WARNING: assumes angle close to 0
  * @param angle
  *      Rotation angle in radians.
  */

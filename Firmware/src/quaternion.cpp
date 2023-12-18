@@ -131,35 +131,42 @@ void Quaternion_fromAxisAngle(float axis[3], float angle, Quaternion *output) {
 float Quaternion_toAxisAngle(Quaternion *q, float output[3]) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
 	float angle	  = acosf(q->w) * 2;
-	float divider = 1 / sqrtf(1 - q->w * q->w);
+	float divider = sqrtf(1 - q->w * q->w);
 
-	if (isinf(divider)) {
+	if (divider != 0.f) {
+		// Calculate the axis
+		float divNew = 1 / divider;
+		output[0]	 = q->v[0] * divNew;
+		output[1]	 = q->v[1] * divNew;
+		output[2]	 = q->v[2] * divNew;
+	} else {
 		// Arbitrary normalized axis
 		output[0] = 1;
 		output[1] = 0;
 		output[2] = 0;
-	} else {
-		// Calculate the axis
-		output[0] = q->v[0] * divider;
-		output[1] = q->v[1] * divider;
-		output[2] = q->v[2] * divider;
 	}
 	return angle;
 }
 
 void Quaternion_fromXRotation(float angle, Quaternion *output) {
-	float axis[3] = {1, 0, 0};
-	Quaternion_fromAxisAngle(axis, angle, output);
+	output->w	 = 1;
+	output->v[0] = angle / 2;
+	output->v[1] = 0;
+	output->v[2] = 0;
 }
 
 void Quaternion_fromYRotation(float angle, Quaternion *output) {
-	float axis[3] = {0, 1, 0};
-	Quaternion_fromAxisAngle(axis, angle, output);
+	output->w	 = 1;
+	output->v[0] = 0;
+	output->v[1] = angle / 2;
+	output->v[2] = 0;
 }
 
 void Quaternion_fromZRotation(float angle, Quaternion *output) {
-	float axis[3] = {0, 0, 1};
-	Quaternion_fromAxisAngle(axis, angle, output);
+	output->w	 = 1;
+	output->v[0] = 0;
+	output->v[1] = 0;
+	output->v[2] = angle / 2;
 }
 
 float Quaternion_norm(Quaternion *q) {
@@ -262,15 +269,12 @@ void Quaternion_from_unit_vecs(const float v0[3], const float v1[3], Quaternion 
 		float cross[3];
 		float vTemp[3] = {1, 0, 0};
 		Vector_cross(vTemp, v0, cross);
-		Quaternion_fromAxisAngle(cross, PI, output);
+		Quaternion_fromAxisAngle(cross, (float)PI, output);
 		return;
 	}
 
-	float w = dot + 1;
-	float v[3];
-	Vector_cross(v0, v1, v);
-
-	Quaternion_set(w, v[0], v[1], v[2], output);
+	output->w = dot + 1;
+	Vector_cross(v0, v1, output->v);
 	Quaternion_normalize(output, output);
 }
 

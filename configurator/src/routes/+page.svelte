@@ -5,7 +5,9 @@
 	import { leBytesToInt } from '../utils';
 
 	let getRotationInterval = 0;
-	let droneModel = null as any;
+	let xBox = null as any;
+	let yBox = null as any;
+	let zBox = null as any;
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
@@ -21,7 +23,16 @@
 				roll /= 8192.0;
 				roll *= 180.0 / Math.PI;
 				console.log('roll: ', roll);
-				droneModel.style.transform = `rotateX(${-pitch}deg) rotateY(${roll}deg)`;
+				let yaw = leBytesToInt(command.data.slice(4, 6));
+				if (yaw > 32768) yaw -= 65536;
+				yaw /= 8192.0;
+				yaw *= 180.0 / Math.PI;
+				console.log('yaw: ', yaw);
+				yBox.style.transform = `rotateX(${-pitch}deg)`;
+				xBox.style.transform = `rotateY(${roll}deg)`;
+				zBox.style.transform = `rotateX(90deg) rotateZ(${
+					yaw + 180
+				}deg) translate3d(0px, 0px, -180px)`;
 				break;
 		}
 	}
@@ -51,18 +62,20 @@
 <button on:click={() => playSound()}>Play Sound</button>
 
 <div class="drone3DPreview">
-	<div class="outerBox">
-		<div class="droneBoundingBox" bind:this={droneModel}>
-			<div class="droneFrame">
-				<div class="flrrBar" />
-				<div class="rlfrBar" />
-			</div>
-			<div class="arrowForward" />
-			<div class="props">
-				<div class="dronePropellerRR" />
-				<div class="dronePropellerFR" />
-				<div class="dronePropellerRL" />
-				<div class="dronePropellerFL" />
+	<div class="zBox" bind:this={zBox}>
+		<div class="yBox" bind:this={yBox}>
+			<div class="xBox" bind:this={xBox}>
+				<div class="droneFrame">
+					<div class="flrrBar" />
+					<div class="rlfrBar" />
+				</div>
+				<div class="arrowForward" />
+				<div class="props">
+					<div class="dronePropellerRR" />
+					<div class="dronePropellerFR" />
+					<div class="dronePropellerRL" />
+					<div class="dronePropellerFL" />
+				</div>
 			</div>
 		</div>
 	</div>
@@ -76,7 +89,7 @@
 		perspective: 600px;
 		position: relative;
 	}
-	.outerBox {
+	.zBox {
 		width: 100%;
 		height: 100%;
 		position: relative;
@@ -85,7 +98,8 @@
 		transform: rotateX(90deg) rotateY(0deg) translate3d(0px, 0px, -180px);
 	}
 	/*Rotating the bounding box later via JS will rotate the whole drone with it*/
-	.droneBoundingBox {
+	.xBox,
+	.yBox {
 		width: 100%;
 		height: 100%;
 		position: relative;
