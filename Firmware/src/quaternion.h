@@ -114,3 +114,7 @@ float fastCos(float x);
 float fastSin(float x);
 float fastAcos(float x);
 float fastAsin(float x);*/
+
+extern const float QUATERNION_EPS;
+extern const float ONE_MINUS_EPS;
+void Vector_cross(const float v1[3], const float v2[3], float output[3]);

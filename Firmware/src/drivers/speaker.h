@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-#define MAX_RTTTL_NOTES 96
-#define MAX_RTTTL_TEXT_LENGTH 192
+#define MAX_RTTTL_NOTES 256
+#define MAX_RTTTL_TEXT_LENGTH 1024
 
 void initSpeaker();
 

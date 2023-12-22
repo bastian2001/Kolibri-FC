@@ -175,12 +175,13 @@ float Quaternion_norm(Quaternion *q) {
 
 void Quaternion_normalize(Quaternion *q, Quaternion *output) {
 
-	float oneOverLen = 1.f / Quaternion_norm(q);
-	if (oneOverLen == 0) {
+	float len = Quaternion_norm(q);
+	if (len == 0) {
 		// Serial.printf("q: %f, %f, %f, %f\n", q->w, q->v[0], q->v[1], q->v[2]);
 		Quaternion_setIdentity(output);
 		return;
 	}
+	float oneOverLen = 1 / len;
 	Quaternion_set(
 		q->w * oneOverLen,
 		q->v[0] * oneOverLen,

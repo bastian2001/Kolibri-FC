@@ -1,16 +1,16 @@
 #include "global.h"
 
-uint8_t	 configSerialBuffer[256] = {0};
-uint8_t	 configSerialBufferIndex = 0;
-uint8_t	 configMsgLength		 = 0;
-uint16_t configMsgCommand		 = 0;
+uint8_t configSerialBuffer[256] = {0};
+uint8_t configSerialBufferIndex = 0;
+uint8_t configMsgLength			= 0;
+uint16_t configMsgCommand		= 0;
 
 elapsedMillis configTimer = 0;
 
 elapsedMillis configOverrideMotors = 1001;
 
-elapsedMillis lastConfigPing		= 0;
-bool		  configuratorConnected = false;
+elapsedMillis lastConfigPing = 0;
+bool configuratorConnected	 = false;
 
 void configuratorLoop() {
 	if (lastConfigPing > 1000)
@@ -36,8 +36,8 @@ void sendCommand(uint16_t command, const char *data, uint16_t len) {
 }
 
 void handleConfigCmd() {
-	char	buf[256] = {0};
-	uint8_t len		 = 0;
+	char buf[256] = {0};
+	uint8_t len	  = 0;
 	switch ((ConfigCmd)configMsgCommand) {
 	case ConfigCmd::STATUS: {
 		uint16_t voltage = adcVoltage;
@@ -63,7 +63,7 @@ void handleConfigCmd() {
 		const uint16_t startFreq	 = random(1000, 5000);
 		const uint16_t endFreq		 = random(1000, 5000);
 		const uint16_t sweepDuration = random(400, 1000);
-		uint16_t	   pauseDuration = random(100, 1000);
+		uint16_t pauseDuration		 = random(100, 1000);
 		const uint16_t pauseEn		 = random(0, 2);
 		pauseDuration *= pauseEn;
 		const uint16_t repeat = random(1, 11);
@@ -84,7 +84,7 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, len);
 	} break;
 	case ConfigCmd::BB_FILE_LIST: {
-		int	 index		  = 0;
+		int index		  = 0;
 		char shortbuf[16] = {0};
 		for (int i = 0; i < 100; i++) {
 			rp2040.wdt_reset();
@@ -106,7 +106,7 @@ void handleConfigCmd() {
 	case ConfigCmd::BB_FILE_DELETE: {
 		// data just includes one byte of file number
 		uint8_t fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
-		char	path[32];
+		char path[32];
 		snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
 		if (LittleFS.remove(path))
 			sendCommand(configMsgCommand | 0x4000, (char *)&fileNum, 1);
@@ -129,11 +129,11 @@ void handleConfigCmd() {
 		uint8_t len		  = configSerialBuffer[CONFIG_BUFFER_LENGTH];
 		len				  = len > 12 ? 12 : len;
 		uint8_t *fileNums = &configSerialBuffer[CONFIG_BUFFER_DATA];
-		uint8_t	 buffer[22 * len];
-		uint8_t	 index = 0;
+		uint8_t buffer[22 * len];
+		uint8_t index = 0;
 		for (int i = 0; i < len; i++) {
 			rp2040.wdt_reset();
-			char	path[32];
+			char path[32];
 			uint8_t fileNum = fileNums[i];
 			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
 			File logFile = LittleFS.open(path, "r");
@@ -185,7 +185,7 @@ void handleConfigCmd() {
 		motors[2] = throttles[(uint8_t)MOTOR::RL];
 		motors[3] = throttles[(uint8_t)MOTOR::FL];
 		sendCommand(configMsgCommand | 0x4000, (char *)motors, sizeof(motors));
-	}
+	} break;
 	case ConfigCmd::BB_FILE_DOWNLOAD_RAW:
 		printLogBinRaw(configSerialBuffer[CONFIG_BUFFER_DATA]);
 		break;
@@ -203,13 +203,14 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000);
 		delay(100);
 		rp2040.rebootToBootloader();
+		break;
 	case ConfigCmd::GET_NAME: {
 		char name[20] = {0};
 		for (int i = 0; i < 20; i++)
 			name[i] = EEPROM.read((uint16_t)EEPROM_POS::UAV_NAME + i);
 		name[19] = '\0';
 		sendCommand(configMsgCommand | 0x4000, name, strlen(name));
-	}
+	} break;
 	case ConfigCmd::SET_NAME: {
 		uint8_t len = configSerialBuffer[CONFIG_BUFFER_LENGTH];
 		if (len > 20)
@@ -289,9 +290,6 @@ void handleConfigCmd() {
 		buf[4]			  = rotationYaw & 0xFF;
 		buf[5]			  = rotationYaw >> 8;
 		sendCommand(configMsgCommand | 0x4000, buf, 6);
-		// char text[64] = {0};
-		// snprintf(text, 64, "yaw: %f", yaw);
-		// sendCommand((uint16_t)ConfigCmd::IND_MESSAGE, text, strlen(text));
 	} break;
 	default: {
 		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));

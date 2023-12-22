@@ -4,7 +4,7 @@ uint8_t setupDone = 0b00;
 
 void setup() {
 	// delay(5000);
-	set_sys_clock_khz(264000, true);
+	set_sys_clock_khz(132000, true);
 	Serial.begin(115200);
 	Serial.println("Starting up");
 	EEPROM.begin(4096);

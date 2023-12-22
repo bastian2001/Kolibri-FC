@@ -95,3 +95,7 @@ export function getNestedProperty(
 	if (options.min !== undefined && current < options.min) return options.min;
 	return current;
 }
+
+export function roundToDecimal(num: number, places: number) {
+	return Math.round(num * Math.pow(10, places)) / Math.pow(10, places);
+}

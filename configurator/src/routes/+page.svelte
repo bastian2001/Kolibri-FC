@@ -2,12 +2,17 @@
 	import { port, ConfigCmd } from '../stores';
 	import { onMount, onDestroy } from 'svelte';
 	import type { Command } from '../stores';
-	import { leBytesToInt } from '../utils';
+	import { leBytesToInt, roundToDecimal } from '../utils';
 
 	let getRotationInterval = 0;
 	let xBox = null as any;
 	let yBox = null as any;
 	let zBox = null as any;
+	let attitude = {
+		roll: 0,
+		pitch: 0,
+		yaw: 0
+	};
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
@@ -17,22 +22,24 @@
 				if (pitch > 32768) pitch -= 65536;
 				pitch /= 8192.0;
 				pitch *= 180.0 / Math.PI;
-				console.log('pitch: ', pitch);
 				let roll = leBytesToInt(command.data.slice(2, 4));
 				if (roll > 32768) roll -= 65536;
 				roll /= 8192.0;
 				roll *= 180.0 / Math.PI;
-				console.log('roll: ', roll);
 				let yaw = leBytesToInt(command.data.slice(4, 6));
 				if (yaw > 32768) yaw -= 65536;
 				yaw /= 8192.0;
 				yaw *= 180.0 / Math.PI;
-				console.log('yaw: ', yaw);
 				yBox.style.transform = `rotateX(${-pitch}deg)`;
 				xBox.style.transform = `rotateY(${roll}deg)`;
 				zBox.style.transform = `rotateX(90deg) rotateZ(${
 					yaw + 180
 				}deg) translate3d(0px, 0px, -180px)`;
+				attitude = {
+					roll,
+					pitch,
+					yaw
+				};
 				break;
 		}
 	}
@@ -57,14 +64,15 @@
 	});
 </script>
 
-<button on:click={() => ledOn()}>LED On</button>
-<button on:click={() => ledOff()}>LED Off</button>
-<button on:click={() => playSound()}>Play Sound</button>
-
+<div>
+	<button on:click={() => ledOn()}>LED On</button>
+	<button on:click={() => ledOff()}>LED Off</button>
+	<button on:click={() => playSound()}>Play Sound</button>
+</div>
 <div class="drone3DPreview">
 	<div class="zBox" bind:this={zBox}>
-		<div class="yBox" bind:this={yBox}>
-			<div class="xBox" bind:this={xBox}>
+		<div class="xBox" bind:this={xBox}>
+			<div class="yBox" bind:this={yBox}>
 				<div class="droneFrame">
 					<div class="flrrBar" />
 					<div class="rlfrBar" />
@@ -80,6 +88,11 @@
 		</div>
 	</div>
 </div>
+<div class="attitudeInfo">
+	<div class="axisLabel axisRoll">Roll: {roundToDecimal(attitude.roll, 2)}</div>
+	<div class="axisLabel axisPitch">Pitch: {roundToDecimal(attitude.pitch, 2)}</div>
+	<div class="axisLabel axisYaw">Yaw: {roundToDecimal(attitude.yaw, 2)}</div>
+</div>
 
 <style>
 	.drone3DPreview {
@@ -88,6 +101,7 @@
 		background-color: rgba(255, 255, 255, 0.4);
 		perspective: 600px;
 		position: relative;
+		display: inline-block;
 	}
 	.zBox {
 		width: 100%;
@@ -155,5 +169,8 @@
 		transform: translate3d(-50%, -50%, 10px);
 		background-color: green;
 		clip-path: polygon(0 100%, 50% 0, 100% 100%);
+	}
+	.attitudeInfo {
+		display: inline-block;
 	}
 </style>

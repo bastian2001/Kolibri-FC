@@ -1,13 +1,13 @@
 #include "global.h"
 
-elapsedMillis	soundStart;
-uint16_t		soundDuration		= 0;
-uint8_t			soundType			= 0; // 0 = stationary, 1 = sweep, 2 = rtttl
-uint16_t		sweepStartFrequency = 0;
-uint16_t		sweepEndFrequency	= 0;
-uint16_t		onTime				= 0;
-uint16_t		offTime				= 0;
-uint16_t		currentWrap			= 400;
+elapsedMillis soundStart;
+uint16_t soundDuration		 = 0;
+uint8_t soundType			 = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
+uint16_t sweepStartFrequency = 0;
+uint16_t sweepEndFrequency	 = 0;
+uint16_t onTime				 = 0;
+uint16_t offTime			 = 0;
+uint16_t currentWrap		 = 400;
 fixedPointInt32 noteFrequencies[13] =
 	{
 		16.35, // C0
@@ -25,19 +25,19 @@ fixedPointInt32 noteFrequencies[13] =
 		0	   // error
 };
 typedef struct rtttlNote {
-	uint16_t frequency;	  // pause = 0
-	uint16_t duration;	  // milliseconds
-	uint8_t	 sweepToNext; // dash after note will sweep to next, e.g. 8e6-,8d6 will sweep from 8e6 to 8d6 withing "duration" milliseconds
+	uint16_t frequency;	 // pause = 0
+	uint16_t duration;	 // milliseconds
+	uint8_t sweepToNext; // dash after note will sweep to next, e.g. 8e6-,8d6 will sweep from 8e6 to 8d6 within "duration" milliseconds
+	uint8_t quieter;	 // 0 = normal, 1-3 = quieter, 4 = ring-tone-like e.g. 8e6$4 will play 8e6 like a ring-tone
+						 // quietness level 3 only works up to a#7, level 2 up to a#8, level 1 up to a#10, ring-tone works for all notes, quietness doesn't sweep
 } RTTTLNote;
 typedef struct rtttlSong {
 	RTTTLNote notes[MAX_RTTTL_NOTES];
-	uint8_t	  numNotes;
+	uint8_t numNotes;
 } RTTTLSong;
 RTTTLSong songToPlay;
 
-int freqToWrap(uint16_t frequency) {
-	return 1000000 / frequency;
-}
+#define FREQ_TO_WRAP(freq) (1000000 / freq)
 
 void initSpeaker() {
 	gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PWM);
@@ -50,7 +50,9 @@ void initSpeaker() {
 }
 
 void startBootupSound() {
-	makeRtttlSound("o=3,d=16,b=300:c,c#,d,d#,e,f,f#,g,g#,a,a#,b,c4,2c4.-,c");
+	// makeRtttlSound("o=3,d=16,b=1000:c,c#,d,d#,e,f,f#,g,g#,a,a#,b,c4,2c4.-,c");
+	makeRtttlSound("o=6,b=800:1c#6,1d#6,1g#6.,1d#6$1,1g#6.$1,1d#6$2,1g#6$2");
+	// makeRtttlSound("1a5$0,1a5$4,1a5$1,1a5$2,1a5$3");
 	// makeRtttlSound("NokiaTune:d=4,o=5,b=160:8e6,8d6,4f#5,4g#5,8c#6,8b5,4d5,4e5,8b5,8a5,4c#5,4e5,1a5");
 }
 
@@ -74,7 +76,7 @@ void speakerLoop() {
 				pwm_set_gpio_level(PIN_SPEAKER, 0);
 			} else {
 				uint32_t thisFreq = sweepStartFrequency + ((sweepEndFrequency - sweepStartFrequency) * thisCycle) / onTime;
-				currentWrap		  = freqToWrap(thisFreq);
+				currentWrap		  = FREQ_TO_WRAP(thisFreq);
 				pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
 				pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
 			}
@@ -93,12 +95,27 @@ void speakerLoop() {
 				} else {
 					if (songToPlay.notes[noteIndex].sweepToNext) {
 						uint32_t thisFreq = songToPlay.notes[noteIndex].frequency + ((songToPlay.notes[noteIndex + 1].frequency - songToPlay.notes[noteIndex].frequency) * thisCycle) / songToPlay.notes[noteIndex].duration;
-						currentWrap		  = freqToWrap(thisFreq);
+						currentWrap		  = FREQ_TO_WRAP(thisFreq);
 					} else {
-						currentWrap = freqToWrap(songToPlay.notes[noteIndex].frequency);
+						currentWrap = FREQ_TO_WRAP(songToPlay.notes[noteIndex].frequency);
 					}
 					pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
-					pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
+					int level = currentWrap >> 1;
+					gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_2MA);
+					switch (songToPlay.notes[noteIndex].quieter) {
+					case 1:
+						level = level >> 4;
+						break;
+					case 2:
+						level = level >> 6;
+						break;
+					case 3:
+						level = level >> 7;
+						break;
+					case 4:
+						level = level >> 2;
+					}
+					pwm_set_gpio_level(PIN_SPEAKER, level);
 				}
 			}
 		} else if (soundType == 0) {
@@ -114,7 +131,7 @@ void speakerLoop() {
 
 void makeSound(uint16_t frequency, uint16_t duration, uint16_t tOnMs, uint16_t tOffMs) {
 	soundType	= 0;
-	currentWrap = freqToWrap(frequency);
+	currentWrap = FREQ_TO_WRAP(frequency);
 	pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
 	onTime		  = tOnMs;
 	offTime		  = tOffMs;
@@ -239,7 +256,7 @@ void makeRtttlSound(const char *song) {
 			songToPlay.notes[noteIndex].sweepToNext = 0;
 			i++;
 		} else {
-			int	 note	  = 0; // 0 = C, 1 = C#...
+			int note	  = 0; // 0 = C, 1 = C#...
 			char noteChar = song[i++];
 			switch (noteChar) {
 			case 'c':
@@ -290,6 +307,10 @@ void makeRtttlSound(const char *song) {
 				i++;
 			} else {
 				songToPlay.notes[noteIndex].sweepToNext = 0;
+			}
+			if (song[i] == '$') {
+				i++;
+				songToPlay.notes[noteIndex].quieter = parseInt(song, &i, 0);
 			}
 		}
 		totalDuration += songToPlay.notes[noteIndex].duration;

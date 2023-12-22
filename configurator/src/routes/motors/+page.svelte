@@ -53,6 +53,7 @@
 	});
 	onDestroy(() => {
 		clearInterval(getMotorsInterval);
+		stopMotors();
 	});
 </script>
 
