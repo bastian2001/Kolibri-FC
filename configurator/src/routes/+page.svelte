@@ -129,14 +129,14 @@
 				break;
 			case ConfigCmd.GET_GPS_MOTION | 0x4000:
 				gpsMotion = {
-					lat: leBytesToInt(command.data.slice(0, 4)) * 1e-7,
-					lon: leBytesToInt(command.data.slice(4, 8)) * 1e-7,
-					alt: leBytesToInt(command.data.slice(8, 12)) * 1e-3,
-					velN: leBytesToInt(command.data.slice(12, 16)) * 1e-3,
-					velE: leBytesToInt(command.data.slice(16, 20)) * 1e-3,
-					velD: leBytesToInt(command.data.slice(20, 24)) * 1e-3,
-					gSpeed: leBytesToInt(command.data.slice(24, 28)) * 1e-3,
-					headMot: leBytesToInt(command.data.slice(28, 32)) * 1e-5
+					lat: leBytesToInt(command.data.slice(0, 4), true) * 1e-7,
+					lon: leBytesToInt(command.data.slice(4, 8), true) * 1e-7,
+					alt: leBytesToInt(command.data.slice(8, 12), true) * 1e-3,
+					velN: leBytesToInt(command.data.slice(12, 16), true) * 1e-3,
+					velE: leBytesToInt(command.data.slice(16, 20), true) * 1e-3,
+					velD: leBytesToInt(command.data.slice(20, 24), true) * 1e-3,
+					gSpeed: leBytesToInt(command.data.slice(24, 28), true) * 1e-3,
+					headMot: leBytesToInt(command.data.slice(28, 32), true) * 1e-5
 				};
 				break;
 			case ConfigCmd.GET_GPS_STATUS | 0x4000:

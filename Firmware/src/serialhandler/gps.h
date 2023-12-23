@@ -38,14 +38,14 @@ typedef struct gpsStatus {
 	uint8_t satCount;
 } GpsStatus;
 typedef struct gpsMotion {
-	uint32_t lat;
-	uint32_t lon;
-	uint32_t alt;
-	uint32_t velN;
-	uint32_t velE;
-	uint32_t velD;
-	uint32_t gSpeed;
-	uint32_t headMot;
+	int32_t lat;
+	int32_t lon;
+	int32_t alt;
+	int32_t velN;
+	int32_t velE;
+	int32_t velD;
+	int32_t gSpeed;
+	int32_t headMot;
 } GpsMotion;
 extern GpsAccuracy gpsAcc;
 extern GpsTime gpsTime;
