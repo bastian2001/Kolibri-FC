@@ -74,6 +74,11 @@
 			case ConfigCmd.PLAY_SOUND | 0x4000:
 				console.log(command.data);
 				break;
+			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
+				log = [...log, 'See console for crash dump'];
+				break;
+			case ConfigCmd.CLEAR_CRASH_DUMP | 0x4000:
+				log = [...log, 'Crash dump cleared'];
 		}
 	}
 

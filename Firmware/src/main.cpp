@@ -9,6 +9,17 @@ void setup() {
 	Serial.println("Starting up");
 	EEPROM.begin(4096);
 	readEEPROM();
+	// save crash info to EEPROM
+	if (crashInfo[0] == 255) {
+		Serial.println("Crash detected");
+		for (int i = 0; i < 256; i++) {
+			EEPROM.write(4096 - 256 + i, (uint8_t)crashInfo[i]);
+		}
+	}
+	for (int i = 0; i < 256; i++) {
+		crashInfo[i] = 0;
+	}
+	crashInfo[0] = 255;
 
 	gyroInit();
 	imuInit();
@@ -17,6 +28,12 @@ void setup() {
 	initGPS();
 
 	initADC();
+
+	int heap	  = rp2040.getTotalHeap();
+	crashInfo[64] = heap & 0xFF;
+	crashInfo[65] = (heap >> 8) & 0xFF;
+	crashInfo[66] = (heap >> 16) & 0xFF;
+	crashInfo[67] = (heap >> 24) & 0xFF;
 
 	// init ELRS on pins 8 and 9 using Serial2 (UART1)
 	ELRS = new ExpressLRS(Serial2, 420000, 8, 9);
@@ -49,18 +66,31 @@ void setup() {
 elapsedMillis activityTimer;
 
 void loop() {
-	// baroLoop();
-	speakerLoop();
-	ELRS->loop();
-	adcLoop();
-	osdLoop();
-	serialLoop();
-	configuratorLoop();
-	gpsLoop();
-	rp2040.wdt_reset();
-	if (activityTimer > 500) {
-		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
-		activityTimer = 0;
+	while (true) {
+		crashInfo[1] = 1;
+		// baroLoop();
+		speakerLoop();
+		crashInfo[1] = 2;
+		ELRS->loop();
+		crashInfo[1] = 3;
+		adcLoop();
+		crashInfo[1] = 4;
+		osdLoop();
+		crashInfo[1] = 5;
+		serialLoop();
+		crashInfo[1] = 6;
+		configuratorLoop();
+		crashInfo[1] = 7;
+		gpsLoop();
+		crashInfo[1] = 8;
+		rp2040.wdt_reset();
+		crashInfo[1] = 9;
+		if (activityTimer > 500) {
+			crashInfo[1] = 10;
+			gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
+			activityTimer = 0;
+		}
+		crashInfo[1] = 11;
 	}
 }
 
@@ -69,7 +99,10 @@ void setup1() {
 	while (!(setupDone & 0b01)) {
 		rp2040.wdt_reset();
 	}
+	crashInfo[127] = 255;
 }
 void loop1() {
+	crashInfo[128] = 1;
 	gyroLoop();
+	crashInfo[128] = 2;
 }

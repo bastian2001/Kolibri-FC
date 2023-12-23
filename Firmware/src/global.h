@@ -46,3 +46,5 @@ int32_t DECODE_I4(const uint8_t *buf);
 float DECODE_R4(const uint8_t *buf);
 int64_t DECODE_I8(const uint8_t *buf);
 double DECODE_R8(const uint8_t *buf);
+
+extern uint32_t crashInfo[256];

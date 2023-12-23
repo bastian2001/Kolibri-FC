@@ -26,3 +26,5 @@ double DECODE_R8(const uint8_t *buf) {
 	memcpy(&result, buf, 8);
 	return result;
 }
+
+uint32_t __uninitialized_ram(crashInfo)[256];

@@ -20,31 +20,44 @@ ExpressLRS::~ExpressLRS() {
 }
 
 void ExpressLRS::loop() {
+	crashInfo[3] = 1;
 	if (elrsBuffer.size() > 250) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
 		lastError	= ERROR_BUFFER_OVERFLOW;
 		errorFlag	= true;
 		errorCount++;
-		Serial.println("Drop");
+		crashInfo[3] = 2;
+		return;
 	}
-	int maxScan = elrsBuffer.size();
+	crashInfo[3] = 3;
+	int maxScan	 = elrsBuffer.size();
 	if (maxScan > 10) maxScan = 10;
 	if (msgBufIndex > 55) maxScan = 65 - msgBufIndex;
+	crashInfo[4] = maxScan;
+	crashInfo[3] = 4;
 	for (int i = 0; i < maxScan; i++) {
+		crashInfo[3]			 = 5;
 		msgBuffer[msgBufIndex++] = elrsBuffer.front();
 		elrsBuffer.pop_front();
+		crashInfo[3] = 6;
 	}
 	if (msgBufIndex > 0 && msgBuffer[0] != RX_PREFIX) {
-		msgBufIndex = 0;
-		lastError	= ERROR_INVALID_PREFIX;
-		errorFlag	= true;
+		crashInfo[3] = 7;
+		msgBufIndex	 = 0;
+		lastError	 = ERROR_INVALID_PREFIX;
+		errorFlag	 = true;
 		errorCount++;
+		crashInfo[3] = 8;
 	}
-	if (msgBufIndex >= 2 + msgBuffer[1] && msgBuffer[0] == RX_PREFIX)
+	if (msgBufIndex >= 2 + msgBuffer[1] && msgBuffer[0] == RX_PREFIX) {
+		crashInfo[3] = 9;
 		processMessage();
+		crashInfo[3] = 10;
+	}
 	if (sinceLastRCMessage > 500000)
 		armed = false;
+	crashInfo[5] = armed;
 }
 
 // from https://github.com/catphish/openuav/blob/master/firmware/src/elrs.c
@@ -62,12 +75,15 @@ void crc32_append(uint32_t data, uint32_t &crc) {
 }
 
 void ExpressLRS::processMessage() {
-	int		 size = msgBuffer[1] + 2;
-	uint32_t crc  = 0;
+	crashInfo[6] = 1;
+	int size	 = msgBuffer[1] + 2;
+	uint32_t crc = 0;
 	for (int i = 2; i < size; i++)
 		crc32_append(msgBuffer[i], crc);
+	crashInfo[6] = 2;
 	if (crc & 0xFF) // if the crc is not 0, then the message is invalid
 	{
+		crashInfo[6] = 3;
 		msgBufIndex -= size;
 		// shift all the bytes in the buffer to the left by size
 		for (int i = 0; i < msgBufIndex; i++)
@@ -75,26 +91,32 @@ void ExpressLRS::processMessage() {
 		lastError = ERROR_CRC;
 		errorFlag = true;
 		errorCount++;
+		crashInfo[6] = 4;
 		return;
 	}
 
 	msgCount++;
 	sinceLastMessage = 0;
 
+	crashInfo[6] = 5;
 	switch (msgBuffer[2]) {
 	case RC_CHANNELS_PACKED: {
+		crashInfo[6] = 6;
 		if (size != 26) // 16 channels * 11 bits + 3 bytes header + 1 byte crc
 		{
 			lastError = ERROR_INVALID_LENGTH;
 			errorFlag = true;
 			errorCount++;
+			crashInfo[6] = 7;
 			break;
 		}
+		crashInfo[6]	   = 8;
 		sinceLastRCMessage = 0;
 		// crsf_channels_t *crsfChannels = (crsf_channels_t *)(&msgBuffer[3]); // somehow conversion through bit-fields does not work, so manual conversion
 		uint64_t decoder, decoder2;
 		memcpy(&decoder, &msgBuffer[3], 8);
 		uint32_t pChannels[16];
+		crashInfo[6] = 9;
 		pChannels[0] = decoder & 0x7FF;			// 0...10
 		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
 		pChannels[2] = (decoder >> 22) & 0x7FF; // 22...32
@@ -118,6 +140,7 @@ void ExpressLRS::processMessage() {
 		pChannels[14] = (decoder >> 44) & 0x7FF; // 154...164
 		decoder >>= 55;							 // 55, 3 bits left
 		pChannels[15] = decoder | (msgBuffer[24] << 3);
+		crashInfo[6]  = 10;
 		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
 		for (uint8_t i = 0; i < 16; i++) {
 			if (i == 2)
@@ -134,36 +157,49 @@ void ExpressLRS::processMessage() {
 		pChannels[2] /= 1636;
 		pChannels[2] += 1000; // keep radio commands within 1000-2000
 		pChannels[2] = constrain(pChannels[2], 1000, 2000);
+		crashInfo[6] = 11;
 
 		// check arming
 		// arming switch and already armed, or arming switch and throttle down (and not armed on boot)
 		if (pChannels[4] > 1500) {
+			crashInfo[6] = 12;
 			if (armed) {
+				crashInfo[6] = 13;
 			} else if (channels[4] < 1500 && channels[4] > 0 && pChannels[2] < 1020) {
+				crashInfo[6] = 14;
 				startLogging();
-				armed = true;
+				crashInfo[6] = 15;
+				armed		 = true;
 			} else if (channels[4] < 1500) {
+				crashInfo[6] = 16;
 				Serial.println(pChannels[2]);
 				makeSound(2500, 599, 70, 50);
+				crashInfo[6] = 17;
 			}
 		} else {
-			armed = false;
+			crashInfo[6] = 18;
+			armed		 = false;
 			if (channels[4] > 1500)
 				// just disarmed, stop logging
 				endLogging();
+			crashInfo[6] = 19;
 		}
+		crashInfo[6] = 20;
 
 		// update as fast as possible
 		memcpy(lastChannels, channels, 16 * sizeof(uint32_t));
 		memcpy(channels, pChannels, 16 * sizeof(uint32_t));
+		crashInfo[6] = 21;
 		break;
 	}
 	case LINK_STATISTICS: {
+		crashInfo[6] = 22;
 		if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc
 		{
 			lastError = ERROR_INVALID_LENGTH;
 			errorFlag = true;
 			errorCount++;
+			crashInfo[6] = 23;
 			break;
 		}
 		uplinkRssi[0]		= -msgBuffer[3];
@@ -176,6 +212,7 @@ void ExpressLRS::processMessage() {
 		downlinkRssi		= -msgBuffer[10];
 		downlinkLinkQuality = msgBuffer[11];
 		downlinkSNR			= msgBuffer[12];
+		crashInfo[6]		= 24;
 		break;
 	}
 	case DEVICE_PING:
@@ -204,19 +241,25 @@ void ExpressLRS::processMessage() {
 			msgBuffer[i] = msgBuffer[i + size];
 		return;
 	}
+	crashInfo[6] = 25;
 
 	msgBufIndex = 0;
 }
 
 void ExpressLRS::getSmoothChannels(uint16_t smoothChannels[4]) {
 	// one new RC message every 4ms = 4000µs, ELRS 250Hz
+	crashInfo[136] = 1;
 	static uint32_t sum[4];
-	int				sinceLast = sinceLastRCMessage;
-	if (sinceLast > 4000)
-		sinceLast = 4000;
+	int sinceLast = sinceLastRCMessage;
+	if (sinceLast > 4000) {
+		crashInfo[136] = 2;
+		sinceLast	   = 4000;
+	}
 	for (int i = 0; i < 4; i++) {
-		sum[i] = sinceLast * channels[i] + (4000 - sinceLast) * lastChannels[i];
+		crashInfo[136] = 3;
+		sum[i]		   = sinceLast * channels[i] + (4000 - sinceLast) * lastChannels[i];
 		sum[i] /= 4000;
 		smoothChannels[i] = sum[i];
+		crashInfo[136]	  = 4;
 	}
 }

@@ -26,6 +26,8 @@ int gpsSerialSpeed	 = 38400;
 uint8_t retryCounter = 0;
 
 void gpsLoop() {
+	crashInfo[17] = 1;
+	crashInfo[18] = gpsStatus.gpsInited;
 	// UBX implementation
 	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000)) {
 		switch (gpsStatus.initStep) {
@@ -98,24 +100,33 @@ void gpsLoop() {
 			break;
 		}
 	}
+	crashInfo[17] = 2;
+	crashInfo[18] = gpsStatus.gpsInited;
 	if (gpsBuffer.size() >= 8) {
-		int len = gpsBuffer[4] + gpsBuffer[5] * 256;
+		crashInfo[17] = 3;
+		int len		  = gpsBuffer[4] + gpsBuffer[5] * 256;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
 			gpsBuffer.pop_front();
+			crashInfo[17] = 4;
 			return;
 		}
 		if (len > GPS_BUF_LEN - 8) {
 			gpsBuffer.pop_front();
+			crashInfo[17] = 5;
 			return;
 		}
-		if (gpsBuffer.size() < len + 8)
+		if (gpsBuffer.size() < len + 8) {
+			crashInfo[17] = 6;
 			return;
+		}
 		uint8_t ck_a, ck_b;
 		gpsChecksum(&gpsBuffer[2], len + 4, &ck_a, &ck_b);
 		if (ck_a != gpsBuffer[len + 6] || ck_b != gpsBuffer[len + 7]) {
 			gpsBuffer.pop_front();
+			crashInfo[17] = 7;
 			return;
 		}
+		crashInfo[17] = 8;
 		// ensured that the packet is valid
 		uint32_t id = gpsBuffer[3], classId = gpsBuffer[2];
 
@@ -124,7 +135,9 @@ void gpsLoop() {
 		case UBX_CLASS_ACK: {
 			switch (id) {
 			case UBX_ID_ACK_ACK:
+				crashInfo[17] = 9;
 				if (gpsStatus.initStep < 8 && len == 2 && msgData[0] == UBX_CLASS_CFG && msgData[1] == UBX_ID_CFG_MSG) {
+					crashInfo[17] = 10;
 					gpsStatus.initStep++;
 					gpsInitAck = true;
 				}
@@ -134,6 +147,7 @@ void gpsLoop() {
 		case UBX_CLASS_NAV: {
 			switch (id) {
 			case UBX_ID_NAV_PVT: {
+				crashInfo[17]				= 11;
 				gpsTime.year				= DECODE_U2(&msgData[4]);
 				gpsTime.month				= msgData[6];
 				gpsTime.day					= msgData[7];
@@ -148,7 +162,7 @@ void gpsLoop() {
 				gpsStatus.satCount			= msgData[23];
 				gpsMotion.lat				= DECODE_I4(&msgData[24]);
 				gpsMotion.lon				= DECODE_I4(&msgData[28]);
-				gpsMotion.alt				= DECODE_I4(&msgData[32]);
+				gpsMotion.alt				= DECODE_I4(&msgData[36]);
 				gpsAcc.hAcc					= DECODE_U4(&msgData[40]);
 				gpsAcc.vAcc					= DECODE_U4(&msgData[44]);
 				gpsMotion.velN				= DECODE_I4(&msgData[48]);
@@ -160,11 +174,14 @@ void gpsLoop() {
 				gpsAcc.headAcc				= DECODE_U4(&msgData[72]);
 				gpsAcc.pDop					= DECODE_U2(&msgData[76]);
 				gpsStatus.flags3			= DECODE_U2(&msgData[78]);
+				crashInfo[17]				= 12;
 			} break;
 			}
 		}
 		}
 		// pop the packet
+		crashInfo[17] = 13;
 		gpsBuffer.erase(gpsBuffer.begin(), gpsBuffer.begin() + len + 8);
+		crashInfo[17] = 14;
 	}
 }

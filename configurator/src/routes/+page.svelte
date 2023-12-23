@@ -161,6 +161,9 @@
 					second: command.data[6]
 				};
 				break;
+			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
+				console.log(command.data);
+				break;
 		}
 	}
 
@@ -236,6 +239,11 @@
 			port.sendRaw([], '+++');
 		}}>Stop Serial Passthrough</button
 	>
+	<button on:click={() => port.sendCommand(ConfigCmd.GET_CRASH_DUMP)}>Get Crash Dump</button>
+	<button on:click={() => port.sendCommand(ConfigCmd.CLEAR_CRASH_DUMP)}>Clear Crash Dump</button>
+	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT)}>Reboot</button>
+	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_BY_WATCHDOG)}>Reboot (Watchdog)</button>
+	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_TO_BOOTLOADER)}>Bootloader</button>
 </div>
 <div class="drone3DPreview">
 	<div class="zBox" bind:this={zBox}>
@@ -379,5 +387,9 @@
 		display: inline-block;
 		margin: 0 1rem;
 		min-width: 200px;
+	}
+	button,
+	input {
+		color: black;
 	}
 </style>

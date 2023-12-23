@@ -59,6 +59,7 @@ void startBootupSound() {
 uint8_t beeperOn = 0;
 
 void speakerLoop() {
+	crashInfo[2] = 1;
 	if (!beeperOn && ELRS->channels[9] > 1500) {
 		beeperOn = true;
 		makeSweepSound(1000, 5000, 65535, 600, 0);
@@ -67,41 +68,59 @@ void speakerLoop() {
 		stopSound();
 	}
 	if (soundDuration > 0) {
+		crashInfo[2]		= 2;
 		uint32_t sinceStart = soundStart;
 		if (soundDuration != 65535 && sinceStart > soundDuration) {
+			crashInfo[2] = 3;
 			stopSound();
+			crashInfo[2] = 4;
 		} else if (soundType == 1) {
+			crashInfo[2]  = 5;
 			int thisCycle = sinceStart % (onTime + offTime);
 			if (thisCycle > onTime) {
 				pwm_set_gpio_level(PIN_SPEAKER, 0);
+				crashInfo[2] = 6;
 			} else {
 				uint32_t thisFreq = sweepStartFrequency + ((sweepEndFrequency - sweepStartFrequency) * thisCycle) / onTime;
 				currentWrap		  = FREQ_TO_WRAP(thisFreq);
+				crashInfo[2]	  = 7;
 				pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
+				crashInfo[2] = 8;
 				pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
+				crashInfo[2] = 9;
 			}
 		} else if (soundType == 2) {
+			crashInfo[2]  = 10;
 			int thisCycle = sinceStart;
 			int noteIndex = 0;
 			while (thisCycle > songToPlay.notes[noteIndex].duration && noteIndex < songToPlay.numNotes && noteIndex < MAX_RTTTL_NOTES) {
+				crashInfo[2] = 11;
 				thisCycle -= songToPlay.notes[noteIndex].duration;
 				noteIndex++;
 			}
+			crashInfo[2] = 12;
 			if (noteIndex >= songToPlay.numNotes || noteIndex >= MAX_RTTTL_NOTES) {
 				stopSound();
+				crashInfo[2] = 13;
 			} else {
+				crashInfo[2] = 14;
 				if (songToPlay.notes[noteIndex].frequency == 0) {
 					pwm_set_gpio_level(PIN_SPEAKER, 0);
+					crashInfo[2] = 15;
 				} else {
+					crashInfo[2] = 16;
 					if (songToPlay.notes[noteIndex].sweepToNext) {
 						uint32_t thisFreq = songToPlay.notes[noteIndex].frequency + ((songToPlay.notes[noteIndex + 1].frequency - songToPlay.notes[noteIndex].frequency) * thisCycle) / songToPlay.notes[noteIndex].duration;
 						currentWrap		  = FREQ_TO_WRAP(thisFreq);
 					} else {
 						currentWrap = FREQ_TO_WRAP(songToPlay.notes[noteIndex].frequency);
 					}
+					crashInfo[2] = 17;
 					pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
-					int level = currentWrap >> 1;
+					crashInfo[2] = 18;
+					int level	 = currentWrap >> 1;
 					gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_2MA);
+					crashInfo[2] = 19;
 					switch (songToPlay.notes[noteIndex].quieter) {
 					case 1:
 						level = level >> 4;
@@ -115,15 +134,22 @@ void speakerLoop() {
 					case 4:
 						level = level >> 2;
 					}
+					crashInfo[2] = 20;
 					pwm_set_gpio_level(PIN_SPEAKER, level);
+					crashInfo[2] = 21;
 				}
 			}
 		} else if (soundType == 0) {
+			crashInfo[2]	   = 23;
 			uint32_t thisCycle = sinceStart % (onTime + offTime);
 			if (thisCycle > onTime) {
+				crashInfo[2] = 24;
 				pwm_set_gpio_level(PIN_SPEAKER, 0);
+				crashInfo[2] = 25;
 			} else {
+				crashInfo[2] = 26;
 				pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
+				crashInfo[2] = 27;
 			}
 		}
 	}

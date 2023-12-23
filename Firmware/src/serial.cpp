@@ -13,27 +13,43 @@ uint32_t serialFunctions[3] = {
 	SERIAL_ELRS};
 
 void serialLoop() {
+	crashInfo[11] = 1;
 	for (int i = 0; i < 3; i++) {
+		crashInfo[11] = 2;
+		crashInfo[12] = i;
 		if (serialFunctions[i % 3] & SERIAL_DISABLED)
 			continue;
+		crashInfo[11]  = 3;
 		Stream *serial = serials[i % 3];
 		int available  = serial->available();
+		crashInfo[11]  = 4;
+		crashInfo[13]  = available;
 		if (available <= 0)
 			continue;
+		crashInfo[11] = 5;
 		for (int j = 0; j < available; j++) {
-			readChar = serial->read();
+			crashInfo[11] = 6;
+			crashInfo[14] = j;
+			readChar	  = serial->read();
+			crashInfo[11] = 7;
 			if (serialFunctions[i % 3] & SERIAL_CONFIGURATOR) {
+				crashInfo[11] = 8;
 				configuratorHandleByte(readChar, i % 3);
+				crashInfo[11] = 9;
 			}
 			if (serialFunctions[i % 3] & SERIAL_ELRS) {
+				crashInfo[11] = 10;
 				if (elrsBuffer.size() < 260)
 					elrsBuffer.push_back(readChar);
+				crashInfo[11] = 11;
 			}
 			if (serialFunctions[i % 3] & SERIAL_ESC_TELEM) {
 			}
 			if (serialFunctions[i % 3] & SERIAL_GPS) {
+				crashInfo[11] = 12;
 				if (gpsBuffer.size() < GPS_BUF_LEN)
 					gpsBuffer.push_back(readChar);
+				crashInfo[11] = 13;
 			}
 			if (serialFunctions[i % 3] & SERIAL_IRC_TRAMP) {
 			}

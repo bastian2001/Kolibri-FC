@@ -31,20 +31,24 @@ int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *b
 	return bytes_written;
 }
 
-uint32_t	  gyroLastState = 0;
-elapsedMicros lastPIDLoop	= 0;
+uint32_t gyroLastState	  = 0;
+elapsedMicros lastPIDLoop = 0;
 
 void gyroLoop() {
+	crashInfo[129]	  = 1;
 	uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
 	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
 	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
 	lastPIDLoop = 0;
 	if (gpioState != gyroLastState) {
-		gyroLastState = gpioState;
+		crashInfo[129] = 2;
+		gyroLastState  = gpioState;
 		if (gpioState == 1) {
+			crashInfo[129] = 3;
 			pidLoop();
 		}
 	}
+	crashInfo[129] = 4;
 }
 
 int gyroInit() {
@@ -121,7 +125,9 @@ int gyroInit() {
 uint32_t gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
 void gyroGetData(int16_t *buf) {
+	crashInfo[131] = 1;
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
+	crashInfo[131] = 2;
 	gyroUpdateFlag = 0xFFFFFFFF;
 }
 
