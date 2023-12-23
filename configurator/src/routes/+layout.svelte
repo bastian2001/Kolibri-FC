@@ -80,14 +80,19 @@
 	function listDevices() {
 		devices = port.getDevices();
 	}
+	function odh() {
+		connected = false;
+	}
 	onMount(() => {
 		listInterval = setInterval(() => {
 			listDevices();
 		}, 1000);
+		port.addOnDisconnectHandler(odh);
 	});
 	onDestroy(() => {
 		clearInterval(listInterval);
 		disconnect();
+		port.removeOnDisconnectHandler(odh);
 	});
 	function connect() {
 		port
@@ -100,14 +105,9 @@
 			});
 	}
 	function disconnect() {
-		port
-			.disconnect()
-			.then(() => {
-				connected = false;
-			})
-			.catch(() => {
-				connected = false;
-			});
+		port.disconnect().catch(() => {
+			connected = false;
+		});
 	}
 </script>
 

@@ -37,12 +37,17 @@ enum class ConfigCmd {
 	GET_BB_SETTINGS,
 	SET_BB_SETTINGS,
 	GET_ROTATION,
+	SERIAL_PASSTHROUGH,
+	GET_GPS_STATUS,
+	GET_GPS_ACCURACY,
+	GET_GPS_TIME,
+	GET_GPS_MOTION,
 
 	// indicators
 	IND_MESSAGE = 0xC000,
 };
 
-void				 sendCommand(uint16_t command, const char *data = nullptr, uint16_t len = 0);
-void				 configuratorHandleByte(uint8_t c, uint8_t serialNum);
+void sendCommand(uint16_t command, const char *data = nullptr, uint16_t len = 0);
+void configuratorHandleByte(uint8_t c, uint8_t serialNum);
 extern elapsedMillis configOverrideMotors;
-void				 configuratorLoop();
+void configuratorLoop();

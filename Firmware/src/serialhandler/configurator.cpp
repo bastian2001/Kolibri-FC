@@ -291,6 +291,84 @@ void handleConfigCmd() {
 		buf[5]			  = rotationYaw >> 8;
 		sendCommand(configMsgCommand | 0x4000, buf, 6);
 	} break;
+	case ConfigCmd::SERIAL_PASSTHROUGH: {
+		uint8_t serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
+		uint32_t baud	  = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
+		sendCommand(configMsgCommand | 0x4000, (char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 5);
+		uint8_t plusCount = 0;
+		switch (serialNum) {
+		case 1:
+			Serial1.end();
+			Serial1.begin(baud);
+			while (true) {
+				if (Serial.available()) {
+					char c = Serial.read();
+					if (c == '+') plusCount++;
+					if (plusCount == 3) break;
+					Serial1.write(c);
+				}
+				if (Serial1.available()) Serial.write(Serial1.read());
+				rp2040.wdt_reset();
+			}
+			break;
+		case 2:
+			Serial2.end();
+			Serial2.begin(baud);
+			while (true) {
+				if (Serial.available()) {
+					char c = Serial.read();
+					if (c == '+') plusCount++;
+					if (plusCount == 3) break;
+					Serial2.write(c);
+				}
+				if (Serial2.available()) Serial.write(Serial2.read());
+				rp2040.wdt_reset();
+			}
+		}
+	} break;
+	case ConfigCmd::GET_GPS_ACCURACY: {
+		// through padding and compiler optimization, it is not possible to just memcpy the struct
+		memcpy(buf, &gpsAcc.tAcc, 4);
+		memcpy(&buf[4], &gpsAcc.hAcc, 4);
+		memcpy(&buf[8], &gpsAcc.vAcc, 4);
+		memcpy(&buf[12], &gpsAcc.sAcc, 4);
+		memcpy(&buf[16], &gpsAcc.headAcc, 4);
+		memcpy(&buf[20], &gpsAcc.pDop, 4);
+		sendCommand(configMsgCommand | 0x4000, buf, 24);
+	} break;
+	case ConfigCmd::GET_GPS_STATUS: {
+		buf[0] = gpsStatus.gpsInited;
+		buf[1] = gpsStatus.initStep;
+		buf[2] = gpsStatus.fix;
+		buf[3] = gpsStatus.timeValidityFlags;
+		buf[4] = gpsStatus.flags;
+		buf[5] = gpsStatus.flags2;
+		buf[6] = gpsStatus.flags3 & 0xFF;
+		buf[7] = gpsStatus.flags3 >> 8;
+		buf[8] = gpsStatus.satCount;
+		sendCommand(configMsgCommand | 0x4000, buf, 9);
+	} break;
+	case ConfigCmd::GET_GPS_TIME: {
+		buf[0] = gpsTime.year & 0xFF;
+		buf[1] = gpsTime.year >> 8;
+		buf[2] = gpsTime.month;
+		buf[3] = gpsTime.day;
+		buf[4] = gpsTime.hour;
+		buf[5] = gpsTime.minute;
+		buf[6] = gpsTime.second;
+		sendCommand(configMsgCommand | 0x4000, buf, 7);
+	} break;
+	case ConfigCmd::GET_GPS_MOTION: {
+		memcpy(buf, &gpsMotion.lat, 4);
+		memcpy(&buf[4], &gpsMotion.lon, 4);
+		memcpy(&buf[8], &gpsMotion.alt, 4);
+		memcpy(&buf[12], &gpsMotion.velN, 4);
+		memcpy(&buf[16], &gpsMotion.velE, 4);
+		memcpy(&buf[20], &gpsMotion.velD, 4);
+		memcpy(&buf[24], &gpsMotion.gSpeed, 4);
+		memcpy(&buf[28], &gpsMotion.headMot, 4);
+		sendCommand(configMsgCommand | 0x4000, buf, 32);
+	} break;
 	default: {
 		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));
 	} break;

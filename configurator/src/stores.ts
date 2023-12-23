@@ -28,6 +28,11 @@ export const ConfigCmd = {
 	GET_BB_SETTINGS: 23,
 	SET_BB_SETTINGS: 24,
 	GET_ROTATION: 25,
+	SERIAL_PASSTHROUGH: 26,
+	GET_GPS_STATUS: 27,
+	GET_GPS_ACCURACY: 28,
+	GET_GPS_TIME: 29,
+	GET_GPS_MOTION: 30,
 	IND_MESSAGE: 0xc000
 };
 
@@ -60,8 +65,14 @@ function createPort() {
 		}
 		return data;
 	}
+	let cmdEnabled = true;
+	const enableCommands = (en: boolean) => {
+		cmdEnabled = en;
+	};
+	const onDisconnectHandlers: (() => void)[] = [];
 
 	const sendCommand = (command: number, data: number[] = [], dataStr: string = '') => {
+		if (!cmdEnabled) return new Promise((resolve: any) => resolve());
 		if (data.length === 0 && dataStr !== '') data = strToArray(dataStr);
 		const len = data.length;
 		let checksum = 0;
@@ -83,6 +94,16 @@ function createPort() {
 		];
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_write', { data: cmd })
+				.then(resolve)
+				.catch((e) => {
+					reject(e);
+				});
+		});
+	};
+	const sendRaw = (data: number[], dataStr: string = '') => {
+		if (data.length === 0 && dataStr !== '') data = strToArray(dataStr);
+		return new Promise((resolve: any, reject) => {
+			invoke('serial_write', { data })
 				.then(resolve)
 				.catch((e) => {
 					reject(e);
@@ -141,6 +162,7 @@ function createPort() {
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_open', { path: portToOpen })
 				.then(() => {
+					cmdEnabled = true;
 					readInterval = setInterval(read, 20);
 					pingInterval = setInterval(() => {
 						sendCommand(ConfigCmd.CONFIGURATOR_PING).catch(() => {});
@@ -161,10 +183,12 @@ function createPort() {
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_close')
 				.then(() => {
+					onDisconnectHandlers.forEach((h) => h());
 					resolve();
 				})
 				.catch(console.error)
 				.finally(() => {
+					cmdEnabled = false;
 					clearInterval(readInterval);
 					clearInterval(pingInterval);
 					clearInterval(statusInterval);
@@ -184,13 +208,25 @@ function createPort() {
 	setInterval(listDevices, 1000);
 	listDevices();
 
+	const addOnDisconnectHandler = (handler: () => void) => {
+		onDisconnectHandlers.push(handler);
+	};
+	const removeOnDisconnectHandler = (handler: () => void) => {
+		const i = onDisconnectHandlers.indexOf(handler);
+		if (i >= 0) onDisconnectHandlers.splice(i, 1);
+	};
+
 	return {
 		subscribe,
 		set,
 		sendCommand,
 		connect,
 		disconnect,
-		getDevices
+		getDevices,
+		enableCommands,
+		sendRaw,
+		addOnDisconnectHandler,
+		removeOnDisconnectHandler
 	};
 }
 export const port = createPort();

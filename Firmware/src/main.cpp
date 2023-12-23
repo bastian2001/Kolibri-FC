@@ -14,6 +14,7 @@ void setup() {
 	imuInit();
 	osdInit();
 	initBaro();
+	initGPS();
 
 	initADC();
 
@@ -55,6 +56,7 @@ void loop() {
 	osdLoop();
 	serialLoop();
 	configuratorLoop();
+	gpsLoop();
 	rp2040.wdt_reset();
 	if (activityTimer > 500) {
 		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
