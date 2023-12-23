@@ -1,0 +1,2633 @@
+<!DOCTYPE html>
+<html lang="en-us" amp><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1">
+
+  <link rel="apple-touch-icon" sizes="57x57" href="/images/apple-icon-57x57.png">
+  <link rel="apple-touch-icon" sizes="60x60" href="/images/apple-icon-60x60.png">
+  <link rel="apple-touch-icon" sizes="72x72" href="/images/apple-icon-72x72.png">
+  <link rel="apple-touch-icon" sizes="76x76" href="/images/apple-icon-76x76.png">
+  <link rel="apple-touch-icon" sizes="114x114" href="/images/apple-icon-114x114.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="/images/apple-icon-120x120.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="/images/apple-icon-144x144.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/images/apple-icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-icon-180x180.png">
+  <link rel="icon" type="image/png" sizes="192x192"  href="/images/android-icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="/images/favicon-96x96.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css?family=Material+Icons&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Material+Icons&display=swap"><!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>DSHOT - the missing Handbook | Brushless Whoop</title>
+<meta name="generator" content="Jekyll v3.8.7" />
+<meta property="og:title" content="DSHOT - the missing Handbook" />
+<meta name="author" content="Chris Landa" />
+<meta property="og:locale" content="en_us" />
+<meta name="description" content="A collection of information about DSHOT and bidirectional DSHOT. Protocols used, protocol specification details, examples and visualization." />
+<meta property="og:description" content="A collection of information about DSHOT and bidirectional DSHOT. Protocols used, protocol specification details, examples and visualization." />
+<link rel="canonical" href="https://brushlesswhoop.com/dshot-and-bidirectional-dshot/" />
+<meta property="og:url" content="https://brushlesswhoop.com/dshot-and-bidirectional-dshot/" />
+<meta property="og:site_name" content="Brushless Whoop" />
+<meta property="og:image" content="https://brushlesswhoop.com/images/dshot_og.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-02-27T00:00:00+01:00" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta property="twitter:image" content="https://brushlesswhoop.com/images/dshot_og.png" />
+<meta property="twitter:title" content="DSHOT - the missing Handbook" />
+<meta name="twitter:site" content="@" />
+<meta name="twitter:creator" content="@Chris Landa" />
+<meta property="fb:admins" content="100011545324665" />
+<meta property="article:publisher" content="https://www.facebook.com/brushlesswhoop/" />
+<meta property="fb:app_id" content="1931955633558587" />
+<script type="application/ld+json">
+{"@type":"BlogPosting","url":"https://brushlesswhoop.com/dshot-and-bidirectional-dshot/","image":"https://brushlesswhoop.com/images/dshot_og.png","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://brushlesswhoop.com/favicon.ico"},"name":"Chris Landa"},"headline":"DSHOT - the missing Handbook","datePublished":"2021-02-27T00:00:00+01:00","dateModified":"2021-02-27T00:00:00+01:00","author":{"@type":"Person","name":"Chris Landa"},"description":"A collection of information about DSHOT and bidirectional DSHOT. Protocols used, protocol specification details, examples and visualization.","mainEntityOfPage":{"@type":"WebPage","@id":"https://brushlesswhoop.com/dshot-and-bidirectional-dshot/"},"@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<style amp-custom type="text/css">
+    
+
+    /**
+ * Reset some basic elements
+ */
+body, h1, h2, h3, h4, h5, h6,
+p, blockquote, pre, hr,
+dl, dd, ol, ul, figure {
+  margin: 0;
+  padding: 0; }
+
+/**
+ * Basic styling
+ */
+body {
+  font: 400 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  color: #111;
+  background-color: #fdfdfd;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-feature-settings: "kern" 1;
+  -moz-font-feature-settings: "kern" 1;
+  -o-font-feature-settings: "kern" 1;
+  font-feature-settings: "kern" 1;
+  font-kerning: normal;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column; }
+
+/**
+ * Set `margin-bottom` to maintain vertical rhythm
+ */
+h1, h2, h3, h4, h5, h6,
+p, blockquote, pre,
+ul, ol, dl, figure,
+.highlight {
+  margin-bottom: 15px; }
+
+/**
+ * `main` element
+ */
+main {
+  display: block;
+  /* Default value of `display` of `main` element is 'inline' in IE 11. */ }
+
+/**
+ * Images
+ */
+img {
+  max-width: 100%;
+  vertical-align: middle; }
+
+/**
+ * Figures
+ */
+figure > img {
+  display: block; }
+
+figcaption {
+  font-size: 14px; }
+
+/**
+ * Lists
+ */
+ul, ol {
+  margin-left: 30px; }
+
+li > ul,
+li > ol {
+  margin-bottom: 0; }
+
+/**
+ * Headings
+ */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 400; }
+
+/**
+ * Links
+ */
+a {
+  color: #2a7ae2;
+  text-decoration: none; }
+  a:visited {
+    color: #1756a9; }
+  a:hover {
+    color: #111;
+    text-decoration: underline; }
+  .social-media-list a:hover {
+    text-decoration: none; }
+    .social-media-list a:hover .username {
+      text-decoration: underline; }
+
+/**
+ * Blockquotes
+ */
+blockquote {
+  color: #828282;
+  border-left: 4px solid #e8e8e8;
+  padding-left: 15px;
+  font-size: 18px;
+  letter-spacing: -1px;
+  font-style: italic; }
+  blockquote > :last-child {
+    margin-bottom: 0; }
+
+/**
+ * Code formatting
+ */
+pre,
+code {
+  font-size: 15px;
+  border: 1px solid #e8e8e8;
+  border-radius: 3px;
+  background-color: #eef; }
+
+code {
+  padding: 1px 5px; }
+
+pre {
+  padding: 8px 12px;
+  overflow-x: auto; }
+  pre > code {
+    border: 0;
+    padding-right: 0;
+    padding-left: 0; }
+
+/**
+ * Wrapper
+ */
+.wrapper {
+  max-width: -webkit-calc(800px - (30px * 2));
+  max-width: calc(800px - (30px * 2));
+  margin-right: auto;
+  margin-left: auto;
+  padding-right: 30px;
+  padding-left: 30px; }
+  @media screen and (max-width: 800px) {
+    .wrapper {
+      max-width: -webkit-calc(800px - (30px));
+      max-width: calc(800px - (30px));
+      padding-right: 15px;
+      padding-left: 15px; } }
+
+/**
+ * Clearfix
+ */
+.wrapper:after, .footer-col-wrapper:after {
+  content: "";
+  display: table;
+  clear: both; }
+
+/**
+ * Icons
+ */
+.svg-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  fill: #828282;
+  padding-right: 5px;
+  vertical-align: text-top; }
+
+.social-media-list li + li {
+  padding-top: 5px; }
+
+/**
+ * Tables
+ */
+table {
+  margin-bottom: 30px;
+  width: 100%;
+  text-align: left;
+  color: #3f3f3f;
+  border-collapse: collapse;
+  border: 1px solid #e8e8e8; }
+  table tr:nth-child(even) {
+    background-color: #f7f7f7; }
+  table th, table td {
+    padding: 10px 15px; }
+  table th {
+    background-color: #f0f0f0;
+    border: 1px solid #dedede;
+    border-bottom-color: #c9c9c9; }
+  table td {
+    border: 1px solid #e8e8e8; }
+
+/**
+ * Site header
+ */
+.site-header {
+  border-top: 5px solid #424242;
+  border-bottom: 1px solid #e8e8e8;
+  min-height: 55.95px;
+  position: relative; }
+
+.site-title {
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 54px;
+  letter-spacing: -1px;
+  margin-bottom: 0;
+  float: left; }
+  .site-title, .site-title:visited {
+    color: #424242; }
+
+.site-nav {
+  float: right;
+  line-height: 54px; }
+  .site-nav .nav-trigger {
+    display: none; }
+  .site-nav .menu-icon {
+    display: none; }
+  .site-nav .page-link {
+    color: #111;
+    line-height: 1.5; }
+    .site-nav .page-link:not(:last-child) {
+      margin-right: 20px; }
+  @media screen and (max-width: 600px) {
+    .site-nav {
+      position: absolute;
+      top: 9px;
+      right: 15px;
+      background-color: #fdfdfd;
+      border: 1px solid #e8e8e8;
+      border-radius: 5px;
+      text-align: right; }
+      .site-nav label[for="nav-trigger"] {
+        display: block;
+        float: right;
+        width: 36px;
+        height: 36px;
+        z-index: 2;
+        cursor: pointer; }
+      .site-nav .menu-icon {
+        display: block;
+        float: right;
+        width: 36px;
+        height: 26px;
+        line-height: 0;
+        padding-top: 10px;
+        text-align: center; }
+        .site-nav .menu-icon > svg {
+          fill: #424242; }
+      .site-nav input ~ .trigger {
+        clear: both;
+        display: none; }
+      .site-nav input:checked ~ .trigger {
+        display: block;
+        padding-bottom: 5px; }
+      .site-nav .page-link {
+        display: block;
+        padding: 5px 10px;
+        margin-left: 20px; }
+        .site-nav .page-link:not(:last-child) {
+          margin-right: 0; } }
+
+/**
+ * Site footer
+ */
+.site-footer {
+  border-top: 1px solid #e8e8e8;
+  padding: 30px 0; }
+
+.footer-heading {
+  font-size: 18px;
+  margin-bottom: 15px; }
+
+.contact-list,
+.social-media-list {
+  list-style: none;
+  margin-left: 0; }
+
+.footer-col-wrapper {
+  font-size: 15px;
+  color: #828282;
+  margin-left: -15px; }
+
+.footer-col {
+  float: left;
+  margin-bottom: 15px;
+  padding-left: 15px; }
+
+.footer-col-1 {
+  width: -webkit-calc(35% - (30px / 2));
+  width: calc(35% - (30px / 2)); }
+
+.footer-col-2 {
+  width: -webkit-calc(20% - (30px / 2));
+  width: calc(20% - (30px / 2)); }
+
+.footer-col-3 {
+  width: -webkit-calc(45% - (30px / 2));
+  width: calc(45% - (30px / 2)); }
+
+@media screen and (max-width: 800px) {
+  .footer-col-1,
+  .footer-col-2 {
+    width: -webkit-calc(50% - (30px / 2));
+    width: calc(50% - (30px / 2)); }
+
+  .footer-col-3 {
+    width: -webkit-calc(100% - (30px / 2));
+    width: calc(100% - (30px / 2)); } }
+@media screen and (max-width: 600px) {
+  .footer-col {
+    float: none;
+    width: -webkit-calc(100% - (30px / 2));
+    width: calc(100% - (30px / 2)); } }
+/**
+ * Page content
+ */
+.page-content {
+  padding: 30px 0;
+  flex: 1; }
+
+.page-heading {
+  font-size: 32px; }
+
+.post-list-heading {
+  font-size: 28px; }
+
+.post-list {
+  margin-left: 0;
+  list-style: none; }
+  .post-list > li {
+    margin-bottom: 30px; }
+
+.post-meta {
+  font-size: 14px;
+  color: #828282; }
+
+.post-link {
+  display: block;
+  font-size: 24px; }
+
+/**
+ * Posts
+ */
+.post-header {
+  margin-bottom: 30px; }
+
+.post-title {
+  font-size: 42px;
+  letter-spacing: -1px;
+  line-height: 1; }
+  @media screen and (max-width: 800px) {
+    .post-title {
+      font-size: 36px; } }
+
+.post-content {
+  margin-bottom: 30px; }
+  .post-content h2 {
+    font-size: 32px; }
+    @media screen and (max-width: 800px) {
+      .post-content h2 {
+        font-size: 28px; } }
+  .post-content h3 {
+    font-size: 26px; }
+    @media screen and (max-width: 800px) {
+      .post-content h3 {
+        font-size: 22px; } }
+  .post-content h4 {
+    font-size: 20px; }
+    @media screen and (max-width: 800px) {
+      .post-content h4 {
+        font-size: 18px; } }
+
+/**
+ * Syntax highlighting styles
+ */
+.highlight {
+  background: #fff; }
+  .highlighter-rouge .highlight {
+    background: #eef; }
+  .highlight .c {
+    color: #998;
+    font-style: italic; }
+  .highlight .err {
+    color: #a61717;
+    background-color: #e3d2d2; }
+  .highlight .k {
+    font-weight: bold; }
+  .highlight .o {
+    font-weight: bold; }
+  .highlight .cm {
+    color: #998;
+    font-style: italic; }
+  .highlight .cp {
+    color: #999;
+    font-weight: bold; }
+  .highlight .c1 {
+    color: #998;
+    font-style: italic; }
+  .highlight .cs {
+    color: #999;
+    font-weight: bold;
+    font-style: italic; }
+  .highlight .gd {
+    color: #000;
+    background-color: #fdd; }
+  .highlight .gd .x {
+    color: #000;
+    background-color: #faa; }
+  .highlight .ge {
+    font-style: italic; }
+  .highlight .gr {
+    color: #a00; }
+  .highlight .gh {
+    color: #999; }
+  .highlight .gi {
+    color: #000;
+    background-color: #dfd; }
+  .highlight .gi .x {
+    color: #000;
+    background-color: #afa; }
+  .highlight .go {
+    color: #888; }
+  .highlight .gp {
+    color: #555; }
+  .highlight .gs {
+    font-weight: bold; }
+  .highlight .gu {
+    color: #aaa; }
+  .highlight .gt {
+    color: #a00; }
+  .highlight .kc {
+    font-weight: bold; }
+  .highlight .kd {
+    font-weight: bold; }
+  .highlight .kp {
+    font-weight: bold; }
+  .highlight .kr {
+    font-weight: bold; }
+  .highlight .kt {
+    color: #458;
+    font-weight: bold; }
+  .highlight .m {
+    color: #099; }
+  .highlight .s {
+    color: #d14; }
+  .highlight .na {
+    color: #008080; }
+  .highlight .nb {
+    color: #0086B3; }
+  .highlight .nc {
+    color: #458;
+    font-weight: bold; }
+  .highlight .no {
+    color: #008080; }
+  .highlight .ni {
+    color: #800080; }
+  .highlight .ne {
+    color: #900;
+    font-weight: bold; }
+  .highlight .nf {
+    color: #900;
+    font-weight: bold; }
+  .highlight .nn {
+    color: #555; }
+  .highlight .nt {
+    color: #000080; }
+  .highlight .nv {
+    color: #008080; }
+  .highlight .ow {
+    font-weight: bold; }
+  .highlight .w {
+    color: #bbb; }
+  .highlight .mf {
+    color: #099; }
+  .highlight .mh {
+    color: #099; }
+  .highlight .mi {
+    color: #099; }
+  .highlight .mo {
+    color: #099; }
+  .highlight .sb {
+    color: #d14; }
+  .highlight .sc {
+    color: #d14; }
+  .highlight .sd {
+    color: #d14; }
+  .highlight .s2 {
+    color: #d14; }
+  .highlight .se {
+    color: #d14; }
+  .highlight .sh {
+    color: #d14; }
+  .highlight .si {
+    color: #d14; }
+  .highlight .sx {
+    color: #d14; }
+  .highlight .sr {
+    color: #009926; }
+  .highlight .s1 {
+    color: #d14; }
+  .highlight .ss {
+    color: #990073; }
+  .highlight .bp {
+    color: #999; }
+  .highlight .vc {
+    color: #008080; }
+  .highlight .vg {
+    color: #008080; }
+  .highlight .vi {
+    color: #008080; }
+  .highlight .il {
+    color: #099; }
+
+p {
+  line-height: 26px;
+  margin-bottom: 12px; }
+
+h5 {
+  font-size: 18px;
+  font-weight: 400px; }
+
+.image-right {
+  width: 350px;
+  max-width: 100%;
+  float: right;
+  margin-left: 15px;
+  margin-bottom: 10px;
+  margin-top: 5px; }
+
+.image-left {
+  width: 350px;
+  max-width: 100%;
+  float: left;
+  margin-right: 15px;
+  margin-bottom: 5px;
+  margin-top: 5px; }
+
+.image-original {
+  float: left;
+  margin-right: 15px;
+  margin-bottom: 10px; }
+
+.image-left.small {
+  width: 200px; }
+
+h4,
+h3 {
+  margin-top: 10px;
+  clear: both; }
+
+.videos .video-item {
+  width: 100%;
+  margin-bottom: 20px; }
+  .videos .video-item .video-wrapper {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0; }
+    .videos .video-item .video-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%; }
+
+.social-bar-wrapper {
+  position: fixed;
+  bottom: 0px;
+  z-index: 4;
+  width: 100%; }
+  .social-bar-wrapper .social-bar {
+    display: flex;
+    flex-direction: row;
+    width: 100%; }
+    .social-bar-wrapper .social-bar > .social {
+      flex: 1;
+      height: 60px; }
+
+.gallery > * {
+  margin: auto; }
+.gallery #carousel-with-preview {
+  max-width: 600px; }
+.gallery .carousel-preview {
+  display: flex;
+  justify-content: center; }
+.gallery button {
+  width: 80px;
+  height: 80px;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  outline: none; }
+
+.post-teaser {
+  padding-top: 10px;
+  border-top: 1px solid #e8e8e8; }
+
+.has-sidebar {
+  display: flex; }
+  .has-sidebar .e-content {
+    border-right: 1px solid #e8e8e8;
+    padding-right: 15px;
+    margin-right: 15px; }
+  .has-sidebar .recommended {
+    /*white-space: nowrap;*/
+    width: 25%; }
+    .has-sidebar .recommended .item {
+      white-space: nowrap;
+      border-top: 1px solid #e8e8e8;
+      padding-top: 20px;
+      margin-bottom: 20px;
+      cursor: pointer;
+      position: relative;
+      width: 170px; }
+      .has-sidebar .recommended .item p {
+        position: absolute;
+        font-weight: bold;
+        bottom: 0px;
+        left: 0px;
+        width: 100%;
+        padding-top: 5px;
+        padding-bottom: 5px;
+        background: rgba(255, 255, 255, 0.7);
+        margin: 0px;
+        text-align: center; }
+      .has-sidebar .recommended .item a {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 100%;
+        height: 100%;
+        color: transparent; }
+
+@media screen and (min-width: 900px) {
+  .social-bar-wrapper {
+    position: sticky;
+    top: 62px;
+    left: 0px; }
+    .social-bar-wrapper .social-bar {
+      flex-direction: column;
+      position: absolute;
+      top: 0px;
+      width: auto; }
+      .social-bar-wrapper .social-bar > .social {
+        flex: none; } }
+@media screen and (max-width: 1199px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: -ms-autohiding-scrollbar; }
+
+  .gallery .carousel-preview {
+    display: none; }
+
+  .has-sidebar {
+    flex-direction: column; }
+    .has-sidebar .e-content {
+      border-right: none;
+      padding-right: 0px;
+      margin-right: 0px; }
+    .has-sidebar .recommended {
+      width: 100%; }
+      .has-sidebar .recommended .item-wrapper {
+        display: flex; }
+        .has-sidebar .recommended .item-wrapper .item {
+          width: 100%;
+          border: 0px; } }
+.clearfix {
+  clear: both; }
+
+@media screen and (min-width: 1200px) {
+  .wrapper {
+    max-width: -webkit-calc(1200px - (30px * 2));
+    max-width: calc(1200px - (30px * 2));
+    margin-right: auto;
+    margin-left: auto;
+    padding-right: 30px;
+    padding-left: 30px; }
+
+  .videos {
+    display: flex; }
+    .videos .video-item {
+      width: 50%; }
+      .videos .video-item.left {
+        margin-right: 10px; }
+      .videos .video-item.right {
+        margin-left: 10px; } }
+.m1 {
+  min-height: 200px; }
+
+.post-content a {
+  text-decoration: underline;
+  color: #000066; }
+
+.post-teaser ul,
+.post-content ul {
+  overflow: hidden;
+  padding-left: 30px;
+  margin-left: 0px;
+  list-style-type: disc; }
+
+.center-image {
+  margin: auto;
+  width: 75%;
+  margin-bottom: 15px; }
+
+.flex-image {
+  display: flex;
+  justify-content: space-evenly;
+  margin-bottom: 15px; }
+  .flex-image amp-img {
+    width: 47%;
+    cursor: pointer; }
+
+.power span:after,
+.format span:after,
+.transmitters span:after {
+  content: ','; }
+
+.input-power span:after {
+  content: ' - '; }
+
+.input-power span:last-child:after,
+.power span:last-child:after,
+.format span:last-child:after,
+.transmitters span:last-child:after {
+  content: ''; }
+
+.vtx span:after {
+  content: 'mW,'; }
+
+.vtx span:last-child:after {
+  content: 'mW'; }
+
+.filters {
+  margin-bottom: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; }
+
+.filter-wrapper .filters:last-child {
+  margin-bottom: 15px; }
+
+.pointer {
+  cursor: pointer; }
+
+.filters .wrapper {
+  flex: 1;
+  padding: 0px;
+  display: flex; }
+
+.filters select,
+.filters input {
+  font-size: 20px;
+  flex: 1; }
+
+.filters select {
+  margin-right: 5px;
+  padding-top: 1px;
+  padding-bottom: 1px; }
+
+.filters input {
+  /* max-width: 120px; */ }
+
+.filters .wrapper:last-child select {
+  margin-right: 0px; }
+
+.no-break {
+  white-space: nowrap; }
+
+.main-article blockquote {
+  color: #505050;
+  border-left-color: #dedede; }
+  .main-article blockquote a,
+  .main-article blockquote a:visited,
+  .main-article blockquote a:active,
+  .main-article blockquote a:hover {
+    color: #505050; }
+
+@media screen and (max-width: 1023px) {
+  .filter-wrapper .filters:last-child,
+  .filters {
+    margin-left: -5px;
+    margin-right: -5px;
+    flex-wrap: wrap;
+    margin-bottom: 0px; }
+
+  .filters .wrapper {
+    min-width: 50%;
+    max-width: 50%;
+    margin-bottom: 10px; }
+
+  .filters input {
+    min-width: initial;
+    max-width: 92%; }
+
+  .filters select,
+  .filters input {
+    margin-left: 5px;
+    margin-right: 5px; } }
+.content-ad-mobile,
+.content-ad-tablet,
+.content-ad-desktop,
+.sidebar-ad-small,
+.sidebar-ad-big,
+.list-ad-mobile,
+.list-ad-tablet,
+.list-ad-desktop {
+  display: none; }
+
+li.list-ad-mobile,
+li.list-ad-tablet,
+li.list-ad-desktop {
+  padding-top: 10px;
+  margin-bottom: 10px;
+  border-top: 1px solid #e8e8e8; }
+
+@media screen and (max-width: 767px) {
+  .content-ad-mobile,
+  .list-ad-mobile {
+    display: block; }
+
+  .list-ad-mobile .wrapper-ad {
+    margin: auto;
+    width: 320px;
+    height: 100px; } }
+@media screen and (min-width: 768px) and (max-width: 1199px) {
+  .content-ad-tablet,
+  .list-ad-tablet {
+    display: block; }
+
+  .list-ad-tablet .wrapper-ad {
+    margin: auto;
+    width: 728px; } }
+@media screen and (min-width: 1200px) {
+  .content-ad-desktop,
+  .list-ad-desktop {
+    display: block; }
+
+  .list-ad-desktop .wrapper-ad {
+    margin: auto;
+    width: 970px;
+    height: 250px; } }
+.image-center {
+  margin: auto;
+  display: flex;
+  margin-bottom: 15px;
+  margin-left: 10%;
+  margin-right: 10%; }
+
+.image-center.small {
+  margin-left: 25%;
+  margin-right: 25%; }
+
+.image-center.max {
+  margin: 0; }
+
+@media screen and (min-width: 1390px) and (max-width: 1769px) {
+  .sidebar-ad-small {
+    display: block;
+    position: absolute;
+    right: calc(((100% - 1140px) / 2 - 120px) / 2);
+    top: 90px;
+    width: 120px;
+    height: 600px; } }
+@media screen and (min-width: 1770px) {
+  .sidebar-ad-big {
+    display: block;
+    position: absolute;
+    right: calc(((100% - 1140px) / 2 - 300px) / 2);
+    top: 90px;
+    width: 300px;
+    height: 600px; } }
+.wrapper-ad-recommended-mobile,
+.wrapper-ad-recommended-tablet,
+.wrapper-ad-recommended-desktop {
+  display: none; }
+  .wrapper-ad-recommended-mobile iframe,
+  .wrapper-ad-recommended-tablet iframe,
+  .wrapper-ad-recommended-desktop iframe {
+    margin: auto; }
+
+.wrapper-ad-recommended-mobile,
+.wrapper-ad-recommended-tablet {
+  padding-bottom: 40px; }
+
+@media screen and (max-width: 767px) {
+  .wrapper-ad-recommended-mobile {
+    display: block;
+    text-align: center; } }
+@media screen and (min-width: 768px) and (max-width: 1199px) {
+  .wrapper-ad-recommended-tablet {
+    display: block;
+    text-align: center; } }
+@media screen and (min-width: 1200px) {
+  .wrapper-ad-recommended-desktop {
+    border-top: 1px solid #e8e8e8;
+    padding-top: 20px;
+    display: block;
+    margin-left: 5px; } }
+.read-more-link {
+  display: block;
+  text-align: right;
+  font-weight: bold; }
+  .read-more-link, .read-more-link:active, .read-more-link:visited {
+    color: black; }
+
+.read-more-overlay {
+  display: block;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%; }
+
+.spacer {
+  height: 10px; }
+
+@media screen and (max-width: 767px) {
+  .image-center {
+    margin-left: 0px;
+    margin-right: 0px; }
+
+  .image-left.small,
+  .image-left {
+    width: 100%;
+    margin-left: 0px;
+    margin-right: 0px; }
+
+  .read-more-link {
+    text-align: center;
+    background: #828282;
+    padding-top: 9px;
+    padding-bottom: 7px; }
+
+  a.read-more-link,
+  a.read-more-link:active,
+  a.read-more-link:visited {
+    color: white;
+    text-decoration: none; } }
+.post-teaser h3 {
+  line-height: 28px; }
+
+.post-teaser h3 a,
+.post-teaser h3 a:active,
+.post-teaser h3 a:visited {
+  color: black; }
+
+.content-ad-mobile .wrapper-ad .amp-flying-carpet-text-border {
+  background: black;
+  color: white;
+  text-align: center; }
+
+.content-ad-desktop,
+.content-ad-tablet,
+.content-ad-mobile {
+  margin-bottom: 15px; }
+  .content-ad-desktop .wrapper-ad,
+  .content-ad-tablet .wrapper-ad,
+  .content-ad-mobile .wrapper-ad {
+    margin: auto; }
+
+.content-ad-desktop .wrapper-ad,
+.content-ad-tablet .wrapper-ad {
+  width: 728px;
+  height: 90px; }
+
+ul.pager {
+  text-align: center;
+  list-style: none; }
+  ul.pager .next a:after,
+  ul.pager .previous a:before {
+    font-size: 25px;
+    margin-top: -5px; }
+  ul.pager .next a:after {
+    content: '\2192'; }
+  ul.pager .previous a:before {
+    content: "\2190"; }
+
+ul.pager li {
+  display: inline-block;
+  border: 1px solid black;
+  margin: 5px;
+  font-weight: bold; }
+  ul.pager li a {
+    line-height: 20px;
+    font-size: 16px;
+    display: inline-block;
+    padding: 10px;
+    color: black;
+    text-decoration: none; }
+
+.post-header {
+  margin-bottom: 10px; }
+  .post-header h1 {
+    margin-bottom: 5px; }
+
+.post-teaser .post-meta,
+.post-header .post-meta {
+  line-height: 20px;
+  margin-bottom: 0px;
+  padding-left: 18px;
+  position: relative; }
+.post-teaser .post-meta:before,
+.post-header .post-meta:before {
+  font-family: 'Material Icons';
+  content: 'access_time';
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  font-size: 16px; }
+
+.post-teaser {
+  position: relative; }
+  .post-teaser .post-meta:before {
+    top: -3px; }
+
+.drop-down {
+  display: inline-block;
+  position: relative; }
+  .drop-down .parent {
+    cursor: pointer;
+    padding-right: 22px; }
+    .drop-down .parent:after {
+      font-family: 'Material Icons';
+      content: 'expand_more';
+      position: absolute;
+      top: 0;
+      right: 0px;
+      font-size: 26px; }
+  .drop-down .children {
+    display: none;
+    background: white;
+    white-space: nowrap; }
+    .drop-down .children .page-link {
+      display: block;
+      line-height: 34px;
+      margin: 0px; }
+  @media screen and (min-width: 601px) {
+    .drop-down:hover .children {
+      display: block;
+      position: absolute;
+      top: 50px;
+      left: -15px; }
+      .drop-down:hover .children .inner {
+        margin-top: 6px;
+        padding-left: 15px;
+        padding-right: 15px;
+        border: 1px solid #e8e8e8;
+        border-top: 0px; } }
+
+.main-teaser-container {
+  margin-bottom: 10px; }
+
+.main-teaser-wrapper {
+  margin-left: -10px;
+  margin-right: -10px;
+  margin-bottom: 20px;
+  display: flex; }
+  .main-teaser-wrapper .item-wrapper {
+    width: 33.3%; }
+    .main-teaser-wrapper .item-wrapper .item {
+      margin-right: 10px;
+      margin-left: 10px;
+      position: relative;
+      border: 1px solid #e8e8e8; }
+      .main-teaser-wrapper .item-wrapper .item .inner {
+        transition: all .2s ease-in-out; }
+      .main-teaser-wrapper .item-wrapper .item .inner:hover {
+        transform: scale(1.05);
+        font-size: 100%; }
+      .main-teaser-wrapper .item-wrapper .item a {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 100%;
+        height: 100%;
+        color: transparent; }
+      .main-teaser-wrapper .item-wrapper .item .title-wrapper {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end; }
+      .main-teaser-wrapper .item-wrapper .item .title {
+        width: 100%;
+        background-color: rgba(255, 255, 255, 0.8);
+        color: black;
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+        line-height: 60px;
+        /*
+        text-transform: uppercase;
+        border: 1px solid #e8e8e8;
+        border-top: 0px;
+        */ }
+
+.site-header {
+  z-index: 1000;
+  position: fixed;
+  width: 100%;
+  background: white; }
+
+.site-footer {
+  background: #e8e8e8;
+  padding-bottom: 15px; }
+  .site-footer p,
+  .site-footer li {
+    line-height: 22px; }
+
+.copy {
+  padding-top: 15px;
+  border-top: 1px solid #828282;
+  text-align: left;
+  margin-left: -15px;
+  margin-right: -15px;
+  padding-left: 15px; }
+
+a.footer-menu {
+  color: #828282; }
+
+.header-image {
+  height: 250px;
+  max-height: 250px;
+  left: 0px;
+  position: fixed;
+  width: 100%;
+  top: 62px;
+  background-position: center center;
+  background-size: cover; }
+
+.page-content {
+  z-index: 3;
+  background: white;
+  padding-top: 84px; }
+
+.page-content.has-header-image {
+  padding-top: 30px;
+  margin-top: 310px;
+  position: relative; }
+  .page-content.has-header-image:before {
+    position: absolute;
+    top: -15px;
+    left: 0px;
+    content: ' ';
+    height: 15px;
+    width: 100%;
+    background: -moz-linear-gradient(top, rgba(255, 255, 255, 0) 0%, white 100%);
+    /* FF3.6-15 */
+    background: -webkit-linear-gradient(top, rgba(255, 255, 255, 0) 0%, white 100%);
+    /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, white 100%);
+    /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#00ffffff', endColorstr='#ffffff',GradientType=0 ); }
+  .page-content.has-header-image .sidebar-ad-big {
+    top: 30px; }
+
+form.newsletter .mail-wrapper {
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  margin-top: 4px; }
+  form.newsletter .mail-wrapper label {
+    display: none; }
+  form.newsletter .mail-wrapper input {
+    display: flex;
+    flex-grow: 1; }
+  form.newsletter .mail-wrapper input.email {
+    margin-right: 5px;
+    padding: 10px; }
+form.newsletter .submit {
+  justify-content: center;
+  text-transform: uppercase;
+  background: #e8e8e8;
+  padding: 10px;
+  border: 1px solid #111; }
+
+@media screen and (min-width: 601px) {
+  h2,
+  h3,
+  h4,
+  h5 {
+    margin-top: -62px;
+    padding-top: 62px; }
+
+  .footer-col-1 {
+    width: -webkit-calc(40% - (30px / 2) - (415px / 2));
+    width: calc(40% - (30px / 2) - (415px / 2)); }
+
+  .footer-col-2 {
+    width: -webkit-calc(60% - (30px / 2) - (415px / 2));
+    width: calc(60% - (30px / 2) - (415px / 2)); }
+
+  .footer-col-3 {
+    width: 400px; } }
+@media screen and (max-width: 600px) {
+  h2,
+  h3,
+  h4,
+  h5 {
+    margin-top: -70px;
+    padding-top: 70px; } }
+footer {
+  z-index: 2; }
+
+.contact-form {
+  width: 50%;
+  margin-left: 25%; }
+  @media screen and (max-width: 600px) {
+    .contact-form {
+      width: 100%;
+      margin-left: 0px; } }
+  .contact-form textarea {
+    padding: 10px;
+    width: calc(100% - 20px);
+    margin-bottom: 5px;
+    margin-top: 5px; }
+  .contact-form input {
+    padding: 10px;
+    width: calc(100% - 22px);
+    margin-bottom: 5px;
+    margin-top: 5px; }
+  .contact-form input.submit {
+    margin-right: -2px;
+    width: auto;
+    float: right;
+    text-align: center;
+    text-transform: uppercase;
+    background: #e8e8e8;
+    border: 1px solid #111; }
+
+.author-social-wrapper {
+  display: flex;
+  justify-content: space-around;
+  margin-left: -10px;
+  margin-right: -10px;
+  margin-bottom: 25px; }
+  .author-social-wrapper a {
+    width: 50%;
+    padding-left: 10px;
+    padding-right: 10px; }
+
+@media screen and (max-width: 600px) {
+  .image-center.small {
+    margin-left: 0;
+    margin-right: 0; }
+
+  .site-nav {
+    z-index: 1; }
+    .site-nav .drop-down .parent {
+      display: none; }
+    .site-nav .drop-down .children {
+      display: block; }
+      .site-nav .drop-down .children .page-link {
+        line-height: 24px; }
+
+  .has-sidebar .recommended {
+    display: flex;
+    flex-direction: column-reverse; }
+    .has-sidebar .recommended .recommended-wrapper {
+      margin-bottom: 20px; }
+    .has-sidebar .recommended .item-wrapper {
+      flex-wrap: wrap; }
+      .has-sidebar .recommended .item-wrapper .item {
+        width: 50%;
+        margin-bottom: 10px;
+        padding-top: 10px;
+        border-bottom: 1px solid #e8e8e8; }
+
+  .main-teaser-wrapper {
+    margin: 0px;
+    flex-direction: column; }
+    .main-teaser-wrapper .item-wrapper {
+      width: 100%;
+      margin-bottom: 10px; }
+      .main-teaser-wrapper .item-wrapper .item {
+        margin: 0px; }
+      .main-teaser-wrapper .item-wrapper .image-wrapper {
+        max-height: 200px;
+        overflow: hidden;
+        position: relative; }
+        .main-teaser-wrapper .item-wrapper .image-wrapper img {
+          margin-top: -15%; }
+
+  .header-image {
+    height: 120px;
+    max-height: 120px; }
+
+  .page-content.has-header-image {
+    margin-top: 180px; }
+
+  .site-footer {
+    padding-bottom: 60px; }
+
+  footer {
+    text-align: center; }
+    footer .footer-col-2,
+    footer .footer-col-3 {
+      border-top: 1px solid #828282;
+      padding: 0px;
+      padding-top: 10px;
+      margin-left: 15px;
+      margin-right: 15px; }
+    footer ul li a {
+      display: block;
+      padding-top: 12px;
+      padding-bottom: 12px;
+      font-size: 18px; }
+
+  .author-image-wrapper {
+    width: 33.3%;
+    float: left;
+    margin-right: 10px; }
+
+  .copy {
+    text-align: center; }
+
+  .post-content ol li a {
+    font-size: 18px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    display: block; } }
+@media screen and (min-width: 768px) {
+  .insta {
+    width: 80%;
+    margin: auto; } }
+.ol-wrapper ol {
+  display: inline-block; }
+
+.clickable {
+  cursor: pointer;
+  color: #2a7ae2; }
+
+.clickable:hover {
+  color: #111;
+  text-decoration: underline; }
+
+.support-me {
+  margin: 24px;
+  padding: 20px;
+  border: 2px solid black;
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto; }
+  .support-me .headline {
+    text-transform: uppercase;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 5px; }
+  .support-me .product-text {
+    text-align: center;
+    margin-right: 10px; }
+    @media screen and (max-width: 600px) {
+      .support-me .product-text {
+        margin: 0px;
+        text-align: left; } }
+  .support-me .buttons-wrapper {
+    display: flex;
+    align-items: center;
+    margin-top: 5px; }
+    @media screen and (max-width: 600px) {
+      .support-me .buttons-wrapper {
+        align-items: flex-start;
+        flex-direction: column; } }
+  .support-me .buttons {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex: 1; }
+    @media screen and (max-width: 600px) {
+      .support-me .buttons {
+        width: 100%; } }
+    .support-me .buttons a {
+      margin-left: 10px;
+      margin-right: 10px; }
+      .support-me .buttons a img {
+        width: 100px; }
+        @media screen and (max-width: 600px) {
+          .support-me .buttons a img {
+            width: 33%; } }
+
+.accordion {
+  margin-bottom: 10px; }
+  .accordion .accordion-header {
+    font-weight: bold;
+    padding: 10px;
+    border: 0px;
+    text-transform: uppercase; }
+  .accordion:after {
+    font-family: 'Material Icons';
+    content: 'expand_more';
+    position: absolute;
+    top: 0;
+    right: 3px;
+    font-size: 30px; }
+  .accordion .accordion-content {
+    background: #efefef;
+    margin-bottom: 5px; }
+    .accordion .accordion-content ol {
+      margin-top: 2px; }
+      .accordion .accordion-content ol li {
+        font-weight: bold;
+        color: black;
+        padding-top: 2px;
+        padding-bottom: 2px; }
+        .accordion .accordion-content ol li a {
+          text-decoration: none;
+          color: black; }
+        .accordion .accordion-content ol li a:hover {
+          text-decoration: underline; }
+
+.accordion.toc {
+  max-width: 400px; }
+
+#bg-image {
+  margin-bottom: 20px; }
+
+article ol, article ul {
+  margin: 0px;
+  padding-left: 30px;
+  margin-bottom: 12px; }
+
+.home p a,
+.home p a:active,
+.home p a:visited,
+.post-teaser .excerpt-wrapper p a,
+.post-teaser .excerpt-wrapper p a:active,
+.post-teaser .excerpt-wrapper p a:visited,
+.main-article a,
+.main-article a:active,
+.main-article a:visited {
+  color: black;
+  text-decoration: none;
+  border-bottom: 2px solid #fbb040;
+  padding-top: 2px;
+  background-image: linear-gradient(to top, #fbb040 50%, transparent 50%);
+  background-size: 100% 200%;
+  background-position: top;
+  transition: background-position 0.5s ease-in-out; }
+.home p a:hover,
+.post-teaser .excerpt-wrapper p a:hover,
+.main-article a:hover {
+  background-position: bottom; }
+
+.main-article .support-me a,
+.main-article .support-me a:active,
+.main-article .support-me a:visited {
+  border: 0px; }
+
+.block-wrapper {
+  display: flex;
+  flex-direction: row;
+  background: #e8e8e8;
+  padding: 10px;
+  margin-top: 15px;
+  margin-bottom: 15px; }
+  .block-wrapper .half {
+    width: 50%; }
+    .block-wrapper .half h3 {
+      margin-bottom: 0px; }
+    .block-wrapper .half ul {
+      padding-left: 20px; }
+  @media screen and (max-width: 600px) {
+    .block-wrapper {
+      flex-direction: row; }
+      .block-wrapper .half {
+        width: 100%; } }
+
+
+    
+  </style>
+
+  <script async src="https://cdn.ampproject.org/v0.js"></script>
+  <script custom-element="amp-install-serviceworker" src="https://cdn.ampproject.org/v0/amp-install-serviceworker-0.1.js" async=""></script>
+  <script async custom-element="amp-youtube" src="https://cdn.ampproject.org/v0/amp-youtube-0.1.js"></script>
+  <script async custom-element="amp-iframe" src="https://cdn.ampproject.org/v0/amp-iframe-0.1.js"></script>
+  <script async custom-element="amp-analytics" src="https://cdn.ampproject.org/v0/amp-analytics-0.1.js"></script>
+  <script async custom-element="amp-social-share" src="https://cdn.ampproject.org/v0/amp-social-share-0.1.js"></script>
+  <script async custom-element="amp-carousel" src="https://cdn.ampproject.org/v0/amp-carousel-0.1.js"></script>
+  <script async custom-element="amp-image-lightbox" src="https://cdn.ampproject.org/v0/amp-image-lightbox-0.1.js"></script>
+  <script async custom-element="amp-bind" src="https://cdn.ampproject.org/v0/amp-bind-0.1.js"></script>
+  <script async custom-element="amp-list" src="https://cdn.ampproject.org/v0/amp-list-0.1.js"></script>
+  <script async custom-template="amp-mustache" src="https://cdn.ampproject.org/v0/amp-mustache-0.2.js"></script>
+  <script async custom-element="amp-fx-flying-carpet" src="https://cdn.ampproject.org/v0/amp-fx-flying-carpet-0.1.js"></script>
+  <script async custom-element="amp-form" src="https://cdn.ampproject.org/v0/amp-form-0.1.js"></script>
+  <script async custom-element="amp-instagram" src="https://cdn.ampproject.org/v0/amp-instagram-0.1.js"></script>
+  <script async custom-element="amp-accordion" src="https://cdn.ampproject.org/v0/amp-accordion-0.1.js"></script>
+  <script async custom-element="amp-auto-ads" src="https://cdn.ampproject.org/v0/amp-auto-ads-0.1.js"></script>
+
+  <meta name="amp-consent-blocking" content="amp-ad">
+  <script async custom-element="amp-consent" src="https://cdn.ampproject.org/v0/amp-consent-0.1.js"></script>
+  <script async custom-element="amp-iframe" src="https://cdn.ampproject.org/v0/amp-iframe-0.1.js"></script>
+  <script async custom-element="amp-ad" src="https://cdn.ampproject.org/v0/amp-ad-0.1.js"></script>
+
+  <style amp-boilerplate>body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}</style><noscript><style amp-boilerplate>body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}</style></noscript>
+</head>
+<body>
+    <amp-auto-ads type="adsense" data-ad-client="ca-pub-1561982868251748"></amp-auto-ads>
+    
+    <amp-analytics type="gtag" data-credentials="include">
+      <script type="application/json">
+        {
+          "vars" : {
+            "gtag_id": "G-SR5TJBEH93",
+            "config" : {
+              "G-SR5TJBEH93": { "groups": "default" }
+            }
+          }
+        }
+      </script>
+    </amp-analytics>
+
+    <amp-consent layout="nodisplay" id="googlefc" type="googlefc">
+      <script type="application/json">
+        {
+          "clientConfig": {
+            "publisherIdentifier": "pub-1561982868251748"
+          }
+        }
+      </script>
+    </amp-consent>
+    <header class="site-header">
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Brushless Whoop</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/category/1s/">1S</a><a class="page-link" href="/category/2s/">2S</a><a class="page-link" href="/category/3s/">3S Whoops</a><a class="page-link" href="/category/blog/">Blog</a><a class="page-link" href="/category/review/">Reviews</a><div class="drop-down">
+                <span class="parent">Comparisons</span>
+                <div class="children">
+                  <div class= "inner"><a class="page-link" href="/brushless-whoop-comparison/">Brushless Whoops</a><a class="page-link" href="/flight-controller-comparison/">Flight Controllers</a><a class="page-link" href="/frame-comparison/">Frames</a><a class="page-link" href="/aio-fpv-camera-comparison/">AIO FPV Cameras</a><a class="page-link" href="/nano-fpv-camera-comparison/">Nano FPV Cameras</a><a class="page-link" href="/nano-vtx-comparison/">Nano Video Transmitters</a></div>
+                </div>
+              </div></div>
+      </nav></div>
+</header>
+
+    <main class="page-content" aria-label="Content">
+    
+
+      <div class="social-bar-wrapper">
+        <div class="social-bar">
+          <amp-social-share width="60" height="60" class="social" type="twitter" title="Share on Twitter"></amp-social-share>
+          <amp-social-share width="60" height="60" class="social" type="facebook" data-param-app_id="1931955633558587" title="Share on Facebook"></amp-social-share>
+          <amp-social-share width="60" height="60" class="social" type="pinterest" title="Share on Pinterest"></amp-social-share>
+          <amp-social-share width="60" height="60" class="social" type="whatsapp" title="Share on Whatsapp"></amp-social-share>
+          <amp-social-share width="60" height="60" class="social" type="email" title="Share via E-Mail"></amp-social-share>
+        </div>
+      </div>
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <span itemprop="mainEntityOfPage" itemscope itemtype="http://schema.org/WebPage"></span>
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">DSHOT - the missing Handbook</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2021-02-27T00:00:00+01:00" itemprop="datePublished">Feb 27, 2021
+      </time><span itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+          <meta itemprop="name" content="Chris Landa" />
+          <span itemprop="logo" itemscope itemtype=https://schema.org/ImageObject>
+            <meta itemprop="url" content="https://brushlesswhoop.com/favicon.ico" />
+          </span>
+          <meta itemprop="url" content="https://brushlesswhoop.com" />
+        </span>
+        • <span itemprop="author" itemscope itemtype="http://schema.org/Person"><span class="p-author h-card" itemprop="name">Chris Landa</span></span><span itemprop="image" itemscope itemtype=https://schema.org/ImageObject>
+        <meta itemprop="url" content="../images/dshot_og.png" />
+      </span>
+    </p>
+  </header>
+
+  <div class="has-sidebar">
+
+    <div class="post-content e-content main-article" itemprop="articleBody">
+      <amp-image-lightbox id="lightbox" layout="nodisplay"></amp-image-lightbox>
+      <amp-img lightbox="lightbox" src="/images/dshot_og.png" alt="RPM filter options" height="184" width="350" class="image-left pointer" layout="responsive"></amp-img>
+<p>DSHOT - <strong>D</strong>igital <strong>shot</strong>, is a very popular protocol for flight-controller to ESC communication. In the quadcopter hobby it is nowadays pretty much the standard. The protocol is used to send the target throttle value from the flight-controller to the ESC which in turn interprets it and drives the motor accordingly.</p>
+
+<!--more-->
+
+<blockquote>
+  <p>This article has been <a href="https://mp.weixin.qq.com/s/I5PclfGJ9Lp3vJ3oW-RKWg">translated into Chinese</a> by Hugo Chiang.</p>
+</blockquote>
+
+<p>This is a <strong>compilation of DSHOT and bidirectional DSHOT implementation details</strong>. When I first started looking into ESC firmware, I had a hard time finding all the needed DSHOT related information - at least not in one place, that is why I decided to create this article. I hope this can be useful for other developers too. My sources are quoted on the bottom, if something is not clear from my writing, they might help you out. If you have any feedback or you found a mistake, please feel free to leave a comment.</p>
+
+<amp-accordion class="accordion toc" disable-session-states=""><section><header class="accordion-header">Table of content</header><div class="accordion-content">
+<ol>
+  <li><a href="#history">History</a></li>
+  <li><a href="#supported-hardware">Supported Hardware</a></li>
+  <li><a href="#frame-structure">DSHOT Frame structure</a>
+    <ol>
+      <li><a href="#special-commands">Special commands</a></li>
+      <li><a href="#calculating-the-crc">Calculating the CRC</a></li>
+      <li><a href="#arming-sequence">Arming sequence</a></li>
+    </ol>
+  </li>
+  <li><a href="#why-is-frame-length-important">Frame length</a></li>
+  <li><a href="#what-is-esc-telemetry">ESC Telemetry</a>
+    <ol>
+      <li><a href="#hardware-compatibility">Hardware compatibility</a></li>
+      <li><a href="#which-telemetry-data-is-there">Types of telemetry data</a></li>
+      <li><a href="#transmission">Transmission</a></li>
+    </ol>
+  </li>
+  <li><a href="#bidirectional-dshot">Bidirectional DSHOT</a>
+    <ol>
+      <li><a href="#calculating-the-checksum">Calculating the checksum</a></li>
+      <li><a href="#bidirectional-dshot-frame-from-flight-controller">Frame Structure</a></li>
+      <li><a href="#erpm-telemetry-frame-from-esc">eRPM Frame</a></li>
+      <li><a href="#extended-dshot-telemetry-edt">Extendet DShot Telemetry (EDT)</a></li>
+      <li><a href="#erpm-transmission">Transmission</a>
+        <ol>
+          <li><a href="#decoding-erpm-frame-on-flight-controller">Decoding</a></li>
+        </ol>
+      </li>
+    </ol>
+  </li>
+  <li><a href="#sources">Sources</a></li>
+</ol>
+</div></section></amp-accordion>
+
+<h2 id="history">History</h2>
+<p>Before DSHOT there were analog protocols, most commonly known: <strong>PWM</strong>, although there are others like Oneshot and Multishot. Multishot is still quite popular within quadcopter pilots.</p>
+
+<p>A <strong>digital protocol has a couple of huge benefits</strong> in comparison to the analog protocols:</p>
+<ul>
+  <li><strong>Error checking</strong>: a checksum allows the ESC to confirm that the data is truly what has been sent by the flight controller and there was no interference (at least to a certain degree)</li>
+  <li><strong>Higher resolution</strong>: in case of DHSOT 2000 steps of throttle resolution</li>
+  <li><strong>No oscillator drift</strong> and thus no need for calibration</li>
+  <li><strong>Two way communication on one wire</strong></li>
+</ul>
+
+<p>But, everything has two sides, and so do digital protocols. The downsides are, that the <strong>digital protocols are not the fastest</strong> since they carry an overhead like - in the case of DSHOT - the CRC, which adds reliability but also increases the duration of a frame and thus data needed to be transmitted. Also frames are always of a fixed length, no matter if you are going full throttle or no throttle - wheres the length of a pulse is shorter with analog when the throttle value is smaller.</p>
+
+<blockquote>
+  <p>Multishot has a maximum frame duration of 25µs at full throttle and is still more than twice as fast as DSHOT 300 with a constant frame duration of 53.28µs.</p>
+</blockquote>
+
+<h2 id="supported-hardware">Supported Hardware</h2>
+<p><strong>DSHOT is supported on all BLHELI_S, BLEHLI_32 and KISS ESC’s</strong>. One limitation are older BLHELI_S ESC’s with EFM8BB1 MCU: Only DSHOT 150 and DSHOT 300 are supported on those, but this should still be good enough for 99% of use cases.</p>
+
+<p>No extra settings on the ESC’s are needed - they automatically detect by which protocol they are driven and act accordingly. Some firmware might only support a certain subset of protocols though, so be aware of that. <a href="https://github.com/mathiasvr/bluejay">Bluejay</a> for example only supports DSHOT in all its variations, but none of the analog protocols.</p>
+
+<h2 id="frame-structure">Frame Structure</h2>
+<p>Every digital protocol has a structure, also called a frame. It defines which information is at which position in the data stream. And the frame structure of DSHOT is pretty straight forward:</p>
+
+<ul>
+  <li><strong>11 bit throttle</strong>: 2048 possible values. 0 is reserved for disarmed. 1-47 are reserved for <a href="#special-commands">special commands</a>. Leaving 48 to 2047 (2000 steps) for the actual throttle value</li>
+  <li><strong>1 bit telemetry request</strong> - if this is set, telemetry data is sent back via a separate channel</li>
+  <li><strong>4 bit CRC</strong>: (<strong>C</strong>yclic <strong>R</strong>edundancy) <strong>C</strong>heck to validate data (throttle and telemetry request bit)</li>
+</ul>
+
+<p>Resulting in a <strong>16 bit</strong> (2 byte) <strong>frame</strong> with the following structure:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>   SSSSSSSSSSSTCCCC
+</code></pre></div></div>
+
+<p>The interesting part is, that 1 and 0 in the DSHOT frame are distinguished by their high time. This means that every bit has a certain (constant) length, and the length of the high part of the bit dictates if a 1 or 0 is being received.</p>
+
+<amp-img lightbox="lightbox" src="/images/dshot_bit.png" alt="DSHOT high times" height="294" width="350" class="small image-center pointer" layout="responsive"></amp-img>
+
+<p>This has two benefits:</p>
+<ol>
+  <li>Every frame has exactly the same, easy to calculate duration: <strong>16 x (bit period time)</strong></li>
+  <li>The measurement of a bit can always be triggered on a rising flank and stopped on a falling flank (or the other way around in case of the inverted signal with <a href="#bidirectional-dshot">bidirectional DSHOT</a>)</li>
+</ol>
+
+<p>In DSHOT the <strong>high time for a 1 is always double that of a 0</strong>. The actual frame duration, bit period time and frame length depend on DSHOT version:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>DSHOT</th>
+      <th>Bitrate</th>
+      <th>T1H</th>
+      <th>T0H</th>
+      <th>Bit (µs)</th>
+      <th>Frame (µs)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>150</td>
+      <td>150kbit/s</td>
+      <td>5.00</td>
+      <td>2.50</td>
+      <td>6.67</td>
+      <td>106.72</td>
+    </tr>
+    <tr>
+      <td>300</td>
+      <td>300kbit/s</td>
+      <td>2.50</td>
+      <td>1.25</td>
+      <td>3.33</td>
+      <td>53.28</td>
+    </tr>
+    <tr>
+      <td>600</td>
+      <td>600kbit/s</td>
+      <td>1.25</td>
+      <td>0.625</td>
+      <td>1.67</td>
+      <td>26.72</td>
+    </tr>
+    <tr>
+      <td>1200</td>
+      <td>1200kbit/s</td>
+      <td>0.625</td>
+      <td>0.313</td>
+      <td>0.83</td>
+      <td>13.28</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>T1H</strong> is the duration in µs for which the signal needs to be high in order to be counted as a 1.
+<strong>T0H</strong> is the duration in µs for which the signal needs to be high in order to be counted as a 0.</p>
+
+<div class="content-ad-wrapper slot-0"><div class="content-ad-mobile"><div class="wrapper-ad"><div class="amp-flying-carpet-text-border">Advertising</div><amp-fx-flying-carpet height="600px"><amp-ad width="300" height="600" type="adsense" layout="fixed" data-ad-client="ca-pub-1561982868251748" data-ad-slot="2798921214"></amp-ad></amp-fx-flying-carpet><div class="amp-flying-carpet-text-border">Advertising</div></div></div><div class="content-ad-tablet"><div class="wrapper-ad"><amp-ad width="728px" height="90px" type="adsense" data-ad-client="ca-pub-1561982868251748" data-ad-slot="9632579419"><div overflow=""></div></amp-ad></div></div><div class="content-ad-desktop"><div class="wrapper-ad"><amp-ad width="728px" height="90px" type="adsense" data-ad-client="ca-pub-1561982868251748" data-ad-slot="9632579419"><div overflow=""></div></amp-ad></div></div></div>
+
+<h3 id="special-commands">Special commands</h3>
+<p>As mentioned in the previous section, the throttle values 0-47 are reserved for special commands:</p>
+
+<amp-accordion class="accordion full-width" disable-session-states=""><section><header class="accordion-header">Special Commands</header><div class="accordion-content">
+<table>
+  <thead>
+    <tr>
+      <th>Nr.</th>
+      <th>Command</th>
+      <th>Remark</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>DSHOT_CMD_MOTOR_STOP</td>
+      <td>Currently not implemented</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>DSHOT_CMD_BEEP1</td>
+      <td>Wait at least length of beep (260ms) before next command</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>DSHOT_CMD_BEEP2</td>
+      <td>Wait at least length of beep (260ms) before next command</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>DSHOT_CMD_BEEP3</td>
+      <td>Wait at least length of beep (260ms) before next command</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>DSHOT_CMD_BEEP4</td>
+      <td>Wait at least length of beep (260ms) before next command</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>DSHOT_CMD_BEEP5</td>
+      <td>Wait at least length of beep (260ms) before next command</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>DSHOT_CMD_ESC_INFO</td>
+      <td>Wait at least 12ms before next command</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>DSHOT_CMD_SPIN_DIRECTION_1</td>
+      <td>Need 6x</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>DSHOT_CMD_SPIN_DIRECTION_2</td>
+      <td>Need 6x</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>DSHOT_CMD_3D_MODE_OFF</td>
+      <td>Need 6x</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>DSHOT_CMD_3D_MODE_ON</td>
+      <td>Need 6x</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>DSHOT_CMD_SETTINGS_REQUEST</td>
+      <td>Currently not implemented</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>DSHOT_CMD_SAVE_SETTINGS</td>
+      <td>Need 6x, wait at least 35ms before next command</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>DSHOT_EXTENDED_TELEMETRY_ENABLE</td>
+      <td>Need 6x (only on EDT enabed firmware)</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>DSHOT_EXTENDED_TELEMETRY_DISABLE</td>
+      <td>Need 6x (only on EDT enabed firmware)</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>17</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>18-</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td>DSHOT_CMD_SPIN_DIRECTION_NORMAL</td>
+      <td>Need 6x</td>
+    </tr>
+    <tr>
+      <td>21</td>
+      <td>DSHOT_CMD_SPIN_DIRECTION_REVERSED</td>
+      <td>Need 6x</td>
+    </tr>
+    <tr>
+      <td>22</td>
+      <td>DSHOT_CMD_LED0_ON</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>23</td>
+      <td>DSHOT_CMD_LED1_ON</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>24</td>
+      <td>DSHOT_CMD_LED2_ON</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>25</td>
+      <td>DSHOT_CMD_LED3_ON</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>26</td>
+      <td>DSHOT_CMD_LED0_OFF</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>27</td>
+      <td>DSHOT_CMD_LED1_OFF</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>28</td>
+      <td>DSHOT_CMD_LED2_OFF</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>29</td>
+      <td>DSHOT_CMD_LED3_OFF</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>30</td>
+      <td>Audio_Stream mode on/Off</td>
+      <td>Currently not implemented</td>
+    </tr>
+    <tr>
+      <td>31</td>
+      <td>Silent Mode on/Off</td>
+      <td>Currently not implemented</td>
+    </tr>
+    <tr>
+      <td>32</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_TELEMETRY_DISABLE</td>
+      <td>Need 6x. Disables commands 42 to 47</td>
+    </tr>
+    <tr>
+      <td>33</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_TELEMETRY_ENABLE</td>
+      <td>Need 6x. Enables commands 42 to 47</td>
+    </tr>
+    <tr>
+      <td>34</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_CONTINUOUS_ERPM_TELEMETRY</td>
+      <td>Need 6x. Enables commands 42 to 47 and sends erpm if normal Dshot frame</td>
+    </tr>
+    <tr>
+      <td>35</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_CONTINUOUS_ERPM_PERIOD_TELEMETRY</td>
+      <td>Need 6x. Enables commands 42 to 47 and sends erpm period if normal Dshot frame</td>
+    </tr>
+    <tr>
+      <td>36</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>37</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>38</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>39</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>40</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>41</td>
+      <td>-</td>
+      <td>Not yet assigned</td>
+    </tr>
+    <tr>
+      <td>42</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_TEMPERATURE_TELEMETRY</td>
+      <td>1°C per LSB</td>
+    </tr>
+    <tr>
+      <td>43</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_VOLTAGE_TELEMETRY</td>
+      <td>10mV per LSB, 40.95V max</td>
+    </tr>
+    <tr>
+      <td>44</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_CURRENT_TELEMETRY</td>
+      <td>100mA per LSB, 409.5A max</td>
+    </tr>
+    <tr>
+      <td>45</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_CONSUMPTION_TELEMETRY</td>
+      <td>10mAh per LSB, 40.95Ah max</td>
+    </tr>
+    <tr>
+      <td>46</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_ERPM_TELEMETRY</td>
+      <td>100erpm per LSB, 409500erpm max</td>
+    </tr>
+    <tr>
+      <td>47</td>
+      <td>DSHOT_CMD_SIGNAL_LINE_ERPM_PERIOD_TELEMETRY</td>
+      <td>16us per LSB, 65520us max TBD</td>
+    </tr>
+  </tbody>
+</table>
+</div></section></amp-accordion>
+
+<p><strong>Commands 0-36 are only executed when motors are stopped</strong>. Some commands need to be sent multiple times in order for the ESC to act on it - those are marked with <em>Needs nx</em> - where n is the amount of times the command has to be sent in order for the ESC to act upon it.</p>
+
+<p>For sake of completeness here is the frame structure for a ESC_INFO response for BLHELI_32:</p>
+
+<amp-accordion class="accordion full-width" disable-session-states=""><section><header class="accordion-header">BLHELI_32 ESC Info Frame</header><div class="accordion-content">
+<table>
+  <thead>
+    <tr>
+      <th>Bit</th>
+      <th>Remark</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1-12</td>
+      <td>ESC SN</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>Indicates which response version is used. 254 is for BLHeli_32 version.</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>FW revision (32 = 32)</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>FW sub revision (10 = xx.1, 11 = xx.11)</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>Unused</td>
+    </tr>
+    <tr>
+      <td>17</td>
+      <td>Rotation direction reversed by dshot command or not (1:0)</td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td>3D mode active or not (1:0)</td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td>Low voltage protection limit [0.1V] (255 = not capable, 0 = disabled)</td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td>Current protection limit [A] (255 = not capable, 0 = disabled)</td>
+    </tr>
+    <tr>
+      <td>21</td>
+      <td>LED0 on or not (1:0, 255 = LED0 not present)</td>
+    </tr>
+    <tr>
+      <td>22</td>
+      <td>LED1 on or not (1:0, 255 = LED0 not present)</td>
+    </tr>
+    <tr>
+      <td>23</td>
+      <td>LED2 on or not (1:0, 255 = LED0 not present)</td>
+    </tr>
+    <tr>
+      <td>24</td>
+      <td>LED3 on or not (1:0, 255 = LED0 not present)</td>
+    </tr>
+    <tr>
+      <td>25-31</td>
+      <td>Unused</td>
+    </tr>
+    <tr>
+      <td>32-63</td>
+      <td>ESC signature</td>
+    </tr>
+    <tr>
+      <td>64</td>
+      <td>CRC (same CRC as is used for telemetry)</td>
+    </tr>
+  </tbody>
+</table>
+</div></section></amp-accordion>
+
+<h3 id="calculating-the-crc">Calculating the CRC</h3>
+<p>The checksum is calculated over the throttle value and the telemetry bit, so the “first” 12 bits our <em>value</em> in the following example:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crc = (value ^ (value &gt;&gt; 4) ^ (value &gt;&gt; 8)) &amp; 0x0F;
+</code></pre></div></div>
+
+<p>Let’s assume we are sending a throttle value of <strong>1046</strong> - which is exactly half throttle and the telemetry bit is not set:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>value  = 100000101100
+(&gt;&gt;4)  = 000010000010 # right shift value by 4
+(^)    = 100010101110 # XOR with value
+(&gt;&gt;8)  = 000000001000 # right shift value by 8
+(^)    = 100010100110 # XOR with previous XOR
+(0x0F) = 000000001111 # Mask 0x0F
+(&amp;)    = 000000000110 # CRC
+</code></pre></div></div>
+
+<p>So the two bytes transmitted from flight-controller to ESC would be:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1000001011000110
+</code></pre></div></div>
+
+<p>We would put this signal on the wire to transmit the DSHOT frame:</p>
+
+<p>
+<amp-img lightbox="lightbox" src="/images/dshot_frame.png" alt="DSHOT frame" height="18" width="700" class="image-center max pointer full-width" layout="responsive"></amp-img>
+</p>
+
+<p>The green part are the throttle bits, blue is the telemetry bit and yellow the CRC checksum.</p>
+
+<h3 id="arming-sequence">Arming sequence</h3>
+<p>The arming sequenc might differ from implementation to implementation, but on most firmwares a 0 command is expected for a certain amount of time - 300ms on Bluejay for example - before the ESC goes into a state where it will accept actual throttle values.</p>
+
+<h2 id="why-is-frame-length-important">Why is frame length important?</h2>
+<p>The frame length is important because it indicates how fast the ESC can be updated. The shorter the frame length, the more often a frame can be sent per second. In other words the higher the bitrate, the more data we can send per second.</p>
+
+<p>This is then only limited by the loop speed of the flight-controller. Or the other way around, as we will see.</p>
+
+<blockquote>
+  <p>Let’shave a look at DSHOT 300: A frame length of 106.72µs allows us to theoretically send 18768 full frames per second. Which results in a maximum frequency of around 18kHz.</p>
+</blockquote>
+
+<p>From this example <strong>we can conclude that with a PID loop frequency of 8kHz we can’t exhaust DSHOT 300</strong>, so there is no real reason to run DSHOT600 - at least if your PID loop frequency is 8kHz or less.</p>
+
+<p>But <strong>this is actually not the whole truth</strong>, since the flight controller spaces out the frames and locks it to the PID loop frequency. DSHOT frame generation thus always runs at PID loop rate - this on the other hand means, that if you are running really high PID loop frequencies, you also need to run a high DSHOT version.</p>
+
+<blockquote>
+  <p>Should you for example run a 32kHz loop, the flight controller will send DHSOT frames every 31.25µs - meaning you have to run at least DSHOT600 in order to keep up.</p>
+</blockquote>
+
+<h2 id="what-is-esc-telemetry">What is ESC Telemetry?</h2>
+<p>In the section about Frames I mentioned a telemetry bit. The flight controller uses this  bit to request telemetry information from the ESC.</p>
+
+<p>Telemetry information can be different things, for example the temperature of the ESC, or the eRPM with which the motor is spinning, current draw and voltage.</p>
+
+<blockquote>
+  <p><strong>CAUTION</strong>: Keep in mind that ESC telemetry is not <a href="#bidirectional-dshot">bidirectional DSHOT</a> and the communication is way too slow for RPM filtering to work properly.</p>
+</blockquote>
+
+<h3 id="hardware-compatibility">Hardware compatibility</h3>
+<p>ESC telemetry requires a <strong>separate wire</strong> to transmit information back to the flight-controller. It is generally only available on <strong>KISS and BLHELI_32 ESC’s</strong>. The wire to the flight-controller can be shared between multiple ESC’s and is connected to the TX pin (for half duplex communication) of an otherwise unused UART.</p>
+
+<h3 id="which-telemetry-data-is-there">Which telemetry data is there?</h3>
+<p>As mentioned in the <a href="#special-commands">section above</a>, bits 1-47 are reserved for special commands, some of which are used to request telemetry. Of those commands, 42-47 are related to telemetry - please reference the table to see which telemetry data you can query.</p>
+
+<h3 id="transmission">Transmission</h3>
+<p>When the telemetry bit is set, the requested information is sent via a dedicated back-channel wire to the flight-controller. Multiple ESC’s can share the same wire. The protocol used is the KISS ESC telemetry protocol. And communicates the data via a single line back to the flight controller.</p>
+
+<p><strong>The frame size is a whopping 10 byte - 80 bit and is transmitted with a baudrate of 115200</strong>.</p>
+
+<p>All telemetry data is transmitted in this frame. I do not want to go into further detail about ESC telemetry since it is not really part of DSHOT. Detailed specifications can be found in an <a href="http://www.rcgroups.com/forums/showatt.php?attachmentid=8524039&amp;d=1450424877">rcGroups thread</a>.</p>
+
+<blockquote>
+  <p>This way of querying is pretty much outdated and too slow to do anything meaningful - except if you are interested in the current draw directly at the ESC.</p>
+</blockquote>
+
+<div class="support-me"><div class="headline">Support me</div><div class="text">If you like this content, please <b>consider supporting me by shopping through my affiliate links</b>. It does not cost you anything extra and I will get a small commission for everything you buy.</div><div class="buttons-wrapper"><div class="product-text">Shop on:</div><div class="buttons"><a target="_blank" class="bg" href="/external?url=https%3A%2F%2Fwww%2Ebanggood%2Ecom%2FWholesale%2DFPV%2DRacing%2DDrone%2Dca%2D7006%2D0%2D2%2D2%2D60%2D0_page1%2Ehtml%3Fp%3DEL26103618053201601Y%26utm_campaign%3Dchrisl%26utm_content%3D11385" title="Shop on BangGood"><amp-img width="100" height="100" alt="Banggood Logo" src="/images/buttons/bg.jpg" /></a><a target="_blank" class="mf" href="/external?url=https%3A%2F%2Fshop%2Emakerfire%2Ecom%2Fcollections%2Fmicro%2Dracing%2Ddrone%3Faff%3D313" title="Shop on Makerfire"><amp-img width="100" height="100" alt="Makerfire Logo" src="/images/buttons/mf.jpg" /></a><a target="_blank" class="beta" href="/external?url=https%3A%2F%2Fbetafpv%2Ecom%2Fcollections%2Fbrushless%2Dseries%2Dexcept%2Dhd%3F_sca_ref%3D32531%2EdWkE1zfXkb" title="Shop on BetaFPV"><amp-img width="100" height="100" alt="BetaFPV Logo" src="/images/buttons/beta.jpg" /></a></div></div></div>
+
+<h2 id="bidirectional-dshot">Bidirectional DSHOT</h2>
+<p>Bidirectional DSHOT is available in BLHELI_32 and on BLHELI_S when using 3rd party firmware as described in my article about <a href="/betaflight-rpm-filter/">RPM filtering, where I compare different firmware options</a>.</p>
+
+<p>Biderictional DSHOT is also known as <strong>inverted DSHOT</strong>, because the signal level is inverted, so 1 is low and a 0 is high. This is done in order to let the ESC know, that we are operating in bidirectional mode and that it should be sending back eRPM telemetry packages.</p>
+
+<blockquote>
+  <p>Bidirectional DSHOT only works with DSHOT 300 and up.</p>
+</blockquote>
+
+<h3 id="calculating-the-checksum">Calculating the Checksum</h3>
+<p>The calculation of the checksum is basically the same, just before the last step the values are inverted:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crc = (~(value ^ (value &gt;&gt; 4) ^ (value &gt;&gt; 8))) &amp; 0x0F;
+</code></pre></div></div>
+
+<p>With the same values as for the regular DSHOT frame:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>value  = 100000101100
+(&gt;&gt;4)  = 000010000010 # right shift value by 4
+(^)    = 100010101110 # XOR with value
+(&gt;&gt;8)  = 000000001000 # right shift value by 8
+(^)    = 100010100110 # XOR with previous XOR
+(~)    = 011101011001 # Invert
+(0x0F) = 000000001111 # Mask 0x0F
+(&amp;)    = 000000001001 # CRC
+</code></pre></div></div>
+
+<h3 id="bidirectional-dshot-frame-from-flight-controller">Bidirectional DSHOT Frame (from flight-controller)</h3>
+<p>The frame sent from the flight controller to the ESC has exactly the same structure, just the signal is inverted. The two bytes transmitted from flight-controller to ESC would be:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1000001011001001
+</code></pre></div></div>
+
+<p>On the wire, the signal would look like this:</p>
+
+<p>
+<amp-img lightbox="lightbox" src="/images/dshot_frame-inverted.png" alt="DSHOT inverted frame for bidirectional DSHOT" height="18" width="700" class="image-center max pointer full-width" layout="responsive"></amp-img>
+</p>
+
+<p>When bidirectional DHSOT ist enabled, for each frame sent to the ESC a frame with eRPM telemetry data is returned (on the same line, not the additional telemetry line), effectively halving the amount of frames you can send per second. You need to keep this in mind, especially when running higher PID frequencies.</p>
+
+<p>Although in bidirectional DHSOT mode, eRPM are always returned, other telemetry information can still be requested, but is then sent via a separate wire.</p>
+
+<p>Once the flight controller sends its frame, it switches to receive mode and waits for the eRPM frame to be returned from the ESC. The same thing is happening on the ESC - when the flight-controller is sending, the ESC is listening and the other way around.</p>
+
+<p>After sending a frame there is a 30µs break to switch the line, DMA, and timers in order for a frame to be received.  This break is independent of DSHOT frequency.</p>
+
+<h3 id="erpm-telemetry-frame-from-esc">eRPM Telemetry Frame (from ESC)</h3>
+<p>The eRPM telemetry frame sent by the ESC in bidirectional DSHOT mode is again a 16 bit value, so the same size as the received frame, but the structure is different:</p>
+
+<ul>
+  <li><strong>12 bit</strong>: eRPM Data</li>
+  <li><strong>4 bit</strong>: CRC</li>
+</ul>
+
+<p>The encoding of the eRPM data is not as straight forward as the one of the throttle frame:</p>
+
+<ul>
+  <li><strong>3 bit</strong>:  Amount that the following values need to be left shifted in order to get the periods in µs</li>
+  <li>
+    <p><strong>9 bit</strong>:  Period base</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>eeemmmmmmmmmcccc
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<p>The CRC is calculated exactly as it is with uninverted DSHOT, it is also sent back to the flight-controller uninverted.</p>
+
+<h3 id="extended-dshot-telemetry-edt">Extended DShot Telemetry (EDT)</h3>
+<p>Extended DShot telemetry or EDT is a relative late addition to the DShot “standard”. It allows transmission of additional telemetry within the eRPM frame, meaning no additional wire is needed to transmit additionsl telemetry from the ESC to the flight-controller.</p>
+
+<blockquote>
+  <p>This needs to be supported by both sides, ESC and flight-controller. Bleujay, BLHeli_32, AM32 all support this feature in their latest version.</p>
+</blockquote>
+
+<p>This is done by a special means of encoding: The eRPM telemetry is a bit redundant, if we just look at the data, ignoring the CRC:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>eee mmmmmmmmm
+123 123456789
+</code></pre></div></div>
+
+<p>if we have a closer look, we can see that the same eRPM value can (under certain circcumstances) be coded in different ways:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>000 000000010 = 000000010
+001 000000001 = 000000010
+
+000 000000100 = 000000100
+001 000000010 = 000000100
+
+000 010101010 = 010101010
+001 001010101 = 010101010
+
+110 000000010 = 010000000
+111 000000001 = 010000000
+
+000 011111110 = 011111110
+001 001111111 = 011111110
+</code></pre></div></div>
+
+<p>From those examples you might already see a pattern emerging: If the least significant bit of the exponent is 1 and the most significant bit of the value is 0, there is <strong>always</strong> a different way to encode the eRPM value simply by left shifting the value once and decrementing the exponent. If we always encode like this, there will never be eRPM values that look like so:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ee1 0mmmmmmmm
+ee0 0mmmmmmmm
+</code></pre></div></div>
+
+<p>And this we can use to encode additional data. If we see a frame that starts like so:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>eee 0mmmmmmmm
+</code></pre></div></div>
+
+<p>we know that it is not a regular eRPM frame but instead an extended DShot telemetry frame and we will interpret the package like so:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pppp mmmmmmmm
+</code></pre></div></div>
+
+<p>First four bits are telemetry type, last 8 bits are value. Since the last bit of telemetry type is alwys zero, we can encode the following telemetry types with an 8 bit value (0-255):</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0x02</td>
+      <td>Temperatur in C</td>
+    </tr>
+    <tr>
+      <td>0x04</td>
+      <td>Voltage: 0.25V per step</td>
+    </tr>
+    <tr>
+      <td>0x06</td>
+      <td>Current in Amp</td>
+    </tr>
+    <tr>
+      <td>0x08</td>
+      <td>Debug value 1</td>
+    </tr>
+    <tr>
+      <td>0x0A</td>
+      <td>Debug value 2</td>
+    </tr>
+    <tr>
+      <td>0x0C</td>
+      <td>Debug value 3</td>
+    </tr>
+    <tr>
+      <td>0x0E</td>
+      <td>State/Event</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Which of those types are actually transmitted depends on the firmware and the ESCs capability. Temperature is supported on basically all of them since most MCUs have an internal temperature sensor anywa. BLHeli_32 and AM32 also support voltage and current.</p>
+
+<p>Debug values can be anything the developers want it to be and allow for easy run time debugging.</p>
+
+<blockquote>
+  <p>The EDT frame is encoded and transmitted as any other eRPM frame. The frequency in which the telemetry frames are sent is basically up to the implementation. It is just important to note that they should not be sent too often as to not interfere with the RPM filtering.</p>
+</blockquote>
+
+<h3 id="erpm-transmission">eRPM Transmission</h3>
+<p>But there is a twist, it is not actually this value that is being sent back to the flight controller. Instead <a href="https://en.wikipedia.org/wiki/Run-length_limited#GCR:_(0,2)_RLL">GCR encoding</a> is applied and the 16 bit value is mapped to a 20 bit value by mapping the nibbles (groups of 4 bit) according to the following table:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Nibble</th>
+      <th>0</th>
+      <th>1</th>
+      <th>2</th>
+      <th>3</th>
+      <th>4</th>
+      <th>5</th>
+      <th>6</th>
+      <th>7</th>
+      <th>8</th>
+      <th>9</th>
+      <th>A</th>
+      <th>B</th>
+      <th>C</th>
+      <th>D</th>
+      <th>E</th>
+      <th>F</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Mapped</td>
+      <td>19</td>
+      <td>1B</td>
+      <td>12</td>
+      <td>13</td>
+      <td>1D</td>
+      <td>15</td>
+      <td>16</td>
+      <td>17</td>
+      <td>1A</td>
+      <td>09</td>
+      <td>0A</td>
+      <td>0B</td>
+      <td>1E</td>
+      <td>0D</td>
+      <td>0E</td>
+      <td>0F</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>If we take the following example value:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>16 bit:  1000001011000110
+Nibbles:  1000  0010  1100  0110
+Hex:        x8    x2    xC    x6
+Mapped:    x1A   x12   x1E   x16
+GCR:	 11010 10010 11110 10110
+GCR:	 11010100101111010110
+</code></pre></div></div>
+
+<p>Now we mapped our 16 bit value to 20 bit, but this is not ready for transmission yet. A 21 bit needs to be added and the original bits are transformed following this rules:</p>
+
+<p>We map the GCR to a 21 bit value, this new value starts with a 0 and the rest of the bits is set by the following two rules:</p>
+<ol>
+  <li>If the current bit in GCR data is a 1: The current new bit is the inversion of the last new bit</li>
+  <li>If the current bit in GCR data is a 0: The current new bit is the same as the last new bit</li>
+</ol>
+
+<p>This is best explained with a short example. Lets assume we have the GCR value of <code class="highlighter-rouge">01100010</code>:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GCR:  01100010
+New: 0          # We start out with adding a 0 bit (the 25th bit in the real frame)
+     00         # 1 bit of GCR is 0 =&gt; Rule 1: new bit is 0, because the last was 0
+     001        # 2 bit of GCR is 1 =&gt; Rule 2: new bit is 1 after inverting the last bit
+     0010       # 3 bit of GCR is 1 =&gt; Rule 2: new bit is 0 after inverting the last bit
+     00100      # 4 bit of GCR is 0 =&gt; Rule 2: new bit is 0, because the last was 0
+     001000     # 5 bit of GCR is 0 =&gt; Rule 2: new bit is 0, because the last was 0
+     0010000    # 6 bit of GCR is 0 =&gt; Rule 2: new bit is 0, because the last was 0
+     00100001   # 7 bit of GCR is 1 =&gt; Rule 2: new bit is 1 after inverting the last bit
+     001000011  # 8 bit of GCR is 0 =&gt; Rule 2: new bit is 1, because the last was 1
+</code></pre></div></div>
+
+<p>Let’s look at a real, 20 bit GCR value - the worst case scenario, where each bit is different</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GCR:  10101010101010101010
+New: 011001100110011001100
+</code></pre></div></div>
+
+<p>When we put this value on the wire, we only have half the transitions (switching from high to low) than we would have by sending the original GCR value.</p>
+
+<p>So instead of sending this:</p>
+
+<amp-img lightbox="lightbox" src="/images/dshot_gcr.png" alt="GCR encoded bidirectional eRPM frame" height="36" width="700" class="image-center pointer full-width" layout="responsive"></amp-img>
+<p><br />
+We send this:</p>
+
+<amp-img lightbox="lightbox" src="/images/dshot_gcr-optimized.png" alt="GCR encoded bidirectional eRPM frame optimized" height="34" width="700" class="image-center pointer full-width" layout="responsive"></amp-img>
+<p><br />
+This value is then sent uninverted at a bitrate of 5/4 x current DSHOT bitrate. So on DSHOT600 the 21 bits are sent with a bitrate of 750kbit/s.</p>
+
+<p>You might now ask yourself: <strong>WHY?</strong> And that is a good question. It turns out that GCR is an excellent transmission format, very robust to jitter. Tests during implementation have shown that the error rate of the eRPM packets is significantly lower when using GCR in comparison to sending DSHOT frames back to the flight-controller.</p>
+
+<h4 id="decoding-erpm-frame-on-flight-controller">Decoding eRPM frame (on flight-controller)</h4>
+<p>On the receiving end it is also pretty simple to decode the frame:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcr = (value ^ (value &gt;&gt; 1));
+</code></pre></div></div>
+
+<p>The value only needs to be XOR’d with itself after shifting it to the right once:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>value = 011001100110011001100
+(&gt;&gt;1) = 001100110011001100110 # right shift value by 1
+(^)   = 010101010101010101010 # GCR
+</code></pre></div></div>
+
+<h4 id="sources">Sources</h4>
+
+<ul>
+  <li><a href="https://www.speedgoat.com/help/slrt/page/io_main/refentry_dshot_usage_notes#:~:text=Protocol%20Description,does%20not%20require%20ESC%20calibration">DSHOT example FPGA plugin</a></li>
+  <li><a href="https://github.com/betaflight/betaflight/wiki/DSHOT-ESC-Protocol">DSHOT Betaflight WIKI</a></li>
+  <li><a href="https://blck.mn/2016/11/dshot-the-new-kid-on-the-block/">DSHOT verview</a></li>
+  <li><a href="https://github.com/betaflight/betaflight/pull/7264">Betaflight DSHOT telemetry PR</a></li>
+  <li><a href="https://github.com/betaflight/betaflight/files/2704888/Digital_Cmd_Spec.txt">DSHOT special commands</a></li>
+  <li><a href="https://esp32.com/viewtopic.php?t=10419">Bidirectional DSHOT ESP32</a></li>
+  <li><a href="https://github.com/betaflight/betaflight/pull/8554#issuecomment-512507625">Betaflight bidirectional DSHOT PR</a></li>
+  <li><a href="https://github.com/bitdump/BLHeli/issues/513">CRC DSHOT vs. bidirectional DSHOT</a></li>
+  <li><a href="https://github.com/betaflight/betaflight/pull/11694">Betaflight EDT PR</a></li>
+</ul>
+
+    </div>
+
+    <div class="recommended post-content sidebar">
+
+      <div class="wrapper-ad-recommended-tablet">
+        <amp-ad width="728" height="90"
+          type="adsense"
+          data-ad-client="ca-pub-1561982868251748"
+          data-block-on-consent="_auto_reject"
+          data-ad-slot="2525221951">
+            <div overflow></div>
+        </amp-ad>
+      </div>
+
+      <div class="author-info">
+        <p class="author-image-wrapper">
+          <amp-img src="/images/chris.jpg" width="170" height="170" alt="Author - Chris" layout="responsive"></amp-img>
+        </p>
+        <p><strong>Chris</strong> is a Vienna based software developer. In his spare time he enjoys reviewing tech gear, ripping quads of all sizes and making stuff.</p>
+        <p><a href="/chris/">Learn more about Chris</a>, the gear he uses and follow him on social media:</p>
+        <p class="author-social-wrapper">
+          <a href="https://www.youtube.com/c/stylesuxx" title="Visit Chris on YouTube">
+            <amp-img src="/images/icon_youtube.png" width="170" height="170" alt="YouTube" layout="responsive"></amp-img>
+          </a>
+          <a href="https://www.facebook.com/brushlesswhoop" title="Visit the BrushlessWhoop Facebook page">
+            <amp-img src="/images/facebook.svg" width="170" height="170" alt="YouTube" layout="responsive"></amp-img>
+          </a>
+          <a href="https://www.instagram.com/stylesuxx23/" title="Visit Chris on Instagram">
+            <amp-img src="/images/icon_instagram.png" width="170" height="170" alt="Insttagram" layout="responsive"></amp-img>
+          </a>
+        </p>
+
+      </div>
+
+      <div class="wrapper-ad-recommended-mobile">
+        <amp-ad width="100vw" height=320
+          type="adsense"
+          data-ad-client="ca-pub-1561982868251748"
+          data-block-on-consent="_auto_reject"
+          data-ad-slot="9285716204"
+          data-auto-format="rspv"
+          data-full-width>
+            <div overflow></div>
+        </amp-ad>
+      </div>
+
+      <div class="recommended-wrapper">
+        <h3>Also check out</h3>
+        <div class="item-wrapper">
+          
+        </div>
+      </div>
+
+      <div class="wrapper-ad-recommended-desktop">
+        
+        <amp-ad width="160" height="600"
+          type="adsense"
+          data-ad-client="ca-pub-1561982868251748"
+          data-block-on-consent="_auto_reject"
+          data-ad-slot="3075886296">
+            <div overflow></div>
+        </amp-ad></div>
+
+    </div>
+
+  </div>
+
+  <div class="banner-delimiter">
+    <amp-ad width="100vw" height="320"
+      type="adsense"
+      data-ad-client="ca-pub-1561982868251748"
+      data-block-on-consent="_auto_reject"
+      data-ad-slot="3229436794"
+      data-auto-format="rspv"
+      data-full-width>
+        <div overflow></div>
+    </amp-ad>
+  </div><amp-iframe
+    width="600"
+    height="328"
+    layout="responsive"
+    sandbox="allow-scripts allow-same-origin allow-modals allow-popups allow-forms"
+    resizable
+    title="Disqus"
+    src="https://disqus.brushlesswhoop.com/index.html?shortname=brushlesswhooop-com&identifier=/dshot-and-bidirectional-dshot/">
+    <div overflow tabindex=0 role=button aria-label="">Show more comments</div>
+  </amp-iframe><a class="u-url" href="/dshot-and-bidirectional-dshot/" hidden></a>
+
+      </div>
+      <div class="sidebar-ad-big">
+        <amp-ad width="300" height=600
+          type="adsense"
+          data-ad-client="ca-pub-1561982868251748"
+          data-block-on-consent="_auto_reject"
+          data-ad-slot="4466584508">
+            <div overflow></div>
+        </amp-ad>
+      </div>
+      <div class="sidebar-ad-small">
+        <amp-ad width="120" height=600
+          type="adsense"
+          data-ad-client="ca-pub-1561982868251748"
+          data-block-on-consent="_auto_reject"
+          data-ad-slot="4658156192">
+            <div overflow></div>
+        </amp-ad>
+      </div>
+    </main><footer class="site-footer h-card">
+  <a class="u-url" href="/" title="Home"></a>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Brushless Whoop</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li><a class="footer-menu" href="/privacy-policy/">Privacy Policy</a></li>
+          <li><a class="footer-menu" href="/terms-of-service/">Terms of Service</a></li>
+          <li><a class="footer-menu" href="/contact/">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <p>Get your fix for all your brushless whoop needs, what is new and how does it compare. No matter if indoor or outdoor - this is the resource for brushless whoops, parts and accessories.</p>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <form class="newsletter" action="https://feedburner.google.com/fb/a/mailverify?" method="get" novalidate="" target="_blank">
+          <input type="hidden" value="BrushlessWhoop" name="uri"/>
+          <input type="hidden" name="loc" value="en_US"/>
+          <div><strong>Don't miss the latest news - subscribe to the newsletter!</strong></div>
+          <div class="mail-wrapper">
+            <input placeholder="E-Mail Address" class="email" type="text" id="email" name="email" required="required" />
+            <label for="email">E-Mail address</label>
+            <input class="submit" type="submit" value="Subscribe" />
+          </div>
+        </form><ul class="social-media-list"></ul>
+</div>
+
+    </div>
+
+    <div class="copy footer-col-wrapper">&copy; 2018-2023 by Chris Landa</div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
