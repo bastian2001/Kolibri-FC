@@ -11,7 +11,8 @@
 		'No GPS fix',
 		'Configurator attached',
 		'ELRS missing',
-		'Not Acro or Angle'
+		'Not Acro or Angle',
+		'Gyro not calibrated'
 	];
 	let flightMode = 0;
 	let armingDisableFlags = 0;

@@ -7,6 +7,7 @@ bool armed					= false;
 // 3: configurator not attached
 // 4: at least one good ELRS packet before arming
 // 5: allowed modes during arm: acro, angle
+// 6: Gyro calibrated
 
 void modesLoop() {
 	if (ELRS->newPacketFlag & 0x00000001) {

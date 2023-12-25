@@ -34,6 +34,9 @@ int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *b
 uint32_t gyroLastState	  = 0;
 elapsedMicros lastPIDLoop = 0;
 
+uint32_t gyroCalibratedCycles	 = 0;
+int16_t gyroCalibrationOffset[3] = {0}, gyroCalibrationOffsetTemp[3] = {0};
+
 void gyroLoop() {
 	crashInfo[129]	  = 1;
 	uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
@@ -46,6 +49,27 @@ void gyroLoop() {
 		if (gpioState == 1) {
 			crashInfo[129] = 3;
 			pidLoop();
+			if (armingDisableFlags & 0x40) {
+				if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE) {
+					gyroCalibratedCycles++;
+					if (gyroCalibratedCycles >= QUIET_SAMPLES) {
+						gyroCalibrationOffsetTemp[0] += gyroDataRaw[0];
+						gyroCalibrationOffsetTemp[1] += gyroDataRaw[1];
+						gyroCalibrationOffsetTemp[2] += gyroDataRaw[2];
+					}
+					if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
+						armingDisableFlags &= 0xFFFFFFBF;
+						gyroCalibrationOffsetTemp[0] /= CALIBRATION_SAMPLES;
+						gyroCalibrationOffsetTemp[1] /= CALIBRATION_SAMPLES;
+						gyroCalibrationOffsetTemp[2] /= CALIBRATION_SAMPLES;
+					}
+				} else {
+					gyroCalibrationOffsetTemp[0] = 0;
+					gyroCalibrationOffsetTemp[1] = 0;
+					gyroCalibrationOffsetTemp[2] = 0;
+					gyroCalibratedCycles		 = 0;
+				}
+			}
 		}
 	}
 	crashInfo[129] = 4;
@@ -118,6 +142,7 @@ int gyroInit() {
 	// INT_LATCH: int_latch(0)
 	data = 0x00;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT_LATCH, &data, 1, 500);
+	armingDisableFlags |= 0x00000040;
 
 	return 0;
 }
@@ -127,6 +152,9 @@ uint32_t gyroUpdateFlag = 0;
 void gyroGetData(int16_t *buf) {
 	crashInfo[131] = 1;
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
+	buf[0] -= gyroCalibrationOffset[0];
+	buf[1] -= gyroCalibrationOffset[1];
+	buf[2] -= gyroCalibrationOffset[2];
 	crashInfo[131] = 2;
 	gyroUpdateFlag = 0xFFFFFFFF;
 }

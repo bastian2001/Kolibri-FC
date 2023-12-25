@@ -181,13 +181,17 @@ void gpsLoop() {
 				gpsAcc.pDop					= DECODE_U2(&msgData[76]);
 				gpsStatus.flags3			= DECODE_U2(&msgData[78]);
 				static int32_t lastHeadMot	= 0;
-				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsMotion.gSpeed > 5000 && lastHeadMot != gpsMotion.headMot && gpsAcc.headAcc < 100000) {
+				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsMotion.gSpeed > 5000 && lastHeadMot != gpsMotion.headMot && gpsAcc.headAcc < 200000) {
 					// speed > 18 km/h, thus the heading is likely valid
-					// heading changed (if not, then that means the GPS module just took the old heading, which is probably inaccurate), and the heading accuracy is good (less than +-1deg)
+					// heading changed (if not, then that means the GPS module just took the old heading, which is probably inaccurate), and the heading accuracy is good (less than +-2°)
 					// gps acts as a LPF to bring the heading into the right direction, while the gyro acts as a HPF to adjust the heading quickly
-					int32_t diff = gpsMotion.headMot - combinedHeading;
-					diff /= 10;
+					int32_t diff = gpsMotion.headMot - combinedHeadMot;
+					if (diff > 18000000) diff -= 36000000;
+					if (diff < -18000000) diff += 36000000;
+					diff /= 20;
 					headingAdjustment += diff;
+					if (headingAdjustment > 18000000) headingAdjustment -= 36000000;
+					if (headingAdjustment < -18000000) headingAdjustment += 36000000;
 				}
 				lastHeadMot = gpsMotion.headMot;
 				// if (gpsStatus.fixType >= FIX_3D && gpsStatus.satCount >= 6)

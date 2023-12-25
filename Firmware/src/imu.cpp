@@ -13,8 +13,9 @@ const float RAW_TO_HALF_ANGLE  = (float)(RAW_TO_RAD_PER_SEC * FRAME_TIME / 2);
 const float ANGLE_CHANGE_LIMIT = .00004;
 
 float pitch, roll, yaw;
-int32_t headMotAtt; // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
-int32_t combinedHeading;
+int32_t headMotAtt;		 // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
+int32_t combinedHeading; // NOT heading of motion, but heading of quad
+int32_t combinedHeadMot; // heading of motion, but with headingAdjustment applied
 
 Quaternion q;
 
@@ -145,13 +146,19 @@ void updatePitchRollValues() {
 	pitch = orientation_correction_axes[1] * angle;
 	yaw	  = atan2f(-2 * (q.v[2] * q.w + q.v[1] * q.v[0]), -1 + 2 * (q.v[0] * q.v[0] + q.w * q.w));
 
-	headMotAtt = yaw * 5729578; // 5729578 = 360 / (2 * PI) * 100000
+	headMotAtt		= yaw * 5729578;				  // 5729578 = 360 / (2 * PI) * 100000
+	combinedHeading = headMotAtt + headingAdjustment; // heading of quad
+	if (combinedHeading > 18000000) combinedHeading -= 36000000;
+	if (combinedHeading < -18000000) combinedHeading += 36000000;
 	if (angle > .2618f) {
-		// assume the quad is flying into the direction of pitch and roll
-		headMotAtt += atan2f(-orientation_vector[1], -orientation_vector[0]) * 5729578.f;
-	}
-	combinedHeading = headMotAtt + headingAdjustment;
-	crashInfo[135]	= 14;
+		// assume the quad is flying into the direction of pitch and roll, if the angle is larger than 15°
+		headMotAtt += atan2f(-orientation_vector[1], -orientation_vector[0]) * 5729578;
+		combinedHeadMot = headMotAtt + headingAdjustment; // heading of motion
+		if (combinedHeadMot > 18000000) combinedHeadMot -= 36000000;
+		if (combinedHeadMot < -18000000) combinedHeadMot += 36000000;
+	} else
+		combinedHeadMot = combinedHeading;
+	crashInfo[135] = 14;
 }
 
 void updateAttitude() {
