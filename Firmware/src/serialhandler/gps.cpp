@@ -1,12 +1,13 @@
 #include "global.h"
 
-deque<uint8_t> gpsBuffer;
+RingBuffer<uint8_t> gpsBuffer(1024);
 elapsedMillis gpsInitTimer;
 bool gpsInitAck = false;
 GpsAccuracy gpsAcc;
 GpsTime gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
+int32_t headingAdjustment = 0;
 
 void gpsChecksum(const uint8_t *buf, int len, uint8_t *ck_a, uint8_t *ck_b) {
 	*ck_a = 0;
@@ -22,8 +23,9 @@ void initGPS() {
 	Serial1.begin(38400);
 }
 
-int gpsSerialSpeed	 = 38400;
-uint8_t retryCounter = 0;
+int gpsSerialSpeed			 = 38400;
+uint8_t retryCounter		 = 0;
+elapsedMillis lastPvtMessage = 0;
 
 void gpsLoop() {
 	crashInfo[17] = 1;
@@ -102,27 +104,27 @@ void gpsLoop() {
 	}
 	crashInfo[17] = 2;
 	crashInfo[18] = gpsStatus.gpsInited;
-	if (gpsBuffer.size() >= 8) {
+	if (gpsBuffer.itemCount() >= 8) {
 		crashInfo[17] = 3;
 		int len		  = gpsBuffer[4] + gpsBuffer[5] * 256;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
-			gpsBuffer.pop_front();
+			gpsBuffer.pop();
 			crashInfo[17] = 4;
 			return;
 		}
 		if (len > GPS_BUF_LEN - 8) {
-			gpsBuffer.pop_front();
+			gpsBuffer.pop();
 			crashInfo[17] = 5;
 			return;
 		}
-		if (gpsBuffer.size() < len + 8) {
+		if (gpsBuffer.itemCount() < len + 8) {
 			crashInfo[17] = 6;
 			return;
 		}
 		uint8_t ck_a, ck_b;
-		gpsChecksum(&gpsBuffer[2], len + 4, &ck_a, &ck_b);
+		gpsChecksum(&(gpsBuffer[2]), len + 4, &ck_a, &ck_b);
 		if (ck_a != gpsBuffer[len + 6] || ck_b != gpsBuffer[len + 7]) {
-			gpsBuffer.pop_front();
+			gpsBuffer.pop();
 			crashInfo[17] = 7;
 			return;
 		}
@@ -130,7 +132,10 @@ void gpsLoop() {
 		// ensured that the packet is valid
 		uint32_t id = gpsBuffer[3], classId = gpsBuffer[2];
 
-		uint8_t *msgData = &gpsBuffer[6];
+		uint8_t msgData[len];
+		crashInfo[17] = 90;
+		gpsBuffer.copyToArray(msgData, 6, len);
+		crashInfo[17] = 91;
 		switch (classId) {
 		case UBX_CLASS_ACK: {
 			switch (id) {
@@ -148,6 +153,7 @@ void gpsLoop() {
 			switch (id) {
 			case UBX_ID_NAV_PVT: {
 				crashInfo[17]				= 11;
+				lastPvtMessage				= 0;
 				gpsTime.year				= DECODE_U2(&msgData[4]);
 				gpsTime.month				= msgData[6];
 				gpsTime.day					= msgData[7];
@@ -156,7 +162,7 @@ void gpsLoop() {
 				gpsTime.second				= msgData[10];
 				gpsStatus.timeValidityFlags = msgData[11];
 				gpsAcc.tAcc					= DECODE_U4(&msgData[12]);
-				gpsStatus.fix				= msgData[20];
+				gpsStatus.fixType			= msgData[20];
 				gpsStatus.flags				= msgData[21];
 				gpsStatus.flags2			= msgData[22];
 				gpsStatus.satCount			= msgData[23];
@@ -174,14 +180,28 @@ void gpsLoop() {
 				gpsAcc.headAcc				= DECODE_U4(&msgData[72]);
 				gpsAcc.pDop					= DECODE_U2(&msgData[76]);
 				gpsStatus.flags3			= DECODE_U2(&msgData[78]);
-				crashInfo[17]				= 12;
+				static int32_t lastHeadMot	= 0;
+				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsMotion.gSpeed > 5000 && lastHeadMot != gpsMotion.headMot && gpsAcc.headAcc < 100000) {
+					// speed > 18 km/h, thus the heading is likely valid
+					// heading changed (if not, then that means the GPS module just took the old heading, which is probably inaccurate), and the heading accuracy is good (less than +-1deg)
+					// gps acts as a LPF to bring the heading into the right direction, while the gyro acts as a HPF to adjust the heading quickly
+					int32_t diff = gpsMotion.headMot - combinedHeading;
+					diff /= 10;
+					headingAdjustment += diff;
+				}
+				lastHeadMot = gpsMotion.headMot;
+				// if (gpsStatus.fixType >= FIX_3D && gpsStatus.satCount >= 6)
+				// 	armingDisableFlags &= 0xFFFFFFFB;
+				// else
+				// 	armingDisableFlags |= 0x00000004;
+				crashInfo[17] = 12;
 			} break;
 			}
 		}
 		}
 		// pop the packet
 		crashInfo[17] = 13;
-		gpsBuffer.erase(gpsBuffer.begin(), gpsBuffer.begin() + len + 8);
+		gpsBuffer.erase(len + 8);
 		crashInfo[17] = 14;
 	}
 }

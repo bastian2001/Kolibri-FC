@@ -36,6 +36,8 @@ void sendCommand(uint16_t command, const char *data, uint16_t len) {
 }
 
 void handleConfigCmd() {
+	crashInfo[22] = configMsgCommand & 0xFF;
+	crashInfo[23] = configMsgCommand >> 8;
 	crashInfo[16] = 1;
 	char buf[256] = {0};
 	uint8_t len	  = 0;
@@ -44,6 +46,13 @@ void handleConfigCmd() {
 		uint16_t voltage = adcVoltage;
 		buf[len++]		 = voltage & 0xFF;
 		buf[len++]		 = voltage >> 8;
+		buf[len++]		 = armed;
+		buf[len++]		 = (uint8_t)flightMode;
+		buf[len++]		 = (uint8_t)(armingDisableFlags & 0xFF);
+		buf[len++]		 = (uint8_t)(armingDisableFlags >> 8);
+		buf[len++]		 = (uint8_t)(armingDisableFlags >> 16);
+		buf[len++]		 = (uint8_t)(armingDisableFlags >> 24);
+		buf[len++]		 = (uint8_t)(configuratorConnected & 0xFF);
 		sendCommand(configMsgCommand | 0x4000, buf, len);
 	} break;
 	case ConfigCmd::TASK_STATUS:
@@ -296,16 +305,22 @@ void handleConfigCmd() {
 		uint8_t serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
 		uint32_t baud	  = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
 		sendCommand(configMsgCommand | 0x4000, (char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 5);
-		uint8_t plusCount = 0;
+		uint8_t plusCount			  = 0;
+		elapsedMillis breakoutCounter = 0;
 		switch (serialNum) {
 		case 1:
 			Serial1.end();
 			Serial1.begin(baud);
 			while (true) {
+				if (breakoutCounter > 1000 && plusCount >= 3) break;
 				if (Serial.available()) {
+					breakoutCounter = 0;
+
 					char c = Serial.read();
-					if (c == '+') plusCount++;
-					if (plusCount == 3) break;
+					if (c == '+')
+						plusCount++;
+					else
+						plusCount = 0;
 					Serial1.write(c);
 				}
 				if (Serial1.available()) Serial.write(Serial1.read());
@@ -316,15 +331,21 @@ void handleConfigCmd() {
 			Serial2.end();
 			Serial2.begin(baud);
 			while (true) {
+				if (breakoutCounter > 1000 && plusCount == 3) break;
 				if (Serial.available()) {
+					breakoutCounter = 0;
+
 					char c = Serial.read();
-					if (c == '+') plusCount++;
-					if (plusCount == 3) break;
+					if (c == '+')
+						plusCount++;
+					else
+						plusCount = 0;
 					Serial2.write(c);
 				}
 				if (Serial2.available()) Serial.write(Serial2.read());
 				rp2040.wdt_reset();
 			}
+			break;
 		}
 	} break;
 	case ConfigCmd::GET_GPS_ACCURACY: {
@@ -340,7 +361,7 @@ void handleConfigCmd() {
 	case ConfigCmd::GET_GPS_STATUS: {
 		buf[0] = gpsStatus.gpsInited;
 		buf[1] = gpsStatus.initStep;
-		buf[2] = gpsStatus.fix;
+		buf[2] = gpsStatus.fixType;
 		buf[3] = gpsStatus.timeValidityFlags;
 		buf[4] = gpsStatus.flags;
 		buf[5] = gpsStatus.flags2;

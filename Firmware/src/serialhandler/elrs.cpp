@@ -1,5 +1,5 @@
 #include "global.h"
-deque<uint8_t> elrsBuffer;
+RingBuffer<uint8_t> elrsBuffer(260);
 
 ExpressLRS::ExpressLRS(SerialUART &elrsSerial, uint32_t baudrate, uint8_t pinTX, uint8_t pinRX)
 	: elrsSerial(elrsSerial),
@@ -21,7 +21,21 @@ ExpressLRS::~ExpressLRS() {
 
 void ExpressLRS::loop() {
 	crashInfo[3] = 1;
-	if (elrsBuffer.size() > 250) {
+	if (frequencyTimer > 1000) {
+		if (rcPacketRateCounter > 20)
+			isLinkUp = true;
+		else
+			isLinkUp = false;
+		if (lastMsgCount != msgCount) {
+			isReceiverUp = true;
+			lastMsgCount = msgCount;
+		} else
+			isReceiverUp = false;
+		packetRateCounter	= 0;
+		rcPacketRateCounter = 0;
+		frequencyTimer		= 0;
+	}
+	if (elrsBuffer.itemCount() > 250) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
 		lastError	= ERROR_BUFFER_OVERFLOW;
@@ -31,15 +45,15 @@ void ExpressLRS::loop() {
 		return;
 	}
 	crashInfo[3] = 3;
-	int maxScan	 = elrsBuffer.size();
+	int maxScan	 = elrsBuffer.itemCount();
 	if (maxScan > 10) maxScan = 10;
 	if (msgBufIndex > 55) maxScan = 65 - msgBufIndex;
 	crashInfo[4] = maxScan;
 	crashInfo[3] = 4;
 	for (int i = 0; i < maxScan; i++) {
 		crashInfo[3]			 = 5;
-		msgBuffer[msgBufIndex++] = elrsBuffer.front();
-		elrsBuffer.pop_front();
+		msgBuffer[msgBufIndex++] = elrsBuffer[0];
+		elrsBuffer.pop();
 		crashInfo[3] = 6;
 	}
 	if (msgBufIndex > 0 && msgBuffer[0] != RX_PREFIX) {
@@ -55,9 +69,6 @@ void ExpressLRS::loop() {
 		processMessage();
 		crashInfo[3] = 10;
 	}
-	if (sinceLastRCMessage > 500000)
-		armed = false;
-	crashInfo[5] = armed;
 }
 
 // from https://github.com/catphish/openuav/blob/master/firmware/src/elrs.c
@@ -97,6 +108,7 @@ void ExpressLRS::processMessage() {
 
 	msgCount++;
 	sinceLastMessage = 0;
+	packetRateCounter++;
 
 	crashInfo[6] = 5;
 	switch (msgBuffer[2]) {
@@ -159,36 +171,18 @@ void ExpressLRS::processMessage() {
 		pChannels[2] = constrain(pChannels[2], 1000, 2000);
 		crashInfo[6] = 11;
 
-		// check arming
-		// arming switch and already armed, or arming switch and throttle down (and not armed on boot)
-		if (pChannels[4] > 1500) {
-			crashInfo[6] = 12;
-			if (armed) {
-				crashInfo[6] = 13;
-			} else if (channels[4] < 1500 && channels[4] > 0 && pChannels[2] < 1020) {
-				crashInfo[6] = 14;
-				startLogging();
-				crashInfo[6] = 15;
-				armed		 = true;
-			} else if (channels[4] < 1500) {
-				crashInfo[6] = 16;
-				Serial.println(pChannels[2]);
-				makeSound(2500, 599, 70, 50);
-				crashInfo[6] = 17;
-			}
-		} else {
-			crashInfo[6] = 18;
-			armed		 = false;
-			if (channels[4] > 1500)
-				// just disarmed, stop logging
-				endLogging();
-			crashInfo[6] = 19;
-		}
+		newPacketFlag = 0xFFFFFFFF;
+		if (pChannels[4] > 1500)
+			consecutiveArmedCycles++;
+		else
+			consecutiveArmedCycles = 0;
 		crashInfo[6] = 20;
 
 		// update as fast as possible
 		memcpy(lastChannels, channels, 16 * sizeof(uint32_t));
 		memcpy(channels, pChannels, 16 * sizeof(uint32_t));
+		rcPacketRateCounter++;
+		rcMsgCount++;
 		crashInfo[6] = 21;
 		break;
 	}

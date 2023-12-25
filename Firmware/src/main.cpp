@@ -6,7 +6,6 @@ void setup() {
 	// delay(5000);
 	set_sys_clock_khz(132000, true);
 	Serial.begin(115200);
-	Serial.println("Starting up");
 	EEPROM.begin(4096);
 	readEEPROM();
 	// save crash info to EEPROM
@@ -15,6 +14,7 @@ void setup() {
 		for (int i = 0; i < 256; i++) {
 			EEPROM.write(4096 - 256 + i, (uint8_t)crashInfo[i]);
 		}
+		EEPROM.commit();
 	}
 	for (int i = 0; i < 256; i++) {
 		crashInfo[i] = 0;
@@ -26,14 +26,7 @@ void setup() {
 	osdInit();
 	initBaro();
 	initGPS();
-
 	initADC();
-
-	int heap	  = rp2040.getTotalHeap();
-	crashInfo[64] = heap & 0xFF;
-	crashInfo[65] = (heap >> 8) & 0xFF;
-	crashInfo[66] = (heap >> 16) & 0xFF;
-	crashInfo[67] = (heap >> 24) & 0xFF;
 
 	// init ELRS on pins 8 and 9 using Serial2 (UART1)
 	ELRS = new ExpressLRS(Serial2, 420000, 8, 9);
@@ -72,6 +65,7 @@ void loop() {
 		speakerLoop();
 		crashInfo[1] = 2;
 		ELRS->loop();
+		modesLoop();
 		crashInfo[1] = 3;
 		adcLoop();
 		crashInfo[1] = 4;

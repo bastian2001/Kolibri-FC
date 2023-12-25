@@ -1,6 +1,6 @@
 #pragma once
-#include <Arduino.h>
 #include "fixedPointInt.h"
+#include <Arduino.h>
 #define AXIS_ROLL 1
 #define AXIS_PITCH 0
 #define AXIS_YAW 2
@@ -16,8 +16,7 @@ extern int16_t *gyroDataRaw;
 extern int16_t *accelDataRaw;
 extern fixedPointInt32 imuData[6];
 extern fixedPointInt32 rateFactors[5][3];
-enum class PID_GAINS
-{
+enum class PID_GAINS {
 	P,
 	I,
 	D,
@@ -32,6 +31,14 @@ extern fixedPointInt64 rollErrorSum, pitchErrorSum, yawErrorSum;
 extern uint16_t smoothChannels[4];
 extern int16_t throttles[4];
 extern uint32_t pidLoopCounter;
+enum class FLIGHT_MODE {
+	ACRO,
+	ANGLE,
+	ALT_HOLD,
+	GPS_VEL, // control the velocity of the drone
+	GPS_POS, // set a position and hold it/fly to it
+};
+extern FLIGHT_MODE flightMode;
 
 void pidLoop();
 

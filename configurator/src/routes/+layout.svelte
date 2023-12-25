@@ -104,6 +104,7 @@
 			.connect(device)
 			.then(() => {
 				connected = true;
+				log = [];
 			})
 			.catch(() => {
 				connected = false;

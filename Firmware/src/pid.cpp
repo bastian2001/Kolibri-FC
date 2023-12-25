@@ -3,6 +3,7 @@
 int16_t bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
 int16_t *gyroDataRaw;
 int16_t *accelDataRaw;
+FLIGHT_MODE flightMode = FLIGHT_MODE::ACRO;
 
 #define IDLE_PERMILLE 25
 #define MAX_ANGLE 45
@@ -82,7 +83,7 @@ void pidLoop() {
 	updateAttitude();
 	crashInfo[130] = 4;
 
-	if (ELRS->armed) {
+	if (armed) {
 		crashInfo[130] = 5;
 		// Quad armed
 		static fixedPointInt32 polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static

@@ -4,6 +4,20 @@
 	import type { Command } from '../stores';
 	import { leBytesToInt, roundToDecimal } from '../utils';
 
+	const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
+	const ARMING_DISABLE_FLAGS = [
+		'Arming switch not armed',
+		'Throttle up',
+		'No GPS fix',
+		'Configurator attached',
+		'ELRS missing',
+		'Not Acro or Angle'
+	];
+	let flightMode = 0;
+	let armingDisableFlags = 0;
+	let armed = false;
+	let configuratorConnected = false;
+
 	let getRotationInterval = 0;
 	let xBox = null as any;
 	let yBox = null as any;
@@ -88,6 +102,12 @@
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
 		switch (command.command) {
+			case ConfigCmd.STATUS | 0x4000:
+				armed = command.data[2] === 1;
+				flightMode = command.data[3];
+				armingDisableFlags = leBytesToInt(command.data.slice(4, 8));
+				configuratorConnected = command.data[8] === 1;
+				break;
 			case ConfigCmd.GET_ROTATION | 0x4000:
 				let pitch = leBytesToInt(command.data.slice(0, 2));
 				if (pitch > 32768) pitch -= 65536;
@@ -103,9 +123,7 @@
 				yaw *= 180.0 / Math.PI;
 				yBox.style.transform = `rotateX(${-pitch}deg)`;
 				xBox.style.transform = `rotateY(${roll}deg)`;
-				zBox.style.transform = `rotateX(90deg) rotateZ(${
-					yaw + 180
-				}deg) translate3d(0px, 0px, -180px)`;
+				zBox.style.transform = `rotateX(90deg) rotateZ(${yaw}deg) translate3d(0px, 0px, -180px)`;
 				attitude = {
 					roll,
 					pitch,
@@ -119,11 +137,11 @@
 				port.disconnect();
 			case ConfigCmd.GET_GPS_ACCURACY | 0x4000:
 				gpsAcc = {
-					tAcc: leBytesToInt(command.data.slice(0, 4)) * 1e-9,
+					tAcc: leBytesToInt(command.data.slice(0, 4)) * 1e-3,
 					hAcc: leBytesToInt(command.data.slice(4, 8)) * 1e-3,
 					vAcc: leBytesToInt(command.data.slice(8, 12)) * 1e-3,
-					headAcc: leBytesToInt(command.data.slice(12, 16)) * 1e-5,
-					sAcc: leBytesToInt(command.data.slice(16, 20)) * 1e-3,
+					sAcc: leBytesToInt(command.data.slice(12, 16)) * 1e-3,
+					headAcc: leBytesToInt(command.data.slice(16, 20)) * 1e-5,
 					pDop: leBytesToInt(command.data.slice(20, 24)) * 0.01
 				};
 				break;
@@ -184,15 +202,29 @@
 		port.sendCommand(ConfigCmd.PLAY_SOUND);
 	}
 
+	function waitMs(ms: number) {
+		return new Promise((resolve) => {
+			setTimeout(resolve, ms);
+		});
+	}
+
 	onMount(() => {
 		getRotationInterval = setInterval(() => {
 			port.sendCommand(ConfigCmd.GET_ROTATION).catch(() => {});
 		}, 50);
 		getGpsData = setInterval(() => {
-			port.sendCommand(ConfigCmd.GET_GPS_ACCURACY).catch(() => {});
-			port.sendCommand(ConfigCmd.GET_GPS_MOTION).catch(() => {});
-			port.sendCommand(ConfigCmd.GET_GPS_STATUS).catch(() => {});
-			port.sendCommand(ConfigCmd.GET_GPS_TIME).catch(() => {});
+			port
+				.sendCommand(ConfigCmd.GET_GPS_ACCURACY)
+				.then(() => {
+					return port.sendCommand(ConfigCmd.GET_GPS_MOTION);
+				})
+				.then(() => {
+					return port.sendCommand(ConfigCmd.GET_GPS_STATUS);
+				})
+				.then(() => {
+					return port.sendCommand(ConfigCmd.GET_GPS_TIME);
+				})
+				.catch(() => {});
 		}, 200);
 	});
 	onDestroy(() => {
@@ -245,6 +277,15 @@
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_BY_WATCHDOG)}>Reboot (Watchdog)</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_TO_BOOTLOADER)}>Bootloader</button>
 </div>
+<div class="droneStatus">
+	Flight Mode: {FLIGHT_MODES[flightMode]}, Arming Disabled: {armingDisableFlags.toString(2)}, Armed: {armed
+		? 'Yes'
+		: 'No'}, Configurator Connected: {configuratorConnected ? 'Yes' : 'No'}<br />
+	Arming Disabled Flags:<br />
+	{ARMING_DISABLE_FLAGS.map((flag, i) => {
+		if (armingDisableFlags & (1 << i)) return flag + ', ';
+	}).join('')}
+</div>
 <div class="drone3DPreview">
 	<div class="zBox" bind:this={zBox}>
 		<div class="xBox" bind:this={xBox}>
@@ -270,7 +311,7 @@
 	<div class="axisLabel axisYaw">Yaw: {roundToDecimal(attitude.yaw, 2)}°</div>
 </div>
 <div class="gpsAcc gpsInfo">
-	Time Accuracy: {roundToDecimal(gpsAcc.tAcc, 4)}s<br />
+	Time Accuracy: {roundToDecimal(gpsAcc.tAcc, 2)}µs<br />
 	Horizontal Accuracy: {roundToDecimal(gpsAcc.hAcc, 2)}m<br />
 	Vertical Accuracy: {roundToDecimal(gpsAcc.vAcc, 2)}m<br />
 	Heading Accuracy: {roundToDecimal(gpsAcc.headAcc, 2)}°<br />

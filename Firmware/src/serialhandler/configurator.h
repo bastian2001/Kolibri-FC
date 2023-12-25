@@ -6,6 +6,8 @@
 #define CONFIG_BUFFER_COMMAND 4
 #define CONFIG_BUFFER_DATA 6
 
+extern bool configuratorConnected;
+
 // responses to commands have the command | 0x4000, followed by the data, no separate response codes
 // When a command fails, the response code is command | 0x8000, followed by the error, no separate error codes.
 // indicators have a command starting with the 0xC000 bit set

@@ -1,13 +1,23 @@
 #include <Arduino.h>
-#include <deque>
-using std::deque;
+#include <vector>
+using std::vector;
 
 #define GPS_BUF_LEN 1024
 
-extern deque<uint8_t> gpsBuffer;
+extern RingBuffer<uint8_t> gpsBuffer;
+extern int32_t headingAdjustment;
+extern elapsedMillis lastPvtMessage;
 
 void initGPS();
 void gpsLoop();
+enum fixTypes : uint8_t {
+	FIX_NONE			   = 0,
+	FIX_DEAD_RECKONING	   = 1,
+	FIX_2D				   = 2,
+	FIX_3D				   = 3,
+	FIX_GPS_DEAD_RECKONING = 4,
+	FIX_TIME_ONLY		   = 5,
+};
 
 #define UBX_SYNC1 0xB5
 #define UBX_SYNC2 0x62
@@ -20,17 +30,23 @@ typedef struct gpsTime {
 	uint8_t second;
 } GpsTime;
 typedef struct gpsAccuracy {
+	// unit: ns
 	uint32_t tAcc;
+	// unit: mm
 	uint32_t hAcc;
+	// unit: mm
 	uint32_t vAcc;
+	// unit: mm/s
 	uint32_t sAcc;
+	// unit: 10^-5 deg
 	uint32_t headAcc;
+	// unit: 10^-2
 	uint32_t pDop;
 } GpsAccuracy;
 typedef struct gpsStatus {
 	uint8_t gpsInited;
 	uint8_t initStep;
-	uint8_t fix;
+	uint8_t fixType;
 	uint8_t timeValidityFlags;
 	uint8_t flags;
 	uint8_t flags2;
@@ -38,13 +54,21 @@ typedef struct gpsStatus {
 	uint8_t satCount;
 } GpsStatus;
 typedef struct gpsMotion {
+	// unit: 10^-7 deg
 	int32_t lat;
+	// unit: 10^-7 deg
 	int32_t lon;
+	// unit: mm, above mean sea level
 	int32_t alt;
+	// unit: mm/s
 	int32_t velN;
+	// unit: mm/s
 	int32_t velE;
+	// unit: mm/s
 	int32_t velD;
+	// unit: mm/s
 	int32_t gSpeed;
+	// unit: 10^-5 deg
 	int32_t headMot;
 } GpsMotion;
 extern GpsAccuracy gpsAcc;

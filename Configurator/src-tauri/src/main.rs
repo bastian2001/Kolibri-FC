@@ -44,7 +44,7 @@ fn serial_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, String>
 #[command]
 fn serial_open(state: tauri::State<'_, MyState>, path: String) -> Result<(), String> {
     let port = serialport::new(path.as_str(), 115200)
-        .timeout(std::time::Duration::from_millis(10))
+        .timeout(std::time::Duration::from_millis(0))
         .open();
     match port {
         Ok(port) => {
