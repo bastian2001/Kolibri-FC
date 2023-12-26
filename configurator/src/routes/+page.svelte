@@ -203,7 +203,7 @@
 		port.sendCommand(ConfigCmd.PLAY_SOUND);
 	}
 
-	function waitMs(ms: number) {
+	function delay(ms: number) {
 		return new Promise((resolve) => {
 			setTimeout(resolve, ms);
 		});
@@ -269,7 +269,13 @@
 	>
 	<button
 		on:click={() => {
-			port.sendRaw([], '+++');
+			port.enableCommands(false);
+			port
+				.sendRaw([], '+++')
+				.then(() => {
+					return delay(1500);
+				})
+				.then(() => port.enableCommands(true));
 		}}>Stop Serial Passthrough</button
 	>
 	<button on:click={() => port.sendCommand(ConfigCmd.GET_CRASH_DUMP)}>Get Crash Dump</button>

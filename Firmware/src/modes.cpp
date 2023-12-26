@@ -47,33 +47,10 @@ void modesLoop() {
 			if (ELRS->lastChannels[4] > 1500)
 				endLogging();
 		}
+		flightMode = (FLIGHT_MODE)((ELRS->channels[6] - 900) / 200);
+		if (flightMode >= FLIGHT_MODE::LENGTH)
+			flightMode = FLIGHT_MODE::ACRO;
 	} else if (ELRS->sinceLastRCMessage > 500000)
 		armed = false;
 	crashInfo[5] = armed;
 }
-
-// // check arming
-// // arming switch and already armed, or arming switch and throttle down (and not armed on boot)
-// if (pChannels[4] > 1500) {
-// 	crashInfo[6] = 12;
-// 	if (armed) {
-// 		crashInfo[6] = 13;
-// 	} else if (channels[4] < 1500 && channels[4] > 0 && pChannels[2] < 1020) {
-// 		crashInfo[6] = 14;
-// 		startLogging();
-// 		crashInfo[6] = 15;
-// 		armed		 = true;
-// 	} else if (channels[4] < 1500) {
-// 		crashInfo[6] = 16;
-// 		Serial.println(pChannels[2]);
-// 		makeSound(2500, 599, 70, 50);
-// 		crashInfo[6] = 17;
-// 	}
-// } else {
-// 	crashInfo[6] = 18;
-// 	armed		 = false;
-// 	if (channels[4] > 1500)
-// 		// just disarmed, stop logging
-// 		endLogging();
-// 	crashInfo[6] = 19;
-// }

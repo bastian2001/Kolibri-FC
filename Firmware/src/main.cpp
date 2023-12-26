@@ -59,33 +59,31 @@ void setup() {
 elapsedMillis activityTimer;
 
 void loop() {
-	while (true) {
-		crashInfo[1] = 1;
-		// baroLoop();
-		speakerLoop();
-		crashInfo[1] = 2;
-		ELRS->loop();
-		modesLoop();
-		crashInfo[1] = 3;
-		adcLoop();
-		crashInfo[1] = 4;
-		osdLoop();
-		crashInfo[1] = 5;
-		serialLoop();
-		crashInfo[1] = 6;
-		configuratorLoop();
-		crashInfo[1] = 7;
-		gpsLoop();
-		crashInfo[1] = 8;
-		rp2040.wdt_reset();
-		crashInfo[1] = 9;
-		if (activityTimer > 500) {
-			crashInfo[1] = 10;
-			gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
-			activityTimer = 0;
-		}
-		crashInfo[1] = 11;
+	crashInfo[1] = 1;
+	// baroLoop();
+	speakerLoop();
+	crashInfo[1] = 2;
+	ELRS->loop();
+	modesLoop();
+	crashInfo[1] = 3;
+	adcLoop();
+	crashInfo[1] = 4;
+	osdLoop();
+	crashInfo[1] = 5;
+	serialLoop();
+	crashInfo[1] = 6;
+	configuratorLoop();
+	crashInfo[1] = 7;
+	gpsLoop();
+	crashInfo[1] = 8;
+	rp2040.wdt_reset();
+	crashInfo[1] = 9;
+	if (activityTimer > 500) {
+		crashInfo[1] = 10;
+		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
+		activityTimer = 0;
 	}
+	crashInfo[1] = 11;
 }
 
 void setup1() {

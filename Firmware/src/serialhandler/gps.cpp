@@ -34,21 +34,22 @@ void gpsLoop() {
 	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000)) {
 		switch (gpsStatus.initStep) {
 		case 0: {
-			// if (retryCounter++ % 2 == 0) {
-			// 	gpsSerialSpeed = 153600 - gpsSerialSpeed;
-			// 	Serial1.end();
-			// 	Serial1.begin(gpsSerialSpeed);
-			// }
-			// uint8_t msgSetupUart[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_PRT, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x00, 0xC2, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-			// gpsChecksum(&msgSetupUart[2], 24, &msgSetupUart[26], &msgSetupUart[27]);
-			// Serial1.write(msgSetupUart, 28);
-			// gpsInitAck	 = false;
-			// gpsInitTimer = 0;
-			gpsStatus.initStep++;
+			if (retryCounter++ % 2 == 0) {
+				gpsSerialSpeed = 153600 - gpsSerialSpeed;
+				Serial1.end();
+				Serial1.begin(gpsSerialSpeed);
+			}
+			uint8_t msgSetupUart[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_PRT, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x00, 0xC2, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+			gpsChecksum(&msgSetupUart[2], 24, &msgSetupUart[26], &msgSetupUart[27]);
+			Serial1.write(msgSetupUart, 28);
+			crashInfo[35] = msgSetupUart[26];
+			crashInfo[36] = msgSetupUart[27];
+			gpsInitAck	  = false;
+			gpsInitTimer  = 0;
 		} break;
 		case 1: {
-			// Serial1.end();
-			// Serial1.begin(115200);
+			Serial1.end();
+			Serial1.begin(115200);
 			uint8_t msgDisableGxGGA[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x00, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGGA[2], 7, &msgDisableGxGGA[9], &msgDisableGxGGA[10]);
 			Serial1.write(msgDisableGxGGA, 11);
@@ -97,7 +98,14 @@ void gpsLoop() {
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
-		case 8:
+		case 8: {
+			uint8_t msgSetNavRate[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_RATE, 0x06, 0x00, 0x64, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00};
+			gpsChecksum(&msgSetNavRate[2], 10, &msgSetNavRate[12], &msgSetNavRate[13]);
+			Serial1.write(msgSetNavRate, 14);
+			gpsInitAck	 = false;
+			gpsInitTimer = 0;
+		} break;
+		case 9:
 			gpsStatus.gpsInited = true;
 			break;
 		}
@@ -141,7 +149,7 @@ void gpsLoop() {
 			switch (id) {
 			case UBX_ID_ACK_ACK:
 				crashInfo[17] = 9;
-				if (gpsStatus.initStep < 8 && len == 2 && msgData[0] == UBX_CLASS_CFG && msgData[1] == UBX_ID_CFG_MSG) {
+				if (gpsStatus.initStep < 9 && len == 2 && msgData[0] == UBX_CLASS_CFG && (msgData[1] == UBX_ID_CFG_MSG || msgData[1] == UBX_ID_CFG_PRT || msgData[1] == UBX_ID_CFG_RATE)) {
 					crashInfo[17] = 10;
 					gpsStatus.initStep++;
 					gpsInitAck = true;

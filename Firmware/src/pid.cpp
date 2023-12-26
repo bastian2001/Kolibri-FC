@@ -93,13 +93,35 @@ void pidLoop() {
 		polynomials[0][0].setRaw(((int32_t)smoothChannels[0] - 1500) << 7); //-1...+1 in fixed point notation;
 		polynomials[0][1].setRaw(((int32_t)smoothChannels[1] - 1500) << 7);
 		polynomials[0][2].setRaw(((int32_t)smoothChannels[3] - 1500) << 7);
-		rollSetpoint  = 0;
-		pitchSetpoint = 0;
-		yawSetpoint	  = 0;
-		if (ELRS->channels[5] < 1300) {
+		fixedPointInt32 throttle = (smoothChannels[2] - 1000) * 2;
+		rollSetpoint			 = 0;
+		pitchSetpoint			 = 0;
+		yawSetpoint				 = 0;
+		if (flightMode == FLIGHT_MODE::ANGLE || flightMode == FLIGHT_MODE::ALT_HOLD) {
+			crashInfo[130]		   = 10;
+			fixedPointInt32 dRoll  = fixedPointInt32(smoothChannels[0] - 1500) * TO_ANGLE - (RAD_TO_DEG * roll);
+			fixedPointInt32 dPitch = fixedPointInt32(smoothChannels[1] - 1500) * TO_ANGLE + (RAD_TO_DEG * pitch);
+			rollSetpoint		   = dRoll * angleModeP;
+			pitchSetpoint		   = dPitch * angleModeP;
+			polynomials[0][2].setRaw(((int32_t)smoothChannels[3] - 1500) << 7);
+			crashInfo[130] = 11;
+			for (int i = 1; i < 5; i++) {
+				polynomials[i][2] = polynomials[i - 1][2] * polynomials[0][2];
+				if (polynomials[0][2] < 0)
+					polynomials[i][2] = -polynomials[i][2];
+			}
 
+			crashInfo[130] = 12;
+			yawSetpoint	   = 0;
+			for (int i = 0; i < 5; i++)
+				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
+
+			crashInfo[130] = 13;
+			if (flightMode == FLIGHT_MODE::ALT_HOLD) {
+				// estimate throttle
+			}
+		} else if (flightMode == FLIGHT_MODE::ACRO) {
 			crashInfo[130] = 7;
-			// Rate mode
 			/* at full stick deflection, ...Raw values are either +1 or -1. That will make all the
 			 * polynomials also +/-1. Thus, the total rate for each axis is equal to the sum of all 5 rateFactors
 			 * of that axis. The center rate is the ratefactor[x][0].
@@ -118,27 +140,6 @@ void pidLoop() {
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 			}
 			crashInfo[130] = 9;
-		} else {
-			// Angle mode
-			crashInfo[130]		   = 10;
-			fixedPointInt32 dRoll  = fixedPointInt32(smoothChannels[0] - 1500) * TO_ANGLE - (RAD_TO_DEG * (float)roll);
-			fixedPointInt32 dPitch = fixedPointInt32(smoothChannels[1] - 1500) * TO_ANGLE - (RAD_TO_DEG * (float)pitch);
-			rollSetpoint		   = dRoll * angleModeP;
-			pitchSetpoint		   = dPitch * angleModeP;
-			polynomials[0][2].setRaw(((int32_t)smoothChannels[3] - 1500) << 7);
-			crashInfo[130] = 11;
-			for (int i = 1; i < 5; i++) {
-				polynomials[i][2] = polynomials[i - 1][2] * polynomials[0][2];
-				if (polynomials[0][2] < 0)
-					polynomials[i][2] = -polynomials[i][2];
-			}
-
-			crashInfo[130] = 12;
-			yawSetpoint	   = 0;
-			for (int i = 0; i < 5; i++)
-				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
-
-			crashInfo[130] = 13;
 		}
 		rollError  = rollSetpoint - imuData[AXIS_ROLL];
 		pitchError = pitchSetpoint - imuData[AXIS_PITCH];
@@ -179,15 +180,15 @@ void pidLoop() {
 		fixedPointInt32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 		fixedPointInt32 yawTerm	  = yawP + yawI + yawD + yawFF + yawS;
 #ifdef PROPS_OUT
-		tRR = fixedPointInt32((smoothChannels[2] - 1000) * 2) - rollTerm + pitchTerm + yawTerm;
-		tFR = fixedPointInt32((smoothChannels[2] - 1000) * 2) - rollTerm - pitchTerm - yawTerm;
-		tRL = fixedPointInt32((smoothChannels[2] - 1000) * 2) + rollTerm + pitchTerm - yawTerm;
-		tFL = fixedPointInt32((smoothChannels[2] - 1000) * 2) + rollTerm - pitchTerm + yawTerm;
+		tRR = throttle - rollTerm + pitchTerm + yawTerm;
+		tFR = throttle - rollTerm - pitchTerm - yawTerm;
+		tRL = throttle + rollTerm + pitchTerm - yawTerm;
+		tFL = throttle + rollTerm - pitchTerm + yawTerm;
 #else
-		tRR = fixedPointInt32((smoothChannels[2] - 1000) * 2) - rollTerm + pitchTerm - yawTerm;
-		tFR = fixedPointInt32((smoothChannels[2] - 1000) * 2) - rollTerm - pitchTerm + yawTerm;
-		tRL = fixedPointInt32((smoothChannels[2] - 1000) * 2) + rollTerm + pitchTerm + yawTerm;
-		tFL = fixedPointInt32((smoothChannels[2] - 1000) * 2) + rollTerm - pitchTerm - yawTerm;
+		tRR = throttle - rollTerm + pitchTerm - yawTerm;
+		tFR = throttle - rollTerm - pitchTerm + yawTerm;
+		tRL = throttle + rollTerm + pitchTerm + yawTerm;
+		tFL = throttle + rollTerm - pitchTerm - yawTerm;
 #endif
 		crashInfo[130]				  = 16;
 		throttles[(uint8_t)MOTOR::RR] = map(tRR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
