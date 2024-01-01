@@ -93,54 +93,40 @@ void drawElem(uint8_t elem) {
 }
 
 void osdLoop() {
-	crashInfo[9] = 1;
-	if (osdReady && (gyroUpdateFlag & 1)) {
-		crashInfo[9] = 2;
-		gyroUpdateFlag &= ~1;
+		if (osdReady && (gyroUpdateFlag & 1)) {
+				gyroUpdateFlag &= ~1;
 		// cycle through all drawn elements, and update one per gyro cycle
 		uint8_t drawIteratorStart = drawIterator;
 		while (1) {
-			crashInfo[9] = 3;
-			drawIterator++;
+						drawIterator++;
 			if (drawIterator >= OSD_MAX_ELEM)
 				drawIterator = 0;
 			if ((elemPositions[drawIterator][0] & 0x80) && (elemPositions[drawIterator][1] & 0x80)) // if updated and enabled
 			{
-				crashInfo[9] = 4;
-				drawElem(drawIterator);
-				crashInfo[9] = 5;
-				break;
+								drawElem(drawIterator);
+								break;
 			}
 			if (drawIterator == drawIteratorStart)
 				break;
 		}
 	} else if (!osdReady && (gyroUpdateFlag & 1)) {
-		crashInfo[9] = 6;
-		gyroUpdateFlag &= ~1;
+				gyroUpdateFlag &= ~1;
 		if (osdTimer > 1000) {
-			crashInfo[9] = 7;
-			// gyro likely ready, check registers
+						// gyro likely ready, check registers
 			uint8_t data = 0;
 			osdTimer	 = 0;
 			regRead(SPI_OSD, PIN_OSD_CS, (uint8_t)OSDReg::STAT, &data, 1, 0, 0);
-			crashInfo[9] = 8;
-			if (data && !(data & 0b01100000)) {
+						if (data && !(data & 0b01100000)) {
 				osdReady = true;
 			}
-			crashInfo[9]  = 9;
-			crashInfo[10] = osdReady;
-			if (data & 1) {
-				crashInfo[9] = 10;
-				data		 = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
+									if (data & 1) {
+								data		 = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
 				regWrite(SPI_OSD, PIN_OSD_CS, (uint8_t)OSDReg::VM0, &data);
-				crashInfo[9] = 12;
-			}
+							}
 			if (data & 2) {
-				crashInfo[9] = 11;
-				data		 = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
+								data		 = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
 				regWrite(SPI_OSD, PIN_OSD_CS, (uint8_t)OSDReg::VM0, &data);
-				crashInfo[9] = 13;
-			}
+							}
 		}
 	}
 }

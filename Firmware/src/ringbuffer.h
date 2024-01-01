@@ -79,11 +79,8 @@ public:
 	}
 	void copyToArray(T *array, size_t start, size_t arraySize) {
 		extern uint32_t crashInfo[256];
-		crashInfo[17] = 100;
 		if (start >= itemCount()) return;
-		crashInfo[17] = 101;
 		if (start + arraySize > itemCount()) arraySize = itemCount() - start;
-		crashInfo[17] = 102;
 		// use memcpy for speed
 		if (wrPtr > rdPtr || rdPtr + start + arraySize < size) {
 			memcpy(array, buffer + rdPtr + start, arraySize * sizeof(T));
@@ -92,9 +89,7 @@ public:
 		} else {
 			size_t itemsInFirstPart = size - rdPtr - start;
 			memcpy(array, buffer + rdPtr + start, itemsInFirstPart * sizeof(T));
-			crashInfo[17] = 107;
 			memcpy(array + itemsInFirstPart, buffer, (arraySize - itemsInFirstPart) * sizeof(T));
-			crashInfo[17] = 108;
 		}
 	}
 };

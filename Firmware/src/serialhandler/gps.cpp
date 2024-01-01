@@ -43,7 +43,6 @@ uint8_t retryCounter		 = 0;
 elapsedMillis lastPvtMessage = 0;
 
 void gpsLoop() {
-	crashInfo[17] = 1;
 	crashInfo[18] = gpsStatus.gpsInited;
 	// UBX implementation
 	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000)) {
@@ -125,47 +124,36 @@ void gpsLoop() {
 			break;
 		}
 	}
-	crashInfo[17] = 2;
 	crashInfo[18] = gpsStatus.gpsInited;
 	if (gpsBuffer.itemCount() >= 8) {
-		crashInfo[17] = 3;
-		int len		  = gpsBuffer[4] + gpsBuffer[5] * 256;
+		int len = gpsBuffer[4] + gpsBuffer[5] * 256;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
 			gpsBuffer.pop();
-			crashInfo[17] = 4;
 			return;
 		}
 		if (len > GPS_BUF_LEN - 8) {
 			gpsBuffer.pop();
-			crashInfo[17] = 5;
 			return;
 		}
 		if (gpsBuffer.itemCount() < len + 8) {
-			crashInfo[17] = 6;
 			return;
 		}
 		uint8_t ck_a, ck_b;
 		gpsChecksum(&(gpsBuffer[2]), len + 4, &ck_a, &ck_b);
 		if (ck_a != gpsBuffer[len + 6] || ck_b != gpsBuffer[len + 7]) {
 			gpsBuffer.pop();
-			crashInfo[17] = 7;
 			return;
 		}
-		crashInfo[17] = 8;
 		// ensured that the packet is valid
 		uint32_t id = gpsBuffer[3], classId = gpsBuffer[2];
 
 		uint8_t msgData[len];
-		crashInfo[17] = 90;
 		gpsBuffer.copyToArray(msgData, 6, len);
-		crashInfo[17] = 91;
 		switch (classId) {
 		case UBX_CLASS_ACK: {
 			switch (id) {
 			case UBX_ID_ACK_ACK:
-				crashInfo[17] = 9;
 				if (gpsStatus.initStep < 9 && len == 2 && msgData[0] == UBX_CLASS_CFG && (msgData[1] == UBX_ID_CFG_MSG || msgData[1] == UBX_ID_CFG_PRT || msgData[1] == UBX_ID_CFG_RATE)) {
-					crashInfo[17] = 10;
 					gpsStatus.initStep++;
 					gpsInitAck = true;
 				}
@@ -175,7 +163,6 @@ void gpsLoop() {
 		case UBX_CLASS_NAV: {
 			switch (id) {
 			case UBX_ID_NAV_PVT: {
-				crashInfo[17]				= 11;
 				lastPvtMessage				= 0;
 				gpsTime.year				= DECODE_U2(&msgData[4]);
 				gpsTime.month				= msgData[6];
@@ -218,7 +205,7 @@ void gpsLoop() {
 				}
 				lastHeadMot = gpsMotion.headMot;
 				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsStatus.satCount >= 6) {
-					vVel = fixedPointInt32(0.9f) * vVel + fixedPointInt32(0.0001f) * (int)gpsMotion.velD;
+					vVel			 = fixedPointInt32(0.9f) * vVel + fixedPointInt32(0.0001f) * (int)gpsMotion.velD;
 					combinedAltitude = fixedPointInt32(0.9f) * combinedAltitude + fixedPointInt32(0.0001f) * (int)gpsMotion.alt;
 				}
 				eVel = fixedPointInt32(0.8f) * eVel + fixedPointInt32(0.0002f) * (int)gpsMotion.velE;
@@ -248,14 +235,11 @@ void gpsLoop() {
 				// 	armingDisableFlags &= 0xFFFFFFFB;
 				// else
 				// 	armingDisableFlags |= 0x00000004;
-				crashInfo[17] = 12;
 			} break;
 			}
 		}
 		}
 		// pop the packet
-		crashInfo[17] = 13;
 		gpsBuffer.erase(len + 8);
-		crashInfo[17] = 14;
 	}
 }

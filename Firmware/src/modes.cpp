@@ -78,8 +78,7 @@ void modesLoop() {
 		}
 	} else if (ELRS->sinceLastRCMessage > 500000)
 		armed = false;
-	crashInfo[5] = armed;
-}
+	}
 
 void modesInit(){
 	placeElem(OSDElem::FLIGHT_MODE, 1, 2);

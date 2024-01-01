@@ -158,20 +158,14 @@ void endLogging() {
 
 uint8_t bbBuffer[128];
 void writeSingleFrame() {
-	crashInfo[140]	 = 1;
 	size_t bufferPos = 0;
 	if (!lfsReady || !bbLogging) {
-		crashInfo[140] = 2;
 		return;
 	}
-	crashInfo[140] = 3;
 	if (blackboxFile.size() > maxFileSize) {
-		crashInfo[140] = 4;
 		endLogging();
-		crashInfo[140] = 5;
 		return;
 	}
-	crashInfo[140] = 6;
 	if (currentBBFlags & LOG_ROLL_ELRS_RAW) {
 		bbBuffer[bufferPos++] = ELRS->channels[0];
 		bbBuffer[bufferPos++] = ELRS->channels[0] >> 8;
@@ -301,8 +295,5 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
-	crashInfo[140] = 7;
-	crashInfo[141] = bufferPos;
 	blackboxFile.write(bbBuffer, bufferPos);
-	crashInfo[140] = 8;
 }

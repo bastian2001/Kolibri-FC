@@ -19,8 +19,7 @@ void setup() {
 	for (int i = 0; i < 256; i++) {
 		crashInfo[i] = 0;
 	}
-	crashInfo[0] = 255;
-
+	
 	gyroInit();
 	imuInit();
 	osdInit();
@@ -60,41 +59,27 @@ void setup() {
 elapsedMillis activityTimer;
 
 void loop() {
-	crashInfo[1] = 1;
-	// baroLoop();
+		// baroLoop();
 	speakerLoop();
-	crashInfo[1] = 2;
-	ELRS->loop();
+		ELRS->loop();
 	modesLoop();
-	crashInfo[1] = 3;
-	adcLoop();
-	crashInfo[1] = 4;
-	osdLoop();
-	crashInfo[1] = 5;
-	serialLoop();
-	crashInfo[1] = 6;
-	configuratorLoop();
-	crashInfo[1] = 7;
-	gpsLoop();
-	crashInfo[1] = 8;
-	rp2040.wdt_reset();
-	crashInfo[1] = 9;
-	if (activityTimer > 500) {
-		crashInfo[1] = 10;
-		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
+		adcLoop();
+		osdLoop();
+		serialLoop();
+		configuratorLoop();
+		gpsLoop();
+		rp2040.wdt_reset();
+		if (activityTimer > 500) {
+				gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
 		activityTimer = 0;
 	}
-	crashInfo[1] = 11;
-}
+	}
 
 void setup1() {
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {
 	}
-	crashInfo[127] = 255;
-}
+	}
 void loop1() {
-	crashInfo[128] = 1;
-	gyroLoop();
-	crashInfo[128] = 2;
-}
+		gyroLoop();
+	}

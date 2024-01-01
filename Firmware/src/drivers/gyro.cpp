@@ -38,17 +38,14 @@ uint32_t gyroCalibratedCycles	 = 0;
 int16_t gyroCalibrationOffset[3] = {0}, gyroCalibrationOffsetTemp[3] = {0};
 
 void gyroLoop() {
-	crashInfo[129]	  = 1;
-	uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
+		uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
 	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
 	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
 	lastPIDLoop = 0;
 	if (gpioState != gyroLastState) {
-		crashInfo[129] = 2;
-		gyroLastState  = gpioState;
+				gyroLastState  = gpioState;
 		if (gpioState == 1) {
-			crashInfo[129] = 3;
-			pidLoop();
+						pidLoop();
 			if (armingDisableFlags & 0x40) {
 				if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE) {
 					gyroCalibratedCycles++;
@@ -72,8 +69,7 @@ void gyroLoop() {
 			}
 		}
 	}
-	crashInfo[129] = 4;
-}
+	}
 
 int gyroInit() {
 	spi_init(SPI_GYRO, 8000000);
@@ -150,13 +146,11 @@ int gyroInit() {
 uint32_t gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
 void gyroGetData(int16_t *buf) {
-	crashInfo[131] = 1;
-	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
+		regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
 	buf[0] -= gyroCalibrationOffset[0];
 	buf[1] -= gyroCalibrationOffset[1];
 	buf[2] -= gyroCalibrationOffset[2];
-	crashInfo[131] = 2;
-	gyroUpdateFlag = 0xFFFFFFFF;
+		gyroUpdateFlag = 0xFFFFFFFF;
 }
 
 // config file needs to be uploaded to the BMI270 before it can be used

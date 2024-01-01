@@ -44,8 +44,7 @@ uint16_t appendChecksum(uint16_t data) {
 }
 
 void sendRaw16Bit(const uint16_t raw[4]) {
-	crashInfo[138] = 1;
-	motorPacket[0] = 0;
+		motorPacket[0] = 0;
 	motorPacket[1] = 0;
 	for (int i = 31; i >= 0; i--) {
 		int pos	  = i / 4;
@@ -53,35 +52,26 @@ void sendRaw16Bit(const uint16_t raw[4]) {
 		motorPacket[0] |= ((raw[motor] >> (pos + 8)) & 1) << i;
 		motorPacket[1] |= ((raw[motor] >> pos) & 1) << i;
 	}
-	crashInfo[138] = 2;
-	pio_sm_put(escPio, escSm, motorPacket[0]);
-	crashInfo[138] = 3;
-	pio_sm_put(escPio, escSm, motorPacket[1]);
-	crashInfo[138] = 4;
-}
+		pio_sm_put(escPio, escSm, motorPacket[0]);
+		pio_sm_put(escPio, escSm, motorPacket[1]);
+	}
 
 void sendRaw11Bit(const uint16_t raw[4]) {
-	crashInfo[139]		 = 1;
-	static uint16_t t[4] = {0, 0, 0, 0};
+		static uint16_t t[4] = {0, 0, 0, 0};
 	for (int i = 0; i < 4; i++) {
 		t[i] = constrain(raw[i], 0, 2047);
 		t[i] = appendChecksum(t[i] << 1 | 1);
 	}
-	crashInfo[139] = 2;
-	sendRaw16Bit(t);
-	crashInfo[139] = 3;
-}
+		sendRaw16Bit(t);
+	}
 
 void sendThrottles(const int16_t throttles[4]) {
-	crashInfo[137]		 = 1;
-	static uint16_t t[4] = {0, 0, 0, 0};
+		static uint16_t t[4] = {0, 0, 0, 0};
 	for (int i = 0; i < 4; i++) {
 		t[i] = constrain(throttles[i], 0, 2000);
 		if (t[i])
 			t[i] += 47;
 		t[i] = appendChecksum(t[i] << 1 | 0);
 	}
-	crashInfo[137] = 2;
-	sendRaw16Bit(t);
-	crashInfo[137] = 3;
-}
+		sendRaw16Bit(t);
+	}

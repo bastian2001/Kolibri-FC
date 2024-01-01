@@ -36,9 +36,6 @@ void sendCommand(uint16_t command, const char *data, uint16_t len) {
 }
 
 void handleConfigCmd() {
-	crashInfo[22] = configMsgCommand & 0xFF;
-	crashInfo[23] = configMsgCommand >> 8;
-	crashInfo[16] = 1;
 	char buf[256] = {0};
 	uint8_t len	  = 0;
 	switch ((ConfigCmd)configMsgCommand) {
@@ -412,45 +409,33 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));
 	} break;
 	}
-	crashInfo[16] = 2;
 }
 
 void configuratorHandleByte(uint8_t c, uint8_t _serialNum) {
-	crashInfo[15]								  = 1;
 	configSerialBuffer[configSerialBufferIndex++] = c;
 	// every message from the configurator starts with _K, followed by two bytes of data length (only for the data, thus between 0 and 65535), then 2 bytes command, then the data, then the checksum (1 byte XOR of length, command and data)
 	// 2 bytes prefix, 2 bytes length, 2 bytes command, data, 1 byte checksum
 	if (configSerialBufferIndex == 1 && c != '_') {
-		crashInfo[15]			= 2;
 		configSerialBufferIndex = 0;
 		return;
 	} else if (configSerialBufferIndex == 2 && c != 'K') {
 		configSerialBufferIndex = 0;
-		crashInfo[15]			= 3;
 		return;
 	} else if (configSerialBufferIndex == 4) {
-		crashInfo[15]	= 4;
 		configMsgLength = configSerialBuffer[2] + (configSerialBuffer[3] << 8); // low byte first
 	} else if (configSerialBufferIndex == 6) {
-		crashInfo[15]	 = 5;
 		configMsgCommand = configSerialBuffer[4] + (configSerialBuffer[5] << 8); // low byte first
 	}
-	crashInfo[15] = 6;
 	if (configSerialBufferIndex == configMsgLength + 7) {
-		crashInfo[15] = 7;
-		uint8_t crc	  = 0;
+		uint8_t crc = 0;
 		for (int i = 2; i < configMsgLength + 7; i++)
 			crc ^= configSerialBuffer[i];
-		crashInfo[15] = 8;
 		if (crc != 0) {
 			configSerialBufferIndex = 0;
 			Serial.printf("CRC error");
-			crashInfo[15] = 9;
 			return;
 		}
-		crashInfo[15] = 10;
 		handleConfigCmd();
-		crashInfo[15]			= 11;
 		configSerialBufferIndex = 0;
 	}
 }
