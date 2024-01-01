@@ -4,7 +4,7 @@ uint8_t setupDone = 0b00;
 
 void setup() {
 	// delay(5000);
-	set_sys_clock_khz(132000, true);
+	set_sys_clock_khz(264000, true);
 	Serial.begin(115200);
 	EEPROM.begin(4096);
 	readEEPROM();
@@ -27,6 +27,7 @@ void setup() {
 	initBaro();
 	initGPS();
 	initADC();
+	modesInit();
 
 	// init ELRS on pins 8 and 9 using Serial2 (UART1)
 	ELRS = new ExpressLRS(Serial2, 420000, 8, 9);
@@ -89,7 +90,6 @@ void loop() {
 void setup1() {
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {
-		rp2040.wdt_reset();
 	}
 	crashInfo[127] = 255;
 }

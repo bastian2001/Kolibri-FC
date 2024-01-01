@@ -6,16 +6,18 @@
 // Z: down / yaw right
 // (Tait-Bryan angles)
 
-const float RAW_TO_RAD_PER_SEC = (float)(PI * 4000 / 65536 / 180); // 2000deg per second, but raw is only +/-.5
-const float RAW_TO_M_PER_SEC2  = (float)(9.81 * 32 / 65536);	   // same reason, +/-16g
-const float FRAME_TIME		   = (float)(1. / 3200);
-const float RAW_TO_HALF_ANGLE  = (float)(RAW_TO_RAD_PER_SEC * FRAME_TIME / 2);
-const float ANGLE_CHANGE_LIMIT = .00004;
+const float RAW_TO_RAD_PER_SEC	   = (float)(PI * 4000 / 65536 / 180); // 2000deg per second, but raw is only +/-.5
+const float FRAME_TIME			   = (float)(1. / 3200);
+const float RAW_TO_HALF_ANGLE	   = (float)(RAW_TO_RAD_PER_SEC * FRAME_TIME / 2);
+const float ANGLE_CHANGE_LIMIT	   = .0002;
+const float RAW_TO_DELTA_M_PER_SEC = (float)(9.81 * 32 / 65536); // +/-16g
 
-float pitch, roll, yaw;
+float pitch, roll, yaw, rpAngle;
 int32_t headMotAtt;		 // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
 int32_t combinedHeading; // NOT heading of motion, but heading of quad
 int32_t combinedHeadMot; // heading of motion, but with headingAdjustment applied
+fixedPointInt32 vVel, combinedAltitude;
+fixedPointInt32 eVel, nVel;
 
 Quaternion q;
 
@@ -37,10 +39,16 @@ void updateFromGyro() {
 	// quaternion of all 3 axis rotations combined. All the other terms are dependent on the order of multiplication, therefore we leave them out, as they are arbitrarily defined
 	// e.g. defining a q_x, q_y and q_z and then multiplying them in a certain order would result in a different quaternion than multiplying them in a different order. Therefore we omit these inconsistent terms completely
 	crashInfo[133] = 1;
+	// float all[]	   = {gyroDataRaw[1] * RAW_TO_HALF_ANGLE, gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
 	Quaternion all = {gyroDataRaw[1] * RAW_TO_HALF_ANGLE, gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE, 1};
 	crashInfo[133] = 2;
 
 	Quaternion_multiply(&all, &q, &q);
+	// Quaternion buffer = q;
+	// q.w += (-buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2]);
+	// q.v[0] += (+buffer.w * all[0] + buffer.v[1] * all[2] - buffer.v[2] * all[1]);
+	// q.v[1] += (+buffer.w * all[1] - buffer.v[0] * all[2] + buffer.v[2] * all[0]);
+	// q.v[2] += (+buffer.w * all[2] + buffer.v[0] * all[1] - buffer.v[1] * all[0]);
 	crashInfo[133] = 3;
 
 	Quaternion_normalize(&q, &q);
@@ -76,14 +84,14 @@ void updateFromAccel() {
 	crashInfo[134] = 5;
 
 	float axis[3];
-	float angle	   = Quaternion_toAxisAngle(&shortest_path, axis) / 2048; // reduces effect of accel noise on attitude
+	float accAngle = Quaternion_toAxisAngle(&shortest_path, axis); // reduces effect of accel noise on attitude
 	crashInfo[134] = 6;
 
-	if (angle > ANGLE_CHANGE_LIMIT) angle = ANGLE_CHANGE_LIMIT;
+	if (accAngle > ANGLE_CHANGE_LIMIT) accAngle = ANGLE_CHANGE_LIMIT;
 	crashInfo[134] = 7;
 
 	Quaternion correction;
-	Quaternion_fromAxisAngle(axis, angle, &correction);
+	Quaternion_fromAxisAngle(axis, accAngle, &correction);
 	crashInfo[134] = 8;
 
 	Quaternion_multiply(&correction, &q, &q);
@@ -95,7 +103,10 @@ void updateFromAccel() {
 void updatePitchRollValues() {
 	crashInfo[135] = 1;
 	Quaternion shortest_path;
-	// decision was made to not recalculate the orientation_vector, as this saves 50µs @132MHz at only a slight loss in precision (accel update delayed by 1 cycle)
+	// no recalculation of orientation_vector, as this saves 50µs @132MHz at only a slight loss in precision (accel update delayed by 1 cycle)
+	// orientation_vector[0] = q.w * q.v[1] * -2 + q.v[0] * q.v[2] * -2;
+	// orientation_vector[1] = q.v[1] * q.v[2] * -2 + q.w * q.v[0] * 2;
+	// orientation_vector[2] = -q.v[2] * q.v[2] + q.v[1] * q.v[1] + q.v[0] * q.v[0] - q.w * q.w;
 
 	float dot = -orientation_vector[2];
 
@@ -139,18 +150,18 @@ void updatePitchRollValues() {
 
 	float orientation_correction_axes[3];
 	crashInfo[135] = 12;
-	float angle	   = Quaternion_toAxisAngle(&shortest_path, orientation_correction_axes);
+	rpAngle		   = Quaternion_toAxisAngle(&shortest_path, orientation_correction_axes);
 	crashInfo[135] = 13;
 
-	roll  = orientation_correction_axes[0] * angle;
-	pitch = orientation_correction_axes[1] * angle;
+	roll  = orientation_correction_axes[0] * rpAngle;
+	pitch = orientation_correction_axes[1] * rpAngle;
 	yaw	  = atan2f(-2 * (q.v[2] * q.w + q.v[1] * q.v[0]), -1 + 2 * (q.v[0] * q.v[0] + q.w * q.w));
 
 	headMotAtt		= yaw * 5729578;				  // 5729578 = 360 / (2 * PI) * 100000
 	combinedHeading = headMotAtt + headingAdjustment; // heading of quad
 	if (combinedHeading > 18000000) combinedHeading -= 36000000;
 	if (combinedHeading < -18000000) combinedHeading += 36000000;
-	if (angle > .2618f) {
+	if (rpAngle > .2618f) {
 		// assume the quad is flying into the direction of pitch and roll, if the angle is larger than 15°
 		headMotAtt += atan2f(-orientation_vector[1], -orientation_vector[0]) * 5729578;
 		combinedHeadMot = headMotAtt + headingAdjustment; // heading of motion
@@ -158,6 +169,15 @@ void updatePitchRollValues() {
 		if (combinedHeadMot < -18000000) combinedHeadMot += 36000000;
 	} else
 		combinedHeadMot = combinedHeading;
+	vVel += fixedPointInt32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[2] * cosf(rpAngle)) / fixedPointInt32(3200);
+	vVel += fixedPointInt32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[0] * sinf(roll)) / fixedPointInt32(3200);
+	vVel += fixedPointInt32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[1] * sinf(pitch)) / fixedPointInt32(3200);
+	vVel -= fixedPointInt32(9.81f / 3200);
+	combinedAltitude += vVel / fixedPointInt32(3200);
+	uint8_t buf[16];
+	snprintf((char *)buf, 16, "\x7F%.1f\x0C ", combinedAltitude.getFloat());
+	updateElem(OSDElem::ALTITUDE, (char *)buf);
+
 	crashInfo[135] = 14;
 }
 

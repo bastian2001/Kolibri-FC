@@ -1,7 +1,6 @@
 #include <Arduino.h>
 
-enum class OSDReg : uint8_t
-{
+enum class OSDReg : uint8_t {
 	VM0,
 	VM1,
 	HOS,
@@ -15,22 +14,29 @@ enum class OSDReg : uint8_t
 	CMAL,
 	CMDI,
 	OSDM,
-	RB0 = 0x10,
+	RB0	  = 0x10,
 	OSDBL = 0x6C,
-	STAT = 0xA0,
-	DMDO = 0xB0,
-	CMDO = 0xC0,
+	STAT  = 0xA0,
+	DMDO  = 0xB0,
+	CMDO  = 0xC0,
 };
 
 #define OSD_WIDTH 30
 #define OSD_HEIGHT 16
 #define OSD_MAX_ELEM 128
 
-enum class OSDElem : uint8_t
-{
+enum class OSDElem : uint8_t {
 	WARNINGS,
 	TOT_VOLTAGE,
 	CURRENT,
+	FLIGHT_MODE,
+	ALTITUDE,
+	LATITUDE,
+	LONGITUDE,
+	GPS_STATUS,
+	HEADING,
+	HOME_DISTANCE,
+	GROUND_SPEED
 };
 
 void osdInit();

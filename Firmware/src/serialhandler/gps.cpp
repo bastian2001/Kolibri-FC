@@ -21,6 +21,21 @@ void gpsChecksum(const uint8_t *buf, int len, uint8_t *ck_a, uint8_t *ck_b) {
 void initGPS() {
 	Serial1.setFIFOSize(1024);
 	Serial1.begin(38400);
+
+	placeElem(OSDElem::LATITUDE, 1, 13);
+	placeElem(OSDElem::LONGITUDE, 13, 13);
+	placeElem(OSDElem::ALTITUDE, 1, 14);
+	placeElem(OSDElem::GROUND_SPEED, 10, 14);
+	placeElem(OSDElem::HEADING, 15, 14);
+	placeElem(OSDElem::HOME_DISTANCE, 23, 14);
+	placeElem(OSDElem::GPS_STATUS, 1, 12);
+	enableElem(OSDElem::LATITUDE);
+	enableElem(OSDElem::LONGITUDE);
+	enableElem(OSDElem::ALTITUDE);
+	enableElem(OSDElem::GROUND_SPEED);
+	enableElem(OSDElem::HEADING);
+	enableElem(OSDElem::HOME_DISTANCE);
+	enableElem(OSDElem::GPS_STATUS);
 }
 
 int gpsSerialSpeed			 = 38400;
@@ -189,7 +204,7 @@ void gpsLoop() {
 				gpsAcc.pDop					= DECODE_U2(&msgData[76]);
 				gpsStatus.flags3			= DECODE_U2(&msgData[78]);
 				static int32_t lastHeadMot	= 0;
-				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsMotion.gSpeed > 5000 && lastHeadMot != gpsMotion.headMot && gpsAcc.headAcc < 200000) {
+				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsMotion.gSpeed > 5000 && lastHeadMot != gpsMotion.headMot && gpsAcc.headAcc < 200000 && gpsStatus.satCount >= 6) {
 					// speed > 18 km/h, thus the heading is likely valid
 					// heading changed (if not, then that means the GPS module just took the old heading, which is probably inaccurate), and the heading accuracy is good (less than +-2°)
 					// gps acts as a LPF to bring the heading into the right direction, while the gyro acts as a HPF to adjust the heading quickly
@@ -202,6 +217,33 @@ void gpsLoop() {
 					if (headingAdjustment < -18000000) headingAdjustment += 36000000;
 				}
 				lastHeadMot = gpsMotion.headMot;
+				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsStatus.satCount >= 6) {
+					vVel = fixedPointInt32(0.9f) * vVel + fixedPointInt32(0.0001f) * (int)gpsMotion.velD;
+					combinedAltitude = fixedPointInt32(0.9f) * combinedAltitude + fixedPointInt32(0.0001f) * (int)gpsMotion.alt;
+				}
+				eVel = fixedPointInt32(0.8f) * eVel + fixedPointInt32(0.0002f) * (int)gpsMotion.velE;
+				nVel = fixedPointInt32(0.8f) * nVel + fixedPointInt32(0.0002f) * (int)gpsMotion.velN;
+				uint8_t buf[16];
+				snprintf((char *)buf, 16, "\x89%.7f", gpsMotion.lat / 10000000.f);
+				updateElem(OSDElem::LATITUDE, (char *)buf);
+				snprintf((char *)buf, 16, "\x98%.7f", gpsMotion.lon / 10000000.f);
+				updateElem(OSDElem::LONGITUDE, (char *)buf);
+				// snprintf((char *)buf, 16, "\x7F%d\x0C ", gpsMotion.alt / 1000);
+				// updateElem(OSDElem::ALTITUDE, (char *)buf);
+				snprintf((char *)buf, 16, "%d\x9E ", gpsMotion.gSpeed / 278);
+				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
+				snprintf((char *)buf, 16, "%dD ", combinedHeading / 100000);
+				updateElem(OSDElem::HEADING, (char *)buf);
+				float toRadians = 1.745329251e-9f;
+				float sin1		= sinf((gpsMotion.lat - startPointLat) * (toRadians / 2));
+				float sin2		= sinf((gpsMotion.lon - startPointLon) * (toRadians / 2));
+
+				int dist = 2 * 6371000 *
+						   asinf(sqrtf(sin1 * sin1 + cosf(gpsMotion.lat * toRadians) * cosf(startPointLat * toRadians) * sin2 * sin2));
+				snprintf((char *)buf, 16, "\x11%d\x0C  ", dist);
+				updateElem(OSDElem::HOME_DISTANCE, (char *)buf);
+				snprintf((char *)buf, 16, "\x1E\x1F%d  ", gpsStatus.satCount);
+				updateElem(OSDElem::GPS_STATUS, (char *)buf);
 				// if (gpsStatus.fixType >= FIX_3D && gpsStatus.satCount >= 6)
 				// 	armingDisableFlags &= 0xFFFFFFFB;
 				// else

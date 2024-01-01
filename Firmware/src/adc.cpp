@@ -43,11 +43,8 @@ void adcLoop() {
 			}
 			crashInfo[7]		   = 8;
 			uint8_t voltageStr[16] = {0};
-			uint8_t len			   = sprintf((char *)voltageStr, "%2d.%02d", adcVoltage / 100, adcVoltage % 100);
-			crashInfo[7]		   = 9;
-			crashInfo[8]		   = len;
-			voltageStr[len]		   = 0x06;
-			voltageStr[len + 1]	   = '\0';
+			snprintf((char *)voltageStr, 16, "%.2f\x06", adcVoltage / 100.f);
+			crashInfo[7] = 9;
 			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);
 			crashInfo[7] = 10;
 			pVoltage	 = adcVoltage;

@@ -6,7 +6,7 @@ int16_t *accelDataRaw;
 FLIGHT_MODE flightMode = FLIGHT_MODE::ACRO;
 
 #define IDLE_PERMILLE 25
-#define MAX_ANGLE 45
+#define MAX_ANGLE 35 // degrees
 
 /*
  * To avoid a lot of floating point math, fixed point math is used.
@@ -31,11 +31,12 @@ enum {
 	iFalloff
 };
 fixedPointInt32 pidGains[3][7];
-fixedPointInt32 angleModeP = 10;
+fixedPointInt32 pidGainsVVel[3], pidGainsHVel[3];
+fixedPointInt32 angleModeP = 10, velocityModeP = 3;
 
-fixedPointInt32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint;
-fixedPointInt64 rollErrorSum, pitchErrorSum, yawErrorSum;
-fixedPointInt32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS;
+fixedPointInt32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
+fixedPointInt64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
+fixedPointInt32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
 fixedPointInt32 tRR, tRL, tFR, tFL;
 
 uint32_t pidLoopCounter = 0;
@@ -62,6 +63,12 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
+	pidGainsVVel[P] = 200;
+	pidGainsVVel[I] = .2;
+	pidGainsVVel[D] = 0;
+	pidGainsHVel[P] = 12;			 // immediate target tilt in degree @ 1m/s too slow/fast
+	pidGainsHVel[I] = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
+	pidGainsHVel[D] = 7;			 // tilt in degrees, if changing speed by 3200m/s /s
 }
 
 uint32_t takeoffCounter = 0;
@@ -97,12 +104,46 @@ void pidLoop() {
 		rollSetpoint			 = 0;
 		pitchSetpoint			 = 0;
 		yawSetpoint				 = 0;
-		if (flightMode == FLIGHT_MODE::ANGLE || flightMode == FLIGHT_MODE::ALT_HOLD) {
-			crashInfo[130]		   = 10;
-			fixedPointInt32 dRoll  = fixedPointInt32(smoothChannels[0] - 1500) * TO_ANGLE - (RAD_TO_DEG * roll);
-			fixedPointInt32 dPitch = fixedPointInt32(smoothChannels[1] - 1500) * TO_ANGLE + (RAD_TO_DEG * pitch);
-			rollSetpoint		   = dRoll * angleModeP;
-			pitchSetpoint		   = dPitch * angleModeP;
+		if (flightMode == FLIGHT_MODE::ANGLE || flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
+			crashInfo[130] = 10;
+			fixedPointInt32 dRoll;
+			fixedPointInt32 dPitch;
+			if (flightMode < FLIGHT_MODE::GPS_VEL) {
+				dRoll		  = fixedPointInt32(smoothChannels[0] - 1500) * TO_ANGLE - (RAD_TO_DEG * roll);
+				dPitch		  = fixedPointInt32(smoothChannels[1] - 1500) * TO_ANGLE + (RAD_TO_DEG * pitch);
+				rollSetpoint  = dRoll * angleModeP;
+				pitchSetpoint = dPitch * angleModeP;
+			} else if (flightMode == FLIGHT_MODE::GPS_VEL) {
+				fixedPointInt32 cosfhead = cosf(combinedHeading / 5729578.f);
+				fixedPointInt32 sinfhead = sinf(combinedHeading / 5729578.f);
+				eVelSetpoint			 = cosfhead * (smoothChannels[0] - 1500) + sinfhead * (smoothChannels[1] - 1500);
+				nVelSetpoint			 = -sinfhead * (smoothChannels[0] - 1500) + cosfhead * (smoothChannels[1] - 1500);
+				eVelSetpoint			 = eVelSetpoint >> 9;
+				nVelSetpoint			 = nVelSetpoint >> 9;
+				eVelSetpoint *= 12; //+-12m/s
+				nVelSetpoint *= 12; //+-12m/s
+				eVelError = eVelSetpoint - eVel;
+				nVelError = nVelSetpoint - nVel;
+				eVelErrorSum += eVelError;
+				nVelErrorSum += nVelError;
+				eVelP = pidGainsHVel[P] * eVelError;
+				nVelP = pidGainsHVel[P] * nVelError;
+				eVelI = pidGainsHVel[I] * eVelErrorSum;
+				nVelI = pidGainsHVel[I] * nVelErrorSum;
+				eVelD = pidGainsHVel[D] * (eVel - eVelLast);
+				nVelD = pidGainsHVel[D] * (nVel - nVelLast);
+
+				fixedPointInt32 eVelPID		= eVelP + eVelI + eVelD;
+				fixedPointInt32 nVelPID		= nVelP + nVelI + nVelD;
+				fixedPointInt32 targetRoll	= eVelPID * cosfhead - nVelPID * sinfhead;
+				fixedPointInt32 targetPitch = eVelPID * sinfhead + nVelPID * cosfhead;
+				targetRoll					= constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
+				targetPitch					= constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
+				dRoll						= targetRoll - (RAD_TO_DEG * roll);
+				dPitch						= targetPitch + (RAD_TO_DEG * pitch);
+				rollSetpoint				= dRoll * velocityModeP;
+				pitchSetpoint				= dPitch * velocityModeP;
+			}
 			polynomials[0][2].setRaw(((int32_t)smoothChannels[3] - 1500) << 7);
 			crashInfo[130] = 11;
 			for (int i = 1; i < 5; i++) {
@@ -117,9 +158,19 @@ void pidLoop() {
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 
 			crashInfo[130] = 13;
-			if (flightMode == FLIGHT_MODE::ALT_HOLD) {
+			if (flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
 				// estimate throttle
+				vVelSetpoint = (throttle - 1000) / 200; // +/- 5 m/s
+				vVelError	 = vVelSetpoint - vVel;
+				vVelErrorSum += vVelError;
+				vVelP = pidGainsVVel[P] * vVelError;
+				vVelI = pidGainsVVel[I] * vVelErrorSum;
+				vVelD = pidGainsVVel[D] * (vVel - vVelLast);
+				throttle = vVelP + vVelI + vVelD;
+			} else {
+				vVelErrorSum = 0;
 			}
+			vVelLast = vVel;
 		} else if (flightMode == FLIGHT_MODE::ACRO) {
 			crashInfo[130] = 7;
 			/* at full stick deflection, ...Raw values are either +1 or -1. That will make all the
