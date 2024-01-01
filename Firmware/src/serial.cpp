@@ -16,9 +16,8 @@ void serialLoop() {
 	for (int i = 0; i < 3; i++) {
 		if (serialFunctions[i % 3] & SERIAL_DISABLED)
 			continue;
-		Stream *serial	  = serials[i % 3];
-		int available	  = serial->available();
-		crashInfo[19 + i] = available;
+		Stream *serial = serials[i % 3];
+		int available  = serial->available();
 		if (available <= 0)
 			continue;
 		for (int j = 0; j < available; j++) {

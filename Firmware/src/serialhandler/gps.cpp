@@ -43,7 +43,6 @@ uint8_t retryCounter		 = 0;
 elapsedMillis lastPvtMessage = 0;
 
 void gpsLoop() {
-	crashInfo[18] = gpsStatus.gpsInited;
 	// UBX implementation
 	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000)) {
 		switch (gpsStatus.initStep) {
@@ -56,10 +55,8 @@ void gpsLoop() {
 			uint8_t msgSetupUart[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_PRT, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x00, 0xC2, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 			gpsChecksum(&msgSetupUart[2], 24, &msgSetupUart[26], &msgSetupUart[27]);
 			Serial1.write(msgSetupUart, 28);
-			crashInfo[35] = msgSetupUart[26];
-			crashInfo[36] = msgSetupUart[27];
-			gpsInitAck	  = false;
-			gpsInitTimer  = 0;
+			gpsInitAck	 = false;
+			gpsInitTimer = 0;
 		} break;
 		case 1: {
 			Serial1.end();
@@ -124,7 +121,6 @@ void gpsLoop() {
 			break;
 		}
 	}
-	crashInfo[18] = gpsStatus.gpsInited;
 	if (gpsBuffer.itemCount() >= 8) {
 		int len = gpsBuffer[4] + gpsBuffer[5] * 256;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
