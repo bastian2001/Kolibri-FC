@@ -9,8 +9,8 @@ Stream *serials[3] = {
 // 0 = serial, 1 = serial1, 2 = serial2
 uint32_t serialFunctions[3] = {
 	SERIAL_CONFIGURATOR,
-	SERIAL_GPS,
-	SERIAL_ELRS};
+	SERIAL_ELRS,
+	SERIAL_GPS};
 
 void serialLoop() {
 	for (int i = 0; i < 3; i++) {

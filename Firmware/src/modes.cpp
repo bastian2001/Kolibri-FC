@@ -39,7 +39,8 @@ void modesLoop() {
 				armingDisableFlags |= 0x00000020;
 			if (!armingDisableFlags) {
 				startLogging();
-				armed		  = true;
+				armed = true;
+				gpio_put(PIN_LED_DEBUG, 1);
 				startPointLat = gpsMotion.lat;
 				startPointLon = gpsMotion.lon;
 			} else if (ELRS->consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
@@ -47,6 +48,7 @@ void modesLoop() {
 			}
 		} else if (ELRS->channels[4] < 1500) {
 			armed = false;
+			gpio_put(PIN_LED_DEBUG, 0);
 			// just disarmed, stop logging
 			if (ELRS->lastChannels[4] > 1500)
 				endLogging();
@@ -78,9 +80,9 @@ void modesLoop() {
 		}
 	} else if (ELRS->sinceLastRCMessage > 500000)
 		armed = false;
-	}
+}
 
-void modesInit(){
+void modesInit() {
 	placeElem(OSDElem::FLIGHT_MODE, 1, 2);
 	enableElem(OSDElem::FLIGHT_MODE);
 }

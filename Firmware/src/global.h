@@ -1,7 +1,15 @@
+#define LITTLEFS_BB 0
+#define SD_BB 1
+#define BLACKBOX_STORAGE SD_BB
+#define ENABLE_DEDICATED_SPI 1
 
+#if BLACKBOX_STORAGE == LITTLEFS_BB
+#include "LittleFS.h"
+#elif BLACKBOX_STORAGE == SD_BB
+#include "SDFS.h"
+#endif
 #include "EEPROM.h"
 #include "EEPROMImpl.h"
-#include "LittleFS.h"
 #include "adc.h"
 #include "blackbox.h"
 #include "drivers/baro.h"
@@ -9,6 +17,7 @@
 #include "drivers/gyro.h"
 #include "drivers/osd.h"
 #include "drivers/speaker.h"
+#include "drivers/spi.h"
 #include "elapsedMillis.h"
 #include "fixedPointInt.h"
 #include "hardware/adc.h"
@@ -33,8 +42,9 @@
 // #include <Adafruit_TinyUSB.h>
 
 #define SPI_GYRO spi0
-#define SPI_OSD spi1
-#define BARO_I2C i2c1
+#define SPI_OSD spi0
+#define SPI_BARO spi0
+#define SPI_SD spi1
 #define PROPS_OUT
 
 extern ExpressLRS *ELRS;

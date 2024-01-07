@@ -95,10 +95,17 @@ void handleConfigCmd() {
 		char shortbuf[16] = {0};
 		for (int i = 0; i < 100; i++) {
 			rp2040.wdt_reset();
+#if BLACKBOX_STORAGE == LITTLEFS_BB
 			snprintf(shortbuf, 16, "/logs%01d/%01d.kbb", i / 10, i % 10);
 			if (LittleFS.exists(shortbuf)) {
 				buf[index++] = i;
 			}
+#elif BLACKBOX_STORAGE == SD_BB
+			snprintf(shortbuf, 16, "/kolibri/%01d.kbb", i);
+			if (SDFS.exists(shortbuf)) {
+				buf[index++] = i;
+			}
+#endif
 		}
 		sendCommand(configMsgCommand | 0x4000, buf, index);
 	} break;
@@ -114,8 +121,13 @@ void handleConfigCmd() {
 		// data just includes one byte of file number
 		uint8_t fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
 		char path[32];
+#if BLACKBOX_STORAGE == LITTLEFS_BB
 		snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
 		if (LittleFS.remove(path))
+#elif BLACKBOX_STORAGE == SD_BB
+		snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
+		if (SDFS.remove(path))
+#endif
 			sendCommand(configMsgCommand | 0x4000, (char *)&fileNum, 1);
 		else
 			sendCommand(configMsgCommand | 0x8000, (char *)&fileNum, 1);
@@ -142,8 +154,13 @@ void handleConfigCmd() {
 			rp2040.wdt_reset();
 			char path[32];
 			uint8_t fileNum = fileNums[i];
+#if BLACKBOX_STORAGE == LITTLEFS_BB
 			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
 			File logFile = LittleFS.open(path, "r");
+#elif BLACKBOX_STORAGE == SD_BB
+			snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
+			File logFile = SDFS.open(path, FILE_READ);
+#endif
 			if (!logFile)
 				continue;
 			buffer[index++] = fileNum;
@@ -287,6 +304,7 @@ void handleConfigCmd() {
 		EEPROM.put((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 	} break;
 	case ConfigCmd::GET_ROTATION: {
+		// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 		int rotationPitch = pitch * 8192;
 		int rotationRoll  = roll * 8192;
 		int rotationYaw	  = yaw * 8192;
@@ -298,6 +316,40 @@ void handleConfigCmd() {
 		buf[5]			  = rotationYaw >> 8;
 		sendCommand(configMsgCommand | 0x4000, buf, 6);
 	} break;
+	// case ConfigCmd::GET_ROTATION: {
+	// 	float rMat[3][3];
+	// 	float wx		  = q.w * q.v[0];
+	// 	float wy		  = q.w * q.v[1];
+	// 	float wz		  = q.w * q.v[2];
+	// 	float xx		  = q.v[0] * q.v[0];
+	// 	float xy		  = q.v[0] * q.v[1];
+	// 	float xz		  = q.v[0] * q.v[2];
+	// 	float yy		  = q.v[1] * q.v[1];
+	// 	float yz		  = q.v[1] * q.v[2];
+	// 	float zz		  = q.v[2] * q.v[2];
+	// 	rMat[0][0]		  = 1 - 2 * (yy + zz);
+	// 	rMat[0][1]		  = 2 * (xy - wz);
+	// 	rMat[0][2]		  = 2 * (xz + wy);
+	// 	rMat[1][0]		  = 2 * (xy + wz);
+	// 	rMat[1][1]		  = 1 - 2 * (xx + zz);
+	// 	rMat[1][2]		  = 2 * (yz - wx);
+	// 	rMat[2][0]		  = 2 * (xz - wy);
+	// 	rMat[2][1]		  = 2 * (yz + wx);
+	// 	rMat[2][2]		  = 1 - 2 * (xx + yy);
+	// 	float rollX		  = atan2f(rMat[2][1], rMat[2][2]);
+	// 	float pitchX	  = (0.5f * (float)PI) - acosf(-rMat[2][0]);
+	// 	float yawX		  = -atan2f(rMat[1][0], rMat[0][0]);
+	// 	int rotationPitch = pitchX * 8192;
+	// 	int rotationRoll  = rollX * 8192;
+	// 	int rotationYaw	  = yawX * 8192;
+	// 	buf[0]			  = rotationPitch & 0xFF;
+	// 	buf[1]			  = rotationPitch >> 8;
+	// 	buf[2]			  = rotationRoll & 0xFF;
+	// 	buf[3]			  = rotationRoll >> 8;
+	// 	buf[4]			  = rotationYaw & 0xFF;
+	// 	buf[5]			  = rotationYaw >> 8;
+	// 	sendCommand(configMsgCommand | 0x4000, buf, 6);
+	// } break;
 	case ConfigCmd::SERIAL_PASSTHROUGH: {
 		uint8_t serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
 		uint32_t baud	  = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
@@ -306,8 +358,8 @@ void handleConfigCmd() {
 		elapsedMillis breakoutCounter = 0;
 		switch (serialNum) {
 		case 1:
-			Serial1.end();
-			Serial1.begin(baud);
+			// Serial1.end();
+			// Serial1.begin(baud);
 			while (true) {
 				if (breakoutCounter > 1000 && plusCount >= 3) break;
 				if (Serial.available()) {
@@ -320,7 +372,10 @@ void handleConfigCmd() {
 						plusCount = 0;
 					Serial1.write(c);
 				}
-				if (Serial1.available()) Serial.write(Serial1.read());
+				if (Serial1.available()) {
+					Serial.write(Serial1.read());
+					Serial.flush();
+				}
 				rp2040.wdt_reset();
 			}
 			break;
@@ -339,7 +394,10 @@ void handleConfigCmd() {
 						plusCount = 0;
 					Serial2.write(c);
 				}
-				if (Serial2.available()) Serial.write(Serial2.read());
+				if (Serial2.available()) {
+					Serial.write(Serial2.read());
+					Serial.flush();
+				}
 				rp2040.wdt_reset();
 			}
 			break;
@@ -378,12 +436,13 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, 7);
 	} break;
 	case ConfigCmd::GET_GPS_MOTION: {
+		int32_t vVel2 = (combinedAltitude * 1000).getInt();
 		memcpy(buf, &gpsMotion.lat, 4);
 		memcpy(&buf[4], &gpsMotion.lon, 4);
 		memcpy(&buf[8], &gpsMotion.alt, 4);
 		memcpy(&buf[12], &gpsMotion.velN, 4);
 		memcpy(&buf[16], &gpsMotion.velE, 4);
-		memcpy(&buf[20], &gpsMotion.velD, 4);
+		memcpy(&buf[20], &vVel2, 4);
 		memcpy(&buf[24], &gpsMotion.gSpeed, 4);
 		memcpy(&buf[28], &gpsMotion.headMot, 4);
 		sendCommand(configMsgCommand | 0x4000, buf, 32);

@@ -1,8 +1,5 @@
 #include "global.h"
 
-int regRead(spi_inst_t *spi, const uint cs, const uint8_t reg, uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0, uint8_t dummy = true);
-int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0);
-
 uint8_t osdReady = false;
 
 elapsedMillis osdTimer = 0;
@@ -14,17 +11,9 @@ uint8_t elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can
 uint8_t elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 16 bytes for data
 
 void osdInit() {
-	spi_init(SPI_OSD, 8000000);
-	spi_set_format(SPI_OSD, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-	gpio_set_function(PIN_OSD_MISO, GPIO_FUNC_SPI);
-	gpio_set_function(PIN_OSD_MOSI, GPIO_FUNC_SPI);
-	gpio_set_function(PIN_OSD_SCK, GPIO_FUNC_SPI);
-	gpio_init(PIN_OSD_CS);
-	gpio_set_dir(PIN_OSD_CS, GPIO_OUT);
 
 	uint8_t data = 0;
 	osdTimer	 = 0;
-	Serial.println("OSD inited");
 }
 
 void disableOSD() {
@@ -93,40 +82,40 @@ void drawElem(uint8_t elem) {
 }
 
 void osdLoop() {
-		if (osdReady && (gyroUpdateFlag & 1)) {
-				gyroUpdateFlag &= ~1;
+	if (osdReady && (gyroUpdateFlag & 1)) {
+		gyroUpdateFlag &= ~1;
 		// cycle through all drawn elements, and update one per gyro cycle
 		uint8_t drawIteratorStart = drawIterator;
 		while (1) {
-						drawIterator++;
+			drawIterator++;
 			if (drawIterator >= OSD_MAX_ELEM)
 				drawIterator = 0;
 			if ((elemPositions[drawIterator][0] & 0x80) && (elemPositions[drawIterator][1] & 0x80)) // if updated and enabled
 			{
-								drawElem(drawIterator);
-								break;
+				drawElem(drawIterator);
+				break;
 			}
 			if (drawIterator == drawIteratorStart)
 				break;
 		}
 	} else if (!osdReady && (gyroUpdateFlag & 1)) {
-				gyroUpdateFlag &= ~1;
+		gyroUpdateFlag &= ~1;
 		if (osdTimer > 1000) {
-						// gyro likely ready, check registers
+			// gyro likely ready, check registers
 			uint8_t data = 0;
 			osdTimer	 = 0;
 			regRead(SPI_OSD, PIN_OSD_CS, (uint8_t)OSDReg::STAT, &data, 1, 0, 0);
-						if (data && !(data & 0b01100000)) {
+			if (data && !(data & 0b01100000)) {
 				osdReady = true;
 			}
-									if (data & 1) {
-								data		 = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
+			if (data & 1) {
+				data = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
 				regWrite(SPI_OSD, PIN_OSD_CS, (uint8_t)OSDReg::VM0, &data);
-							}
+			}
 			if (data & 2) {
-								data		 = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
+				data = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
 				regWrite(SPI_OSD, PIN_OSD_CS, (uint8_t)OSDReg::VM0, &data);
-							}
+			}
 		}
 	}
 }

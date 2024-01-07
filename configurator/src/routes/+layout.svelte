@@ -79,6 +79,13 @@
 				break;
 			case ConfigCmd.CLEAR_CRASH_DUMP | 0x4000:
 				log = [...log, 'Crash dump cleared'];
+				break;
+			case ConfigCmd.BB_FORMAT | 0x4000:
+				log = [...log, 'Blackbox formatted'];
+				break;
+			case ConfigCmd.BB_FORMAT | 0x8000:
+				log = [...log, 'Blackbox format failed'];
+				break;
 		}
 	}
 

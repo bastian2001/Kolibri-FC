@@ -7,6 +7,7 @@ using std::vector;
 extern RingBuffer<uint8_t> gpsBuffer;
 extern int32_t headingAdjustment;
 extern elapsedMillis lastPvtMessage;
+extern uint32_t timestamp;
 
 void initGPS();
 void gpsLoop();

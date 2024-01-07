@@ -147,19 +147,16 @@ void updatePitchRollValues() {
 	vVel += fixedPointInt32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[1] * sinf(pitch)) / fixedPointInt32(3200);
 	vVel -= fixedPointInt32(9.81f / 3200);
 	combinedAltitude += vVel / fixedPointInt32(3200);
-	uint8_t buf[16];
-	snprintf((char *)buf, 16, "\x7F%.1f\x0C ", combinedAltitude.getFloat());
-	updateElem(OSDElem::ALTITUDE, (char *)buf);
 }
 
 void updateAttitude() {
 	uint32_t t0, t1, t2;
 	elapsedMicros timer = 0;
 	updateFromGyro();
-	t0			   = timer;
+	t0 = timer;
 	updateFromAccel();
-	t1			   = timer;
+	t1 = timer;
 	updatePitchRollValues();
-	t2			   = timer;
+	t2 = timer;
 	// Serial.printf("Gyro: %3d, Accel: %3d, PitchRoll: %3d\n", t0, t1 - t0, t2 - t1);
 }

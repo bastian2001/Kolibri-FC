@@ -2,35 +2,6 @@
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
-// adapted from https://www.digikey.de/de/maker/projects/raspberry-pi-pico-rp2040-spi-example-with-micropython-and-cc/9706ea0cf3784ee98e35ff49188ee045
-int regRead(spi_inst_t *spi, const uint cs, const uint8_t reg, uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0, uint8_t dummy = true) {
-	// Construct message (set ~W bit high)
-	uint8_t msg = 0x80 | reg;
-
-	// Read from register
-	gpio_put(cs, 0);
-	spi_write_blocking(spi, &msg, 1);
-	if (dummy)
-		spi_read_blocking(spi, 0, buf, 1); // +1 for dummy byte
-	int num_bytes_read = spi_read_blocking(spi, 0, buf, nbytes);
-	gpio_put(cs, 1);
-
-	if (delay > 0)
-		sleep_us(delay);
-	return num_bytes_read;
-}
-
-int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *buf, const uint16_t nbytes = 1, const uint16_t delay = 0) {
-	// Write to register
-	gpio_put(cs, 0);
-	spi_write_blocking(spi, &reg, 1);
-	int bytes_written = spi_write_blocking(spi, buf, nbytes);
-	gpio_put(cs, 1);
-	if (delay > 0)
-		sleep_us(delay);
-	return bytes_written;
-}
-
 uint32_t gyroLastState	  = 0;
 elapsedMicros lastPIDLoop = 0;
 
@@ -38,16 +9,17 @@ uint32_t gyroCalibratedCycles	 = 0;
 int16_t gyroCalibrationOffset[3] = {0}, gyroCalibrationOffsetTemp[3] = {0};
 
 void gyroLoop() {
-		uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
+	uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
 	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
 	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
 	lastPIDLoop = 0;
 	if (gpioState != gyroLastState) {
-				gyroLastState  = gpioState;
+		gyroLastState = gpioState;
 		if (gpioState == 1) {
-						pidLoop();
+			pidLoop();
 			if (armingDisableFlags & 0x40) {
-				if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE) {
+				if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE && (gyroDataRaw[0] != -1 || gyroDataRaw[1] != -1 || gyroDataRaw[2] != -1)) {
+					// ignore -1 (0xFFFF), as this speaks for a communication error
 					gyroCalibratedCycles++;
 					if (gyroCalibratedCycles >= QUIET_SAMPLES) {
 						gyroCalibrationOffsetTemp[0] += gyroDataRaw[0];
@@ -69,42 +41,38 @@ void gyroLoop() {
 			}
 		}
 	}
-	}
+}
 
 int gyroInit() {
-	spi_init(SPI_GYRO, 8000000);
+	// init gyro/accel pointer
+	gyroDataRaw	 = bmiDataRaw + 3;
+	accelDataRaw = bmiDataRaw;
 
-	spi_set_format(SPI_GYRO, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-	gpio_set_function(PIN_GYRO_MISO, GPIO_FUNC_SPI);
-	gpio_set_function(PIN_GYRO_MOSI, GPIO_FUNC_SPI);
-	gpio_set_function(PIN_GYRO_SCK, GPIO_FUNC_SPI);
-	gpio_init(PIN_GYRO_CS);
-	gpio_set_dir(PIN_GYRO_CS, GPIO_OUT);
 	gpio_init(PIN_GYRO_INT1);
 	gpio_set_dir(PIN_GYRO_INT1, GPIO_IN);
-	gpio_init(PIN_GYRO_INT2);
-	gpio_set_dir(PIN_GYRO_INT2, GPIO_IN);
 	uint8_t data = 0;
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
 	data = 0;
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
 	if (data != 0x24) {
-		Serial.println("Failed to load BMI270, wrong Chip ID"); // chip id should be 0x24
-		return 1;
+		Serial.print("Failed to load BMI270, wrong Chip ID: "); // chip id should be 0x24
+		Serial.println(data, HEX);
+		// return 1;
 	}
 	data = 0;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_CTRL, &data, 1, 500);													   // prepare config load
-	Serial.println(regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500)); // load config
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_CTRL, &data, 1, 500);									   // prepare config load
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
 	data = 1;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
 
 	// check initialization status
 	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INTERNAL_STATUS, &data, 1);
 	if (data & 1 != 1) {
-		Serial.println("Failed to load BMI270, wrong initialization status"); // initialization status should be 0x01
-		return 2;
+		Serial.print("Failed to load BMI270, wrong initialization status: "); // initialization status should be 0x01
+		// return 2;
+		Serial.println(data, HEX);
 	}
 
 	// enable performance mode (p. 22)
@@ -146,11 +114,11 @@ int gyroInit() {
 uint32_t gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
 void gyroGetData(int16_t *buf) {
-		regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
+	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
 	buf[0] -= gyroCalibrationOffset[0];
 	buf[1] -= gyroCalibrationOffset[1];
 	buf[2] -= gyroCalibrationOffset[2];
-		gyroUpdateFlag = 0xFFFFFFFF;
+	gyroUpdateFlag = 0xFFFFFFFF;
 }
 
 // config file needs to be uploaded to the BMI270 before it can be used

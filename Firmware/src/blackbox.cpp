@@ -4,7 +4,7 @@ uint64_t bbFlags		= 0;
 uint64_t currentBBFlags = 0;
 
 bool bbLogging = false;
-bool lfsReady  = false;
+bool fsReady   = false;
 
 FSInfo64 fsInfo;
 int currentLogNum	  = 0;
@@ -14,17 +14,54 @@ File blackboxFile;
 
 int32_t maxFileSize = 0;
 elapsedMicros frametime;
+void blackboxLoop() {
+	// Serial.println(rp2040.fifo.available());
+	if (rp2040.fifo.available()) {
+		uint8_t *frame = (uint8_t *)rp2040.fifo.pop();
+		uint8_t len	   = frame[0];
+		if (len > 0 && bbLogging)
+			blackboxFile.write(frame + 1, len);
+		free(frame);
+	}
+}
 
 void initBlackbox() {
-	lfsReady = LittleFS.begin();
-	lfsReady = lfsReady && LittleFS.info64(fsInfo);
+#if BLACKBOX_STORAGE == LITTLEFS
+	fsReady = LittleFS.begin();
+	fsReady = fsReady && LittleFS.info64(fsInfo);
+#elif BLACKBOX_STORAGE == SD_BB
+	SPI1.setRX(PIN_SD_MISO);
+	SPI1.setTX(PIN_SD_MOSI);
+	SPI1.setSCK(PIN_SD_SCK);
+	SDFSConfig cfg;
+	cfg.setCSPin(PIN_SD_CS);
+	cfg.setSPI(SPI1);
+	SDFS.setConfig(cfg);
+	fsReady = SDFS.begin();
+	if (!SDFS.exists("/kolibri")) {
+		SDFS.mkdir("/kolibri");
+	}
+	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
+#endif
 }
 
 bool clearBlackbox() {
-	if (!lfsReady || bbLogging)
+	if (!fsReady || bbLogging)
 		return false;
+#if BLACKBOX_STORAGE == LITTLEFS
 	LittleFS.format();
 	return true;
+#elif BLACKBOX_STORAGE == SD_BB
+	for (int i = 0; i < 100; i++) {
+		char path[32];
+		snprintf(path, 32, "/kolibri/%01d.kbb", i);
+		SDFS.remove(path);
+		rp2040.wdt_reset();
+	}
+	if (!SDFS.rmdir("/kolibri")) return false;
+	if (!SDFS.mkdir("/kolibri")) return false;
+	return true;
+#endif
 }
 
 void setFlags(uint64_t flags) {
@@ -40,9 +77,14 @@ void setDivider(uint8_t divider) {
 void printLogBinRaw(uint8_t logNum) {
 	char path[32];
 	logNum %= 100;
-	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
 	rp2040.wdt_reset();
+#if BLACKBOX_STORAGE == LITTLEFS
+	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
 	File logFile = LittleFS.open(path, "r");
+#elif BLACKBOX_STORAGE == SD_BB
+	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
+	File logFile = SDFS.open(path, "r");
+#endif
 	if (!logFile)
 		return;
 	uint32_t fileSize = logFile.size();
@@ -58,8 +100,13 @@ void printLogBinRaw(uint8_t logNum) {
 
 void printLogBin(uint8_t logNum, int16_t singleChunk) {
 	char path[32];
+#if BLACKBOX_STORAGE == LITTLEFS
 	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
 	File logFile = LittleFS.open(path, "r");
+#elif BLACKBOX_STORAGE == SD_BB
+	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
+	File logFile = SDFS.open(path, "r");
+#endif
 	if (!logFile) {
 		sendCommand(((uint16_t)ConfigCmd::BB_FILE_DOWNLOAD) | 0x8000, "File not found", strlen("File not found"));
 		return;
@@ -97,29 +144,46 @@ void printLogBin(uint8_t logNum, int16_t singleChunk) {
 }
 
 void startLogging() {
-	if (!bbFlags || !lfsReady || bbLogging)
+	if (!bbFlags || !fsReady || bbLogging)
 		return;
 	currentBBFlags = bbFlags;
+#if BLACKBOX_STORAGE == LITTLEFS
 	if (!(LittleFS.info64(fsInfo)))
 		return;
 	maxFileSize = fsInfo.totalBytes - fsInfo.usedBytes - 50000;
 	if (maxFileSize < 20000) {
 		return;
 	}
+#elif BLACKBOX_STORAGE == SD_BB
+	// if (!(SDFS.info64(fsInfo)))
+	// 	return;
+#endif
 	char path[32];
 	for (int i = 0; i < 100; i++) {
 		rp2040.wdt_reset();
+#if BLACKBOX_STORAGE == LITTLEFS
 		snprintf(path, 32, "/logs%01d/%01d.kbb", ((i + currentLogNum) % 100) / 10, (i + currentLogNum) % 10);
 		if (!LittleFS.exists(path)) {
 			currentLogNum += i + 1;
 			break;
 		}
+#elif BLACKBOX_STORAGE == SD_BB
+		snprintf(path, 32, "/kolibri/%01d.kbb", (i + currentLogNum) % 100);
+		if (!SDFS.exists(path)) {
+			currentLogNum += i + 1;
+			break;
+		}
+#endif
 		if (i == 99) {
 			clearBlackbox();
 			return;
 		}
 	}
+#if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile = LittleFS.open(path, "a");
+#elif BLACKBOX_STORAGE == SD_BB
+	blackboxFile = SDFS.open(path, "a");
+#endif
 	if (!blackboxFile)
 		return;
 	bbLogging			 = true;
@@ -127,9 +191,17 @@ void startLogging() {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 0 // magic bytes, version
 	};
 	blackboxFile.write(data, 7);
-	uint32_t time = millis();
-	blackboxFile.write((uint8_t *)&time, 4); // timestamp unknown
-	blackboxFile.write((uint8_t)0);			 // 3200Hz gyro
+	uint32_t recordTime = timestamp;
+	if (recordTime == 0) {
+		uint32_t m = millis() / 1000;
+		recordTime = (m % 60) & 0x3F;
+		recordTime |= ((m / 60) % 60) << 6;
+		recordTime |= ((m / 3600) % 24) << 12;
+		recordTime |= 1 << 17; // days start in 1
+		recordTime |= 1 << 22; // months start in 1
+	}
+	blackboxFile.write((uint8_t *)&recordTime, 4);
+	blackboxFile.write((uint8_t)0); // 3200Hz gyro
 	blackboxFile.write((uint8_t)bbFreqDivider);
 	blackboxFile.write((uint8_t)3); // 2000deg/sec and 16g
 	int32_t rf[5][3];
@@ -148,7 +220,7 @@ void startLogging() {
 }
 
 void endLogging() {
-	if (!lfsReady)
+	if (!fsReady)
 		return;
 	rp2040.wdt_reset();
 	if (bbLogging)
@@ -159,13 +231,15 @@ void endLogging() {
 uint8_t bbBuffer[128];
 void writeSingleFrame() {
 	size_t bufferPos = 0;
-	if (!lfsReady || !bbLogging) {
+	if (!fsReady || !bbLogging) {
 		return;
 	}
+#if BLACKBOX_STORAGE == LITTLEFS
 	if (blackboxFile.size() > maxFileSize) {
 		endLogging();
 		return;
 	}
+#endif
 	if (currentBBFlags & LOG_ROLL_ELRS_RAW) {
 		bbBuffer[bufferPos++] = ELRS->channels[0];
 		bbBuffer[bufferPos++] = ELRS->channels[0] >> 8;
@@ -295,5 +369,16 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
+#if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);
+#elif BLACKBOX_STORAGE == SD_BB
+	void *buf = malloc(bufferPos + 1);
+	memcpy((void *)((uint8_t *)buf + 1), bbBuffer, bufferPos);
+	((uint8_t *)buf)[0] = bufferPos;
+	if (!(rp2040.fifo.push_nb((uint32_t)buf))) {
+		free(buf);
+		// Serial.println("FIFO full");
+		// if the fifo is full, we just drop the frame :(
+	}
+#endif
 }

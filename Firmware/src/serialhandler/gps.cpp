@@ -8,6 +8,16 @@ GpsTime gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
 int32_t headingAdjustment = 0;
+/*
+ * 0-5: seconds
+ * 6-11: minutes
+ * 12-16: hours
+ * 17-21: days
+ * 22-25: months
+ * 26-31: years, since 2020
+ * This is valid till 2084, which is enough
+ */
+uint32_t timestamp = 0; // since unix epoch is hard to calculate, the 32 bits are distributed as described above
 
 void gpsChecksum(const uint8_t *buf, int len, uint8_t *ck_a, uint8_t *ck_b) {
 	*ck_a = 0;
@@ -19,8 +29,8 @@ void gpsChecksum(const uint8_t *buf, int len, uint8_t *ck_a, uint8_t *ck_b) {
 }
 
 void initGPS() {
-	Serial1.setFIFOSize(1024);
-	Serial1.begin(38400);
+	// Serial1.setFIFOSize(1024);
+	// Serial1.begin(38400);
 
 	placeElem(OSDElem::LATITUDE, 1, 13);
 	placeElem(OSDElem::LONGITUDE, 13, 13);
@@ -49,70 +59,70 @@ void gpsLoop() {
 		case 0: {
 			if (retryCounter++ % 2 == 0) {
 				gpsSerialSpeed = 153600 - gpsSerialSpeed;
-				Serial1.end();
-				Serial1.begin(gpsSerialSpeed);
+				// Serial1.end();
+				// Serial1.begin(gpsSerialSpeed);
 			}
 			uint8_t msgSetupUart[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_PRT, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x00, 0xC2, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 			gpsChecksum(&msgSetupUart[2], 24, &msgSetupUart[26], &msgSetupUart[27]);
-			Serial1.write(msgSetupUart, 28);
+			// Serial1.write(msgSetupUart, 28);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
 		case 1: {
-			Serial1.end();
-			Serial1.begin(115200);
+			// Serial1.end();
+			// Serial1.begin(115200);
 			uint8_t msgDisableGxGGA[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x00, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGGA[2], 7, &msgDisableGxGGA[9], &msgDisableGxGGA[10]);
-			Serial1.write(msgDisableGxGGA, 11);
+			// Serial1.write(msgDisableGxGGA, 11);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
 		case 2: {
 			uint8_t msgDisableGxGSA[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x02, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGSA[2], 7, &msgDisableGxGSA[9], &msgDisableGxGSA[10]);
-			Serial1.write(msgDisableGxGSA, 11);
+			// Serial1.write(msgDisableGxGSA, 11);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
 		case 3: {
 			uint8_t msgDisableGxGSV[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x03, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGSV[2], 7, &msgDisableGxGSV[9], &msgDisableGxGSV[10]);
-			Serial1.write(msgDisableGxGSV, 11);
+			// Serial1.write(msgDisableGxGSV, 11);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
 		case 4: {
 			uint8_t msgDisableGxRMC[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x04, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxRMC[2], 7, &msgDisableGxRMC[9], &msgDisableGxRMC[10]);
-			Serial1.write(msgDisableGxRMC, 11);
+			// Serial1.write(msgDisableGxRMC, 11);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
 		case 5: {
 			uint8_t msgDisableGxVTG[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x05, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxVTG[2], 7, &msgDisableGxVTG[9], &msgDisableGxVTG[10]);
-			Serial1.write(msgDisableGxVTG, 11);
+			// Serial1.write(msgDisableGxVTG, 11);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
 		case 6: {
 			uint8_t msgEnableNavPvt[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0x01, 0x07, 0x01, 0, 0};
 			gpsChecksum(&msgEnableNavPvt[2], 7, &msgEnableNavPvt[9], &msgEnableNavPvt[10]);
-			Serial1.write(msgEnableNavPvt, 11);
+			// Serial1.write(msgEnableNavPvt, 11);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
 		case 7: {
 			uint8_t msgDisableGxGLL[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x01, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGLL[2], 7, &msgDisableGxGLL[9], &msgDisableGxGLL[10]);
-			Serial1.write(msgDisableGxGLL, 11);
+			// Serial1.write(msgDisableGxGLL, 11);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
 		case 8: {
 			uint8_t msgSetNavRate[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_RATE, 0x06, 0x00, 0x64, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00};
 			gpsChecksum(&msgSetNavRate[2], 10, &msgSetNavRate[12], &msgSetNavRate[13]);
-			Serial1.write(msgSetNavRate, 14);
+			// Serial1.write(msgSetNavRate, 14);
 			gpsInitAck	 = false;
 			gpsInitTimer = 0;
 		} break;
@@ -186,6 +196,7 @@ void gpsLoop() {
 				gpsAcc.headAcc				= DECODE_U4(&msgData[72]);
 				gpsAcc.pDop					= DECODE_U2(&msgData[76]);
 				gpsStatus.flags3			= DECODE_U2(&msgData[78]);
+				timestamp					= gpsTime.second & 0x3F | (gpsTime.minute & 0x3F) << 6 | (gpsTime.hour & 0x1F) << 12 | (gpsTime.day & 0x1F) << 17 | (gpsTime.month & 0x0F) << 22 | (gpsTime.year - 2020) << 26;
 				static int32_t lastHeadMot	= 0;
 				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsMotion.gSpeed > 5000 && lastHeadMot != gpsMotion.headMot && gpsAcc.headAcc < 200000 && gpsStatus.satCount >= 6) {
 					// speed > 18 km/h, thus the heading is likely valid

@@ -50,7 +50,7 @@ fixedPointInt32 fixedPointInt32::operator*(const fixedPointInt32 other) const {
 }
 fixedPointInt32 fixedPointInt32::operator/(const fixedPointInt32 other) const {
 	fixedPointInt32 result;
-	return result.setRaw((int32_t)(((int64_t)this->value << 16) / (int64_t)other.getRaw()));
+	return result.setRaw((int32_t)((((int64_t)this->value) << 16) / (int64_t)other.getRaw()));
 }
 fixedPointInt32 fixedPointInt32::operator+=(const fixedPointInt32 other) {
 	this->value += other.getRaw();

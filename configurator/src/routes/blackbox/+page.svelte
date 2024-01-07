@@ -731,8 +731,6 @@
 			case ConfigCmd.CONFIGURATOR_PING | 0x4000:
 			case ConfigCmd.STATUS | 0x4000:
 				break;
-			case 0xffff: //pre-entered default command, do nothing
-				break;
 			default:
 				if (typeof command.command === 'number' && !Number.isNaN(command.command))
 					console.log({ ...command });
@@ -793,7 +791,14 @@
 			return;
 		}
 		const version = header.slice(4, 7);
-		const startTime = leBytesToInt(header.slice(7, 11));
+		const sTime = leBytesToInt(header.slice(7, 11));
+		const year = sTime >> 26;
+		const month = (sTime >> 22) & 0b1111;
+		const day = (sTime >> 17) & 0b11111;
+		const hour = (sTime >> 12) & 0b11111;
+		const minute = (sTime >> 6) & 0b111111;
+		const second = sTime & 0b111111;
+		const startTime = new Date(year + 2020, month - 1, day, hour, minute, second);
 		const pidFreq = 3200 / (1 + header[11]);
 		const freqDiv = header[12];
 		const rangeByte = header[13];
@@ -1067,8 +1072,14 @@
 			const fileSize =
 				data[i + 1] + data[i + 2] * 256 + data[i + 3] * 256 * 256 + data[i + 4] * 256 * 256 * 256;
 			const bbVersion = data[i + 5] + data[i + 6] * 256 + data[i + 7] * 256 * 256;
-			const startTime =
-				data[i + 8] + data[i + 9] * 256 + data[i + 10] * 256 * 256 + data[i + 11] * 256 * 256 * 256;
+			const sTime = leBytesToInt(data.slice(i + 8, i + 12));
+			const year = sTime >> 26;
+			const month = (sTime >> 22) & 0b1111;
+			const day = (sTime >> 17) & 0b11111;
+			const hour = (sTime >> 12) & 0b11111;
+			const minute = (sTime >> 6) & 0b111111;
+			const second = sTime & 0b111111;
+			const startTime = new Date(year + 2020, month - 1, day, hour, minute, second);
 			const pidFreq = 3200 / (data[i + 12] + 1);
 			const freqDiv = data[i + 13];
 			const flags = data.slice(i + 14, i + 22);
@@ -1091,12 +1102,14 @@
 			const index = logNums.findIndex((n) => n.num == fileNum);
 			if (index == -1) continue;
 			const duration = Math.round(frames / framesPerSecond);
-			logNums[index].text = `${logNums[index].num} - ${duration}s`;
+			logNums[index].text = `${logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
 			selected = fileNum;
 		}
 	}
 
 	const canvas = document.createElement('canvas');
+	let sliceAndSkip = [] as LogFrame[];
+	let skipValue = 0;
 	function drawCanvas(allowShortening = true) {
 		if (!mounted) return;
 		if (allowShortening) {
@@ -1116,10 +1129,12 @@
 		 */
 		const height = dataViewer.clientHeight * 0.98; //1% free space top and bottom
 		const width = dataViewer.clientWidth;
-		let sliceAndSkip = dataSlice;
+		sliceAndSkip = dataSlice;
 		if (!sliceAndSkip.length) return;
+		skipValue = 1;
 		const everyNth = Math.floor(sliceAndSkip.length / width);
 		if (everyNth > 2 && allowShortening) {
+			skipValue = everyNth;
 			const len = sliceAndSkip.length;
 			sliceAndSkip = [] as LogFrame[];
 			for (let i = 0; i < len; i += everyNth) {
@@ -1199,6 +1214,172 @@
 	function onMouseMove(e: MouseEvent) {
 		if (e.buttons !== 1) {
 			onMouseUp();
+			// highlight all points on the current frame
+			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
+			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+			domCtx.drawImage(canvas, 0, 0);
+			const closestFrame =
+				Math.round(e.offsetX / (domCanvas.width / (endFrame - startFrame))) + startFrame;
+			//draw vertical line
+			const highlightCanvas = document.createElement('canvas');
+			highlightCanvas.width = domCanvas.width;
+			highlightCanvas.height = domCanvas.height;
+			const ctx = highlightCanvas.getContext('2d') as CanvasRenderingContext2D;
+			ctx.strokeStyle = 'white';
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			const height = dataViewer.clientHeight * 0.98; //1% free space top and bottom
+			const width = dataViewer.clientWidth;
+			const frameWidth = width / (endFrame - startFrame);
+			const frameX = (closestFrame - startFrame) * frameWidth;
+			ctx.moveTo(frameX, 0);
+			ctx.lineTo(frameX, highlightCanvas.height);
+			ctx.stroke();
+			//iterate over all graphs and draw the points
+			const numGraphs = graphs.length;
+			const heightPerGraph =
+				(height - dataViewer.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
+			let heightOffset = 0.01 * dataViewer.clientHeight;
+			for (let i = 0; i < numGraphs; i++) {
+				const graph = graphs[i];
+				const numTraces = graph.length;
+				for (let j = 0; j < numTraces; j++) {
+					const trace = graph[j];
+					const range = trace.maxValue - trace.minValue;
+					const scale = heightPerGraph / range;
+					ctx.strokeStyle = trace.color;
+					ctx.lineWidth = trace.strokeWidth * 2;
+					let bbFlag = BB_ALL_FLAGS[trace.flagName];
+					if (trace.flagName.startsWith('GEN_'))
+						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
+					let path = bbFlag?.path || '';
+					if (bbFlag?.usesModifier) {
+						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
+						else continue;
+					}
+					const pointY =
+						heightOffset +
+						heightPerGraph -
+						(getNestedProperty(
+							sliceAndSkip[Math.floor((closestFrame - startFrame) / skipValue)],
+							path,
+							{
+								max: trace.maxValue,
+								min: trace.minValue
+							}
+						) -
+							trace.minValue) *
+							scale;
+					ctx.beginPath();
+					ctx.arc(
+						(closestFrame - startFrame) * frameWidth,
+						pointY,
+						trace.strokeWidth * 4,
+						0,
+						Math.PI * 2
+					);
+					ctx.stroke();
+				}
+				heightOffset += heightPerGraph + 0.02 * dataViewer.clientHeight;
+			}
+			//write down frame number, time in s after start and values next to the cursor at the top
+			const frame = sliceAndSkip[closestFrame - startFrame];
+			const timeText = ((closestFrame - startFrame) / loadedLog!.framesPerSecond).toFixed(3) + 's';
+			const valueTexts = [] as string[];
+			for (let i = 0; i < numGraphs; i++) {
+				const graph = graphs[i];
+				const numTraces = graph.length;
+				for (let j = 0; j < numTraces; j++) {
+					const trace = graph[j];
+					let bbFlag = BB_ALL_FLAGS[trace.flagName];
+					if (trace.flagName.startsWith('GEN_'))
+						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
+					let path = bbFlag?.path || '';
+					if (bbFlag?.usesModifier) {
+						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
+						else continue;
+					}
+					const value = getNestedProperty(frame, path);
+					valueTexts.push(bbFlag.name + ': ' + Math.round(value) + ' ' + bbFlag.unit);
+				}
+			}
+			const textHeight = 14;
+			const textPadding = 6;
+			const textBorderRadius = 8;
+			ctx.font = '14px sans-serif';
+			const textWidth = Math.max(
+				...valueTexts.map((t) => ctx.measureText(t).width),
+				ctx.measureText(timeText).width
+			);
+			const textHeightTotal = textHeight * (valueTexts.length + 1) + textPadding * 2;
+			const textX = Math.min(
+				frameX + 8,
+				domCanvas.width - textWidth - textPadding * 2 - textBorderRadius * 2 - 10
+			);
+			const textY = 8;
+			ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+			ctx.beginPath();
+			ctx.moveTo(textX + textBorderRadius, textY);
+			ctx.lineTo(textX + textWidth + textPadding * 2 + textBorderRadius + 10, textY);
+			ctx.arc(
+				textX + textWidth + textPadding * 2 + textBorderRadius + 10,
+				textY + textBorderRadius,
+				textBorderRadius,
+				Math.PI * 1.5,
+				Math.PI * 2
+			);
+			ctx.lineTo(
+				textX + textWidth + textPadding * 2 + textBorderRadius * 2 + 10,
+				textY + textHeightTotal - textBorderRadius
+			);
+			ctx.arc(
+				textX + textWidth + textPadding * 2 + textBorderRadius + 10,
+				textY + textHeightTotal - textBorderRadius,
+				textBorderRadius,
+				0,
+				Math.PI * 0.5
+			);
+			ctx.lineTo(textX + textBorderRadius, textY + textHeightTotal);
+			ctx.arc(
+				textX + textBorderRadius,
+				textY + textHeightTotal - textBorderRadius,
+				textBorderRadius,
+				Math.PI * 0.5,
+				Math.PI
+			);
+			ctx.lineTo(textX, textY + textBorderRadius);
+			ctx.arc(
+				textX + textBorderRadius,
+				textY + textBorderRadius,
+				textBorderRadius,
+				Math.PI,
+				Math.PI * 1.5
+			);
+			ctx.fill();
+			ctx.fillStyle = 'black';
+			ctx.textBaseline = 'top';
+			ctx.fillText(timeText, textX + textPadding, textY + textPadding);
+			for (let i = 0; i < valueTexts.length; i++) {
+				ctx.fillStyle = 'black';
+				ctx.fillText(
+					valueTexts[i],
+					textX + textPadding + 20,
+					textY + textPadding + textHeight * (i + 1)
+				);
+			}
+			let pointY = textY + textPadding + textHeight + 6;
+			for (let i = 0; i < graphs.length; i++) {
+				for (let j = 0; j < graphs[i].length; j++) {
+					ctx.fillStyle = graphs[i][j].color;
+					ctx.beginPath();
+					ctx.arc(textX + textPadding + 8, pointY, 5, 0, Math.PI * 2);
+					ctx.fill();
+					pointY += textHeight;
+					// text
+				}
+			}
+			domCtx.drawImage(highlightCanvas, 0, 0);
 			return;
 		}
 		if (trackingStartX === -1) return;
@@ -1287,6 +1468,14 @@
 			startFrame + Math.floor((endFrame - startFrame) * (trackingStartX / domCanvas.width));
 		endFrame = pStart + Math.floor((endFrame - pStart) * (trackingEndX / domCanvas.width));
 		trackingStartX = -1;
+	}
+	function onMouseLeave(e: MouseEvent) {
+		if (e.buttons !== 1) {
+			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
+			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+			domCtx.drawImage(canvas, 0, 0);
+		}
 	}
 
 	function deleteLog() {
@@ -1469,6 +1658,7 @@
 			on:mousedown={onMouseDown}
 			on:mouseup={onMouseUp}
 			on:mousemove={onMouseMove}
+			on:mouseleave={onMouseLeave}
 			on:dblclick={() => {
 				startFrame = 0;
 				endFrame = (loadedLog?.frameCount || 1) - 1;
@@ -1517,7 +1707,7 @@
 		{#if loadedLog}
 			<div class="fileInfo" style="margin-top: .8rem">
 				<div>Blackbox Version: {loadedLog.version.join('.')}</div>
-				<div>Start Time: {loadedLog.startTime} ms</div>
+				<div>Start Time: {loadedLog.startTime.toLocaleString()}</div>
 				<div>Frame Count: {loadedLog.frameCount}</div>
 				<div>PID Frequency: {loadedLog.pidFrequency} Hz</div>
 				<div>Frames per Second: {loadedLog.framesPerSecond} Hz</div>

@@ -66,7 +66,7 @@ export type BBLog = {
 	flags: string[];
 	frames: LogFrame[];
 	version: number[];
-	startTime: number;
+	startTime: Date;
 	ranges: {
 		gyro: number;
 		accel: number;
