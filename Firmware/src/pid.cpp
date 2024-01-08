@@ -1,15 +1,15 @@
 #include "global.h"
 
-int16_t bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
-int16_t *gyroDataRaw;
-int16_t *accelDataRaw;
+i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
+i16 *gyroDataRaw;
+i16 *accelDataRaw;
 FLIGHT_MODE flightMode = FLIGHT_MODE::ACRO;
 
 #define IDLE_PERMILLE 25
 #define MAX_ANGLE 35 // degrees
 
 /*
- * To avoid a lot of floating point math, fixed point math is used.
+ * To avoid a lot of f32ing point math, fixed point math is used.
  * The gyro data is 16 bit, with a range of +/- 2000 degrees per second.
  * All data is converted to degrees per second (both RC commands as well as gyro data),
  * and calculations will be performed on a 16.16 fixed point number.
@@ -18,9 +18,9 @@ FLIGHT_MODE flightMode = FLIGHT_MODE::ACRO;
  * Accel data is also 16.16 bit fixed point math, just the unit is g.
  */
 
-int16_t throttles[4];
+i16 throttles[4];
 
-fixedPointInt32 imuData[6];
+fix32 imuData[6];
 
 enum {
 	P,
@@ -30,22 +30,22 @@ enum {
 	S,
 	iFalloff
 };
-fixedPointInt32 pidGains[3][7];
-fixedPointInt32 pidGainsVVel[3], pidGainsHVel[3];
-fixedPointInt32 angleModeP = 10, velocityModeP = 3;
+fix32 pidGains[3][7];
+fix32 pidGainsVVel[3], pidGainsHVel[3];
+fix32 angleModeP = 10, velocityModeP = 3;
 
-fixedPointInt32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
-fixedPointInt64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
-fixedPointInt32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
-fixedPointInt32 tRR, tRL, tFR, tFL;
+fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
+fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
+fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
+fix32 tRR, tRL, tFR, tFL;
 
-uint32_t pidLoopCounter = 0;
+u32 pidLoopCounter = 0;
 
-fixedPointInt32 rateFactors[5][3];
+fix32 rateFactors[5][3];
 #undef RAD_TO_DEG
-const fixedPointInt32 RAD_TO_DEG = fixedPointInt32(180) / PI;
-const fixedPointInt32 TO_ANGLE	 = fixedPointInt32(MAX_ANGLE) / fixedPointInt32(512);
-uint16_t smoothChannels[4];
+const fix32 RAD_TO_DEG = fix32(180) / PI;
+const fix32 TO_ANGLE	 = fix32(MAX_ANGLE) / fix32(512);
+u16 smoothChannels[4];
 
 void initPID() {
 	for (int i = 0; i < 3; i++) {
@@ -71,7 +71,7 @@ void initPID() {
 	pidGainsHVel[D] = 7;			 // tilt in degrees, if changing speed by 3200m/s /s
 }
 
-uint32_t takeoffCounter = 0;
+u32 takeoffCounter = 0;
 
 void pidLoop() {
 		gyroGetData(bmiDataRaw);
@@ -88,27 +88,27 @@ void pidLoop() {
 	
 	if (armed) {
 				// Quad armed
-		static fixedPointInt32 polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
+		static fix32 polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
 		ELRS->getSmoothChannels(smoothChannels);
 				// calculate setpoints
-		polynomials[0][0].setRaw(((int32_t)smoothChannels[0] - 1500) << 7); //-1...+1 in fixed point notation;
-		polynomials[0][1].setRaw(((int32_t)smoothChannels[1] - 1500) << 7);
-		polynomials[0][2].setRaw(((int32_t)smoothChannels[3] - 1500) << 7);
-		fixedPointInt32 throttle = (smoothChannels[2] - 1000) * 2;
+		polynomials[0][0].setRaw(((i32)smoothChannels[0] - 1500) << 7); //-1...+1 in fixed point notation;
+		polynomials[0][1].setRaw(((i32)smoothChannels[1] - 1500) << 7);
+		polynomials[0][2].setRaw(((i32)smoothChannels[3] - 1500) << 7);
+		fix32 throttle = (smoothChannels[2] - 1000) * 2;
 		rollSetpoint			 = 0;
 		pitchSetpoint			 = 0;
 		yawSetpoint				 = 0;
 		if (flightMode == FLIGHT_MODE::ANGLE || flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
-						fixedPointInt32 dRoll;
-			fixedPointInt32 dPitch;
+						fix32 dRoll;
+			fix32 dPitch;
 			if (flightMode < FLIGHT_MODE::GPS_VEL) {
-				dRoll		  = fixedPointInt32(smoothChannels[0] - 1500) * TO_ANGLE - (RAD_TO_DEG * roll);
-				dPitch		  = fixedPointInt32(smoothChannels[1] - 1500) * TO_ANGLE + (RAD_TO_DEG * pitch);
+				dRoll		  = fix32(smoothChannels[0] - 1500) * TO_ANGLE - (RAD_TO_DEG * roll);
+				dPitch		  = fix32(smoothChannels[1] - 1500) * TO_ANGLE + (RAD_TO_DEG * pitch);
 				rollSetpoint  = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FLIGHT_MODE::GPS_VEL) {
-				fixedPointInt32 cosfhead = cosf(combinedHeading / 5729578.f);
-				fixedPointInt32 sinfhead = sinf(combinedHeading / 5729578.f);
+				fix32 cosfhead = cosf(combinedHeading / 5729578.f);
+				fix32 sinfhead = sinf(combinedHeading / 5729578.f);
 				eVelSetpoint			 = cosfhead * (smoothChannels[0] - 1500) + sinfhead * (smoothChannels[1] - 1500);
 				nVelSetpoint			 = -sinfhead * (smoothChannels[0] - 1500) + cosfhead * (smoothChannels[1] - 1500);
 				eVelSetpoint			 = eVelSetpoint >> 9;
@@ -126,10 +126,10 @@ void pidLoop() {
 				eVelD = pidGainsHVel[D] * (eVel - eVelLast);
 				nVelD = pidGainsHVel[D] * (nVel - nVelLast);
 
-				fixedPointInt32 eVelPID		= eVelP + eVelI + eVelD;
-				fixedPointInt32 nVelPID		= nVelP + nVelI + nVelD;
-				fixedPointInt32 targetRoll	= eVelPID * cosfhead - nVelPID * sinfhead;
-				fixedPointInt32 targetPitch = eVelPID * sinfhead + nVelPID * cosfhead;
+				fix32 eVelPID		= eVelP + eVelI + eVelD;
+				fix32 nVelPID		= nVelP + nVelI + nVelD;
+				fix32 targetRoll	= eVelPID * cosfhead - nVelPID * sinfhead;
+				fix32 targetPitch = eVelPID * sinfhead + nVelPID * cosfhead;
 				targetRoll					= constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
 				targetPitch					= constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
 				dRoll						= targetRoll - (RAD_TO_DEG * roll);
@@ -137,7 +137,7 @@ void pidLoop() {
 				rollSetpoint				= dRoll * velocityModeP;
 				pitchSetpoint				= dPitch * velocityModeP;
 			}
-			polynomials[0][2].setRaw(((int32_t)smoothChannels[3] - 1500) << 7);
+			polynomials[0][2].setRaw(((i32)smoothChannels[3] - 1500) << 7);
 						for (int i = 1; i < 5; i++) {
 				polynomials[i][2] = polynomials[i - 1][2] * polynomials[0][2];
 				if (polynomials[0][2] < 0)
@@ -212,9 +212,9 @@ void pidLoop() {
 		pitchS	= pidGains[1][S] * pitchSetpoint;
 		yawS	= pidGains[2][S] * yawSetpoint;
 
-				fixedPointInt32 rollTerm  = rollP + rollI + rollD + rollFF + rollS;
-		fixedPointInt32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
-		fixedPointInt32 yawTerm	  = yawP + yawI + yawD + yawFF + yawS;
+				fix32 rollTerm  = rollP + rollI + rollD + rollFF + rollS;
+		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
+		fix32 yawTerm	  = yawP + yawI + yawD + yawFF + yawS;
 #ifdef PROPS_OUT
 		tRR = throttle - rollTerm + pitchTerm + yawTerm;
 		tFR = throttle - rollTerm - pitchTerm - yawTerm;
@@ -226,65 +226,65 @@ void pidLoop() {
 		tRL = throttle + rollTerm + pitchTerm + yawTerm;
 		tFL = throttle + rollTerm - pitchTerm - yawTerm;
 #endif
-				throttles[(uint8_t)MOTOR::RR] = map(tRR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(uint8_t)MOTOR::RL] = map(tRL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(uint8_t)MOTOR::FR] = map(tFR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(uint8_t)MOTOR::FL] = map(tFL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-				if (throttles[(uint8_t)MOTOR::RR] > 2000) {
-			int16_t diff				  = throttles[(uint8_t)MOTOR::RR] - 2000;
-			throttles[(uint8_t)MOTOR::RR] = 2000;
-			throttles[(uint8_t)MOTOR::FL] -= diff;
-			throttles[(uint8_t)MOTOR::FR] -= diff;
-			throttles[(uint8_t)MOTOR::RL] -= diff;
+				throttles[(u8)MOTOR::RR] = map(tRR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::RL] = map(tRL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::FR] = map(tFR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::FL] = map(tFL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+				if (throttles[(u8)MOTOR::RR] > 2000) {
+			i16 diff				  = throttles[(u8)MOTOR::RR] - 2000;
+			throttles[(u8)MOTOR::RR] = 2000;
+			throttles[(u8)MOTOR::FL] -= diff;
+			throttles[(u8)MOTOR::FR] -= diff;
+			throttles[(u8)MOTOR::RL] -= diff;
 		}
-		if (throttles[(uint8_t)MOTOR::RL] > 2000) {
-			int16_t diff				  = throttles[(uint8_t)MOTOR::RL] - 2000;
-			throttles[(uint8_t)MOTOR::RL] = 2000;
-			throttles[(uint8_t)MOTOR::FL] -= diff;
-			throttles[(uint8_t)MOTOR::FR] -= diff;
-			throttles[(uint8_t)MOTOR::RR] -= diff;
+		if (throttles[(u8)MOTOR::RL] > 2000) {
+			i16 diff				  = throttles[(u8)MOTOR::RL] - 2000;
+			throttles[(u8)MOTOR::RL] = 2000;
+			throttles[(u8)MOTOR::FL] -= diff;
+			throttles[(u8)MOTOR::FR] -= diff;
+			throttles[(u8)MOTOR::RR] -= diff;
 		}
-		if (throttles[(uint8_t)MOTOR::FR] > 2000) {
-			int16_t diff				  = throttles[(uint8_t)MOTOR::FR] - 2000;
-			throttles[(uint8_t)MOTOR::FR] = 2000;
-			throttles[(uint8_t)MOTOR::FL] -= diff;
-			throttles[(uint8_t)MOTOR::RL] -= diff;
-			throttles[(uint8_t)MOTOR::RR] -= diff;
+		if (throttles[(u8)MOTOR::FR] > 2000) {
+			i16 diff				  = throttles[(u8)MOTOR::FR] - 2000;
+			throttles[(u8)MOTOR::FR] = 2000;
+			throttles[(u8)MOTOR::FL] -= diff;
+			throttles[(u8)MOTOR::RL] -= diff;
+			throttles[(u8)MOTOR::RR] -= diff;
 		}
-		if (throttles[(uint8_t)MOTOR::FL] > 2000) {
-			int16_t diff				  = throttles[(uint8_t)MOTOR::FL] - 2000;
-			throttles[(uint8_t)MOTOR::FL] = 2000;
-			throttles[(uint8_t)MOTOR::RL] -= diff;
-			throttles[(uint8_t)MOTOR::RR] -= diff;
-			throttles[(uint8_t)MOTOR::FR] -= diff;
+		if (throttles[(u8)MOTOR::FL] > 2000) {
+			i16 diff				  = throttles[(u8)MOTOR::FL] - 2000;
+			throttles[(u8)MOTOR::FL] = 2000;
+			throttles[(u8)MOTOR::RL] -= diff;
+			throttles[(u8)MOTOR::RR] -= diff;
+			throttles[(u8)MOTOR::FR] -= diff;
 		}
-		if (throttles[(uint8_t)MOTOR::RR] < IDLE_PERMILLE * 2) {
-			int16_t diff				  = IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RR];
-			throttles[(uint8_t)MOTOR::RR] = IDLE_PERMILLE * 2;
-			throttles[(uint8_t)MOTOR::FL] += diff;
-			throttles[(uint8_t)MOTOR::FR] += diff;
-			throttles[(uint8_t)MOTOR::RL] += diff;
+		if (throttles[(u8)MOTOR::RR] < IDLE_PERMILLE * 2) {
+			i16 diff				  = IDLE_PERMILLE * 2 - throttles[(u8)MOTOR::RR];
+			throttles[(u8)MOTOR::RR] = IDLE_PERMILLE * 2;
+			throttles[(u8)MOTOR::FL] += diff;
+			throttles[(u8)MOTOR::FR] += diff;
+			throttles[(u8)MOTOR::RL] += diff;
 		}
-		if (throttles[(uint8_t)MOTOR::RL] < IDLE_PERMILLE * 2) {
-			int16_t diff				  = IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::RL];
-			throttles[(uint8_t)MOTOR::RL] = IDLE_PERMILLE * 2;
-			throttles[(uint8_t)MOTOR::FL] += diff;
-			throttles[(uint8_t)MOTOR::FR] += diff;
-			throttles[(uint8_t)MOTOR::RR] += diff;
+		if (throttles[(u8)MOTOR::RL] < IDLE_PERMILLE * 2) {
+			i16 diff				  = IDLE_PERMILLE * 2 - throttles[(u8)MOTOR::RL];
+			throttles[(u8)MOTOR::RL] = IDLE_PERMILLE * 2;
+			throttles[(u8)MOTOR::FL] += diff;
+			throttles[(u8)MOTOR::FR] += diff;
+			throttles[(u8)MOTOR::RR] += diff;
 		}
-		if (throttles[(uint8_t)MOTOR::FR] < IDLE_PERMILLE * 2) {
-			int16_t diff				  = IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FR];
-			throttles[(uint8_t)MOTOR::FR] = IDLE_PERMILLE * 2;
-			throttles[(uint8_t)MOTOR::FL] += diff;
-			throttles[(uint8_t)MOTOR::RL] += diff;
-			throttles[(uint8_t)MOTOR::RR] += diff;
+		if (throttles[(u8)MOTOR::FR] < IDLE_PERMILLE * 2) {
+			i16 diff				  = IDLE_PERMILLE * 2 - throttles[(u8)MOTOR::FR];
+			throttles[(u8)MOTOR::FR] = IDLE_PERMILLE * 2;
+			throttles[(u8)MOTOR::FL] += diff;
+			throttles[(u8)MOTOR::RL] += diff;
+			throttles[(u8)MOTOR::RR] += diff;
 		}
-		if (throttles[(uint8_t)MOTOR::FL] < IDLE_PERMILLE * 2) {
-			int16_t diff				  = IDLE_PERMILLE * 2 - throttles[(uint8_t)MOTOR::FL];
-			throttles[(uint8_t)MOTOR::FL] = IDLE_PERMILLE * 2;
-			throttles[(uint8_t)MOTOR::RL] += diff;
-			throttles[(uint8_t)MOTOR::RR] += diff;
-			throttles[(uint8_t)MOTOR::FR] += diff;
+		if (throttles[(u8)MOTOR::FL] < IDLE_PERMILLE * 2) {
+			i16 diff				  = IDLE_PERMILLE * 2 - throttles[(u8)MOTOR::FL];
+			throttles[(u8)MOTOR::FL] = IDLE_PERMILLE * 2;
+			throttles[(u8)MOTOR::RL] += diff;
+			throttles[(u8)MOTOR::RR] += diff;
+			throttles[(u8)MOTOR::FR] += diff;
 		}
 				for (int i = 0; i < 4; i++)
 			throttles[i] = throttles[i] > 2000 ? 2000 : throttles[i];
@@ -312,10 +312,10 @@ void pidLoop() {
 			if (motorBeepTimer > 500)
 				motorBeepTimer = 0;
 			if (motorBeepTimer < 200) {
-				uint16_t motors[4] = {DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2};
+				u16 motors[4] = {DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2};
 								sendRaw11Bit(motors);
 			} else {
-				uint16_t motors[4] = {0, 0, 0, 0};
+				u16 motors[4] = {0, 0, 0, 0};
 								sendRaw11Bit(motors);
 			}
 		}

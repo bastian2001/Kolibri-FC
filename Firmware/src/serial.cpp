@@ -1,13 +1,13 @@
 #include "global.h"
 
-uint8_t readChar   = 0;
+u8 readChar   = 0;
 Stream *serials[3] = {
 	&Serial,
 	&Serial1,
 	&Serial2};
 
 // 0 = serial, 1 = serial1, 2 = serial2
-uint32_t serialFunctions[3] = {
+u32 serialFunctions[3] = {
 	SERIAL_CONFIGURATOR,
 	SERIAL_ELRS,
 	SERIAL_GPS};

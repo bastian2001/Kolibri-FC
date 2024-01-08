@@ -1,9 +1,9 @@
 #include "global.h"
 
-uint8_t configSerialBuffer[256] = {0};
-uint8_t configSerialBufferIndex = 0;
-uint8_t configMsgLength			= 0;
-uint16_t configMsgCommand		= 0;
+u8 configSerialBuffer[256] = {0};
+u8 configSerialBufferIndex = 0;
+u8 configMsgLength			= 0;
+u16 configMsgCommand		= 0;
 
 elapsedMillis configTimer = 0;
 
@@ -17,7 +17,7 @@ void configuratorLoop() {
 		configuratorConnected = false;
 }
 
-void sendCommand(uint16_t command, const char *data, uint16_t len) {
+void sendCommand(u16 command, const char *data, u16 len) {
 	Serial.write('_');
 	Serial.write('K');
 	Serial.write(len & 0xFF);
@@ -27,7 +27,7 @@ void sendCommand(uint16_t command, const char *data, uint16_t len) {
 
 	if (data == nullptr)
 		len = 0;
-	uint8_t crc = (command & 0xFF) ^ (command >> 8) ^ (len & 0xFF) ^ (len >> 8);
+	u8 crc = (command & 0xFF) ^ (command >> 8) ^ (len & 0xFF) ^ (len >> 8);
 	for (int i = 0; i < len; i++) {
 		Serial.write(data[i]);
 		crc ^= data[i];
@@ -37,19 +37,19 @@ void sendCommand(uint16_t command, const char *data, uint16_t len) {
 
 void handleConfigCmd() {
 	char buf[256] = {0};
-	uint8_t len	  = 0;
+	u8 len	  = 0;
 	switch ((ConfigCmd)configMsgCommand) {
 	case ConfigCmd::STATUS: {
-		uint16_t voltage = adcVoltage;
+		u16 voltage = adcVoltage;
 		buf[len++]		 = voltage & 0xFF;
 		buf[len++]		 = voltage >> 8;
 		buf[len++]		 = armed;
-		buf[len++]		 = (uint8_t)flightMode;
-		buf[len++]		 = (uint8_t)(armingDisableFlags & 0xFF);
-		buf[len++]		 = (uint8_t)(armingDisableFlags >> 8);
-		buf[len++]		 = (uint8_t)(armingDisableFlags >> 16);
-		buf[len++]		 = (uint8_t)(armingDisableFlags >> 24);
-		buf[len++]		 = (uint8_t)(configuratorConnected & 0xFF);
+		buf[len++]		 = (u8)flightMode;
+		buf[len++]		 = (u8)(armingDisableFlags & 0xFF);
+		buf[len++]		 = (u8)(armingDisableFlags >> 8);
+		buf[len++]		 = (u8)(armingDisableFlags >> 16);
+		buf[len++]		 = (u8)(armingDisableFlags >> 24);
+		buf[len++]		 = (u8)(configuratorConnected & 0xFF);
 		sendCommand(configMsgCommand | 0x4000, buf, len);
 	} break;
 	case ConfigCmd::TASK_STATUS:
@@ -67,15 +67,15 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	case ConfigCmd::PLAY_SOUND: {
-		const uint16_t startFreq	 = random(1000, 5000);
-		const uint16_t endFreq		 = random(1000, 5000);
-		const uint16_t sweepDuration = random(400, 1000);
-		uint16_t pauseDuration		 = random(100, 1000);
-		const uint16_t pauseEn		 = random(0, 2);
+		const u16 startFreq	 = random(1000, 5000);
+		const u16 endFreq		 = random(1000, 5000);
+		const u16 sweepDuration = random(400, 1000);
+		u16 pauseDuration		 = random(100, 1000);
+		const u16 pauseEn		 = random(0, 2);
 		pauseDuration *= pauseEn;
-		const uint16_t repeat = random(1, 11);
+		const u16 repeat = random(1, 11);
 		makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
-		uint8_t len = 0;
+		u8 len = 0;
 		buf[len++]	= startFreq & 0xFF;
 		buf[len++]	= startFreq >> 8;
 		buf[len++]	= endFreq & 0xFF;
@@ -110,8 +110,8 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, index);
 	} break;
 	case ConfigCmd::BB_FILE_DOWNLOAD: {
-		uint8_t fileNum	 = configSerialBuffer[CONFIG_BUFFER_DATA];
-		int16_t chunkNum = -1;
+		u8 fileNum	 = configSerialBuffer[CONFIG_BUFFER_DATA];
+		i16 chunkNum = -1;
 		if (configMsgLength > 1) {
 			chunkNum = configSerialBuffer[CONFIG_BUFFER_DATA + 1] + (configSerialBuffer[CONFIG_BUFFER_DATA + 2] << 8);
 		}
@@ -119,7 +119,7 @@ void handleConfigCmd() {
 	} break;
 	case ConfigCmd::BB_FILE_DELETE: {
 		// data just includes one byte of file number
-		uint8_t fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
+		u8 fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
 		char path[32];
 #if BLACKBOX_STORAGE == LITTLEFS_BB
 		snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
@@ -145,15 +145,15 @@ void handleConfigCmd() {
 		 * 13. byte that indicates frequency divider
 		 * 14-21: recording flags
 		 */
-		uint8_t len		  = configSerialBuffer[CONFIG_BUFFER_LENGTH];
+		u8 len		  = configSerialBuffer[CONFIG_BUFFER_LENGTH];
 		len				  = len > 12 ? 12 : len;
-		uint8_t *fileNums = &configSerialBuffer[CONFIG_BUFFER_DATA];
-		uint8_t buffer[22 * len];
-		uint8_t index = 0;
+		u8 *fileNums = &configSerialBuffer[CONFIG_BUFFER_DATA];
+		u8 buffer[22 * len];
+		u8 index = 0;
 		for (int i = 0; i < len; i++) {
 			rp2040.wdt_reset();
 			char path[32];
-			uint8_t fileNum = fileNums[i];
+			u8 fileNum = fileNums[i];
 #if BLACKBOX_STORAGE == LITTLEFS_BB
 			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
 			File logFile = LittleFS.open(path, "r");
@@ -195,19 +195,19 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, (const char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 1);
 		break;
 	case ConfigCmd::SET_MOTORS:
-		throttles[(uint8_t)MOTOR::RR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 0] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 1] << 8);
-		throttles[(uint8_t)MOTOR::FR] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 2] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 3] << 8);
-		throttles[(uint8_t)MOTOR::RL] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
-		throttles[(uint8_t)MOTOR::FL] = (uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 6] + ((uint16_t)configSerialBuffer[CONFIG_BUFFER_DATA + 7] << 8);
+		throttles[(u8)MOTOR::RR] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 0] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 1] << 8);
+		throttles[(u8)MOTOR::FR] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 2] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 3] << 8);
+		throttles[(u8)MOTOR::RL] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
+		throttles[(u8)MOTOR::FL] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 6] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 7] << 8);
 		configOverrideMotors		  = 0;
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	case ConfigCmd::GET_MOTORS: {
-		uint16_t motors[4];
-		motors[0] = throttles[(uint8_t)MOTOR::RR];
-		motors[1] = throttles[(uint8_t)MOTOR::FR];
-		motors[2] = throttles[(uint8_t)MOTOR::RL];
-		motors[3] = throttles[(uint8_t)MOTOR::FL];
+		u16 motors[4];
+		motors[0] = throttles[(u8)MOTOR::RR];
+		motors[1] = throttles[(u8)MOTOR::FR];
+		motors[2] = throttles[(u8)MOTOR::RL];
+		motors[3] = throttles[(u8)MOTOR::FL];
 		sendCommand(configMsgCommand | 0x4000, (char *)motors, sizeof(motors));
 	} break;
 	case ConfigCmd::BB_FILE_DOWNLOAD_RAW:
@@ -231,22 +231,22 @@ void handleConfigCmd() {
 	case ConfigCmd::GET_NAME: {
 		char name[20] = {0};
 		for (int i = 0; i < 20; i++)
-			name[i] = EEPROM.read((uint16_t)EEPROM_POS::UAV_NAME + i);
+			name[i] = EEPROM.read((u16)EEPROM_POS::UAV_NAME + i);
 		name[19] = '\0';
 		sendCommand(configMsgCommand | 0x4000, name, strlen(name));
 	} break;
 	case ConfigCmd::SET_NAME: {
-		uint8_t len = configSerialBuffer[CONFIG_BUFFER_LENGTH];
+		u8 len = configSerialBuffer[CONFIG_BUFFER_LENGTH];
 		if (len > 20)
 			sendCommand(configMsgCommand | 0x8000);
 		break;
 		for (int i = 0; i < len; i++)
-			EEPROM.write((uint16_t)EEPROM_POS::UAV_NAME + i, configSerialBuffer[CONFIG_BUFFER_DATA + i]);
+			EEPROM.write((u16)EEPROM_POS::UAV_NAME + i, configSerialBuffer[CONFIG_BUFFER_DATA + i]);
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	}
 	case ConfigCmd::GET_PIDS: {
-		uint16_t pids[3][7];
+		u16 pids[3][7];
 		for (int i = 0; i < 3; i++) {
 			pids[i][0] = pidGains[i][0].getRaw() >> P_SHIFT;
 			pids[i][1] = pidGains[i][1].getRaw() >> I_SHIFT;
@@ -259,7 +259,7 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, (char *)pids, sizeof(pids));
 	} break;
 	case ConfigCmd::SET_PIDS: {
-		uint16_t pids[3][7];
+		u16 pids[3][7];
 		memcpy(pids, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(pids));
 		for (int i = 0; i < 3; i++) {
 			pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
@@ -269,39 +269,39 @@ void handleConfigCmd() {
 			pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
 			pidGains[i][5].setRaw(pids[i][5]);
 		}
-		EEPROM.put((uint16_t)EEPROM_POS::PID_GAINS, pidGains);
+		EEPROM.put((u16)EEPROM_POS::PID_GAINS, pidGains);
 		sendCommand(configMsgCommand | 0x4000);
 	} break;
 	case ConfigCmd::GET_RATES: {
-		uint16_t rates[3][5];
+		u16 rates[3][5];
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 5; j++)
 				rates[i][j] = rateFactors[j][i].getInt();
 		sendCommand(configMsgCommand | 0x4000, (char *)rates, sizeof(rates));
 	} break;
 	case ConfigCmd::SET_RATES: {
-		uint16_t rates[3][5];
+		u16 rates[3][5];
 		memcpy(rates, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(rates));
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 5; j++)
 				rateFactors[j][i] = rates[i][j];
 		sendCommand(configMsgCommand | 0x4000);
-		EEPROM.put((uint16_t)EEPROM_POS::RATE_FACTORS, rateFactors);
+		EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rateFactors);
 	} break;
 	case ConfigCmd::GET_BB_SETTINGS: {
-		uint8_t bbSettings[9];
+		u8 bbSettings[9];
 		bbSettings[0] = bbFreqDivider;
 		memcpy(&bbSettings[1], &bbFlags, 8);
 		sendCommand(configMsgCommand | 0x4000, (char *)bbSettings, sizeof(bbSettings));
 	} break;
 	case ConfigCmd::SET_BB_SETTINGS: {
-		uint8_t bbSettings[9];
+		u8 bbSettings[9];
 		memcpy(bbSettings, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(bbSettings));
 		bbFreqDivider = bbSettings[0];
 		memcpy(&bbFlags, &bbSettings[1], 8);
 		sendCommand(configMsgCommand | 0x4000);
-		EEPROM.put((uint16_t)EEPROM_POS::BB_FLAGS, bbFlags);
-		EEPROM.put((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
+		EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
+		EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 	} break;
 	case ConfigCmd::GET_ROTATION: {
 		// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
@@ -317,16 +317,16 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, 6);
 	} break;
 	// case ConfigCmd::GET_ROTATION: {
-	// 	float rMat[3][3];
-	// 	float wx		  = q.w * q.v[0];
-	// 	float wy		  = q.w * q.v[1];
-	// 	float wz		  = q.w * q.v[2];
-	// 	float xx		  = q.v[0] * q.v[0];
-	// 	float xy		  = q.v[0] * q.v[1];
-	// 	float xz		  = q.v[0] * q.v[2];
-	// 	float yy		  = q.v[1] * q.v[1];
-	// 	float yz		  = q.v[1] * q.v[2];
-	// 	float zz		  = q.v[2] * q.v[2];
+	// 	f32 rMat[3][3];
+	// 	f32 wx		  = q.w * q.v[0];
+	// 	f32 wy		  = q.w * q.v[1];
+	// 	f32 wz		  = q.w * q.v[2];
+	// 	f32 xx		  = q.v[0] * q.v[0];
+	// 	f32 xy		  = q.v[0] * q.v[1];
+	// 	f32 xz		  = q.v[0] * q.v[2];
+	// 	f32 yy		  = q.v[1] * q.v[1];
+	// 	f32 yz		  = q.v[1] * q.v[2];
+	// 	f32 zz		  = q.v[2] * q.v[2];
 	// 	rMat[0][0]		  = 1 - 2 * (yy + zz);
 	// 	rMat[0][1]		  = 2 * (xy - wz);
 	// 	rMat[0][2]		  = 2 * (xz + wy);
@@ -336,9 +336,9 @@ void handleConfigCmd() {
 	// 	rMat[2][0]		  = 2 * (xz - wy);
 	// 	rMat[2][1]		  = 2 * (yz + wx);
 	// 	rMat[2][2]		  = 1 - 2 * (xx + yy);
-	// 	float rollX		  = atan2f(rMat[2][1], rMat[2][2]);
-	// 	float pitchX	  = (0.5f * (float)PI) - acosf(-rMat[2][0]);
-	// 	float yawX		  = -atan2f(rMat[1][0], rMat[0][0]);
+	// 	f32 rollX		  = atan2f(rMat[2][1], rMat[2][2]);
+	// 	f32 pitchX	  = (0.5f * (f32)PI) - acosf(-rMat[2][0]);
+	// 	f32 yawX		  = -atan2f(rMat[1][0], rMat[0][0]);
 	// 	int rotationPitch = pitchX * 8192;
 	// 	int rotationRoll  = rollX * 8192;
 	// 	int rotationYaw	  = yawX * 8192;
@@ -351,10 +351,10 @@ void handleConfigCmd() {
 	// 	sendCommand(configMsgCommand | 0x4000, buf, 6);
 	// } break;
 	case ConfigCmd::SERIAL_PASSTHROUGH: {
-		uint8_t serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
-		uint32_t baud	  = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
+		u8 serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
+		u32 baud	  = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
 		sendCommand(configMsgCommand | 0x4000, (char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 5);
-		uint8_t plusCount			  = 0;
+		u8 plusCount			  = 0;
 		elapsedMillis breakoutCounter = 0;
 		switch (serialNum) {
 		case 1:
@@ -436,7 +436,7 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, 7);
 	} break;
 	case ConfigCmd::GET_GPS_MOTION: {
-		int32_t vVel2 = (combinedAltitude * 1000).getInt();
+		i32 vVel2 = (combinedAltitude * 1000).getInt();
 		memcpy(buf, &gpsMotion.lat, 4);
 		memcpy(&buf[4], &gpsMotion.lon, 4);
 		memcpy(&buf[8], &gpsMotion.alt, 4);
@@ -470,7 +470,7 @@ void handleConfigCmd() {
 	}
 }
 
-void configuratorHandleByte(uint8_t c, uint8_t _serialNum) {
+void configuratorHandleByte(u8 c, u8 _serialNum) {
 	configSerialBuffer[configSerialBufferIndex++] = c;
 	// every message from the configurator starts with _K, followed by two bytes of data length (only for the data, thus between 0 and 65535), then 2 bytes command, then the data, then the checksum (1 byte XOR of length, command and data)
 	// 2 bytes prefix, 2 bytes length, 2 bytes command, data, 1 byte checksum
@@ -486,7 +486,7 @@ void configuratorHandleByte(uint8_t c, uint8_t _serialNum) {
 		configMsgCommand = configSerialBuffer[4] + (configSerialBuffer[5] << 8); // low byte first
 	}
 	if (configSerialBufferIndex == configMsgLength + 7) {
-		uint8_t crc = 0;
+		u8 crc = 0;
 		for (int i = 2; i < configMsgLength + 7; i++)
 			crc ^= configSerialBuffer[i];
 		if (crc != 0) {

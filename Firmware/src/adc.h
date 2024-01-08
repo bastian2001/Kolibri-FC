@@ -1,5 +1,5 @@
-
-extern uint16_t adcVoltage;
+#include "typedefs.h"
+extern u16 adcVoltage;
 
 void initADC();
 

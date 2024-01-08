@@ -34,12 +34,12 @@ typedef enum
 } ESCCommand;
 
 extern PIO escPio;
-extern uint8_t escSm;
-extern uint32_t motorPacket[2];
+extern u8 escSm;
+extern u32 motorPacket[2];
 
 void initESCs();
 
 // 11 bit value without checksum and telemetry bit
-void sendThrottles(const int16_t throttles[4]);
-void sendRaw11Bit(const uint16_t raw[4]);
-void sendRaw16Bit(const uint16_t raw[4]);
+void sendThrottles(const i16 throttles[4]);
+void sendRaw11Bit(const u16 raw[4]);
+void sendRaw16Bit(const u16 raw[4]);

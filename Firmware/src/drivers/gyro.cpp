@@ -2,14 +2,14 @@
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
-uint32_t gyroLastState	  = 0;
+u32 gyroLastState	  = 0;
 elapsedMicros lastPIDLoop = 0;
 
-uint32_t gyroCalibratedCycles	 = 0;
-int16_t gyroCalibrationOffset[3] = {0}, gyroCalibrationOffsetTemp[3] = {0};
+u32 gyroCalibratedCycles	 = 0;
+i16 gyroCalibrationOffset[3] = {0}, gyroCalibrationOffsetTemp[3] = {0};
 
 void gyroLoop() {
-	uint8_t gpioState = gpio_get(PIN_GYRO_INT1);
+	u8 gpioState = gpio_get(PIN_GYRO_INT1);
 	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
 	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
 	lastPIDLoop = 0;
@@ -50,25 +50,25 @@ int gyroInit() {
 
 	gpio_init(PIN_GYRO_INT1);
 	gpio_set_dir(PIN_GYRO_INT1, GPIO_IN);
-	uint8_t data = 0;
-	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
+	u8 data = 0;
+	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
 	data = 0;
-	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
+	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
 	if (data != 0x24) {
 		Serial.print("Failed to load BMI270, wrong Chip ID: "); // chip id should be 0x24
 		Serial.println(data, HEX);
 		// return 1;
 	}
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_CTRL, &data, 1, 500);									   // prepare config load
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500);									   // prepare config load
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
 	data = 1;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
 
 	// check initialization status
-	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INTERNAL_STATUS, &data, 1);
+	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INTERNAL_STATUS, &data, 1);
 	if (data & 1 != 1) {
 		Serial.print("Failed to load BMI270, wrong initialization status: "); // initialization status should be 0x01
 		// return 2;
@@ -78,43 +78,43 @@ int gyroInit() {
 	// enable performance mode (p. 22)
 	// PWR_CTRL: temp_en (3) | acc_en (2) | gyr_en (1) | aux_en (0)
 	data = 0b1110; // temp, accel and gyro enabled
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::PWR_CTRL, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CTRL, &data, 1, 500);
 	// ACC_CONF: acc_filter_perf (7) | acc_bwp (6...4) | acc_odr (3...0)
 	data = 1 << 7 | 0x02 << 4 | 0x0C; // performance optimized, no averaging, 1600Hz
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_CONF, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_CONF, &data, 1, 500);
 	// ACC_RANGE: acc_range (1...0)
 	data = 0x03; // +/- 16g
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_RANGE, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_RANGE, &data, 1, 500);
 	// GYR_CONF: gyr_filter_perf (7) | gyr_noise_perf (6) | gyr_bwp (5...4) | gyr_odr (3...0)
 	data = 1 << 7 | 1 << 6 | 0x02 << 4 | 0x0D; // performance optimized, 3200Hz
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::GYR_CONF, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::GYR_CONF, &data, 1, 500);
 	// GYR_RANGE: ois_range (3) | gyr_range (2...0)
 	data = 0x00; // +/- 2000dps
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::GYR_RANGE, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::GYR_RANGE, &data, 1, 500);
 	data = 0x02;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::PWR_CONF, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500);
 
 	// INT_MAP_DATA: err_int2, drdy_int2, fwm_int2, ffull_int2, err_int1, drdy_int1, fwm_int1, ffull_int1
 	data = 0b10000100;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT_MAP_DATA, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT_MAP_DATA, &data, 1, 500);
 	// INT1_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT1_IO_CTRL, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT1_IO_CTRL, &data, 1, 500);
 	// INT2_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT2_IO_CTRL, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT2_IO_CTRL, &data, 1, 500);
 	// INT_LATCH: int_latch(0)
 	data = 0x00;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::INT_LATCH, &data, 1, 500);
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT_LATCH, &data, 1, 500);
 	armingDisableFlags |= 0x00000040;
 
 	return 0;
 }
 
-uint32_t gyroUpdateFlag = 0;
+u32 gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
-void gyroGetData(int16_t *buf) {
-	regRead(SPI_GYRO, PIN_GYRO_CS, (uint8_t)GyroReg::ACC_X_LSB, (uint8_t *)buf, 12);
+void gyroGetData(i16 *buf) {
+	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_X_LSB, (u8 *)buf, 12);
 	buf[0] -= gyroCalibrationOffset[0];
 	buf[1] -= gyroCalibrationOffset[1];
 	buf[2] -= gyroCalibrationOffset[2];
@@ -122,7 +122,7 @@ void gyroGetData(int16_t *buf) {
 }
 
 // config file needs to be uploaded to the BMI270 before it can be used
-const uint8_t bmi270_config_file[8192] = {
+const u8 bmi270_config_file[8192] = {
 	0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x3d, 0xb1, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x91, 0x03, 0x80, 0x2e, 0xbc,
 	0xb0, 0x80, 0x2e, 0xa3, 0x03, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x00, 0xb0, 0x50, 0x30, 0x21, 0x2e, 0x59, 0xf5,
 	0x10, 0x30, 0x21, 0x2e, 0x6a, 0xf5, 0x80, 0x2e, 0x3b, 0x03, 0x00, 0x00, 0x00, 0x00, 0x08, 0x19, 0x01, 0x00, 0x22,

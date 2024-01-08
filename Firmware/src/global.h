@@ -2,6 +2,8 @@
 #define SD_BB 1
 #define BLACKBOX_STORAGE SD_BB
 #define ENABLE_DEDICATED_SPI 1
+#include "typedefs.h"
+#include <Arduino.h>
 
 #if BLACKBOX_STORAGE == LITTLEFS_BB
 #include "LittleFS.h"
@@ -38,7 +40,6 @@
 #include "serialhandler/configurator.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
-#include <Arduino.h>
 // #include <Adafruit_TinyUSB.h>
 
 #define SPI_GYRO spi0
@@ -48,14 +49,14 @@
 #define PROPS_OUT
 
 extern ExpressLRS *ELRS;
-#define DECODE_RU1_3(buf) ((*(buf) & 0x1F) << ((*(uint8_t *)(buf)) >> 5))
-#define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((uint8_t *)(buf) + 1) << 8))
-#define DECODE_RU2_5(buf) ((*(buf) + ((*((buf) + 1) & 0x7) * << 8)) << ((*((uint8_t *)(buf) + 1)) >> 3))
-#define DECODE_I2(buf) ((*(buf) & 0xFF) + ((*((int8_t *)(buf) + 1)) << 8))
-uint32_t DECODE_U4(const uint8_t *buf);
-int32_t DECODE_I4(const uint8_t *buf);
-float DECODE_R4(const uint8_t *buf);
-int64_t DECODE_I8(const uint8_t *buf);
-double DECODE_R8(const uint8_t *buf);
+#define DECODE_RU1_3(buf) ((*(buf) & 0x1F) << ((*(u8 *)(buf)) >> 5))
+#define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((u8 *)(buf) + 1) << 8))
+#define DECODE_RU2_5(buf) ((*(buf) + ((*((buf) + 1) & 0x7) * << 8)) << ((*((u8 *)(buf) + 1)) >> 3))
+#define DECODE_I2(buf) ((*(buf) & 0xFF) + ((*((u8 *)(buf) + 1)) << 8))
+u32 DECODE_U4(const u8 *buf);
+i32 DECODE_I4(const u8 *buf);
+f32 DECODE_R4(const u8 *buf);
+i64 DECODE_I8(const u8 *buf);
+f64 DECODE_R8(const u8 *buf);
 
-extern uint32_t crashInfo[256];
+extern u32 crashInfo[256];

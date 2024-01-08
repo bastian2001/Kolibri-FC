@@ -1,6 +1,6 @@
 #include "global.h"
 
-volatile uint8_t setupDone = 0b00;
+volatile u8 setupDone = 0b00;
 
 void setup() {
 	set_sys_clock_khz(264000, true);
@@ -12,7 +12,7 @@ void setup() {
 	if (crashInfo[0] == 255) {
 		Serial.println("Crash detected");
 		for (int i = 0; i < 256; i++) {
-			EEPROM.write(4096 - 256 + i, (uint8_t)crashInfo[i]);
+			EEPROM.write(4096 - 256 + i, (u8)crashInfo[i]);
 		}
 		EEPROM.commit();
 	}
@@ -76,7 +76,7 @@ void setup1() {
 	}
 }
 void loop1() {
-	uint32_t times[2];
+	u32 times[2];
 	elapsedMicros timer;
 	gyroLoop();
 	times[0] = timer;

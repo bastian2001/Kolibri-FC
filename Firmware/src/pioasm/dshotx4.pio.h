@@ -26,7 +26,7 @@
 #define dshotx4_CLKDIV_150_INT 22
 #define dshotx4_CLKDIV_150_FRAC 0
 
-static const uint16_t dshotx4_program_instructions[] = {
+static const u16 dshotx4_program_instructions[] = {
 	//     .wrap_target
 	0x80e0, //  0: pull   ifempty block
 	0xee0f, //  1: set    pins, 15               [14]

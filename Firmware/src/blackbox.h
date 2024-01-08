@@ -1,6 +1,7 @@
 #include "FS.h"
 #include "elapsedMillis.h"
 #include <Arduino.h>
+#include "typedefs.h"
 #define LOG_ROLL_ELRS_RAW 1 << 0
 #define LOG_PITCH_ELRS_RAW 1 << 1
 #define LOG_THROTTLE_ELRS_RAW 1 << 2
@@ -41,11 +42,11 @@
 #define LOG_HEAD_PID_GAINS 74
 #define LOG_HEAD_LOGGED_FIELDS 158
 
-extern uint64_t bbFlags;
+extern u64 bbFlags;
 extern bool bbLogging;
 extern FSInfo64 fs_info;
 extern elapsedMillis infoAge;
-extern uint8_t bbFreqDivider;
+extern u8 bbFreqDivider;
 
 void initBlackbox();
 
@@ -57,7 +58,7 @@ bool clearBlackbox();
 
 void writeSingleFrame();
 
-void printLogBin(uint8_t logNum, int16_t chunkNum = -1);
-void printLogBinRaw(uint8_t logNum);
+void printLogBin(u8 logNum, i16 chunkNum = -1);
+void printLogBinRaw(u8 logNum);
 
 void blackboxLoop();

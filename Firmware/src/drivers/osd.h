@@ -1,6 +1,6 @@
 #include <Arduino.h>
 
-enum class OSDReg : uint8_t {
+enum class OSDReg : u8 {
 	VM0,
 	VM1,
 	HOS,
@@ -25,7 +25,7 @@ enum class OSDReg : uint8_t {
 #define OSD_HEIGHT 16
 #define OSD_MAX_ELEM 128
 
-enum class OSDElem : uint8_t {
+enum class OSDElem : u8 {
 	WARNINGS,
 	TOT_VOLTAGE,
 	CURRENT,
@@ -45,7 +45,7 @@ void osdLoop();
 
 void updateElem(OSDElem elem, const char *str);
 
-void placeElem(OSDElem elem, uint8_t x, uint8_t y);
+void placeElem(OSDElem elem, u8 x, u8 y);
 
 void enableElem(OSDElem elem);
 void disableElem(OSDElem elem);
@@ -53,4 +53,4 @@ void disableElem(OSDElem elem);
 void disableOSD();
 void enableOSD();
 
-void updateCharacter(uint8_t cmAddr, uint8_t data[54]);
+void updateCharacter(u8 cmAddr, u8 data[54]);

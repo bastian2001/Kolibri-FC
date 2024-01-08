@@ -1,7 +1,7 @@
 #include "global.h"
-RingBuffer<uint8_t> elrsBuffer(260);
+RingBuffer<u8> elrsBuffer(260);
 
-ExpressLRS::ExpressLRS(SerialUART &elrsSerial, uint32_t baudrate, uint8_t pinTX, uint8_t pinRX)
+ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	: elrsSerial(elrsSerial),
 	  pinTX(pinTX),
 	  pinRX(pinRX),
@@ -63,9 +63,9 @@ void ExpressLRS::loop() {
 // from https://github.com/catphish/openuav/blob/master/firmware/src/elrs.c
 //  Append a byte to a CRC-8
 // 32 bit operations are used for speed, CRC of an RC packet take 22 instead of 25µs
-void crc32_append(uint32_t data, uint32_t &crc) {
+void crc32_append(u32 data, u32 &crc) {
 	crc ^= data;
-	for (uint32_t i = 0; i < 8; i++) {
+	for (u32 i = 0; i < 8; i++) {
 		if (crc & 0x80) {
 			crc = (crc << 1) ^ 0xD5;
 		} else {
@@ -76,7 +76,7 @@ void crc32_append(uint32_t data, uint32_t &crc) {
 
 void ExpressLRS::processMessage() {
 		int size	 = msgBuffer[1] + 2;
-	uint32_t crc = 0;
+	u32 crc = 0;
 	for (int i = 2; i < size; i++)
 		crc32_append(msgBuffer[i], crc);
 		if (crc & 0xFF) // if the crc is not 0, then the message is invalid
@@ -106,9 +106,9 @@ void ExpressLRS::processMessage() {
 		}
 				sinceLastRCMessage = 0;
 		// crsf_channels_t *crsfChannels = (crsf_channels_t *)(&msgBuffer[3]); // somehow conversion through bit-fields does not work, so manual conversion
-		uint64_t decoder, decoder2;
+		u64 decoder, decoder2;
 		memcpy(&decoder, &msgBuffer[3], 8);
-		uint32_t pChannels[16];
+		u32 pChannels[16];
 				pChannels[0] = decoder & 0x7FF;			// 0...10
 		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
 		pChannels[2] = (decoder >> 22) & 0x7FF; // 22...32
@@ -133,7 +133,7 @@ void ExpressLRS::processMessage() {
 		decoder >>= 55;							 // 55, 3 bits left
 		pChannels[15] = decoder | (msgBuffer[24] << 3);
 				// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
-		for (uint8_t i = 0; i < 16; i++) {
+		for (u8 i = 0; i < 16; i++) {
 			if (i == 2)
 				continue;
 			pChannels[i] -= 174;
@@ -156,8 +156,8 @@ void ExpressLRS::processMessage() {
 			consecutiveArmedCycles = 0;
 		
 		// update as fast as possible
-		memcpy(lastChannels, channels, 16 * sizeof(uint32_t));
-		memcpy(channels, pChannels, 16 * sizeof(uint32_t));
+		memcpy(lastChannels, channels, 16 * sizeof(u32));
+		memcpy(channels, pChannels, 16 * sizeof(u32));
 		rcPacketRateCounter++;
 		rcMsgCount++;
 				break;
@@ -212,9 +212,9 @@ void ExpressLRS::processMessage() {
 	msgBufIndex = 0;
 }
 
-void ExpressLRS::getSmoothChannels(uint16_t smoothChannels[4]) {
+void ExpressLRS::getSmoothChannels(u16 smoothChannels[4]) {
 	// one new RC message every 4ms = 4000µs, ELRS 250Hz
-		static uint32_t sum[4];
+		static u32 sum[4];
 	int sinceLast = sinceLastRCMessage;
 	if (sinceLast > 4000) {
 				sinceLast	   = 4000;

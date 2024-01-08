@@ -1,14 +1,14 @@
 #include "global.h"
 
 elapsedMillis soundStart;
-uint16_t soundDuration		 = 0;
-uint8_t soundType			 = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
-uint16_t sweepStartFrequency = 0;
-uint16_t sweepEndFrequency	 = 0;
-uint16_t onTime				 = 0;
-uint16_t offTime			 = 0;
-uint16_t currentWrap		 = 400;
-fixedPointInt32 noteFrequencies[13] =
+u16 soundDuration		 = 0;
+u8 soundType			 = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
+u16 sweepStartFrequency = 0;
+u16 sweepEndFrequency	 = 0;
+u16 onTime				 = 0;
+u16 offTime			 = 0;
+u16 currentWrap		 = 400;
+fix32 noteFrequencies[13] =
 	{
 		16.35, // C0
 		17.32, // C#0
@@ -25,15 +25,15 @@ fixedPointInt32 noteFrequencies[13] =
 		0	   // error
 };
 typedef struct rtttlNote {
-	uint16_t frequency;	 // pause = 0
-	uint16_t duration;	 // milliseconds
-	uint8_t sweepToNext; // dash after note will sweep to next, e.g. 8e6-,8d6 will sweep from 8e6 to 8d6 within "duration" milliseconds
-	uint8_t quieter;	 // 0 = normal, 1-3 = quieter, 4 = ring-tone-like e.g. 8e6$4 will play 8e6 like a ring-tone
+	u16 frequency;	 // pause = 0
+	u16 duration;	 // milliseconds
+	u8 sweepToNext; // dash after note will sweep to next, e.g. 8e6-,8d6 will sweep from 8e6 to 8d6 within "duration" milliseconds
+	u8 quieter;	 // 0 = normal, 1-3 = quieter, 4 = ring-tone-like e.g. 8e6$4 will play 8e6 like a ring-tone
 						 // quietness level 3 only works up to a#7, level 2 up to a#8, level 1 up to a#10, ring-tone works for all notes, quietness doesn't sweep
 } RTTTLNote;
 typedef struct rtttlSong {
 	RTTTLNote notes[MAX_RTTTL_NOTES];
-	uint8_t numNotes;
+	u8 numNotes;
 } RTTTLSong;
 RTTTLSong songToPlay;
 
@@ -41,7 +41,7 @@ RTTTLSong songToPlay;
 
 void initSpeaker() {
 	gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PWM);
-	uint8_t sliceNum = pwm_gpio_to_slice_num(PIN_SPEAKER);
+	u8 sliceNum = pwm_gpio_to_slice_num(PIN_SPEAKER);
 	pwm_set_clkdiv_int_frac(sliceNum, 132, 0); // 1MHz, therefore a wrap of 50000 for 20Hz, and a wrap of 200 for 5kHz
 	// default: 2.5kHz
 	pwm_set_wrap(sliceNum, 400);
@@ -56,7 +56,7 @@ void startBootupSound() {
 	// makeRtttlSound("NokiaTune:d=4,o=5,b=160:8e6,8d6,4f#5,4g#5,8c#6,8b5,4d5,4e5,8b5,8a5,4c#5,4e5,1a5");
 }
 
-uint8_t beeperOn = 0;
+u8 beeperOn = 0;
 
 void speakerLoop() {
 		if (!beeperOn && ((ELRS->channels[9] > 1500 && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
@@ -67,7 +67,7 @@ void speakerLoop() {
 		stopSound();
 	}
 	if (soundDuration > 0) {
-				uint32_t sinceStart = soundStart;
+				u32 sinceStart = soundStart;
 		if (soundDuration != 65535 && sinceStart > soundDuration) {
 						stopSound();
 					} else if (soundType == 1) {
@@ -75,7 +75,7 @@ void speakerLoop() {
 			if (thisCycle > onTime) {
 				pwm_set_gpio_level(PIN_SPEAKER, 0);
 							} else {
-				uint32_t thisFreq = sweepStartFrequency + ((sweepEndFrequency - sweepStartFrequency) * thisCycle) / onTime;
+				u32 thisFreq = sweepStartFrequency + ((sweepEndFrequency - sweepStartFrequency) * thisCycle) / onTime;
 				currentWrap		  = FREQ_TO_WRAP(thisFreq);
 								pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
 								pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
@@ -94,7 +94,7 @@ void speakerLoop() {
 					pwm_set_gpio_level(PIN_SPEAKER, 0);
 									} else {
 										if (songToPlay.notes[noteIndex].sweepToNext) {
-						uint32_t thisFreq = songToPlay.notes[noteIndex].frequency + ((songToPlay.notes[noteIndex + 1].frequency - songToPlay.notes[noteIndex].frequency) * thisCycle) / songToPlay.notes[noteIndex].duration;
+						u32 thisFreq = songToPlay.notes[noteIndex].frequency + ((songToPlay.notes[noteIndex + 1].frequency - songToPlay.notes[noteIndex].frequency) * thisCycle) / songToPlay.notes[noteIndex].duration;
 						currentWrap		  = FREQ_TO_WRAP(thisFreq);
 					} else {
 						currentWrap = FREQ_TO_WRAP(songToPlay.notes[noteIndex].frequency);
@@ -119,7 +119,7 @@ void speakerLoop() {
 									}
 			}
 		} else if (soundType == 0) {
-						uint32_t thisCycle = sinceStart % (onTime + offTime);
+						u32 thisCycle = sinceStart % (onTime + offTime);
 			if (thisCycle > onTime) {
 								pwm_set_gpio_level(PIN_SPEAKER, 0);
 							} else {
@@ -129,7 +129,7 @@ void speakerLoop() {
 	}
 }
 
-void makeSound(uint16_t frequency, uint16_t duration, uint16_t tOnMs, uint16_t tOffMs) {
+void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs) {
 	soundType	= 0;
 	currentWrap = FREQ_TO_WRAP(frequency);
 	pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
@@ -145,7 +145,7 @@ void stopSound() {
 }
 
 // sweep from startFrequency to endFrequency over tOnMs, then stop for tOffMs, repeat for duration
-void makeSweepSound(uint16_t startFrequency, uint16_t endFrequency, uint16_t duration, uint16_t tOnMs, uint16_t tOffMs) {
+void makeSweepSound(u16 startFrequency, u16 endFrequency, u16 duration, u16 tOnMs, u16 tOffMs) {
 	soundType			= 1;
 	sweepStartFrequency = startFrequency;
 	sweepEndFrequency	= endFrequency;

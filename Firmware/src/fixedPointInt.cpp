@@ -1,269 +1,269 @@
 #include "global.h"
 
-fixedPointInt32 fixedPointInt32::fromRaw(const int32_t v) {
-	fixedPointInt32 result;
+fix32 fix32::fromRaw(const i32 v) {
+	fix32 result;
 	return result.setRaw(v);
 }
-fixedPointInt32::fixedPointInt32(const int32_t v) {
+fix32::fix32(const i32 v) {
 	this->value = v << 16;
 }
-fixedPointInt32::fixedPointInt32(const float v) {
-	this->value = (int32_t)(v * 65536);
+fix32::fix32(const f32 v) {
+	this->value = (i32)(v * 65536);
 }
-fixedPointInt32::fixedPointInt32(const double v) {
-	this->value = (int32_t)(v * 65536);
+fix32::fix32(const f64 v) {
+	this->value = (i32)(v * 65536);
 }
-fixedPointInt32::fixedPointInt32(const int v) {
+fix32::fix32(const int v) {
 	this->value = v << 16;
 }
-fixedPointInt32 fixedPointInt32::setRaw(const int32_t v) {
+fix32 fix32::setRaw(const i32 v) {
 	this->value = v;
 	return *this;
 }
-int32_t fixedPointInt32::getRaw() const {
+i32 fix32::getRaw() const {
 	return this->value;
 }
-float fixedPointInt32::getFloat() const {
-	return (float)this->value / 65536;
+f32 fix32::getf32() const {
+	return (f32)this->value / 65536;
 }
-double fixedPointInt32::getDouble() const {
-	return (double)this->value / 65536;
+f64 fix32::getf64() const {
+	return (f64)this->value / 65536;
 }
-int32_t fixedPointInt32::getInt() const {
-	return (int32_t)(this->value >> 16);
+i32 fix32::getInt() const {
+	return (i32)(this->value >> 16);
 }
-fixedPointInt64 fixedPointInt32::toFixed64() const {
-	fixedPointInt64 result;
-	return result.setRaw(((int64_t)this->value) << 16);
+fix64 fix32::toFixed64() const {
+	fix64 result;
+	return result.setRaw(((i64)this->value) << 16);
 }
-fixedPointInt32 fixedPointInt32::operator+(const fixedPointInt32 other) const {
-	fixedPointInt32 result;
+fix32 fix32::operator+(const fix32 other) const {
+	fix32 result;
 	return result.setRaw(this->value + other.getRaw());
 }
-fixedPointInt32 fixedPointInt32::operator-(const fixedPointInt32 other) const {
-	fixedPointInt32 result;
+fix32 fix32::operator-(const fix32 other) const {
+	fix32 result;
 	return result.setRaw(this->value - other.getRaw());
 }
-fixedPointInt32 fixedPointInt32::operator*(const fixedPointInt32 other) const {
-	fixedPointInt32 result;
-	return result.setRaw((int32_t)(((int64_t)this->value * (int64_t)other.getRaw()) >> 16));
+fix32 fix32::operator*(const fix32 other) const {
+	fix32 result;
+	return result.setRaw((i32)(((i64)this->value * (i64)other.getRaw()) >> 16));
 }
-fixedPointInt32 fixedPointInt32::operator/(const fixedPointInt32 other) const {
-	fixedPointInt32 result;
-	return result.setRaw((int32_t)((((int64_t)this->value) << 16) / (int64_t)other.getRaw()));
+fix32 fix32::operator/(const fix32 other) const {
+	fix32 result;
+	return result.setRaw((i32)((((i64)this->value) << 16) / (i64)other.getRaw()));
 }
-fixedPointInt32 fixedPointInt32::operator+=(const fixedPointInt32 other) {
+fix32 fix32::operator+=(const fix32 other) {
 	this->value += other.getRaw();
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator-=(const fixedPointInt32 other) {
+fix32 fix32::operator-=(const fix32 other) {
 	this->value -= other.getRaw();
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator*=(const fixedPointInt32 other) {
-	this->value = (int32_t)(((int64_t)this->value * (int64_t)other.getRaw()) >> 16);
+fix32 fix32::operator*=(const fix32 other) {
+	this->value = (i32)(((i64)this->value * (i64)other.getRaw()) >> 16);
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator/=(const fixedPointInt32 other) {
-	this->value = (int32_t)(((int64_t)this->value << 16) / (int64_t)other.getRaw());
+fix32 fix32::operator/=(const fix32 other) {
+	this->value = (i32)(((i64)this->value << 16) / (i64)other.getRaw());
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator+(const int other) const {
-	fixedPointInt32 result;
+fix32 fix32::operator+(const int other) const {
+	fix32 result;
 	return result.setRaw(this->value + (other << 16));
 }
-fixedPointInt32 fixedPointInt32::operator-(const int other) const {
-	fixedPointInt32 result;
+fix32 fix32::operator-(const int other) const {
+	fix32 result;
 	return result.setRaw(this->value - (other << 16));
 }
-fixedPointInt32 fixedPointInt32::operator*(const int other) const {
-	fixedPointInt32 result;
+fix32 fix32::operator*(const int other) const {
+	fix32 result;
 	return result.setRaw(this->value * other);
 }
-fixedPointInt32 fixedPointInt32::operator*(const double other) const {
-	return *this * fixedPointInt32(other);
+fix32 fix32::operator*(const f64 other) const {
+	return *this * fix32(other);
 }
-fixedPointInt32 fixedPointInt32::operator+=(const int other) {
+fix32 fix32::operator+=(const int other) {
 	this->value += (other << 16);
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator-=(const int other) {
+fix32 fix32::operator-=(const int other) {
 	this->value -= (other << 16);
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator*=(const int other) {
+fix32 fix32::operator*=(const int other) {
 	this->value *= other;
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator*=(const double other) {
-	return *this *= fixedPointInt32(other);
+fix32 fix32::operator*=(const f64 other) {
+	return *this *= fix32(other);
 }
-fixedPointInt32 fixedPointInt32::operator=(const int32_t other) {
+fix32 fix32::operator=(const i32 other) {
 	this->value = (other << 16);
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator=(const int other) {
+fix32 fix32::operator=(const int other) {
 	this->value = (other << 16);
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator=(const fixedPointInt64 other) {
-	this->value = (int32_t)(other.getRaw() >> 16);
+fix32 fix32::operator=(const fix64 other) {
+	this->value = (i32)(other.getRaw() >> 16);
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator=(const float other) {
-	this->value = (int32_t)(other * 65536);
+fix32 fix32::operator=(const f32 other) {
+	this->value = (i32)(other * 65536);
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator=(const double other) {
-	this->value = (int32_t)(other * 65536);
+fix32 fix32::operator=(const f64 other) {
+	this->value = (i32)(other * 65536);
 	return *this;
 }
-bool fixedPointInt32::operator==(const int32_t other) const {
+bool fix32::operator==(const i32 other) const {
 	return this->value == (other << 16);
 }
-bool fixedPointInt32::operator==(const fixedPointInt32 other) const {
+bool fix32::operator==(const fix32 other) const {
 	return this->value == other.getRaw();
 }
-fixedPointInt32 fixedPointInt32::operator*(const fixedPointInt64 other) const {
-	fixedPointInt32 result;
-	return result.setRaw((int32_t)(((int64_t)this->value * (int64_t)other.getRaw()) >> 32));
+fix32 fix32::operator*(const fix64 other) const {
+	fix32 result;
+	return result.setRaw((i32)(((i64)this->value * (i64)other.getRaw()) >> 32));
 }
-fixedPointInt64 fixedPointInt32::multiply64(const fixedPointInt64 other) const {
-	fixedPointInt64 result;
-	return result.setRaw((int32_t)(((int64_t)this->value * (int64_t)other.getRaw()) >> 32));
+fix64 fix32::multiply64(const fix64 other) const {
+	fix64 result;
+	return result.setRaw((i32)(((i64)this->value * (i64)other.getRaw()) >> 32));
 }
-bool fixedPointInt32::operator<(const fixedPointInt32 other) const {
+bool fix32::operator<(const fix32 other) const {
 	return this->value < other.getRaw();
 }
-bool fixedPointInt32::operator>(const fixedPointInt32 other) const {
+bool fix32::operator>(const fix32 other) const {
 	return this->value > other.getRaw();
 }
-bool fixedPointInt32::operator<=(const fixedPointInt32 other) const {
+bool fix32::operator<=(const fix32 other) const {
 	return this->value <= other.getRaw();
 }
-bool fixedPointInt32::operator>=(const fixedPointInt32 other) const {
+bool fix32::operator>=(const fix32 other) const {
 	return this->value >= other.getRaw();
 }
-fixedPointInt32 fixedPointInt32::operator%=(const fixedPointInt32 other) {
+fix32 fix32::operator%=(const fix32 other) {
 	this->value %= other.getRaw();
 	return *this;
 }
-fixedPointInt32 fixedPointInt32::operator>>(const int32_t other) const {
-	return fixedPointInt32::fromRaw(this->value >> other);
+fix32 fix32::operator>>(const i32 other) const {
+	return fix32::fromRaw(this->value >> other);
 }
-fixedPointInt32 fixedPointInt32::operator<<(const int32_t other) const {
-	return fixedPointInt32::fromRaw(this->value << other);
+fix32 fix32::operator<<(const i32 other) const {
+	return fix32::fromRaw(this->value << other);
 }
-fixedPointInt32 fixedPointInt32::operator-() const {
-	return fixedPointInt32::fromRaw(-this->value);
+fix32 fix32::operator-() const {
+	return fix32::fromRaw(-this->value);
 }
 
-//================================================= fixedPointInt64 =================================================
+//================================================= fix64 =================================================
 
-fixedPointInt64 fixedPointInt64::fromRaw(int64_t v) {
-	fixedPointInt64 result;
+fix64 fix64::fromRaw(i64 v) {
+	fix64 result;
 	return result.setRaw(v);
 }
-fixedPointInt64::fixedPointInt64(const int32_t v) {
-	this->value = (int64_t)v << 32;
+fix64::fix64(const i32 v) {
+	this->value = (i64)v << 32;
 }
-fixedPointInt64::fixedPointInt64(const int v) {
-	this->value = (int64_t)v << 32;
+fix64::fix64(const int v) {
+	this->value = (i64)v << 32;
 }
-fixedPointInt64::fixedPointInt64(const float v) {
-	this->value = (int64_t)(v * 4294967296);
+fix64::fix64(const f32 v) {
+	this->value = (i64)(v * 4294967296);
 }
-fixedPointInt64 fixedPointInt64::setRaw(const int64_t v) {
+fix64 fix64::setRaw(const i64 v) {
 	this->value = v;
 	return *this;
 }
-int64_t fixedPointInt64::getRaw() const {
+i64 fix64::getRaw() const {
 	return this->value;
 }
-float fixedPointInt64::getFloat() const {
-	return (float)this->value / 4294967296;
+f32 fix64::getf32() const {
+	return (f32)this->value / 4294967296;
 }
-double fixedPointInt64::getDouble() const {
-	return (double)this->value / 4294967296;
+f64 fix64::getf64() const {
+	return (f64)this->value / 4294967296;
 }
-int32_t fixedPointInt64::getInt() const {
-	return (int32_t)(this->value >> 32);
+i32 fix64::getInt() const {
+	return (i32)(this->value >> 32);
 }
-fixedPointInt32 fixedPointInt64::toFixed32() const {
-	fixedPointInt32 result;
-	return result.setRaw((int32_t)(this->value >> 16));
+fix32 fix64::toFixed32() const {
+	fix32 result;
+	return result.setRaw((i32)(this->value >> 16));
 }
-fixedPointInt64 fixedPointInt64::operator+(const fixedPointInt64 other) const {
-	fixedPointInt64 result;
+fix64 fix64::operator+(const fix64 other) const {
+	fix64 result;
 	return result.setRaw(this->value + other.getRaw());
 }
-fixedPointInt64 fixedPointInt64::operator-(const fixedPointInt64 other) const {
-	return fixedPointInt64::fromRaw(this->value - other.getRaw());
+fix64 fix64::operator-(const fix64 other) const {
+	return fix64::fromRaw(this->value - other.getRaw());
 }
-fixedPointInt64 fixedPointInt64::operator+(const fixedPointInt32 other) const {
-	fixedPointInt64 result;
-	return result.setRaw(this->value + (((int64_t)other.getRaw()) << 16));
+fix64 fix64::operator+(const fix32 other) const {
+	fix64 result;
+	return result.setRaw(this->value + (((i64)other.getRaw()) << 16));
 }
-fixedPointInt64 fixedPointInt64::operator-(const fixedPointInt32 other) const {
-	fixedPointInt64 result;
-	return result.setRaw(this->value - (((int64_t)other.getRaw()) << 16));
+fix64 fix64::operator-(const fix32 other) const {
+	fix64 result;
+	return result.setRaw(this->value - (((i64)other.getRaw()) << 16));
 }
-fixedPointInt64 fixedPointInt64::operator+=(const fixedPointInt32 other) {
-	this->value += ((int64_t)other.getRaw()) << 16;
+fix64 fix64::operator+=(const fix32 other) {
+	this->value += ((i64)other.getRaw()) << 16;
 	return *this;
 }
-fixedPointInt64 fixedPointInt64::operator*(const fixedPointInt64 other) const {
-	int64_t	 raw1	 = this->value;
-	int64_t	 raw2	 = other.getRaw();
-	int64_t	 pos1	 = raw1 >= 0 ? raw1 : -raw1;
-	int64_t	 pos2	 = raw2 >= 0 ? raw2 : -raw2;
-	uint64_t big	 = (pos1 >> 32) * (pos2 >> 32);
-	uint64_t small	 = (pos1 & 0xFFFFFFFF) * (pos2 & 0xFFFFFFFF);
-	uint64_t med	 = (pos1 >> 32) * (pos2 & 0xFFFFFFFF) + (pos1 & 0xFFFFFFFF) * (pos2 >> 32);
-	int64_t	 result2 = med + ((small >> 32) & 0xFFFFFFFF) + (big << 32);
+fix64 fix64::operator*(const fix64 other) const {
+	i64 raw1	= this->value;
+	i64 raw2	= other.getRaw();
+	i64 pos1	= raw1 >= 0 ? raw1 : -raw1;
+	i64 pos2	= raw2 >= 0 ? raw2 : -raw2;
+	u64 big		= (pos1 >> 32) * (pos2 >> 32);
+	u64 small	= (pos1 & 0xFFFFFFFF) * (pos2 & 0xFFFFFFFF);
+	u64 med		= (pos1 >> 32) * (pos2 & 0xFFFFFFFF) + (pos1 & 0xFFFFFFFF) * (pos2 >> 32);
+	i64 result2 = med + ((small >> 32) & 0xFFFFFFFF) + (big << 32);
 	if (raw1 < 0) result2 = -result2;
 	if (raw2 < 0) result2 = -result2;
-	return fixedPointInt64::fromRaw(result2);
+	return fix64::fromRaw(result2);
 }
-fixedPointInt32 fixedPointInt64::operator*(const fixedPointInt32 other) const {
-	fixedPointInt32 result;
-	return result.setRaw((int32_t)(((int64_t)this->value * (int64_t)other.getRaw()) >> 32));
+fix32 fix64::operator*(const fix32 other) const {
+	fix32 result;
+	return result.setRaw((i32)(((i64)this->value * (i64)other.getRaw()) >> 32));
 }
-fixedPointInt64 fixedPointInt64::operator*(const int other) const {
-	fixedPointInt64 result;
+fix64 fix64::operator*(const int other) const {
+	fix64 result;
 	return result.setRaw(this->value * other);
 }
-fixedPointInt64 fixedPointInt64::multiply64(const fixedPointInt32 other) const {
-	fixedPointInt64 result;
-	return result.setRaw((int64_t)(((int64_t)this->value * (int64_t)other.getRaw()) >> 16));
+fix64 fix64::multiply64(const fix32 other) const {
+	fix64 result;
+	return result.setRaw((i64)(((i64)this->value * (i64)other.getRaw()) >> 16));
 }
-fixedPointInt64 fixedPointInt64::operator=(const int32_t other) {
-	this->value = (int64_t)other << 32;
+fix64 fix64::operator=(const i32 other) {
+	this->value = (i64)other << 32;
 	return *this;
 }
-fixedPointInt64 fixedPointInt64::operator=(const int other) {
-	this->value = (int64_t)other << 32;
+fix64 fix64::operator=(const int other) {
+	this->value = (i64)other << 32;
 	return *this;
 }
-fixedPointInt64 fixedPointInt64::operator=(const int64_t other) {
+fix64 fix64::operator=(const i64 other) {
 	this->value = other << 32;
 	return *this;
 }
-fixedPointInt64 fixedPointInt64::operator=(const fixedPointInt32 other) {
-	this->value = ((int64_t)(other.getRaw())) << 16;
+fix64 fix64::operator=(const fix32 other) {
+	this->value = ((i64)(other.getRaw())) << 16;
 	return *this;
 }
-fixedPointInt64 fixedPointInt64::operator=(const float other) {
-	this->value = (int64_t)(other * 4294967296);
+fix64 fix64::operator=(const f32 other) {
+	this->value = (i64)(other * 4294967296);
 	return *this;
 }
-fixedPointInt64 fixedPointInt64::operator=(const double other) {
-	this->value = (int64_t)(other * 4294967296);
+fix64 fix64::operator=(const f64 other) {
+	this->value = (i64)(other * 4294967296);
 	return *this;
 }
-fixedPointInt64 fixedPointInt64::operator>>(const int32_t other) const {
-	return fixedPointInt64::fromRaw(this->value >> other);
+fix64 fix64::operator>>(const i32 other) const {
+	return fix64::fromRaw(this->value >> other);
 }
-fixedPointInt64 fixedPointInt64::operator-() const {
-	return fixedPointInt64::fromRaw(-this->value);
+fix64 fix64::operator-() const {
+	return fix64::fromRaw(-this->value);
 }

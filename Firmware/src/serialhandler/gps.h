@@ -4,14 +4,14 @@ using std::vector;
 
 #define GPS_BUF_LEN 1024
 
-extern RingBuffer<uint8_t> gpsBuffer;
-extern int32_t headingAdjustment;
+extern RingBuffer<u8> gpsBuffer;
+extern i32 headingAdjustment;
 extern elapsedMillis lastPvtMessage;
-extern uint32_t timestamp;
+extern u32 timestamp;
 
 void initGPS();
 void gpsLoop();
-enum fixTypes : uint8_t {
+enum fixTypes : u8 {
 	FIX_NONE			   = 0,
 	FIX_DEAD_RECKONING	   = 1,
 	FIX_2D				   = 2,
@@ -23,61 +23,61 @@ enum fixTypes : uint8_t {
 #define UBX_SYNC1 0xB5
 #define UBX_SYNC2 0x62
 typedef struct gpsTime {
-	uint16_t year;
-	uint8_t month;
-	uint8_t day;
-	uint8_t hour;
-	uint8_t minute;
-	uint8_t second;
+	u16 year;
+	u8 month;
+	u8 day;
+	u8 hour;
+	u8 minute;
+	u8 second;
 } GpsTime;
 typedef struct gpsAccuracy {
 	// unit: ns
-	uint32_t tAcc;
+	u32 tAcc;
 	// unit: mm
-	uint32_t hAcc;
+	u32 hAcc;
 	// unit: mm
-	uint32_t vAcc;
+	u32 vAcc;
 	// unit: mm/s
-	uint32_t sAcc;
+	u32 sAcc;
 	// unit: 10^-5 deg
-	uint32_t headAcc;
+	u32 headAcc;
 	// unit: 10^-2
-	uint32_t pDop;
+	u32 pDop;
 } GpsAccuracy;
 typedef struct gpsStatus {
-	uint8_t gpsInited;
-	uint8_t initStep;
-	uint8_t fixType;
-	uint8_t timeValidityFlags;
-	uint8_t flags;
-	uint8_t flags2;
-	uint16_t flags3;
-	uint8_t satCount;
+	u8 gpsInited;
+	u8 initStep;
+	u8 fixType;
+	u8 timeValidityFlags;
+	u8 flags;
+	u8 flags2;
+	u16 flags3;
+	u8 satCount;
 } GpsStatus;
 typedef struct gpsMotion {
 	// unit: 10^-7 deg
-	int32_t lat;
+	i32 lat;
 	// unit: 10^-7 deg
-	int32_t lon;
+	i32 lon;
 	// unit: mm, above mean sea level
-	int32_t alt;
+	i32 alt;
 	// unit: mm/s
-	int32_t velN;
+	i32 velN;
 	// unit: mm/s
-	int32_t velE;
+	i32 velE;
 	// unit: mm/s
-	int32_t velD;
+	i32 velD;
 	// unit: mm/s
-	int32_t gSpeed;
+	i32 gSpeed;
 	// unit: 10^-5 deg
-	int32_t headMot;
+	i32 headMot;
 } GpsMotion;
 extern GpsAccuracy gpsAcc;
 extern GpsTime gpsTime;
 extern GpsStatus gpsStatus;
 extern GpsMotion gpsMotion;
 
-enum ubx_class : uint8_t {
+enum ubx_class : u8 {
 	UBX_CLASS_NAV = 0x01,
 	UBX_CLASS_RXM = 0x02,
 	UBX_CLASS_INF = 0x04,
@@ -95,7 +95,7 @@ enum ubx_class : uint8_t {
 	UBX_CLASS_TP5 = 0x31,
 };
 
-enum ubx_msg_id : uint8_t {
+enum ubx_msg_id : u8 {
 	UBX_ID_ACK_ACK		 = 0x01,
 	UBX_ID_ACK_NAK		 = 0x00,
 	UBX_ID_AID_ALM		 = 0x30,

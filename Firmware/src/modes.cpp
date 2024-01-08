@@ -1,8 +1,8 @@
 #include "global.h"
-uint32_t armingDisableFlags = 0;
+u32 armingDisableFlags = 0;
 bool armed					= false;
 FLIGHT_MODE lastFlightMode	= FLIGHT_MODE::LENGTH;
-int32_t startPointLat, startPointLon;
+i32 startPointLat, startPointLon;
 // 0: switch in armed position for >= 10 cycles
 // 1: throttle down
 // 2: GPS fix and >= 6 satellites

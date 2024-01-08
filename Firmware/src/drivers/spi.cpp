@@ -1,9 +1,9 @@
 #include "global.h"
 
 // adapted from https://www.digikey.de/de/maker/projects/raspberry-pi-pico-rp2040-spi-example-with-micropython-and-cc/9706ea0cf3784ee98e35ff49188ee045
-int regRead(spi_inst_t *spi, const uint cs, const uint8_t reg, uint8_t *buf, const uint16_t nbytes, const uint16_t delay, uint8_t dummy) {
+int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nbytes, const u16 delay, u8 dummy) {
 	// Construct message (set ~W bit high)
-	uint8_t msg = 0x80 | reg;
+	u8 msg = 0x80 | reg;
 
 	// Read from register
 	gpio_put(cs, 0);
@@ -18,7 +18,7 @@ int regRead(spi_inst_t *spi, const uint cs, const uint8_t reg, uint8_t *buf, con
 	return num_bytes_read;
 }
 
-int regWrite(spi_inst_t *spi, const uint cs, const uint8_t reg, const uint8_t *buf, const uint16_t nbytes, const uint16_t delay) {
+int regWrite(spi_inst_t *spi, const uint cs, const u8 reg, const u8 *buf, const u16 nbytes, const u16 delay) {
 	// Write to register
 	gpio_put(cs, 0);
 	spi_write_blocking(spi, &reg, 1);

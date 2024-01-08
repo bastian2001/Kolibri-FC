@@ -1,8 +1,8 @@
 #include <Arduino.h>
 
-extern int16_t baroASL, baroATO;
-extern float baroPres;
-extern uint8_t baroTemp;
+extern i16 baroASL, baroATO;
+extern f32 baroPres;
+extern u8 baroTemp;
 
 void initBaro();
 

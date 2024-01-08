@@ -1,9 +1,9 @@
 #include "global.h"
 
 PIO escPio;
-uint8_t escSm;
+u8 escSm;
 
-uint32_t motorPacket[2] = {0, 0xF000F}; // all motors off, but request telemetry in 12th bit
+u32 motorPacket[2] = {0, 0xF000F}; // all motors off, but request telemetry in 12th bit
 
 void initESCs() {
 	escPio			= pio0;
@@ -30,7 +30,7 @@ void initESCs() {
 	pio_sm_put(escPio, escSm, 0);
 }
 
-uint16_t appendChecksum(uint16_t data) {
+u16 appendChecksum(u16 data) {
 	int csum = data;
 	csum ^= data >> 4;
 	csum ^= data >> 8;
@@ -39,7 +39,7 @@ uint16_t appendChecksum(uint16_t data) {
 	return (data << 4) | csum;
 }
 
-void sendRaw16Bit(const uint16_t raw[4]) {
+void sendRaw16Bit(const u16 raw[4]) {
 	motorPacket[0] = 0;
 	motorPacket[1] = 0;
 	for (int i = 31; i >= 0; i--) {
@@ -52,8 +52,8 @@ void sendRaw16Bit(const uint16_t raw[4]) {
 	pio_sm_put(escPio, escSm, motorPacket[1]);
 }
 
-void sendRaw11Bit(const uint16_t raw[4]) {
-	static uint16_t t[4] = {0, 0, 0, 0};
+void sendRaw11Bit(const u16 raw[4]) {
+	static u16 t[4] = {0, 0, 0, 0};
 	for (int i = 0; i < 4; i++) {
 		t[i] = constrain(raw[i], 0, 2047);
 		t[i] = appendChecksum(t[i] << 1 | 1);
@@ -61,8 +61,8 @@ void sendRaw11Bit(const uint16_t raw[4]) {
 	sendRaw16Bit(t);
 }
 
-void sendThrottles(const int16_t throttles[4]) {
-	static uint16_t t[4] = {0, 0, 0, 0};
+void sendThrottles(const i16 throttles[4]) {
+	static u16 t[4] = {0, 0, 0, 0};
 	for (int i = 0; i < 4; i++) {
 		t[i] = constrain(throttles[i], 0, 2000);
 		if (t[i])

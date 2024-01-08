@@ -51,7 +51,7 @@ public:
 	size_t freeSpace() const {
 		return size - itemCount() - 1;
 	}
-	uint8_t resize(size_t newSize) {
+	u8 resize(size_t newSize) {
 		T *newBuffer = new T[newSize + 1];
 		if (newBuffer == nullptr) return 1;
 		size_t i = 0;
@@ -78,7 +78,7 @@ public:
 		rdPtr = (rdPtr + index) % size;
 	}
 	void copyToArray(T *array, size_t start, size_t arraySize) {
-		extern uint32_t crashInfo[256];
+		extern u32 crashInfo[256];
 		if (start >= itemCount()) return;
 		if (start + arraySize > itemCount()) arraySize = itemCount() - start;
 		// use memcpy for speed

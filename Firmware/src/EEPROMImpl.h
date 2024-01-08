@@ -1,5 +1,5 @@
 #include <Arduino.h>
-enum class EEPROM_POS : uint16_t
+enum class EEPROM_POS : u16
 {
 	EEPROM_INIT = 0,
 	EEPROM_VERSION = 1,

@@ -52,7 +52,7 @@ enum class ConfigCmd {
 	IND_MESSAGE = 0xC000,
 };
 
-void sendCommand(uint16_t command, const char *data = nullptr, uint16_t len = 0);
-void configuratorHandleByte(uint8_t c, uint8_t serialNum);
+void sendCommand(u16 command, const char *data = nullptr, u16 len = 0);
+void configuratorHandleByte(u8 c, u8 serialNum);
 extern elapsedMillis configOverrideMotors;
 void configuratorLoop();

@@ -11,11 +11,11 @@ void startBootupSound();
 
 void speakerLoop();
 
-void makeSound(uint16_t frequency, uint16_t duration, uint16_t tOnMs, uint16_t tOffMs);
+void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs);
 
 void stopSound();
 
 // sweep from startFrequency to endFrequency over tOnMs, then stop for tOffMs, repeat for duration
-void makeSweepSound(uint16_t startFrequency, uint16_t endFrequency, uint16_t duration, uint16_t tOnMs, uint16_t tOffMs);
+void makeSweepSound(u16 startFrequency, u16 endFrequency, u16 duration, u16 tOnMs, u16 tOffMs);
 
 void makeRtttlSound(const char *song);

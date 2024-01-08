@@ -2,10 +2,10 @@
 #include "quaternion.h"
 #include <Arduino.h>
 
-extern float pitch, roll, yaw, rpAngle;
-extern int32_t headMotAtt, combinedHeading, combinedHeadMot;
-extern fixedPointInt32 vVel, combinedAltitude;
-extern fixedPointInt32 eVel, nVel;
+extern f32 pitch, roll, yaw, rpAngle;
+extern i32 headMotAtt, combinedHeading, combinedHeadMot;
+extern fix32 vVel, combinedAltitude;
+extern fix32 eVel, nVel;
 extern Quaternion q;
 
 void imuInit();

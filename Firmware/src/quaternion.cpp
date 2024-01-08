@@ -20,28 +20,28 @@
 #include "global.h"
 #include <math.h>
 
-// const float FAST_PI		  = PI;
-// const float FAST_PI_2	  = PI / 2;
-// const float FACULTY_THREE = 1. / 6.;
-// const float FACULTY_FOUR  = 1. / 24.;
-// const float FACULTY_FIVE  = 1. / 120.;
-// const float FACULTY_SIX	  = 1. / 720.;
-// const float FAST_ACOS_A	  = -0.939115566365855;
-// const float FAST_ACOS_B	  = 0.9217841528914573;
-// const float FAST_ACOS_C	  = -1.2845906244690837;
-// const float FAST_ACOS_D	  = 0.295624144969963174;
+// const f32 FAST_PI		  = PI;
+// const f32 FAST_PI_2	  = PI / 2;
+// const f32 FACULTY_THREE = 1. / 6.;
+// const f32 FACULTY_FOUR  = 1. / 24.;
+// const f32 FACULTY_FIVE  = 1. / 120.;
+// const f32 FACULTY_SIX	  = 1. / 720.;
+// const f32 FAST_ACOS_A	  = -0.939115566365855;
+// const f32 FAST_ACOS_B	  = 0.9217841528914573;
+// const f32 FAST_ACOS_C	  = -1.2845906244690837;
+// const f32 FAST_ACOS_D	  = 0.295624144969963174;
 /*
-float fastAtan(float x) {
+f32 fastAtan(f32 x) {
 	// https://www.dsprelated.com/showarticle/1052.php
 	if (x < 0) {
 		return -fastAtan(-x);
 	}
 	if (x > 1) {
-		return FAST_PI_2 - fastAtan(float(1) / x);
+		return FAST_PI_2 - fastAtan(f32(1) / x);
 	}
-	return x / (float(1) + float(0.28) * x * x);
+	return x / (f32(1) + f32(0.28) * x * x);
 }
-float fastAtan2(float fp1, float fp2) {
+f32 fastAtan2(f32 fp1, f32 fp2) {
 	if (fp1 == 0) // edge cases
 		if (fp2 >= 0)
 			return FAST_PI_2;
@@ -53,12 +53,12 @@ float fastAtan2(float fp1, float fp2) {
 	else
 		return fastAtan(fp2 / fp1) - FAST_PI; // less "normal" cases
 }
-float fastCos(float x) {
+f32 fastCos(f32 x) {
 	// taylor series approximation of cos(x) around 0, up to x^6
 	// deviation: max 0.001, at +/- 0.5pi
 	if (x < 0) x = -x;
 	x %= FAST_PI << 1;
-	float sign = 1;
+	f32 sign = 1;
 	if (x > FAST_PI) {
 		x -= FAST_PI;
 		sign = -sign;
@@ -69,16 +69,16 @@ float fastCos(float x) {
 	}
 	if (x > FAST_PI >> 2)
 		return -fastSin(x - FAST_PI_2);
-	float out	= 1;
-	float expo2 = x * x;
-	float expo4 = expo2 * expo2;
+	f32 out	= 1;
+	f32 expo2 = x * x;
+	f32 expo4 = expo2 * expo2;
 	out -= expo2 >> 1;
 	out += FACULTY_FOUR * expo4;
 	out -= FACULTY_SIX * expo4 * expo2;
 	return sign * out;
 }
-float fastSin(float x) {
-	float sign = 1;
+f32 fastSin(f32 x) {
+	f32 sign = 1;
 	if (x < 0) {
 		x	 = -x;
 		sign = -sign;
@@ -94,21 +94,21 @@ float fastSin(float x) {
 	}
 	if (x > FAST_PI >> 2)
 		return fastCos(x - FAST_PI_2);
-	float out	= x;
-	float expo2 = x * x;
-	float expo3 = expo2 * x;
+	f32 out	= x;
+	f32 expo2 = x * x;
+	f32 expo3 = expo2 * x;
 	out -= FACULTY_THREE * expo3;
 	out += FACULTY_FIVE * expo3 * expo2;
 	return sign * out;
 }
-float fastAcos(float x) {
+f32 fastAcos(f32 x) {
 	// https://stackoverflow.com/a/36387954/8807019
-	float xsq = x * x;
+	f32 xsq = x * x;
 	return FAST_PI_2 + (FAST_ACOS_A * x + FAST_ACOS_B * xsq * x) / (FAST_ACOS_C * xsq + FAST_ACOS_D * xsq * xsq + 1);
 }
-float fastAsin(float x) { return FAST_PI_2 - fastAcos(x); }
+f32 fastAsin(f32 x) { return FAST_PI_2 - fastAcos(x); }
 */
-void Quaternion_set(float w, float v1, float v2, float v3, Quaternion *output) {
+void Quaternion_set(f32 w, f32 v1, f32 v2, f32 v3, Quaternion *output) {
 	output->w	 = w;
 	output->v[0] = v1;
 	output->v[1] = v2;
@@ -119,23 +119,23 @@ void Quaternion_setIdentity(Quaternion *q) {
 	Quaternion_set(1, 0, 0, 0, q);
 }
 
-void Quaternion_fromAxisAngle(float axis[3], float angle, Quaternion *output) {
+void Quaternion_fromAxisAngle(f32 axis[3], f32 angle, Quaternion *output) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/
 	output->w	 = cosf(angle * .5);
-	float c		 = sinf(angle * .5);
+	f32 c		 = sinf(angle * .5);
 	output->v[0] = axis[0] * c;
 	output->v[1] = axis[1] * c;
 	output->v[2] = axis[2] * c;
 }
 
-float Quaternion_toAxisAngle(Quaternion *q, float output[3]) {
+f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
-	float angle	  = acosf(q->w) * 2;
-	float divider = sqrtf(1 - q->w * q->w);
+	f32 angle	  = acosf(q->w) * 2;
+	f32 divider = sqrtf(1 - q->w * q->w);
 
 	if (divider != 0.f) {
 		// Calculate the axis
-		float divNew = 1 / divider;
+		f32 divNew = 1 / divider;
 		output[0]	 = q->v[0] * divNew;
 		output[1]	 = q->v[1] * divNew;
 		output[2]	 = q->v[2] * divNew;
@@ -148,40 +148,40 @@ float Quaternion_toAxisAngle(Quaternion *q, float output[3]) {
 	return angle;
 }
 
-void Quaternion_fromXRotation(float angle, Quaternion *output) {
+void Quaternion_fromXRotation(f32 angle, Quaternion *output) {
 	output->w	 = 1;
 	output->v[0] = angle / 2;
 	output->v[1] = 0;
 	output->v[2] = 0;
 }
 
-void Quaternion_fromYRotation(float angle, Quaternion *output) {
+void Quaternion_fromYRotation(f32 angle, Quaternion *output) {
 	output->w	 = 1;
 	output->v[0] = 0;
 	output->v[1] = angle / 2;
 	output->v[2] = 0;
 }
 
-void Quaternion_fromZRotation(float angle, Quaternion *output) {
+void Quaternion_fromZRotation(f32 angle, Quaternion *output) {
 	output->w	 = 1;
 	output->v[0] = 0;
 	output->v[1] = 0;
 	output->v[2] = angle / 2;
 }
 
-float Quaternion_norm(Quaternion *q) {
+f32 Quaternion_norm(Quaternion *q) {
 	return sqrtf(q->w * q->w + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
 }
 
 void Quaternion_normalize(Quaternion *q, Quaternion *output) {
 
-	float len = Quaternion_norm(q);
+	f32 len = Quaternion_norm(q);
 	if (len == 0) {
 		// Serial.printf("q: %f, %f, %f, %f\n", q->w, q->v[0], q->v[1], q->v[2]);
 		Quaternion_setIdentity(output);
 		return;
 	}
-	float oneOverLen = 1 / len;
+	f32 oneOverLen = 1 / len;
 	Quaternion_set(
 		q->w * oneOverLen,
 		q->v[0] * oneOverLen,
@@ -208,19 +208,19 @@ void Quaternion_multiply(Quaternion *q1, Quaternion *q2, Quaternion *output) {
 	*output = result;
 }
 
-void Quaternion_rotate(const Quaternion *q, float v[3], float output[3]) {
-	float result[3];
+void Quaternion_rotate(const Quaternion *q, f32 v[3], f32 output[3]) {
+	f32 result[3];
 
-	float ww = q->w * q->w;
-	float xx = q->v[0] * q->v[0];
-	float yy = q->v[1] * q->v[1];
-	float zz = q->v[2] * q->v[2];
-	float wx = q->w * q->v[0];
-	float wy = q->w * q->v[1];
-	float wz = q->w * q->v[2];
-	float xy = q->v[0] * q->v[1];
-	float xz = q->v[0] * q->v[2];
-	float yz = q->v[1] * q->v[2];
+	f32 ww = q->w * q->w;
+	f32 xx = q->v[0] * q->v[0];
+	f32 yy = q->v[1] * q->v[1];
+	f32 zz = q->v[2] * q->v[2];
+	f32 wx = q->w * q->v[0];
+	f32 wy = q->w * q->v[1];
+	f32 wz = q->w * q->v[2];
+	f32 xy = q->v[0] * q->v[1];
+	f32 xz = q->v[0] * q->v[2];
+	f32 yz = q->v[1] * q->v[2];
 
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
@@ -244,22 +244,22 @@ void Quaternion_rotate(const Quaternion *q, float v[3], float output[3]) {
 }
 
 // Calculate the dot product of two 3D vectors
-void Vector_dot(const float v1[3], const float v2[3], float *output) {
+void Vector_dot(const f32 v1[3], const f32 v2[3], f32 *output) {
 	*output = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
 // Calculate the cross product of two 3D vectors
-void Vector_cross(const float v1[3], const float v2[3], float output[3]) {
+void Vector_cross(const f32 v1[3], const f32 v2[3], f32 output[3]) {
 	output[0] = v1[1] * v2[2] - v1[2] * v2[1];
 	output[1] = v1[2] * v2[0] - v1[0] * v2[2];
 	output[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
-const float QUATERNION_EPS = 1e-5;
-const float ONE_MINUS_EPS  = 1 - QUATERNION_EPS;
+const f32 QUATERNION_EPS = 1e-5;
+const f32 ONE_MINUS_EPS  = 1 - QUATERNION_EPS;
 
-void Quaternion_from_unit_vecs(const float v0[3], const float v1[3], Quaternion *output) {
-	float dot;
+void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *output) {
+	f32 dot;
 	Vector_dot(v0, v1, &dot);
 
 	if (dot > ONE_MINUS_EPS) {
@@ -267,10 +267,10 @@ void Quaternion_from_unit_vecs(const float v0[3], const float v1[3], Quaternion 
 		return;
 	} else if (dot < -ONE_MINUS_EPS) {
 		// Rotate along any orthonormal vec to vec1 or vec2 as the axis.
-		float cross[3];
-		float vTemp[3] = {1, 0, 0};
+		f32 cross[3];
+		f32 vTemp[3] = {1, 0, 0};
 		Vector_cross(vTemp, v0, cross);
-		Quaternion_fromAxisAngle(cross, (float)PI, output);
+		Quaternion_fromAxisAngle(cross, (f32)PI, output);
 		return;
 	}
 

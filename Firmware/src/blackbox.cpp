@@ -1,24 +1,24 @@
 #include "global.h"
 
-uint64_t bbFlags		= 0;
-uint64_t currentBBFlags = 0;
+u64 bbFlags		= 0;
+u64 currentBBFlags = 0;
 
 bool bbLogging = false;
 bool fsReady   = false;
 
 FSInfo64 fsInfo;
 int currentLogNum	  = 0;
-uint8_t bbFreqDivider = 2;
+u8 bbFreqDivider = 2;
 
 File blackboxFile;
 
-int32_t maxFileSize = 0;
+i32 maxFileSize = 0;
 elapsedMicros frametime;
 void blackboxLoop() {
 	// Serial.println(rp2040.fifo.available());
 	if (rp2040.fifo.available()) {
-		uint8_t *frame = (uint8_t *)rp2040.fifo.pop();
-		uint8_t len	   = frame[0];
+		u8 *frame = (u8 *)rp2040.fifo.pop();
+		u8 len	   = frame[0];
 		if (len > 0 && bbLogging)
 			blackboxFile.write(frame + 1, len);
 		free(frame);
@@ -64,17 +64,17 @@ bool clearBlackbox() {
 #endif
 }
 
-void setFlags(uint64_t flags) {
+void setFlags(u64 flags) {
 	bbFlags = flags;
-	EEPROM.put((uint16_t)EEPROM_POS::BB_FLAGS, bbFlags);
+	EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
 }
-void setDivider(uint8_t divider) {
+void setDivider(u8 divider) {
 	if (divider > 0)
 		bbFreqDivider = divider;
-	EEPROM.put((uint16_t)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
+	EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 }
 
-void printLogBinRaw(uint8_t logNum) {
+void printLogBinRaw(u8 logNum) {
 	char path[32];
 	logNum %= 100;
 	rp2040.wdt_reset();
@@ -87,8 +87,8 @@ void printLogBinRaw(uint8_t logNum) {
 #endif
 	if (!logFile)
 		return;
-	uint32_t fileSize = logFile.size();
-	for (uint32_t i = 0; i < fileSize; i++) {
+	u32 fileSize = logFile.size();
+	for (u32 i = 0; i < fileSize; i++) {
 		Serial.write(logFile.read());
 		if ((i % 1024) == 0) {
 			rp2040.wdt_reset();
@@ -98,7 +98,7 @@ void printLogBinRaw(uint8_t logNum) {
 	logFile.close();
 }
 
-void printLogBin(uint8_t logNum, int16_t singleChunk) {
+void printLogBin(u8 logNum, i16 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == LITTLEFS
 	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
@@ -108,12 +108,12 @@ void printLogBin(uint8_t logNum, int16_t singleChunk) {
 	File logFile = SDFS.open(path, "r");
 #endif
 	if (!logFile) {
-		sendCommand(((uint16_t)ConfigCmd::BB_FILE_DOWNLOAD) | 0x8000, "File not found", strlen("File not found"));
+		sendCommand(((u16)ConfigCmd::BB_FILE_DOWNLOAD) | 0x8000, "File not found", strlen("File not found"));
 		return;
 	}
-	uint8_t buffer[1027];
+	u8 buffer[1027];
 	buffer[0]		  = logNum;
-	uint16_t chunkNum = 0;
+	u16 chunkNum = 0;
 	if (singleChunk >= 0) {
 		chunkNum = singleChunk;
 		logFile.seek(chunkNum * 1024, SeekSet);
@@ -125,7 +125,7 @@ void printLogBin(uint8_t logNum, int16_t singleChunk) {
 		bytesRead = logFile.read(buffer + 3, 1024);
 		buffer[1] = chunkNum & 0xFF;
 		buffer[2] = chunkNum >> 8;
-		sendCommand(((uint16_t)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, bytesRead + 3);
+		sendCommand(((u16)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, bytesRead + 3);
 		Serial.flush();
 		chunkNum++;
 		if (singleChunk >= 0)
@@ -140,7 +140,7 @@ void printLogBin(uint8_t logNum, int16_t singleChunk) {
 	buffer[2] = 0xFF;
 	buffer[3] = chunkNum & 0xFF;
 	buffer[4] = chunkNum >> 8;
-	sendCommand(((uint16_t)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, 5);
+	sendCommand(((u16)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, 5);
 }
 
 void startLogging() {
@@ -187,34 +187,34 @@ void startLogging() {
 	if (!blackboxFile)
 		return;
 	bbLogging			 = true;
-	const uint8_t data[] = {
+	const u8 data[] = {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 0 // magic bytes, version
 	};
 	blackboxFile.write(data, 7);
-	uint32_t recordTime = timestamp;
+	u32 recordTime = timestamp;
 	if (recordTime == 0) {
-		uint32_t m = millis() / 1000;
+		u32 m = millis() / 1000;
 		recordTime = (m % 60) & 0x3F;
 		recordTime |= ((m / 60) % 60) << 6;
 		recordTime |= ((m / 3600) % 24) << 12;
 		recordTime |= 1 << 17; // days start in 1
 		recordTime |= 1 << 22; // months start in 1
 	}
-	blackboxFile.write((uint8_t *)&recordTime, 4);
-	blackboxFile.write((uint8_t)0); // 3200Hz gyro
-	blackboxFile.write((uint8_t)bbFreqDivider);
-	blackboxFile.write((uint8_t)3); // 2000deg/sec and 16g
-	int32_t rf[5][3];
+	blackboxFile.write((u8 *)&recordTime, 4);
+	blackboxFile.write((u8)0); // 3200Hz gyro
+	blackboxFile.write((u8)bbFreqDivider);
+	blackboxFile.write((u8)3); // 2000deg/sec and 16g
+	i32 rf[5][3];
 	for (int i = 0; i < 5; i++)
 		for (int j = 0; j < 3; j++)
 			rf[i][j] = rateFactors[i][j].getRaw();
-	blackboxFile.write((uint8_t *)rf, 60);
-	int32_t pg[3][7];
+	blackboxFile.write((u8 *)rf, 60);
+	i32 pg[3][7];
 	for (int i = 0; i < 3; i++)
 		for (int j = 0; j < 7; j++)
 			pg[i][j] = pidGains[i][j].getRaw();
-	blackboxFile.write((uint8_t *)pg, 84);
-	blackboxFile.write((uint8_t *)&bbFlags, 8);
+	blackboxFile.write((u8 *)pg, 84);
+	blackboxFile.write((u8 *)&bbFlags, 8);
 	// 166 bytes header
 	frametime = 0;
 }
@@ -228,7 +228,7 @@ void endLogging() {
 	bbLogging = false;
 }
 
-uint8_t bbBuffer[128];
+u8 bbBuffer[128];
 void writeSingleFrame() {
 	size_t bufferPos = 0;
 	if (!fsReady || !bbLogging) {
@@ -257,12 +257,12 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = ELRS->channels[3] >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_SETPOINT) {
-		int16_t setpoint	  = (int16_t)(rollSetpoint.getRaw() >> 12);
+		i16 setpoint	  = (i16)(rollSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_SETPOINT) {
-		int16_t setpoint	  = (int16_t)(pitchSetpoint.getRaw() >> 12);
+		i16 setpoint	  = (i16)(pitchSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
@@ -271,22 +271,22 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = smoothChannels[2] >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_SETPOINT) {
-		int16_t setpoint	  = (int16_t)(yawSetpoint.getRaw() >> 12);
+		i16 setpoint	  = (i16)(yawSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
-		int16_t gyroData	  = (imuData[AXIS_ROLL].getRaw() >> 12);
+		i16 gyroData	  = (imuData[AXIS_ROLL].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
-		int16_t gyroData	  = (imuData[AXIS_PITCH].getRaw() >> 12);
+		i16 gyroData	  = (imuData[AXIS_PITCH].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
-		int16_t gyroData	  = (imuData[AXIS_YAW].getRaw() >> 12);
+		i16 gyroData	  = (imuData[AXIS_YAW].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
@@ -351,7 +351,7 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = yawS.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
-		int64_t throttles64	  = ((uint64_t)(throttles[(uint8_t)MOTOR::RR])) << 36 | ((uint64_t)throttles[(uint8_t)MOTOR::FR]) << 24 | throttles[(uint8_t)MOTOR::RL] << 12 | throttles[(uint8_t)MOTOR::FL];
+		i64 throttles64	  = ((u64)(throttles[(u8)MOTOR::RR])) << 36 | ((u64)throttles[(u8)MOTOR::FR]) << 24 | throttles[(u8)MOTOR::RL] << 12 | throttles[(u8)MOTOR::FL];
 		bbBuffer[bufferPos++] = throttles64 >> 40;
 		bbBuffer[bufferPos++] = throttles64 >> 32;
 		bbBuffer[bufferPos++] = throttles64 >> 24;
@@ -364,7 +364,7 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = baroATO >> 8;
 	}
 	if (currentBBFlags & LOG_FRAMETIME) {
-		uint16_t ft			  = frametime;
+		u16 ft			  = frametime;
 		frametime			  = 0;
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
@@ -373,9 +373,9 @@ void writeSingleFrame() {
 	blackboxFile.write(bbBuffer, bufferPos);
 #elif BLACKBOX_STORAGE == SD_BB
 	void *buf = malloc(bufferPos + 1);
-	memcpy((void *)((uint8_t *)buf + 1), bbBuffer, bufferPos);
-	((uint8_t *)buf)[0] = bufferPos;
-	if (!(rp2040.fifo.push_nb((uint32_t)buf))) {
+	memcpy((void *)((u8 *)buf + 1), bbBuffer, bufferPos);
+	((u8 *)buf)[0] = bufferPos;
+	if (!(rp2040.fifo.push_nb((u32)buf))) {
 		free(buf);
 		// Serial.println("FIFO full");
 		// if the fifo is full, we just drop the frame :(

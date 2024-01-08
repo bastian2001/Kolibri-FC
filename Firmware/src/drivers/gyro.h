@@ -7,7 +7,7 @@
 #define QUIET_SAMPLES 1000
 #define CALIBRATION_TOLERANCE 32 // (2deg/s)
 
-enum class GyroReg : uint8_t {
+enum class GyroReg : u8 {
 	CHIP_ID	  = 0x00,
 	ERROR	  = 0x02,
 	STATUS	  = 0x03,
@@ -67,12 +67,12 @@ enum class GyroReg : uint8_t {
 // gyro data, and by extension the PID loop, is the most time-sensitive task.
 // it gets priority, and once the data is read, the flag is set to FFFFFFFF so that
 // other tasks know it's safe to run without impacting the gyro data or PID loop.
-extern uint32_t gyroUpdateFlag;
+extern u32 gyroUpdateFlag;
 
 int gyroInit();
 
-extern const uint8_t bmi270_config_file[8192];
+extern const u8 bmi270_config_file[8192];
 
-void gyroGetData(int16_t *buf);
+void gyroGetData(i16 *buf);
 
 void gyroLoop();

@@ -1,91 +1,91 @@
 #include <Arduino.h>
 #pragma once
 
-class fixedPointInt64;
+class fix64;
 
-class fixedPointInt32 {
+class fix32 {
 	// 16.16 fixed point
 private:
-	int32_t value = 0;
+	i32 value = 0;
 
 public:
-	static fixedPointInt32 fromRaw(const int32_t value);
-	fixedPointInt32(const int32_t value = 0);
-	fixedPointInt32(const float value);
-	fixedPointInt32(const double value);
-	fixedPointInt32(const int value);
-	fixedPointInt32 setRaw(const int32_t value);
-	int32_t			getRaw() const;
-	float			getFloat() const;
-	double			getDouble() const;
-	int32_t			getInt() const;
-	fixedPointInt64 toFixed64() const;
-	fixedPointInt32 operator+(const fixedPointInt32 other) const;
-	fixedPointInt32 operator-(const fixedPointInt32 other) const;
-	fixedPointInt32 operator*(const fixedPointInt32 other) const;
-	fixedPointInt32 operator/(const fixedPointInt32 other) const;
-	fixedPointInt32 operator+=(const fixedPointInt32 other);
-	fixedPointInt32 operator-=(const fixedPointInt32 other);
-	fixedPointInt32 operator*=(const fixedPointInt32 other);
-	fixedPointInt32 operator/=(const fixedPointInt32 other);
-	fixedPointInt32 operator+(const int other) const;
-	fixedPointInt32 operator-(const int other) const;
-	fixedPointInt32 operator*(const int other) const;
-	fixedPointInt32 operator*(const double other) const;
-	fixedPointInt32 operator+=(const int other);
-	fixedPointInt32 operator-=(const int other);
-	fixedPointInt32 operator*=(const int other);
-	fixedPointInt32 operator*=(const double other);
-	fixedPointInt32 operator=(const int32_t other);
-	fixedPointInt32 operator=(const int other);
-	fixedPointInt32 operator=(const fixedPointInt64 other);
-	fixedPointInt32 operator=(float other);
-	fixedPointInt32 operator=(double other);
-	bool			operator==(const int32_t other) const;
-	bool			operator==(const fixedPointInt32 other) const;
-	fixedPointInt32 operator*(const fixedPointInt64 other) const;
-	fixedPointInt64 multiply64(const fixedPointInt64 other) const;
-	bool			operator<(const fixedPointInt32 other) const;
-	bool			operator>(const fixedPointInt32 other) const;
-	bool			operator<=(const fixedPointInt32 other) const;
-	bool			operator>=(const fixedPointInt32 other) const;
-	fixedPointInt32 operator%=(const fixedPointInt32 other);
-	fixedPointInt32 operator>>(const int32_t other) const;
-	fixedPointInt32 operator<<(const int32_t other) const;
-	fixedPointInt32 operator-() const;
+	static fix32 fromRaw(const i32 value);
+	fix32(const i32 value = 0);
+	fix32(const f32 value);
+	fix32(const f64 value);
+	fix32(const int value);
+	fix32 setRaw(const i32 value);
+	i32			getRaw() const;
+	f32			getf32() const;
+	f64			getf64() const;
+	i32			getInt() const;
+	fix64 toFixed64() const;
+	fix32 operator+(const fix32 other) const;
+	fix32 operator-(const fix32 other) const;
+	fix32 operator*(const fix32 other) const;
+	fix32 operator/(const fix32 other) const;
+	fix32 operator+=(const fix32 other);
+	fix32 operator-=(const fix32 other);
+	fix32 operator*=(const fix32 other);
+	fix32 operator/=(const fix32 other);
+	fix32 operator+(const int other) const;
+	fix32 operator-(const int other) const;
+	fix32 operator*(const int other) const;
+	fix32 operator*(const f64 other) const;
+	fix32 operator+=(const int other);
+	fix32 operator-=(const int other);
+	fix32 operator*=(const int other);
+	fix32 operator*=(const f64 other);
+	fix32 operator=(const i32 other);
+	fix32 operator=(const int other);
+	fix32 operator=(const fix64 other);
+	fix32 operator=(f32 other);
+	fix32 operator=(f64 other);
+	bool			operator==(const i32 other) const;
+	bool			operator==(const fix32 other) const;
+	fix32 operator*(const fix64 other) const;
+	fix64 multiply64(const fix64 other) const;
+	bool			operator<(const fix32 other) const;
+	bool			operator>(const fix32 other) const;
+	bool			operator<=(const fix32 other) const;
+	bool			operator>=(const fix32 other) const;
+	fix32 operator%=(const fix32 other);
+	fix32 operator>>(const i32 other) const;
+	fix32 operator<<(const i32 other) const;
+	fix32 operator-() const;
 };
 
-class fixedPointInt64 {
+class fix64 {
 	// 48.16 fixed point
 private:
-	int64_t value = 0;
+	i64 value = 0;
 
 public:
-	static fixedPointInt64 fromRaw(const int64_t value);
-	fixedPointInt64(const int32_t value = 0);
-	fixedPointInt64(const int value);
-	fixedPointInt64(const float value);
-	fixedPointInt64 setRaw(const int64_t value);
-	int64_t			getRaw() const;
-	float			getFloat() const;
-	double			getDouble() const;
-	int32_t			getInt() const;
-	fixedPointInt32 toFixed32() const;
-	fixedPointInt64 operator+(const fixedPointInt64 other) const;
-	fixedPointInt64 operator-(const fixedPointInt64 other) const;
-	fixedPointInt64 operator+(const fixedPointInt32 other) const;
-	fixedPointInt64 operator-(const fixedPointInt32 other) const;
-	fixedPointInt64 operator+=(const fixedPointInt32 other);
-	fixedPointInt64 operator*(const fixedPointInt64 other) const;
-	fixedPointInt32 operator*(const fixedPointInt32 other) const;
-	fixedPointInt64 operator*(const int other) const;
-	fixedPointInt64 multiply64(const fixedPointInt32 other) const;
-	fixedPointInt64 operator=(const int32_t other);
-	fixedPointInt64 operator=(const int other);
-	fixedPointInt64 operator=(const int64_t other);
-	fixedPointInt64 operator=(const fixedPointInt32 other);
-	fixedPointInt64 operator=(const float other);
-	fixedPointInt64 operator=(const double other);
-	fixedPointInt64 operator>>(const int32_t other) const;
-	fixedPointInt64 operator-() const;
+	static fix64 fromRaw(const i64 value);
+	fix64(const i32 value = 0);
+	fix64(const int value);
+	fix64(const f32 value);
+	fix64 setRaw(const i64 value);
+	i64			getRaw() const;
+	f32			getf32() const;
+	f64			getf64() const;
+	i32			getInt() const;
+	fix32 toFixed32() const;
+	fix64 operator+(const fix64 other) const;
+	fix64 operator-(const fix64 other) const;
+	fix64 operator+(const fix32 other) const;
+	fix64 operator-(const fix32 other) const;
+	fix64 operator+=(const fix32 other);
+	fix64 operator*(const fix64 other) const;
+	fix32 operator*(const fix32 other) const;
+	fix64 operator*(const int other) const;
+	fix64 multiply64(const fix32 other) const;
+	fix64 operator=(const i32 other);
+	fix64 operator=(const int other);
+	fix64 operator=(const i64 other);
+	fix64 operator=(const fix32 other);
+	fix64 operator=(const f32 other);
+	fix64 operator=(const f64 other);
+	fix64 operator>>(const i32 other) const;
+	fix64 operator-() const;
 };
