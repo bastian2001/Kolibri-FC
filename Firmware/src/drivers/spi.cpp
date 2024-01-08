@@ -42,5 +42,8 @@ void initDefaultSpi() {
 	gpio_init(PIN_OSD_CS);
 	gpio_set_dir(PIN_OSD_CS, GPIO_OUT);
 	gpio_put(PIN_OSD_CS, 1);
+	gpio_init(PIN_BARO_CS);
+	gpio_set_dir(PIN_BARO_CS, GPIO_OUT);
+	gpio_put(PIN_BARO_CS, 1);
 	delay(2);
 }
