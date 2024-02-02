@@ -732,7 +732,11 @@
 			case ConfigCmd.STATUS | 0x4000:
 				break;
 			default:
-				if (typeof command.command === 'number' && !Number.isNaN(command.command))
+				if (
+					typeof command.command === 'number' &&
+					!Number.isNaN(command.command) &&
+					!Object.values(ConfigCmd).includes(command.command & 0xffff)
+				)
 					console.log({ ...command });
 		}
 	}
@@ -1212,6 +1216,7 @@
 	let startEndFrame = 0;
 	const selectionCanvas = document.createElement('canvas');
 	function onMouseMove(e: MouseEvent) {
+		if (!loadedLog) return;
 		if (e.buttons !== 1) {
 			onMouseUp();
 			// highlight all points on the current frame
@@ -1285,7 +1290,7 @@
 			}
 			//write down frame number, time in s after start and values next to the cursor at the top
 			const frame = sliceAndSkip[closestFrame - startFrame];
-			const timeText = ((closestFrame - startFrame) / loadedLog!.framesPerSecond).toFixed(3) + 's';
+			const timeText = (closestFrame / loadedLog!.framesPerSecond).toFixed(3) + 's';
 			const valueTexts = [] as string[];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
@@ -1469,6 +1474,24 @@
 		endFrame = pStart + Math.floor((endFrame - pStart) * (trackingEndX / domCanvas.width));
 		trackingStartX = -1;
 	}
+	function onMouseWheel(e: WheelEvent) {
+		const framesBefore = startFrame,
+			framesAfter = loadedLog!.frameCount - 1 - endFrame;
+		const visibleFrames = endFrame - startFrame;
+		let moveBy = e.deltaY * 0.002 * visibleFrames;
+		moveBy = Math.round(moveBy);
+		if (-moveBy > framesBefore) moveBy = -framesBefore;
+		if (moveBy > framesAfter) moveBy = framesAfter;
+		if (moveBy > 0) {
+			if (moveBy < 1) moveBy = 1;
+			else if (moveBy > visibleFrames * 0.3) moveBy = visibleFrames * 0.3;
+		} else {
+			if (moveBy > -1) moveBy = -1;
+			else if (moveBy < -visibleFrames * 0.3) moveBy = -visibleFrames * 0.3;
+		}
+		startFrame += moveBy;
+		endFrame += moveBy;
+	}
 	function onMouseLeave(e: MouseEvent) {
 		if (e.buttons !== 1) {
 			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
@@ -1553,7 +1576,6 @@
 			loadedLog = data as BBLog;
 			startFrame = 0;
 			endFrame = data.frameCount - 1;
-			console.log(loadedLog);
 			drawCanvas();
 		} catch (e) {
 			alert('Error parsing JSON: ' + e);
@@ -1659,6 +1681,7 @@
 			on:mouseup={onMouseUp}
 			on:mousemove={onMouseMove}
 			on:mouseleave={onMouseLeave}
+			on:wheel={onMouseWheel}
 			on:dblclick={() => {
 				startFrame = 0;
 				endFrame = (loadedLog?.frameCount || 1) - 1;
@@ -1821,7 +1844,7 @@
 	}
 
 	.selector select {
-		width: 8rem;
+		width: 14rem;
 		background-color: transparent;
 		border: 1px solid var(--border-color);
 		border-radius: 4px;

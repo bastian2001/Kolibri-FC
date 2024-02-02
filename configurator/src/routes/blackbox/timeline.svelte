@@ -38,7 +38,6 @@
 	function onResize() {
 		canvas.width = wrapper.clientWidth;
 		canvas.height = wrapper.clientHeight;
-		console.log(canvas.width, canvas.height);
 		osCanvas.width = canvas.width;
 		osCanvas.height = canvas.height;
 		selCanvas.width = canvas.width;

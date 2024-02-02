@@ -52,9 +52,7 @@
 					}
 					console.log(str);
 				})
-				.catch((e) => {
-					// console.log(e);
-				});
+				.catch((e) => {});
 		}, 100);
 	});
 	onDestroy(() => {
