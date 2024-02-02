@@ -153,7 +153,7 @@
 					alt: leBytesToInt(command.data.slice(8, 12), true) * 1e-3,
 					velN: leBytesToInt(command.data.slice(12, 16), true) * 1e-3,
 					velE: leBytesToInt(command.data.slice(16, 20), true) * 1e-3,
-					velD: leBytesToInt(command.data.slice(20, 24), true) * 1e-3,
+					velD: leBytesToInt(command.data.slice(20, 24), true), //* 1e-3,
 					gSpeed: leBytesToInt(command.data.slice(24, 28), true) * 1e-3,
 					headMot: leBytesToInt(command.data.slice(28, 32), true) * 1e-5
 				};
@@ -285,9 +285,9 @@
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_TO_BOOTLOADER)}>Bootloader</button>
 </div>
 <div class="droneStatus">
-	Flight Mode: {FLIGHT_MODES[flightMode]}, Arming Disabled: {armingDisableFlags.toString(2)}, Armed: {armed
+	Flight Mode: {FLIGHT_MODES[flightMode]}, Armed: {armed ? 'Yes' : 'No'}, Configurator Connected: {configuratorConnected
 		? 'Yes'
-		: 'No'}, Configurator Connected: {configuratorConnected ? 'Yes' : 'No'}<br />
+		: 'No'}<br />
 	Arming Disabled Flags:<br />
 	{ARMING_DISABLE_FLAGS.map((flag, i) => {
 		if (armingDisableFlags & (1 << i)) return flag + ', ';
