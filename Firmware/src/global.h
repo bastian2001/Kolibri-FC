@@ -40,6 +40,7 @@
 #include "serialhandler/configurator.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
+#include "taskManager.h"
 // #include <Adafruit_TinyUSB.h>
 
 #define SPI_GYRO spi0
@@ -59,4 +60,4 @@ f32 DECODE_R4(const u8 *buf);
 i64 DECODE_I8(const u8 *buf);
 f64 DECODE_R8(const u8 *buf);
 
-extern u32 crashInfo[256];
+extern volatile u32 crashInfo[256];

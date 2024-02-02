@@ -1,6 +1,6 @@
 #include "global.h"
 
-u8 readChar   = 0;
+u8 readChar		   = 0;
 Stream *serials[3] = {
 	&Serial,
 	&Serial1,
@@ -13,6 +13,8 @@ u32 serialFunctions[3] = {
 	SERIAL_GPS};
 
 void serialLoop() {
+	elapsedMicros taskTimer = 0;
+	tasks[TASK_SERIAL].runCounter++;
 	for (int i = 0; i < 3; i++) {
 		if (serialFunctions[i % 3] & SERIAL_DISABLED)
 			continue;
@@ -24,7 +26,9 @@ void serialLoop() {
 			readChar = serial->read();
 			if (serialFunctions[i % 3] & SERIAL_CONFIGURATOR) {
 				rp2040.wdt_reset();
+				elapsedMicros timer = 0;
 				configuratorHandleByte(readChar, i % 3);
+				taskTimer -= timer;
 			}
 			if (serialFunctions[i % 3] & SERIAL_ELRS) {
 				if (elrsBuffer.itemCount() < 260)
@@ -43,5 +47,13 @@ void serialLoop() {
 			if (serialFunctions[i % 3] & SERIAL_SMARTAUDIO) {
 			}
 		}
+	}
+	u32 duration = taskTimer;
+	tasks[TASK_SERIAL].totalDuration += duration;
+	if (duration < tasks[TASK_SERIAL].minDuration) {
+		tasks[TASK_SERIAL].minDuration = duration;
+	}
+	if (duration > tasks[TASK_SERIAL].maxDuration) {
+		tasks[TASK_SERIAL].maxDuration = duration;
 	}
 }

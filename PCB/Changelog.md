@@ -42,7 +42,7 @@
     -   ELRS boot pad is hard to reach
     -   SX1281 crystals 90 degrees rotated --> SX1281 doesn't work at all (jank fix works)
     -   forgot I2C pullups. No issue rn (no sensors using I2C), but with a compass it might be
-    -   overheating PCB --> at least at double clock speed, the RP2040 gets too hot to after a while (USB stops working). Part of a solution may be to use the 1.8V buck converter inside the SX1281
+    -   ~~overheating PCB --> at least at double clock speed, the RP2040 gets too hot to after a while (USB stops working). Part of a solution may be to use the 1.8V buck converter inside the SX1281~~ Just fucked up soldering
     -   Bad ELRS range --> a few possible reasons
         -   wrong RF filter (Johanson was out of stock, so I used a Murata one) --> unlikely, see reason for LNA not working + I stole an RF filter from another functioning ELRS RX and it didn't help
         -   LNA not working --> most likely (yet reason still unknown), because the RSSI has a very fast jump from about -25 to -75dBm, indicating something else than a pure passives issue. Also, in the transmission path (telemetry), everything works fine, indicating that the PCB and passive components are fine in general
@@ -50,5 +50,4 @@
         -   AT2401C just not working? --> unlikely, but maybe there's a difference between this clone and the RFX2401C
         -   All of them are pretty unlikely, given the weird jump, but I don't know what else it could be
 -   Untested
-    -   Step downs (only powered by USB so far)
     -   OSD (does it still work after being moved to SPI1 from SPI0?)

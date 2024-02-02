@@ -21,7 +21,8 @@ public:
 		if (wrPtr == size) wrPtr = 0;
 
 		if (wrPtr == rdPtr) {
-			rdPtr = (rdPtr + 1) % size; // Overwrite the oldest value
+			rdPtr++; // Overwrite the oldest value
+			if (rdPtr == size) rdPtr = 0;
 		}
 	}
 
@@ -78,7 +79,6 @@ public:
 		rdPtr = (rdPtr + index) % size;
 	}
 	void copyToArray(T *array, size_t start, size_t arraySize) {
-		extern u32 crashInfo[256];
 		if (start >= itemCount()) return;
 		if (start + arraySize > itemCount()) arraySize = itemCount() - start;
 		// use memcpy for speed

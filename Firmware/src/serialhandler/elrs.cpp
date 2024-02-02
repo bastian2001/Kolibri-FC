@@ -1,5 +1,6 @@
 #include "global.h"
 RingBuffer<u8> elrsBuffer(260);
+u32 crcLut[256] = {0};
 
 ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	: elrsSerial(elrsSerial),
@@ -13,6 +14,16 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	elrsSerial.setRTS(UART_PIN_NOT_DEFINED);
 	elrsSerial.setFIFOSize(256);
 	elrsSerial.begin(baudrate, SERIAL_8N1);
+	for (u32 i = 0; i < 256; i++) {
+		u32 crc = i;
+		for (u32 j = 0; j < 8; j++) {
+			if (crc & 0x80)
+				crc = (crc << 1) ^ 0xD5;
+			else
+				crc <<= 1;
+		}
+		crcLut[i] = crc & 0xFF;
+	}
 }
 
 ExpressLRS::~ExpressLRS() {
@@ -20,8 +31,9 @@ ExpressLRS::~ExpressLRS() {
 }
 
 void ExpressLRS::loop() {
-		if (frequencyTimer > 1000) {
-		if (rcPacketRateCounter > 20)
+	elapsedMicros taskTimer;
+	if (frequencyTimer > 1000) {
+		if (rcPacketRateCounter > 20 && rcMsgCount > 300)
 			isLinkUp = true;
 		else
 			isLinkUp = false;
@@ -37,79 +49,90 @@ void ExpressLRS::loop() {
 	if (elrsBuffer.itemCount() > 250) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
+		crc			= 0;
 		lastError	= ERROR_BUFFER_OVERFLOW;
-		errorFlag	= true;
+		tasks[TASK_ELRS].errorCount++;
+		tasks[TASK_ELRS].lastError = ERROR_BUFFER_OVERFLOW;
+		errorFlag				   = true;
 		errorCount++;
-				return;
+		return;
 	}
-		int maxScan	 = elrsBuffer.itemCount();
+	int maxScan = elrsBuffer.itemCount();
+	if (!maxScan) return;
+	taskTimer = 0;
 	if (maxScan > 10) maxScan = 10;
-	if (msgBufIndex > 55) maxScan = 65 - msgBufIndex;
-			for (int i = 0; i < maxScan; i++) {
-				msgBuffer[msgBufIndex++] = elrsBuffer[0];
-		elrsBuffer.pop();
-			}
+	if (msgBufIndex > 54) maxScan = 64 - msgBufIndex;
+	for (int i = 0; i < maxScan; i++) {
+		msgBuffer[msgBufIndex] = elrsBuffer.pop();
+		if (msgBufIndex >= 2) {
+			crc ^= msgBuffer[msgBufIndex];
+			crc = crcLut[crc];
+		} else
+			crc = 0;
+		msgBufIndex++;
+		if (msgBufIndex >= 2 + msgBuffer[1]) break; // if the message is complete, stop scanning, so we don't corrupt the crc
+	}
 	if (msgBufIndex > 0 && msgBuffer[0] != RX_PREFIX) {
-				msgBufIndex	 = 0;
-		lastError	 = ERROR_INVALID_PREFIX;
-		errorFlag	 = true;
+		msgBufIndex = 0;
+		crc			= 0;
+		lastError	= ERROR_INVALID_PREFIX;
+		tasks[TASK_ELRS].errorCount++;
+		tasks[TASK_ELRS].lastError = ERROR_INVALID_PREFIX;
+		errorFlag				   = true;
 		errorCount++;
-			}
+	}
 	if (msgBufIndex >= 2 + msgBuffer[1] && msgBuffer[0] == RX_PREFIX) {
-				processMessage();
-			}
-}
-
-// from https://github.com/catphish/openuav/blob/master/firmware/src/elrs.c
-//  Append a byte to a CRC-8
-// 32 bit operations are used for speed, CRC of an RC packet take 22 instead of 25µs
-void crc32_append(u32 data, u32 &crc) {
-	crc ^= data;
-	for (u32 i = 0; i < 8; i++) {
-		if (crc & 0x80) {
-			crc = (crc << 1) ^ 0xD5;
-		} else {
-			crc <<= 1;
-		}
+		processMessage();
+	}
+	u32 duration = taskTimer;
+	tasks[TASK_ELRS].totalDuration += duration;
+	if (duration < tasks[TASK_ELRS].minDuration) {
+		tasks[TASK_ELRS].minDuration = duration;
+	}
+	if (duration > tasks[TASK_ELRS].maxDuration) {
+		tasks[TASK_ELRS].maxDuration = duration;
 	}
 }
 
 void ExpressLRS::processMessage() {
-		int size	 = msgBuffer[1] + 2;
-	u32 crc = 0;
-	for (int i = 2; i < size; i++)
-		crc32_append(msgBuffer[i], crc);
-		if (crc & 0xFF) // if the crc is not 0, then the message is invalid
+	int size = msgBuffer[1] + 2;
+	if (crc & 0xFF) // if the crc is not 0, then the message is invalid
 	{
-				msgBufIndex -= size;
+		crc = 0;
+		msgBufIndex -= size;
 		// shift all the bytes in the buffer to the left by size
 		for (int i = 0; i < msgBufIndex; i++)
 			msgBuffer[i] = msgBuffer[i + size];
 		lastError = ERROR_CRC;
 		errorFlag = true;
 		errorCount++;
-				return;
+		tasks[TASK_ELRS].errorCount++;
+		tasks[TASK_ELRS].lastError = ERROR_CRC;
+		return;
 	}
 
 	msgCount++;
 	sinceLastMessage = 0;
 	packetRateCounter++;
+	tasks[TASK_ELRS].runCounter++;
 
-		switch (msgBuffer[2]) {
+	switch (msgBuffer[2]) {
 	case RC_CHANNELS_PACKED: {
-				if (size != 26) // 16 channels * 11 bits + 3 bytes header + 1 byte crc
+		if (size != 26) // 16 channels * 11 bits + 3 bytes header + 1 byte crc
 		{
 			lastError = ERROR_INVALID_LENGTH;
 			errorFlag = true;
 			errorCount++;
-						break;
+			tasks[TASK_ELRS].errorCount++;
+			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
+			break;
 		}
-				sinceLastRCMessage = 0;
+		sinceLastRCMessage = 0;
 		// crsf_channels_t *crsfChannels = (crsf_channels_t *)(&msgBuffer[3]); // somehow conversion through bit-fields does not work, so manual conversion
 		u64 decoder, decoder2;
 		memcpy(&decoder, &msgBuffer[3], 8);
 		u32 pChannels[16];
-				pChannels[0] = decoder & 0x7FF;			// 0...10
+		pChannels[0] = decoder & 0x7FF;			// 0...10
 		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
 		pChannels[2] = (decoder >> 22) & 0x7FF; // 22...32
 		pChannels[3] = (decoder >> 33) & 0x7FF; // 33...43
@@ -132,7 +155,7 @@ void ExpressLRS::processMessage() {
 		pChannels[14] = (decoder >> 44) & 0x7FF; // 154...164
 		decoder >>= 55;							 // 55, 3 bits left
 		pChannels[15] = decoder | (msgBuffer[24] << 3);
-				// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
+		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
 		for (u8 i = 0; i < 16; i++) {
 			if (i == 2)
 				continue;
@@ -148,27 +171,29 @@ void ExpressLRS::processMessage() {
 		pChannels[2] /= 1636;
 		pChannels[2] += 1000; // keep radio commands within 1000-2000
 		pChannels[2] = constrain(pChannels[2], 1000, 2000);
-		
+
 		newPacketFlag = 0xFFFFFFFF;
 		if (pChannels[4] > 1500)
 			consecutiveArmedCycles++;
 		else
 			consecutiveArmedCycles = 0;
-		
+
 		// update as fast as possible
 		memcpy(lastChannels, channels, 16 * sizeof(u32));
 		memcpy(channels, pChannels, 16 * sizeof(u32));
 		rcPacketRateCounter++;
 		rcMsgCount++;
-				break;
+		break;
 	}
 	case LINK_STATISTICS: {
-				if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc
+		if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc
 		{
 			lastError = ERROR_INVALID_LENGTH;
 			errorFlag = true;
 			errorCount++;
-						break;
+			tasks[TASK_ELRS].errorCount++;
+			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
+			break;
 		}
 		uplinkRssi[0]		= -msgBuffer[3];
 		uplinkRssi[1]		= -msgBuffer[4];
@@ -180,7 +205,7 @@ void ExpressLRS::processMessage() {
 		downlinkRssi		= -msgBuffer[10];
 		downlinkLinkQuality = msgBuffer[11];
 		downlinkSNR			= msgBuffer[12];
-				break;
+		break;
 	}
 	case DEVICE_PING:
 		break;
@@ -194,34 +219,37 @@ void ExpressLRS::processMessage() {
 		break;
 	case COMMAND:
 		break;
-	case FRAMETYPE_WHATEVER:
-		// Seems like this is not an error, but idk what it is
+	case MSP_REQ:
 		break;
 	default:
 		lastError = ERROR_UNSUPPORTED_COMMAND;
-		errorFlag = true;
+		tasks[TASK_ELRS].errorCount++;
+		tasks[TASK_ELRS].lastError = ERROR_UNSUPPORTED_COMMAND;
+		errorFlag				   = true;
 		errorCount++;
 		msgBufIndex -= size;
+		crc = 0;
 		// Serial.printf("Unknown command: %d, size: %d\n", msgBuffer[2], size);
 		// shift all the bytes in the buffer to the left by size
 		for (int i = 0; i < msgBufIndex; i++)
 			msgBuffer[i] = msgBuffer[i + size];
 		return;
 	}
-	
+
 	msgBufIndex = 0;
+	crc			= 0;
 }
 
 void ExpressLRS::getSmoothChannels(u16 smoothChannels[4]) {
 	// one new RC message every 4ms = 4000µs, ELRS 250Hz
-		static u32 sum[4];
+	static u32 sum[4];
 	int sinceLast = sinceLastRCMessage;
 	if (sinceLast > 4000) {
-				sinceLast	   = 4000;
+		sinceLast = 4000;
 	}
 	for (int i = 0; i < 4; i++) {
-				sum[i]		   = sinceLast * channels[i] + (4000 - sinceLast) * lastChannels[i];
+		sum[i] = sinceLast * channels[i] + (4000 - sinceLast) * lastChannels[i];
 		sum[i] /= 4000;
 		smoothChannels[i] = sum[i];
-			}
+	}
 }

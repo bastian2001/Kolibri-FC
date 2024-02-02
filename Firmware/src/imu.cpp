@@ -6,10 +6,10 @@
 // Z: down / yaw right
 // (Tait-Bryan angles)
 
-const f32 RAW_TO_RAD_PER_SEC	   = (f32)(PI * 4000 / 65536 / 180); // 2000deg per second, but raw is only +/-.5
-const f32 FRAME_TIME			   = (f32)(1. / 3200);
-const f32 RAW_TO_HALF_ANGLE	   = (f32)(RAW_TO_RAD_PER_SEC * FRAME_TIME / 2);
-const f32 ANGLE_CHANGE_LIMIT	   = .0002;
+const f32 RAW_TO_RAD_PER_SEC	 = (f32)(PI * 4000 / 65536 / 180); // 2000deg per second, but raw is only +/-.5
+const f32 FRAME_TIME			 = (f32)(1. / 3200);
+const f32 RAW_TO_HALF_ANGLE		 = (f32)(RAW_TO_RAD_PER_SEC * FRAME_TIME / 2);
+const f32 ANGLE_CHANGE_LIMIT	 = .0002;
 const f32 RAW_TO_DELTA_M_PER_SEC = (f32)(9.81 * 32 / 65536); // +/-16g
 
 f32 pitch, roll, yaw, rpAngle;
@@ -63,7 +63,7 @@ void updateFromAccel() {
 	orientation_vector[1] = q.v[1] * q.v[2] * -2 + q.w * q.v[0] * 2;
 	orientation_vector[2] = -q.v[2] * q.v[2] + q.v[1] * q.v[1] + q.v[0] * q.v[0] - q.w * q.w;
 
-	f32 accelVector[3]  = {(f32)-(accelDataRaw[1]), (f32)-(accelDataRaw[0]), (f32)-(accelDataRaw[2])};
+	f32 accelVector[3]	= {(f32) - (accelDataRaw[1]), (f32) - (accelDataRaw[0]), (f32) - (accelDataRaw[2])};
 	f32 accelVectorNorm = sqrtf((int)accelDataRaw[1] * (int)accelDataRaw[1] + (int)accelDataRaw[0] * (int)accelDataRaw[0] + (int)accelDataRaw[2] * (int)accelDataRaw[2]);
 	if (accelVectorNorm > 0.01f) {
 		f32 invAccelVectorNorm = 1 / accelVectorNorm;
@@ -108,7 +108,7 @@ void updatePitchRollValues() {
 		shortest_path.v[0] = -orientation_vector[1];
 		shortest_path.v[1] = orientation_vector[0];
 		shortest_path.v[2] = 0;
-		f32 len		   = sqrtf(shortest_path.v[0] * shortest_path.v[0] + shortest_path.v[1] * shortest_path.v[1] + shortest_path.w * shortest_path.w);
+		f32 len			   = sqrtf(shortest_path.v[0] * shortest_path.v[0] + shortest_path.v[1] * shortest_path.v[1] + shortest_path.w * shortest_path.w);
 		if (len == 0) {
 			shortest_path.w	   = 1;
 			shortest_path.v[0] = 0;
@@ -143,13 +143,15 @@ void updatePitchRollValues() {
 	} else
 		combinedHeadMot = combinedHeading;
 	vVel += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[2] * cosf(rpAngle)) / fix32(3200);
-	vVel += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[0] * sinf(roll)) / fix32(3200);
-	vVel += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[1] * sinf(pitch)) / fix32(3200);
+	// vVel += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[0] * sinf(roll)) / fix32(3200);
+	// vVel += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[1] * sinf(pitch)) / fix32(3200);
 	vVel -= fix32(9.81f / 3200);
 	combinedAltitude += vVel / fix32(3200);
 }
 
 void updateAttitude() {
+	elapsedMicros taskTimer = 0;
+	tasks[TASK_IMU].runCounter++;
 	u32 t0, t1, t2;
 	elapsedMicros timer = 0;
 	updateFromGyro();
@@ -158,5 +160,12 @@ void updateAttitude() {
 	t1 = timer;
 	updatePitchRollValues();
 	t2 = timer;
-	// Serial.printf("Gyro: %3d, Accel: %3d, PitchRoll: %3d\n", t0, t1 - t0, t2 - t1);
+	u32 duration = taskTimer;
+	tasks[TASK_IMU].totalDuration += duration;
+	if (duration < tasks[TASK_IMU].minDuration) {
+		tasks[TASK_IMU].minDuration = duration;
+	}
+	if (duration > tasks[TASK_IMU].maxDuration) {
+		tasks[TASK_IMU].maxDuration = duration;
+	}
 }

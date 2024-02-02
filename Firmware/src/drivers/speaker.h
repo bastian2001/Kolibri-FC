@@ -7,8 +7,6 @@
 
 void initSpeaker();
 
-void startBootupSound();
-
 void speakerLoop();
 
 void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs);

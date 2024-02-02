@@ -12,8 +12,8 @@ u8 elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown
 
 void osdInit() {
 
-	u8 data = 0;
-	osdTimer	 = 0;
+	u8 data	 = 0;
+	osdTimer = 0;
 }
 
 void disableOSD() {
@@ -72,7 +72,7 @@ void drawElem(u8 elem) {
 		if (!elemData[elem][i])
 			break;
 		pos &= 0x1FF;
-		u8 posLow	= pos & 0xFF;
+		u8 posLow  = pos & 0xFF;
 		u8 posHigh = pos >> 8;
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMAH, &posHigh);
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMAL, &posLow);
@@ -82,8 +82,9 @@ void drawElem(u8 elem) {
 }
 
 void osdLoop() {
-	if (osdReady && (gyroUpdateFlag & 1)) {
-		gyroUpdateFlag &= ~1;
+	if (osdReady) {
+		elapsedMicros taskTimer = 0;
+		tasks[TASK_OSD].runCounter++;
 		// cycle through all drawn elements, and update one per gyro cycle
 		u8 drawIteratorStart = drawIterator;
 		while (1) {
@@ -98,12 +99,19 @@ void osdLoop() {
 			if (drawIterator == drawIteratorStart)
 				break;
 		}
-	} else if (!osdReady && (gyroUpdateFlag & 1)) {
-		gyroUpdateFlag &= ~1;
+		u32 duration = taskTimer;
+		tasks[TASK_OSD].totalDuration += duration;
+		if (duration < tasks[TASK_OSD].minDuration) {
+			tasks[TASK_OSD].minDuration = duration;
+		}
+		if (duration > tasks[TASK_OSD].maxDuration) {
+			tasks[TASK_OSD].maxDuration = duration;
+		}
+	} else {
 		if (osdTimer > 1000) {
 			// gyro likely ready, check registers
-			u8 data = 0;
-			osdTimer	 = 0;
+			u8 data	 = 0;
+			osdTimer = 0;
 			regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::STAT, &data, 1, 0, 0);
 			if (data && !(data & 0b01100000)) {
 				osdReady = true;

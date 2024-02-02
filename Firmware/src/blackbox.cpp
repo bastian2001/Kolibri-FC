@@ -1,27 +1,36 @@
 #include "global.h"
 
-u64 bbFlags		= 0;
+u64 bbFlags		   = 0;
 u64 currentBBFlags = 0;
 
 bool bbLogging = false;
 bool fsReady   = false;
 
 FSInfo64 fsInfo;
-int currentLogNum	  = 0;
-u8 bbFreqDivider = 2;
+int currentLogNum = 0;
+u8 bbFreqDivider  = 2;
 
 File blackboxFile;
 
 i32 maxFileSize = 0;
 elapsedMicros frametime;
 void blackboxLoop() {
-	// Serial.println(rp2040.fifo.available());
 	if (rp2040.fifo.available()) {
+		elapsedMicros taskTimer = 0;
+		tasks[TASK_BLACKBOX].runCounter++;
 		u8 *frame = (u8 *)rp2040.fifo.pop();
-		u8 len	   = frame[0];
+		u8 len	  = frame[0];
 		if (len > 0 && bbLogging)
 			blackboxFile.write(frame + 1, len);
 		free(frame);
+		u32 duration = taskTimer;
+		tasks[TASK_BLACKBOX].totalDuration += duration;
+		if (duration < tasks[TASK_BLACKBOX].minDuration) {
+			tasks[TASK_BLACKBOX].minDuration = duration;
+		}
+		if (duration > tasks[TASK_BLACKBOX].maxDuration) {
+			tasks[TASK_BLACKBOX].maxDuration = duration;
+		}
 	}
 }
 
@@ -112,7 +121,7 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 		return;
 	}
 	u8 buffer[1027];
-	buffer[0]		  = logNum;
+	buffer[0]	 = logNum;
 	u16 chunkNum = 0;
 	if (singleChunk >= 0) {
 		chunkNum = singleChunk;
@@ -121,12 +130,14 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 	size_t bytesRead = 1;
 	while (bytesRead > 0) {
 		rp2040.wdt_reset();
-		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
+		gpio_put(PIN_LED_ACTIVITY, chunkNum & 1);
 		bytesRead = logFile.read(buffer + 3, 1024);
 		buffer[1] = chunkNum & 0xFF;
 		buffer[2] = chunkNum >> 8;
 		sendCommand(((u16)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, bytesRead + 3);
 		Serial.flush();
+		while (Serial.available())
+			Serial.read();
 		chunkNum++;
 		if (singleChunk >= 0)
 			break;
@@ -186,14 +197,14 @@ void startLogging() {
 #endif
 	if (!blackboxFile)
 		return;
-	bbLogging			 = true;
+	bbLogging		= true;
 	const u8 data[] = {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 0 // magic bytes, version
 	};
 	blackboxFile.write(data, 7);
 	u32 recordTime = timestamp;
 	if (recordTime == 0) {
-		u32 m = millis() / 1000;
+		u32 m	   = millis() / 1000;
 		recordTime = (m % 60) & 0x3F;
 		recordTime |= ((m / 60) % 60) << 6;
 		recordTime |= ((m / 3600) % 24) << 12;
@@ -257,12 +268,12 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = ELRS->channels[3] >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_SETPOINT) {
-		i16 setpoint	  = (i16)(rollSetpoint.getRaw() >> 12);
+		i16 setpoint		  = (i16)(rollSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_SETPOINT) {
-		i16 setpoint	  = (i16)(pitchSetpoint.getRaw() >> 12);
+		i16 setpoint		  = (i16)(pitchSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
@@ -271,22 +282,22 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = smoothChannels[2] >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_SETPOINT) {
-		i16 setpoint	  = (i16)(yawSetpoint.getRaw() >> 12);
+		i16 setpoint		  = (i16)(yawSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
-		i16 gyroData	  = (imuData[AXIS_ROLL].getRaw() >> 12);
+		i16 gyroData		  = (imuData[AXIS_ROLL].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
-		i16 gyroData	  = (imuData[AXIS_PITCH].getRaw() >> 12);
+		i16 gyroData		  = (imuData[AXIS_PITCH].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
-		i16 gyroData	  = (imuData[AXIS_YAW].getRaw() >> 12);
+		i16 gyroData		  = (imuData[AXIS_YAW].getRaw() >> 12);
 		bbBuffer[bufferPos++] = gyroData;
 		bbBuffer[bufferPos++] = gyroData >> 8;
 	}
@@ -351,7 +362,7 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = yawS.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
-		i64 throttles64	  = ((u64)(throttles[(u8)MOTOR::RR])) << 36 | ((u64)throttles[(u8)MOTOR::FR]) << 24 | throttles[(u8)MOTOR::RL] << 12 | throttles[(u8)MOTOR::FL];
+		i64 throttles64		  = ((u64)(throttles[(u8)MOTOR::RR])) << 36 | ((u64)throttles[(u8)MOTOR::FR]) << 24 | throttles[(u8)MOTOR::RL] << 12 | throttles[(u8)MOTOR::FL];
 		bbBuffer[bufferPos++] = throttles64 >> 40;
 		bbBuffer[bufferPos++] = throttles64 >> 32;
 		bbBuffer[bufferPos++] = throttles64 >> 24;
@@ -364,7 +375,7 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = baroATO >> 8;
 	}
 	if (currentBBFlags & LOG_FRAMETIME) {
-		u16 ft			  = frametime;
+		u16 ft				  = frametime;
 		frametime			  = 0;
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
@@ -377,7 +388,6 @@ void writeSingleFrame() {
 	((u8 *)buf)[0] = bufferPos;
 	if (!(rp2040.fifo.push_nb((u32)buf))) {
 		free(buf);
-		// Serial.println("FIFO full");
 		// if the fifo is full, we just drop the frame :(
 	}
 #endif

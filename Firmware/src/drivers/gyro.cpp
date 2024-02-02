@@ -2,7 +2,7 @@
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
-u32 gyroLastState	  = 0;
+u32 gyroLastState		  = 0;
 elapsedMicros lastPIDLoop = 0;
 
 u32 gyroCalibratedCycles	 = 0;
@@ -12,10 +12,10 @@ void gyroLoop() {
 	u8 gpioState = gpio_get(PIN_GYRO_INT1);
 	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
 	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
-	lastPIDLoop = 0;
-	if (gpioState != gyroLastState) {
+	if (gpioState != gyroLastState || lastPIDLoop > 400) {
 		gyroLastState = gpioState;
-		if (gpioState == 1) {
+		if (gpioState == 1 || lastPIDLoop > 400) {
+			lastPIDLoop = 0;
 			pidLoop();
 			if (armingDisableFlags & 0x40) {
 				if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE && (gyroDataRaw[0] != -1 || gyroDataRaw[1] != -1 || gyroDataRaw[2] != -1)) {
@@ -62,7 +62,7 @@ int gyroInit() {
 	data = 0;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500);									   // prepare config load
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500);										  // prepare config load
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
 	data = 1;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load

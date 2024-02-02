@@ -44,17 +44,27 @@ void setup() {
 	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");
+	extern elapsedMicros taskTimer0;
+	taskTimer0 = 0;
 	setupDone |= 0b01;
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
-	startBootupSound(); // annoying during development
+	// makeRtttlSound("o=6,b=800:1c#6,1d#6,1g#6.,1d#6$1,1g#6.$1,1d#6$2,1g#6$2");
+	// makeRtttlSound("NokiaTune:d=4,o=5,b=160:8e6$4,8d6$4,4f#5$4,4g#5$4,8c#6$4,8b5$4,4d5$4,4e5$4,8b5$4,8a5$4,4c#5$4,4e5$4,1a5$4");
+	makeSound(1000, 100, 100, 0);
 }
 
 elapsedMillis activityTimer;
 
+elapsedMicros taskTimer0;
 void loop() {
-	baroLoop();
+	tasks[TASK_LOOP0].runCounter++;
+	u32 duration0 = taskTimer0;
+	if (duration0 > tasks[TASK_LOOP0].maxGap) {
+		tasks[TASK_LOOP0].maxGap = duration0;
+	}
+	taskTimer0 = 0;
 	speakerLoop();
 	blackboxLoop();
 	ELRS->loop();
@@ -63,11 +73,21 @@ void loop() {
 	serialLoop();
 	configuratorLoop();
 	gpsLoop();
+	taskManagerLoop();
 	rp2040.wdt_reset();
-	if (activityTimer > 500) {
+	if (activityTimer >= 500) {
 		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
 		activityTimer = 0;
 	}
+	duration0 = taskTimer0;
+	tasks[TASK_LOOP0].totalDuration += duration0;
+	if (duration0 > tasks[TASK_LOOP0].maxDuration) {
+		tasks[TASK_LOOP0].maxDuration = duration0;
+	}
+	if (duration0 < tasks[TASK_LOOP0].minDuration) {
+		tasks[TASK_LOOP0].minDuration = duration0;
+	}
+	taskTimer0 = 0;
 }
 
 void setup1() {
@@ -75,14 +95,35 @@ void setup1() {
 	while (!(setupDone & 0b01)) {
 	}
 }
+elapsedMicros taskTimer = 0;
+u32 taskState			= 0;
 void loop1() {
-	u32 times[2];
-	elapsedMicros timer;
-	gyroLoop();
-	times[0] = timer;
-	osdLoop();
-	times[1] = timer;
-	if (times[1] > 300) {
-		Serial.printf("Gyro: %3d, OSD: %3d\n", times[0], times[1] - times[0]);
+	tasks[TASK_LOOP1].runCounter++;
+	u32 duration = taskTimer;
+	if (duration > tasks[TASK_LOOP1].maxGap) {
+		tasks[TASK_LOOP1].maxGap = duration;
 	}
+	taskTimer = 0;
+	gyroLoop();
+	if (gyroUpdateFlag & 1) {
+		switch (taskState++) {
+		case 0:
+			// osdLoop(); // slow, but both need to be on this core, due to SPI collision
+			break;
+		case 1:
+			// baroLoop();
+			break;
+		}
+		gyroUpdateFlag &= ~1;
+	}
+	if (taskState == 2) taskState = 0;
+	duration = taskTimer;
+	tasks[TASK_LOOP1].totalDuration += duration;
+	if (duration > tasks[TASK_LOOP1].maxDuration) {
+		tasks[TASK_LOOP1].maxDuration = duration;
+	}
+	if (duration < tasks[TASK_LOOP1].minDuration) {
+		tasks[TASK_LOOP1].minDuration = duration;
+	}
+	taskTimer = 0;
 }

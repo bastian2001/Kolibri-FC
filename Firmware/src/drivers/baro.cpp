@@ -1,8 +1,7 @@
 #include "global.h"
 #include <math.h>
 
-elapsedMillis baroStarted = 0;
-bool baroMeasuring		  = false;
+bool baroMeasuring = false;
 enum BARO_COEFFS {
 	c0,
 	c1,
@@ -15,11 +14,10 @@ enum BARO_COEFFS {
 	c30,
 };
 
-i16 baroASL		   = 0, baroATO; // above sea level, above takeoff
-i16 takeoffOffset  = 0;
-f32 baroPres	   = 0;
-u8 baroTemp		   = 0;
-bool baroDataReady = false;
+i16 baroASL		  = 0, baroATO; // above sea level, above takeoff
+i16 takeoffOffset = 0;
+f32 baroPres	  = 0;
+u8 baroTemp		  = 0;
 i32 baroCalibration[9];
 const i32 baroScaleFactor = 7864320;
 
@@ -37,7 +35,6 @@ void initBaro() {
 	gpio_put(PIN_BARO_CS, 0); // enable SPI by pulling CS low (datasheet page 10)
 	delayMicroseconds(10);
 	gpio_put(PIN_BARO_CS, 1);
-	delay(5000);
 	u8 data[18];
 	regRead(SPI_BARO, PIN_BARO_CS, 0x0D, data, 1, 0, false); // read ID register
 	if (data[0] != 0x10) {
@@ -63,15 +60,6 @@ void initBaro() {
 	if (baroCalibration[c21] > 32767) baroCalibration[c21] -= 65536;
 	baroCalibration[c30] = (((u32)data[16]) << 8) + data[17];
 	if (baroCalibration[c30] > 32767) baroCalibration[c30] -= 65536;
-	for (int i = 0; i < 18; i++) {
-		Serial.printf("%2d: %8X %4d\n", i, data[i], data[i]);
-	}
-	Serial.println();
-	for (int i = 0; i < 9; i++) {
-		Serial.print(baroCalibration[i]);
-		Serial.print(" ");
-	}
-	Serial.println();
 	data[0] = 0b01100011;							   // 64 measurements per second, 8x oversampling
 	regWrite(SPI_BARO, PIN_BARO_CS, 0x06, data, 1, 0); // set PRS_CFG register
 	data[0] = 0b01100011;							   // 64 measurements per second, 8x oversampling
@@ -80,14 +68,30 @@ void initBaro() {
 	regWrite(SPI_BARO, PIN_BARO_CS, 0x08, data, 1, 0); // set MEAS_CFG register
 }
 
+elapsedMillis baroTimer = 0;
 void baroLoop() {
-	delay(40);
-	i32 pressure, baroTemperature;
-	getRawPressureTemperature(&pressure, &baroTemperature);
-	f32 temp = 201 * .5f - baroTemperature / 7864320.f * 260;
-	extern f32 temperature;
-	f32 pressureScaled		= pressure / 7864320.f;
-	f32 temperatureScaled	= baroTemperature / 7864320.f;
-	f32 pressureCompensated = baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
-	f32 height				= 44330 * (1 - powf(pressureCompensated / 101325.f, 1 / 5.255f));
+	if (baroTimer >= 20) {
+		tasks[TASK_BARO].runCounter++;
+		elapsedMicros taskTimer = 0;
+		baroTimer				= 0;
+		i32 pressure, baroTemperature;
+		getRawPressureTemperature(&pressure, &baroTemperature);
+		f32 temp				= 201 * .5f - baroTemperature / 7864320.f * 260;
+		f32 pressureScaled		= pressure / 7864320.f;
+		f32 temperatureScaled	= baroTemperature / 7864320.f;
+		f32 pressureCompensated = baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
+		f32 height				= 44330 * (1 - powf(pressureCompensated / 101325.f, 1 / 5.255f));
+		baroPres				= pressureCompensated;
+		baroTemp				= temp;
+		baroASL					= height;
+		baroATO					= height - takeoffOffset;
+		u32 duration			= taskTimer;
+		tasks[TASK_BARO].totalDuration += duration;
+		if (duration < tasks[TASK_BARO].minDuration) {
+			tasks[TASK_BARO].minDuration = duration;
+		}
+		if (duration > tasks[TASK_BARO].maxDuration) {
+			tasks[TASK_BARO].maxDuration = duration;
+		}
+	}
 }

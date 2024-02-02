@@ -1,7 +1,7 @@
 #include "global.h"
-u32 armingDisableFlags = 0;
-bool armed					= false;
-FLIGHT_MODE lastFlightMode	= FLIGHT_MODE::LENGTH;
+u32 armingDisableFlags	   = 0;
+bool armed				   = false;
+FLIGHT_MODE lastFlightMode = FLIGHT_MODE::LENGTH;
 i32 startPointLat, startPointLon;
 // 0: switch in armed position for >= 10 cycles
 // 1: throttle down
@@ -13,9 +13,11 @@ i32 startPointLat, startPointLon;
 
 void modesLoop() {
 	if (ELRS->newPacketFlag & 0x00000001) {
+		elapsedMicros taskTimer = 0;
+		tasks[TASK_MODES].runCounter++;
 		ELRS->newPacketFlag &= 0xFFFFFFFE;
 		if (!armed) {
-			if (ELRS->consecutiveArmedCycles >= 10)
+			if (ELRS->consecutiveArmedCycles == 10)
 				armingDisableFlags &= 0xFFFFFFFE;
 			else
 				armingDisableFlags |= 0x00000001;
@@ -78,7 +80,15 @@ void modesLoop() {
 			}
 			lastFlightMode = flightMode;
 		}
-	} else if (ELRS->sinceLastRCMessage > 500000)
+		u32 duration = taskTimer;
+		tasks[TASK_MODES].totalDuration += duration;
+		if (duration < tasks[TASK_MODES].minDuration) {
+			tasks[TASK_MODES].minDuration = duration;
+		}
+		if (duration > tasks[TASK_MODES].maxDuration) {
+			tasks[TASK_MODES].maxDuration = duration;
+		}
+	} else if (ELRS->sinceLastRCMessage >= 500000)
 		armed = false;
 }
 

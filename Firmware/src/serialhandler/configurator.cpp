@@ -2,8 +2,8 @@
 
 u8 configSerialBuffer[256] = {0};
 u8 configSerialBufferIndex = 0;
-u8 configMsgLength			= 0;
-u16 configMsgCommand		= 0;
+u8 configMsgLength		   = 0;
+u16 configMsgCommand	   = 0;
 
 elapsedMillis configTimer = 0;
 
@@ -37,25 +37,40 @@ void sendCommand(u16 command, const char *data, u16 len) {
 
 void handleConfigCmd() {
 	char buf[256] = {0};
-	u8 len	  = 0;
+	u8 len		  = 0;
 	switch ((ConfigCmd)configMsgCommand) {
 	case ConfigCmd::STATUS: {
 		u16 voltage = adcVoltage;
-		buf[len++]		 = voltage & 0xFF;
-		buf[len++]		 = voltage >> 8;
-		buf[len++]		 = armed;
-		buf[len++]		 = (u8)flightMode;
-		buf[len++]		 = (u8)(armingDisableFlags & 0xFF);
-		buf[len++]		 = (u8)(armingDisableFlags >> 8);
-		buf[len++]		 = (u8)(armingDisableFlags >> 16);
-		buf[len++]		 = (u8)(armingDisableFlags >> 24);
-		buf[len++]		 = (u8)(configuratorConnected & 0xFF);
+		buf[len++]	= voltage & 0xFF;
+		buf[len++]	= voltage >> 8;
+		buf[len++]	= armed;
+		buf[len++]	= (u8)flightMode;
+		buf[len++]	= (u8)(armingDisableFlags & 0xFF);
+		buf[len++]	= (u8)(armingDisableFlags >> 8);
+		buf[len++]	= (u8)(armingDisableFlags >> 16);
+		buf[len++]	= (u8)(armingDisableFlags >> 24);
+		buf[len++]	= (u8)(configuratorConnected & 0xFF);
 		sendCommand(configMsgCommand | 0x4000, buf, len);
 	} break;
-	case ConfigCmd::TASK_STATUS:
-		len = snprintf(buf, 256, "PID loop counter: %d", pidLoopCounter);
-		sendCommand(configMsgCommand | 0x4000, buf, len);
-		break;
+	case ConfigCmd::TASK_STATUS: {
+		u32 buf[256];
+		for (int i = 0; i < 32; i++) {
+			buf[i * 8 + 0] = tasks[i].debugInfo;
+			buf[i * 8 + 1] = tasks[i].minDuration;
+			buf[i * 8 + 2] = tasks[i].maxDuration;
+			buf[i * 8 + 3] = tasks[i].frequency;
+			buf[i * 8 + 4] = tasks[i].avgDuration;
+			buf[i * 8 + 5] = tasks[i].errorCount;
+			buf[i * 8 + 6] = tasks[i].lastError;
+			buf[i * 8 + 7] = tasks[i].maxGap;
+		}
+		sendCommand(configMsgCommand | 0x4000, (char *)buf, sizeof(buf));
+		for (int i = 0; i < 32; i++) {
+			tasks[i].minDuration = 0xFFFFFFFF;
+			tasks[i].maxDuration = 0;
+			tasks[i].maxGap		 = 0;
+		}
+	} break;
 	case ConfigCmd::REBOOT:
 		sendCommand(configMsgCommand | 0x4000);
 		delay(100);
@@ -67,27 +82,27 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	case ConfigCmd::PLAY_SOUND: {
-		const u16 startFreq	 = random(1000, 5000);
-		const u16 endFreq		 = random(1000, 5000);
+		const u16 startFreq		= random(1000, 5000);
+		const u16 endFreq		= random(1000, 5000);
 		const u16 sweepDuration = random(400, 1000);
-		u16 pauseDuration		 = random(100, 1000);
-		const u16 pauseEn		 = random(0, 2);
+		u16 pauseDuration		= random(100, 1000);
+		const u16 pauseEn		= random(0, 2);
 		pauseDuration *= pauseEn;
 		const u16 repeat = random(1, 11);
 		makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
-		u8 len = 0;
-		buf[len++]	= startFreq & 0xFF;
-		buf[len++]	= startFreq >> 8;
-		buf[len++]	= endFreq & 0xFF;
-		buf[len++]	= endFreq >> 8;
-		buf[len++]	= sweepDuration & 0xFF;
-		buf[len++]	= sweepDuration >> 8;
-		buf[len++]	= pauseDuration & 0xFF;
-		buf[len++]	= pauseDuration >> 8;
-		buf[len++]	= pauseEn;
-		buf[len++]	= repeat;
-		buf[len++]	= (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
-		buf[len++]	= (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
+		u8 len	   = 0;
+		buf[len++] = startFreq & 0xFF;
+		buf[len++] = startFreq >> 8;
+		buf[len++] = endFreq & 0xFF;
+		buf[len++] = endFreq >> 8;
+		buf[len++] = sweepDuration & 0xFF;
+		buf[len++] = sweepDuration >> 8;
+		buf[len++] = pauseDuration & 0xFF;
+		buf[len++] = pauseDuration >> 8;
+		buf[len++] = pauseEn;
+		buf[len++] = repeat;
+		buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
+		buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
 		sendCommand(configMsgCommand | 0x4000, buf, len);
 	} break;
 	case ConfigCmd::BB_FILE_LIST: {
@@ -145,8 +160,8 @@ void handleConfigCmd() {
 		 * 13. byte that indicates frequency divider
 		 * 14-21: recording flags
 		 */
-		u8 len		  = configSerialBuffer[CONFIG_BUFFER_LENGTH];
-		len				  = len > 12 ? 12 : len;
+		u8 len		 = configSerialBuffer[CONFIG_BUFFER_LENGTH];
+		len			 = len > 12 ? 12 : len;
 		u8 *fileNums = &configSerialBuffer[CONFIG_BUFFER_DATA];
 		u8 buffer[22 * len];
 		u8 index = 0;
@@ -159,7 +174,7 @@ void handleConfigCmd() {
 			File logFile = LittleFS.open(path, "r");
 #elif BLACKBOX_STORAGE == SD_BB
 			snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
-			File logFile = SDFS.open(path, FILE_READ);
+			File logFile = SDFS.open(path, "r");
 #endif
 			if (!logFile)
 				continue;
@@ -199,7 +214,7 @@ void handleConfigCmd() {
 		throttles[(u8)MOTOR::FR] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 2] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 3] << 8);
 		throttles[(u8)MOTOR::RL] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
 		throttles[(u8)MOTOR::FL] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 6] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 7] << 8);
-		configOverrideMotors		  = 0;
+		configOverrideMotors	 = 0;
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	case ConfigCmd::GET_MOTORS: {
@@ -352,9 +367,9 @@ void handleConfigCmd() {
 	// } break;
 	case ConfigCmd::SERIAL_PASSTHROUGH: {
 		u8 serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
-		u32 baud	  = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
+		u32 baud	 = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
 		sendCommand(configMsgCommand | 0x4000, (char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 5);
-		u8 plusCount			  = 0;
+		u8 plusCount				  = 0;
 		elapsedMillis breakoutCounter = 0;
 		switch (serialNum) {
 		case 1:
@@ -471,6 +486,8 @@ void handleConfigCmd() {
 }
 
 void configuratorHandleByte(u8 c, u8 _serialNum) {
+	elapsedMicros taskTimer = 0;
+	tasks[TASK_CONFIGURATOR].runCounter++;
 	configSerialBuffer[configSerialBufferIndex++] = c;
 	// every message from the configurator starts with _K, followed by two bytes of data length (only for the data, thus between 0 and 65535), then 2 bytes command, then the data, then the checksum (1 byte XOR of length, command and data)
 	// 2 bytes prefix, 2 bytes length, 2 bytes command, data, 1 byte checksum
@@ -496,5 +513,14 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 		}
 		handleConfigCmd();
 		configSerialBufferIndex = 0;
+	}
+	u32 duration = taskTimer;
+	tasks[TASK_CONFIGURATOR].totalDuration += duration;
+	if (duration < tasks[TASK_CONFIGURATOR].minDuration) {
+		tasks[TASK_CONFIGURATOR].minDuration = duration;
+	}
+	if (duration > tasks[TASK_CONFIGURATOR].maxDuration) {
+		tasks[TASK_CONFIGURATOR].maxDuration = duration;
+		tasks[TASK_CONFIGURATOR].debugInfo	 = configMsgCommand;
 	}
 }

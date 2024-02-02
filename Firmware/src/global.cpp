@@ -27,4 +27,4 @@ f64 DECODE_R8(const u8 *buf) {
 	return result;
 }
 
-u32 __uninitialized_ram(crashInfo)[256];
+volatile u32 __uninitialized_ram(crashInfo)[256];

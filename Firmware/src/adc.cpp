@@ -1,10 +1,10 @@
 #include "global.h"
 
 u16 adcVoltage = 0, pVoltage = 0; // centivolts
-u16 emptyVoltage  = 0;
-f32 adcCurrent	   = 0;
+u16 emptyVoltage	   = 0;
+f32 adcCurrent		   = 0;
 elapsedMillis adcTimer = 0;
-f32 temperature	   = 0;
+f32 temperature		   = 0;
 
 void initADC() {
 	adc_gpio_init(PIN_ADC_VOLTAGE);
@@ -24,12 +24,14 @@ void initADC() {
 u8 adcType = 0; // 1 = voltage, 0 = current
 
 void adcLoop() {
-	if (adcTimer > 50) {
+	if (adcTimer >= 50) {
+		elapsedMicros taskTimer = 0;
+		tasks[TASK_ADC].runCounter++;
 		adcTimer = 0;
 		if (adcType) {
 			adc_select_input(PIN_ADC_VOLTAGE - 26);
-			u32 raw = adc_read();
-			adcVoltage	 = (raw * 3630U) / 4096U; // 36.3V full deflection, voltage divider is 11:1, and 4096 is 3.3V
+			u32 raw	   = adc_read();
+			adcVoltage = (raw * 3630U) / 4096U; // 36.3V full deflection, voltage divider is 11:1, and 4096 is 3.3V
 			if ((adcVoltage > emptyVoltage && pVoltage <= emptyVoltage) || (adcVoltage < 400 && pVoltage >= 400)) {
 				stopSound();
 			} else if (pVoltage > emptyVoltage && adcVoltage <= emptyVoltage) {
@@ -53,6 +55,14 @@ void adcLoop() {
 			adc_select_input(4);
 			temperature = analogReadTemp();
 		}
-		adcType = !adcType;
+		adcType		 = !adcType;
+		u32 duration = taskTimer;
+		tasks[TASK_ADC].totalDuration += duration;
+		if (duration < tasks[TASK_ADC].minDuration) {
+			tasks[TASK_ADC].minDuration = duration;
+		}
+		if (duration > tasks[TASK_ADC].maxDuration) {
+			tasks[TASK_ADC].maxDuration = duration;
+		}
 	}
 }
