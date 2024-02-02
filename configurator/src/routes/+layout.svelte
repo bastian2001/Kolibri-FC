@@ -92,6 +92,7 @@
 	function listDevices() {
 		devices = port.getDevices();
 	}
+	setTimeout(listDevices, 150);
 	function odh() {
 		connected = false;
 	}
