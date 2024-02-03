@@ -1529,7 +1529,11 @@
 				//download file
 				const a = document.createElement('a');
 				a.href = url;
-				a.download = `blackbox-${prefixZeros(selected, 2)}-${data.startTime}.${type}`;
+				a.download = `bb${prefixZeros(selected, 2)} ${data.startTime
+					.toISOString()
+					.replace('T', ' ')
+					.replace('.000Z', '')
+					.replaceAll('_', '-')}.${type}`;
 				a.click();
 				URL.revokeObjectURL(url);
 			})
