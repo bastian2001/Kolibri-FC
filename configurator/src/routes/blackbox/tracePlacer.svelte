@@ -89,7 +89,7 @@
 	/>&nbsp;-
 	<input type="number" name="maxValue" id="maxValue" bind:value={maxValue} disabled={autoRangeOn} />
 	&nbsp;
-	<p class="unit">{flagProps[flagName]?.unit || ''}</p>
+	<p class="unit">{flagProps[flagName]?.unit || genFlagProps[flagName]?.unit || ''}</p>
 </div>
 
 <style>
