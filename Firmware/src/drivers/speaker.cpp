@@ -37,14 +37,13 @@ typedef struct rtttlSong {
 } RTTTLSong;
 RTTTLSong songToPlay;
 
-#define FREQ_TO_WRAP(freq) (1000000 / freq)
+#define FREQ_TO_WRAP(freq) (2000000 / freq)
 
 void initSpeaker() {
 	gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PWM);
 	u8 sliceNum = pwm_gpio_to_slice_num(PIN_SPEAKER);
-	pwm_set_clkdiv_int_frac(sliceNum, 132, 0); // 1MHz, therefore a wrap of 50000 for 20Hz, and a wrap of 200 for 5kHz
-	// default: 2.5kHz
-	pwm_set_wrap(sliceNum, 400);
+	pwm_set_clkdiv_int_frac(sliceNum, 132, 0); // 2MHz, therefore a wrap of 50000 for 20Hz, and a wrap of 200 for 5kHz
+	pwm_set_wrap(sliceNum, FREQ_TO_WRAP(1000));
 	pwm_set_gpio_level(PIN_SPEAKER, 0);
 	pwm_set_enabled(sliceNum, true);
 }

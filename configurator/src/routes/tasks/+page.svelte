@@ -70,7 +70,7 @@
 	onMount(() => {
 		interval = setInterval(() => {
 			port.sendCommand(ConfigCmd.TASK_STATUS);
-		}, 1000);
+		}, 200);
 	});
 	onDestroy(() => {
 		clearInterval(interval);

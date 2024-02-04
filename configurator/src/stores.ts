@@ -1,5 +1,6 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api';
+import { leBytesToInt } from './utils';
 
 export const ConfigCmd = {
 	STATUS: 0,
@@ -114,6 +115,7 @@ function createPort() {
 		});
 	};
 	const rxBuf = [] as number[];
+	let pingStarted = 0;
 	const read = () => {
 		invoke('serial_read')
 			.then((d: unknown) => {
@@ -155,6 +157,12 @@ function createPort() {
 					length: len
 				};
 				set(c);
+				if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0x4000)) {
+					pingTime.fromConfigurator = Date.now() - pingStarted;
+					//pong response from FC received
+				} else if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0xc000)) {
+					pingTime.fromFC = leBytesToInt(c.data);
+				}
 			});
 	};
 	let pingInterval: number = -1;
@@ -169,6 +177,7 @@ function createPort() {
 					readInterval = setInterval(read, 20);
 					pingInterval = setInterval(() => {
 						sendCommand(ConfigCmd.CONFIGURATOR_PING).catch(() => {});
+						pingStarted = Date.now();
 					}, 200);
 					statusInterval = setInterval(() => {
 						sendCommand(ConfigCmd.STATUS).catch(() => {});
@@ -218,7 +227,13 @@ function createPort() {
 		const i = onDisconnectHandlers.indexOf(handler);
 		if (i >= 0) onDisconnectHandlers.splice(i, 1);
 	};
-
+	let pingTime = {
+		fromConfigurator: -1,
+		fromFC: -1
+	};
+	function getPingTime() {
+		return pingTime;
+	}
 	return {
 		subscribe,
 		set,
@@ -229,7 +244,8 @@ function createPort() {
 		enableCommands,
 		sendRaw,
 		addOnDisconnectHandler,
-		removeOnDisconnectHandler
+		removeOnDisconnectHandler,
+		getPingTime
 	};
 }
 export const port = createPort();

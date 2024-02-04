@@ -1502,7 +1502,7 @@
 	}
 
 	function deleteLog() {
-		const logNum = logNums[0].num as number;
+		const logNum = logNums[selected].num as number;
 		port.sendCommand(ConfigCmd.BB_FILE_DELETE, [logNum]);
 	}
 	function openLog() {

@@ -86,6 +86,10 @@
 			case ConfigCmd.BB_FORMAT | 0x8000:
 				log = [...log, 'Blackbox format failed'];
 				break;
+			case ConfigCmd.CONFIGURATOR_PING:
+				//ping received from FC, confirm
+				port.sendCommand(ConfigCmd.CONFIGURATOR_PING | 0x4000);
+				break;
 		}
 	}
 

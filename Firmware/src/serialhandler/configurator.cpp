@@ -9,12 +9,17 @@ elapsedMillis configTimer = 0;
 
 elapsedMillis configOverrideMotors = 1001;
 
-elapsedMillis lastConfigPing = 0;
-bool configuratorConnected	 = false;
+elapsedMillis lastConfigPingRx = 0;
+elapsedMillis lastConfigPingTx = 0;
+bool configuratorConnected	   = false;
 
 void configuratorLoop() {
-	if (lastConfigPing > 1000)
+	if (lastConfigPingRx > 1000)
 		configuratorConnected = false;
+	if (lastConfigPingTx > 1000) {
+		sendCommand((u16)ConfigCmd::CONFIGURATOR_PING);
+		lastConfigPingTx = 0;
+	}
 }
 
 void sendCommand(u16 command, const char *data, u16 len) {
@@ -236,8 +241,12 @@ void handleConfigCmd() {
 	case ConfigCmd::CONFIGURATOR_PING:
 		sendCommand(configMsgCommand | 0x4000);
 		configuratorConnected = true;
-		lastConfigPing		  = 0;
+		lastConfigPingRx	  = 0;
 		break;
+	case (ConfigCmd)((u16)ConfigCmd::CONFIGURATOR_PING | 0x4000): {
+		u32 duration = lastConfigPingTx;
+		sendCommand((u16)ConfigCmd::CONFIGURATOR_PING | 0xC000, (char *)&duration, 4);
+	} break;
 	case ConfigCmd::REBOOT_TO_BOOTLOADER:
 		sendCommand(configMsgCommand | 0x4000);
 		delay(100);

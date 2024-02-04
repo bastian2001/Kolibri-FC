@@ -18,6 +18,8 @@
 	let armingDisableFlags = 0;
 	let armed = false;
 	let configuratorConnected = false;
+	let pingFromConfigurator = -1,
+		pingFromFC = -1;
 
 	let getRotationInterval = 0;
 	let xBox = null as any;
@@ -209,6 +211,7 @@
 		});
 	}
 
+	let pingInterval = 0;
 	onMount(() => {
 		getRotationInterval = setInterval(() => {
 			port.sendCommand(ConfigCmd.GET_ROTATION).catch(() => {});
@@ -227,10 +230,15 @@
 				})
 				.catch(() => {});
 		}, 200);
+		pingInterval = setInterval(() => {
+			pingFromConfigurator = port.getPingTime().fromConfigurator;
+			pingFromFC = port.getPingTime().fromFC;
+		}, 1000);
 	});
 	onDestroy(() => {
 		clearInterval(getRotationInterval);
 		clearInterval(getGpsData);
+		clearInterval(pingInterval);
 	});
 </script>
 
@@ -292,6 +300,9 @@
 	{ARMING_DISABLE_FLAGS.map((flag, i) => {
 		if (armingDisableFlags & (1 << i)) return flag + ', ';
 	}).join('')}
+</div>
+<div>
+	Ping from Configurator: {pingFromConfigurator} - Ping from FC: {pingFromFC}
 </div>
 <div class="drone3DPreview">
 	<div class="zBox" bind:this={zBox}>
