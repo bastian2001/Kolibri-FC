@@ -16,7 +16,8 @@ typedef struct task {
 extern FCTask tasks[32];
 
 enum Tasks {
-	TASK_BARO,
+	TASK_BAROREAD,
+	TASK_BAROEVAL,
 	TASK_SPEAKER,
 	TASK_BLACKBOX,
 	TASK_ELRS,

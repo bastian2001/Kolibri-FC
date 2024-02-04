@@ -66,6 +66,7 @@ void loop() {
 	}
 	taskTimer0 = 0;
 	speakerLoop();
+	evalBaroLoop();
 	blackboxLoop();
 	ELRS->loop();
 	modesLoop();
@@ -111,7 +112,7 @@ void loop1() {
 			// osdLoop(); // slow, but both need to be on this core, due to SPI collision
 			break;
 		case 1:
-			// baroLoop();
+			readBaroLoop();
 			break;
 		}
 		gyroUpdateFlag &= ~1;

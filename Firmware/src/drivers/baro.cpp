@@ -21,7 +21,7 @@ u8 baroTemp		  = 0;
 i32 baroCalibration[9];
 const i32 baroScaleFactor = 7864320;
 
-void getRawPressureTemperature(i32 *pressure, i32 *temperature) {
+void getRawPressureTemperature(volatile i32 *pressure, volatile i32 *temperature) {
 	u8 data[6];
 	regRead(SPI_BARO, PIN_BARO_CS, 0x00, data, 6, 0, false);
 	// preserve the sign bit
@@ -69,29 +69,46 @@ void initBaro() {
 }
 
 elapsedMillis baroTimer = 0;
-void baroLoop() {
+volatile i32 pressure, baroTemperature;
+volatile bool newBaroData = false;
+void readBaroLoop() {
 	if (baroTimer >= 20) {
-		tasks[TASK_BARO].runCounter++;
 		elapsedMicros taskTimer = 0;
-		baroTimer				= 0;
-		i32 pressure, baroTemperature;
+		tasks[TASK_BAROREAD].runCounter++;
+		baroTimer = 0;
 		getRawPressureTemperature(&pressure, &baroTemperature);
-		f32 temp				= 201 * .5f - baroTemperature / 7864320.f * 260;
-		f32 pressureScaled		= pressure / 7864320.f;
-		f32 temperatureScaled	= baroTemperature / 7864320.f;
-		f32 pressureCompensated = baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
-		f32 height				= 44330 * (1 - powf(pressureCompensated / 101325.f, 1 / 5.255f));
-		baroPres				= pressureCompensated;
-		baroTemp				= temp;
-		baroASL					= height;
-		baroATO					= height - takeoffOffset;
-		u32 duration			= taskTimer;
-		tasks[TASK_BARO].totalDuration += duration;
-		if (duration < tasks[TASK_BARO].minDuration) {
-			tasks[TASK_BARO].minDuration = duration;
+		newBaroData	 = true;
+		u32 duration = taskTimer;
+		tasks[TASK_BAROREAD].totalDuration += duration;
+		if (duration < tasks[TASK_BAROREAD].minDuration) {
+			tasks[TASK_BAROREAD].minDuration = duration;
 		}
-		if (duration > tasks[TASK_BARO].maxDuration) {
-			tasks[TASK_BARO].maxDuration = duration;
+		if (duration > tasks[TASK_BAROREAD].maxDuration) {
+			tasks[TASK_BAROREAD].maxDuration = duration;
 		}
+	}
+}
+
+void evalBaroLoop() {
+	if (!newBaroData) return;
+	newBaroData = false;
+	tasks[TASK_BAROEVAL].runCounter++;
+	elapsedMicros taskTimer = 0;
+	f32 temp				= 201 * .5f - baroTemperature / 7864320.f * 260;
+	f32 pressureScaled		= pressure / 7864320.f;
+	f32 temperatureScaled	= baroTemperature / 7864320.f;
+	f32 pressureCompensated = baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
+	f32 height				= 44330 * (1 - powf(pressureCompensated / 101325.f, 1 / 5.255f));
+	baroPres				= pressureCompensated;
+	baroTemp				= temp;
+	baroASL					= height;
+	baroATO					= height - takeoffOffset;
+	u32 duration			= taskTimer;
+	tasks[TASK_BAROEVAL].totalDuration += duration;
+	if (duration < tasks[TASK_BAROEVAL].minDuration) {
+		tasks[TASK_BAROEVAL].minDuration = duration;
+	}
+	if (duration > tasks[TASK_BAROEVAL].maxDuration) {
+		tasks[TASK_BAROEVAL].maxDuration = duration;
 	}
 }

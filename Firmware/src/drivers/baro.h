@@ -6,4 +6,6 @@ extern u8 baroTemp;
 
 void initBaro();
 
-void baroLoop();
+void readBaroLoop();
+
+void evalBaroLoop();

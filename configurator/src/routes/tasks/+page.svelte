@@ -6,7 +6,8 @@
 	$: handleCommand($port);
 
 	const TASK_NAMES = [
-		'Baro',
+		'Baro Read',
+		'Baro Eval',
 		'Speaker',
 		'Blackbox',
 		'ELRS',
