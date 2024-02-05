@@ -33,6 +33,9 @@ enum Tasks {
 	TASK_TASKMANAGER,
 	TASK_LOOP1,
 	TASK_LOOP0,
+	TASK_IMU_GYRO,
+	TASK_IMU_ACCEL,
+	TASK_IMU_ANGLE
 };
 
 void initTaskManager();

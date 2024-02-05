@@ -1,7 +1,7 @@
 #include "FS.h"
 #include "elapsedMillis.h"
-#include <Arduino.h>
 #include "typedefs.h"
+#include <Arduino.h>
 #define LOG_ROLL_ELRS_RAW 1 << 0
 #define LOG_PITCH_ELRS_RAW 1 << 1
 #define LOG_THROTTLE_ELRS_RAW 1 << 2
@@ -43,7 +43,7 @@
 #define LOG_HEAD_LOGGED_FIELDS 158
 
 extern u64 bbFlags;
-extern bool bbLogging;
+extern volatile bool bbLogging;
 extern FSInfo64 fs_info;
 extern elapsedMillis infoAge;
 extern u8 bbFreqDivider;

@@ -3,8 +3,8 @@
 u64 bbFlags		   = 0;
 u64 currentBBFlags = 0;
 
-bool bbLogging = false;
-bool fsReady   = false;
+volatile bool bbLogging = false;
+volatile bool fsReady	= false;
 
 FSInfo64 fsInfo;
 int currentLogNum = 0;
@@ -15,7 +15,7 @@ File blackboxFile;
 i32 maxFileSize = 0;
 elapsedMicros frametime;
 void blackboxLoop() {
-	if (rp2040.fifo.available()) {
+	if (rp2040.fifo.available() && bbLogging && fsReady) {
 		elapsedMicros taskTimer = 0;
 		tasks[TASK_BLACKBOX].runCounter++;
 		u8 *frame = (u8 *)rp2040.fifo.pop();
@@ -197,7 +197,6 @@ void startLogging() {
 #endif
 	if (!blackboxFile)
 		return;
-	bbLogging		= true;
 	const u8 data[] = {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 0 // magic bytes, version
 	};
@@ -226,6 +225,7 @@ void startLogging() {
 			pg[i][j] = pidGains[i][j].getRaw();
 	blackboxFile.write((u8 *)pg, 84);
 	blackboxFile.write((u8 *)&bbFlags, 8);
+	bbLogging = true;
 	// 166 bytes header
 	frametime = 0;
 }
@@ -239,9 +239,9 @@ void endLogging() {
 	bbLogging = false;
 }
 
-u8 bbBuffer[128];
-void writeSingleFrame() {
-	size_t bufferPos = 0;
+void __not_in_flash_func(writeSingleFrame)() {
+	u8 *bbBuffer	 = (u8 *)malloc(128);
+	size_t bufferPos = 1;
 	if (!fsReady || !bbLogging) {
 		return;
 	}
@@ -383,11 +383,13 @@ void writeSingleFrame() {
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);
 #elif BLACKBOX_STORAGE == SD_BB
-	void *buf = malloc(bufferPos + 1);
-	memcpy((void *)((u8 *)buf + 1), bbBuffer, bufferPos);
-	((u8 *)buf)[0] = bufferPos;
-	if (!(rp2040.fifo.push_nb((u32)buf))) {
-		free(buf);
+	// void *buf = malloc(bufferPos + 1);
+	// memcpy((void *)((u8 *)buf + 1), bbBuffer, bufferPos);
+	// ((u8 *)buf)[0] = bufferPos;
+	// if (!(rp2040.fifo.push_nb((u32)buf))) {
+	((u8 *)bbBuffer)[0] = bufferPos - 1;
+	if (!(rp2040.fifo.push_nb((u32)bbBuffer))) {
+		free(bbBuffer);
 		// if the fifo is full, we just drop the frame :(
 	}
 #endif

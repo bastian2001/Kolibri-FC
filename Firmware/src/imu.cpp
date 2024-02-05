@@ -35,24 +35,22 @@ f32 map(f32 x, f32 in_min, f32 in_max, f32 out_min, f32 out_max) {
 	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-void updateFromGyro() {
+void __not_in_flash_func(updateFromGyro)() {
 	// quaternion of all 3 axis rotations combined. All the other terms are dependent on the order of multiplication, therefore we leave them out, as they are arbitrarily defined
 	// e.g. defining a q_x, q_y and q_z and then multiplying them in a certain order would result in a different quaternion than multiplying them in a different order. Therefore we omit these inconsistent terms completely
-	// f32 all[]	   = {gyroDataRaw[1] * RAW_TO_HALF_ANGLE, gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
-	Quaternion all = {gyroDataRaw[1] * RAW_TO_HALF_ANGLE, gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE, 1};
 
-	Quaternion_multiply(&all, &q, &q);
-	// Quaternion buffer = q;
-	// q.w += (-buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2]);
-	// q.v[0] += (+buffer.w * all[0] + buffer.v[1] * all[2] - buffer.v[2] * all[1]);
-	// q.v[1] += (+buffer.w * all[1] - buffer.v[0] * all[2] + buffer.v[2] * all[0]);
-	// q.v[2] += (+buffer.w * all[2] + buffer.v[0] * all[1] - buffer.v[1] * all[0]);
+	f32 all[]		  = {gyroDataRaw[1] * RAW_TO_HALF_ANGLE, gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
+	Quaternion buffer = q;
+	q.w += (-buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2]);
+	q.v[0] += (+buffer.w * all[0] - buffer.v[1] * all[2] + buffer.v[2] * all[1]);
+	q.v[1] += (+buffer.w * all[1] + buffer.v[0] * all[2] - buffer.v[2] * all[0]);
+	q.v[2] += (+buffer.w * all[2] - buffer.v[0] * all[1] + buffer.v[1] * all[0]);
 
 	Quaternion_normalize(&q, &q);
 }
 
 f32 orientation_vector[3];
-void updateFromAccel() {
+void __not_in_flash_func(updateFromAccel)() {
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
 	// p2.y = 2*x*y*p1.x + y*y*p1.y + 2*z*y*p1.z + 2*w*z*p1.x - z*z*p1.y + w*w*p1.y - 2*x*w*p1.z - x*x*p1.y;
@@ -63,14 +61,15 @@ void updateFromAccel() {
 	orientation_vector[1] = q.v[1] * q.v[2] * -2 + q.w * q.v[0] * 2;
 	orientation_vector[2] = -q.v[2] * q.v[2] + q.v[1] * q.v[1] + q.v[0] * q.v[0] - q.w * q.w;
 
-	f32 accelVector[3]	= {(f32) - (accelDataRaw[1]), (f32) - (accelDataRaw[0]), (f32) - (accelDataRaw[2])};
 	f32 accelVectorNorm = sqrtf((int)accelDataRaw[1] * (int)accelDataRaw[1] + (int)accelDataRaw[0] * (int)accelDataRaw[0] + (int)accelDataRaw[2] * (int)accelDataRaw[2]);
+	f32 accelVector[3];
 	if (accelVectorNorm > 0.01f) {
 		f32 invAccelVectorNorm = 1 / accelVectorNorm;
-		accelVector[0] *= invAccelVectorNorm;
-		accelVector[1] *= invAccelVectorNorm;
-		accelVector[2] *= invAccelVectorNorm;
-	}
+		accelVector[0]		   = invAccelVectorNorm * -accelDataRaw[1];
+		accelVector[1]		   = invAccelVectorNorm * -accelDataRaw[0];
+		accelVector[2]		   = invAccelVectorNorm * -accelDataRaw[2];
+	} else
+		return;
 	Quaternion shortest_path;
 	Quaternion_from_unit_vecs(orientation_vector, accelVector, &shortest_path);
 
@@ -79,14 +78,25 @@ void updateFromAccel() {
 
 	if (accAngle > ANGLE_CHANGE_LIMIT) accAngle = ANGLE_CHANGE_LIMIT;
 
-	Quaternion correction;
-	Quaternion_fromAxisAngle(axis, accAngle, &correction);
+	// Quaternion c;
+	// Quaternion_fromAxisAngle(axis, accAngle, &c);
+	// Quaternion_multiply(&c, &q, &q);
+	f32 c[3]; // correction quaternion, but w is 1
+	f32 co = accAngle * 0.5f;
+	c[0]   = axis[0] * co;
+	c[1]   = axis[1] * co;
+	c[2]   = axis[2] * co;
 
-	Quaternion_multiply(&correction, &q, &q);
+	Quaternion buffer;
+	buffer.w	= q.w - c[0] * q.v[0] - c[1] * q.v[1] - c[2] * q.v[2];
+	buffer.v[0] = c[0] * q.w + q.v[0] + c[1] * q.v[2] - c[2] * q.v[1];
+	buffer.v[1] = q.v[1] - c[0] * q.v[2] + c[1] * q.w + c[2] * q.v[0];
+	buffer.v[2] = q.v[2] + c[0] * q.v[1] - c[1] * q.v[0] + c[2] * q.w;
+
 	Quaternion_normalize(&q, &q);
 }
 
-void updatePitchRollValues() {
+void __not_in_flash_func(updatePitchRollValues)() {
 	Quaternion shortest_path;
 	// no recalculation of orientation_vector, as this saves 50µs @132MHz at only a slight loss in precision (accel update delayed by 1 cycle)
 	// orientation_vector[0] = q.w * q.v[1] * -2 + q.v[0] * q.v[2] * -2;
@@ -101,7 +111,7 @@ void updatePitchRollValues() {
 		// Rotate along any orthonormal vec to vec1 or vec2 as the axis.
 		shortest_path.w	   = 0;
 		shortest_path.v[0] = 0;
-		shortest_path.v[1] = -orientation_vector[2];
+		shortest_path.v[1] = dot;
 		shortest_path.v[2] = orientation_vector[1];
 	} else {
 		shortest_path.w	   = dot + 1;
@@ -160,6 +170,30 @@ void updateAttitude() {
 	t1 = timer;
 	updatePitchRollValues();
 	t2 = timer;
+	tasks[TASK_IMU_GYRO].totalDuration += t0;
+	tasks[TASK_IMU_ACCEL].totalDuration += t1 - t0;
+	tasks[TASK_IMU_ANGLE].totalDuration += t2 - t1;
+	if (t0 < tasks[TASK_IMU_GYRO].minDuration) {
+		tasks[TASK_IMU_GYRO].minDuration = t0;
+	}
+	if (t0 > tasks[TASK_IMU_GYRO].maxDuration) {
+		tasks[TASK_IMU_GYRO].maxDuration = t0;
+	}
+	if (t1 - t0 < tasks[TASK_IMU_ACCEL].minDuration) {
+		tasks[TASK_IMU_ACCEL].minDuration = t1 - t0;
+	}
+	if (t1 - t0 > tasks[TASK_IMU_ACCEL].maxDuration) {
+		tasks[TASK_IMU_ACCEL].maxDuration = t1 - t0;
+	}
+	if (t2 - t1 < tasks[TASK_IMU_ANGLE].minDuration) {
+		tasks[TASK_IMU_ANGLE].minDuration = t2 - t1;
+	}
+	if (t2 - t1 > tasks[TASK_IMU_ANGLE].maxDuration) {
+		tasks[TASK_IMU_ANGLE].maxDuration = t2 - t1;
+	}
+	tasks[TASK_IMU_GYRO].runCounter++;
+	tasks[TASK_IMU_ACCEL].runCounter++;
+	tasks[TASK_IMU_ANGLE].runCounter++;
 	u32 duration = taskTimer;
 	tasks[TASK_IMU].totalDuration += duration;
 	if (duration < tasks[TASK_IMU].minDuration) {

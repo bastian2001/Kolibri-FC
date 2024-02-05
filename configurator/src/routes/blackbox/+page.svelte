@@ -1297,6 +1297,7 @@
 				const numTraces = graph.length;
 				for (let j = 0; j < numTraces; j++) {
 					const trace = graph[j];
+					if (!trace.flagName) continue;
 					let bbFlag = BB_ALL_FLAGS[trace.flagName];
 					if (trace.flagName.startsWith('GEN_'))
 						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];

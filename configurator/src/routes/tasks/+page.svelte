@@ -22,7 +22,10 @@
 		'OSD',
 		'Task Manager',
 		'Loop 1',
-		'Loop 0'
+		'Loop 0',
+		'IMU Gyro',
+		'IMU Accel',
+		'IMU Angle'
 	];
 
 	let tasks = [] as {
