@@ -55,13 +55,21 @@
 		let maxSetpoints = [0, 0, 0];
 		for (let exp = 0; exp < 5; exp++)
 			for (let ax = 0; ax < 3; ax++) maxSetpoints[ax] += file.rateFactors[exp][ax];
-		const max = Math.max(
-			...maxSetpoints,
-			...file.frames.map((f) => Math.max(f.gyro.roll || 0, f.gyro.pitch || 0, f.gyro.yaw || 0))
-		);
-		const min = Math.min(
-			...file.frames.map((f) => Math.min(f.gyro.roll || 0, f.gyro.pitch || 0, f.gyro.yaw || 0))
-		);
+		//Math.max leads to a stack overflow, thus using a for loop now
+		let max = 0,
+			min = 0;
+		for (let i = 0; i < maxSetpoints.length; i++) {
+			if (maxSetpoints[i] > max) max = maxSetpoints[i];
+			if (maxSetpoints[i] < min) min = maxSetpoints[i];
+		}
+		file.frames.forEach((f) => {
+			if (f.gyro.roll! > max) max = f.gyro.roll!;
+			if (f.gyro.pitch! > max) max = f.gyro.pitch!;
+			if (f.gyro.yaw! > max) max = f.gyro.yaw!;
+			if (f.gyro.roll! < min) min = f.gyro.roll!;
+			if (f.gyro.pitch! < min) min = f.gyro.pitch!;
+			if (f.gyro.yaw! < min) min = f.gyro.yaw!;
+		});
 		const fullRange = Math.round(Math.max(max, -min));
 		return { max: fullRange, min: -fullRange };
 	};
@@ -112,7 +120,7 @@
 			path: 'setpoint.throttle',
 			minValue: 1000,
 			maxValue: 2000,
-			unit: '°/sec'
+			unit: 'µs'
 		},
 		LOG_YAW_SETPOINT: {
 			name: 'Yaw Setpoint',
