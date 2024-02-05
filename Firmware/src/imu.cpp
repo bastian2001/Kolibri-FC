@@ -6,11 +6,11 @@
 // Z: down / yaw right
 // (Tait-Bryan angles)
 
-const f32 RAW_TO_RAD_PER_SEC	 = (f32)(PI * 4000 / 65536 / 180); // 2000deg per second, but raw is only +/-.5
-const f32 FRAME_TIME			 = (f32)(1. / 3200);
-const f32 RAW_TO_HALF_ANGLE		 = (f32)(RAW_TO_RAD_PER_SEC * FRAME_TIME / 2);
+const f32 RAW_TO_RAD_PER_SEC	 = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
+const f32 FRAME_TIME			 = 1. / 3200;
+const f32 RAW_TO_HALF_ANGLE		 = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 const f32 ANGLE_CHANGE_LIMIT	 = .0002;
-const f32 RAW_TO_DELTA_M_PER_SEC = (f32)(9.81 * 32 / 65536); // +/-16g
+const f32 RAW_TO_DELTA_M_PER_SEC = 9.81 * 32 / 65536; // +/-16g
 
 f32 pitch, roll, yaw, rpAngle;
 i32 headMotAtt;		 // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
@@ -39,7 +39,7 @@ void __not_in_flash_func(updateFromGyro)() {
 	// quaternion of all 3 axis rotations combined. All the other terms are dependent on the order of multiplication, therefore we leave them out, as they are arbitrarily defined
 	// e.g. defining a q_x, q_y and q_z and then multiplying them in a certain order would result in a different quaternion than multiplying them in a different order. Therefore we omit these inconsistent terms completely
 
-	f32 all[]		  = {gyroDataRaw[1] * RAW_TO_HALF_ANGLE, gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
+	f32 all[]		  = {-gyroDataRaw[1] * RAW_TO_HALF_ANGLE, -gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
 	Quaternion buffer = q;
 	q.w += (-buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2]);
 	q.v[0] += (+buffer.w * all[0] - buffer.v[1] * all[2] + buffer.v[2] * all[1]);
@@ -65,8 +65,8 @@ void __not_in_flash_func(updateFromAccel)() {
 	f32 accelVector[3];
 	if (accelVectorNorm > 0.01f) {
 		f32 invAccelVectorNorm = 1 / accelVectorNorm;
-		accelVector[0]		   = invAccelVectorNorm * -accelDataRaw[1];
-		accelVector[1]		   = invAccelVectorNorm * -accelDataRaw[0];
+		accelVector[0]		   = invAccelVectorNorm * accelDataRaw[1];
+		accelVector[1]		   = invAccelVectorNorm * accelDataRaw[0];
 		accelVector[2]		   = invAccelVectorNorm * -accelDataRaw[2];
 	} else
 		return;
@@ -92,6 +92,7 @@ void __not_in_flash_func(updateFromAccel)() {
 	buffer.v[0] = c[0] * q.w + q.v[0] + c[1] * q.v[2] - c[2] * q.v[1];
 	buffer.v[1] = q.v[1] - c[0] * q.v[2] + c[1] * q.w + c[2] * q.v[0];
 	buffer.v[2] = q.v[2] + c[0] * q.v[1] - c[1] * q.v[0] + c[2] * q.w;
+	q			= buffer;
 
 	Quaternion_normalize(&q, &q);
 }

@@ -81,13 +81,12 @@ void pidLoop() {
 	tasks[TASK_GYROREAD].runCounter++;
 	gyroGetData(bmiDataRaw);
 	for (int i = 0; i < 3; i++) {
-		imuData[i].setRaw(gyroDataRaw[i]); // gyro data in range of -.5 ... +.5 due to fixed point math
-		imuData[i] *= 4000;				   // gyro data in range of -2000 ... +2000 (degrees per second)
-										   // imuData[i + 3].setRaw(accelDataRaw[i]);
-										   // imuData[i + 3] *= 32;
+		imuData[i].setRaw((i32)gyroDataRaw[i] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math,gyro data in range of -2000 ... +2000 (degrees per second)
+													   // imuData[i + 3].setRaw(accelDataRaw[i]);
+													   // imuData[i + 3] *= 32;
 	}
-	imuData[AXIS_ROLL] = -imuData[AXIS_ROLL];
-	imuData[AXIS_YAW]  = -imuData[AXIS_YAW];
+	imuData[AXIS_ROLL] = imuData[AXIS_ROLL];
+	imuData[AXIS_YAW]  = imuData[AXIS_YAW];
 	duration		   = taskTimerGyro;
 	tasks[TASK_GYROREAD].totalDuration += duration;
 	if (duration > tasks[TASK_GYROREAD].maxDuration)
