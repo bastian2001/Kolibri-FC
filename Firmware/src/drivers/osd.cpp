@@ -11,8 +11,6 @@ u8 elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can be s
 u8 elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 16 bytes for data
 
 void osdInit() {
-
-	u8 data	 = 0;
 	osdTimer = 0;
 }
 
@@ -81,6 +79,7 @@ void drawElem(u8 elem) {
 	}
 }
 
+u8 initDataOSD = 0;
 void osdLoop() {
 	if (osdReady) {
 		elapsedMicros taskTimer = 0;
@@ -107,23 +106,23 @@ void osdLoop() {
 		if (duration > tasks[TASK_OSD].maxDuration) {
 			tasks[TASK_OSD].maxDuration = duration;
 		}
-	} else {
-		if (osdTimer > 1000) {
-			// gyro likely ready, check registers
-			u8 data	 = 0;
-			osdTimer = 0;
-			regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::STAT, &data, 1, 0, 0);
-			if (data && !(data & 0b01100000)) {
-				osdReady = true;
-			}
-			if (data & 1) {
-				data = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
-				regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data);
-			}
-			if (data & 2) {
-				data = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
-				regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data);
-			}
+	}
+	if (osdTimer > 1000 && osdReady != 1) {
+		// gyro likely ready, check registers
+		u8 data	 = 0;
+		osdTimer = 0;
+		regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::STAT, &initDataOSD, 1, 0, 0);
+		if (initDataOSD && !(initDataOSD & 0b01100000)) {
+			osdReady = 2;
 		}
+		if (!osdReady) return;
+		if (initDataOSD & 1) {
+			data = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
+			regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data);
+		} else {
+			data = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
+			regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data);
+		}
+		osdReady = initDataOSD & 0b00000011 ? 1 : 2;
 	}
 }

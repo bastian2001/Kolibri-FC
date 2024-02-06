@@ -109,15 +109,15 @@ void loop1() {
 	if (gyroUpdateFlag & 1) {
 		switch (taskState++) {
 		case 0:
-			// osdLoop(); // slow, but both need to be on this core, due to SPI collision
+			osdLoop(); // slow, but both need to be on this core, due to SPI collision
 			break;
 		case 1:
 			readBaroLoop();
 			break;
 		}
+		if (taskState == 2) taskState = 0;
 		gyroUpdateFlag &= ~1;
 	}
-	if (taskState == 2) taskState = 0;
 	duration = taskTimer;
 	tasks[TASK_LOOP1].totalDuration += duration;
 	if (duration > tasks[TASK_LOOP1].maxDuration) {
