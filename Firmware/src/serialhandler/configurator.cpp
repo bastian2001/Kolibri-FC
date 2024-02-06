@@ -16,7 +16,7 @@ bool configuratorConnected	   = false;
 void configuratorLoop() {
 	if (lastConfigPingRx > 1000)
 		configuratorConnected = false;
-	if (lastConfigPingTx > 1000) {
+	if (lastConfigPingTx > 1000 && configuratorConnected) {
 		sendCommand((u16)ConfigCmd::CONFIGURATOR_PING);
 		lastConfigPingTx = 0;
 	}

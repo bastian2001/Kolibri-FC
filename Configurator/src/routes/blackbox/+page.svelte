@@ -743,7 +743,7 @@
 				if (
 					typeof command.command === 'number' &&
 					!Number.isNaN(command.command) &&
-					!Object.values(ConfigCmd).includes(command.command & 0xffff)
+					!Object.values(ConfigCmd).includes(command.command & 0x3fff)
 				)
 					console.log({ ...command });
 		}
