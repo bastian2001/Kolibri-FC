@@ -47,4 +47,16 @@
         -   pads grounded insufficiently --> my bad, I didn't compare the library footprint with the datasheet, some pads are not grounded, as they were marked NC in the library but GND in the datasheet --> I put a solder bridge on the pads that are not grounded, and still it doesn't work well, so still unlikely
         -   AT2401C just not working? --> unlikely, but maybe there's a difference between this clone and the RFX2401C
         -   All of them are pretty unlikely, given the weird jump, but I don't know what else it could be
-    -   OSD crystal seems to have too little capacitance --> Analog part of the IC doesn't work, digital does. Using a 2016 size 10pF crystal instead of the 1612 9pF crystal helped
+    -   OSD crystal somewhat weird. Nothing I tried worked. I tried putting a crystal from a brand new off the shelf FC on it, as well as using a crystal from V0.2 (via separate wires), as well as changing various components like the AT7456E or capacitors. Sometimes (with the off-the-shelf crystal or the V0.2 crystal), I get video for like 20-60 seconds, but after a while they all stop working until I cut power and wait a few seconds. Nothing gets particularly warm, hence my confusion with the issue. Will go back to the design that worked in V0.2, to give me some space to play with all different sizes
+
+### V0.4
+
+-   Goal: V0.3 introduced a lot of new features, but not all work properly. This PCB will hopefully fix all the new issues that emerged with V0.3. Especially the ELRS range and the OSD crystal, but also implement a proper non-jank fixes for the other stuff. No new features, similar to V0.2 compared to V0.1. Biggest issue is that this time I cannot really explain to myself the two big issues and so I just have to guess.
+-   Fixes (at least I hope)
+    -   ELRS range -> Test RFX2401C instead of AT2401C, and ground all the pins. I will also swap the RFX2401C onto V0.3 after arrival to see if it's a PCB issue or a component issue
+    -   ELRS WiFi -> proper filter according to datasheet
+    -   ELRS crystal 90° rotated
+    -   ELRS boot pad is now a button
+    -   A pair of 4.7kOhm pullups for I2C
+    -   OSD crystal -> back to V0.2 design, except with more possibilities of testing, like selectable voltage and selectable whether a crystal or oscillator is used
+    -   slightly more spacing for 100nF caps on the bottom layer
