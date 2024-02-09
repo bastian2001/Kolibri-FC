@@ -3,7 +3,6 @@
 volatile u8 setupDone = 0b00;
 
 void setup() {
-	set_sys_clock_khz(264000, true);
 	Serial.begin(115200);
 	EEPROM.begin(4096);
 	Serial.println("Setup started");
