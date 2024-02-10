@@ -22,14 +22,6 @@ i16 throttles[4];
 
 fix32 imuData[6];
 
-enum {
-	P,
-	I,
-	D,
-	FF,
-	S,
-	iFalloff
-};
 fix32 pidGains[3][7];
 fix32 pidGainsVVel[3], pidGainsHVel[3];
 fix32 angleModeP = 10, velocityModeP = 3;
