@@ -3,6 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { Command } from '../stores';
 	import { leBytesToInt, roundToDecimal } from '../utils';
+	import { get } from 'svelte/store';
 
 	const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
 	const ARMING_DISABLE_FLAGS = [
@@ -32,7 +33,8 @@
 	};
 	let serialNum = 1;
 	let baudRate = 115200;
-	let getGpsData = 0;
+	let getGpsData = 0,
+		gpsDataSlow = 0;
 	let gpsAcc: {
 		tAcc: number;
 		hAcc: number;
@@ -101,6 +103,8 @@
 		minute: 0,
 		second: 0
 	};
+	let combinedAltitude = 0,
+		verticalVelocity = 0;
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
@@ -155,10 +159,12 @@
 					alt: leBytesToInt(command.data.slice(8, 12), true) * 1e-3,
 					velN: leBytesToInt(command.data.slice(12, 16), true) * 1e-3,
 					velE: leBytesToInt(command.data.slice(16, 20), true) * 1e-3,
-					velD: leBytesToInt(command.data.slice(20, 24), true), //* 1e-3,
+					velD: leBytesToInt(command.data.slice(20, 24), true) * 1e-3,
 					gSpeed: leBytesToInt(command.data.slice(24, 28), true) * 1e-3,
 					headMot: leBytesToInt(command.data.slice(28, 32), true) * 1e-5
 				};
+				combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
+				verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
 				break;
 			case ConfigCmd.GET_GPS_STATUS | 0x4000:
 				gpsStatus = {
@@ -222,14 +228,16 @@
 				.then(() => {
 					return port.sendCommand(ConfigCmd.GET_GPS_MOTION);
 				})
-				.then(() => {
-					return port.sendCommand(ConfigCmd.GET_GPS_STATUS);
-				})
+				.catch(() => {});
+		}, 200);
+		gpsDataSlow = setInterval(() => {
+			port
+				.sendCommand(ConfigCmd.GET_GPS_STATUS)
 				.then(() => {
 					return port.sendCommand(ConfigCmd.GET_GPS_TIME);
 				})
 				.catch(() => {});
-		}, 200);
+		}, 1500);
 		pingInterval = setInterval(() => {
 			pingFromConfigurator = port.getPingTime().fromConfigurator;
 			pingFromFC = port.getPingTime().fromFC;
@@ -238,6 +246,7 @@
 	onDestroy(() => {
 		clearInterval(getRotationInterval);
 		clearInterval(getGpsData);
+		clearInterval(gpsDataSlow);
 		clearInterval(pingInterval);
 	});
 </script>
@@ -327,6 +336,9 @@
 	<div class="axisLabel axisRoll">Roll: {roundToDecimal(attitude.roll, 2)}°</div>
 	<div class="axisLabel axisPitch">Pitch: {roundToDecimal(attitude.pitch, 2)}°</div>
 	<div class="axisLabel axisYaw">Yaw: {roundToDecimal(attitude.yaw, 2)}°</div>
+	<br />
+	Combined Altitude: {roundToDecimal(combinedAltitude, 2)}m<br />
+	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s
 </div>
 <div class="gpsAcc gpsInfo">
 	Time Accuracy: {roundToDecimal(gpsAcc.tAcc, 2)}µs<br />

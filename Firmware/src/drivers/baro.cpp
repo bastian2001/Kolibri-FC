@@ -1,7 +1,6 @@
 #include "global.h"
 #include <math.h>
 
-bool baroMeasuring = false;
 enum BARO_COEFFS {
 	c0,
 	c1,
@@ -14,11 +13,12 @@ enum BARO_COEFFS {
 	c30,
 };
 
-i16 baroASL		  = 0, baroATO; // above sea level, above takeoff
-i16 takeoffOffset = 0;
-f32 baroPres	  = 0;
-u8 baroTemp		  = 0;
+f32 baroASL	  = 0; // above sea level, above takeoff
+f32 baroPres  = 0;
+f32 baroUpVel = 0;
+u8 baroTemp	  = 0;
 i32 baroCalibration[9];
+fix32 gpsBaroAlt;
 const i32 baroScaleFactor = 7864320;
 
 void getRawPressureTemperature(volatile i32 *pressure, volatile i32 *temperature) {
@@ -89,20 +89,22 @@ void readBaroLoop() {
 	}
 }
 
+f32 lastBaroASL				= 0;
+elapsedMillis baroEvalTimer = 0;
 void evalBaroLoop() {
 	if (!newBaroData) return;
 	newBaroData = false;
 	tasks[TASK_BAROEVAL].runCounter++;
 	elapsedMicros taskTimer = 0;
-	f32 temp				= 201 * .5f - baroTemperature / 7864320.f * 260;
+	baroTemp				= 201 * .5f - baroTemperature / 7864320.f * 260;
 	f32 pressureScaled		= pressure / 7864320.f;
 	f32 temperatureScaled	= baroTemperature / 7864320.f;
-	f32 pressureCompensated = baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
-	f32 height				= 44330 * (1 - powf(pressureCompensated / 101325.f, 1 / 5.255f));
-	baroPres				= pressureCompensated;
-	baroTemp				= temp;
-	baroASL					= height;
-	baroATO					= height - takeoffOffset;
+	baroPres				= baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
+	lastBaroASL				= baroASL;
+	baroASL					= 44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f));
+	gpsBaroAlt				= baroASL;
+	baroUpVel				= (baroASL - lastBaroASL) * 50;
+	baroEvalTimer			= 0;
 	u32 duration			= taskTimer;
 	tasks[TASK_BAROEVAL].totalDuration += duration;
 	if (duration < tasks[TASK_BAROEVAL].minDuration) {

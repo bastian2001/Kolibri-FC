@@ -382,8 +382,8 @@ void handleConfigCmd() {
 		elapsedMillis breakoutCounter = 0;
 		switch (serialNum) {
 		case 1:
-			// Serial1.end();
-			// Serial1.begin(baud);
+			Serial1.end();
+			Serial1.begin(baud);
 			while (true) {
 				if (breakoutCounter > 1000 && plusCount >= 3) break;
 				if (Serial.available()) {
@@ -460,16 +460,19 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, 7);
 	} break;
 	case ConfigCmd::GET_GPS_MOTION: {
-		i32 vVel2 = (combinedAltitude * 1000).getInt();
 		memcpy(buf, &gpsMotion.lat, 4);
 		memcpy(&buf[4], &gpsMotion.lon, 4);
 		memcpy(&buf[8], &gpsMotion.alt, 4);
 		memcpy(&buf[12], &gpsMotion.velN, 4);
 		memcpy(&buf[16], &gpsMotion.velE, 4);
-		memcpy(&buf[20], &vVel2, 4);
+		memcpy(&buf[20], &gpsMotion.velD, 4);
 		memcpy(&buf[24], &gpsMotion.gSpeed, 4);
 		memcpy(&buf[28], &gpsMotion.headMot, 4);
-		sendCommand(configMsgCommand | 0x4000, buf, 32);
+		i32 cAlt	= combinedAltitude.getRaw();
+		i32 vVelRaw = vVel.getRaw();
+		memcpy(&buf[32], &cAlt, 4);
+		memcpy(&buf[36], &vVelRaw, 4);
+		sendCommand(configMsgCommand | 0x4000, buf, 40);
 	} break;
 	case ConfigCmd::REBOOT_BY_WATCHDOG:
 		delay(1000);

@@ -371,8 +371,9 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = throttles64;
 	}
 	if (currentBBFlags & LOG_ALTITUDE) {
-		bbBuffer[bufferPos++] = baroATO;
-		bbBuffer[bufferPos++] = baroATO >> 8;
+		const u32 height	  = combinedAltitude.getInt();
+		bbBuffer[bufferPos++] = height;
+		bbBuffer[bufferPos++] = height >> 8;
 	}
 	if (currentBBFlags & LOG_FRAMETIME) {
 		u16 ft				  = frametime;
@@ -383,10 +384,6 @@ void __not_in_flash_func(writeSingleFrame)() {
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);
 #elif BLACKBOX_STORAGE == SD_BB
-	// void *buf = malloc(bufferPos + 1);
-	// memcpy((void *)((u8 *)buf + 1), bbBuffer, bufferPos);
-	// ((u8 *)buf)[0] = bufferPos;
-	// if (!(rp2040.fifo.push_nb((u32)buf))) {
 	((u8 *)bbBuffer)[0] = bufferPos - 1;
 	if (!(rp2040.fifo.push_nb((u32)bbBuffer))) {
 		free(bbBuffer);

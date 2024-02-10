@@ -16,7 +16,7 @@ f32 pitch, roll, yaw, rpAngle;
 i32 headMotAtt;		 // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
 i32 combinedHeading; // NOT heading of motion, but heading of quad
 i32 combinedHeadMot; // heading of motion, but with headingAdjustment applied
-fix32 vVel, combinedAltitude;
+fix32 vVel, combinedAltitude, vVelHelper;
 fix32 eVel, nVel;
 
 Quaternion q;
@@ -153,11 +153,17 @@ void __not_in_flash_func(updatePitchRollValues)() {
 		if (combinedHeadMot < -18000000) combinedHeadMot += 36000000;
 	} else
 		combinedHeadMot = combinedHeading;
-	vVel += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[2] * cosf(rpAngle)) / fix32(3200);
-	// vVel += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[0] * sinf(roll)) / fix32(3200);
-	// vVel += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[1] * sinf(pitch)) / fix32(3200);
-	vVel -= fix32(9.81f / 3200);
-	combinedAltitude += vVel / fix32(3200);
+	fix32 preHelper = vVelHelper;
+	vVelHelper += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[2] * cosf(rpAngle)) / 3200;
+	vVelHelper += fix32(RAW_TO_DELTA_M_PER_SEC * -accelDataRaw[0] * sinf(roll)) / 3200;
+	vVelHelper += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[1] * sinf(pitch)) / 3200;
+	vVelHelper -= fix32(9.81f / 3200);
+	vVelHelper = fix32(0.9997f) * vVelHelper + 0.0003f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
+	preHelper  = vVelHelper - preHelper;
+	vVel += preHelper;
+	vVel = 0.9999f * vVel.getf32() + 0.0001f * baroUpVel; // this eliminates that error without introducing a lot of lag
+	combinedAltitude += vVel / 3200;
+	combinedAltitude = 0.9997f * combinedAltitude.getf32() + 0.0003f * gpsBaroAlt.getf32();
 }
 
 void updateAttitude() {

@@ -47,19 +47,19 @@ public:
 		fix32 result;
 		return result.setRaw(v);
 	};
-	inline fix32(const i32 v = 0) {
+	inline constexpr fix32(const i32 v = 0) {
 		this->value = v << 16;
 	};
-	inline fix32(const f32 v) {
+	inline constexpr fix32(const f32 v) {
 		this->value = (i32)(v * 65536);
 	};
-	inline fix32(const f64 v) {
+	inline constexpr fix32(const f64 v) {
 		this->value = (i32)(v * 65536);
 	};
-	inline fix32(const int v) {
+	inline constexpr fix32(const int v) {
 		this->value = v << 16;
 	};
-	inline fix32 setRaw(const i32 v) {
+	inline constexpr fix32 setRaw(const i32 v) {
 		this->value = v;
 		return *this;
 	};
@@ -95,6 +95,10 @@ public:
 		fix32 result;
 		return result.setRaw((i32)((((i64)this->value) << 16) / (i64)other.getRaw()));
 	};
+	inline fix32 operator/(const i32 other) const {
+		fix32 result;
+		return result.setRaw(this->value / other);
+	};
 	inline fix32 operator+=(const fix32 other) {
 		this->value += other.getRaw();
 		return *this;
@@ -111,9 +115,17 @@ public:
 		this->value = (i32)(((i64)this->value << 16) / (i64)other.getRaw());
 		return *this;
 	};
+	inline fix32 operator/=(const i32 other) {
+		this->value /= other;
+		return *this;
+	};
 	inline fix32 operator+(const int other) const {
 		fix32 result;
 		return result.setRaw(this->value + (other << 16));
+	};
+	inline fix32 operator+(const f32 other) const {
+		fix32 result;
+		return result.setRaw(this->value + (i32)(other * 65536));
 	};
 	inline fix32 operator-(const int other) const {
 		fix32 result;
