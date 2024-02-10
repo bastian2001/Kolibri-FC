@@ -166,7 +166,7 @@ void pidLoop() {
 
 			if (flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
 				// estimate throttle
-				vVelSetpoint = (throttle - 1000) / 200; // +/- 5 m/s
+				vVelSetpoint = (throttle - 1500) / 100; // +/- 5 m/s
 				vVelError	 = vVelSetpoint - vVel;
 				vVelErrorSum += vVelError;
 				vVelP	 = pidGainsVVel[P] * vVelError;

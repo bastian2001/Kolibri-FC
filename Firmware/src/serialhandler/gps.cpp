@@ -213,10 +213,10 @@ void gpsLoop() {
 					if (headingAdjustment < -18000000) headingAdjustment += 36000000;
 				}
 				lastHeadMot = gpsMotion.headMot;
-				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsStatus.satCount >= 6) {
-					vVel			 = fix32(0.9f) * vVel + fix32(0.0001f) * (int)gpsMotion.velD;
-					combinedAltitude = fix32(0.9f) * combinedAltitude + fix32(0.0001f) * (int)gpsMotion.alt;
-				}
+				// if (gpsStatus.fixType == fixTypes::FIX_3D && gpsStatus.satCount >= 6) {
+				// 	vVel			 = fix32(0.9f) * vVel + fix32(0.0001f) * (int)gpsMotion.velD;
+				// 	combinedAltitude = fix32(0.9f) * combinedAltitude + fix32(0.0001f) * (int)gpsMotion.alt;
+				// }
 				eVel = fix32(0.8f) * eVel + fix32(0.0002f) * (int)gpsMotion.velE;
 				nVel = fix32(0.8f) * nVel + fix32(0.0002f) * (int)gpsMotion.velN;
 				u8 buf[16];

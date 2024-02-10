@@ -16,7 +16,7 @@ extern i16 *gyroDataRaw;
 extern i16 *accelDataRaw;
 extern fix32 imuData[6];
 extern fix32 rateFactors[5][3];
-enum class PID_GAINS {
+enum {
 	P,
 	I,
 	D,
@@ -25,9 +25,10 @@ enum class PID_GAINS {
 	iFalloff
 };
 extern fix32 pidGains[3][7];
+extern fix32 pidGainsVVel[3], pidGainsHVel[3];
 extern fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint;
 extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS;
-extern fix64 rollErrorSum, pitchErrorSum, yawErrorSum;
+extern fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
 extern u16 smoothChannels[4];
 extern i16 throttles[4];
 extern u32 pidLoopCounter;
