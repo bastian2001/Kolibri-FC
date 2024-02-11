@@ -127,7 +127,6 @@ void ExpressLRS::processMessage() {
 			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
 			break;
 		}
-		sinceLastRCMessage = 0;
 		// crsf_channels_t *crsfChannels = (crsf_channels_t *)(&msgBuffer[3]); // somehow conversion through bit-fields does not work, so manual conversion
 		u64 decoder, decoder2;
 		memcpy(&decoder, &msgBuffer[3], 8);
@@ -180,6 +179,7 @@ void ExpressLRS::processMessage() {
 
 		// update as fast as possible
 		memcpy(lastChannels, channels, 16 * sizeof(u32));
+		sinceLastRCMessage = 0;
 		memcpy(channels, pChannels, 16 * sizeof(u32));
 		rcPacketRateCounter++;
 		rcMsgCount++;

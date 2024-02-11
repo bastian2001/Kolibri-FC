@@ -1,10 +1,8 @@
 #include "global.h"
-void readEEPROM()
-{
-	if (EEPROM.read((u16)EEPROM_POS::EEPROM_INIT) != 0x42)
-	{
+void readEEPROM() {
+	initPID();
+	if (EEPROM.read((u16)EEPROM_POS::EEPROM_INIT) != 0x42) {
 		// EEPROM is not initialized
-		initPID();
 		EEPROM.write((u16)EEPROM_POS::EEPROM_INIT, 0x42);
 		EEPROM.write((u16)EEPROM_POS::EEPROM_VERSION, 0x01);
 		i32 pg[3][7];
