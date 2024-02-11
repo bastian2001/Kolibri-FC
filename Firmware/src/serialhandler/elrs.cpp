@@ -1,6 +1,8 @@
 #include "global.h"
+#include "hardware/interp.h"
 RingBuffer<u8> elrsBuffer(260);
-u32 crcLut[256] = {0};
+u32 ExpressLRS::crcLut[256] = {0};
+interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1;
 
 ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	: elrsSerial(elrsSerial),
@@ -24,6 +26,9 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 		}
 		crcLut[i] = crc & 0xFF;
 	}
+	interpConfig0 = interp_default_config();
+	interp_config_set_blend(&interpConfig0, 1);
+	interpConfig1 = interp_default_config();
 }
 
 ExpressLRS::~ExpressLRS() {
@@ -242,14 +247,17 @@ void ExpressLRS::processMessage() {
 
 void ExpressLRS::getSmoothChannels(u16 smoothChannels[4]) {
 	// one new RC message every 4ms = 4000µs, ELRS 250Hz
-	static u32 sum[4];
 	int sinceLast = sinceLastRCMessage;
 	if (sinceLast > 4000) {
 		sinceLast = 4000;
 	}
+	sinceLast = 255 * sinceLast / 4000;
+	interp_set_config(interp0, 0, &interpConfig0);
+	interp_set_config(interp0, 1, &interpConfig1);
+	interp0->accum[1] = sinceLast;
 	for (int i = 0; i < 4; i++) {
-		sum[i] = sinceLast * channels[i] + (4000 - sinceLast) * lastChannels[i];
-		sum[i] /= 4000;
-		smoothChannels[i] = sum[i];
+		interp0->base[0]  = lastChannels[i];
+		interp0->base[1]  = channels[i];
+		smoothChannels[i] = interp0->peek[1];
 	}
 }
