@@ -278,8 +278,9 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_THROTTLE_SETPOINT) {
-		bbBuffer[bufferPos++] = smoothChannels[2];
-		bbBuffer[bufferPos++] = smoothChannels[2] >> 8;
+		i16 t				  = (i16)(throttle.getRaw() >> 12);
+		bbBuffer[bufferPos++] = t;
+		bbBuffer[bufferPos++] = t >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_SETPOINT) {
 		i16 setpoint		  = (i16)(yawSetpoint.getRaw() >> 12);
@@ -371,7 +372,7 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = throttles64;
 	}
 	if (currentBBFlags & LOG_ALTITUDE) {
-		const u32 height	  = combinedAltitude.getInt();
+		const u32 height	  = combinedAltitude.getRaw() >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
 		bbBuffer[bufferPos++] = height;
 		bbBuffer[bufferPos++] = height >> 8;
 	}

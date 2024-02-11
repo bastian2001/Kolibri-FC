@@ -4,7 +4,13 @@
 	import TracePlacer from './tracePlacer.svelte';
 	import Timeline from './timeline.svelte';
 	import Settings from './settings.svelte';
-	import { leBytesToInt, type BBLog, type LogFrame, getNestedProperty } from '../../utils';
+	import {
+		leBytesToInt,
+		type BBLog,
+		type LogFrame,
+		getNestedProperty,
+		roundToDecimal
+	} from '../../utils';
 
 	type TraceInGraph = {
 		flagName: string;
@@ -264,6 +270,7 @@
 			path: 'altitude',
 			minValue: 0,
 			maxValue: 300,
+			decimals: 2,
 			unit: 'm'
 		},
 		LOG_FRAMETIME: {
@@ -282,6 +289,7 @@
 			rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
 			unit: string;
 			usesModifier?: boolean;
+			decimals?: 2;
 		};
 	};
 
@@ -903,9 +911,15 @@
 						true
 					) / 16;
 			if (flags.includes('LOG_THROTTLE_SETPOINT'))
-				frame.setpoint.throttle = leBytesToInt(
-					data.slice(i + offsets['LOG_THROTTLE_SETPOINT'], i + offsets['LOG_THROTTLE_SETPOINT'] + 2)
-				);
+				frame.setpoint.throttle =
+					leBytesToInt(
+						data.slice(
+							i + offsets['LOG_THROTTLE_SETPOINT'],
+							i + offsets['LOG_THROTTLE_SETPOINT'] + 2
+						)
+					) /
+						32 +
+					1000;
 			if (flags.includes('LOG_YAW_SETPOINT'))
 				frame.setpoint.yaw =
 					leBytesToInt(
@@ -1018,9 +1032,9 @@
 				frame.motors.fl = motors23 & 0xfff;
 			}
 			if (flags.includes('LOG_ALTITUDE'))
-				frame.altitude = leBytesToInt(
-					data.slice(i + offsets['LOG_ALTITUDE'], i + offsets['LOG_ALTITUDE'] + 2)
-				);
+				frame.altitude =
+					leBytesToInt(data.slice(i + offsets['LOG_ALTITUDE'], i + offsets['LOG_ALTITUDE'] + 2)) /
+					16;
 			if (flags.includes('LOG_FRAMETIME'))
 				frame.frametime = leBytesToInt(
 					data.slice(i + offsets['LOG_FRAMETIME'], i + offsets['LOG_FRAMETIME'] + 2)
@@ -1314,8 +1328,9 @@
 						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
 						else continue;
 					}
-					const value = getNestedProperty(frame, path);
-					valueTexts.push(bbFlag.name + ': ' + Math.round(value) + ' ' + bbFlag.unit);
+					let value = getNestedProperty(frame, path);
+					value = roundToDecimal(value, bbFlag.decimals || 0);
+					valueTexts.push(bbFlag.name + ': ' + value + ' ' + bbFlag.unit);
 				}
 			}
 			const textHeight = 14;

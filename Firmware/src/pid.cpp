@@ -30,6 +30,7 @@ fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError,
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
 fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
 fix32 tRR, tRL, tFR, tFL;
+fix32 throttle;
 
 u32 pidLoopCounter = 0;
 
@@ -102,10 +103,10 @@ void pidLoop() {
 		polynomials[0][0].setRaw(((i32)smoothChannels[0] - 1500) << 7); //-1...+1 in fixed point notation;
 		polynomials[0][1].setRaw(((i32)smoothChannels[1] - 1500) << 7);
 		polynomials[0][2].setRaw(((i32)smoothChannels[3] - 1500) << 7);
-		fix32 throttle = (smoothChannels[2] - 1000) * 2;
-		rollSetpoint   = 0;
-		pitchSetpoint  = 0;
-		yawSetpoint	   = 0;
+		throttle	  = (smoothChannels[2] - 1000) * 2;
+		rollSetpoint  = 0;
+		pitchSetpoint = 0;
+		yawSetpoint	  = 0;
 		if (flightMode == FLIGHT_MODE::ANGLE || flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
 			fix32 dRoll;
 			fix32 dPitch;
@@ -158,8 +159,19 @@ void pidLoop() {
 
 			if (flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
 				// estimate throttle
-				vVelSetpoint = (throttle - 1500) / 100; // +/- 5 m/s
-				vVelError	 = vVelSetpoint - vVel;
+				i32 t = (throttle - 1000).getInt();
+				if (t > 0) {
+					t -= 100;
+					if (t < 0) t = 0;
+				} else if (t < 0) {
+					t += 100;
+					if (t > 0) t = 0;
+				}
+				vVelSetpoint = fix32(t) / 180; // +/- 5.6 m/s
+				if (vVelSetpoint > 0) {
+					vVelSetpoint -= fix32(0.55f);
+				}
+				vVelError = vVelSetpoint - vVel;
 				vVelErrorSum += vVelError;
 				vVelP	 = pidGainsVVel[P] * vVelError;
 				vVelI	 = pidGainsVVel[I] * vVelErrorSum;
