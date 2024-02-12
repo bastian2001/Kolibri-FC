@@ -79,6 +79,19 @@
 		const fullRange = Math.round(Math.max(max, -min));
 		return { max: fullRange, min: -fullRange };
 	};
+	const getAltitudeRange = (file: BBLog | undefined) => {
+		if (!file) return { max: 300, min: 0 };
+		let max = -20000,
+			min = 20000;
+		file.frames.forEach((f) => {
+			if (f.altitude! > max) max = f.altitude!;
+			if (f.altitude! < min) min = f.altitude!;
+		});
+		const range = max - min;
+		max = 10 * Math.ceil(max / 10);
+		min = 10 * Math.floor(min / 10);
+		return { max, min };
+	};
 
 	const BB_ALL_FLAGS = {
 		LOG_ROLL_ELRS_RAW: {
@@ -268,8 +281,7 @@
 		LOG_ALTITUDE: {
 			name: 'Altitude',
 			path: 'altitude',
-			minValue: 0,
-			maxValue: 300,
+			rangeFn: getAltitudeRange,
 			decimals: 2,
 			unit: 'm'
 		},
