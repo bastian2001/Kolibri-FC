@@ -1,7 +1,20 @@
+#include "hardware/interp.h"
 #include <Arduino.h>
 #pragma once
 
 class fix32;
+extern interp_config sinInterpConfig0, sinInterpConfig1;
+void initFixTrig();
+/**
+ * @brief prepares the interpolator for blend mode
+ * Call this once before every sinFix/cosFix calculation batch
+ */
+inline void startFixTrig() {
+	interp_set_config(interp0, 0, &sinInterpConfig0);
+	interp_set_config(interp0, 1, &sinInterpConfig1);
+}
+fix32 sinFix(const fix32 x);
+fix32 cosFix(const fix32 x);
 class fix64 {
 	// 48.16 fixed point
 private:

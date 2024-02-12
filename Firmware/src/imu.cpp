@@ -10,7 +10,7 @@ const f32 RAW_TO_RAD_PER_SEC	 = PI * 4000 / 65536 / 180; // 2000deg per second, 
 const f32 FRAME_TIME			 = 1. / 3200;
 const f32 RAW_TO_HALF_ANGLE		 = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 const f32 ANGLE_CHANGE_LIMIT	 = .0002;
-const f32 RAW_TO_DELTA_M_PER_SEC = 9.81 * 32 / 65536; // +/-16g
+const fix32 RAW_TO_DELTA_M_PER_SEC = 9.81 * 32 / 65536; // +/-16g
 
 f32 pitch, roll, yaw, rpAngle;
 i32 headMotAtt;		 // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
@@ -29,6 +29,7 @@ void imuInit() {
 	q.v[0] = 0;
 	q.v[1] = 0;
 	q.v[2] = 0;
+	initFixTrig();
 }
 
 f32 map(f32 x, f32 in_min, f32 in_max, f32 out_min, f32 out_max) {
@@ -154,9 +155,10 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	} else
 		combinedHeadMot = combinedHeading;
 	fix32 preHelper = vVelHelper;
-	vVelHelper += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[2] * cosf(rpAngle)) / 3200;
-	vVelHelper += fix32(RAW_TO_DELTA_M_PER_SEC * -accelDataRaw[0] * sinf(roll)) / 3200;
-	vVelHelper += fix32(RAW_TO_DELTA_M_PER_SEC * accelDataRaw[1] * sinf(pitch)) / 3200;
+	startFixTrig();
+	vVelHelper += cosFix((fix32)rpAngle) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[2];
+	vVelHelper += sinFix((fix32)roll) * RAW_TO_DELTA_M_PER_SEC / 3200 * -accelDataRaw[0];
+	vVelHelper += sinFix((fix32)pitch) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[1];
 	vVelHelper -= fix32(9.81f / 3200);
 	vVelHelper = fix32(0.9997f) * vVelHelper + 0.0003f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	preHelper  = vVelHelper - preHelper;

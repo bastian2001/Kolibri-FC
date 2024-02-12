@@ -121,8 +121,8 @@ void Quaternion_setIdentity(Quaternion *q) {
 
 void Quaternion_fromAxisAngle(f32 axis[3], f32 angle, Quaternion *output) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/
-	output->w	 = cosf(angle * .5);
-	f32 c		 = sinf(angle * .5);
+	output->w	 = cosf(angle * .5f);
+	f32 c		 = sinf(angle * .5f);
 	output->v[0] = axis[0] * c;
 	output->v[1] = axis[1] * c;
 	output->v[2] = axis[2] * c;
@@ -130,15 +130,15 @@ void Quaternion_fromAxisAngle(f32 axis[3], f32 angle, Quaternion *output) {
 
 f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
-	f32 angle	  = acosf(q->w) * 2;
+	f32 angle	= acosf(q->w) * 2;
 	f32 divider = sqrtf(1 - q->w * q->w);
 
 	if (divider != 0.f) {
 		// Calculate the axis
 		f32 divNew = 1 / divider;
-		output[0]	 = q->v[0] * divNew;
-		output[1]	 = q->v[1] * divNew;
-		output[2]	 = q->v[2] * divNew;
+		output[0]  = q->v[0] * divNew;
+		output[1]  = q->v[1] * divNew;
+		output[2]  = q->v[2] * divNew;
 	} else {
 		// Arbitrary normalized axis
 		output[0] = 1;
@@ -256,7 +256,7 @@ void Vector_cross(const f32 v1[3], const f32 v2[3], f32 output[3]) {
 }
 
 const f32 QUATERNION_EPS = 1e-5;
-const f32 ONE_MINUS_EPS  = 1 - QUATERNION_EPS;
+const f32 ONE_MINUS_EPS	 = 1 - QUATERNION_EPS;
 
 void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *output) {
 	f32 dot;
