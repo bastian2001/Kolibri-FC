@@ -155,7 +155,7 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 }
 
 void startLogging() {
-	if (!bbFlags || !fsReady || bbLogging)
+	if (!bbFlags || !fsReady || bbLogging || !bbFreqDivider)
 		return;
 	currentBBFlags = bbFlags;
 #if BLACKBOX_STORAGE == LITTLEFS

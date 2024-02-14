@@ -116,8 +116,8 @@ void pidLoop() {
 				rollSetpoint  = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FLIGHT_MODE::GPS_VEL) {
-				fix32 cosfhead = cosf(combinedHeading / 5729578.f);
-				fix32 sinfhead = sinf(combinedHeading / 5729578.f);
+				fix32 cosfhead = cosFix(fix32::fromRaw(combinedHeading) / fix32(87.43f));
+				fix32 sinfhead = sinFix(fix32::fromRaw(combinedHeading) / fix32(87.43f));
 				eVelSetpoint   = cosfhead * (smoothChannels[0] - 1500) + sinfhead * (smoothChannels[1] - 1500);
 				nVelSetpoint   = -sinfhead * (smoothChannels[0] - 1500) + cosfhead * (smoothChannels[1] - 1500);
 				eVelSetpoint   = eVelSetpoint >> 9;
@@ -315,7 +315,7 @@ void pidLoop() {
 		rollLastSetpoint  = rollSetpoint;
 		pitchLastSetpoint = pitchSetpoint;
 		yawLastSetpoint	  = yawSetpoint;
-		if ((pidLoopCounter % bbFreqDivider) == 0) {
+		if ((pidLoopCounter % bbFreqDivider) == 0 && bbFreqDivider) {
 			writeSingleFrame();
 		}
 		pidLoopCounter++;
