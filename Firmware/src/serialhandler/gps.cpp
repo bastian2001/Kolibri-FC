@@ -8,6 +8,9 @@ GpsTime gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
 i32 headingAdjustment = 0;
+char olcString[14]	  = "AABBCCDD+EEFG";
+char olcAlphabet[]	  = "23456789CFGHJMPQRVWX";
+
 /*
  * 0-5: seconds
  * 6-11: minutes
@@ -39,6 +42,7 @@ void initGPS() {
 	placeElem(OSDElem::HEADING, 15, 14);
 	placeElem(OSDElem::HOME_DISTANCE, 23, 14);
 	placeElem(OSDElem::GPS_STATUS, 1, 12);
+	placeElem(OSDElem::PLUS_CODE, 1, 15);
 	enableElem(OSDElem::LATITUDE);
 	enableElem(OSDElem::LONGITUDE);
 	enableElem(OSDElem::ALTITUDE);
@@ -46,11 +50,32 @@ void initGPS() {
 	enableElem(OSDElem::HEADING);
 	enableElem(OSDElem::HOME_DISTANCE);
 	enableElem(OSDElem::GPS_STATUS);
+	enableElem(OSDElem::PLUS_CODE);
 }
 
 int gpsSerialSpeed			 = 38400;
 u8 retryCounter				 = 0;
 elapsedMillis lastPvtMessage = 0;
+
+void fillOpenLocationCode() {
+	u32 lat		  = gpsMotion.lat / 1250 + 720000;
+	u32 lon		  = gpsMotion.lon / 1250 + 1440000;
+	olcString[10] = olcAlphabet[lon % 20];
+	olcString[9]  = olcAlphabet[lat % 20];
+	for (int i = 7; i > 0; i -= 2) {
+		lat /= 20;
+		lon /= 20;
+		olcString[i]	 = olcAlphabet[lon % 20];
+		olcString[i - 1] = olcAlphabet[lat % 20];
+	}
+	// writing to characters 12 and 11 to enhance precision (10 is +)
+	lat			  = gpsMotion.lat / 50;
+	lon			  = ((i64)gpsMotion.lon * 8) / 625;
+	olcString[12] = olcAlphabet[(lat % 5) * 4 + (lon % 4)];
+	lat /= 5;
+	lon /= 4;
+	olcString[11] = olcAlphabet[(lat % 5) * 4 + (lon % 4)];
+}
 
 void gpsLoop() {
 	// UBX implementation
@@ -184,8 +209,8 @@ void gpsLoop() {
 				gpsStatus.flags				= msgData[21];
 				gpsStatus.flags2			= msgData[22];
 				gpsStatus.satCount			= msgData[23];
-				gpsMotion.lat				= DECODE_I4(&msgData[24]);
-				gpsMotion.lon				= DECODE_I4(&msgData[28]);
+				gpsMotion.lon				= DECODE_I4(&msgData[24]);
+				gpsMotion.lat				= DECODE_I4(&msgData[28]);
 				gpsMotion.alt				= DECODE_I4(&msgData[36]);
 				gpsAcc.hAcc					= DECODE_U4(&msgData[40]);
 				gpsAcc.vAcc					= DECODE_U4(&msgData[44]);
@@ -244,6 +269,8 @@ void gpsLoop() {
 				// 	armingDisableFlags &= 0xFFFFFFFB;
 				// else
 				// 	armingDisableFlags |= 0x00000004;
+				fillOpenLocationCode();
+				updateElem(OSDElem::PLUS_CODE, olcString);
 			} break;
 			}
 		}

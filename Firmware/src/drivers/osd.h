@@ -36,7 +36,8 @@ enum class OSDElem : u8 {
 	GPS_STATUS,
 	HEADING,
 	HOME_DISTANCE,
-	GROUND_SPEED
+	GROUND_SPEED,
+	PLUS_CODE
 };
 
 void osdInit();
