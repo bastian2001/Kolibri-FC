@@ -89,7 +89,7 @@ void readBaroLoop() {
 	}
 }
 
-f32 lastBaroASL				= 0;
+f32 lastBaroASL = 0, gpsBaroOffset = 0;
 elapsedMillis baroEvalTimer = 0;
 void evalBaroLoop() {
 	if (!newBaroData) return;
@@ -102,10 +102,13 @@ void evalBaroLoop() {
 	baroPres				= baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
 	lastBaroASL				= baroASL;
 	baroASL					= 44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f));
-	gpsBaroAlt				= baroASL;
-	baroUpVel				= (baroASL - lastBaroASL) * 50;
-	baroEvalTimer			= 0;
-	u32 duration			= taskTimer;
+	if (gpsStatus.fixType != FIX_3D || gpsStatus.satCount < 6)
+		gpsBaroAlt = baroASL - gpsBaroOffset;
+	else
+		gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
+	baroUpVel	  = (baroASL - lastBaroASL) * 50;
+	baroEvalTimer = 0;
+	u32 duration  = taskTimer;
 	tasks[TASK_BAROEVAL].totalDuration += duration;
 	if (duration < tasks[TASK_BAROEVAL].minDuration) {
 		tasks[TASK_BAROEVAL].minDuration = duration;

@@ -78,6 +78,22 @@ void fillOpenLocationCode() {
 }
 
 void gpsLoop() {
+	if (lastPvtMessage > 1000) {
+		// no PVT message received for 1 second
+		gpsStatus.fixType = fixTypes::FIX_NONE;
+		if (gpsStatus.gpsInited) {
+			gpsStatus.gpsInited = false;
+			lastPvtMessage		= 0;
+		} else if (lastPvtMessage > 30000) {
+			// no PVT message received for 30 seconds
+			// reinit GPS
+			gpsStatus.initStep	= 0;
+			gpsInitAck			= false;
+			gpsInitTimer		= 0;
+			gpsStatus.gpsInited = false;
+			lastPvtMessage		= 0;
+		}
+	}
 	// UBX implementation
 	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000)) {
 		switch (gpsStatus.initStep) {
@@ -265,12 +281,14 @@ void gpsLoop() {
 				updateElem(OSDElem::HOME_DISTANCE, (char *)buf);
 				snprintf((char *)buf, 16, "\x1E\x1F%d  ", gpsStatus.satCount);
 				updateElem(OSDElem::GPS_STATUS, (char *)buf);
-				// if (gpsStatus.fixType >= FIX_3D && gpsStatus.satCount >= 6)
-				// 	armingDisableFlags &= 0xFFFFFFFB;
-				// else
-				// 	armingDisableFlags |= 0x00000004;
 				fillOpenLocationCode();
 				updateElem(OSDElem::PLUS_CODE, olcString);
+				if (gpsStatus.fixType == FIX_3D && gpsStatus.satCount >= 6) {
+					gpsBaroAlt.setRaw(((i64)gpsMotion.alt << 16) / 1000);
+					// 	armingDisableFlags &= 0xFFFFFFFB;
+				}
+				// else
+				// 	armingDisableFlags |= 0x00000004;
 			} break;
 			}
 		}

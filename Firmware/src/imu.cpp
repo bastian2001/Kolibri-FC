@@ -6,10 +6,10 @@
 // Z: down / yaw right
 // (Tait-Bryan angles)
 
-const f32 RAW_TO_RAD_PER_SEC	 = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
-const f32 FRAME_TIME			 = 1. / 3200;
-const f32 RAW_TO_HALF_ANGLE		 = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
-const f32 ANGLE_CHANGE_LIMIT	 = .0002;
+const f32 RAW_TO_RAD_PER_SEC	   = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
+const f32 FRAME_TIME			   = 1. / 3200;
+const f32 RAW_TO_HALF_ANGLE		   = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
+const f32 ANGLE_CHANGE_LIMIT	   = .0002;
 const fix32 RAW_TO_DELTA_M_PER_SEC = 9.81 * 32 / 65536; // +/-16g
 
 f32 pitch, roll, yaw, rpAngle;
@@ -163,7 +163,13 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	vVelHelper = fix32(0.9997f) * vVelHelper + 0.0003f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	preHelper  = vVelHelper - preHelper;
 	vVel += preHelper;
-	vVel = 0.9999f * vVel.getf32() + 0.0001f * baroUpVel; // this eliminates that error without introducing a lot of lag
+	f32 measVel;
+	if (gpsStatus.fixType == FIX_3D) {
+		measVel = -gpsMotion.velD * 0.0000003f;
+	} else {
+		measVel = 0.0003f * baroUpVel;
+	}
+	vVel = 0.9997f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
 	combinedAltitude += vVel / 3200;
 	combinedAltitude = 0.9997f * combinedAltitude.getf32() + 0.0003f * gpsBaroAlt.getf32();
 }
