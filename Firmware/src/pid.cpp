@@ -78,9 +78,9 @@ void pidLoop() {
 													   // imuData[i + 3].setRaw(accelDataRaw[i]);
 													   // imuData[i + 3] *= 32;
 	}
-	imuData[AXIS_ROLL] = imuData[AXIS_ROLL];
-	imuData[AXIS_YAW]  = imuData[AXIS_YAW];
-	duration		   = taskTimerGyro;
+	imuData[AXIS_PITCH] = -imuData[AXIS_PITCH];
+	imuData[AXIS_YAW] = -imuData[AXIS_YAW];
+	duration			= taskTimerGyro;
 	tasks[TASK_GYROREAD].totalDuration += duration;
 	if (duration > tasks[TASK_GYROREAD].maxDuration)
 		tasks[TASK_GYROREAD].maxDuration = duration;
