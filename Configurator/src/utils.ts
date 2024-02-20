@@ -56,8 +56,21 @@ export type LogFrame = {
 		rl?: number;
 		fl?: number;
 	};
-	altitude?: number;
 	frametime?: number;
+	attitude: {
+		roll?: number;
+		pitch?: number;
+		yaw?: number;
+	};
+	motion: {
+		altitude?: number;
+		vvel?: number;
+		gps: {
+			lat?: number;
+			lon?: number;
+		};
+	};
+	flightMode?: number;
 };
 
 export type BBLog = {

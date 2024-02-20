@@ -84,8 +84,8 @@
 		let max = -20000,
 			min = 20000;
 		file.frames.forEach((f) => {
-			if (f.altitude! > max) max = f.altitude!;
-			if (f.altitude! < min) min = f.altitude!;
+			if (f.motion.altitude! > max) max = f.motion.altitude!;
+			if (f.motion.altitude! < min) min = f.motion.altitude!;
 		});
 		const range = max - min;
 		max = 10 * Math.ceil(max / 10);
@@ -278,19 +278,62 @@
 			unit: '',
 			usesModifier: true
 		},
-		LOG_ALTITUDE: {
-			name: 'Altitude',
-			path: 'altitude',
-			rangeFn: getAltitudeRange,
-			decimals: 2,
-			unit: 'm'
-		},
 		LOG_FRAMETIME: {
 			name: 'Frametime',
 			path: 'frametime',
 			minValue: 0,
 			maxValue: 1000,
 			unit: 'µs'
+		},
+		LOG_ALTITUDE: {
+			name: 'Altitude',
+			path: 'motion.altitude',
+			rangeFn: getAltitudeRange,
+			decimals: 2,
+			unit: 'm'
+		},
+		LOG_VVEL: {
+			name: 'Vertical Velocity',
+			path: 'motion.vvel',
+			minValue: -10,
+			maxValue: 10,
+			unit: 'm/s'
+		},
+		LOG_GPS: {
+			name: 'GPS',
+			path: 'motion.gps',
+			minValue: 0,
+			maxValue: 100,
+			unit: '',
+			usesModifier: true
+		},
+		LOG_ATT_ROLL: {
+			name: 'Roll Angle',
+			path: 'attitude.roll',
+			minValue: -180,
+			maxValue: 180,
+			unit: '°'
+		},
+		LOG_ATT_PITCH: {
+			name: 'Pitch Angle',
+			path: 'attitude.pitch',
+			minValue: -180,
+			maxValue: 180,
+			unit: '°'
+		},
+		LOG_ATT_YAW: {
+			name: 'Yaw Angle',
+			path: 'attitude.yaw',
+			minValue: -180,
+			maxValue: 180,
+			unit: '°'
+		},
+		LOG_FLIGHT_MODE: {
+			name: 'Flight Mode',
+			path: 'flightMode',
+			minValue: 0,
+			maxValue: 5,
+			unit: ''
 		}
 	} as {
 		[key: string]: {
@@ -892,7 +935,9 @@
 				setpoint: {},
 				gyro: {},
 				pid: { roll: {}, pitch: {}, yaw: {} },
-				motors: {}
+				motors: {},
+				motion: { gps: {} },
+				attitude: {}
 			} as LogFrame;
 			if (flags.includes('LOG_ROLL_ELRS_RAW'))
 				frame.elrs.roll = leBytesToInt(
@@ -1044,7 +1089,7 @@
 				frame.motors.fl = motors23 & 0xfff;
 			}
 			if (flags.includes('LOG_ALTITUDE'))
-				frame.altitude =
+				frame.motion.altitude =
 					leBytesToInt(data.slice(i + offsets['LOG_ALTITUDE'], i + offsets['LOG_ALTITUDE'] + 2)) /
 					16;
 			if (flags.includes('LOG_FRAMETIME'))
@@ -1128,11 +1173,13 @@
 			for (let j = 0; j < 64; j++) {
 				//check flags
 				// flag 26 (motors) has 6 bytes per frame, all others only 2
+				// flag 30-32 (GPS) and 36 (flight mode) have 1 byte per frame
 				const byteNum = Math.floor(j / 8);
 				const bitNum = j % 8;
 				const flagIsSet = flags[byteNum] & (1 << bitNum);
 				if (!flagIsSet) continue;
 				if (j == 26) frameSize += 6;
+				else if ([30, 31, 32, 36].includes(j)) frameSize++;
 				else frameSize += 2;
 			}
 			const frames = dataBytes / frameSize;
