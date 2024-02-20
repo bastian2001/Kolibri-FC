@@ -160,7 +160,7 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	vVelHelper += sinFix((fix32)roll) * RAW_TO_DELTA_M_PER_SEC / 3200 * -accelDataRaw[0];
 	vVelHelper += sinFix((fix32)pitch) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[1];
 	vVelHelper -= fix32(9.81f / 3200);
-	vVelHelper = fix32(0.9997f) * vVelHelper + 0.0003f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
+	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	preHelper  = vVelHelper - preHelper;
 	vVel += preHelper;
 	f32 measVel;
