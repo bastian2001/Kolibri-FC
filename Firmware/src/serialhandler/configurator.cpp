@@ -2,8 +2,8 @@
 
 u8 configSerialBuffer[256] = {0};
 u8 configSerialBufferIndex = 0;
-u8 configMsgLength		   = 0;
-u16 configMsgCommand	   = 0;
+u8 configMsgLength         = 0;
+u16 configMsgCommand       = 0;
 
 elapsedMillis configTimer = 0;
 
@@ -11,7 +11,7 @@ elapsedMillis configOverrideMotors = 1001;
 
 elapsedMillis lastConfigPingRx = 0;
 elapsedMillis lastConfigPingTx = 0;
-bool configuratorConnected	   = false;
+bool configuratorConnected     = false;
 
 void configuratorLoop() {
 	if (lastConfigPingRx > 1000)
@@ -42,19 +42,19 @@ void sendCommand(u16 command, const char *data, u16 len) {
 
 void handleConfigCmd() {
 	char buf[256] = {0};
-	u8 len		  = 0;
+	u8 len        = 0;
 	switch ((ConfigCmd)configMsgCommand) {
 	case ConfigCmd::STATUS: {
 		u16 voltage = adcVoltage;
-		buf[len++]	= voltage & 0xFF;
-		buf[len++]	= voltage >> 8;
-		buf[len++]	= armed;
-		buf[len++]	= (u8)flightMode;
-		buf[len++]	= (u8)(armingDisableFlags & 0xFF);
-		buf[len++]	= (u8)(armingDisableFlags >> 8);
-		buf[len++]	= (u8)(armingDisableFlags >> 16);
-		buf[len++]	= (u8)(armingDisableFlags >> 24);
-		buf[len++]	= (u8)(configuratorConnected & 0xFF);
+		buf[len++]  = voltage & 0xFF;
+		buf[len++]  = voltage >> 8;
+		buf[len++]  = armed;
+		buf[len++]  = (u8)flightMode;
+		buf[len++]  = (u8)(armingDisableFlags & 0xFF);
+		buf[len++]  = (u8)(armingDisableFlags >> 8);
+		buf[len++]  = (u8)(armingDisableFlags >> 16);
+		buf[len++]  = (u8)(armingDisableFlags >> 24);
+		buf[len++]  = (u8)(configuratorConnected & 0xFF);
 		sendCommand(configMsgCommand | 0x4000, buf, len);
 	} break;
 	case ConfigCmd::TASK_STATUS: {
@@ -73,7 +73,7 @@ void handleConfigCmd() {
 		for (int i = 0; i < 32; i++) {
 			tasks[i].minDuration = 0xFFFFFFFF;
 			tasks[i].maxDuration = 0;
-			tasks[i].maxGap		 = 0;
+			tasks[i].maxGap      = 0;
 		}
 	} break;
 	case ConfigCmd::REBOOT:
@@ -87,15 +87,15 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	case ConfigCmd::PLAY_SOUND: {
-		const u16 startFreq		= random(1000, 5000);
-		const u16 endFreq		= random(1000, 5000);
+		const u16 startFreq     = random(1000, 5000);
+		const u16 endFreq       = random(1000, 5000);
 		const u16 sweepDuration = random(400, 1000);
-		u16 pauseDuration		= random(100, 1000);
-		const u16 pauseEn		= random(0, 2);
+		u16 pauseDuration       = random(100, 1000);
+		const u16 pauseEn       = random(0, 2);
 		pauseDuration *= pauseEn;
 		const u16 repeat = random(1, 11);
 		makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
-		u8 len	   = 0;
+		u8 len     = 0;
 		buf[len++] = startFreq & 0xFF;
 		buf[len++] = startFreq >> 8;
 		buf[len++] = endFreq & 0xFF;
@@ -111,7 +111,7 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, len);
 	} break;
 	case ConfigCmd::BB_FILE_LIST: {
-		int index		  = 0;
+		int index         = 0;
 		char shortbuf[16] = {0};
 		for (int i = 0; i < 100; i++) {
 			rp2040.wdt_reset();
@@ -130,7 +130,7 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, index);
 	} break;
 	case ConfigCmd::BB_FILE_DOWNLOAD: {
-		u8 fileNum	 = configSerialBuffer[CONFIG_BUFFER_DATA];
+		u8 fileNum   = configSerialBuffer[CONFIG_BUFFER_DATA];
 		i16 chunkNum = -1;
 		if (configMsgLength > 1) {
 			chunkNum = configSerialBuffer[CONFIG_BUFFER_DATA + 1] + (configSerialBuffer[CONFIG_BUFFER_DATA + 2] << 8);
@@ -165,8 +165,8 @@ void handleConfigCmd() {
 		 * 13. byte that indicates frequency divider
 		 * 14-21: recording flags
 		 */
-		u8 len		 = configSerialBuffer[CONFIG_BUFFER_LENGTH];
-		len			 = len > 12 ? 12 : len;
+		u8 len       = configSerialBuffer[CONFIG_BUFFER_LENGTH];
+		len          = len > 12 ? 12 : len;
 		u8 *fileNums = &configSerialBuffer[CONFIG_BUFFER_DATA];
 		u8 buffer[22 * len];
 		u8 index = 0;
@@ -219,7 +219,7 @@ void handleConfigCmd() {
 		throttles[(u8)MOTOR::FR] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 2] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 3] << 8);
 		throttles[(u8)MOTOR::RL] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
 		throttles[(u8)MOTOR::FL] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 6] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 7] << 8);
-		configOverrideMotors	 = 0;
+		configOverrideMotors     = 0;
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	case ConfigCmd::GET_MOTORS: {
@@ -241,7 +241,7 @@ void handleConfigCmd() {
 	case ConfigCmd::CONFIGURATOR_PING:
 		sendCommand(configMsgCommand | 0x4000);
 		configuratorConnected = true;
-		lastConfigPingRx	  = 0;
+		lastConfigPingRx      = 0;
 		break;
 	case (ConfigCmd)((u16)ConfigCmd::CONFIGURATOR_PING | 0x4000): {
 		u32 duration = lastConfigPingTx;
@@ -331,13 +331,13 @@ void handleConfigCmd() {
 		// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 		int rotationPitch = pitch * 8192;
 		int rotationRoll  = roll * 8192;
-		int rotationYaw	  = yaw * 8192;
-		buf[0]			  = rotationPitch & 0xFF;
-		buf[1]			  = rotationPitch >> 8;
-		buf[2]			  = rotationRoll & 0xFF;
-		buf[3]			  = rotationRoll >> 8;
-		buf[4]			  = rotationYaw & 0xFF;
-		buf[5]			  = rotationYaw >> 8;
+		int rotationYaw   = yaw * 8192;
+		buf[0]            = rotationPitch & 0xFF;
+		buf[1]            = rotationPitch >> 8;
+		buf[2]            = rotationRoll & 0xFF;
+		buf[3]            = rotationRoll >> 8;
+		buf[4]            = rotationYaw & 0xFF;
+		buf[5]            = rotationYaw >> 8;
 		sendCommand(configMsgCommand | 0x4000, buf, 6);
 	} break;
 	// case ConfigCmd::GET_ROTATION: {
@@ -376,9 +376,9 @@ void handleConfigCmd() {
 	// } break;
 	case ConfigCmd::SERIAL_PASSTHROUGH: {
 		u8 serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
-		u32 baud	 = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
+		u32 baud     = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
 		sendCommand(configMsgCommand | 0x4000, (char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 5);
-		u8 plusCount				  = 0;
+		u8 plusCount                  = 0;
 		elapsedMillis breakoutCounter = 0;
 		switch (serialNum) {
 		case 1:
@@ -468,7 +468,7 @@ void handleConfigCmd() {
 		memcpy(&buf[20], &gpsMotion.velD, 4);
 		memcpy(&buf[24], &gpsMotion.gSpeed, 4);
 		memcpy(&buf[28], &gpsMotion.headMot, 4);
-		i32 cAlt	= combinedAltitude.getRaw();
+		i32 cAlt    = combinedAltitude.getRaw();
 		i32 vVelRaw = vVel.getRaw();
 		memcpy(&buf[32], &cAlt, 4);
 		memcpy(&buf[36], &vVelRaw, 4);
@@ -533,6 +533,6 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 	}
 	if (duration > tasks[TASK_CONFIGURATOR].maxDuration) {
 		tasks[TASK_CONFIGURATOR].maxDuration = duration;
-		tasks[TASK_CONFIGURATOR].debugInfo	 = configMsgCommand;
+		tasks[TASK_CONFIGURATOR].debugInfo   = configMsgCommand;
 	}
 }

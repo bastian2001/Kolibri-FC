@@ -47,18 +47,18 @@ void ExpressLRS::loop() {
 			lastMsgCount = msgCount;
 		} else
 			isReceiverUp = false;
-		packetRateCounter	= 0;
+		packetRateCounter   = 0;
 		rcPacketRateCounter = 0;
-		frequencyTimer		= 0;
+		frequencyTimer      = 0;
 	}
 	if (elrsBuffer.itemCount() > 250) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
-		crc			= 0;
-		lastError	= ERROR_BUFFER_OVERFLOW;
+		crc         = 0;
+		lastError   = ERROR_BUFFER_OVERFLOW;
 		tasks[TASK_ELRS].errorCount++;
 		tasks[TASK_ELRS].lastError = ERROR_BUFFER_OVERFLOW;
-		errorFlag				   = true;
+		errorFlag                  = true;
 		errorCount++;
 		return;
 	}
@@ -79,11 +79,11 @@ void ExpressLRS::loop() {
 	}
 	if (msgBufIndex > 0 && msgBuffer[0] != RX_PREFIX) {
 		msgBufIndex = 0;
-		crc			= 0;
-		lastError	= ERROR_INVALID_PREFIX;
+		crc         = 0;
+		lastError   = ERROR_INVALID_PREFIX;
 		tasks[TASK_ELRS].errorCount++;
 		tasks[TASK_ELRS].lastError = ERROR_INVALID_PREFIX;
-		errorFlag				   = true;
+		errorFlag                  = true;
 		errorCount++;
 	}
 	if (msgBufIndex >= 2 + msgBuffer[1] && msgBuffer[0] == RX_PREFIX) {
@@ -136,28 +136,28 @@ void ExpressLRS::processMessage() {
 		u64 decoder, decoder2;
 		memcpy(&decoder, &msgBuffer[3], 8);
 		u32 pChannels[16];
-		pChannels[0] = decoder & 0x7FF;			// 0...10
+		pChannels[0] = decoder & 0x7FF;         // 0...10
 		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
 		pChannels[2] = (decoder >> 22) & 0x7FF; // 22...32
 		pChannels[3] = (decoder >> 33) & 0x7FF; // 33...43
 		pChannels[4] = (decoder >> 44) & 0x7FF; // 44...54
-		decoder >>= 55;							// 55, 9 bits left
+		decoder >>= 55;                         // 55, 9 bits left
 		memcpy(&decoder2, &msgBuffer[11], 6);
-		decoder |= (decoder2 << 9);				// 57 bits left
-		pChannels[5] = decoder & 0x7FF;			// 55...65
+		decoder |= (decoder2 << 9);             // 57 bits left
+		pChannels[5] = decoder & 0x7FF;         // 55...65
 		pChannels[6] = (decoder >> 11) & 0x7FF; // 66...76
 		pChannels[7] = (decoder >> 22) & 0x7FF; // 77...87
 		pChannels[8] = (decoder >> 33) & 0x7FF; // 88...98
 		pChannels[9] = (decoder >> 44) & 0x7FF; // 99...109
-		decoder >>= 55;							// 55, 2 bits left
+		decoder >>= 55;                         // 55, 2 bits left
 		memcpy(&decoder2, &msgBuffer[17], 7);
-		decoder |= (decoder2 << 2);				 // 58 bits left
-		pChannels[10] = decoder & 0x7FF;		 // 110...120
+		decoder |= (decoder2 << 2);              // 58 bits left
+		pChannels[10] = decoder & 0x7FF;         // 110...120
 		pChannels[11] = (decoder >> 11) & 0x7FF; // 121...131
 		pChannels[12] = (decoder >> 22) & 0x7FF; // 132...142
 		pChannels[13] = (decoder >> 33) & 0x7FF; // 143...153
 		pChannels[14] = (decoder >> 44) & 0x7FF; // 154...164
-		decoder >>= 55;							 // 55, 3 bits left
+		decoder >>= 55;                          // 55, 3 bits left
 		pChannels[15] = decoder | (msgBuffer[24] << 3);
 		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
 		for (u8 i = 0; i < 16; i++) {
@@ -200,16 +200,16 @@ void ExpressLRS::processMessage() {
 			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
 			break;
 		}
-		uplinkRssi[0]		= -msgBuffer[3];
-		uplinkRssi[1]		= -msgBuffer[4];
-		uplinkLinkQuality	= msgBuffer[5];
-		uplinkSNR			= msgBuffer[6];
-		antennaSelection	= msgBuffer[7];
-		packetRate			= msgBuffer[8];
-		txPower				= powerStates[msgBuffer[9]];
-		downlinkRssi		= -msgBuffer[10];
+		uplinkRssi[0]       = -msgBuffer[3];
+		uplinkRssi[1]       = -msgBuffer[4];
+		uplinkLinkQuality   = msgBuffer[5];
+		uplinkSNR           = msgBuffer[6];
+		antennaSelection    = msgBuffer[7];
+		packetRate          = msgBuffer[8];
+		txPower             = powerStates[msgBuffer[9]];
+		downlinkRssi        = -msgBuffer[10];
 		downlinkLinkQuality = msgBuffer[11];
-		downlinkSNR			= msgBuffer[12];
+		downlinkSNR         = msgBuffer[12];
 		break;
 	}
 	case DEVICE_PING:
@@ -230,7 +230,7 @@ void ExpressLRS::processMessage() {
 		lastError = ERROR_UNSUPPORTED_COMMAND;
 		tasks[TASK_ELRS].errorCount++;
 		tasks[TASK_ELRS].lastError = ERROR_UNSUPPORTED_COMMAND;
-		errorFlag				   = true;
+		errorFlag                  = true;
 		errorCount++;
 		msgBufIndex -= size;
 		crc = 0;
@@ -242,7 +242,7 @@ void ExpressLRS::processMessage() {
 	}
 
 	msgBufIndex = 0;
-	crc			= 0;
+	crc         = 0;
 }
 
 void ExpressLRS::getSmoothChannels(u16 smoothChannels[4]) {

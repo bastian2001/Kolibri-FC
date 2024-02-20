@@ -6,9 +6,9 @@ u8 escSm;
 u32 motorPacket[2] = {0, 0xF000F}; // all motors off, but request telemetry in 12th bit
 
 void initESCs() {
-	escPio			= pio0;
-	uint offset		= pio_add_program(escPio, &dshotx4_program);
-	escSm			= pio_claim_unused_sm(escPio, true);
+	escPio          = pio0;
+	uint offset     = pio_add_program(escPio, &dshotx4_program);
+	escSm           = pio_claim_unused_sm(escPio, true);
 	pio_sm_config c = dshotx4_program_get_default_config(offset);
 
 	pio_gpio_init(escPio, PIN_MOTORS);
@@ -43,7 +43,7 @@ void sendRaw16Bit(const u16 raw[4]) {
 	motorPacket[0] = 0;
 	motorPacket[1] = 0;
 	for (int i = 31; i >= 0; i--) {
-		int pos	  = i / 4;
+		int pos   = i / 4;
 		int motor = i % 4;
 		motorPacket[0] |= ((raw[motor] >> (pos + 8)) & 1) << i;
 		motorPacket[1] |= ((raw[motor] >> pos) & 1) << i;

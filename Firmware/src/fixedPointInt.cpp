@@ -3,8 +3,8 @@
 
 fix32 sinLut[257];
 interp_config sinInterpConfig0, sinInterpConfig1;
-const fix32 FIX_PI	 = PI;
-const fix32 FIX_2PI	 = 2 * PI;
+const fix32 FIX_PI   = PI;
+const fix32 FIX_2PI  = 2 * PI;
 const fix32 FIX_PI_2 = PI / 2;
 
 void initFixTrig() {
@@ -25,11 +25,11 @@ void initFixTrig() {
 fix32 sinFix(const fix32 x) {
 	i32 xNew = (x / FIX_PI).getRaw();
 	i32 sign = ((xNew >> 16) & 1) * 2 - 1; // 1 if 0 <= x < PI +/-2n*PI, -1 otherwise
-	xNew &= 0xFFFF;						   // %= PI
-	u32 high		  = xNew >> 8;
-	u32 low			  = xNew & 0xFF;
-	i32 y0			  = sinLut[high].getRaw();
-	i32 y1			  = sinLut[high + 1].getRaw();
+	xNew &= 0xFFFF;                        // %= PI
+	u32 high          = xNew >> 8;
+	u32 low           = xNew & 0xFF;
+	i32 y0            = sinLut[high].getRaw();
+	i32 y1            = sinLut[high + 1].getRaw();
 	interp0->accum[1] = low;
 	interp0->base[0]  = y0;
 	interp0->base[1]  = y1;
@@ -98,13 +98,13 @@ fix64 fix64::operator+=(const fix32 other) {
 	return *this;
 }
 fix64 fix64::operator*(const fix64 other) const {
-	i64 raw1	= this->value;
-	i64 raw2	= other.getRaw();
-	i64 pos1	= raw1 >= 0 ? raw1 : -raw1;
-	i64 pos2	= raw2 >= 0 ? raw2 : -raw2;
-	u64 big		= (pos1 >> 32) * (pos2 >> 32);
-	u64 small	= (pos1 & 0xFFFFFFFF) * (pos2 & 0xFFFFFFFF);
-	u64 med		= (pos1 >> 32) * (pos2 & 0xFFFFFFFF) + (pos1 & 0xFFFFFFFF) * (pos2 >> 32);
+	i64 raw1    = this->value;
+	i64 raw2    = other.getRaw();
+	i64 pos1    = raw1 >= 0 ? raw1 : -raw1;
+	i64 pos2    = raw2 >= 0 ? raw2 : -raw2;
+	u64 big     = (pos1 >> 32) * (pos2 >> 32);
+	u64 small   = (pos1 & 0xFFFFFFFF) * (pos2 & 0xFFFFFFFF);
+	u64 med     = (pos1 >> 32) * (pos2 & 0xFFFFFFFF) + (pos1 & 0xFFFFFFFF) * (pos2 >> 32);
 	i64 result2 = med + ((small >> 32) & 0xFFFFFFFF) + (big << 32);
 	if (raw1 < 0) result2 = -result2;
 	if (raw2 < 0) result2 = -result2;

@@ -39,7 +39,7 @@ enum class FLIGHT_MODE {
 	ALT_HOLD,
 	GPS_VEL, // control the velocity of the drone
 	GPS_POS, // set a position and hold it/fly to it
-	LENGTH	 // place behind all other modes, acts as a limit for loops etc.
+	LENGTH   // place behind all other modes, acts as a limit for loops etc.
 };
 extern FLIGHT_MODE flightMode;
 

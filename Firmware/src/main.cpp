@@ -96,7 +96,7 @@ void setup1() {
 	}
 }
 elapsedMicros taskTimer = 0;
-u32 taskState			= 0;
+u32 taskState           = 0;
 void loop1() {
 	tasks[TASK_LOOP1].runCounter++;
 	u32 duration = taskTimer;

@@ -5,10 +5,10 @@ elapsedMillis taskManagerTimer;
 
 void resetTasks() {
 	for (int i = 0; i < 32; i++) {
-		tasks[i].runCounter	 = 0;
+		tasks[i].runCounter  = 0;
 		tasks[i].minDuration = 0xFFFFFFFF;
 		tasks[i].maxDuration = 0;
-		tasks[i].frequency	 = 0;
+		tasks[i].frequency   = 0;
 		tasks[i].avgDuration = 0;
 	}
 }
@@ -24,9 +24,9 @@ void taskManagerLoop() {
 		for (int i = 0; i < 32; i++) {
 			tasks[i].frequency = tasks[i].runCounter;
 			if (tasks[i].runCounter > 0) {
-				tasks[i].avgDuration = tasks[i].totalDuration / tasks[i].runCounter;
+				tasks[i].avgDuration   = tasks[i].totalDuration / tasks[i].runCounter;
 				tasks[i].totalDuration = 0;
-				tasks[i].runCounter	 = 0;
+				tasks[i].runCounter    = 0;
 			}
 		}
 	}

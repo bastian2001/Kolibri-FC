@@ -2,10 +2,10 @@
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
-u32 gyroLastState		  = 0;
+u32 gyroLastState         = 0;
 elapsedMicros lastPIDLoop = 0;
 
-u32 gyroCalibratedCycles	 = 0;
+u32 gyroCalibratedCycles     = 0;
 i16 gyroCalibrationOffset[3] = {0}, gyroCalibrationOffsetTemp[3] = {0};
 
 void gyroLoop() {
@@ -36,7 +36,7 @@ void gyroLoop() {
 					gyroCalibrationOffsetTemp[0] = 0;
 					gyroCalibrationOffsetTemp[1] = 0;
 					gyroCalibrationOffsetTemp[2] = 0;
-					gyroCalibratedCycles		 = 0;
+					gyroCalibratedCycles         = 0;
 				}
 			}
 		}
@@ -45,7 +45,7 @@ void gyroLoop() {
 
 int gyroInit() {
 	// init gyro/accel pointer
-	gyroDataRaw	 = bmiDataRaw + 3;
+	gyroDataRaw  = bmiDataRaw + 3;
 	accelDataRaw = bmiDataRaw;
 
 	gpio_init(PIN_GYRO_INT1);
@@ -62,7 +62,7 @@ int gyroInit() {
 	data = 0;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500);										  // prepare config load
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500);                                       // prepare config load
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
 	data = 1;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load

@@ -1,6 +1,6 @@
 #include "global.h"
 
-u8 readChar		   = 0;
+u8 readChar        = 0;
 Stream *serials[3] = {
 	&Serial,
 	&Serial1,

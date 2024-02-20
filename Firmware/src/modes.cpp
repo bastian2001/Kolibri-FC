@@ -1,6 +1,6 @@
 #include "global.h"
-u32 armingDisableFlags	   = 0;
-bool armed				   = false;
+u32 armingDisableFlags     = 0;
+bool armed                 = false;
 FLIGHT_MODE lastFlightMode = FLIGHT_MODE::LENGTH;
 i32 startPointLat, startPointLon;
 // 0: switch in armed position for >= 10 cycles
