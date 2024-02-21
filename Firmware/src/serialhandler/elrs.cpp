@@ -63,7 +63,163 @@ void ExpressLRS::loop() {
 		return;
 	}
 	int maxScan = elrsBuffer.itemCount();
-	if (!maxScan) return;
+	if (!maxScan && telemetryTimer >= 15) {
+		// if there is no data to read and the last sensor was transmitted more than 15ms ago, send one telemetry sensor at a time
+		telemetryTimer = 0;
+		telemBuffer[0] = CRSF_SYNC_BYTE;
+		u32 telemLen   = 0;
+		switch (currentTelemSensor++) {
+		case 0: {
+			// GPS (0x02)
+			telemBuffer[1]  = 17;
+			telemBuffer[2]  = CRSF_FRAMETYPE_GPS;
+			telemBuffer[3]  = gpsMotion.lat >> 24;
+			telemBuffer[4]  = gpsMotion.lat >> 16;
+			telemBuffer[5]  = gpsMotion.lat >> 8;
+			telemBuffer[6]  = gpsMotion.lat;
+			telemBuffer[7]  = gpsMotion.lon >> 24;
+			telemBuffer[8]  = gpsMotion.lon >> 16;
+			telemBuffer[9]  = gpsMotion.lon >> 8;
+			telemBuffer[10] = gpsMotion.lon;
+			u16 data        = gpsMotion.gSpeed * 10 / 278; // mm/s to km/h / 10
+			telemBuffer[11] = data >> 8;
+			telemBuffer[12] = data;
+			data            = gpsMotion.headMot / 1000; // 10^-5deg to 10^-2deg
+			telemBuffer[13] = data >> 8;
+			telemBuffer[14] = data;
+			data            = (gpsMotion.alt + 500) / 1000 + 1000; // mm to m + 1000
+			telemBuffer[15] = data >> 8;
+			telemBuffer[16] = data;
+			telemBuffer[17] = gpsStatus.satCount;
+			u32 telemCrc    = 0;
+			for (int i = 2; i < 18; i++) {
+				telemCrc ^= telemBuffer[i];
+				telemCrc = crcLut[telemCrc];
+			}
+			telemBuffer[18] = telemCrc;
+			telemLen        = 19;
+			break;
+		}
+		case 1: {
+			// Vario (0x07)
+			i16 data       = -gpsMotion.velD / 10; // mm/s to cm/s
+			telemBuffer[1] = 4;
+			telemBuffer[2] = CRSF_FRAMETYPE_VARIO;
+			telemBuffer[3] = data >> 8;
+			telemBuffer[4] = data;
+			u32 telemCrc   = 0;
+			for (int i = 2; i < 5; i++) {
+				telemCrc ^= telemBuffer[i];
+				telemCrc = crcLut[telemCrc];
+			}
+			telemBuffer[5] = telemCrc;
+			telemLen       = 6;
+			break;
+		}
+		case 2: {
+			// Battery (0x08)
+			telemBuffer[1]  = 10;
+			telemBuffer[2]  = CRSF_FRAMETYPE_BATTERY;
+			i32 data        = adcVoltage / 10; // cV to dV
+			telemBuffer[3]  = data >> 8;
+			telemBuffer[4]  = data;
+			data            = adcCurrent * 10; // A to dA
+			telemBuffer[5]  = data >> 8;
+			telemBuffer[6]  = data;
+			telemBuffer[7]  = 0;
+			telemBuffer[8]  = 0;
+			telemBuffer[9]  = 0;
+			telemBuffer[10] = 0;
+			u32 telemCrc    = 0;
+			for (int i = 2; i < 11; i++) {
+				telemCrc ^= telemBuffer[i];
+				telemCrc = crcLut[telemCrc];
+			}
+			telemBuffer[11] = telemCrc;
+			telemLen        = 12;
+			break;
+		}
+		case 3: {
+			// Baro Altitude (0x09)
+			telemBuffer[1] = 6;
+			telemBuffer[2] = CRSF_FRAMETYPE_BARO_ALT;
+			i32 data       = combinedAltitude.getRaw() / 6554; // dm;
+			data += 10000;                                     // dm + 10000
+			telemBuffer[3] = data >> 8;
+			telemBuffer[4] = data;
+			data           = vVel.getRaw() / 655;
+			telemBuffer[5] = data >> 8;
+			telemBuffer[6] = data;
+			u32 telemCrc   = 0;
+			for (int i = 2; i < 7; i++) {
+				telemCrc ^= telemBuffer[i];
+				telemCrc = crcLut[telemCrc];
+			}
+			telemBuffer[7] = telemCrc;
+			telemLen       = 8;
+			break;
+		}
+		case 4: {
+			// Attitude (0x1E)
+			telemBuffer[1] = 8;
+			telemBuffer[2] = CRSF_FRAMETYPE_ATTITUDE;
+			i16 data       = pitch * 10000; // 10^-5 rad;
+			telemBuffer[3] = data >> 8;
+			telemBuffer[4] = data;
+			data           = roll * 10000; // 10^-5 rad;
+			telemBuffer[5] = data >> 8;
+			telemBuffer[6] = data;
+			data           = yaw * 10000; // 10^-5 rad;
+			telemBuffer[7] = data >> 8;
+			telemBuffer[8] = data;
+			u32 telemCrc   = 0;
+			for (int i = 2; i < 9; i++) {
+				telemCrc ^= telemBuffer[i];
+				telemCrc = crcLut[telemCrc];
+			}
+			telemBuffer[9] = telemCrc;
+			telemLen       = 10;
+			break;
+		}
+		case 5: {
+			// Flight Mode (0x21)
+			telemBuffer[2] = CRSF_FRAMETYPE_FLIGHTMODE;
+			switch (flightMode) {
+			case FLIGHT_MODE::ACRO:
+				strcpy((char *)&telemBuffer[3], "Acro");
+				telemBuffer[1] = 7;
+				break;
+			case FLIGHT_MODE::ANGLE:
+				strcpy((char *)&telemBuffer[3], "Angle");
+				telemBuffer[1] = 8;
+				break;
+			case FLIGHT_MODE::ALT_HOLD:
+				strcpy((char *)&telemBuffer[3], "Altitude Hold");
+				telemBuffer[1] = 16;
+				break;
+			case FLIGHT_MODE::GPS_VEL:
+				strcpy((char *)&telemBuffer[3], "GPS Velocity");
+				telemBuffer[1] = 15;
+				break;
+			case FLIGHT_MODE::GPS_POS:
+				strcpy((char *)&telemBuffer[3], "GPS Position");
+				telemBuffer[1] = 15;
+				break;
+			}
+			u32 telemCrc = 0;
+			for (int i = 2; i < 1 + telemBuffer[1]; i++) {
+				telemCrc ^= telemBuffer[i];
+				telemCrc = crcLut[telemCrc];
+			}
+			telemBuffer[1 + telemBuffer[1]] = telemCrc;
+			telemLen                        = 2 + telemBuffer[1];
+			break;
+		}
+		}
+		if (currentTelemSensor > 5) currentTelemSensor = 0;
+		elrsSerial.write(telemBuffer, telemLen);
+		return;
+	}
 	taskTimer = 0;
 	if (maxScan > 10) maxScan = 10;
 	if (msgBufIndex > 54) maxScan = 64 - msgBufIndex;
@@ -77,7 +233,7 @@ void ExpressLRS::loop() {
 		msgBufIndex++;
 		if (msgBufIndex >= 2 + msgBuffer[1]) break; // if the message is complete, stop scanning, so we don't corrupt the crc
 	}
-	if (msgBufIndex > 0 && msgBuffer[0] != RX_PREFIX) {
+	if (msgBufIndex > 0 && msgBuffer[0] != CRSF_SYNC_BYTE) {
 		msgBufIndex = 0;
 		crc         = 0;
 		lastError   = ERROR_INVALID_PREFIX;
@@ -86,7 +242,7 @@ void ExpressLRS::loop() {
 		errorFlag                  = true;
 		errorCount++;
 	}
-	if (msgBufIndex >= 2 + msgBuffer[1] && msgBuffer[0] == RX_PREFIX) {
+	if (msgBufIndex >= 2 + msgBuffer[1]) {
 		processMessage();
 	}
 	u32 duration = taskTimer;

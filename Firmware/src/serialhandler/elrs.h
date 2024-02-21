@@ -45,28 +45,36 @@ public:
 	u32 newPacketFlag                         = 0;
 
 private:
-	const u16 powerStates[9]                 = {0, 10, 25, 100, 500, 1000, 2000, 50, 250};
-	static const u8 RX_PREFIX                = 0xC8;
-	static const u8 TX_PREFIX                = 0xEC;
-	static const u8 LINK_STATISTICS          = 0x14;
-	static const u8 RC_CHANNELS_PACKED       = 0x16;
-	static const u8 DEVICE_PING              = 0x28;
-	static const u8 DEVICE_INFO              = 0x29;
-	static const u8 PARAMETER_SETTINGS_ENTRY = 0x2B;
-	static const u8 PARAMETER_READ           = 0x2C;
-	static const u8 PARAMETER_WRITE          = 0x2D;
-	static const u8 COMMAND                  = 0x32;
-	static const u8 MSP_REQ                  = 0x7A;
+	const u16 powerStates[9]       = {0, 10, 25, 100, 500, 1000, 2000, 50, 250};
+	static const u8 CRSF_SYNC_BYTE = 0xC8;
+	static const u8 CRSF_FRAMETYPE_GPS        = 0x02;
+	static const u8 CRSF_FRAMETYPE_VARIO      = 0x07;
+	static const u8 CRSF_FRAMETYPE_BATTERY    = 0x08;
+	static const u8 CRSF_FRAMETYPE_BARO_ALT   = 0x09;
+	static const u8 CRSF_FRAMETYPE_ATTITUDE   = 0x1E;
+	static const u8 CRSF_FRAMETYPE_FLIGHTMODE = 0x21;
+	static const u8 LINK_STATISTICS           = 0x14;
+	static const u8 RC_CHANNELS_PACKED        = 0x16;
+	static const u8 DEVICE_PING               = 0x28;
+	static const u8 DEVICE_INFO               = 0x29;
+	static const u8 PARAMETER_SETTINGS_ENTRY  = 0x2B;
+	static const u8 PARAMETER_READ            = 0x2C;
+	static const u8 PARAMETER_WRITE           = 0x2D;
+	static const u8 COMMAND                   = 0x32;
+	static const u8 MSP_REQ                   = 0x7A;
 	static u32 crcLut[256];
 	static interp_config interpConfig0; // used to interpolate for smooth sticks
 	static interp_config interpConfig1; // used to interpolate for smooth sticks
-	u8 msgBuffer[64] = {0};
-	u8 msgBufIndex   = 0;
+	u8 msgBuffer[64]       = {0};
+	u8 telemBuffer[30]     = {0};
+	u32 currentTelemSensor = 0;
+	u8 msgBufIndex         = 0;
 	SerialUART &elrsSerial;
 	const u8 pinTX;
 	const u8 pinRX;
 	const u32 baudrate;
 	elapsedMillis frequencyTimer;
+	elapsedMillis telemetryTimer;
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter   = 0;
 	u32 lastMsgCount        = 0;
