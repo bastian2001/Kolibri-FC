@@ -41,7 +41,22 @@
 			displayName: 'Month',
 			min: 1,
 			max: 12,
-			path: 'month'
+			path: 'month',
+			states: [
+				'',
+				'January',
+				'February',
+				'March',
+				'April',
+				'May',
+				'June',
+				'July',
+				'August',
+				'September',
+				'October',
+				'November',
+				'December'
+			]
 		},
 		{
 			displayNameShort: 'Day',
