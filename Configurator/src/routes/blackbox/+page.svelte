@@ -24,6 +24,7 @@
 		states?: string[];
 		decimals?: number;
 		displayName?: string;
+		overrideAuto?: { min: number; max: number };
 	};
 
 	let graphs: TraceInGraph[][] = [[]];
@@ -57,8 +58,6 @@
 	let startFrame = 0;
 	let endFrame = 0;
 	let mounted = false;
-
-	let overrideAuto: undefined | { min: number; max: number } = undefined;
 
 	let showSettings = false;
 
@@ -295,7 +294,8 @@
 			name: 'Flight Mode',
 			path: 'flightMode',
 			minValue: 0,
-			maxValue: 5,
+			maxValue: 4,
+			states: ['Acro', 'Angle', 'Altitude Hold', 'GPS Velocity', 'GPS Position'],
 			unit: ''
 		},
 		LOG_ALTITUDE: {
@@ -352,6 +352,7 @@
 			unit: string;
 			usesModifier?: boolean;
 			decimals?: 2;
+			states?: string[];
 		};
 	};
 
@@ -1490,11 +1491,11 @@
 					}
 					let value = getNestedProperty(frame, path);
 					value = roundToDecimal(value, trace.decimals || bbFlag.decimals || 0);
-					if (trace.states?.length) value = trace.states[value] || value;
-					else
-						valueTexts.push(
-							(trace.displayName || bbFlag.name) + ': ' + value + ' ' + (trace.unit || bbFlag.unit)
-						);
+					if (bbFlag.states) value = bbFlag.states[value] || value;
+					if (trace.states) value = trace.states[value] || value;
+					valueTexts.push(
+						(trace.displayName || bbFlag.name) + ': ' + value + ' ' + (trace.unit || bbFlag.unit)
+					);
 				}
 			}
 			const textHeight = 14;
@@ -1807,7 +1808,8 @@
 			unit: tr.unit,
 			decimals: tr.decimals,
 			states: tr.states,
-			displayName: tr.displayName
+			displayName: tr.displayName,
+			overrideAuto: graphs[graphIndex][traceIndex].overrideAuto
 		};
 		drawCanvas();
 	}
@@ -1891,7 +1893,7 @@
 				{#each graph as trace, traceIndex (trace.id)}
 					<TracePlacer
 						flags={loadedLog?.flags || []}
-						autoRange={overrideAuto ||
+						autoRange={trace.overrideAuto ||
 							getAutoRangeByFlagName(
 								trace.flagName.startsWith('GEN_')
 									? BB_GEN_FLAGS[trace.flagName].replaces
@@ -1906,7 +1908,7 @@
 							deleteTrace(graphIndex, traceIndex);
 						}}
 						on:overrideAuto={(event) => {
-							overrideAuto = event.detail;
+							trace.overrideAuto = event.detail;
 						}}
 					/>
 				{/each}
