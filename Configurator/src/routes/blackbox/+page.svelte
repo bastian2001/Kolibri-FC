@@ -26,14 +26,14 @@
 		displayName?: string;
 	};
 
-	let graphs = [[]] as TraceInGraph[][];
+	let graphs: TraceInGraph[][] = [[]];
 
 	const ACC_RANGES = [2, 4, 8, 16];
 	const GYRO_RANGES = [2000, 1000, 500, 250, 125];
 
 	let dataViewer: HTMLDivElement;
 
-	let dataSlice = [] as LogFrame[];
+	let dataSlice: LogFrame[] = [];
 
 	let drawFullCanvasTimeout = -1;
 
@@ -44,13 +44,13 @@
 		) || [];
 	$: dataSlice, drawCanvas();
 
-	let logNums = [] as { text: string; num: number }[];
+	let logNums: { text: string; num: number }[] = [];
 
 	let loadedLog: BBLog | undefined;
 
-	let binFile = [] as number[];
+	let binFile: number[] = [];
 	let binFileNumber = -1;
-	let receivedChunks = [] as boolean[];
+	let receivedChunks: boolean[] = [];
 	let totalChunks = -1;
 	let resolveWhenReady = (log: BBLog) => {};
 	let rejectWrongFile = (_: string) => {};
@@ -310,6 +310,7 @@
 			path: 'motion.vvel',
 			minValue: -10,
 			maxValue: 10,
+			decimals: 2,
 			unit: 'm/s'
 		},
 		LOG_GPS: {
@@ -887,13 +888,13 @@
 			gyro: GYRO_RANGES[(rangeByte >> 2) & 0b111],
 			accel: ACC_RANGES[rangeByte & 0b11]
 		};
-		const rateFactors = [[], [], [], [], []] as number[][];
+		const rateFactors: number[][] = [[], [], [], [], []];
 		const rfBytes = header.slice(14, 74);
 		for (let i = 0; i < 5; i++)
 			for (let j = 0; j < 3; j++)
 				rateFactors[i][j] = leBytesToInt(rfBytes.slice(i * 12 + j * 4, i * 12 + j * 4 + 4)) / 65536;
-		const pidConstants = [[], [], []] as number[][];
-		const pidConstantsNice = [[], [], []] as number[][];
+		const pidConstants: number[][] = [[], [], []];
+		const pidConstantsNice: number[][] = [[], [], []];
 		const pcBytes = header.slice(74, 158);
 		for (let i = 0; i < 3; i++) {
 			pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 28, i * 28 + 4));
@@ -917,9 +918,9 @@
 		}
 		const flagsLow = leBytesToInt(header.slice(158, 162));
 		const flagsHigh = leBytesToInt(header.slice(162, 166));
-		const flags = [] as string[];
+		const flags: string[] = [];
 		let frameSize = 0;
-		const offsets = {} as { [key: string]: number };
+		const offsets: { [key: string]: number } = {};
 		for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i; i++) {
 			const flagIsSet = flagsLow & (1 << i);
 			if (flagIsSet) {
@@ -940,9 +941,9 @@
 		}
 		const framesPerSecond = pidFreq / freqDiv;
 		const frames = data.length / frameSize;
-		const log = [] as LogFrame[];
+		const log: LogFrame[] = [];
 		for (let i = 0; i < data.length; i += frameSize) {
-			const frame = {
+			const frame: LogFrame = {
 				elrs: {},
 				setpoint: {},
 				gyro: {},
@@ -950,7 +951,7 @@
 				motors: {},
 				motion: { gps: {} },
 				attitude: {}
-			} as LogFrame;
+			};
 			if (flags.includes('LOG_ROLL_ELRS_RAW'))
 				frame.elrs.roll = leBytesToInt(
 					data.slice(i + offsets['LOG_ROLL_ELRS_RAW'], i + offsets['LOG_ROLL_ELRS_RAW'] + 2)

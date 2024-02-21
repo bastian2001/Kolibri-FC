@@ -271,11 +271,15 @@
 	}
 
 	$: flagName, (modifier = '');
-	$: modifier,
-		dispatch('overrideAuto', {
-			min: gpsModifier.find((m) => m.path === modifier)?.min || 0,
-			max: gpsModifier.find((m) => m.path === modifier)?.max || 1
-		});
+	$: {
+		const auto = {
+			min: gpsModifier.find((m) => m.path === modifier)?.min,
+			max: gpsModifier.find((m) => m.path === modifier)?.max
+		};
+		console.log(auto, modifier);
+		if (auto.min !== undefined && auto.max !== undefined) dispatch('overrideAuto', auto);
+		else dispatch('overrideAuto', undefined);
+	}
 
 	onMount(() => {
 		const h = Math.random() * 360;

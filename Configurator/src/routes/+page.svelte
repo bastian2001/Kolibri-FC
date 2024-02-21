@@ -23,9 +23,9 @@
 		pingFromFC = -1;
 
 	let getRotationInterval = 0;
-	let xBox = null as any;
-	let yBox = null as any;
-	let zBox = null as any;
+	let xBox: any = null;
+	let yBox: any = null;
+	let zBox: any = null;
 	let attitude = {
 		roll: 0,
 		pitch: 0,

@@ -114,7 +114,7 @@ function createPort() {
 				});
 		});
 	};
-	const rxBuf = [] as number[];
+	const rxBuf: number[] = [];
 	let pingStarted = 0;
 	const read = () => {
 		invoke('serial_read')

@@ -15,7 +15,7 @@
 	let device: any;
 	let connected = false;
 
-	let logDiv = null as any;
+	let logDiv: any = null;
 
 	type NavigatorElement = {
 		name: string;
@@ -23,7 +23,7 @@
 		img?: string;
 	};
 
-	const navElements = [
+	const navElements: NavigatorElement[] = [
 		{
 			name: 'Home',
 			path: '/'
@@ -48,9 +48,9 @@
 			name: 'Tuning',
 			path: '/tuning'
 		}
-	] as NavigatorElement[];
+	];
 
-	let log = [] as string[];
+	let log: string[] = [];
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
