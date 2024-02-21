@@ -20,6 +20,10 @@
 		maxValue: number;
 		modifier: any;
 		id: number;
+		unit?: string;
+		states?: string[];
+		decimals?: number;
+		displayName?: string;
 	};
 
 	let graphs = [[]] as TraceInGraph[][];
@@ -53,6 +57,8 @@
 	let startFrame = 0;
 	let endFrame = 0;
 	let mounted = false;
+
+	let overrideAuto: undefined | { min: number; max: number } = undefined;
 
 	let showSettings = false;
 
@@ -285,6 +291,13 @@
 			maxValue: 1000,
 			unit: 'µs'
 		},
+		LOG_FLIGHT_MODE: {
+			name: 'Flight Mode',
+			path: 'flightMode',
+			minValue: 0,
+			maxValue: 5,
+			unit: ''
+		},
 		LOG_ALTITUDE: {
 			name: 'Altitude',
 			path: 'motion.altitude',
@@ -327,13 +340,6 @@
 			minValue: -180,
 			maxValue: 180,
 			unit: '°'
-		},
-		LOG_FLIGHT_MODE: {
-			name: 'Flight Mode',
-			path: 'flightMode',
-			minValue: 0,
-			maxValue: 5,
-			unit: ''
 		}
 	} as {
 		[key: string]: {
@@ -919,12 +925,18 @@
 			if (flagIsSet) {
 				flags.push(Object.keys(BB_ALL_FLAGS)[i]);
 				offsets[Object.keys(BB_ALL_FLAGS)[i]] = frameSize;
-				frameSize += i == 26 ? 6 : 2;
+				if (i == 26) frameSize += 6;
+				else if (i == 28) frameSize++;
+				else frameSize += 2;
 			}
 		}
 		for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i + 32; i++) {
 			const flagIsSet = flagsHigh & (1 << i);
-			if (flagIsSet) flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
+			if (flagIsSet) {
+				flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
+				offsets[Object.keys(BB_ALL_FLAGS)[i + 32]] = frameSize;
+				frameSize += 2;
+			}
 		}
 		const framesPerSecond = pidFreq / freqDiv;
 		const frames = data.length / frameSize;
@@ -1088,14 +1100,102 @@
 				frame.motors.rl = motors23 >> 12;
 				frame.motors.fl = motors23 & 0xfff;
 			}
-			if (flags.includes('LOG_ALTITUDE'))
-				frame.motion.altitude =
-					leBytesToInt(data.slice(i + offsets['LOG_ALTITUDE'], i + offsets['LOG_ALTITUDE'] + 2)) /
-					16;
 			if (flags.includes('LOG_FRAMETIME'))
 				frame.frametime = leBytesToInt(
 					data.slice(i + offsets['LOG_FRAMETIME'], i + offsets['LOG_FRAMETIME'] + 2)
 				);
+			if (flags.includes('LOG_FLIGHT_MODE')) {
+				frame.flightMode = data[i + offsets['LOG_FLIGHT_MODE']];
+			}
+			if (flags.includes('LOG_ALTITUDE'))
+				//12.4 fixed point
+				frame.motion.altitude =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_ALTITUDE'], i + offsets['LOG_ALTITUDE'] + 2),
+						true
+					) / 16;
+			if (flags.includes('LOG_VVEL')) {
+				//10.6 fixed point
+				frame.motion.vvel =
+					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) / 64;
+			}
+			if (flags.includes('LOG_GPS')) {
+				frame.motion.gps = log[log.length - 1]?.motion.gps || {};
+				if (
+					leBytesToInt(data.slice(i + offsets['LOG_GPS'], i + offsets['LOG_GPS'] + 2)) === 20551 && // 'G' * 256 + 'P'
+					leBytesToInt(
+						data.slice(i + offsets['LOG_GPS'] + frameSize, i + offsets['LOG_GPS'] + 2 + frameSize)
+					) === 20563 && // 'G' * 256 + 'P'
+					leBytesToInt(
+						data.slice(
+							i + offsets['LOG_GPS'] + frameSize * 2,
+							i + offsets['LOG_GPS'] + 2 + frameSize * 2
+						)
+					) === 21590 // 'V' * 256 + 'T'
+				) {
+					const gpsData = [] as number[];
+					//copy 92 bytes of GPS data from the next 46 frames (after the 3 frames for GPSPVT)
+					for (let j = 0; j < 46; j++) {
+						const gpsBytes = data.slice(
+							i + offsets['LOG_GPS'] + frameSize * 3 + j * frameSize,
+							i + offsets['LOG_GPS'] + frameSize * 3 + j * frameSize + 2
+						);
+						gpsData.push(...gpsBytes);
+					}
+					frame.motion.gps = {
+						year: leBytesToInt(gpsData.slice(4, 6)),
+						month: gpsData[6],
+						day: gpsData[7],
+						hour: gpsData[8],
+						minute: gpsData[9],
+						second: gpsData[10],
+						time_validity_flags: gpsData[11],
+						t_acc: leBytesToInt(gpsData.slice(12, 16)),
+						fix_type: gpsData[20],
+						flags: gpsData[21],
+						flags2: gpsData[22],
+						sat_count: gpsData[23],
+						lon: leBytesToInt(gpsData.slice(24, 28), true) / 10000000,
+						lat: leBytesToInt(gpsData.slice(28, 32), true) / 10000000,
+						alt: leBytesToInt(gpsData.slice(36, 40), true) / 1000,
+						h_acc: leBytesToInt(gpsData.slice(40, 44)) / 1000,
+						v_acc: leBytesToInt(gpsData.slice(44, 48)) / 1000,
+						vel_n: leBytesToInt(gpsData.slice(48, 52), true) / 1000,
+						vel_e: leBytesToInt(gpsData.slice(52, 56), true) / 1000,
+						vel_d: leBytesToInt(gpsData.slice(56, 60), true) / 1000,
+						g_speed: leBytesToInt(gpsData.slice(60, 64), true) / 1000,
+						head_mot: leBytesToInt(gpsData.slice(64, 68), true) / 100000,
+						s_acc: leBytesToInt(gpsData.slice(68, 72)) / 1000,
+						head_acc: leBytesToInt(gpsData.slice(72, 76)) / 100000,
+						p_dop: leBytesToInt(gpsData.slice(76, 78)) / 100,
+						flags3: leBytesToInt(gpsData.slice(78, 80))
+					};
+				}
+			}
+			if (flags.includes('LOG_ATT_ROLL')) {
+				// roll = 0.0001 * raw (signed 16 bit int)
+				frame.attitude.roll =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_ATT_ROLL'], i + offsets['LOG_ATT_ROLL'] + 2),
+						true
+					) / 10000;
+			}
+			if (flags.includes('LOG_ATT_PITCH')) {
+				// pitch = 0.0001 * raw (signed 16 bit int)
+				frame.attitude.pitch =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_ATT_PITCH'], i + offsets['LOG_ATT_PITCH'] + 2),
+						true
+					) / 10000;
+			}
+			if (flags.includes('LOG_ATT_YAW')) {
+				// yaw = 0.0001 * raw (signed 16 bit int)
+				frame.attitude.yaw =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_ATT_YAW'], i + offsets['LOG_ATT_YAW'] + 2),
+						true
+					) / 10000;
+			}
 			log.push(frame);
 		}
 		loadedLog = {
@@ -1173,13 +1273,13 @@
 			for (let j = 0; j < 64; j++) {
 				//check flags
 				// flag 26 (motors) has 6 bytes per frame, all others only 2
-				// flag 30-32 (GPS) and 36 (flight mode) have 1 byte per frame
+				// flag 28 (flight mode) has 1 byte per frame
 				const byteNum = Math.floor(j / 8);
 				const bitNum = j % 8;
 				const flagIsSet = flags[byteNum] & (1 << bitNum);
 				if (!flagIsSet) continue;
 				if (j == 26) frameSize += 6;
-				else if ([30, 31, 32, 36].includes(j)) frameSize++;
+				else if (j == 28) frameSize++;
 				else frameSize += 2;
 			}
 			const frames = dataBytes / frameSize;
@@ -1388,8 +1488,12 @@
 						else continue;
 					}
 					let value = getNestedProperty(frame, path);
-					value = roundToDecimal(value, bbFlag.decimals || 0);
-					valueTexts.push(bbFlag.name + ': ' + value + ' ' + bbFlag.unit);
+					value = roundToDecimal(value, trace.decimals || bbFlag.decimals || 0);
+					if (trace.states?.length) value = trace.states[value] || value;
+					else
+						valueTexts.push(
+							(trace.displayName || bbFlag.name) + ': ' + value + ' ' + (trace.unit || bbFlag.unit)
+						);
 				}
 			}
 			const textHeight = 14;
@@ -1698,7 +1802,11 @@
 			strokeWidth: 1,
 			flagName: tr.flagName,
 			modifier: tr.modifier,
-			id
+			id,
+			unit: tr.unit,
+			decimals: tr.decimals,
+			states: tr.states,
+			displayName: tr.displayName
 		};
 		drawCanvas();
 	}
@@ -1782,11 +1890,12 @@
 				{#each graph as trace, traceIndex (trace.id)}
 					<TracePlacer
 						flags={loadedLog?.flags || []}
-						autoRange={getAutoRangeByFlagName(
-							trace.flagName.startsWith('GEN_')
-								? BB_GEN_FLAGS[trace.flagName].replaces
-								: trace.flagName
-						)}
+						autoRange={overrideAuto ||
+							getAutoRangeByFlagName(
+								trace.flagName.startsWith('GEN_')
+									? BB_GEN_FLAGS[trace.flagName].replaces
+									: trace.flagName
+							)}
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
 						on:update={(event) => {
@@ -1794,6 +1903,9 @@
 						}}
 						on:delete={() => {
 							deleteTrace(graphIndex, traceIndex);
+						}}
+						on:overrideAuto={(event) => {
+							overrideAuto = event.detail;
 						}}
 					/>
 				{/each}

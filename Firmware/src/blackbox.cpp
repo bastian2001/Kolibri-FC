@@ -379,6 +379,9 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
+	if (currentBBFlags & LOG_FLIGHT_MODE) {
+		bbBuffer[bufferPos++] = (u8)flightMode;
+	}
 	if (currentBBFlags & LOG_ALTITUDE) {
 		const u32 height      = combinedAltitude.getRaw() >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
 		bbBuffer[bufferPos++] = height;
@@ -398,12 +401,16 @@ void __not_in_flash_func(writeSingleFrame)() {
 			// 6 magic bytes to identify the start of a new PVT message
 			bbBuffer[bufferPos++] = 'G';
 			bbBuffer[bufferPos++] = 'P';
+			newPvtMessageFlag &= ~1;
 		} else if (newPvtMessageFlag & 1 << 1) {
 			bbBuffer[bufferPos++] = 'S';
 			bbBuffer[bufferPos++] = 'P';
+			newPvtMessageFlag &= ~(1 << 1);
 		} else if (newPvtMessageFlag & 1 << 2) {
 			bbBuffer[bufferPos++] = 'V';
 			bbBuffer[bufferPos++] = 'T';
+			newPvtMessageFlag &= ~(1 << 2);
+			newestPvtStartedAt = bbFrameNum + 1;
 		} else {
 			// placeholder 0
 			bbBuffer[bufferPos++] = 0;
@@ -424,9 +431,6 @@ void __not_in_flash_func(writeSingleFrame)() {
 		i16 y                 = yaw * 10000;
 		bbBuffer[bufferPos++] = y;
 		bbBuffer[bufferPos++] = y >> 8;
-	}
-	if (currentBBFlags & LOG_FLIGHT_MODE) {
-		bbBuffer[bufferPos++] = (u8)flightMode;
 	}
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);

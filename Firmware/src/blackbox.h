@@ -30,13 +30,13 @@
 #define LOG_YAW_PID_S 1 << 25        // 2 bytes
 #define LOG_MOTOR_OUTPUTS 1 << 26    // 6 bytes
 #define LOG_FRAMETIME 1 << 27        // 2 bytes
-#define LOG_ALTITUDE 1 << 28         // 2 bytes
-#define LOG_VVEL 1 << 29             // 2 bytes
-#define LOG_GPS 1 << 30              // 2 bytes
-#define LOG_ATT_ROLL 1 << 31         // 2 bytes
-#define LOG_ATT_PITCH 1 << 32        // 2 bytes
-#define LOG_ATT_YAW 1 << 33          // 2 bytes
-#define LOG_FLIGHT_MODE 1 << 34      // 1 byte
+#define LOG_FLIGHT_MODE 1 << 28      // 1 byte
+#define LOG_ALTITUDE 1 << 29         // 2 bytes
+#define LOG_VVEL 1 << 30             // 2 bytes
+#define LOG_GPS 1 << 31              // 2 bytes
+#define LOG_ATT_ROLL 1LL << 32       // 2 bytes
+#define LOG_ATT_PITCH 1LL << 33      // 2 bytes
+#define LOG_ATT_YAW 1LL << 34        // 2 bytes
 
 #define LOG_HEAD_MAGIC 0
 #define LOG_HEAD_BB_VERSION 4
