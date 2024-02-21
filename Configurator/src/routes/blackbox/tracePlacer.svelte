@@ -276,7 +276,6 @@
 			min: gpsModifier.find((m) => m.path === modifier)?.min,
 			max: gpsModifier.find((m) => m.path === modifier)?.max
 		};
-		console.log(auto, modifier);
 		if (auto.min !== undefined && auto.max !== undefined) dispatch('overrideAuto', auto);
 		else dispatch('overrideAuto', undefined);
 	}
