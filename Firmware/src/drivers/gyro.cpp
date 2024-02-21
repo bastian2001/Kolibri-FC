@@ -5,8 +5,9 @@
 u32 gyroLastState         = 0;
 elapsedMicros lastPIDLoop = 0;
 
-u32 gyroCalibratedCycles     = 0;
-i16 gyroCalibrationOffset[3] = {0}, gyroCalibrationOffsetTemp[3] = {0};
+u32 gyroCalibratedCycles         = 0;
+i32 gyroCalibrationOffset[3]     = {0};
+i16 gyroCalibrationOffsetTemp[3] = {0};
 
 void gyroLoop() {
 	u8 gpioState = gpio_get(PIN_GYRO_INT1);
@@ -28,9 +29,10 @@ void gyroLoop() {
 					}
 					if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
 						armingDisableFlags &= 0xFFFFFFBF;
-						gyroCalibrationOffsetTemp[0] /= CALIBRATION_SAMPLES;
-						gyroCalibrationOffsetTemp[1] /= CALIBRATION_SAMPLES;
-						gyroCalibrationOffsetTemp[2] /= CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[0] = gyroCalibrationOffsetTemp[0] / CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[1] = gyroCalibrationOffsetTemp[1] / CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[2] = gyroCalibrationOffsetTemp[2] / CALIBRATION_SAMPLES;
+						char buf[100];
 					}
 				} else {
 					gyroCalibrationOffsetTemp[0] = 0;
