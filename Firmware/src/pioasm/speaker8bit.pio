@@ -1,0 +1,17 @@
+.program speaker8bit
+mov osr, ~null
+out isr, 1
+in null, 8
+.wrap_target
+pull ifempty noblock
+out x, 8
+mov y, isr
+set pins 1
+write_one:
+jmp y-- c
+c:
+jmp x-- write_one
+set pins 0
+write_zero:
+jmp y-- write_zero [1]
+.wrap

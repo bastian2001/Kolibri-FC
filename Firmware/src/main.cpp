@@ -36,11 +36,10 @@ void setup() {
 	gpio_init(PIN_LED_DEBUG);
 	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
 
-	initSpeaker();
-
 	initESCs();
 	initBlackbox();
-	rp2040.wdt_begin(200);
+	initSpeaker();
+	rp2040.wdt_begin(1000);
 
 	Serial.println("Setup complete");
 	extern elapsedMicros taskTimer0;
@@ -90,13 +89,19 @@ void loop() {
 	taskTimer0 = 0;
 }
 
+u32 *speakerRxPacket;
 void setup1() {
 	setupDone |= 0b10;
+	speakerRxPacket = new u32[128];
 	while (!(setupDone & 0b01)) {
 	}
 }
 elapsedMicros taskTimer = 0;
 u32 taskState           = 0;
+u32 speakerRxPointer    = 0;
+
+extern PIO speakerPio;
+extern u8 speakerSm;
 void loop1() {
 	tasks[TASK_LOOP1].runCounter++;
 	u32 duration = taskTimer;
@@ -104,6 +109,19 @@ void loop1() {
 		tasks[TASK_LOOP1].maxGap = duration;
 	}
 	taskTimer = 0;
+
+	tasks[TASK_SPEAKER].debugInfo = speakerRxPacket[speakerRxPointer];
+	if (speakerRxPointer < 128)
+		while (speakerRxPointer < 128 && !pio_sm_is_tx_fifo_full(speakerPio, speakerSm)) {
+			pio_sm_put_blocking(speakerPio, speakerSm, speakerRxPacket[speakerRxPointer++]);
+		}
+	else {
+		if (rp2040.fifo.available()) {
+			delete[] speakerRxPacket;
+			rp2040.fifo.pop_nb((u32 *)&speakerRxPacket);
+			speakerRxPointer = 0;
+		}
+	}
 	gyroLoop();
 	if (gyroUpdateFlag & 1) {
 		switch (taskState++) {

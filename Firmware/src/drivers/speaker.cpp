@@ -1,4 +1,5 @@
 #include "global.h"
+#include "pioasm/speaker8bit.pio.h"
 
 elapsedMillis soundStart;
 u16 soundDuration       = 0;
@@ -39,96 +40,170 @@ RTTTLSong songToPlay;
 
 #define FREQ_TO_WRAP(freq) (2000000 / freq)
 
+// void initSpeaker() {
+// 	gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PWM);
+// 	u8 sliceNum = pwm_gpio_to_slice_num(PIN_SPEAKER);
+// 	pwm_set_clkdiv_int_frac(sliceNum, 132, 0); // 2MHz, therefore a wrap of 50000 for 20Hz, and a wrap of 200 for 5kHz
+// 	pwm_set_wrap(sliceNum, FREQ_TO_WRAP(1000));
+// 	pwm_set_gpio_level(PIN_SPEAKER, 0);
+// 	pwm_set_enabled(sliceNum, true);
+// }
+PIO speakerPio;
+u8 speakerSm;
+File speakerFile;
+u32 speakerDataSize = 0;
 void initSpeaker() {
-	gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PWM);
-	u8 sliceNum = pwm_gpio_to_slice_num(PIN_SPEAKER);
-	pwm_set_clkdiv_int_frac(sliceNum, 132, 0); // 2MHz, therefore a wrap of 50000 for 20Hz, and a wrap of 200 for 5kHz
-	pwm_set_wrap(sliceNum, FREQ_TO_WRAP(1000));
-	pwm_set_gpio_level(PIN_SPEAKER, 0);
-	pwm_set_enabled(sliceNum, true);
-}
-
-u8 beeperOn = 0;
-
-void speakerLoop() {
-	elapsedMicros taskTimer = 0;
-	tasks[TASK_SPEAKER].runCounter++;
-	if (!beeperOn && ((ELRS->channels[9] > 1500 && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
-		beeperOn = true;
-		makeSweepSound(1000, 5000, 65535, 600, 0);
-	} else if (beeperOn && (ELRS->channels[9] <= 1500 && ELRS->isLinkUp)) {
-		beeperOn = false;
-		stopSound();
-	}
-	if (soundDuration > 0) {
-		u32 sinceStart = soundStart;
-		if (soundDuration != 65535 && sinceStart > soundDuration) {
-			stopSound();
-		} else if (soundType == 1) {
-			int thisCycle = sinceStart % (onTime + offTime);
-			if (thisCycle > onTime) {
-				pwm_set_gpio_level(PIN_SPEAKER, 0);
-			} else {
-				u32 thisFreq = sweepStartFrequency + ((sweepEndFrequency - sweepStartFrequency) * thisCycle) / onTime;
-				currentWrap  = FREQ_TO_WRAP(thisFreq);
-				pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
-				pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
-			}
-		} else if (soundType == 2) {
-			int thisCycle = sinceStart;
-			int noteIndex = 0;
-			while (thisCycle > songToPlay.notes[noteIndex].duration && noteIndex < songToPlay.numNotes && noteIndex < MAX_RTTTL_NOTES) {
-				thisCycle -= songToPlay.notes[noteIndex].duration;
-				noteIndex++;
-			}
-			if (noteIndex >= songToPlay.numNotes || noteIndex >= MAX_RTTTL_NOTES) {
-				stopSound();
-			} else {
-				if (songToPlay.notes[noteIndex].frequency == 0) {
-					pwm_set_gpio_level(PIN_SPEAKER, 0);
-				} else {
-					if (songToPlay.notes[noteIndex].sweepToNext) {
-						u32 thisFreq = songToPlay.notes[noteIndex].frequency + ((songToPlay.notes[noteIndex + 1].frequency - songToPlay.notes[noteIndex].frequency) * thisCycle) / songToPlay.notes[noteIndex].duration;
-						currentWrap  = FREQ_TO_WRAP(thisFreq);
-					} else {
-						currentWrap = FREQ_TO_WRAP(songToPlay.notes[noteIndex].frequency);
-					}
-					pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
-					int level = currentWrap >> 1;
-					gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_2MA);
-					switch (songToPlay.notes[noteIndex].quieter) {
-					case 1:
-						level = level >> 4;
-						break;
-					case 2:
-						level = level >> 6;
-						break;
-					case 3:
-						level = level >> 7;
-						break;
-					case 4:
-						level = level >> 2;
-					}
-					pwm_set_gpio_level(PIN_SPEAKER, level);
-				}
-			}
-		} else if (soundType == 0) {
-			u32 thisCycle = sinceStart % (onTime + offTime);
-			if (thisCycle > onTime) {
-				pwm_set_gpio_level(PIN_SPEAKER, 0);
-			} else {
-				pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
-			}
+	speakerPio      = pio0;
+	uint offset     = pio_add_program(speakerPio, &speaker8bit_program);
+	speakerSm       = pio_claim_unused_sm(speakerPio, true);
+	pio_sm_config c = speaker8bit_program_get_default_config(offset);
+	pio_gpio_init(speakerPio, PIN_SPEAKER);
+	sm_config_set_set_pins(&c, PIN_SPEAKER, 1);
+	sm_config_set_out_pins(&c, PIN_SPEAKER, 1);
+	sm_config_set_in_pins(&c, PIN_SPEAKER);
+	sm_config_set_jmp_pin(&c, PIN_SPEAKER);
+	sm_config_set_out_shift(&c, false, false, 32);
+	sm_config_set_in_shift(&c, false, false, 32);
+	pio_sm_set_consecutive_pindirs(speakerPio, speakerSm, PIN_SPEAKER, 1, true);
+	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+	pio_sm_init(speakerPio, speakerSm, offset, &c);
+	pio_sm_set_enabled(speakerPio, speakerSm, true);
+	pio_sm_put(speakerPio, speakerSm, 0);
+	pio_sm_set_clkdiv_int_frac(speakerPio, speakerSm, 11, 148); // 44.1kHz
+	if (fsReady) {
+		speakerFile = SDFS.open("start.wav", "r");
+		if (speakerFile) {
+			speakerFile.seek(44);
+			speakerDataSize = speakerFile.size() - 44;
 		}
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_SPEAKER].totalDuration += duration;
-	if (duration < tasks[TASK_SPEAKER].minDuration) {
-		tasks[TASK_SPEAKER].minDuration = duration;
+}
+
+u8 beeperOn           = 0;
+u32 speakerCounter    = 0;
+u8 speakerPush[32]    = {0};
+u8 speakerPacketState = 0;
+u32 *speakerPacket; // 32 words with 4 bytes each = 128 samples to transfer to other core
+void speakerLoop() {
+	switch (speakerPacketState) {
+	case 0: {
+		speakerPacket      = new u32[128];
+		u32 bytesRemaining = speakerDataSize - speakerCounter;
+		if (bytesRemaining > 512)
+			bytesRemaining = 512;
+		bytesRemaining /= 4;
+		speakerCounter += speakerFile.read((u8 *)speakerPacket, bytesRemaining * 4);
+		if (bytesRemaining != 128)
+			return;
+		// for (int i = bytesRemaining + 1; i < 32; i++)
+		// 	speakerPacket[i] = speakerPacket[bytesRemaining];
+		if (!rp2040.fifo.push_nb((u32)speakerPacket))
+			speakerPacketState = 1;
 	}
-	if (duration > tasks[TASK_SPEAKER].maxDuration) {
-		tasks[TASK_SPEAKER].maxDuration = duration;
+	case 1:
+		if (rp2040.fifo.push_nb((u32)speakerPacket))
+			speakerPacketState = 0;
 	}
+
+	// u32 smTx = (8 - pio_sm_get_tx_fifo_level(speakerPio, speakerSm)) * 4;
+	// if (smTx > speakerDataSize - speakerCounter) {
+	// 	smTx = speakerDataSize - speakerCounter;
+	// }
+	// smTx &= 0xFFFFFFFC;
+	// if (smTx > 0) {
+	// 	speakerFile.read(speakerPush, smTx);
+	// 	smTx /= 4;
+	// 	if (smTx == 8) tasks[TASK_SPEAKER].debugInfo++;
+	// 	for (int i = 0; i < smTx; i++) {
+	// 		pio_sm_put(speakerPio, speakerSm, (speakerPush[i * 4] << 24) | (speakerPush[i * 4 + 1] << 16) | (speakerPush[i * 4 + 2] << 8) | speakerPush[i * 4 + 3]);
+	// 	}
+	// 	speakerCounter += smTx;
+	// }
+	// for (int i = 0; i < smTx; i++) {
+	// 	speakerPush[i] = sinf(speakerCounter++ / 100.f * 2 * (float)PI) * 127 + 128;
+	// }
+	// smTx /= 4;
+	// for (int i = 0; i < smTx; i++) {
+	// 	pio_sm_put(speakerPio, speakerSm, (speakerPush[i * 4] << 24) | (speakerPush[i * 4 + 1] << 16) | (speakerPush[i * 4 + 2] << 8) | speakerPush[i * 4 + 3]);
+	// }
+	// elapsedMicros taskTimer = 0;
+	// tasks[TASK_SPEAKER].runCounter++;
+	// if (!beeperOn && ((ELRS->channels[9] > 1500 && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
+	// 	beeperOn = true;
+	// 	makeSweepSound(1000, 5000, 65535, 600, 0);
+	// } else if (beeperOn && (ELRS->channels[9] <= 1500 && ELRS->isLinkUp)) {
+	// 	beeperOn = false;
+	// 	stopSound();
+	// }
+	// if (soundDuration > 0) {
+	// 	u32 sinceStart = soundStart;
+	// 	if (soundDuration != 65535 && sinceStart > soundDuration) {
+	// 		stopSound();
+	// 	} else if (soundType == 1) {
+	// 		int thisCycle = sinceStart % (onTime + offTime);
+	// 		if (thisCycle > onTime) {
+	// 			pwm_set_gpio_level(PIN_SPEAKER, 0);
+	// 		} else {
+	// 			u32 thisFreq = sweepStartFrequency + ((sweepEndFrequency - sweepStartFrequency) * thisCycle) / onTime;
+	// 			currentWrap  = FREQ_TO_WRAP(thisFreq);
+	// 			pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
+	// 			pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
+	// 		}
+	// 	} else if (soundType == 2) {
+	// 		int thisCycle = sinceStart;
+	// 		int noteIndex = 0;
+	// 		while (thisCycle > songToPlay.notes[noteIndex].duration && noteIndex < songToPlay.numNotes && noteIndex < MAX_RTTTL_NOTES) {
+	// 			thisCycle -= songToPlay.notes[noteIndex].duration;
+	// 			noteIndex++;
+	// 		}
+	// 		if (noteIndex >= songToPlay.numNotes || noteIndex >= MAX_RTTTL_NOTES) {
+	// 			stopSound();
+	// 		} else {
+	// 			if (songToPlay.notes[noteIndex].frequency == 0) {
+	// 				pwm_set_gpio_level(PIN_SPEAKER, 0);
+	// 			} else {
+	// 				if (songToPlay.notes[noteIndex].sweepToNext) {
+	// 					u32 thisFreq = songToPlay.notes[noteIndex].frequency + ((songToPlay.notes[noteIndex + 1].frequency - songToPlay.notes[noteIndex].frequency) * thisCycle) / songToPlay.notes[noteIndex].duration;
+	// 					currentWrap  = FREQ_TO_WRAP(thisFreq);
+	// 				} else {
+	// 					currentWrap = FREQ_TO_WRAP(songToPlay.notes[noteIndex].frequency);
+	// 				}
+	// 				pwm_set_wrap(pwm_gpio_to_slice_num(PIN_SPEAKER), currentWrap);
+	// 				int level = currentWrap >> 1;
+	// 				gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_2MA);
+	// 				switch (songToPlay.notes[noteIndex].quieter) {
+	// 				case 1:
+	// 					level = level >> 4;
+	// 					break;
+	// 				case 2:
+	// 					level = level >> 6;
+	// 					break;
+	// 				case 3:
+	// 					level = level >> 7;
+	// 					break;
+	// 				case 4:
+	// 					level = level >> 2;
+	// 				}
+	// 				pwm_set_gpio_level(PIN_SPEAKER, level);
+	// 			}
+	// 		}
+	// 	} else if (soundType == 0) {
+	// 		u32 thisCycle = sinceStart % (onTime + offTime);
+	// 		if (thisCycle > onTime) {
+	// 			pwm_set_gpio_level(PIN_SPEAKER, 0);
+	// 		} else {
+	// 			pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
+	// 		}
+	// 	}
+	// }
+	// u32 duration = taskTimer;
+	// tasks[TASK_SPEAKER].totalDuration += duration;
+	// if (duration < tasks[TASK_SPEAKER].minDuration) {
+	// 	tasks[TASK_SPEAKER].minDuration = duration;
+	// }
+	// if (duration > tasks[TASK_SPEAKER].maxDuration) {
+	// 	tasks[TASK_SPEAKER].maxDuration = duration;
+	// }
 }
 
 void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs) {
