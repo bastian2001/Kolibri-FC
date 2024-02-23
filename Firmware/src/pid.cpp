@@ -57,12 +57,12 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
-	// pidGainsVVel[P] = 800;           // additional throttle if velocity is 1m/s too low
-	// pidGainsVVel[I] = .02;           // increase throttle by 3200x this value, when error is 1m/s
-	// pidGainsVVel[D] = 0;             // additional throttle, if accelerating by 3200m/s^2
+	pidGainsVVel[P] = 800;           // additional throttle if velocity is 1m/s too low
+	pidGainsVVel[I] = .02;           // increase throttle by 3200x this value, when error is 1m/s
+	pidGainsVVel[D] = 0;             // additional throttle, if accelerating by 3200m/s^2
 	pidGainsAlt[P]  = 60;            // additional throttle if altitude is 1m too low
-	pidGainsAlt[I]  = 0.003;         // increase throttle by 3200x this value per second, when error is 1m
-	pidGainsAlt[D]  = 0;             // additional throttle, if changing altitude by 3200m/s
+	pidGainsAlt[I]  = 0.001;         // increase throttle by 3200x this value per second, when error is 1m
+	pidGainsAlt[D]  = 20;            // additional throttle, if changing altitude by 3200m/s
 	pidGainsHVel[P] = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I] = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 7;             // tilt in degrees, if changing speed by 3200m/s /s
@@ -179,13 +179,13 @@ void pidLoop() {
 				// vVelD    = pidGainsVVel[D] * (vVel - vVelLast);
 				// throttle = vVelP + vVelI + vVelD;
 				// estimate throttle based on altitude error
-				altSetpoint += t / 180;
+				altSetpoint += t / 180 / 3200;
 				altError = altSetpoint - combinedAltitude;
 				altErrorSum += altError;
 				altP = pidGainsAlt[P] * altError;
 				altI = pidGainsAlt[I] * altErrorSum;
-				altD = pidGainsAlt[D] * (combinedAltitude - altLast);
-				throttle += altP + altI + altD;
+				altD = pidGainsAlt[D] * (altLast - combinedAltitude) * 3200;
+				throttle = altP + altI + altD;
 			} else {
 				vVelErrorSum = 0;
 			}
