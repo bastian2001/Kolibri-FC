@@ -20,7 +20,7 @@ static const uint16_t speaker8bit_program_instructions[] = {
     0x60c1, //  1: out    isr, 1                     
     0x4068, //  2: in     null, 8                    
             //     .wrap_target
-    0x80c0, //  3: pull   ifempty noblock            
+    0x80e0, //  3: pull   ifempty block              
     0x6028, //  4: out    x, 8                       
     0xa046, //  5: mov    y, isr                     
     0xe001, //  6: set    pins, 1                    

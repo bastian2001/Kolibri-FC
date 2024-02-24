@@ -65,6 +65,7 @@ void initSpeaker() {
 	sm_config_set_out_shift(&c, false, false, 32);
 	sm_config_set_in_shift(&c, false, false, 32);
 	pio_sm_set_consecutive_pindirs(speakerPio, speakerSm, PIN_SPEAKER, 1, true);
+	gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_12MA);
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
 	pio_sm_init(speakerPio, speakerSm, offset, &c);
 	pio_sm_set_enabled(speakerPio, speakerSm, true);
@@ -79,31 +80,21 @@ void initSpeaker() {
 	}
 }
 
-u8 beeperOn           = 0;
-u32 speakerCounter    = 0;
-u8 speakerPush[32]    = {0};
-u8 speakerPacketState = 0;
+u8 beeperOn        = 0;
+u32 speakerCounter = 0;
 u32 *speakerPacket; // 32 words with 4 bytes each = 128 samples to transfer to other core
 void speakerLoop() {
-	switch (speakerPacketState) {
-	case 0: {
-		speakerPacket      = new u32[128];
-		u32 bytesRemaining = speakerDataSize - speakerCounter;
-		if (bytesRemaining > 512)
-			bytesRemaining = 512;
-		bytesRemaining /= 4;
-		speakerCounter += speakerFile.read((u8 *)speakerPacket, bytesRemaining * 4);
-		if (bytesRemaining != 128)
-			return;
-		// for (int i = bytesRemaining + 1; i < 32; i++)
-		// 	speakerPacket[i] = speakerPacket[bytesRemaining];
-		if (!rp2040.fifo.push_nb((u32)speakerPacket))
-			speakerPacketState = 1;
-	}
-	case 1:
-		if (rp2040.fifo.push_nb((u32)speakerPacket))
-			speakerPacketState = 0;
-	}
+	speakerPacket      = new u32[SPEAKER_SIZE];
+	u32 bytesRemaining = speakerDataSize - speakerCounter;
+	if (bytesRemaining > SPEAKER_SIZE * 4)
+		bytesRemaining = SPEAKER_SIZE * 4;
+	bytesRemaining /= 4;
+	speakerCounter += speakerFile.read((u8 *)speakerPacket, bytesRemaining * 4);
+	if (bytesRemaining != SPEAKER_SIZE)
+		return;
+	// for (int i = bytesRemaining + 1; i < SPEAKER_SIZE; i++)
+	// 	speakerPacket[i] = speakerPacket[bytesRemaining];
+	rp2040.fifo.push((u32)speakerPacket);
 
 	// u32 smTx = (8 - pio_sm_get_tx_fifo_level(speakerPio, speakerSm)) * 4;
 	// if (smTx > speakerDataSize - speakerCounter) {

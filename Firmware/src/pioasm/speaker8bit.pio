@@ -3,7 +3,7 @@ mov osr, ~null
 out isr, 1
 in null, 8
 .wrap_target
-pull ifempty noblock
+pull ifempty block
 out x, 8
 mov y, isr
 set pins 1

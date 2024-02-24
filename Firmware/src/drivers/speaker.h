@@ -4,6 +4,7 @@
 
 #define MAX_RTTTL_NOTES 256
 #define MAX_RTTTL_TEXT_LENGTH 1024
+#define SPEAKER_SIZE 256
 
 void initSpeaker();
 

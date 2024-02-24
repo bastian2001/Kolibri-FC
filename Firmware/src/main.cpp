@@ -92,7 +92,7 @@ void loop() {
 u32 *speakerRxPacket;
 void setup1() {
 	setupDone |= 0b10;
-	speakerRxPacket = new u32[128];
+	speakerRxPacket = new u32[SPEAKER_SIZE];
 	while (!(setupDone & 0b01)) {
 	}
 }
@@ -111,8 +111,11 @@ void loop1() {
 	taskTimer = 0;
 
 	tasks[TASK_SPEAKER].debugInfo = speakerRxPacket[speakerRxPointer];
-	if (speakerRxPointer < 128)
-		while (speakerRxPointer < 128 && !pio_sm_is_tx_fifo_full(speakerPio, speakerSm)) {
+	if (pio_sm_is_tx_fifo_empty(speakerPio, speakerSm)) {
+		tasks[TASK_SPEAKER].errorCount++;
+	}
+	if (speakerRxPointer < SPEAKER_SIZE)
+		while (speakerRxPointer < SPEAKER_SIZE && !pio_sm_is_tx_fifo_full(speakerPio, speakerSm)) {
 			pio_sm_put_blocking(speakerPio, speakerSm, speakerRxPacket[speakerRxPointer++]);
 		}
 	else {
