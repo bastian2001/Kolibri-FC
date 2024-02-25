@@ -39,7 +39,7 @@ void setup() {
 	initESCs();
 	initBlackbox();
 	initSpeaker();
-	rp2040.wdt_begin(1000);
+	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");
 	extern elapsedMicros taskTimer0;
@@ -50,7 +50,7 @@ void setup() {
 	}
 	// makeRtttlSound("o=6,b=800:1c#6,1d#6,1g#6.,1d#6$1,1g#6.$1,1d#6$2,1g#6$2");
 	// makeRtttlSound("NokiaTune:d=4,o=5,b=160:8e6$4,8d6$4,4f#5$4,4g#5$4,8c#6$4,8b5$4,4d5$4,4e5$4,8b5$4,8a5$4,4c#5$4,4e5$4,1a5$4");
-	makeSound(1000, 100, 100, 0);
+	// makeSound(1000, 100, 100, 0);
 }
 
 elapsedMillis activityTimer;
@@ -92,13 +92,11 @@ void loop() {
 u32 *speakerRxPacket;
 void setup1() {
 	setupDone |= 0b10;
-	speakerRxPacket = new u32[SPEAKER_SIZE];
 	while (!(setupDone & 0b01)) {
 	}
 }
 elapsedMicros taskTimer = 0;
 u32 taskState           = 0;
-u32 speakerRxPointer    = 0;
 
 extern PIO speakerPio;
 extern u8 speakerSm;
@@ -109,22 +107,6 @@ void loop1() {
 		tasks[TASK_LOOP1].maxGap = duration;
 	}
 	taskTimer = 0;
-
-	tasks[TASK_SPEAKER].debugInfo = speakerRxPacket[speakerRxPointer];
-	if (pio_sm_is_tx_fifo_empty(speakerPio, speakerSm)) {
-		tasks[TASK_SPEAKER].errorCount++;
-	}
-	if (speakerRxPointer < SPEAKER_SIZE)
-		while (speakerRxPointer < SPEAKER_SIZE && !pio_sm_is_tx_fifo_full(speakerPio, speakerSm)) {
-			pio_sm_put_blocking(speakerPio, speakerSm, speakerRxPacket[speakerRxPointer++]);
-		}
-	else {
-		if (rp2040.fifo.available()) {
-			delete[] speakerRxPacket;
-			rp2040.fifo.pop_nb((u32 *)&speakerRxPacket);
-			speakerRxPointer = 0;
-		}
-	}
 	gyroLoop();
 	if (gyroUpdateFlag & 1) {
 		switch (taskState++) {
