@@ -6,8 +6,10 @@ u8 escSm;
 u32 motorPacket[2] = {0, 0xF000F}; // all motors off, but request telemetry in 12th bit
 u32 escPioOffset   = 0;
 
-u32 escRawReturn[32] = {0};
-u8 escDmaChannel     = 0;
+u32 escRawReturn[32]         = {0};
+u32 escReturn[4][8]          = {0};
+u32 escEdgeDetectedReturn[4] = {0};
+u8 escDmaChannel             = 0;
 dma_channel_config escDmaConfig;
 
 void initESCs() {
@@ -71,7 +73,10 @@ void sendRaw16Bit(const u16 raw[4]) {
 	dma_channel_set_write_addr(escDmaChannel, escRawReturn, true);
 	pio_sm_put(escPio, escSm, ~(motorPacket[0]));
 	pio_sm_put(escPio, escSm, ~(motorPacket[1]));
+	pio_sm_exec(escPio, escSm, pio_encode_set(pio_pindirs, 0xF));
 	pio_sm_exec(escPio, escSm, pio_encode_jmp(escPioOffset));
+	delayMicroseconds(200);
+	Serial.printf("PC: %d\n", pio_sm_get_pc(escPio, escSm) - escPioOffset);
 }
 
 void sendRaw11Bit(const u16 raw[4]) {
