@@ -6,6 +6,10 @@ u8 escSm;
 u32 motorPacket[2] = {0, 0xF000F}; // all motors off, but request telemetry in 12th bit
 u32 escPioOffset   = 0;
 
+u32 escRawReturn[32] = {0};
+u8 escDmaChannel     = 0;
+dma_channel_config escDmaConfig;
+
 void initESCs() {
 	escPio          = pio0;
 	escPioOffset    = pio_add_program(escPio, &bidir_dshot_x4_program);
@@ -31,6 +35,17 @@ void initESCs() {
 	pio_sm_init(escPio, escSm, escPioOffset, &c);
 	pio_sm_set_enabled(escPio, escSm, true);
 	pio_sm_set_clkdiv_int_frac(escPio, escSm, bidir_dshot_x4_CLKDIV_300_INT, bidir_dshot_x4_CLKDIV_300_FRAC);
+
+	escDmaChannel = dma_claim_unused_channel(true);
+	escDmaConfig  = dma_channel_get_default_config(escDmaChannel);
+	channel_config_set_transfer_data_size(&escDmaConfig, DMA_SIZE_32);
+	channel_config_set_read_increment(&escDmaConfig, false);
+	channel_config_set_write_increment(&escDmaConfig, true);
+	channel_config_set_dreq(&escDmaConfig, pio_get_dreq(escPio, escSm, false));
+	dma_channel_set_config(escDmaChannel, &escDmaConfig, false);
+	dma_channel_set_read_addr(escDmaChannel, &escPio->rxf[escSm], false);
+	dma_channel_set_write_addr(escDmaChannel, escRawReturn, false);
+	dma_channel_set_trans_count(escDmaChannel, 32, true);
 }
 
 u16 appendChecksum(u16 data) {
@@ -51,6 +66,9 @@ void sendRaw16Bit(const u16 raw[4]) {
 		motorPacket[0] |= ((raw[motor] >> (pos + 8)) & 1) << i;
 		motorPacket[1] |= ((raw[motor] >> pos) & 1) << i;
 	}
+	while (!pio_sm_is_rx_fifo_empty(escPio, escSm))
+		pio_sm_get(escPio, escSm);
+	dma_channel_set_write_addr(escDmaChannel, escRawReturn, true);
 	pio_sm_put(escPio, escSm, ~(motorPacket[0]));
 	pio_sm_put(escPio, escSm, ~(motorPacket[1]));
 	pio_sm_exec(escPio, escSm, pio_encode_jmp(escPioOffset));

@@ -18,6 +18,7 @@ set pins, 0b1111 [6]; set pins to 0 (inverted dshot)
 jmp !OSRE write_one_bit; loop 8+8 times - 16 bits per ESC, 32 bits per pull instruction
 ; all 4 motors have their data now, switch pins to input and load counters
 mov x, ~null
+mov isr, null
 in x, 7; isr is now 127
 mov x, isr; x = 127, 126, 125, ..., 0 => 128 cycles, autopush after every 8 cycles (32 bits)
 ; 21 bits are sent by each ESC, but they might be out of sync from each other. We need to capture more

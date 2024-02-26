@@ -13,7 +13,7 @@
 // -------------- //
 
 #define bidir_dshot_x4_wrap_target 0
-#define bidir_dshot_x4_wrap 17
+#define bidir_dshot_x4_wrap 18
 
 #define bidir_dshot_x4_CLKDIV_300_INT 22
 #define bidir_dshot_x4_CLKDIV_300_FRAC 0
@@ -31,24 +31,25 @@ static const uint16_t bidir_dshot_x4_program_instructions[] = {
     0xe60f, //  4: set    pins, 15               [6] 
     0x00e2, //  5: jmp    !osre, 2                   
     0xa02b, //  6: mov    x, !null                   
-    0x4027, //  7: in     x, 7                       
-    0xa026, //  8: mov    x, isr                     
-    0xe080, //  9: set    pindirs, 0                 
-    0xa0cb, // 10: mov    isr, !null                 
-    0x4004, // 11: in     pins, 4                    
-    0xa04e, // 12: mov    y, !isr                    
-    0x006a, // 13: jmp    !y, 10                     
-    0x004f, // 14: jmp    x--, 15                    
-    0x4004, // 15: in     pins, 4                    
-    0x034f, // 16: jmp    x--, 15                [3] 
-    0x0011, // 17: jmp    17                         
+    0xa0c3, //  7: mov    isr, null                  
+    0x4027, //  8: in     x, 7                       
+    0xa026, //  9: mov    x, isr                     
+    0xe080, // 10: set    pindirs, 0                 
+    0xa0cb, // 11: mov    isr, !null                 
+    0x4004, // 12: in     pins, 4                    
+    0xa04e, // 13: mov    y, !isr                    
+    0x006b, // 14: jmp    !y, 11                     
+    0x0050, // 15: jmp    x--, 16                    
+    0x4004, // 16: in     pins, 4                    
+    0x0350, // 17: jmp    x--, 16                [3] 
+    0x0012, // 18: jmp    18                         
             //     .wrap
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program bidir_dshot_x4_program = {
     .instructions = bidir_dshot_x4_program_instructions,
-    .length = 18,
+    .length = 19,
     .origin = -1,
 };
 
