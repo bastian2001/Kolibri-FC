@@ -4,8 +4,11 @@
 
 #define MAX_RTTTL_NOTES 256
 #define MAX_RTTTL_TEXT_LENGTH 1024
+#define SPEAKER_SIZE_POWER 10
 
 void initSpeaker();
+
+bool playWav(const char *filename);
 
 void speakerLoop();
 

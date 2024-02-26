@@ -52,8 +52,8 @@ void adcLoop() {
 			// updateElem(OSDElem::CURRENT, (char *)currentStr);
 
 			// read temperature
-			adc_select_input(4);
-			temperature = analogReadTemp();
+			// adc_select_input(4);
+			// temperature = analogReadTemp();
 		}
 		adcType      = !adcType;
 		u32 duration = taskTimer;

@@ -46,7 +46,22 @@ void modesLoop() {
 				startPointLat = gpsMotion.lat;
 				startPointLon = gpsMotion.lon;
 			} else if (ELRS->consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
-				makeSound(2500, 599, 70, 50);
+				u8 wavSuccess = 0;
+				if (armingDisableFlags & 0x00000040) {
+					wavSuccess = playWav("armingErrors/gyro.wav");
+				} else if (armingDisableFlags & 0x00000004) {
+					wavSuccess = playWav("armingErrors/nogpsmodule.wav");
+				} else if (armingDisableFlags & 0x00000008) {
+					wavSuccess = playWav("armingErrors/configurator.wav");
+				} else if (armingDisableFlags & 0x00000010) {
+					wavSuccess = playWav("armingErrors/elrsLink.wav");
+				} else if (armingDisableFlags & 0x00000020) {
+					wavSuccess = playWav("armingErrors/wrongMode.wav");
+				} else if (armingDisableFlags & 0x00000002) {
+					wavSuccess = playWav("armingErrors/throttle.wav");
+				}
+				if (!wavSuccess)
+					makeSound(2500, 599, 70, 50);
 			}
 		} else if (ELRS->channels[4] < 1500) {
 			armed = false;

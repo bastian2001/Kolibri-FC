@@ -49,7 +49,7 @@
 #define LOG_HEAD_LOGGED_FIELDS 158
 
 extern u64 bbFlags;
-extern volatile bool bbLogging;
+extern volatile bool bbLogging, fsReady;
 extern FSInfo64 fs_info;
 extern elapsedMillis infoAge;
 extern u8 bbFreqDivider;

@@ -36,10 +36,9 @@ void setup() {
 	gpio_init(PIN_LED_DEBUG);
 	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
 
-	initSpeaker();
-
 	initESCs();
 	initBlackbox();
+	initSpeaker();
 	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");
@@ -51,7 +50,7 @@ void setup() {
 	}
 	// makeRtttlSound("o=6,b=800:1c#6,1d#6,1g#6.,1d#6$1,1g#6.$1,1d#6$2,1g#6$2");
 	// makeRtttlSound("NokiaTune:d=4,o=5,b=160:8e6$4,8d6$4,4f#5$4,4g#5$4,8c#6$4,8b5$4,4d5$4,4e5$4,8b5$4,8a5$4,4c#5$4,4e5$4,1a5$4");
-	makeSound(1000, 100, 100, 0);
+	// makeSound(1000, 100, 100, 0);
 }
 
 elapsedMillis activityTimer;
@@ -90,6 +89,7 @@ void loop() {
 	taskTimer0 = 0;
 }
 
+u32 *speakerRxPacket;
 void setup1() {
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {
@@ -97,6 +97,9 @@ void setup1() {
 }
 elapsedMicros taskTimer = 0;
 u32 taskState           = 0;
+
+extern PIO speakerPio;
+extern u8 speakerSm;
 void loop1() {
 	tasks[TASK_LOOP1].runCounter++;
 	u32 duration = taskTimer;
