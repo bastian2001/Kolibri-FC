@@ -1,0 +1,42 @@
+.program bidir_dshot_x4
+; total ticks per bit (to ESC): 40
+; long sequence ticks: 15
+; short sequence ticks: 10
+; one bit: long (0) + long (data) + short (1)
+
+; ticks per bit from ESC: 32
+; using 8x oversampling (edge detection in c++ code),
+; we sample every 4th tick, so 8 samples per bit
+
+set pindirs, 0b1111; set pins to output
+set y, 1;
+; pull block; get first 8 bits for each ESC
+write_one_bit:
+set pins, 0b0000 [14]; set pins to 0 (inverted dshot)
+out pins, 4 [14]; output 4 bits, one for each ESC
+set pins, 0b1111 [6]; set pins to 0 (inverted dshot)
+jmp !OSRE write_one_bit; loop 8+8 times - 16 bits per ESC, 32 bits per pull instruction
+; all 4 motors have their data now, switch pins to input and load counters
+mov x, ~null
+in x, 7; isr is now 127
+mov x, isr; x = 127, 126, 125, ..., 0 => 128 cycles, autopush after every 8 cycles (32 bits)
+; 21 bits are sent by each ESC, but they might be out of sync from each other. We need to capture more
+set pindirs, 0b0000; set pins to input
+check_pins:
+mov isr, ~null; set isr to 0xFFFFFFFF, reset isr counter to 0
+in pins, 4
+mov y, ~isr; copy 0x0000000x to y, where x is the inverse 4 bits read 
+jmp !y check_pins; jump back while all pins are 1 (all pins 1 => y = 0)
+jmp x-- record_pins; x = 126
+record_pins:
+in pins, 4
+jmp x-- record_pins [3]; record 128 packets, 128 bits per ESC
+end:
+jmp end; loop forever
+
+.define public CLKDIV_300_INT 22
+.define public CLKDIV_300_FRAC 0
+.define public CLKDIV_600_INT 11
+.define public CLKDIV_600_FRAC 0
+.define public CLKDIV_1200_INT 5
+.define public CLKDIV_1200_FRAC 128

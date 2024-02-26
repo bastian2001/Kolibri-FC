@@ -39,7 +39,7 @@ RTTTLSong songToPlay;
 
 #define FREQ_TO_WRAP(freq) (2000000 / freq)
 
-PIO speakerPio;
+PIO speakerPio = pio1;
 u8 speakerSm, sliceNum;
 File speakerFile;
 u32 speakerDataSize = 0;
@@ -64,7 +64,6 @@ void dmaIrqHandler() {
 }
 
 void initSpeaker() {
-	speakerPio      = pio0;
 	uint offset     = pio_add_program(speakerPio, &speaker8bit_program);
 	speakerSm       = pio_claim_unused_sm(speakerPio, true);
 	pio_sm_config c = speaker8bit_program_get_default_config(offset);
@@ -266,7 +265,7 @@ bool playWav(const char *filename) {
 			channel_config_set_enable(&speakerDmaBConfig, true);
 			dma_channel_set_config(speakerDmaBChan, &speakerDmaBConfig, false);
 			soundState = 0b110;
-			gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PIO0);
+			gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PIO1);
 			startSpeakerFile = true;
 			return true;
 		}
