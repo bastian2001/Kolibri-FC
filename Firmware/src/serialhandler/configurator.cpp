@@ -56,6 +56,8 @@ void handleConfigCmd() {
 		buf[len++]  = (u8)(armingDisableFlags >> 24);
 		buf[len++]  = (u8)(configuratorConnected & 0xFF);
 		sendCommand(configMsgCommand | 0x4000, buf, len);
+		snprintf(buf, 256, "Hz: %d %d %d %d", escRpm[0]/60, escRpm[1]/60, escRpm[2]/60, escRpm[3]/60);
+		sendCommand((u16)ConfigCmd::IND_MESSAGE, buf, strlen(buf));
 	} break;
 	case ConfigCmd::TASK_STATUS: {
 		u32 buf[256];

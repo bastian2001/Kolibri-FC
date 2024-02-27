@@ -6,11 +6,22 @@ u8 escSm;
 u32 motorPacket[2] = {0, 0xF000F}; // all motors off, but request telemetry in 12th bit
 u32 escPioOffset   = 0;
 
-u32 escRawReturn[32]         = {0};
-u32 escReturn[4][8]          = {0};
-u32 escEdgeDetectedReturn[4] = {0};
-u8 escDmaChannel             = 0;
+volatile u32 escRawReturn[16] = {0};
+volatile u32 escRpm[4]        = {0};
+u8 escDmaChannel              = 0;
+volatile u8 escErpmReady      = 0;
 dma_channel_config escDmaConfig;
+u8 escErpmFail = 0;
+
+#define iv 0xFFFFFFFF
+const u32 escDecodeLut[32] = {
+	iv, iv, iv, iv, iv, iv, iv, iv, iv, 9, 10, 11, iv, 13, 14, 15,
+	iv, iv, 2, 3, iv, 5, 6, 7, iv, 0, 8, 1, iv, 4, 12, iv};
+
+void escIrqHandler() {
+	dma_hw->ints0 = 1u << escDmaChannel;
+	escErpmReady  = 1;
+}
 
 void initESCs() {
 	escPio          = pio0;
@@ -47,7 +58,10 @@ void initESCs() {
 	dma_channel_set_config(escDmaChannel, &escDmaConfig, false);
 	dma_channel_set_read_addr(escDmaChannel, &escPio->rxf[escSm], false);
 	dma_channel_set_write_addr(escDmaChannel, escRawReturn, false);
-	dma_channel_set_trans_count(escDmaChannel, 32, true);
+	dma_channel_set_trans_count(escDmaChannel, 16, true);
+	dma_channel_set_irq1_enabled(escDmaChannel, true);
+	irq_set_exclusive_handler(DMA_IRQ_1, escIrqHandler);
+	irq_set_enabled(DMA_IRQ_1, true);
 }
 
 u16 appendChecksum(u16 data) {
@@ -73,10 +87,8 @@ void sendRaw16Bit(const u16 raw[4]) {
 	dma_channel_set_write_addr(escDmaChannel, escRawReturn, true);
 	pio_sm_put(escPio, escSm, ~(motorPacket[0]));
 	pio_sm_put(escPio, escSm, ~(motorPacket[1]));
-	pio_sm_exec(escPio, escSm, pio_encode_set(pio_pindirs, 0xF));
 	pio_sm_exec(escPio, escSm, pio_encode_jmp(escPioOffset));
-	delayMicroseconds(200);
-	Serial.printf("PC: %d\n", pio_sm_get_pc(escPio, escSm) - escPioOffset);
+	escErpmReady = 0;
 }
 
 void sendRaw11Bit(const u16 raw[4]) {

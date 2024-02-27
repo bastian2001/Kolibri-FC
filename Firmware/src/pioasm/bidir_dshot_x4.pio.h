@@ -13,7 +13,7 @@
 // -------------- //
 
 #define bidir_dshot_x4_wrap_target 0
-#define bidir_dshot_x4_wrap 16
+#define bidir_dshot_x4_wrap 17
 
 #define bidir_dshot_x4_CLKDIV_300_INT 22
 #define bidir_dshot_x4_CLKDIV_300_FRAC 0
@@ -23,37 +23,38 @@
 #define bidir_dshot_x4_CLKDIV_1200_FRAC 128
 
 static const uint16_t bidir_dshot_x4_program_instructions[] = {
-	//     .wrap_target
-	0xee00, //  0: set    pins, 0                [14]
-	0x6e04, //  1: out    pins, 4                [14]
-	0xe60f, //  2: set    pins, 15               [6]
-	0x00e0, //  3: jmp    !osre, 0
-	0xa02b, //  4: mov    x, !null
-	0xa0c3, //  5: mov    isr, null
-	0x4028, //  6: in     x, 8
-	0xa026, //  7: mov    x, isr
-	0xe080, //  8: set    pindirs, 0
-	0xa0cb, //  9: mov    isr, !null
-	0x4004, // 10: in     pins, 4
-	0xa04e, // 11: mov    y, !isr
-	0x0069, // 12: jmp    !y, 9
-	0x004e, // 13: jmp    x--, 14
-	0x4004, // 14: in     pins, 4
-	0x034e, // 15: jmp    x--, 14                [3]
-	0x0010, // 16: jmp    16
-			//     .wrap
+            //     .wrap_target
+    0xe08f, //  0: set    pindirs, 15                
+    0xee00, //  1: set    pins, 0                [14]
+    0x6e04, //  2: out    pins, 4                [14]
+    0xe60f, //  3: set    pins, 15               [6] 
+    0x00e1, //  4: jmp    !osre, 1                   
+    0xa02b, //  5: mov    x, !null                   
+    0xa0c3, //  6: mov    isr, null                  
+    0x4027, //  7: in     x, 7                       
+    0xa026, //  8: mov    x, isr                     
+    0xe080, //  9: set    pindirs, 0                 
+    0xa0cb, // 10: mov    isr, !null                 
+    0x4004, // 11: in     pins, 4                    
+    0xa04e, // 12: mov    y, !isr                    
+    0x006a, // 13: jmp    !y, 10                     
+    0x044f, // 14: jmp    x--, 15                [4] 
+    0x4004, // 15: in     pins, 4                    
+    0x064f, // 16: jmp    x--, 15                [6] 
+    0x0011, // 17: jmp    17                         
+            //     .wrap
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program bidir_dshot_x4_program = {
-	.instructions = bidir_dshot_x4_program_instructions,
-	.length       = 17,
-	.origin       = -1,
+    .instructions = bidir_dshot_x4_program_instructions,
+    .length = 18,
+    .origin = -1,
 };
 
 static inline pio_sm_config bidir_dshot_x4_program_get_default_config(uint offset) {
-	pio_sm_config c = pio_get_default_sm_config();
-	sm_config_set_wrap(&c, offset + bidir_dshot_x4_wrap_target, offset + bidir_dshot_x4_wrap);
-	return c;
+    pio_sm_config c = pio_get_default_sm_config();
+    sm_config_set_wrap(&c, offset + bidir_dshot_x4_wrap_target, offset + bidir_dshot_x4_wrap);
+    return c;
 }
 #endif

@@ -35,7 +35,8 @@ enum Tasks {
 	TASK_LOOP0,
 	TASK_IMU_GYRO,
 	TASK_IMU_ACCEL,
-	TASK_IMU_ANGLE
+	TASK_IMU_ANGLE,
+	TASK_ESC_RPM
 };
 
 void initTaskManager();

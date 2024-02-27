@@ -25,7 +25,8 @@
 		'Loop 0',
 		'IMU Gyro',
 		'IMU Accel',
-		'IMU Angle'
+		'IMU Angle',
+		'ESC RPM'
 	];
 
 	let tasks = [] as {

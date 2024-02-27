@@ -68,6 +68,78 @@ void initPID() {
 	pidGainsHVel[D] = 7;             // tilt in degrees, if changing speed by 3200m/s /s
 }
 
+void decodeErpm() {
+	tasks[TASK_ESC_RPM].runCounter++;
+	elapsedMicros taskTimer = 0;
+	u32 edr;
+	for (i32 m = 0; m < 4; m++) {
+		u32 edgeDetectedReturn = 0;
+		u8 currentBitValue     = 0;
+		u8 bitCount            = 0;
+		u32 totalShifted       = 0;
+		u8 started             = 0;
+		for (u8 p = 0; p < 16 && totalShifted != 21; p++) {
+			u32 err = escRawReturn[p] >> m;
+			for (u8 b = 0; b < 8; b++) {
+				u8 bit = (err >> ((7 - b) << 2)) & 1;
+				started |= !bit;
+				if (started) {
+					if (bit == currentBitValue) {
+						if (++bitCount == 4) {
+							bitCount = 0;
+							edgeDetectedReturn <<= 1;
+							edgeDetectedReturn |= currentBitValue;
+							totalShifted++;
+						}
+					} else {
+						if (bitCount >= 2) {
+							edgeDetectedReturn <<= 1;
+							edgeDetectedReturn |= currentBitValue;
+							totalShifted++;
+						}
+						bitCount        = 1;
+						currentBitValue = bit;
+					}
+					if (totalShifted == 21) break;
+				}
+			}
+		}
+		edr                = edgeDetectedReturn;
+		edgeDetectedReturn = edgeDetectedReturn ^ (edgeDetectedReturn >> 1);
+		u32 rpm            = escDecodeLut[edgeDetectedReturn & 0x1F];
+		rpm |= escDecodeLut[(edgeDetectedReturn >> 5) & 0x1F] << 4;
+		rpm |= escDecodeLut[(edgeDetectedReturn >> 10) & 0x1F] << 8;
+		rpm |= escDecodeLut[(edgeDetectedReturn >> 15) & 0x1F] << 12;
+		u32 csum = (rpm >> 8) ^ rpm;
+		csum ^= csum >> 4;
+		csum &= 0xF;
+		if (csum != 0x0F || rpm > 0xFFFF) {
+			// transmission error
+			escErpmFail |= 1 << m;
+			continue;
+		}
+		escErpmFail &= ~(1 << m);
+		rpm >>= 4;
+		if (rpm == 0xFFF) {
+			escRpm[m] = 0;
+		} else {
+			rpm       = (rpm & 0x1FF) << (rpm >> 9); // eeem mmmm mmmm
+			rpm       = (60000000 + 50 * rpm) / rpm;
+			escRpm[m] = rpm / (MOTOR_POLES / 2);
+		}
+	}
+	if (escErpmFail) tasks[TASK_ESC_RPM].errorCount++;
+	escErpmReady = 0;
+	u32 duration = taskTimer;
+	tasks[TASK_ESC_RPM].totalDuration += duration;
+	if (duration > tasks[TASK_ESC_RPM].maxDuration) {
+		tasks[TASK_ESC_RPM].maxDuration = duration;
+	}
+	if (duration < tasks[TASK_ESC_RPM].minDuration) {
+		tasks[TASK_ESC_RPM].minDuration = duration;
+	}
+}
+
 u32 takeoffCounter = 0;
 elapsedMicros taskTimerGyro, taskTimerPid;
 void pidLoop() {
@@ -98,6 +170,11 @@ void pidLoop() {
 		tasks[TASK_PID_MOTORS].maxGap = duration;
 	taskTimerPid = 0;
 	tasks[TASK_PID_MOTORS].runCounter++;
+
+	if (escErpmReady)
+		decodeErpm();
+	else
+		escErpmFail = 0b1111;
 
 	if (armed) {
 		// Quad armed
@@ -182,9 +259,9 @@ void pidLoop() {
 				altSetpoint += t / 180 / 3200;
 				altError = altSetpoint - combinedAltitude;
 				altErrorSum += altError;
-				altP = pidGainsAlt[P] * altError;
-				altI = pidGainsAlt[I] * altErrorSum;
-				altD = pidGainsAlt[D] * (altLast - combinedAltitude) * 3200;
+				altP     = pidGainsAlt[P] * altError;
+				altI     = pidGainsAlt[I] * altErrorSum;
+				altD     = pidGainsAlt[D] * (altLast - combinedAltitude) * 3200;
 				throttle = altP + altI + altD;
 			} else {
 				vVelErrorSum = 0;

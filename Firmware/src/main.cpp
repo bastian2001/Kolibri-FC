@@ -36,7 +36,6 @@ void setup() {
 	gpio_init(PIN_LED_DEBUG);
 	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
 
-	initESCs();
 	initBlackbox();
 	initSpeaker();
 	rp2040.wdt_begin(200);
@@ -91,6 +90,7 @@ void loop() {
 
 u32 *speakerRxPacket;
 void setup1() {
+	initESCs();
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {
 	}
