@@ -166,9 +166,6 @@ void startLogging() {
 	if (maxFileSize < 20000) {
 		return;
 	}
-#elif BLACKBOX_STORAGE == SD_BB
-	// if (!(SDFS.info64(fsInfo)))
-	// 	return;
 #endif
 	char path[32];
 	for (int i = 0; i < 100; i++) {
@@ -187,7 +184,7 @@ void startLogging() {
 		}
 #endif
 		if (i == 99) {
-			clearBlackbox();
+			// clearBlackbox();
 			return;
 		}
 	}
