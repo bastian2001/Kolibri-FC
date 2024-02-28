@@ -13,7 +13,7 @@ set pindirs, 0b1111; set pins to output
 write_one_bit:
 set pins, 0b0000 [14]; set pins to 0 (inverted dshot)
 out pins, 4 [14]; output 4 bits, one for each ESC
-set pins, 0b1111 [8]; set pins to 0 (inverted dshot)
+set pins, 0b1111 [8]; set pins to 1 (inverted dshot)
 jmp !OSRE write_one_bit; loop 8+8 times => 16 bits per ESC, 32 bits per autopull
 
 ; all 4 motors have their data now, switch pins to input and load counters

@@ -69,80 +69,80 @@ void initPID() {
 }
 
 void decodeErpm() {
-	tasks[TASK_ESC_RPM].runCounter++;
-	elapsedMicros taskTimer = 0;
-	u32 edr;
-	// for (i32 m = 0; m < 4; m++) {
-	static u32 motor = 0;
-	motor++;
-	motor &= 3;
-	volatile u32 m = motor;
-	u32 edgeDetectedReturn = 0;
-	u32 currentBitValue    = 1;
-	u32 bitCount           = 0;
-	u32 totalShifted       = 0;
-	u32 started            = 0;
-	for (u32 p = 0; p < 16; p++) {
-		volatile u32 err = escRawReturn[p] >> m; // prevent compiler "optimization"
-		for (u32 b = 28; b; b -= 4) {
-			volatile u32 bit = (err >> b) & 1; // prevent compiler "optimization"
-			started |= !bit;
-			// bitCount *= started;
-			bitCount = __mul_instruction(bitCount, started);
-			if (bit == currentBitValue) {
-				if (++bitCount == 4) {
-					bitCount           = 0;
-					edgeDetectedReturn = edgeDetectedReturn << 1 | currentBitValue;
-					totalShifted++;
-				}
-			} else {
-				if (bitCount >= 2) {
-					edgeDetectedReturn = edgeDetectedReturn << 1 | currentBitValue;
-					totalShifted++;
-				}
-				bitCount        = 1;
-				currentBitValue = bit;
-			}
-			if (totalShifted == 21) break;
-		}
-		if (totalShifted == 21) break;
-	}
-	edr                = edgeDetectedReturn;
-	edgeDetectedReturn = edgeDetectedReturn ^ (edgeDetectedReturn >> 1);
-	u32 rpm            = escDecodeLut[edgeDetectedReturn & 0x1F];
-	rpm |= escDecodeLut[(edgeDetectedReturn >> 5) & 0x1F] << 4;
-	rpm |= escDecodeLut[(edgeDetectedReturn >> 10) & 0x1F] << 8;
-	rpm |= escDecodeLut[(edgeDetectedReturn >> 15) & 0x1F] << 12;
-	u32 csum = (rpm >> 8) ^ rpm;
-	csum ^= csum >> 4;
-	csum &= 0xF;
-	if (csum != 0x0F || rpm > 0xFFFF) {
-		// transmission error
-		escErpmFail |= 1 << m;
-		// continue;
-		goto exit;
-	}
-	escErpmFail &= ~(1 << m);
-	rpm >>= 4;
-	if (rpm == 0xFFF) {
-		escRpm[m] = 0;
-	} else {
-		rpm       = (rpm & 0x1FF) << (rpm >> 9); // eeem mmmm mmmm
-		rpm       = (60000000 + 50 * rpm) / rpm;
-		escRpm[m] = rpm / (MOTOR_POLES / 2);
-	}
-// }
-exit:
-	if (escErpmFail) tasks[TASK_ESC_RPM].errorCount++;
-	escErpmReady = 0;
-	u32 duration = taskTimer;
-	tasks[TASK_ESC_RPM].totalDuration += duration;
-	if (duration > tasks[TASK_ESC_RPM].maxDuration) {
-		tasks[TASK_ESC_RPM].maxDuration = duration;
-	}
-	if (duration < tasks[TASK_ESC_RPM].minDuration) {
-		tasks[TASK_ESC_RPM].minDuration = duration;
-	}
+	// 	tasks[TASK_ESC_RPM].runCounter++;
+	// 	elapsedMicros taskTimer = 0;
+	// 	u32 edr;
+	// 	// for (i32 m = 0; m < 4; m++) {
+	// 	static u32 motor = 0;
+	// 	motor++;
+	// 	motor &= 3;
+	// 	volatile u32 m = motor;
+	// 	u32 edgeDetectedReturn = 0;
+	// 	u32 currentBitValue    = 1;
+	// 	u32 bitCount           = 0;
+	// 	u32 totalShifted       = 0;
+	// 	u32 started            = 0;
+	// 	for (u32 p = 0; p < 16; p++) {
+	// 		volatile u32 err = escRawReturn[p] >> m; // prevent compiler "optimization"
+	// 		for (u32 b = 28; b; b -= 4) {
+	// 			volatile u32 bit = (err >> b) & 1; // prevent compiler "optimization"
+	// 			started |= !bit;
+	// 			// bitCount *= started;
+	// 			bitCount = __mul_instruction(bitCount, started);
+	// 			if (bit == currentBitValue) {
+	// 				if (++bitCount == 4) {
+	// 					bitCount           = 0;
+	// 					edgeDetectedReturn = edgeDetectedReturn << 1 | currentBitValue;
+	// 					totalShifted++;
+	// 				}
+	// 			} else {
+	// 				if (bitCount >= 2) {
+	// 					edgeDetectedReturn = edgeDetectedReturn << 1 | currentBitValue;
+	// 					totalShifted++;
+	// 				}
+	// 				bitCount        = 1;
+	// 				currentBitValue = bit;
+	// 			}
+	// 			if (totalShifted == 21) break;
+	// 		}
+	// 		if (totalShifted == 21) break;
+	// 	}
+	// 	edr                = edgeDetectedReturn;
+	// 	edgeDetectedReturn = edgeDetectedReturn ^ (edgeDetectedReturn >> 1);
+	// 	u32 rpm            = escDecodeLut[edgeDetectedReturn & 0x1F];
+	// 	rpm |= escDecodeLut[(edgeDetectedReturn >> 5) & 0x1F] << 4;
+	// 	rpm |= escDecodeLut[(edgeDetectedReturn >> 10) & 0x1F] << 8;
+	// 	rpm |= escDecodeLut[(edgeDetectedReturn >> 15) & 0x1F] << 12;
+	// 	u32 csum = (rpm >> 8) ^ rpm;
+	// 	csum ^= csum >> 4;
+	// 	csum &= 0xF;
+	// 	if (csum != 0x0F || rpm > 0xFFFF) {
+	// 		// transmission error
+	// 		escErpmFail |= 1 << m;
+	// 		// continue;
+	// 		goto exit;
+	// 	}
+	// 	escErpmFail &= ~(1 << m);
+	// 	rpm >>= 4;
+	// 	if (rpm == 0xFFF) {
+	// 		escRpm[m] = 0;
+	// 	} else {
+	// 		rpm       = (rpm & 0x1FF) << (rpm >> 9); // eeem mmmm mmmm
+	// 		rpm       = (60000000 + 50 * rpm) / rpm;
+	// 		escRpm[m] = rpm / (MOTOR_POLES / 2);
+	// 	}
+	// // }
+	// exit:
+	// 	if (escErpmFail) tasks[TASK_ESC_RPM].errorCount++;
+	// 	escErpmReady = 0;
+	// 	u32 duration = taskTimer;
+	// 	tasks[TASK_ESC_RPM].totalDuration += duration;
+	// 	if (duration > tasks[TASK_ESC_RPM].maxDuration) {
+	// 		tasks[TASK_ESC_RPM].maxDuration = duration;
+	// 	}
+	// 	if (duration < tasks[TASK_ESC_RPM].minDuration) {
+	// 		tasks[TASK_ESC_RPM].minDuration = duration;
+	// 	}
 }
 
 u32 takeoffCounter = 0;
