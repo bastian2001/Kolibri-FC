@@ -13,7 +13,7 @@ typedef struct task {
 	u32 debugInfo;
 	u32 maxGap;
 } FCTask;
-extern FCTask tasks[32];
+extern volatile FCTask tasks[32];
 
 enum Tasks {
 	TASK_BAROREAD,

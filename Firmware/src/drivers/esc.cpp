@@ -2,26 +2,19 @@
 
 PIO escPio;
 
-// u32 motorPacket[2] = {0, 0xF000F}; // all motors off, but request telemetry in 12th bit
-u32 escPioOffset   = 0;
+u32 escPioOffset = 0;
 
-// volatile u32 escRawReturn[16] = {0};
 volatile u32 erpmEdges[4][32] = {0};
 volatile u32 escRpm[4]        = {0};
 u8 escDmaChannel[4]           = {0};
-volatile u8 escErpmReady      = 0;
 dma_channel_config escDmaConfig[4];
-u8 escErpmFail = 0;
+u8 escErpmFail     = 0;
+u32 dmaChannelMask = 0;
 
 #define iv 0xFFFFFFFF
 const u32 escDecodeLut[32] = {
 	iv, iv, iv, iv, iv, iv, iv, iv, iv, 9, 10, 11, iv, 13, 14, 15,
 	iv, iv, 2, 3, iv, 5, 6, 7, iv, 0, 8, 1, iv, 4, 12, iv};
-
-// void escIrqHandler() {
-// 	dma_hw->ints0 = 1u << escDmaChannel;
-// 	escErpmReady  = 1;
-// }
 
 void initESCs() {
 	escPio       = pio0;
@@ -53,9 +46,8 @@ void initESCs() {
 		dma_channel_set_write_addr(escDmaChannel[i], &erpmEdges[i], false);
 		dma_channel_set_trans_count(escDmaChannel[i], 32, true);
 		dma_channel_set_irq1_enabled(escDmaChannel[i], true);
+		dmaChannelMask |= 1 << escDmaChannel[i];
 	}
-	// irq_set_exclusive_handler(DMA_IRQ_1, escIrqHandler);
-	// irq_set_enabled(DMA_IRQ_1, true);
 }
 
 u16 appendChecksum(u16 data) {
@@ -68,32 +60,17 @@ u16 appendChecksum(u16 data) {
 }
 
 void sendRaw16Bit(const u16 raw[4]) {
-	// motorPacket[0] = 0;
-	// motorPacket[1] = 0;
-	// for (int i = 31; i >= 0; i--) {
-	// 	int pos   = i / 4;
-	// 	int motor = i % 4;
-	// 	motorPacket[0] |= ((raw[motor] >> (pos + 8)) & 1) << i;
-	// 	motorPacket[1] |= ((raw[motor] >> pos) & 1) << i;
-	// }
-	// while (!pio_sm_is_rx_fifo_empty(escPio, escSm))
-	// 	pio_sm_get(escPio, escSm);
-	// dma_channel_set_write_addr(escDmaChannel, escRawReturn, true);
-	// pio_sm_put(escPio, escSm, ~(motorPacket[0]));
-	// pio_sm_put(escPio, escSm, ~(motorPacket[1]));
-	// pio_sm_exec(escPio, escSm, pio_encode_jmp(escPioOffset));
-	for (i32 i = 0; i < 4; i++){
+	for (i32 i = 0; i < 4; i++) {
 		pio_sm_exec(escPio, i, pio_encode_jmp(escPioOffset));
 		while (!pio_sm_is_rx_fifo_empty(escPio, i))
 			pio_sm_get(escPio, i);
-		dma_channel_set_write_addr(escDmaChannel[i], &erpmEdges[i], true);
+		dma_channel_set_write_addr(escDmaChannel[i], &erpmEdges[i], false);
+		dma_channel_set_trans_count(escDmaChannel[i], 32, true);
 		pio_sm_drain_tx_fifo(escPio, i);
 		pio_sm_put(escPio, i, ~(raw[i]));
 		pio_sm_exec(escPio, i, pio_encode_jmp(escPioOffset + 6));
 	}
-	delayMicroseconds(100);
-	Serial.printf("PC: %d\n", pio_sm_get_pc(escPio, 0) - escPioOffset);
-	escErpmReady = 0;
+	dma_start_channel_mask(dmaChannelMask);
 }
 
 void sendRaw11Bit(const u16 raw[4]) {

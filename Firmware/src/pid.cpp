@@ -40,6 +40,9 @@ fix32 rateFactors[5][3];
 const fix32 RAD_TO_DEG = fix32(180) / PI;
 const fix32 TO_ANGLE   = fix32(MAX_ANGLE) / fix32(512);
 u16 smoothChannels[4];
+u16 condensedRpm[4];
+
+#define RIGHT_BITS(x, n) ((u32)(-(x)) >> (32 - n))
 
 void initPID() {
 	for (int i = 0; i < 3; i++) {
@@ -69,80 +72,65 @@ void initPID() {
 }
 
 void decodeErpm() {
-	// 	tasks[TASK_ESC_RPM].runCounter++;
-	// 	elapsedMicros taskTimer = 0;
-	// 	u32 edr;
-	// 	// for (i32 m = 0; m < 4; m++) {
-	// 	static u32 motor = 0;
-	// 	motor++;
-	// 	motor &= 3;
-	// 	volatile u32 m = motor;
-	// 	u32 edgeDetectedReturn = 0;
-	// 	u32 currentBitValue    = 1;
-	// 	u32 bitCount           = 0;
-	// 	u32 totalShifted       = 0;
-	// 	u32 started            = 0;
-	// 	for (u32 p = 0; p < 16; p++) {
-	// 		volatile u32 err = escRawReturn[p] >> m; // prevent compiler "optimization"
-	// 		for (u32 b = 28; b; b -= 4) {
-	// 			volatile u32 bit = (err >> b) & 1; // prevent compiler "optimization"
-	// 			started |= !bit;
-	// 			// bitCount *= started;
-	// 			bitCount = __mul_instruction(bitCount, started);
-	// 			if (bit == currentBitValue) {
-	// 				if (++bitCount == 4) {
-	// 					bitCount           = 0;
-	// 					edgeDetectedReturn = edgeDetectedReturn << 1 | currentBitValue;
-	// 					totalShifted++;
-	// 				}
-	// 			} else {
-	// 				if (bitCount >= 2) {
-	// 					edgeDetectedReturn = edgeDetectedReturn << 1 | currentBitValue;
-	// 					totalShifted++;
-	// 				}
-	// 				bitCount        = 1;
-	// 				currentBitValue = bit;
-	// 			}
-	// 			if (totalShifted == 21) break;
-	// 		}
-	// 		if (totalShifted == 21) break;
-	// 	}
-	// 	edr                = edgeDetectedReturn;
-	// 	edgeDetectedReturn = edgeDetectedReturn ^ (edgeDetectedReturn >> 1);
-	// 	u32 rpm            = escDecodeLut[edgeDetectedReturn & 0x1F];
-	// 	rpm |= escDecodeLut[(edgeDetectedReturn >> 5) & 0x1F] << 4;
-	// 	rpm |= escDecodeLut[(edgeDetectedReturn >> 10) & 0x1F] << 8;
-	// 	rpm |= escDecodeLut[(edgeDetectedReturn >> 15) & 0x1F] << 12;
-	// 	u32 csum = (rpm >> 8) ^ rpm;
-	// 	csum ^= csum >> 4;
-	// 	csum &= 0xF;
-	// 	if (csum != 0x0F || rpm > 0xFFFF) {
-	// 		// transmission error
-	// 		escErpmFail |= 1 << m;
-	// 		// continue;
-	// 		goto exit;
-	// 	}
-	// 	escErpmFail &= ~(1 << m);
-	// 	rpm >>= 4;
-	// 	if (rpm == 0xFFF) {
-	// 		escRpm[m] = 0;
-	// 	} else {
-	// 		rpm       = (rpm & 0x1FF) << (rpm >> 9); // eeem mmmm mmmm
-	// 		rpm       = (60000000 + 50 * rpm) / rpm;
-	// 		escRpm[m] = rpm / (MOTOR_POLES / 2);
-	// 	}
-	// // }
-	// exit:
-	// 	if (escErpmFail) tasks[TASK_ESC_RPM].errorCount++;
-	// 	escErpmReady = 0;
-	// 	u32 duration = taskTimer;
-	// 	tasks[TASK_ESC_RPM].totalDuration += duration;
-	// 	if (duration > tasks[TASK_ESC_RPM].maxDuration) {
-	// 		tasks[TASK_ESC_RPM].maxDuration = duration;
-	// 	}
-	// 	if (duration < tasks[TASK_ESC_RPM].minDuration) {
-	// 		tasks[TASK_ESC_RPM].minDuration = duration;
-	// 	}
+	tasks[TASK_ESC_RPM].runCounter++;
+	elapsedMicros taskTimer = 0;
+	for (int m = 0; m < 4; m++) {
+		dma_channel_abort(escDmaChannel[m]);
+		if (!erpmEdges[m][0]) {
+			escErpmFail |= 1 << m;
+			tasks[TASK_ESC_RPM].errorCount++;
+			condensedRpm[m] = 0;
+			continue;
+		}
+		u32 edgeDetectedReturn = 0;
+		u32 *p                 = (u32 *)&erpmEdges[m][1]; // first packet is just ones before the actual packet starts
+		// packet format: blllllll llllllll llllllll llllllll => b = the sampled bit, l = the duration of the bit
+		u32 shifts = 0;
+		for (int i = 1; i < 32; i++) {
+			u32 packet   = ~*p++;
+			u32 bit      = packet >> 31;
+			u32 duration = packet & 0x7FFFFFFF;
+			duration += 3; // PIO starts counting down from 0xFFFFFFFF, with the inversion that is 0, but it actually already counted 1. The other 2 come from rounding (with 4x oversampling, any duration >=2 is valid)
+			duration >>= 2;
+			if (duration > 21) {
+				break;
+			} else {
+				shifts += duration;
+				edgeDetectedReturn = edgeDetectedReturn << duration | RIGHT_BITS(bit, duration);
+			}
+		}
+		edgeDetectedReturn = edgeDetectedReturn << (21 - shifts) | 0x1FFFFF >> shifts;
+		edgeDetectedReturn = edgeDetectedReturn ^ (edgeDetectedReturn >> 1);
+		u32 rpm            = escDecodeLut[edgeDetectedReturn & 0x1F];
+		rpm |= escDecodeLut[(edgeDetectedReturn >> 5) & 0x1F] << 4;
+		rpm |= escDecodeLut[(edgeDetectedReturn >> 10) & 0x1F] << 8;
+		rpm |= escDecodeLut[(edgeDetectedReturn >> 15) & 0x1F] << 12;
+		u32 csum = (rpm >> 8) ^ rpm;
+		csum ^= csum >> 4;
+		csum &= 0xF;
+		if (csum != 0x0F || rpm > 0xFFFF) {
+			escErpmFail |= 1 << m;
+			tasks[TASK_ESC_RPM].errorCount++;
+			continue;
+		}
+		escErpmFail &= ~(1 << m);
+		rpm >>= 4;
+		condensedRpm[m] = rpm;
+		if (rpm == 0xFFF) {
+			escRpm[m] = 0;
+		} else {
+			rpm       = (rpm & 0x1FF) << (rpm >> 9); // eeem mmmm mmmm
+			rpm       = (60000000 + 50 * rpm) / rpm;
+			escRpm[m] = rpm / (MOTOR_POLES / 2);
+		}
+	}
+	memset((u32 *)erpmEdges, 0, sizeof(erpmEdges));
+	u32 duration = taskTimer;
+	tasks[TASK_ESC_RPM].totalDuration += duration;
+	if (duration > tasks[TASK_ESC_RPM].maxDuration)
+		tasks[TASK_ESC_RPM].maxDuration = duration;
+	if (duration < tasks[TASK_ESC_RPM].minDuration)
+		tasks[TASK_ESC_RPM].minDuration = duration;
 }
 
 u32 takeoffCounter = 0;
@@ -176,10 +164,10 @@ void pidLoop() {
 	taskTimerPid = 0;
 	tasks[TASK_PID_MOTORS].runCounter++;
 
-	if (escErpmReady)
-		decodeErpm();
-	else
-		escErpmFail = 0b1111;
+	// if (escErpmReady)
+	decodeErpm();
+	// else
+	// escErpmFail = 0b1111;
 
 	if (armed) {
 		// Quad armed

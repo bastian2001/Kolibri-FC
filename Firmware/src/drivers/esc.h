@@ -36,12 +36,11 @@ typedef enum {
 
 extern PIO escPio;
 extern u8 escSm;
-// extern u32 motorPacket[2];
-extern volatile u8 escErpmReady;
-// extern volatile u32 escRawReturn[16];
-// extern volatile u32 escRpm[4];
+extern volatile u32 erpmEdges[4][32];
+extern volatile u32 escRpm[4];
 extern const u32 escDecodeLut[32];
 extern u8 escErpmFail;
+extern u8 escDmaChannel[4];
 
 void initESCs();
 
