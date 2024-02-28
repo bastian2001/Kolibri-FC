@@ -37,6 +37,7 @@
 #define LOG_ATT_ROLL 1LL << 32       // 2 bytes
 #define LOG_ATT_PITCH 1LL << 33      // 2 bytes
 #define LOG_ATT_YAW 1LL << 34        // 2 bytes
+#define LOG_MOTOR_RPM 1LL << 35      // 6 bytes
 
 #define LOG_HEAD_MAGIC 0
 #define LOG_HEAD_BB_VERSION 4
@@ -47,6 +48,8 @@
 #define LOG_HEAD_RATE_FACTORS 14
 #define LOG_HEAD_PID_GAINS 74
 #define LOG_HEAD_LOGGED_FIELDS 158
+#define LOG_HEAD_MOTOR_POLES 166
+#define LOG_HEAD_LENGTH 256
 
 extern u64 bbFlags;
 extern volatile bool bbLogging, fsReady;

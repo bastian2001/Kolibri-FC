@@ -277,7 +277,7 @@
 		},
 		LOG_MOTOR_OUTPUTS: {
 			name: 'Motor Outputs',
-			path: 'motors',
+			path: 'motors.out',
 			minValue: 0,
 			maxValue: 2000,
 			unit: '',
@@ -341,6 +341,14 @@
 			minValue: -180,
 			maxValue: 180,
 			unit: '°'
+		},
+		LOG_MOTOR_RPM: {
+			name: 'Motor RPM',
+			path: 'motors.rpm',
+			minValue: 0,
+			maxValue: 50000,
+			unit: 'rpm',
+			usesModifier: true
 		}
 	} as {
 		[key: string]: {
@@ -705,76 +713,76 @@
 								f.pid.pitch.p! + f.pid.pitch.i! + f.pid.pitch.d! + f.pid.pitch.ff! + f.pid.pitch.s!;
 							const yawTerm =
 								f.pid.yaw.p! + f.pid.yaw.i! + f.pid.yaw.d! + f.pid.yaw.ff! + f.pid.yaw.s!;
-							f.motors = {
+							f.motors.out = {
 								rr: (f.setpoint.throttle! - 1000) * 2 - rollTerm + pitchTerm + yawTerm,
 								fr: (f.setpoint.throttle! - 1000) * 2 - rollTerm - pitchTerm - yawTerm,
 								rl: (f.setpoint.throttle! - 1000) * 2 + rollTerm + pitchTerm - yawTerm,
 								fl: (f.setpoint.throttle! - 1000) * 2 + rollTerm - pitchTerm + yawTerm
 							};
-							f.motors.rr = map(f.motors.rr!, 0, 2000, 50, 2000);
-							f.motors.fr = map(f.motors.fr!, 0, 2000, 50, 2000);
-							f.motors.rl = map(f.motors.rl!, 0, 2000, 50, 2000);
-							f.motors.fl = map(f.motors.fl!, 0, 2000, 50, 2000);
-							if (f.motors.rr! > 2000) {
-								const diff = 2000 - f.motors.rr!;
-								f.motors.rr = 2000;
-								f.motors.fr! -= diff;
-								f.motors.rl! -= diff;
-								f.motors.fl! -= diff;
+							f.motors.out.rr = map(f.motors.out.rr!, 0, 2000, 50, 2000);
+							f.motors.out.fr = map(f.motors.out.fr!, 0, 2000, 50, 2000);
+							f.motors.out.rl = map(f.motors.out.rl!, 0, 2000, 50, 2000);
+							f.motors.out.fl = map(f.motors.out.fl!, 0, 2000, 50, 2000);
+							if (f.motors.out.rr! > 2000) {
+								const diff = 2000 - f.motors.out.rr!;
+								f.motors.out.rr = 2000;
+								f.motors.out.fr! -= diff;
+								f.motors.out.rl! -= diff;
+								f.motors.out.fl! -= diff;
 							}
-							if (f.motors.fr! > 2000) {
-								const diff = 2000 - f.motors.fr!;
-								f.motors.fr = 2000;
-								f.motors.rr! -= diff;
-								f.motors.rl! -= diff;
-								f.motors.fl! -= diff;
+							if (f.motors.out.fr! > 2000) {
+								const diff = 2000 - f.motors.out.fr!;
+								f.motors.out.fr = 2000;
+								f.motors.out.rr! -= diff;
+								f.motors.out.rl! -= diff;
+								f.motors.out.fl! -= diff;
 							}
-							if (f.motors.rl! > 2000) {
-								const diff = 2000 - f.motors.rl!;
-								f.motors.rl = 2000;
-								f.motors.rr! -= diff;
-								f.motors.fr! -= diff;
-								f.motors.fl! -= diff;
+							if (f.motors.out.rl! > 2000) {
+								const diff = 2000 - f.motors.out.rl!;
+								f.motors.out.rl = 2000;
+								f.motors.out.rr! -= diff;
+								f.motors.out.fr! -= diff;
+								f.motors.out.fl! -= diff;
 							}
-							if (f.motors.fl! > 2000) {
-								const diff = 2000 - f.motors.fl!;
-								f.motors.fl = 2000;
-								f.motors.rr! -= diff;
-								f.motors.fr! -= diff;
-								f.motors.rl! -= diff;
+							if (f.motors.out.fl! > 2000) {
+								const diff = 2000 - f.motors.out.fl!;
+								f.motors.out.fl = 2000;
+								f.motors.out.rr! -= diff;
+								f.motors.out.fr! -= diff;
+								f.motors.out.rl! -= diff;
 							}
-							if (f.motors.rr! < 50) {
-								const diff = 50 - f.motors.rr!;
-								f.motors.rr = 50;
-								f.motors.fr! += diff;
-								f.motors.rl! += diff;
-								f.motors.fl! += diff;
+							if (f.motors.out.rr! < 50) {
+								const diff = 50 - f.motors.out.rr!;
+								f.motors.out.rr = 50;
+								f.motors.out.fr! += diff;
+								f.motors.out.rl! += diff;
+								f.motors.out.fl! += diff;
 							}
-							if (f.motors.fr! < 50) {
-								const diff = 50 - f.motors.fr!;
-								f.motors.fr = 50;
-								f.motors.rr! += diff;
-								f.motors.rl! += diff;
-								f.motors.fl! += diff;
+							if (f.motors.out.fr! < 50) {
+								const diff = 50 - f.motors.out.fr!;
+								f.motors.out.fr = 50;
+								f.motors.out.rr! += diff;
+								f.motors.out.rl! += diff;
+								f.motors.out.fl! += diff;
 							}
-							if (f.motors.rl! < 50) {
-								const diff = 50 - f.motors.rl!;
-								f.motors.rl = 50;
-								f.motors.rr! += diff;
-								f.motors.fr! += diff;
-								f.motors.fl! += diff;
+							if (f.motors.out.rl! < 50) {
+								const diff = 50 - f.motors.out.rl!;
+								f.motors.out.rl = 50;
+								f.motors.out.rr! += diff;
+								f.motors.out.fr! += diff;
+								f.motors.out.fl! += diff;
 							}
-							if (f.motors.fl! < 50) {
-								const diff = 50 - f.motors.fl!;
-								f.motors.fl = 50;
-								f.motors.rr! += diff;
-								f.motors.fr! += diff;
-								f.motors.rl! += diff;
+							if (f.motors.out.fl! < 50) {
+								const diff = 50 - f.motors.out.fl!;
+								f.motors.out.fl = 50;
+								f.motors.out.rr! += diff;
+								f.motors.out.fr! += diff;
+								f.motors.out.rl! += diff;
 							}
-							f.motors.rr = Math.min(f.motors.rr!, 2000);
-							f.motors.fr = Math.min(f.motors.fr!, 2000);
-							f.motors.rl = Math.min(f.motors.rl!, 2000);
-							f.motors.fl = Math.min(f.motors.fl!, 2000);
+							f.motors.out.rr = Math.min(f.motors.out.rr!, 2000);
+							f.motors.out.fr = Math.min(f.motors.out.fr!, 2000);
+							f.motors.out.rl = Math.min(f.motors.out.rl!, 2000);
+							f.motors.out.fl = Math.min(f.motors.out.fl!, 2000);
 						});
 						break;
 				}
@@ -859,8 +867,8 @@
 	}
 
 	function decodeBinFile() {
-		const header = binFile.slice(0, 166);
-		const data = binFile.slice(166);
+		const header = binFile.slice(0, 256);
+		const data = binFile.slice(256);
 		const magic = leBytesToInt(header.slice(0, 4));
 		if (magic !== 0x99a12720) {
 			rejectWrongFile(
@@ -919,6 +927,7 @@
 		}
 		const flagsLow = leBytesToInt(header.slice(158, 162));
 		const flagsHigh = leBytesToInt(header.slice(162, 166));
+		const motorPoles = header[166];
 		const flags: string[] = [];
 		let frameSize = 0;
 		const offsets: { [key: string]: number } = {};
@@ -937,7 +946,8 @@
 			if (flagIsSet) {
 				flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
 				offsets[Object.keys(BB_ALL_FLAGS)[i + 32]] = frameSize;
-				frameSize += 2;
+				if (i + 32 == 35) frameSize += 6;
+				else frameSize += 2;
 			}
 		}
 		const framesPerSecond = pidFreq / freqDiv;
@@ -949,7 +959,7 @@
 				setpoint: {},
 				gyro: {},
 				pid: { roll: {}, pitch: {}, yaw: {} },
-				motors: {},
+				motors: { out: {}, rpm: {} },
 				motion: { gps: {} },
 				attitude: {}
 			};
@@ -1095,12 +1105,12 @@
 					i + offsets['LOG_MOTOR_OUTPUTS'],
 					i + offsets['LOG_MOTOR_OUTPUTS'] + 6
 				);
-				const motors23 = leBytesToInt(throttleBytes.slice(3, 6).reverse());
-				const motors01 = leBytesToInt(throttleBytes.slice(0, 3).reverse());
-				frame.motors.rr = motors01 >> 12;
-				frame.motors.fr = motors01 & 0xfff;
-				frame.motors.rl = motors23 >> 12;
-				frame.motors.fl = motors23 & 0xfff;
+				const motors01 = leBytesToInt(throttleBytes.slice(0, 3));
+				const motors23 = leBytesToInt(throttleBytes.slice(3, 6));
+				frame.motors.out.rr = motors01 & 0xfff;
+				frame.motors.out.fr = motors01 >> 12;
+				frame.motors.out.rl = motors23 & 0xfff;
+				frame.motors.out.fl = motors23 >> 12;
 			}
 			if (flags.includes('LOG_FRAMETIME'))
 				frame.frametime = leBytesToInt(
@@ -1198,6 +1208,39 @@
 						true
 					) / 10000;
 			}
+			if (flags.includes('LOG_MOTOR_RPM')) {
+				const rpmBytes = data.slice(i + offsets['LOG_MOTOR_RPM'], i + offsets['LOG_MOTOR_RPM'] + 6);
+				const motors01 = leBytesToInt(rpmBytes.slice(0, 3));
+				const motors23 = leBytesToInt(rpmBytes.slice(3, 6));
+				let rr = motors01 & 0xfff;
+				let fr = motors01 >> 12;
+				let rl = motors23 & 0xfff;
+				let fl = motors23 >> 12;
+				if (rr === 0xfff) {
+					frame.motors.rpm.rr = 0;
+				} else {
+					rr = (rr & 0x1ff) << (rr >> 9);
+					frame.motors.rpm.rr = (60000000 + 50 * rr) / rr / (motorPoles / 2);
+				}
+				if (fr === 0xfff) {
+					frame.motors.rpm.fr = 0;
+				} else {
+					fr = (fr & 0x1ff) << (fr >> 9);
+					frame.motors.rpm.fr = (60000000 + 50 * fr) / fr / (motorPoles / 2);
+				}
+				if (rl === 0xfff) {
+					frame.motors.rpm.rl = 0;
+				} else {
+					rl = (rl & 0x1ff) << (rl >> 9);
+					frame.motors.rpm.rl = (60000000 + 50 * rl) / rl / (motorPoles / 2);
+				}
+				if (fl === 0xfff) {
+					frame.motors.rpm.fl = 0;
+				} else {
+					fl = (fl & 0x1ff) << (fl >> 9);
+					frame.motors.rpm.fl = (60000000 + 50 * fl) / fl / (motorPoles / 2);
+				}
+			}
 			log.push(frame);
 		}
 		loadedLog = {
@@ -1214,7 +1257,8 @@
 			framesPerSecond,
 			rawFile: binFile,
 			isExact: true,
-			pidConstantsNice
+			pidConstantsNice,
+			motorPoles
 		};
 		fillLogWithGenFlags(loadedLog);
 		resolveWhenReady(loadedLog);
@@ -1227,8 +1271,6 @@
 		const infoNums = [] as number[];
 		for (let i = 0; i < 10; i++) {
 			if (logInfoPosition >= logNums.length) {
-				//Depending on the NodeJS version this may be a NodeJS.Timer rather than a number
-				//@ts-ignore
 				clearInterval(logInfoInterval);
 				break;
 			}
@@ -1253,10 +1295,11 @@
 		 * 14-21: recording flags
 		 */
 		for (let i = 0; i < data.length; i += 22) {
+			console.log(data.slice(i, i + 22));
 			const fileNum = data[i];
 			const fileSize =
 				data[i + 1] + data[i + 2] * 256 + data[i + 3] * 256 * 256 + data[i + 4] * 256 * 256 * 256;
-			const bbVersion = data[i + 5] + data[i + 6] * 256 + data[i + 7] * 256 * 256;
+			const bbVersion = data[i + 5] * 256 * 256 + data[i + 6] * 256 + data[i + 7];
 			const sTime = leBytesToInt(data.slice(i + 8, i + 12));
 			const year = sTime >> 26;
 			const month = (sTime >> 22) & 0b1111;
@@ -1268,9 +1311,9 @@
 			const pidFreq = 3200 / (data[i + 12] + 1);
 			const freqDiv = data[i + 13];
 			const flags = data.slice(i + 14, i + 22);
-			if (bbVersion !== 0) continue;
+			if (bbVersion !== 1) continue;
 			const framesPerSecond = pidFreq / freqDiv;
-			const dataBytes = fileSize - 166;
+			const dataBytes = fileSize - 256;
 			let frameSize = 0;
 			for (let j = 0; j < 64; j++) {
 				//check flags
@@ -1280,7 +1323,7 @@
 				const bitNum = j % 8;
 				const flagIsSet = flags[byteNum] & (1 << bitNum);
 				if (!flagIsSet) continue;
-				if (j == 26) frameSize += 6;
+				if (j == 26 || j == 35) frameSize += 6;
 				else if (j == 28) frameSize++;
 				else frameSize += 2;
 			}
@@ -2084,7 +2127,7 @@
 		grid-column: span 2;
 	}
 	.flagSelector {
-		width: 19rem;
+		width: 21rem;
 		overflow: auto;
 	}
 	.graphSelector {
