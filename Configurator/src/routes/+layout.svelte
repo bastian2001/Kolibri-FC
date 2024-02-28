@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invoke } from '@tauri-apps/api';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { port, ConfigCmd } from '../stores';
 	import type { Command } from '../stores';
@@ -52,6 +52,23 @@
 
 	let log: string[] = [];
 
+	function addLogEntry(str: string) {
+		const date = new Date();
+		str =
+			date.getHours().toString().padStart(2, '0') +
+			':' +
+			date.getMinutes().toString().padStart(2, '0') +
+			':' +
+			date.getSeconds().toString().padStart(2, '0') +
+			' -> ' +
+			str;
+		log = [...log, str];
+
+		tick().then(() => {
+			logDiv.scrollTop = logDiv.scrollHeight;
+		});
+	}
+
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
 		switch (command.command) {
@@ -59,32 +76,22 @@
 				battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
 				break;
 			case ConfigCmd.IND_MESSAGE:
-				const date = new Date();
-				const str =
-					date.getHours().toString().padStart(2, '0') +
-					':' +
-					date.getMinutes().toString().padStart(2, '0') +
-					':' +
-					date.getSeconds().toString().padStart(2, '0') +
-					' -> ' +
-					command.dataStr;
-				log = [...log, str];
-				logDiv.scrollTop = logDiv.scrollHeight;
+				addLogEntry(command.dataStr);
 				break;
 			case ConfigCmd.PLAY_SOUND | 0x4000:
 				console.log(command.data);
 				break;
 			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
-				log = [...log, 'See console for crash dump'];
+				addLogEntry('See console for crash dump');
 				break;
 			case ConfigCmd.CLEAR_CRASH_DUMP | 0x4000:
-				log = [...log, 'Crash dump cleared'];
+				addLogEntry('Crash dump cleared');
 				break;
 			case ConfigCmd.BB_FORMAT | 0x4000:
-				log = [...log, 'Blackbox formatted'];
+				addLogEntry('Blackbox formatted');
 				break;
 			case ConfigCmd.BB_FORMAT | 0x8000:
-				log = [...log, 'Blackbox format failed'];
+				addLogEntry('Blackbox format failed');
 				break;
 			case ConfigCmd.CONFIGURATOR_PING:
 				//ping received from FC, confirm
