@@ -74,35 +74,34 @@ void decodeErpm() {
 	u32 edr;
 	for (i32 m = 0; m < 4; m++) {
 		u32 edgeDetectedReturn = 0;
-		u8 currentBitValue     = 0;
-		u8 bitCount            = 0;
+		u32 currentBitValue    = 1;
+		u32 bitCount           = 0;
 		u32 totalShifted       = 0;
-		u8 started             = 0;
-		for (u8 p = 0; p < 16 && totalShifted != 21; p++) {
+		u32 started            = 0;
+		for (u32 p = 0; p < 16; p++) {
 			u32 err = escRawReturn[p] >> m;
-			for (u8 b = 0; b < 8; b++) {
-				u8 bit = (err >> ((7 - b) << 2)) & 1;
+			for (u32 b = 28; b; b -= 4) {
+				u32 bit = (err >> b) & 1;
 				started |= !bit;
-				if (started) {
-					if (bit == currentBitValue) {
-						if (++bitCount == 4) {
-							bitCount = 0;
-							edgeDetectedReturn <<= 1;
-							edgeDetectedReturn |= currentBitValue;
-							totalShifted++;
-						}
-					} else {
-						if (bitCount >= 2) {
-							edgeDetectedReturn <<= 1;
-							edgeDetectedReturn |= currentBitValue;
-							totalShifted++;
-						}
-						bitCount        = 1;
-						currentBitValue = bit;
+				// bitCount *= started;
+				bitCount = __mul_instruction(bitCount, started);
+				if (bit == currentBitValue) {
+					if (++bitCount == 4) {
+						bitCount           = 0;
+						edgeDetectedReturn = edgeDetectedReturn << 1 | currentBitValue;
+						totalShifted++;
 					}
-					if (totalShifted == 21) break;
+				} else {
+					if (bitCount >= 2) {
+						edgeDetectedReturn = edgeDetectedReturn << 1 | currentBitValue;
+						totalShifted++;
+					}
+					bitCount        = 1;
+					currentBitValue = bit;
 				}
+				if (totalShifted == 21) break;
 			}
+			if (totalShifted == 21) break;
 		}
 		edr                = edgeDetectedReturn;
 		edgeDetectedReturn = edgeDetectedReturn ^ (edgeDetectedReturn >> 1);
