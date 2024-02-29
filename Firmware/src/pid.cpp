@@ -88,15 +88,14 @@ void decodeErpm() {
 		u32 shifts = 0;
 		for (int i = 1; i < 32; i++) {
 			u32 packet   = ~*p++;
-			u32 bit      = packet >> 31;
-			u32 duration = packet & 0x7FFFFFFF;
-			duration += 3; // PIO starts counting down from 0xFFFFFFFF, with the inversion that is 0, but it actually already counted 1. The other 2 come from rounding (with 4x oversampling, any duration >=2 is valid)
-			duration >>= 2;
+			u32 duration = (packet & 0x7FFFFFFF) + 3;
+			// PIO starts counting down from 0xFFFFFFFF, with the inversion that is 0, but it actually already counted 1. The other 2 come from rounding (with 4x oversampling, any duration >=2 is valid)
+			duration /= 4;
 			if (duration > 21) {
-				break;
+				break; // this is either a transmission error, or the end of the packet (((~0) & 0x7FF...) + 3 = a lot)
 			} else {
 				shifts += duration;
-				edgeDetectedReturn = edgeDetectedReturn << duration | RIGHT_BITS(bit, duration);
+				edgeDetectedReturn = edgeDetectedReturn << duration | RIGHT_BITS(packet >> 31, duration);
 			}
 		}
 		edgeDetectedReturn = edgeDetectedReturn << (21 - shifts) | 0x1FFFFF >> shifts;
@@ -164,10 +163,7 @@ void pidLoop() {
 	taskTimerPid = 0;
 	tasks[TASK_PID_MOTORS].runCounter++;
 
-	// if (escErpmReady)
 	decodeErpm();
-	// else
-	// escErpmFail = 0b1111;
 
 	if (armed) {
 		// Quad armed
