@@ -110,6 +110,7 @@ void decodeErpm() {
 		if (csum != 0x0F || rpm > 0xFFFF) {
 			escErpmFail |= 1 << m;
 			tasks[TASK_ESC_RPM].errorCount++;
+			condensedRpm[m] = 0;
 			continue;
 		}
 		escErpmFail &= ~(1 << m);
@@ -124,6 +125,8 @@ void decodeErpm() {
 		}
 	}
 	memset((u32 *)erpmEdges, 0, sizeof(erpmEdges));
+	dma_channel_set_trans_count(escClearDmaChannel, 128, false); // clear out all the edges (4 motors * 32 edges)
+	dma_channel_set_write_addr(escClearDmaChannel, &erpmEdges[0], true);
 	u32 duration = taskTimer;
 	tasks[TASK_ESC_RPM].totalDuration += duration;
 	if (duration > tasks[TASK_ESC_RPM].maxDuration)
