@@ -11,6 +11,10 @@ dma_channel_config escDmaConfig[4];
 u8 escErpmFail     = 0;
 u32 dmaChannelMask = 0;
 
+// basically a memset(0) channel to clear the erpm edges
+u8 escClearDmaChannel;
+volatile u32 zero = 0;
+
 #define iv 0xFFFFFFFF
 const u32 escDecodeLut[32] = {
 	iv, iv, iv, iv, iv, iv, iv, iv, iv, 9, 10, 11, iv, 13, 14, 15,
@@ -45,9 +49,15 @@ void initESCs() {
 		dma_channel_set_read_addr(escDmaChannel[i], &escPio->rxf[i], false);
 		dma_channel_set_write_addr(escDmaChannel[i], &erpmEdges[i], false);
 		dma_channel_set_trans_count(escDmaChannel[i], 32, true);
-		dma_channel_set_irq1_enabled(escDmaChannel[i], true);
 		dmaChannelMask |= 1 << escDmaChannel[i];
 	}
+	escClearDmaChannel                   = dma_claim_unused_channel(true);
+	dma_channel_config escClearDmaConfig = dma_channel_get_default_config(escClearDmaChannel);
+	channel_config_set_transfer_data_size(&escClearDmaConfig, DMA_SIZE_32);
+	channel_config_set_read_increment(&escClearDmaConfig, false);
+	channel_config_set_write_increment(&escClearDmaConfig, true);
+	dma_channel_set_config(escClearDmaChannel, &escClearDmaConfig, false);
+	dma_channel_set_read_addr(escClearDmaChannel, &zero, false);
 }
 
 u16 appendChecksum(u16 data) {
@@ -60,6 +70,7 @@ u16 appendChecksum(u16 data) {
 }
 
 void sendRaw16Bit(const u16 raw[4]) {
+	dma_channel_abort(escClearDmaChannel); // abort if not completed
 	for (i32 i = 0; i < 4; i++) {
 		pio_sm_exec(escPio, i, pio_encode_jmp(escPioOffset));
 		while (!pio_sm_is_rx_fifo_empty(escPio, i))

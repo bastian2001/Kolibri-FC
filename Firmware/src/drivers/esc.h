@@ -41,6 +41,7 @@ extern volatile u32 escRpm[4];
 extern const u32 escDecodeLut[32];
 extern u8 escErpmFail;
 extern u8 escDmaChannel[4];
+extern u8 escClearDmaChannel;
 
 void initESCs();
 

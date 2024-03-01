@@ -60,9 +60,9 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
-	pidGainsVVel[P] = 800;           // additional throttle if velocity is 1m/s too low
+	pidGainsVVel[P] = 5;           // additional throttle if velocity is 1m/s too low
 	pidGainsVVel[I] = .02;           // increase throttle by 3200x this value, when error is 1m/s
-	pidGainsVVel[D] = 0;             // additional throttle, if accelerating by 3200m/s^2
+	pidGainsVVel[D] = 10000;             // additional throttle, if accelerating by 3200m/s^2
 	pidGainsAlt[P]  = 60;            // additional throttle if altitude is 1m too low
 	pidGainsAlt[I]  = 0.001;         // increase throttle by 3200x this value per second, when error is 1m
 	pidGainsAlt[D]  = 20;            // additional throttle, if changing altitude by 3200m/s
@@ -237,26 +237,26 @@ void pidLoop() {
 					if (t > 0) t = 0;
 				}
 				// estimate throttle
-				// vVelSetpoint = t / 180; // +/- 5 m/s
-				// vVelError    = vVelSetpoint - vVel;
-				// vVelErrorSum += vVelError;
-				// vVelP    = pidGainsVVel[P] * vVelError;
-				// vVelI    = pidGainsVVel[I] * vVelErrorSum;
-				// vVelD    = pidGainsVVel[D] * (vVel - vVelLast);
-				// throttle = vVelP + vVelI + vVelD;
+				vVelSetpoint = t / 180; // +/- 5 m/s
+				vVelError    = vVelSetpoint - vVel;
+				vVelErrorSum += vVelError;
+				vVelP    = pidGainsVVel[P] * vVelError;
+				vVelI    = pidGainsVVel[I] * vVelErrorSum;
+				vVelD    = pidGainsVVel[D] * (vVelError - vVelLast) * 5;
+				throttle = vVelP + vVelI + vVelD;
 				// estimate throttle based on altitude error
-				altSetpoint += t / 180 / 3200;
-				altError = altSetpoint - combinedAltitude;
-				altErrorSum += altError;
-				altP     = pidGainsAlt[P] * altError;
-				altI     = pidGainsAlt[I] * altErrorSum;
-				altD     = pidGainsAlt[D] * (altLast - combinedAltitude) * 3200;
-				throttle = altP + altI + altD;
+				// altSetpoint += t / 180 / 3200;
+				// altError = altSetpoint - combinedAltitude;
+				// altErrorSum += altError;
+				// altP     = pidGainsAlt[P] * altError;
+				// altI     = pidGainsAlt[I] * altErrorSum;
+				// altD     = pidGainsAlt[D] * (altLast - combinedAltitude) * 3200;
+				// throttle = altP + altI + altD;
 			} else {
 				vVelErrorSum = 0;
 			}
 			altLast  = combinedAltitude;
-			vVelLast = vVel;
+			vVelLast = vVelSetpoint - vVel;
 		} else if (flightMode == FLIGHT_MODE::ACRO) {
 			/* at full stick deflection, ...Raw values are either +1 or -1. That will make all the
 			 * polynomials also +/-1. Thus, the total rate for each axis is equal to the sum of all 5 rateFactors
