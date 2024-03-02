@@ -1,5 +1,5 @@
 #include "global.h"
-__attribute__((__aligned__(4))) FCTask tasks[32];
+__attribute__((__aligned__(4))) volatile FCTask tasks[32];
 
 elapsedMillis taskManagerTimer;
 

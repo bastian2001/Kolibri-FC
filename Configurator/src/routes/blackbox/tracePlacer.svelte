@@ -317,7 +317,7 @@
 			<option value={flag}>{genFlagProps[flag].name} (Gen.)</option>
 		{/each}
 	</select>
-	{#if flagName === 'LOG_MOTOR_OUTPUTS' || flagName === 'GEN_MOTOR_OUTPUTS'}
+	{#if flagName === 'LOG_MOTOR_OUTPUTS' || flagName === 'GEN_MOTOR_OUTPUTS' || flagName === 'LOG_MOTOR_RPM'}
 		<select name="graphNum" id="graphNum" bind:value={modifier} style="width: auto">
 			{#each ['RR', 'FR', 'RL', 'FL'] as m}
 				<option value={m}>{m}</option>

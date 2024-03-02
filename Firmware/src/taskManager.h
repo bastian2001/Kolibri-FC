@@ -13,7 +13,7 @@ typedef struct task {
 	u32 debugInfo;
 	u32 maxGap;
 } FCTask;
-extern FCTask tasks[32];
+extern volatile FCTask tasks[32];
 
 enum Tasks {
 	TASK_BAROREAD,
@@ -35,7 +35,8 @@ enum Tasks {
 	TASK_LOOP0,
 	TASK_IMU_GYRO,
 	TASK_IMU_ACCEL,
-	TASK_IMU_ANGLE
+	TASK_IMU_ANGLE,
+	TASK_ESC_RPM
 };
 
 void initTaskManager();

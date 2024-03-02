@@ -51,10 +51,18 @@ export type LogFrame = {
 		};
 	};
 	motors: {
-		rr?: number;
-		fr?: number;
-		rl?: number;
-		fl?: number;
+		out: {
+			rr?: number;
+			fr?: number;
+			rl?: number;
+			fl?: number;
+		};
+		rpm: {
+			rr?: number;
+			fr?: number;
+			rl?: number;
+			fl?: number;
+		};
 	};
 	frametime?: number;
 	attitude: {
@@ -115,6 +123,7 @@ export type BBLog = {
 	pidConstantsNice: number[][];
 	framesPerSecond: number;
 	isExact: boolean;
+	motorPoles: number;
 };
 
 export function getNestedProperty(

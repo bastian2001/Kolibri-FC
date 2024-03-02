@@ -1,4 +1,5 @@
 #include "global.h"
+#include "hardware/structs/xip_ctrl.h"
 
 volatile u8 setupDone = 0b00;
 
@@ -36,7 +37,6 @@ void setup() {
 	gpio_init(PIN_LED_DEBUG);
 	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
 
-	initESCs();
 	initBlackbox();
 	initSpeaker();
 	rp2040.wdt_begin(200);
@@ -48,6 +48,7 @@ void setup() {
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
+	xip_ctrl_hw->flush = 1;
 	// makeRtttlSound("o=6,b=800:1c#6,1d#6,1g#6.,1d#6$1,1g#6.$1,1d#6$2,1g#6$2");
 	// makeRtttlSound("NokiaTune:d=4,o=5,b=160:8e6$4,8d6$4,4f#5$4,4g#5$4,8c#6$4,8b5$4,4d5$4,4e5$4,8b5$4,8a5$4,4c#5$4,4e5$4,1a5$4");
 	// makeSound(1000, 100, 100, 0);
@@ -91,6 +92,7 @@ void loop() {
 
 u32 *speakerRxPacket;
 void setup1() {
+	initESCs();
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {
 	}

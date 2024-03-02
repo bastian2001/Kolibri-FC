@@ -196,7 +196,7 @@ void startLogging() {
 	if (!blackboxFile)
 		return;
 	const u8 data[] = {
-		0x20, 0x27, 0xA1, 0x99, 0, 0, 0 // magic bytes, version
+		0x20, 0x27, 0xA1, 0x99, 0, 0, 1 // magic bytes, version
 	};
 	blackboxFile.write(data, 7);
 	u32 recordTime = timestamp;
@@ -223,9 +223,13 @@ void startLogging() {
 			pg[i][j] = pidGains[i][j].getRaw();
 	blackboxFile.write((u8 *)pg, 84);
 	blackboxFile.write((u8 *)&bbFlags, 8);
+	blackboxFile.write((u8)MOTOR_POLES);
+	while (blackboxFile.position() < 256) {
+		blackboxFile.write((u8)0);
+	}
 	bbFrameNum = 0;
 	bbLogging  = true;
-	// 166 bytes header
+	// 256 bytes header
 	frametime = 0;
 }
 
@@ -362,13 +366,13 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = yawS.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
-		i64 throttles64       = ((u64)(throttles[(u8)MOTOR::RR])) << 36 | ((u64)throttles[(u8)MOTOR::FR]) << 24 | throttles[(u8)MOTOR::RL] << 12 | throttles[(u8)MOTOR::FL];
-		bbBuffer[bufferPos++] = throttles64 >> 40;
-		bbBuffer[bufferPos++] = throttles64 >> 32;
-		bbBuffer[bufferPos++] = throttles64 >> 24;
-		bbBuffer[bufferPos++] = throttles64 >> 16;
-		bbBuffer[bufferPos++] = throttles64 >> 8;
+		u64 throttles64       = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
 		bbBuffer[bufferPos++] = throttles64;
+		bbBuffer[bufferPos++] = throttles64 >> 8;
+		bbBuffer[bufferPos++] = throttles64 >> 16;
+		bbBuffer[bufferPos++] = throttles64 >> 24;
+		bbBuffer[bufferPos++] = throttles64 >> 32;
+		bbBuffer[bufferPos++] = throttles64 >> 40;
 	}
 	if (currentBBFlags & LOG_FRAMETIME) {
 		u16 ft                = frametime;
@@ -428,6 +432,15 @@ void __not_in_flash_func(writeSingleFrame)() {
 		i16 y                 = yaw * 10000;
 		bbBuffer[bufferPos++] = y;
 		bbBuffer[bufferPos++] = y >> 8;
+	}
+	if (currentBBFlags & LOG_MOTOR_RPM) {
+		u64 rpmPacket         = condensedRpm[(u8)MOTOR::RR] | condensedRpm[(u8)MOTOR::FR] << 12 | (u64)condensedRpm[(u8)MOTOR::RL] << 24 | (u64)condensedRpm[(u8)MOTOR::FL] << 36;
+		bbBuffer[bufferPos++] = rpmPacket;
+		bbBuffer[bufferPos++] = rpmPacket >> 8;
+		bbBuffer[bufferPos++] = rpmPacket >> 16;
+		bbBuffer[bufferPos++] = rpmPacket >> 24;
+		bbBuffer[bufferPos++] = rpmPacket >> 32;
+		bbBuffer[bufferPos++] = rpmPacket >> 40;
 	}
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);

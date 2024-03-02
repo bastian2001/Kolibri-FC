@@ -39,7 +39,7 @@ RTTTLSong songToPlay;
 
 #define FREQ_TO_WRAP(freq) (2000000 / freq)
 
-PIO speakerPio;
+PIO speakerPio = pio1;
 u8 speakerSm, sliceNum;
 File speakerFile;
 u32 speakerDataSize = 0;
@@ -64,7 +64,6 @@ void dmaIrqHandler() {
 }
 
 void initSpeaker() {
-	speakerPio      = pio0;
 	uint offset     = pio_add_program(speakerPio, &speaker8bit_program);
 	speakerSm       = pio_claim_unused_sm(speakerPio, true);
 	pio_sm_config c = speaker8bit_program_get_default_config(offset);
@@ -76,7 +75,7 @@ void initSpeaker() {
 	sm_config_set_out_shift(&c, false, false, 32);
 	sm_config_set_in_shift(&c, false, false, 32);
 	pio_sm_set_consecutive_pindirs(speakerPio, speakerSm, PIN_SPEAKER, 1, true);
-	gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_2MA);
+	gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_12MA);
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
 	pio_sm_init(speakerPio, speakerSm, offset, &c);
 	pio_sm_set_enabled(speakerPio, speakerSm, true);
@@ -93,7 +92,7 @@ void initSpeaker() {
 	channel_config_set_chain_to(&speakerDmaAConfig, speakerDmaBChan);
 	channel_config_set_ring(&speakerDmaAConfig, false, SPEAKER_SIZE_POWER);
 	dma_channel_set_irq0_enabled(speakerDmaAChan, true);
-	dma_channel_set_read_addr(speakerDmaAChan, speakerChanAData, true);
+	dma_channel_set_read_addr(speakerDmaAChan, speakerChanAData, false);
 	dma_channel_set_write_addr(speakerDmaAChan, &speakerPio->txf[speakerSm], false);
 	// identical setup to a, just different buffer
 	channel_config_set_read_increment(&speakerDmaBConfig, true);
@@ -103,7 +102,7 @@ void initSpeaker() {
 	channel_config_set_chain_to(&speakerDmaBConfig, speakerDmaAChan);
 	channel_config_set_ring(&speakerDmaBConfig, false, SPEAKER_SIZE_POWER);
 	dma_channel_set_irq0_enabled(speakerDmaBChan, true);
-	dma_channel_set_read_addr(speakerDmaBChan, speakerChanBData, true);
+	dma_channel_set_read_addr(speakerDmaBChan, speakerChanBData, false);
 	dma_channel_set_write_addr(speakerDmaBChan, &speakerPio->txf[speakerSm], false);
 	if (playWav("start.wav")) {
 		soundState = 0b110;
@@ -266,7 +265,7 @@ bool playWav(const char *filename) {
 			channel_config_set_enable(&speakerDmaBConfig, true);
 			dma_channel_set_config(speakerDmaBChan, &speakerDmaBConfig, false);
 			soundState = 0b110;
-			gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PIO0);
+			gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PIO1);
 			startSpeakerFile = true;
 			return true;
 		}
