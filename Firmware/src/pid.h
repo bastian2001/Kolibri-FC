@@ -34,6 +34,7 @@ extern fix32 throttle;
 extern u16 smoothChannels[4];
 extern i16 throttles[4];
 extern u32 pidLoopCounter;
+extern u16 condensedRpm[4];
 enum class FLIGHT_MODE {
 	ACRO,
 	ANGLE,

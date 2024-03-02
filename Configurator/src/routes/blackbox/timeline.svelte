@@ -78,10 +78,10 @@
 			: flagProps[genFlagProps[traceName].replaces];
 		if (traceName === 'LOG_MOTOR_OUTPUTS') {
 			for (let i = 0; i < loadedLog!.frameCount; i++) {
-				let avg = loadedLog!.frames[i].motors.rr!;
-				avg += loadedLog!.frames[i].motors.rl!;
-				avg += loadedLog!.frames[i].motors.fr!;
-				avg += loadedLog!.frames[i].motors.fl!;
+				let avg = loadedLog!.frames[i].motors.out.rr!;
+				avg += loadedLog!.frames[i].motors.out.rl!;
+				avg += loadedLog!.frames[i].motors.out.fr!;
+				avg += loadedLog!.frames[i].motors.out.fl!;
 				avg /= 4;
 				drawArray.push(avg);
 			}

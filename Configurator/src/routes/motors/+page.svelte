@@ -50,10 +50,12 @@
 		getMotorsInterval = setInterval(() => {
 			port.sendCommand(ConfigCmd.GET_MOTORS);
 		}, 100);
+		port.addOnDisconnectHandler(stopMotors);
 	});
 	onDestroy(() => {
 		clearInterval(getMotorsInterval);
 		stopMotors();
+		port.removeOnDisconnectHandler(stopMotors);
 	});
 </script>
 

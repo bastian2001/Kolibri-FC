@@ -1,0 +1,47 @@
+.program bidir_dshot_x1
+
+mov osr, null
+out null, 32
+set pindirs, 1
+set x, 1; x holds the current bit (pin value)
+mov y, ~null; y holds the amount of times the bit was seen
+
+this:
+jmp this; active stall, so that the CPU can empty the RX FIFO and fill the TX FIFO, then exec jmp out of this loop
+
+; write DShot packet
+out null, 16; throw away the left 16 bits
+write_one_bit:
+set pins, 0 [14]
+out pins, 1 [14]
+set pins, 1 [8]
+jmp !osre write_one_bit
+
+; prepare reading of ERPM
+set pindirs, 0
+jmp read_one_bit
+
+; one sample every 8 PIO cycles = 4x oversampling
+switch_and_push:
+mov x, y
+mov y, ~null
+in osr, 31; the pushed packet has the following format:
+; blllllll llllllll llllllll llllllll => b = the sampled bit, l = the duration of the bit
+
+read_one_bit:
+mov isr, null
+in pins, 1
+mov osr, y; osr serves as a backup register
+mov y, isr
+jmp x!=y, switch_and_push; edge detection
+mov y, osr
+jmp y-- continue; duration counter
+continue:
+jmp read_one_bit
+
+.define public CLKDIV_300_INT 22
+.define public CLKDIV_300_FRAC 0
+.define public CLKDIV_600_INT 11
+.define public CLKDIV_600_FRAC 0
+.define public CLKDIV_1200_INT 5
+.define public CLKDIV_1200_FRAC 128

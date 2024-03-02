@@ -1,4 +1,4 @@
-#include <Arduino.h>
+#include "typedefs.h"
 
 #define PIN_TX0 0
 #define PIN_RX0 1
