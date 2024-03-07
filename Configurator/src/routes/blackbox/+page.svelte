@@ -1412,7 +1412,7 @@
 				let pointY =
 					heightOffset +
 					heightPerGraph -
-					(getNestedProperty(sliceAndSkip[0], path, { max: trace.maxValue, min: trace.minValue }) -
+					(getNestedProperty(sliceAndSkip[0], path, { max: Math.max(trace.maxValue, trace.minValue), min: Math.min(trace.minValue, trace.maxValue) }) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1420,10 +1420,7 @@
 					pointY =
 						heightOffset +
 						heightPerGraph -
-						(getNestedProperty(sliceAndSkip[k], path, {
-							max: trace.maxValue,
-							min: trace.minValue
-						}) -
+						(getNestedProperty(sliceAndSkip[k], path, { max: Math.max(trace.maxValue, trace.minValue), min: Math.min(trace.minValue, trace.maxValue) }) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -1495,10 +1492,7 @@
 						(getNestedProperty(
 							sliceAndSkip[Math.floor((closestFrame - startFrame) / skipValue)],
 							path,
-							{
-								max: trace.maxValue,
-								min: trace.minValue
-							}
+							{ max: Math.max(trace.maxValue, trace.minValue), min: Math.min(trace.minValue, trace.maxValue) }
 						) -
 							trace.minValue) *
 							scale;
