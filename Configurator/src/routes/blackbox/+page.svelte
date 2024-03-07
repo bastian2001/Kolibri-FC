@@ -629,21 +629,21 @@
 						});
 						break;
 					case 'GEN_ROLL_PID_FF':
-						log.frames.forEach((f) => {
+						log.frames.forEach((f, i) => {
 							f.pid.roll.ff =
 								(f.setpoint.roll! - log.frames[i - 1]?.setpoint.roll! || 0) *
 								log.pidConstants[0][3];
 						});
 						break;
 					case 'GEN_PITCH_PID_FF':
-						log.frames.forEach((f) => {
+						log.frames.forEach((f, i) => {
 							f.pid.pitch.ff =
 								(f.setpoint.pitch! - log.frames[i - 1]?.setpoint.pitch! || 0) *
 								log.pidConstants[1][3];
 						});
 						break;
 					case 'GEN_YAW_PID_FF':
-						log.frames.forEach((f) => {
+						log.frames.forEach((f, i) => {
 							f.pid.yaw.ff =
 								(f.setpoint.yaw! - log.frames[i - 1]?.setpoint.yaw! || 0) * log.pidConstants[2][3];
 						});
