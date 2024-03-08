@@ -53,9 +53,12 @@ int gyroInit() {
 	gpio_init(PIN_GYRO_INT1);
 	gpio_set_dir(PIN_GYRO_INT1, GPIO_IN);
 	u8 data = 0;
-	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
-	data = 0;
-	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
+	for (int i = 0; i < 50 && data != 24; i++) {
+		delay(2);
+		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
+		data = 0;
+		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
+	}
 	if (data != 0x24) {
 		Serial.print("Failed to load BMI270, wrong Chip ID: "); // chip id should be 0x24
 		Serial.println(data, HEX);
