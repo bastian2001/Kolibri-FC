@@ -19,7 +19,7 @@ void initTaskManager() {
 void taskManagerLoop() {
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_TASKMANAGER].runCounter++;
-	if (taskManagerTimer > 1000) {
+	if (taskManagerTimer >= 1000) {
 		taskManagerTimer = 0;
 		for (int i = 0; i < 32; i++) {
 			tasks[i].frequency = tasks[i].runCounter;
