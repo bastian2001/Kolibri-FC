@@ -60,9 +60,9 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
-	pidGainsVVel[P] = 5;           // additional throttle if velocity is 1m/s too low
+	pidGainsVVel[P] = 5;             // additional throttle if velocity is 1m/s too low
 	pidGainsVVel[I] = .02;           // increase throttle by 3200x this value, when error is 1m/s
-	pidGainsVVel[D] = 10000;             // additional throttle, if accelerating by 3200m/s^2
+	pidGainsVVel[D] = 10000;         // additional throttle, if accelerating by 3200m/s^2
 	pidGainsAlt[P]  = 60;            // additional throttle if altitude is 1m too low
 	pidGainsAlt[I]  = 0.001;         // increase throttle by 3200x this value per second, when error is 1m
 	pidGainsAlt[D]  = 20;            // additional throttle, if changing altitude by 3200m/s
@@ -184,8 +184,8 @@ void pidLoop() {
 			fix32 dRoll;
 			fix32 dPitch;
 			if (flightMode < FLIGHT_MODE::GPS_VEL) {
-				dRoll         = fix32(smoothChannels[0] - 1500) * TO_ANGLE - (RAD_TO_DEG * roll);
-				dPitch        = fix32(smoothChannels[1] - 1500) * TO_ANGLE + (RAD_TO_DEG * pitch);
+				dRoll         = fix32(smoothChannels[0] - 1500) * TO_ANGLE + (RAD_TO_DEG * roll);
+				dPitch        = fix32(smoothChannels[1] - 1500) * TO_ANGLE - (RAD_TO_DEG * pitch);
 				rollSetpoint  = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FLIGHT_MODE::GPS_VEL) {
@@ -214,8 +214,8 @@ void pidLoop() {
 				fix32 targetPitch = eVelPID * sinfhead + nVelPID * cosfhead;
 				targetRoll        = constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
 				targetPitch       = constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
-				dRoll             = targetRoll - (RAD_TO_DEG * roll);
-				dPitch            = targetPitch + (RAD_TO_DEG * pitch);
+				dRoll             = targetRoll + (RAD_TO_DEG * roll);
+				dPitch            = targetPitch - (RAD_TO_DEG * pitch);
 				rollSetpoint      = dRoll * velocityModeP;
 				pitchSetpoint     = dPitch * velocityModeP;
 			}
