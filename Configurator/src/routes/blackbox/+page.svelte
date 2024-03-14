@@ -1295,7 +1295,6 @@
 		 * 14-21: recording flags
 		 */
 		for (let i = 0; i < data.length; i += 22) {
-			console.log(data.slice(i, i + 22));
 			const fileNum = data[i];
 			const fileSize =
 				data[i + 1] + data[i + 2] * 256 + data[i + 3] * 256 * 256 + data[i + 4] * 256 * 256 * 256;
