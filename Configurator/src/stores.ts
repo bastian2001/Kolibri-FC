@@ -74,6 +74,7 @@ function createPort() {
 		cmdEnabled = en;
 	};
 	const onDisconnectHandlers: (() => void)[] = [];
+	const onConnectHandlers: (() => void)[] = [];
 
 	const sendCommand = (command: number, data: number[] = [], dataStr: string = '') => {
 		if (!cmdEnabled) return new Promise((resolve: any) => resolve());
@@ -182,6 +183,7 @@ function createPort() {
 					statusInterval = setInterval(() => {
 						sendCommand(ConfigCmd.STATUS).catch(() => {});
 					}, 1000);
+					onConnectHandlers.forEach((h) => h());
 					resolve();
 				})
 				.catch((e) => {
@@ -227,6 +229,13 @@ function createPort() {
 		const i = onDisconnectHandlers.indexOf(handler);
 		if (i >= 0) onDisconnectHandlers.splice(i, 1);
 	};
+	const addOnConnectHandler = (handler: () => void) => {
+		onConnectHandlers.push(handler);
+	};
+	const removeOnConnectHandler = (handler: () => void) => {
+		const i = onConnectHandlers.indexOf(handler);
+		if (i >= 0) onConnectHandlers.splice(i, 1);
+	};
 	let pingTime = {
 		fromConfigurator: -1,
 		fromFC: -1
@@ -245,6 +254,8 @@ function createPort() {
 		sendRaw,
 		addOnDisconnectHandler,
 		removeOnDisconnectHandler,
+		addOnConnectHandler,
+		removeOnConnectHandler,
 		getPingTime
 	};
 }

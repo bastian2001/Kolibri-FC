@@ -1411,7 +1411,10 @@
 				let pointY =
 					heightOffset +
 					heightPerGraph -
-					(getNestedProperty(sliceAndSkip[0], path, { max: Math.max(trace.maxValue, trace.minValue), min: Math.min(trace.minValue, trace.maxValue) }) -
+					(getNestedProperty(sliceAndSkip[0], path, {
+						max: Math.max(trace.maxValue, trace.minValue),
+						min: Math.min(trace.minValue, trace.maxValue)
+					}) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1419,7 +1422,10 @@
 					pointY =
 						heightOffset +
 						heightPerGraph -
-						(getNestedProperty(sliceAndSkip[k], path, { max: Math.max(trace.maxValue, trace.minValue), min: Math.min(trace.minValue, trace.maxValue) }) -
+						(getNestedProperty(sliceAndSkip[k], path, {
+							max: Math.max(trace.maxValue, trace.minValue),
+							min: Math.min(trace.minValue, trace.maxValue)
+						}) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -1491,7 +1497,10 @@
 						(getNestedProperty(
 							sliceAndSkip[Math.floor((closestFrame - startFrame) / skipValue)],
 							path,
-							{ max: Math.max(trace.maxValue, trace.minValue), min: Math.min(trace.minValue, trace.maxValue) }
+							{
+								max: Math.max(trace.maxValue, trace.minValue),
+								min: Math.min(trace.minValue, trace.maxValue)
+							}
 						) -
 							trace.minValue) *
 							scale;
@@ -1876,15 +1885,20 @@
 
 		drawCanvas();
 	}
+	function getFileList() {
+		port.sendCommand(ConfigCmd.BB_FILE_LIST).catch(console.error);
+	}
 	onMount(() => {
 		mounted = true;
-		port.sendCommand(ConfigCmd.BB_FILE_LIST).catch(console.error);
+		getFileList();
+		port.addOnConnectHandler(getFileList);
 		dataViewer = document.getElementsByClassName('dataViewerWrapper')[0] as HTMLDivElement;
 		window.addEventListener('resize', onResize);
 		onResize();
 	});
 	onDestroy(() => {
 		clearTimeout(drawFullCanvasTimeout);
+		port.removeOnConnectHandler(getFileList);
 		window.removeEventListener('resize', onResize);
 	});
 </script>

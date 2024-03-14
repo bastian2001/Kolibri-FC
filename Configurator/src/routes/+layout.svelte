@@ -108,6 +108,7 @@
 		connected = false;
 	}
 	onMount(() => {
+		disconnect();
 		listInterval = setInterval(() => {
 			listDevices();
 		}, 1000);

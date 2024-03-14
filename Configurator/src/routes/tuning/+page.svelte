@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { port, type Command, ConfigCmd } from '../../stores';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { leBytesToInt } from '../../utils';
 	import { error } from '@sveltejs/kit';
 
@@ -48,11 +48,17 @@
 				break;
 		}
 	}
-
-	onMount(() => {
+	function getSettings() {
 		port.sendCommand(ConfigCmd.GET_PIDS).then(() => {
 			port.sendCommand(ConfigCmd.GET_RATES);
 		});
+	}
+	onMount(() => {
+		getSettings();
+		port.addOnConnectHandler(getSettings);
+	});
+	onDestroy(() => {
+		port.removeOnConnectHandler(getSettings);
 	});
 
 	function scrollInputPID(e: WheelEvent, i: number, j: number) {
