@@ -48,6 +48,12 @@ public:
 	fix64 operator=(const f64 other);
 	fix64 operator>>(const i32 other) const;
 	fix64 operator-() const;
+	inline bool operator<(const fix64 other) const {
+		return this->value < other.getRaw();
+	}
+	inline bool operator>(const fix64 other) const {
+		return this->value > other.getRaw();
+	}
 };
 
 class fix32 {

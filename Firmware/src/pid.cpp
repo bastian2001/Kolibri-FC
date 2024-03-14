@@ -36,6 +36,7 @@ fix32 throttle;
 u32 pidLoopCounter = 0;
 
 fix32 rateFactors[5][3];
+fix64 vVelMaxErrorSum, vVelMinErrorSum;
 #undef RAD_TO_DEG
 const fix32 RAD_TO_DEG = fix32(180) / PI;
 const fix32 TO_ANGLE   = fix32(MAX_ANGLE) / fix32(512);
@@ -69,6 +70,8 @@ void initPID() {
 	pidGainsHVel[P] = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I] = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 7;             // tilt in degrees, if changing speed by 3200m/s /s
+	vVelMaxErrorSum = 2000 / pidGainsVVel[I].getf32();
+	vVelMinErrorSum = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
 }
 
 void decodeErpm() {
@@ -243,10 +246,12 @@ void pidLoop() {
 				vVelSetpoint = t / 180; // +/- 5 m/s
 				vVelError    = vVelSetpoint - vVel;
 				vVelErrorSum += vVelError;
-				vVelP    = pidGainsVVel[P] * vVelError;
-				vVelI    = pidGainsVVel[I] * vVelErrorSum;
-				vVelD    = pidGainsVVel[D] * (vVelError - vVelLast) * 5;
-				throttle = vVelP + vVelI + vVelD;
+				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
+				vVelP        = pidGainsVVel[P] * vVelError;
+				vVelI        = pidGainsVVel[I] * vVelErrorSum;
+				vVelD        = pidGainsVVel[D] * (vVelError - vVelLast) * 5;
+				throttle     = vVelP + vVelI + vVelD;
+				throttle     = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
 				// estimate throttle based on altitude error
 				// altSetpoint += t / 180 / 3200;
 				// altError = altSetpoint - combinedAltitude;
