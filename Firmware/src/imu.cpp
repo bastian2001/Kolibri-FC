@@ -6,13 +6,18 @@
 // Z: down / yaw right
 // (Tait-Bryan angles)
 
+// on the PCB (v0.4):
+// Y: forward / roll right
+// X: right / pitch up
+// Z: up / yaw left
+
 const f32 RAW_TO_RAD_PER_SEC       = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
 const f32 FRAME_TIME               = 1. / 3200;
 const f32 RAW_TO_HALF_ANGLE        = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 const f32 ANGLE_CHANGE_LIMIT       = .0002;
 const fix32 RAW_TO_DELTA_M_PER_SEC = 9.81 * 32 / 65536; // +/-16g
 
-f32 pitch, roll, yaw, rpAngle;
+f32 pitch, roll, yaw;
 i32 headMotAtt;      // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
 i32 combinedHeading; // NOT heading of motion, but heading of quad
 i32 combinedHeadMot; // heading of motion, but with headingAdjustment applied
@@ -37,8 +42,7 @@ f32 map(f32 x, f32 in_min, f32 in_max, f32 out_min, f32 out_max) {
 }
 
 void __not_in_flash_func(updateFromGyro)() {
-	// quaternion of all 3 axis rotations combined. All the other terms are dependent on the order of multiplication, therefore we leave them out, as they are arbitrarily defined
-	// e.g. defining a q_x, q_y and q_z and then multiplying them in a certain order would result in a different quaternion than multiplying them in a different order. Therefore we omit these inconsistent terms completely
+	// quaternion of all 3 axis rotations combined
 
 	f32 all[]         = {-gyroDataRaw[1] * RAW_TO_HALF_ANGLE, -gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
 	Quaternion buffer = q;
@@ -99,54 +103,15 @@ void __not_in_flash_func(updateFromAccel)() {
 }
 
 void __not_in_flash_func(updatePitchRollValues)() {
-	Quaternion shortest_path;
-	// no recalculation of orientation_vector, as this saves 50µs @132MHz at only a slight loss in precision (accel update delayed by 1 cycle)
-	// orientation_vector[0] = q.w * q.v[1] * -2 + q.v[0] * q.v[2] * -2;
-	// orientation_vector[1] = q.v[1] * q.v[2] * -2 + q.w * q.v[0] * 2;
-	// orientation_vector[2] = -q.v[2] * q.v[2] + q.v[1] * q.v[1] + q.v[0] * q.v[0] - q.w * q.w;
-
-	f32 dot = -orientation_vector[2];
-
-	if (dot > ONE_MINUS_EPS) {
-		Quaternion_setIdentity(&shortest_path);
-	} else if (dot < -ONE_MINUS_EPS) {
-		// Rotate along any orthonormal vec to vec1 or vec2 as the axis.
-		shortest_path.w    = 0;
-		shortest_path.v[0] = 0;
-		shortest_path.v[1] = dot;
-		shortest_path.v[2] = orientation_vector[1];
-	} else {
-		shortest_path.w    = dot + 1;
-		shortest_path.v[0] = -orientation_vector[1];
-		shortest_path.v[1] = orientation_vector[0];
-		shortest_path.v[2] = 0;
-		f32 len            = sqrtf(shortest_path.v[0] * shortest_path.v[0] + shortest_path.v[1] * shortest_path.v[1] + shortest_path.w * shortest_path.w);
-		if (len == 0) {
-			shortest_path.w    = 1;
-			shortest_path.v[0] = 0;
-			shortest_path.v[1] = 0;
-			shortest_path.v[2] = 0;
-		} else {
-			f32 oneOverLen = 1 / len;
-			shortest_path.w *= oneOverLen;
-			shortest_path.v[0] *= oneOverLen;
-			shortest_path.v[1] *= oneOverLen;
-			shortest_path.v[2] = 0;
-		}
-	}
-
-	f32 orientation_correction_axes[3];
-	rpAngle = Quaternion_toAxisAngle(&shortest_path, orientation_correction_axes);
-
-	roll  = orientation_correction_axes[0] * rpAngle;
-	pitch = orientation_correction_axes[1] * rpAngle;
-	yaw   = atan2f(-2 * (q.v[2] * q.w + q.v[1] * q.v[0]), -1 + 2 * (q.v[0] * q.v[0] + q.w * q.w));
+	roll  = atan2f(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
+	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
+	yaw   = atan2f(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
 
 	headMotAtt      = yaw * 5729578;                  // 5729578 = 360 / (2 * PI) * 100000
 	combinedHeading = headMotAtt + headingAdjustment; // heading of quad
 	if (combinedHeading > 18000000) combinedHeading -= 36000000;
 	if (combinedHeading < -18000000) combinedHeading += 36000000;
-	if (rpAngle > .2618f) {
+	if (roll > .2618f || pitch > .2618f || roll < -.2618f || pitch < -.2618f) {
 		// assume the quad is flying into the direction of pitch and roll, if the angle is larger than 15°
 		headMotAtt += atan2f(-orientation_vector[1], -orientation_vector[0]) * 5729578;
 		combinedHeadMot = headMotAtt + headingAdjustment; // heading of motion
@@ -156,7 +121,7 @@ void __not_in_flash_func(updatePitchRollValues)() {
 		combinedHeadMot = combinedHeading;
 	fix32 preHelper = vVelHelper;
 	startFixTrig();
-	vVelHelper += cosFix((fix32)rpAngle) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[2];
+	vVelHelper += cosFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[2];
 	vVelHelper += sinFix((fix32)roll) * RAW_TO_DELTA_M_PER_SEC / 3200 * -accelDataRaw[0];
 	vVelHelper += sinFix((fix32)pitch) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[1];
 	vVelHelper -= fix32(9.81f / 3200);

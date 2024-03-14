@@ -3,7 +3,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { Command } from '../stores';
 	import { leBytesToInt, roundToDecimal } from '../utils';
-	import { get } from 'svelte/store';
 
 	const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
 	const ARMING_DISABLE_FLAGS = [
@@ -116,21 +115,18 @@
 				configuratorConnected = command.data[8] === 1;
 				break;
 			case ConfigCmd.GET_ROTATION | 0x4000:
-				let pitch = leBytesToInt(command.data.slice(0, 2));
-				if (pitch > 32768) pitch -= 65536;
+				let pitch = leBytesToInt(command.data.slice(0, 2), true);
 				pitch /= 8192.0;
 				pitch *= 180.0 / Math.PI;
-				let roll = leBytesToInt(command.data.slice(2, 4));
-				if (roll > 32768) roll -= 65536;
+				let roll = leBytesToInt(command.data.slice(2, 4), true);
 				roll /= 8192.0;
 				roll *= 180.0 / Math.PI;
-				let yaw = leBytesToInt(command.data.slice(4, 6));
-				if (yaw > 32768) yaw -= 65536;
+				let yaw = leBytesToInt(command.data.slice(4, 6), true);
 				yaw /= 8192.0;
 				yaw *= 180.0 / Math.PI;
-				yBox.style.transform = `rotateX(${-pitch}deg)`;
-				xBox.style.transform = `rotateY(${roll}deg)`;
 				zBox.style.transform = `rotateX(90deg) rotateZ(${yaw}deg) translate3d(0px, 0px, -180px)`;
+				yBox.style.transform = `rotateX(${pitch}deg)`;
+				xBox.style.transform = `rotateY(${-roll}deg)`;
 				attitude = {
 					roll,
 					pitch,
@@ -314,9 +310,9 @@
 	Ping from Configurator: {pingFromConfigurator} - Ping from FC: {pingFromFC}
 </div>
 <div class="drone3DPreview">
-	<div class="zBox" bind:this={zBox}>
-		<div class="xBox" bind:this={xBox}>
-			<div class="yBox" bind:this={yBox}>
+	<div class="zBox droneAxes" bind:this={zBox}>
+		<div class="yBox droneAxes" bind:this={yBox}>
+			<div class="xBox droneAxes" bind:this={xBox}>
 				<div class="droneFrame">
 					<div class="flrrBar" />
 					<div class="rlfrBar" />
@@ -387,21 +383,19 @@
 		display: inline-block;
 	}
 	.zBox {
-		width: 100%;
-		height: 100%;
-		position: relative;
 		top: -130px;
-		transform-style: preserve-3d;
 		transform: rotateX(90deg) rotateY(0deg) translate3d(0px, 0px, -180px);
 	}
 	/*Rotating the bounding box later via JS will rotate the whole drone with it*/
 	.xBox,
 	.yBox {
+		transform: rotateX(0deg) rotateY(0deg);
+	}
+	.droneAxes {
 		width: 100%;
 		height: 100%;
 		position: relative;
 		transform-style: preserve-3d;
-		transform: rotateX(0deg) rotateY(0deg);
 	}
 	.flrrBar,
 	.rlfrBar {
