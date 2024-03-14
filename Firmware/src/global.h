@@ -1,8 +1,10 @@
 #define LITTLEFS_BB 0
 #define SD_BB 1
 #define BLACKBOX_STORAGE SD_BB
-#define ENABLE_DEDICATED_SPI 1
 #include "typedefs.h"
+#ifdef USE_TINYUSB
+#include <Adafruit_TinyUSB.h>
+#endif
 #include <Arduino.h>
 
 #if BLACKBOX_STORAGE == LITTLEFS_BB
@@ -44,7 +46,6 @@
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "taskManager.h"
-// #include <Adafruit_TinyUSB.h>
 
 #define SPI_GYRO spi0
 #define SPI_OSD spi0
