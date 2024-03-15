@@ -6,27 +6,27 @@
 	$: handleCommand($port);
 
 	const TASK_NAMES = [
-		'Baro Read',
-		'Baro Eval',
-		'Speaker',
-		'Blackbox',
-		'ELRS',
-		'Modes',
-		'ADC',
-		'Serial',
-		'Configurator',
-		'GPS',
-		'Gyro Read',
-		'IMU',
-		'PID, Motors',
-		'OSD',
-		'Task Manager',
-		'Loop 1',
 		'Loop 0',
-		'IMU Gyro',
-		'IMU Accel',
-		'IMU Angle',
-		'ESC RPM'
+		'    - Speaker',
+		'    - Baro Eval',
+		'    - Blackbox',
+		'    - ELRS',
+		'    - Modes',
+		'    - ADC',
+		'    - Serial',
+		'    - Configurator',
+		'    - GPS',
+		'    - Task Manager',
+		'Loop 1',
+		'    - Gyro Read',
+		'    - IMU',
+		'        - IMU Gyro',
+		'        - IMU Accel',
+		'        - IMU Angle',
+		'    - PID, Motors',
+		'        - ESC RPM',
+		'    - OSD',
+		'    - Baro Read'
 	];
 
 	let tasks = [] as {
@@ -95,7 +95,7 @@
 	</tr>
 	{#each tasks as task, i}
 		<tr>
-			<td>{task.name}</td>
+			<td style="white-space:preserve">{task.name}</td>
 			<td>{task.minDuration}</td>
 			<td>{task.maxDuration}</td>
 			<td>{task.avgDuration}</td>
