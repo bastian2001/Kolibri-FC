@@ -82,6 +82,7 @@ export type LogFrame = {
 			second?: number;
 			time_validity_flags?: number;
 			t_acc?: number;
+			ns?: number;
 			fix_type?: number;
 			flags?: number;
 			flags2?: number;

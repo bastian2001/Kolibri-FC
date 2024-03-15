@@ -102,6 +102,14 @@
 			unit: 'ns'
 		},
 		{
+			displayNameShort: 'Nanosec',
+			displayName: 'Nanoseconds',
+			min: 0,
+			max: 1e9,
+			path: 'ns',
+			unit: 'ns'
+		},
+		{
 			displayNameShort: 'Fix',
 			displayName: 'Fix Type',
 			min: 0,

@@ -1163,6 +1163,7 @@
 						second: gpsData[10],
 						time_validity_flags: gpsData[11],
 						t_acc: leBytesToInt(gpsData.slice(12, 16)),
+						ns: leBytesToInt(gpsData.slice(16, 20), true),
 						fix_type: gpsData[20],
 						flags: gpsData[21],
 						flags2: gpsData[22],
