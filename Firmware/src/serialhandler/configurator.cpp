@@ -3,6 +3,7 @@
 u8 configSerialBuffer[256] = {0};
 u8 configSerialBufferIndex = 0;
 u8 configMsgLength         = 0;
+u8 accelCalDone            = 0;
 u16 configMsgCommand       = 0;
 
 elapsedMillis configTimer = 0;
@@ -19,6 +20,10 @@ void configuratorLoop() {
 	if (lastConfigPingTx > 1000 && configuratorConnected) {
 		sendCommand((u16)ConfigCmd::CONFIGURATOR_PING);
 		lastConfigPingTx = 0;
+	}
+	if (accelCalDone) {
+		accelCalDone = 0;
+		sendCommand((u16)ConfigCmd::CALIBRATE_ACCELEROMETER | 0x4000);
 	}
 }
 
@@ -236,7 +241,6 @@ void handleConfigCmd() {
 	case ConfigCmd::SET_DEBUG_LED:
 		gpio_put(PIN_LED_DEBUG, configSerialBuffer[CONFIG_BUFFER_DATA]);
 		sendCommand(configMsgCommand | 0x4000);
-		Serial.println("Set debug LED");
 		break;
 	case ConfigCmd::CONFIGURATOR_PING:
 		sendCommand(configMsgCommand | 0x4000);
@@ -457,6 +461,10 @@ void handleConfigCmd() {
 		}
 		sendCommand(configMsgCommand | 0x4000);
 	} break;
+	case ConfigCmd::CALIBRATE_ACCELEROMETER:
+		accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
+		armingDisableFlags |= 0x40;
+		break;
 	default: {
 		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));
 	} break;
