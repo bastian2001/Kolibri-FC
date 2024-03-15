@@ -24,6 +24,11 @@ void configuratorLoop() {
 	if (accelCalDone) {
 		accelCalDone = 0;
 		sendCommand((u16)ConfigCmd::CALIBRATE_ACCELEROMETER | 0x4000);
+		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION, (i16)accelCalibrationOffset[0]);
+		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, (i16)accelCalibrationOffset[1]);
+		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, (i16)accelCalibrationOffset[2]);
+		EEPROM.commit();
+		sendCommand((u16)ConfigCmd::SAVE_SETTINGS | 0x4000);
 	}
 }
 

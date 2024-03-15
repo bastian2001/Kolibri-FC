@@ -69,6 +69,7 @@ enum class GyroReg : u8 {
 // other tasks know it's safe to run without impacting the gyro data or PID loop.
 extern u32 gyroUpdateFlag;
 extern u16 accelCalibrationCycles;
+extern i32 accelCalibrationOffset[3];
 
 int gyroInit();
 

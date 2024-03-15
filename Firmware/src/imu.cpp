@@ -124,28 +124,29 @@ void __not_in_flash_func(updatePitchRollValues)() {
 		combinedHeadMot = combinedHeading;
 	fix32 preHelper = vVelHelper;
 	startFixTrig();
-	vVelHelper += cosFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[2];
-	vVelHelper += sinFix((fix32)roll) * RAW_TO_DELTA_M_PER_SEC / 3200 * -accelDataRaw[0];
-	vVelHelper += sinFix((fix32)pitch) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[1];
-	vVelHelper -= fix32(9.81f / 3200);
 	accel = cosFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_M2_PER_SEC * accelDataRaw[2];
 	accel += sinFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_M2_PER_SEC * accelDataRaw[0];
 	accel += sinFix((fix32)pitch) * RAW_TO_M2_PER_SEC * accelDataRaw[1];
 	// Serial.println(accel.getf32());
 	accelVel += (accel - 9.81f) / 3200;
 	height += (accelVel / 3200).getf32();
+	// vVelHelper += cosFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_M2_PER_SEC / 3200 * accelDataRaw[2];
+	// vVelHelper += sinFix((fix32)roll) * RAW_TO_M2_PER_SEC / 3200 * -accelDataRaw[0];
+	// vVelHelper += sinFix((fix32)pitch) * RAW_TO_M2_PER_SEC / 3200 * accelDataRaw[1];
+	// vVelHelper -= fix32(9.81f / 3200);
+	vVelHelper += (accel - 9.81f) / 3200;
 	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	preHelper  = vVelHelper - preHelper;
 	vVel += preHelper;
 	f32 measVel;
 	if (gpsStatus.fixType == FIX_3D) {
-		measVel = -gpsMotion.velD * 0.000003f;
+		measVel = -gpsMotion.velD * 0.0000003f;
 	} else {
-		measVel = 0.003f * baroUpVel;
+		measVel = 0.0003f * baroUpVel;
 	}
-	vVel = 0.997f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
+	vVel = 0.9997f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
 	combinedAltitude += vVel / 3200;
-	combinedAltitude = 0.995f * combinedAltitude.getf32() + 0.005f * gpsBaroAlt.getf32();
+	combinedAltitude = 0.9999f * combinedAltitude.getf32() + 0.0001f * gpsBaroAlt.getf32();
 }
 
 void updateAttitude() {

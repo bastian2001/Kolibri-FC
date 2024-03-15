@@ -97,6 +97,8 @@
 				//ping received from FC, confirm
 				port.sendCommand(ConfigCmd.CONFIGURATOR_PING | 0x4000);
 				break;
+			case ConfigCmd.SAVE_SETTINGS | 0x4000:
+				addLogEntry('EEPROM saved');
 		}
 	}
 
