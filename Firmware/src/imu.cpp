@@ -140,11 +140,11 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	vVel += preHelper;
 	f32 measVel;
 	if (gpsStatus.fixType == FIX_3D) {
-		measVel = -gpsMotion.velD * 0.0000003f;
+		measVel = -gpsMotion.velD * 0.0000001f;
 	} else {
-		measVel = 0.0003f * baroUpVel;
+		measVel = 0.0001f * baroUpVel;
 	}
-	vVel = 0.9997f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
+	vVel = 0.9999f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
 	combinedAltitude += vVel / 3200;
 	combinedAltitude = 0.9999f * combinedAltitude.getf32() + 0.0001f * gpsBaroAlt.getf32();
 }
