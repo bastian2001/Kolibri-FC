@@ -73,6 +73,12 @@ export type LogFrame = {
 	motion: {
 		altitude?: number;
 		vvel?: number;
+		accelRaw: {
+			x?: number;
+			y?: number;
+			z?: number;
+		};
+		accelVertical?: number;
 		gps: {
 			year?: number;
 			month?: number;

@@ -23,13 +23,13 @@ i16 throttles[4];
 fix32 imuData[6];
 
 fix32 pidGains[3][7];
-fix32 pidGainsVVel[3], pidGainsHVel[3], pidGainsAlt[3];
+fix32 pidGainsVVel[3], pidGainsHVel[3];
 fix32 angleModeP = 10, velocityModeP = 3;
 
 fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
-fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum, altErrorSum;
+fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
 fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
-fix32 altSetpoint, altError, altLast, altP, altI, altD;
+fix32 altSetpoint;
 fix32 tRR, tRL, tFR, tFL;
 fix32 throttle;
 
@@ -64,9 +64,6 @@ void initPID() {
 	pidGainsVVel[P] = 5;             // additional throttle if velocity is 1m/s too low
 	pidGainsVVel[I] = .02;           // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D] = 10000;         // additional throttle, if accelerating by 3200m/s^2
-	pidGainsAlt[P]  = 60;            // additional throttle if altitude is 1m too low
-	pidGainsAlt[I]  = 0.001;         // increase throttle by 3200x this value per second, when error is 1m
-	pidGainsAlt[D]  = 20;            // additional throttle, if changing altitude by 3200m/s
 	pidGainsHVel[P] = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I] = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 7;             // tilt in degrees, if changing speed by 3200m/s /s
@@ -244,7 +241,9 @@ void pidLoop() {
 				}
 				// estimate throttle
 				vVelSetpoint = t / 180; // +/- 5 m/s
-				vVelError    = vVelSetpoint - vVel;
+				altSetpoint += vVelSetpoint / 3200;
+				vVelSetpoint += (altSetpoint - combinedAltitude) / 20; // prevent vVel drift slowly
+				vVelError = vVelSetpoint - vVel;
 				vVelErrorSum += vVelError;
 				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 				vVelP        = pidGainsVVel[P] * vVelError;
@@ -252,18 +251,9 @@ void pidLoop() {
 				vVelD        = pidGainsVVel[D] * (vVelError - vVelLast) * 5;
 				throttle     = vVelP + vVelI + vVelD;
 				throttle     = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
-				// estimate throttle based on altitude error
-				// altSetpoint += t / 180 / 3200;
-				// altError = altSetpoint - combinedAltitude;
-				// altErrorSum += altError;
-				// altP     = pidGainsAlt[P] * altError;
-				// altI     = pidGainsAlt[I] * altErrorSum;
-				// altD     = pidGainsAlt[D] * (altLast - combinedAltitude) * 3200;
-				// throttle = altP + altI + altD;
 			} else {
 				vVelErrorSum = 0;
 			}
-			altLast  = combinedAltitude;
 			vVelLast = vVelSetpoint - vVel;
 		} else if (flightMode == FLIGHT_MODE::ACRO) {
 			/* at full stick deflection, ...Raw values are either +1 or -1. That will make all the

@@ -349,6 +349,23 @@
 			maxValue: 50000,
 			unit: 'rpm',
 			usesModifier: true
+		},
+		LOG_ACCEL_RAW: {
+			name: 'Accel Raw',
+			path: 'motion.accelRaw',
+			minValue: -40,
+			maxValue: 40,
+			unit: 'm/s²',
+			decimals: 3,
+			usesModifier: true
+		},
+		LOG_VERTICAL_ACCEL: {
+			name: 'Vertical Accel',
+			path: 'motion.accelVertical',
+			minValue: -40,
+			maxValue: 40,
+			unit: 'm/s²',
+			decimals: 3
 		}
 	} as {
 		[key: string]: {
@@ -359,7 +376,7 @@
 			rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
 			unit: string;
 			usesModifier?: boolean;
-			decimals?: 2;
+			decimals?: number;
 			states?: string[];
 		};
 	};
@@ -544,7 +561,6 @@
 					if (typeof r === 'string') return log.flags.includes(r);
 					if (Array.isArray(r)) {
 						for (const s of r) if (log.flags.includes(s)) return true;
-
 						return false;
 					}
 					return false;
@@ -946,7 +962,7 @@
 			if (flagIsSet) {
 				flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
 				offsets[Object.keys(BB_ALL_FLAGS)[i + 32]] = frameSize;
-				if (i + 32 == 35) frameSize += 6;
+				if (i + 32 === 35 || i + 32 === 36) frameSize += 6;
 				else frameSize += 2;
 			}
 		}
@@ -960,7 +976,7 @@
 				gyro: {},
 				pid: { roll: {}, pitch: {}, yaw: {} },
 				motors: { out: {}, rpm: {} },
-				motion: { gps: {} },
+				motion: { gps: {}, accelRaw: {} },
 				attitude: {}
 			};
 			if (flags.includes('LOG_ROLL_ELRS_RAW'))
@@ -1241,6 +1257,22 @@
 					fl = (fl & 0x1ff) << (fl >> 9);
 					frame.motors.rpm.fl = (60000000 + 50 * fl) / fl / (motorPoles / 2);
 				}
+			}
+			if (flags.includes('LOG_ACCEL_RAW')) {
+				const accelBytes = data.slice(
+					i + offsets['LOG_ACCEL_RAW'],
+					i + offsets['LOG_ACCEL_RAW'] + 6
+				);
+				frame.motion.accelRaw.x = (leBytesToInt(accelBytes.slice(0, 2), true) * 9.81) / 2048;
+				frame.motion.accelRaw.y = (leBytesToInt(accelBytes.slice(2, 4), true) * 9.81) / 2048;
+				frame.motion.accelRaw.z = (leBytesToInt(accelBytes.slice(4, 6), true) * 9.81) / 2048;
+			}
+			if (flags.includes('LOG_VERTICAL_ACCEL')) {
+				frame.motion.accelVertical =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_VERTICAL_ACCEL'], i + offsets['LOG_VERTICAL_ACCEL'] + 2),
+						true
+					) / 1024;
 			}
 			log.push(frame);
 		}

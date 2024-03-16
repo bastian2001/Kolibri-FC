@@ -23,8 +23,6 @@ i32 combinedHeading; // NOT heading of motion, but heading of quad
 i32 combinedHeadMot; // heading of motion, but with headingAdjustment applied
 fix32 vVel, combinedAltitude, vVelHelper;
 fix32 eVel, nVel;
-f32 height     = 0;
-fix32 accelVel = 0;
 
 Quaternion q;
 
@@ -124,16 +122,9 @@ void __not_in_flash_func(updatePitchRollValues)() {
 		combinedHeadMot = combinedHeading;
 	fix32 preHelper = vVelHelper;
 	startFixTrig();
-	accel = cosFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_M2_PER_SEC * accelDataRaw[2];
-	accel += sinFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_M2_PER_SEC * accelDataRaw[0];
-	accel += sinFix((fix32)pitch) * RAW_TO_M2_PER_SEC * accelDataRaw[1];
-	// Serial.println(accel.getf32());
-	accelVel += (accel - 9.81f) / 3200;
-	height += (accelVel / 3200).getf32();
-	// vVelHelper += cosFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_M2_PER_SEC / 3200 * accelDataRaw[2];
-	// vVelHelper += sinFix((fix32)roll) * RAW_TO_M2_PER_SEC / 3200 * -accelDataRaw[0];
-	// vVelHelper += sinFix((fix32)pitch) * RAW_TO_M2_PER_SEC / 3200 * accelDataRaw[1];
-	// vVelHelper -= fix32(9.81f / 3200);
+	accel = cosFix((fix32)roll) * cosFix((fix32)pitch) * accelDataRaw[2] * RAW_TO_M2_PER_SEC;
+	accel += sinFix((fix32)roll) * cosFix((fix32)pitch) * accelDataRaw[0] * RAW_TO_M2_PER_SEC;
+	accel += sinFix((fix32)pitch) * accelDataRaw[1] * RAW_TO_M2_PER_SEC;
 	vVelHelper += (accel - 9.81f) / 3200;
 	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	preHelper  = vVelHelper - preHelper;

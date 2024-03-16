@@ -442,6 +442,16 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = rpmPacket >> 32;
 		bbBuffer[bufferPos++] = rpmPacket >> 40;
 	}
+	if (currentBBFlags & LOG_ACCEL_RAW) {
+		memcpy(&bbBuffer[bufferPos], accelDataRaw, 6);
+		bufferPos += 6;
+	}
+	if (currentBBFlags & LOG_VERTICAL_ACCEL) {
+		extern fix32 accel;
+		i16 a                 = (i16)(accel.getRaw() >> 6);
+		bbBuffer[bufferPos++] = a;
+		bbBuffer[bufferPos++] = a >> 8;
+	}
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);
 #elif BLACKBOX_STORAGE == SD_BB
