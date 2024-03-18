@@ -1291,7 +1291,7 @@
 					leBytesToInt(
 						data.slice(i + offsets['LOG_VERTICAL_ACCEL'], i + offsets['LOG_VERTICAL_ACCEL'] + 2),
 						true
-					) / 1024;
+					) / 128;
 			}
 			log.push(frame);
 		}
