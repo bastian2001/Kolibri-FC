@@ -250,7 +250,7 @@ void pidLoop() {
 				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 				vVelP        = pidGainsVVel[P] * vVelError;
 				vVelI        = pidGainsVVel[I] * vVelErrorSum;
-				vVelD        = pidGainsVVel[D] * (vVelError - vVelLast) * 5;
+				vVelD        = pidGainsVVel[D] * (vVelError - vVelLast);
 				throttle     = vVelP + vVelI + vVelD;
 				throttle     = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
 			} else {
