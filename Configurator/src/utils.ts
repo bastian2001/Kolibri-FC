@@ -78,6 +78,11 @@ export type LogFrame = {
 			y?: number;
 			z?: number;
 		};
+		accelFiltered: {
+			x?: number;
+			y?: number;
+			z?: number;
+		};
 		accelVertical?: number;
 		gps: {
 			year?: number;

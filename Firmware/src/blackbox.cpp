@@ -10,6 +10,8 @@ FSInfo64 fsInfo;
 int currentLogNum = 0;
 u8 bbFreqDivider  = 2;
 
+RingBuffer<u8 *> bbFramePtrBuffer(16);
+
 File blackboxFile;
 
 i32 maxFileSize = 0;
@@ -446,9 +448,19 @@ void __not_in_flash_func(writeSingleFrame)() {
 		memcpy(&bbBuffer[bufferPos], accelDataRaw, 6);
 		bufferPos += 6;
 	}
+	if (currentBBFlags & LOG_ACCEL_FILTERED) {
+		i16 i                 = accelDataFiltered[0];
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
+		i                     = accelDataFiltered[1];
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
+		i                     = accelDataFiltered[2];
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
+	}
 	if (currentBBFlags & LOG_VERTICAL_ACCEL) {
-		extern fix32 accel;
-		i16 a                 = (i16)(accel.getRaw() >> 9);
+		i16 a                 = (i16)(vAccel.getRaw() >> 9);
 		bbBuffer[bufferPos++] = a;
 		bbBuffer[bufferPos++] = a >> 8;
 	}
