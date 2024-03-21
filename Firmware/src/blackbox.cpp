@@ -291,19 +291,19 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
-		i16 gyroData          = (imuData[AXIS_ROLL].getRaw() >> 12);
-		bbBuffer[bufferPos++] = gyroData;
-		bbBuffer[bufferPos++] = gyroData >> 8;
+		i16 i                 = (gyroData[AXIS_ROLL].getRaw() >> 12);
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
-		i16 gyroData          = (imuData[AXIS_PITCH].getRaw() >> 12);
-		bbBuffer[bufferPos++] = gyroData;
-		bbBuffer[bufferPos++] = gyroData >> 8;
+		i16 i                 = (gyroData[AXIS_PITCH].getRaw() >> 12);
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
-		i16 gyroData          = (imuData[AXIS_YAW].getRaw() >> 12);
-		bbBuffer[bufferPos++] = gyroData;
-		bbBuffer[bufferPos++] = gyroData >> 8;
+		i16 i                 = (gyroData[AXIS_YAW].getRaw() >> 12);
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_PID_P) {
 		bbBuffer[bufferPos++] = rollP.getInt();

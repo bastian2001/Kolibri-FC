@@ -109,7 +109,7 @@ int gyroInit() {
 	data = 0b1110; // temp, accel and gyro enabled
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CTRL, &data, 1, 500);
 	// ACC_CONF: acc_filter_perf (7) | acc_bwp (6...4) | acc_odr (3...0)
-	data = 0 << 7 | 0x03 << 4 | 0x0C; // averaging 8 samples, 1600Hz
+	data = 1 << 7 | 0x02 << 4 | 0x0C; // performance optimized, no averaging, 1600Hz
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_CONF, &data, 1, 500);
 	// ACC_RANGE: acc_range (1...0)
 	data = 0x03; // +/- 16g

@@ -15,7 +15,8 @@ const f32 RAW_TO_RAD_PER_SEC  = PI * 4000 / 65536 / 180; // 2000deg per second, 
 const f32 FRAME_TIME          = 1. / 3200;
 const f32 RAW_TO_HALF_ANGLE   = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 const f32 ANGLE_CHANGE_LIMIT  = .0002;
-const fix32 RAW_TO_M2_PER_SEC = 9.81 * 32 / 65536; // +/-16g
+const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
+
 
 f32 pitch, roll, yaw;
 i32 headMotAtt;      // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
