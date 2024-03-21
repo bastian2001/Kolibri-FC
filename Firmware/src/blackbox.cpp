@@ -10,7 +10,7 @@ FSInfo64 fsInfo;
 int currentLogNum = 0;
 u8 bbFreqDivider  = 2;
 
-RingBuffer<u8 *> bbFramePtrBuffer(16);
+RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 File blackboxFile;
 
@@ -467,12 +467,40 @@ void __not_in_flash_func(writeSingleFrame)() {
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);
 #elif BLACKBOX_STORAGE == SD_BB
-	((u8 *)bbBuffer)[0] = bufferPos - 1;
-	if (rp2040.fifo.push_nb((u32)bbBuffer)) {
-		bbFrameNum++;
+	bbBuffer[0] = bufferPos - 1;
+	bbFrameNum++;
+	if (bbFramePtrBuffer.isEmpty()) {
+		if (!rp2040.fifo.push_nb((u32)bbBuffer)) {
+			bbFramePtrBuffer.push(bbBuffer);
+		}
+	} else if (!bbFramePtrBuffer.isFull()) {
+		bbFramePtrBuffer.push(bbBuffer);
+		for (u32 i = bbFramePtrBuffer.itemCount(); i; i--) {
+			u8 *frame = bbFramePtrBuffer[0];
+			if (rp2040.fifo.push_nb((u32)frame)) {
+				bbFramePtrBuffer.pop();
+			} else {
+				break;
+			}
+		}
 	} else {
-		free(bbBuffer);
-		// if the fifo is full, we just drop the frame :(
+		u8 *frame = bbFramePtrBuffer[0];
+		if (rp2040.fifo.push_nb((u32)frame)) {
+			bbFramePtrBuffer.pop();
+			bbFramePtrBuffer.push(bbBuffer);
+			for (u32 i = bbFramePtrBuffer.itemCount(); i; i--) {
+				u8 *frame = bbFramePtrBuffer[0];
+				if (rp2040.fifo.push_nb((u32)frame)) {
+					bbFramePtrBuffer.pop();
+				} else {
+					break;
+				}
+			}
+		} else {
+			free(bbBuffer);
+			bbFrameNum--;
+			// Both FIFOs are full, we can't keep up with the logging, dropping oldest frame
+		}
 	}
 #endif
 }

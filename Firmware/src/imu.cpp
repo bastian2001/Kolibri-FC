@@ -115,7 +115,6 @@ void __not_in_flash_func(updateFromAccel)() {
 	Quaternion_normalize(&q, &q);
 }
 
-fix32 accel;
 void __not_in_flash_func(updatePitchRollValues)() {
 	roll  = atan2f(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
