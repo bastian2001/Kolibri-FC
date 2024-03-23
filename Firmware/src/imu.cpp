@@ -17,8 +17,8 @@ const f32 RAW_TO_HALF_ANGLE   = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 const f32 ANGLE_CHANGE_LIMIT  = .0002;
 const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 
-const i32 accelFilterCoeffs[23] = {1, 22, 231, 1540, 7315, 26334, 74613, 170544, 319770, 497420, 646646, 705432, 646646, 497420, 319770, 170544, 74613, 26334, 7315, 1540, 231, 22, 1}; // 65536
-i32 accelHistory[3][23];
+const i32 accelFilterCoeffs[19] = {4,25,114,411,1166,2665,4996,7772,10104,11022,10104,7772,4996,2665,1166,411,114,25,4}; // 65536
+i32 accelHistory[3][19];
 i32 accelDataFiltered[3];
 
 f32 pitch, roll, yaw;
@@ -60,12 +60,12 @@ void __not_in_flash_func(updateFromAccel)() {
 	// filter accel data
 	for (u32 i = 0; i < 3; i++) {
 		int sum = 0;
-		for (u32 j = 22; j; j--) {
+		for (u32 j = 18; j; j--) {
 			accelHistory[i][j] = accelHistory[i][j - 1];
-			sum += (accelHistory[i][j] * (i64)accelFilterCoeffs[j]) >> 6;
+			sum += accelHistory[i][j] * accelFilterCoeffs[j];
 		}
 		accelHistory[i][0] = accelDataRaw[i];
-		sum += (accelDataRaw[i] * (i64)accelFilterCoeffs[0]) >> 6;
+		sum += accelDataRaw[i] * accelFilterCoeffs[0];
 		accelDataFiltered[i] = sum >> 16;
 	}
 
