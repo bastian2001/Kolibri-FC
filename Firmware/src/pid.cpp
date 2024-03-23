@@ -22,17 +22,17 @@ i16 throttles[4];
 fix32 gyroData[3];
 
 fix32 pidGains[3][7];
-fix32 pidGainsVVel[3], pidGainsHVel[3];
+fix32 pidGainsVVel[4], pidGainsHVel[3];
 fix32 angleModeP = 10, velocityModeP = 3;
 
 fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
-fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
+fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, vVelFF, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
 fix32 altSetpoint;
 fix32 tRR, tRL, tFR, tFL;
 fix32 throttle;
 
-fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8];
+fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8], vVelSetpoints[8];
 
 u32 pidLoopCounter = 0;
 
@@ -62,14 +62,15 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
-	pidGainsVVel[P] = 5;             // additional throttle if velocity is 1m/s too low
-	pidGainsVVel[I] = .02;           // increase throttle by 3200x this value, when error is 1m/s
-	pidGainsVVel[D] = 10000;         // additional throttle, if accelerating by 3200m/s^2
-	pidGainsHVel[P] = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
-	pidGainsHVel[I] = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
-	pidGainsHVel[D] = 7;             // tilt in degrees, if changing speed by 3200m/s /s
-	vVelMaxErrorSum = 2000 / pidGainsVVel[I].getf32();
-	vVelMinErrorSum = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
+	pidGainsVVel[P]  = 5;    // additional throttle if velocity is 1m/s too low
+	pidGainsVVel[I]  = .03;  // increase throttle by 3200x this value, when error is 1m/s
+	pidGainsVVel[D]  = 2000; // additional throttle, if accelerating by 3200m/s^2
+	pidGainsVVel[FF] = 10000;
+	pidGainsHVel[P]  = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
+	pidGainsHVel[I]  = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
+	pidGainsHVel[D]  = 7;             // tilt in degrees, if changing speed by 3200m/s /s
+	vVelMaxErrorSum  = 2000 / pidGainsVVel[I].getf32();
+	vVelMinErrorSum  = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
 }
 
 void decodeErpm() {
@@ -168,6 +169,7 @@ void pidLoop() {
 	decodeErpm();
 
 	if (armed) {
+		static u32 ffBufPos = 0;
 		// Quad armed
 		static fix32 polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
 		ELRS->getSmoothChannels(smoothChannels);
@@ -241,19 +243,20 @@ void pidLoop() {
 				// estimate throttle
 				vVelSetpoint = t / 180; // +/- 5 m/s
 				altSetpoint += vVelSetpoint / 3200;
-				vVelSetpoint += (altSetpoint - combinedAltitude) / 20; // prevent vVel drift slowly
+				vVelSetpoint += (altSetpoint - combinedAltitude) / 5; // prevent vVel drift slowly
 				vVelError = vVelSetpoint - vVel;
 				vVelErrorSum += vVelError;
 				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 				vVelP        = pidGainsVVel[P] * vVelError;
 				vVelI        = pidGainsVVel[I] * vVelErrorSum;
-				vVelD        = pidGainsVVel[D] * (vVelError - vVelLast);
-				throttle     = vVelP + vVelI + vVelD;
+				vVelD        = pidGainsVVel[D] * (vVelLast - vVel);
+				vVelFF       = pidGainsVVel[FF] * (vVelSetpoint - vVelSetpoints[ffBufPos]);
+				throttle     = vVelP + vVelI + vVelD + vVelFF;
 				throttle     = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
 			} else {
 				vVelErrorSum = 0;
 			}
-			vVelLast = vVelSetpoint - vVel;
+			vVelLast = vVel;
 		} else if (flightMode == FLIGHT_MODE::ACRO) {
 			/* at full stick deflection, ...Raw values are either +1 or -1. That will make all the
 			 * polynomials also +/-1. Thus, the total rate for each axis is equal to the sum of all 5 rateFactors
@@ -289,7 +292,6 @@ void pidLoop() {
 		rollErrorSum += rollError;
 		pitchErrorSum += pitchError;
 		yawErrorSum += yawError;
-		static u32 ffBufPos = 0;
 
 		rollP   = pidGains[0][P] * rollError;
 		pitchP  = pidGains[1][P] * pitchError;
@@ -310,6 +312,7 @@ void pidLoop() {
 		rollSetpoints[ffBufPos]  = rollSetpoint;
 		pitchSetpoints[ffBufPos] = pitchSetpoint;
 		yawSetpoints[ffBufPos]   = yawSetpoint;
+		vVelSetpoints[ffBufPos]  = vVelSetpoint;
 		ffBufPos++;
 		ffBufPos &= 7;
 
@@ -390,12 +393,9 @@ void pidLoop() {
 		for (int i = 0; i < 4; i++)
 			throttles[i] = throttles[i] > 2000 ? 2000 : throttles[i];
 		sendThrottles(throttles);
-		rollLast          = gyroData[AXIS_ROLL];
-		pitchLast         = gyroData[AXIS_PITCH];
-		yawLast           = gyroData[AXIS_YAW];
-		rollLastSetpoint  = rollSetpoint;
-		pitchLastSetpoint = pitchSetpoint;
-		yawLastSetpoint   = yawSetpoint;
+		rollLast  = gyroData[AXIS_ROLL];
+		pitchLast = gyroData[AXIS_PITCH];
+		yawLast   = gyroData[AXIS_YAW];
 		if ((pidLoopCounter % bbFreqDivider) == 0 && bbFreqDivider) {
 			writeSingleFrame();
 		}
