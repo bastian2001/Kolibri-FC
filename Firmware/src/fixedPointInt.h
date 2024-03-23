@@ -1,4 +1,5 @@
 #include "hardware/interp.h"
+#include "typedefs.h"
 #include <Arduino.h>
 #pragma once
 
@@ -16,7 +17,7 @@ inline void startFixTrig() {
 fix32 sinFix(const fix32 x);
 fix32 cosFix(const fix32 x);
 class fix64 {
-	// 48.16 fixed point
+	// 32.32 fixed point
 private:
 	i64 value = 0;
 
@@ -242,3 +243,7 @@ public:
 		return *this * sign();
 	};
 };
+
+extern const fix32 FIX_PI;
+extern const fix32 FIX_2PI;
+extern const fix32 FIX_PI_2;

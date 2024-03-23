@@ -17,9 +17,7 @@ const f32 RAW_TO_HALF_ANGLE   = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 const f32 ANGLE_CHANGE_LIMIT  = .0002;
 const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 
-const i32 accelFilterCoeffs[19] = {4,25,114,411,1166,2665,4996,7772,10104,11022,10104,7772,4996,2665,1166,411,114,25,4}; // 65536
-i32 accelHistory[3][19];
-i32 accelDataFiltered[3];
+PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 
 f32 pitch, roll, yaw;
 i32 headMotAtt;      // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
@@ -58,16 +56,9 @@ void __not_in_flash_func(updateFromGyro)() {
 f32 orientation_vector[3];
 void __not_in_flash_func(updateFromAccel)() {
 	// filter accel data
-	for (u32 i = 0; i < 3; i++) {
-		int sum = 0;
-		for (u32 j = 18; j; j--) {
-			accelHistory[i][j] = accelHistory[i][j - 1];
-			sum += accelHistory[i][j] * accelFilterCoeffs[j];
-		}
-		accelHistory[i][0] = accelDataRaw[i];
-		sum += accelDataRaw[i] * accelFilterCoeffs[0];
-		accelDataFiltered[i] = sum >> 16;
-	}
+	accelDataFiltered[0].update(accelDataRaw[0]);
+	accelDataFiltered[1].update(accelDataRaw[1]);
+	accelDataFiltered[2].update(accelDataRaw[2]);
 
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;

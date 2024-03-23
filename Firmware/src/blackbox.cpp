@@ -449,13 +449,13 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bufferPos += 6;
 	}
 	if (currentBBFlags & LOG_ACCEL_FILTERED) {
-		i16 i                 = accelDataFiltered[0];
+		i16 i                 = ((fix32)accelDataFiltered[0]).getInt();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i                     = accelDataFiltered[1];
+		i                     = ((fix32)accelDataFiltered[1]).getInt();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i                     = accelDataFiltered[2];
+		i                     = ((fix32)accelDataFiltered[2]).getInt();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
