@@ -638,21 +638,21 @@
 					case 'GEN_ROLL_PID_D':
 						log.frames.forEach((f, i) => {
 							f.pid.roll.d =
-								((f.gyro.roll! - (log.frames[i - 1]?.gyro.roll || 0)) * log.pidConstants[0][2]) /
+								(((log.frames[i - 1]?.gyro.roll || 0) - f.gyro.roll!) * log.pidConstants[0][2]) /
 								log.frequencyDivider;
 						});
 						break;
 					case 'GEN_PITCH_PID_D':
 						log.frames.forEach((f, i) => {
 							f.pid.pitch.d =
-								((f.gyro.pitch! - (log.frames[i - 1]?.gyro.pitch || 0)) * log.pidConstants[1][2]) /
+								(((log.frames[i - 1]?.gyro.pitch || 0) - f.gyro.pitch!) * log.pidConstants[1][2]) /
 								log.frequencyDivider;
 						});
 						break;
 					case 'GEN_YAW_PID_D':
 						log.frames.forEach((f, i) => {
 							f.pid.yaw.d =
-								((f.gyro.yaw! - (log.frames[i - 1]?.gyro.yaw || 0)) * log.pidConstants[2][2]) /
+								(((log.frames[i - 1]?.gyro.yaw || 0) - f.gyro.yaw!) * log.pidConstants[2][2]) /
 								log.frequencyDivider;
 						});
 						break;

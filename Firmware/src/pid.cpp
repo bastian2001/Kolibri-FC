@@ -25,7 +25,7 @@ fix32 pidGains[3][7];
 fix32 pidGainsVVel[3], pidGainsHVel[3];
 fix32 angleModeP = 10, velocityModeP = 3;
 
-fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, rollLastSetpoint, pitchLastSetpoint, yawLastSetpoint, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
+fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
 fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
 fix32 altSetpoint;
@@ -297,9 +297,9 @@ void pidLoop() {
 		rollI   = pidGains[0][I] * rollErrorSum;
 		pitchI  = pidGains[1][I] * pitchErrorSum;
 		yawI    = pidGains[2][I] * yawErrorSum;
-		rollD   = pidGains[0][D] * (gyroData[AXIS_ROLL] - rollLast);
-		pitchD  = pidGains[1][D] * (gyroData[AXIS_PITCH] - pitchLast);
-		yawD    = pidGains[2][D] * (gyroData[AXIS_YAW] - yawLast);
+		rollD   = pidGains[0][D] * (rollLast - gyroData[AXIS_ROLL]);
+		pitchD  = pidGains[1][D] * (pitchLast - gyroData[AXIS_PITCH]);
+		yawD    = pidGains[2][D] * (yawLast - gyroData[AXIS_YAW]);
 		rollFF  = pidGains[0][FF] * (rollSetpoint - rollSetpoints[ffBufPos]);
 		pitchFF = pidGains[1][FF] * (pitchSetpoint - pitchSetpoints[ffBufPos]);
 		yawFF   = pidGains[2][FF] * (yawSetpoint - yawSetpoints[ffBufPos]);
