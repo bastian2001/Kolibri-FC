@@ -375,6 +375,14 @@
 			maxValue: 40,
 			unit: 'm/s²',
 			decimals: 3
+		},
+		LOG_VVEL_SETPOINT: {
+			name: 'vVel Setpoint',
+			path: 'setpoint.vvel',
+			minValue: -10,
+			maxValue: 10,
+			decimals: 2,
+			unit: 'm/s'
 		}
 	} as {
 		[key: string]: {
@@ -547,6 +555,13 @@
 			],
 			unit: '',
 			exact: true
+		},
+		GEN_VVEL_SETPOINT: {
+			name: 'vVel Setpoint',
+			replaces: 'LOG_VVEL_SETPOINT',
+			requires: ['LOG_THROTTLE_ELRS_RAW'],
+			unit: 'm/s',
+			exact: false
 		}
 	} as {
 		[key: string]: {
@@ -827,6 +842,20 @@
 							f.motors.out.fr = Math.min(f.motors.out.fr!, 2000);
 							f.motors.out.rl = Math.min(f.motors.out.rl!, 2000);
 							f.motors.out.fl = Math.min(f.motors.out.fl!, 2000);
+						});
+						break;
+					case 'GEN_VVEL_SETPOINT':
+						log.frames.forEach((f) => {
+							let t = (f.elrs.throttle! - 1500) * 2;
+							if (t > 0) {
+								t -= 100;
+								if (t < 0) t = 0;
+							} else if (t < 0) {
+								t += 100;
+								if (t > 0) t = 0;
+							}
+							f.setpoint.vvel = t / 180;
+							if (f.flightMode !== undefined && f.flightMode < 2) f.setpoint.vvel = 0;
 						});
 						break;
 				}

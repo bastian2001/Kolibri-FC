@@ -464,6 +464,11 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = a;
 		bbBuffer[bufferPos++] = a >> 8;
 	}
+	if (currentBBFlags & LOG_VVEL_SETPOINT) {
+		i16 v                 = (i16)(vVelSetpoint.getRaw() >> 4) * ((u8)flightMode >= 2);
+		bbBuffer[bufferPos++] = v;
+		bbBuffer[bufferPos++] = v >> 8;
+	}
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);
 #elif BLACKBOX_STORAGE == SD_BB

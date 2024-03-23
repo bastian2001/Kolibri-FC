@@ -21,6 +21,7 @@ export type LogFrame = {
 		pitch?: number;
 		throttle?: number;
 		yaw?: number;
+		vvel?: number;
 	};
 	gyro: {
 		roll?: number;
