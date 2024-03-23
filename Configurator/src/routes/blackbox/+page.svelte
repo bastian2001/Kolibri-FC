@@ -1344,6 +1344,13 @@
 						true
 					) / 128;
 			}
+			if (flags.includes('LOG_VVEL_SETPOINT')) {
+				frame.setpoint.vvel =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_VVEL_SETPOINT'], i + offsets['LOG_VVEL_SETPOINT'] + 2),
+						true
+					) / 4096;
+			}
 			log.push(frame);
 		}
 		loadedLog = {
