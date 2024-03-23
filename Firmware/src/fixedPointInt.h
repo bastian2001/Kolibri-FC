@@ -235,4 +235,10 @@ public:
 	inline fix32 operator-() const {
 		return fix32::fromRaw(-this->value);
 	};
+	inline i32 sign() const {
+		return (this->value >> 31) * 2 + 1;
+	};
+	inline fix32 abs() const {
+		return *this * sign();
+	};
 };
