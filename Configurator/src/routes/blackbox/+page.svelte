@@ -888,8 +888,14 @@
 			case ConfigCmd.BB_FILE_DOWNLOAD | 0x4000:
 				handleFileChunk(command.data);
 				break;
-			case ConfigCmd.CONFIGURATOR_PING | 0x4000:
-			case ConfigCmd.STATUS | 0x4000:
+			case ConfigCmd.BB_FILE_DELETE | 0x4000:
+				const index = logNums.findIndex((l) => l.num === selected);
+				if (index !== -1) logNums.splice(index, 1);
+				if (!logNums.length) {
+					logNums = [{ text: 'No logs found', num: -1 }];
+					selected = -1;
+				} else if (index >= logNums.length) selected = logNums[logNums.length - 1].num;
+				else selected = logNums[index].num;
 				break;
 			default:
 				if (
@@ -1846,8 +1852,7 @@
 	}
 
 	function deleteLog() {
-		const logNum = logNums[selected].num as number;
-		port.sendCommand(ConfigCmd.BB_FILE_DELETE, [logNum]);
+		port.sendCommand(ConfigCmd.BB_FILE_DELETE, [selected]);
 	}
 	function openLog() {
 		getLog(selected)
