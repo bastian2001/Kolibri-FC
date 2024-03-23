@@ -41,7 +41,7 @@ fix64 vVelMaxErrorSum, vVelMinErrorSum;
 #undef RAD_TO_DEG
 const fix32 RAD_TO_DEG = fix32(180) / PI;
 const fix32 TO_ANGLE   = fix32(MAX_ANGLE) / fix32(512);
-u16 smoothChannels[4];
+fix32 smoothChannels[4];
 u16 condensedRpm[4];
 
 #define RIGHT_BITS(x, n) ((u32)(-(x)) >> (32 - n))
@@ -174,19 +174,19 @@ void pidLoop() {
 		static fix32 polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
 		ELRS->getSmoothChannels(smoothChannels);
 		// calculate setpoints
-		polynomials[0][0].setRaw(((i32)smoothChannels[0] - 1500) << 7); //-1...+1 in fixed point notation;
-		polynomials[0][1].setRaw(((i32)smoothChannels[1] - 1500) << 7);
-		polynomials[0][2].setRaw(((i32)smoothChannels[3] - 1500) << 7);
-		throttle      = (smoothChannels[2] - 1000) * 2;
-		rollSetpoint  = 0;
-		pitchSetpoint = 0;
-		yawSetpoint   = 0;
+		polynomials[0][0] = (smoothChannels[0] - 1500) >> 9; //-1...+1
+		polynomials[0][1] = (smoothChannels[1] - 1500) >> 9;
+		polynomials[0][2] = (smoothChannels[3] - 1500) >> 9;
+		throttle          = (smoothChannels[2] - 1000) * 2; // 0...2000
+		rollSetpoint      = 0;
+		pitchSetpoint     = 0;
+		yawSetpoint       = 0;
 		if (flightMode == FLIGHT_MODE::ANGLE || flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
 			fix32 dRoll;
 			fix32 dPitch;
 			if (flightMode < FLIGHT_MODE::GPS_VEL) {
-				dRoll         = fix32(smoothChannels[0] - 1500) * TO_ANGLE + (RAD_TO_DEG * roll);
-				dPitch        = fix32(smoothChannels[1] - 1500) * TO_ANGLE - (RAD_TO_DEG * pitch);
+				dRoll         = (smoothChannels[0] - 1500) * TO_ANGLE + (RAD_TO_DEG * roll);
+				dPitch        = (smoothChannels[1] - 1500) * TO_ANGLE - (RAD_TO_DEG * pitch);
 				rollSetpoint  = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FLIGHT_MODE::GPS_VEL) {
@@ -236,7 +236,7 @@ void pidLoop() {
 				if (t > 0) {
 					t -= 100;
 					if (t < 0) t = 0;
-				} else if (t < 0) {
+				} else {
 					t += 100;
 					if (t > 0) t = 0;
 				}

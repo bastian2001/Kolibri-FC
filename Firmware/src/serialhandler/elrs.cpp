@@ -2,7 +2,7 @@
 #include "hardware/interp.h"
 RingBuffer<u8> elrsBuffer(260);
 u32 ExpressLRS::crcLut[256] = {0};
-interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1;
+interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 
 ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	: elrsSerial(elrsSerial),
@@ -29,6 +29,8 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	interpConfig0 = interp_default_config();
 	interp_config_set_blend(&interpConfig0, 1);
 	interpConfig1 = interp_default_config();
+	interpConfig2 = interp_default_config();
+	interp_config_set_clamp(&interpConfig2, 1);
 }
 
 ExpressLRS::~ExpressLRS() {
@@ -339,7 +341,14 @@ void ExpressLRS::processMessage() {
 			consecutiveArmedCycles = 0;
 
 		// update as fast as possible
-		memcpy(lastChannels, channels, 16 * sizeof(u32));
+		fix32 smooth[4];
+		getSmoothChannels(smooth);
+		u32 smooth2[4];
+		for (int i = 0; i < 4; i++) {
+			smooth2[i] = smooth[i].getInt();
+		}
+		memcpy(lastChannels, smooth2, 4 * sizeof(u32));
+		memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
 		sinceLastRCMessage = 0;
 		memcpy(channels, pChannels, 16 * sizeof(u32));
 		rcPacketRateCounter++;
@@ -400,19 +409,27 @@ void ExpressLRS::processMessage() {
 	crc         = 0;
 }
 
-void ExpressLRS::getSmoothChannels(u16 smoothChannels[4]) {
+void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 	// one new RC message every 4ms = 4000µs, ELRS 250Hz
 	int sinceLast = sinceLastRCMessage;
-	if (sinceLast > 4000) {
-		sinceLast = 4000;
+	if (sinceLast > 8000) {
+		sinceLast = 8000;
 	}
-	sinceLast = 255 * sinceLast / 4000;
+	sinceLast = 255 * sinceLast / 8000;
 	interp_set_config(interp0, 0, &interpConfig0);
 	interp_set_config(interp0, 1, &interpConfig1);
+	interp_set_config(interp1, 0, &interpConfig2);
 	interp0->accum[1] = sinceLast;
+	interp1->base[0]  = 988 << 16;
+	interp1->base[1]  = 2012 << 16;
 	for (int i = 0; i < 4; i++) {
-		interp0->base[0]  = lastChannels[i];
-		interp0->base[1]  = channels[i];
-		smoothChannels[i] = interp0->peek[1];
+		interp0->base[0]  = lastChannels[i] << 16;
+		interp0->base[1]  = (channels[i] * 2 - lastChannels[i]) << 16;
+		interp1->accum[0] = interp0->peek[1];
+		smoothChannels[i].setRaw(interp1->peek[0]);
 	}
+	interp1->base[0]  = 1000 << 16;
+	interp1->base[1]  = 2000 << 16;
+	interp1->accum[0] = smoothChannels[2].getRaw();
+	smoothChannels[2].setRaw(interp1->peek[0]);
 }
