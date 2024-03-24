@@ -1347,10 +1347,6 @@
 				frame.motion.accelFiltered.x = (leBytesToInt(accelBytes.slice(0, 2), true) * 9.81) / 2048;
 				frame.motion.accelFiltered.y = (leBytesToInt(accelBytes.slice(2, 4), true) * 9.81) / 2048;
 				frame.motion.accelFiltered.z = (leBytesToInt(accelBytes.slice(4, 6), true) * 9.81) / 2048;
-				if (i === frameSize * 20) {
-					console.log(accelBytes);
-					console.log(frame.motion.accelFiltered);
-				}
 			}
 			if (flags.includes('LOG_VERTICAL_ACCEL')) {
 				frame.motion.accelVertical =

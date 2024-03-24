@@ -138,7 +138,7 @@ function createPort() {
 					for (let i = 2; i < len + 7; i++) checksum ^= rxBuf[i];
 					if (checksum !== 0) {
 						rxBuf.splice(0, 1);
-						return;
+						continue;
 					}
 					const data = rxBuf.slice(6, len + 6);
 					const command = rxBuf[4] + rxBuf[5] * 256;
@@ -165,6 +165,7 @@ function createPort() {
 					} else if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0xc000)) {
 						pingTime.fromFC = leBytesToInt(c.data);
 					}
+					return;
 				}
 			});
 	};
@@ -177,7 +178,7 @@ function createPort() {
 			invoke('serial_open', { path: portToOpen })
 				.then(() => {
 					cmdEnabled = true;
-					readInterval = setInterval(read, 5);
+					readInterval = setInterval(read, 3);
 					pingInterval = setInterval(() => {
 						sendCommand(ConfigCmd.CONFIGURATOR_PING).catch(() => {});
 						pingStarted = Date.now();
