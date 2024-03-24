@@ -129,41 +129,42 @@ function createPort() {
 			.finally(() => {
 				while (rxBuf.length >= 7) {
 					if (rxBuf[0] != '_'.charCodeAt(0) || rxBuf[1] != 'K'.charCodeAt(0)) {
-						rxBuf.splice(0, rxBuf.length);
-					} else break;
-				}
-				const len = rxBuf[2] + rxBuf[3] * 256;
-				if (rxBuf.length < len + 7) return;
-				let checksum = 0;
-				for (let i = 2; i < len + 7; i++) checksum ^= rxBuf[i];
-				if (checksum !== 0) {
-					rxBuf.splice(0, rxBuf.length);
-					return;
-				}
-				const data = rxBuf.slice(6, len + 6);
-				const command = rxBuf[4] + rxBuf[5] * 256;
-				rxBuf.splice(0, len + 7);
-				let dataStr = '';
-				for (let i = 0; i < data.length; i++) {
-					dataStr += String.fromCharCode(data[i]);
-				}
-				let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
-				if (command < 0x4000) cmdType = 'request';
-				else if (command < 0x8000) cmdType = 'response';
-				else if (command < 0xc000) cmdType = 'error';
-				const c: Command = {
-					command,
-					data,
-					dataStr,
-					cmdType,
-					length: len
-				};
-				set(c);
-				if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0x4000)) {
-					pingTime.fromConfigurator = Date.now() - pingStarted;
-					//pong response from FC received
-				} else if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0xc000)) {
-					pingTime.fromFC = leBytesToInt(c.data);
+						rxBuf.splice(0, 1);
+						continue;
+					}
+					const len = rxBuf[2] + rxBuf[3] * 256;
+					if (rxBuf.length < len + 7) return;
+					let checksum = 0;
+					for (let i = 2; i < len + 7; i++) checksum ^= rxBuf[i];
+					if (checksum !== 0) {
+						rxBuf.splice(0, 1);
+						return;
+					}
+					const data = rxBuf.slice(6, len + 6);
+					const command = rxBuf[4] + rxBuf[5] * 256;
+					rxBuf.splice(0, len + 7);
+					let dataStr = '';
+					for (let i = 0; i < data.length; i++) {
+						dataStr += String.fromCharCode(data[i]);
+					}
+					let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
+					if (command < 0x4000) cmdType = 'request';
+					else if (command < 0x8000) cmdType = 'response';
+					else if (command < 0xc000) cmdType = 'error';
+					const c: Command = {
+						command,
+						data,
+						dataStr,
+						cmdType,
+						length: len
+					};
+					set(c);
+					if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0x4000)) {
+						pingTime.fromConfigurator = Date.now() - pingStarted;
+						//pong response from FC received
+					} else if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0xc000)) {
+						pingTime.fromFC = leBytesToInt(c.data);
+					}
 				}
 			});
 	};
