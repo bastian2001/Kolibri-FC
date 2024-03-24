@@ -1267,26 +1267,35 @@
 			if (flags.includes('LOG_ATT_ROLL')) {
 				// roll = 0.0001 * raw (signed 16 bit int)
 				frame.attitude.roll =
-					leBytesToInt(
+					((leBytesToInt(
 						data.slice(i + offsets['LOG_ATT_ROLL'], i + offsets['LOG_ATT_ROLL'] + 2),
 						true
-					) / 10000;
+					) /
+						10000) *
+						180) /
+					Math.PI;
 			}
 			if (flags.includes('LOG_ATT_PITCH')) {
 				// pitch = 0.0001 * raw (signed 16 bit int)
 				frame.attitude.pitch =
-					leBytesToInt(
+					((leBytesToInt(
 						data.slice(i + offsets['LOG_ATT_PITCH'], i + offsets['LOG_ATT_PITCH'] + 2),
 						true
-					) / 10000;
+					) /
+						10000) *
+						180) /
+					Math.PI;
 			}
 			if (flags.includes('LOG_ATT_YAW')) {
 				// yaw = 0.0001 * raw (signed 16 bit int)
 				frame.attitude.yaw =
-					leBytesToInt(
+					((leBytesToInt(
 						data.slice(i + offsets['LOG_ATT_YAW'], i + offsets['LOG_ATT_YAW'] + 2),
 						true
-					) / 10000;
+					) /
+						10000) *
+						180) /
+					Math.PI;
 			}
 			if (flags.includes('LOG_MOTOR_RPM')) {
 				const rpmBytes = data.slice(i + offsets['LOG_MOTOR_RPM'], i + offsets['LOG_MOTOR_RPM'] + 6);
