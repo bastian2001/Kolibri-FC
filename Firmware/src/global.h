@@ -19,6 +19,7 @@
 #include "drivers/baro.h"
 #include "drivers/esc.h"
 #include "drivers/gyro.h"
+#include "drivers/mag.h"
 #include "drivers/osd.h"
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
@@ -51,6 +52,7 @@
 #define SPI_OSD spi0
 #define SPI_BARO spi0
 #define SPI_SD spi1
+#define I2C_MAG i2c0
 #define PROPS_OUT
 
 extern ExpressLRS *ELRS;
