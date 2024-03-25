@@ -11,11 +11,13 @@
 // X: right / pitch up
 // Z: up / yaw left
 
-const f32 RAW_TO_RAD_PER_SEC       = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
-const f32 FRAME_TIME               = 1. / 3200;
-const f32 RAW_TO_HALF_ANGLE        = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
-const f32 ANGLE_CHANGE_LIMIT       = .0002;
-const fix32 RAW_TO_DELTA_M_PER_SEC = 9.81 * 32 / 65536; // +/-16g
+const f32 RAW_TO_RAD_PER_SEC  = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
+const f32 FRAME_TIME          = 1. / 3200;
+const f32 RAW_TO_HALF_ANGLE   = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
+const f32 ANGLE_CHANGE_LIMIT  = .0002;
+const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
+
+PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 
 f32 pitch, roll, yaw;
 i32 headMotAtt;      // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
@@ -23,6 +25,7 @@ i32 combinedHeading; // NOT heading of motion, but heading of quad
 i32 combinedHeadMot; // heading of motion, but with headingAdjustment applied
 fix32 vVel, combinedAltitude, vVelHelper;
 fix32 eVel, nVel;
+fix32 vAccel;
 
 Quaternion q;
 
@@ -35,10 +38,6 @@ void imuInit() {
 	q.v[1] = 0;
 	q.v[2] = 0;
 	initFixTrig();
-}
-
-f32 map(f32 x, f32 in_min, f32 in_max, f32 out_min, f32 out_max) {
-	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 void __not_in_flash_func(updateFromGyro)() {
@@ -56,6 +55,11 @@ void __not_in_flash_func(updateFromGyro)() {
 
 f32 orientation_vector[3];
 void __not_in_flash_func(updateFromAccel)() {
+	// filter accel data
+	accelDataFiltered[0].update(accelDataRaw[0]);
+	accelDataFiltered[1].update(accelDataRaw[1]);
+	accelDataFiltered[2].update(accelDataRaw[2]);
+
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
 	// p2.y = 2*x*y*p1.x + y*y*p1.y + 2*z*y*p1.z + 2*w*z*p1.x - z*z*p1.y + w*w*p1.y - 2*x*w*p1.z - x*x*p1.y;
@@ -66,7 +70,7 @@ void __not_in_flash_func(updateFromAccel)() {
 	orientation_vector[1] = q.v[1] * q.v[2] * -2 + q.w * q.v[0] * 2;
 	orientation_vector[2] = -q.v[2] * q.v[2] + q.v[1] * q.v[1] + q.v[0] * q.v[0] - q.w * q.w;
 
-	f32 accelVectorNorm = sqrtf((int)accelDataRaw[1] * (int)accelDataRaw[1] + (int)accelDataRaw[0] * (int)accelDataRaw[0] + (int)accelDataRaw[2] * (int)accelDataRaw[2]);
+	f32 accelVectorNorm = sqrtf((i32)accelDataRaw[1] * (i32)accelDataRaw[1] + (i32)accelDataRaw[0] * (i32)accelDataRaw[0] + (i32)accelDataRaw[2] * (i32)accelDataRaw[2]);
 	f32 accelVector[3];
 	if (accelVectorNorm > 0.01f) {
 		f32 invAccelVectorNorm = 1 / accelVectorNorm;
@@ -121,22 +125,21 @@ void __not_in_flash_func(updatePitchRollValues)() {
 		combinedHeadMot = combinedHeading;
 	fix32 preHelper = vVelHelper;
 	startFixTrig();
-	vVelHelper += cosFix((fix32)roll) * cosFix((fix32)pitch) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[2];
-	vVelHelper += sinFix((fix32)roll) * RAW_TO_DELTA_M_PER_SEC / 3200 * -accelDataRaw[0];
-	vVelHelper += sinFix((fix32)pitch) * RAW_TO_DELTA_M_PER_SEC / 3200 * accelDataRaw[1];
-	vVelHelper -= fix32(9.81f / 3200);
+	vAccel = cosFix((fix32)roll) * cosFix((fix32)pitch) * accelDataFiltered[2] * RAW_TO_M2_PER_SEC;
+	vAccel += sinFix((fix32)roll) * cosFix((fix32)pitch) * accelDataFiltered[0] * RAW_TO_M2_PER_SEC;
+	vAccel += sinFix((fix32)pitch) * accelDataFiltered[1] * RAW_TO_M2_PER_SEC;
+	vVelHelper += (vAccel - 9.81f) / 3200;
 	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
-	preHelper  = vVelHelper - preHelper;
-	vVel += preHelper;
+	vVel += vVelHelper - preHelper;
 	f32 measVel;
 	if (gpsStatus.fixType == FIX_3D) {
-		measVel = -gpsMotion.velD * 0.000003f;
+		measVel = -gpsMotion.velD * 0.0000001f;
 	} else {
-		measVel = 0.003f * baroUpVel;
+		measVel = 0.0001f * baroUpVel;
 	}
-	vVel = 0.997f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
+	vVel = 0.9999f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
 	combinedAltitude += vVel / 3200;
-	combinedAltitude = 0.995f * combinedAltitude.getf32() + 0.005f * gpsBaroAlt.getf32();
+	combinedAltitude = 0.9999f * combinedAltitude.getf32() + 0.0001f * gpsBaroAlt.getf32();
 }
 
 void updateAttitude() {

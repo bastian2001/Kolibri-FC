@@ -21,6 +21,7 @@ export type LogFrame = {
 		pitch?: number;
 		throttle?: number;
 		yaw?: number;
+		vvel?: number;
 	};
 	gyro: {
 		roll?: number;
@@ -73,6 +74,17 @@ export type LogFrame = {
 	motion: {
 		altitude?: number;
 		vvel?: number;
+		accelRaw: {
+			x?: number;
+			y?: number;
+			z?: number;
+		};
+		accelFiltered: {
+			x?: number;
+			y?: number;
+			z?: number;
+		};
+		accelVertical?: number;
 		gps: {
 			year?: number;
 			month?: number;

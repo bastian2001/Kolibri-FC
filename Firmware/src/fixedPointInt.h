@@ -1,4 +1,5 @@
 #include "hardware/interp.h"
+#include "typedefs.h"
 #include <Arduino.h>
 #pragma once
 
@@ -16,7 +17,7 @@ inline void startFixTrig() {
 fix32 sinFix(const fix32 x);
 fix32 cosFix(const fix32 x);
 class fix64 {
-	// 48.16 fixed point
+	// 32.32 fixed point
 private:
 	i64 value = 0;
 
@@ -154,6 +155,10 @@ public:
 		fix32 result;
 		return result.setRaw(this->value * other);
 	};
+	inline fix32 operator*(const i32 other) const {
+		fix32 result;
+		return result.setRaw(this->value * other);
+	};
 	inline fix32 operator*(const f64 other) const {
 		return *this * fix32(other);
 	};
@@ -231,4 +236,14 @@ public:
 	inline fix32 operator-() const {
 		return fix32::fromRaw(-this->value);
 	};
+	inline i32 sign() const {
+		return (this->value >> 31) * 2 + 1;
+	};
+	inline fix32 abs() const {
+		return *this * sign();
+	};
 };
+
+extern const fix32 FIX_PI;
+extern const fix32 FIX_2PI;
+extern const fix32 FIX_PI_2;

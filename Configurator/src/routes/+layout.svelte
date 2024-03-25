@@ -93,10 +93,15 @@
 			case ConfigCmd.BB_FORMAT | 0x8000:
 				addLogEntry('Blackbox format failed');
 				break;
+			case ConfigCmd.BB_FILE_DELETE | 0x8000:
+				addLogEntry(`Deleting file ${command.data[0]} failed`);
+				break;
 			case ConfigCmd.CONFIGURATOR_PING:
 				//ping received from FC, confirm
 				port.sendCommand(ConfigCmd.CONFIGURATOR_PING | 0x4000);
 				break;
+			case ConfigCmd.SAVE_SETTINGS | 0x4000:
+				addLogEntry('EEPROM saved');
 		}
 	}
 

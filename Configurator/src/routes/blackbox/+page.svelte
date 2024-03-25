@@ -349,6 +349,40 @@
 			maxValue: 50000,
 			unit: 'rpm',
 			usesModifier: true
+		},
+		LOG_ACCEL_RAW: {
+			name: 'Accel Raw',
+			path: 'motion.accelRaw',
+			minValue: -40,
+			maxValue: 40,
+			unit: 'm/s²',
+			decimals: 3,
+			usesModifier: true
+		},
+		LOG_ACCEL_FILTERED: {
+			name: 'Accel Filtered',
+			path: 'motion.accelFiltered',
+			minValue: -40,
+			maxValue: 40,
+			unit: 'm/s²',
+			decimals: 3,
+			usesModifier: true
+		},
+		LOG_VERTICAL_ACCEL: {
+			name: 'Vertical Accel',
+			path: 'motion.accelVertical',
+			minValue: -40,
+			maxValue: 40,
+			unit: 'm/s²',
+			decimals: 3
+		},
+		LOG_VVEL_SETPOINT: {
+			name: 'vVel Setpoint',
+			path: 'setpoint.vvel',
+			minValue: -10,
+			maxValue: 10,
+			decimals: 2,
+			unit: 'm/s'
 		}
 	} as {
 		[key: string]: {
@@ -359,7 +393,7 @@
 			rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
 			unit: string;
 			usesModifier?: boolean;
-			decimals?: 2;
+			decimals?: number;
 			states?: string[];
 		};
 	};
@@ -521,6 +555,13 @@
 			],
 			unit: '',
 			exact: true
+		},
+		GEN_VVEL_SETPOINT: {
+			name: 'vVel Setpoint',
+			replaces: 'LOG_VVEL_SETPOINT',
+			requires: ['LOG_THROTTLE_ELRS_RAW'],
+			unit: 'm/s',
+			exact: false
 		}
 	} as {
 		[key: string]: {
@@ -544,7 +585,6 @@
 					if (typeof r === 'string') return log.flags.includes(r);
 					if (Array.isArray(r)) {
 						for (const s of r) if (log.flags.includes(s)) return true;
-
 						return false;
 					}
 					return false;
@@ -613,40 +653,59 @@
 					case 'GEN_ROLL_PID_D':
 						log.frames.forEach((f, i) => {
 							f.pid.roll.d =
-								(f.gyro.roll! - (log.frames[i - 1]?.gyro.roll || 0)) * log.pidConstants[0][2];
+								(((log.frames[i - 1]?.gyro.roll || 0) - f.gyro.roll!) * log.pidConstants[0][2]) /
+								log.frequencyDivider;
 						});
 						break;
 					case 'GEN_PITCH_PID_D':
 						log.frames.forEach((f, i) => {
 							f.pid.pitch.d =
-								(f.gyro.pitch! - (log.frames[i - 1]?.gyro.pitch || 0)) * log.pidConstants[1][2];
+								(((log.frames[i - 1]?.gyro.pitch || 0) - f.gyro.pitch!) * log.pidConstants[1][2]) /
+								log.frequencyDivider;
 						});
 						break;
 					case 'GEN_YAW_PID_D':
 						log.frames.forEach((f, i) => {
 							f.pid.yaw.d =
-								(f.gyro.yaw! - (log.frames[i - 1]?.gyro.yaw || 0)) * log.pidConstants[2][2];
+								(((log.frames[i - 1]?.gyro.yaw || 0) - f.gyro.yaw!) * log.pidConstants[2][2]) /
+								log.frequencyDivider;
 						});
 						break;
 					case 'GEN_ROLL_PID_FF':
-						log.frames.forEach((f, i) => {
-							f.pid.roll.ff =
-								(f.setpoint.roll! - log.frames[i - 1]?.setpoint.roll! || 0) *
-								log.pidConstants[0][3];
-						});
+						{
+							const step = Math.round(8 / log.frequencyDivider) || 1;
+							const divider = (step * log.frequencyDivider) / 8;
+							log.frames.forEach((f, i) => {
+								f.pid.roll.ff =
+									((f.setpoint.roll! - log.frames[i - step]?.setpoint.roll! || 0) *
+										log.pidConstants[0][3]) /
+									divider;
+							});
+						}
 						break;
 					case 'GEN_PITCH_PID_FF':
-						log.frames.forEach((f, i) => {
-							f.pid.pitch.ff =
-								(f.setpoint.pitch! - log.frames[i - 1]?.setpoint.pitch! || 0) *
-								log.pidConstants[1][3];
-						});
+						{
+							const step = Math.round(8 / log.frequencyDivider) || 1;
+							const divider = step * log.frequencyDivider;
+							log.frames.forEach((f, i) => {
+								f.pid.pitch.ff =
+									((f.setpoint.pitch! - log.frames[i - step]?.setpoint.pitch! || 0) *
+										log.pidConstants[1][3]) /
+									divider;
+							});
+						}
 						break;
 					case 'GEN_YAW_PID_FF':
-						log.frames.forEach((f, i) => {
-							f.pid.yaw.ff =
-								(f.setpoint.yaw! - log.frames[i - 1]?.setpoint.yaw! || 0) * log.pidConstants[2][3];
-						});
+						{
+							const step = Math.round(8 / log.frequencyDivider) || 1;
+							const divider = step * log.frequencyDivider;
+							log.frames.forEach((f, i) => {
+								f.pid.yaw.ff =
+									((f.setpoint.yaw! - log.frames[i - step]?.setpoint.yaw! || 0) *
+										log.pidConstants[2][3]) /
+									divider;
+							});
+						}
 						break;
 					case 'GEN_ROLL_PID_S':
 						log.frames.forEach((f) => {
@@ -785,6 +844,20 @@
 							f.motors.out.fl = Math.min(f.motors.out.fl!, 2000);
 						});
 						break;
+					case 'GEN_VVEL_SETPOINT':
+						log.frames.forEach((f) => {
+							let t = (f.elrs.throttle! - 1500) * 2;
+							if (t > 0) {
+								t -= 100;
+								if (t < 0) t = 0;
+							} else if (t < 0) {
+								t += 100;
+								if (t > 0) t = 0;
+							}
+							f.setpoint.vvel = t / 180;
+							if (f.flightMode !== undefined && f.flightMode < 2) f.setpoint.vvel = 0;
+						});
+						break;
 				}
 			}
 		}
@@ -815,8 +888,14 @@
 			case ConfigCmd.BB_FILE_DOWNLOAD | 0x4000:
 				handleFileChunk(command.data);
 				break;
-			case ConfigCmd.CONFIGURATOR_PING | 0x4000:
-			case ConfigCmd.STATUS | 0x4000:
+			case ConfigCmd.BB_FILE_DELETE | 0x4000:
+				const index = logNums.findIndex((l) => l.num === selected);
+				if (index !== -1) logNums.splice(index, 1);
+				if (!logNums.length) {
+					logNums = [{ text: 'No logs found', num: -1 }];
+					selected = -1;
+				} else if (index >= logNums.length) selected = logNums[logNums.length - 1].num;
+				else selected = logNums[index].num;
 				break;
 			default:
 				if (
@@ -916,7 +995,7 @@
 			pidConstantsNice[i][2] = pidConstants[i][2] >> 10;
 			pidConstants[i][2] /= 65536;
 			pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 28 + 12, i * 28 + 16));
-			pidConstantsNice[i][3] = pidConstants[i][3] >> 10;
+			pidConstantsNice[i][3] = pidConstants[i][3] >> 13;
 			pidConstants[i][3] /= 65536;
 			pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 28 + 16, i * 28 + 20));
 			pidConstantsNice[i][4] = pidConstants[i][4] >> 8;
@@ -946,7 +1025,7 @@
 			if (flagIsSet) {
 				flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
 				offsets[Object.keys(BB_ALL_FLAGS)[i + 32]] = frameSize;
-				if (i + 32 == 35) frameSize += 6;
+				if ([35, 36, 37].includes(i + 32)) frameSize += 6;
 				else frameSize += 2;
 			}
 		}
@@ -960,7 +1039,7 @@
 				gyro: {},
 				pid: { roll: {}, pitch: {}, yaw: {} },
 				motors: { out: {}, rpm: {} },
-				motion: { gps: {} },
+				motion: { gps: {}, accelRaw: {}, accelFiltered: {} },
 				attitude: {}
 			};
 			if (flags.includes('LOG_ROLL_ELRS_RAW'))
@@ -1188,26 +1267,35 @@
 			if (flags.includes('LOG_ATT_ROLL')) {
 				// roll = 0.0001 * raw (signed 16 bit int)
 				frame.attitude.roll =
-					leBytesToInt(
+					((leBytesToInt(
 						data.slice(i + offsets['LOG_ATT_ROLL'], i + offsets['LOG_ATT_ROLL'] + 2),
 						true
-					) / 10000;
+					) /
+						10000) *
+						180) /
+					Math.PI;
 			}
 			if (flags.includes('LOG_ATT_PITCH')) {
 				// pitch = 0.0001 * raw (signed 16 bit int)
 				frame.attitude.pitch =
-					leBytesToInt(
+					((leBytesToInt(
 						data.slice(i + offsets['LOG_ATT_PITCH'], i + offsets['LOG_ATT_PITCH'] + 2),
 						true
-					) / 10000;
+					) /
+						10000) *
+						180) /
+					Math.PI;
 			}
 			if (flags.includes('LOG_ATT_YAW')) {
 				// yaw = 0.0001 * raw (signed 16 bit int)
 				frame.attitude.yaw =
-					leBytesToInt(
+					((leBytesToInt(
 						data.slice(i + offsets['LOG_ATT_YAW'], i + offsets['LOG_ATT_YAW'] + 2),
 						true
-					) / 10000;
+					) /
+						10000) *
+						180) /
+					Math.PI;
 			}
 			if (flags.includes('LOG_MOTOR_RPM')) {
 				const rpmBytes = data.slice(i + offsets['LOG_MOTOR_RPM'], i + offsets['LOG_MOTOR_RPM'] + 6);
@@ -1241,6 +1329,38 @@
 					fl = (fl & 0x1ff) << (fl >> 9);
 					frame.motors.rpm.fl = (60000000 + 50 * fl) / fl / (motorPoles / 2);
 				}
+			}
+			if (flags.includes('LOG_ACCEL_RAW')) {
+				const accelBytes = data.slice(
+					i + offsets['LOG_ACCEL_RAW'],
+					i + offsets['LOG_ACCEL_RAW'] + 6
+				);
+				frame.motion.accelRaw.x = (leBytesToInt(accelBytes.slice(0, 2), true) * 9.81) / 2048;
+				frame.motion.accelRaw.y = (leBytesToInt(accelBytes.slice(2, 4), true) * 9.81) / 2048;
+				frame.motion.accelRaw.z = (leBytesToInt(accelBytes.slice(4, 6), true) * 9.81) / 2048;
+			}
+			if (flags.includes('LOG_ACCEL_FILTERED')) {
+				const accelBytes = data.slice(
+					i + offsets['LOG_ACCEL_FILTERED'],
+					i + offsets['LOG_ACCEL_FILTERED'] + 6
+				);
+				frame.motion.accelFiltered.x = (leBytesToInt(accelBytes.slice(0, 2), true) * 9.81) / 2048;
+				frame.motion.accelFiltered.y = (leBytesToInt(accelBytes.slice(2, 4), true) * 9.81) / 2048;
+				frame.motion.accelFiltered.z = (leBytesToInt(accelBytes.slice(4, 6), true) * 9.81) / 2048;
+			}
+			if (flags.includes('LOG_VERTICAL_ACCEL')) {
+				frame.motion.accelVertical =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_VERTICAL_ACCEL'], i + offsets['LOG_VERTICAL_ACCEL'] + 2),
+						true
+					) / 128;
+			}
+			if (flags.includes('LOG_VVEL_SETPOINT')) {
+				frame.setpoint.vvel =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_VVEL_SETPOINT'], i + offsets['LOG_VVEL_SETPOINT'] + 2),
+						true
+					) / 4096;
 			}
 			log.push(frame);
 		}
@@ -1737,8 +1857,7 @@
 	}
 
 	function deleteLog() {
-		const logNum = logNums[selected].num as number;
-		port.sendCommand(ConfigCmd.BB_FILE_DELETE, [logNum]);
+		port.sendCommand(ConfigCmd.BB_FILE_DELETE, [selected]);
 	}
 	function openLog() {
 		getLog(selected)

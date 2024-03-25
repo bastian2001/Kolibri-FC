@@ -23,6 +23,7 @@
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
 #include "elapsedMillis.h"
+#include "filters.h"
 #include "fixedPointInt.h"
 #include "hardware/adc.h"
 #include "hardware/dma.h"
