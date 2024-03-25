@@ -62,10 +62,10 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
-	pidGainsVVel[P]  = 5;    // additional throttle if velocity is 1m/s too low
-	pidGainsVVel[I]  = .03;  // increase throttle by 3200x this value, when error is 1m/s
-	pidGainsVVel[D]  = 2000; // additional throttle, if accelerating by 3200m/s^2
-	pidGainsVVel[FF] = 300;
+	pidGainsVVel[P]  = 20;    // additional throttle if velocity is 1m/s too low
+	pidGainsVVel[I]  = .07;  // increase throttle by 3200x this value, when error is 1m/s
+	pidGainsVVel[D]  = 20000; // additional throttle, if accelerating by 3200m/s^2
+	pidGainsVVel[FF] = 3000;
 	pidGainsHVel[P]  = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I]  = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D]  = 7;             // tilt in degrees, if changing speed by 3200m/s /s
@@ -246,7 +246,7 @@ void pidLoop() {
 				vVelSetpoint += (altSetpoint - combinedAltitude) / 5; // prevent vVel drift slowly
 				vVelError = vVelSetpoint - vVel;
 				fix32 ff  = vVelSetpoint - vVelSetpoints[ffBufPos];
-				vVelErrorSum += ff.abs() < fix32(0.005f) ? vVelError : vVelError / 4; // reduce windup during fast changes
+				vVelErrorSum += ff.abs() < fix32(0.02f) ? vVelError : vVelError / 2; // reduce windup during fast changes
 				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 				vVelP        = pidGainsVVel[P] * vVelError;
 				vVelI        = pidGainsVVel[I] * vVelErrorSum;
