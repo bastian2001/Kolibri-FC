@@ -16,11 +16,10 @@ The PCB is done and working in its fourth testing revision, which includes (hard
 
 Working software features:
 
+-   Acro, angle and altitude hold modes
 -   ELRS
--   Acro Mode
--   DShot (up to 4800)
--   Variable frequency beeper
--   Angle mode (semi-working)
+-   Bidirectional DShot 4800 (tested up to 1200)
+-   Variable frequency beeper with WAV support
 -   SD-Blackbox incl. viewer
 -   Configurator
 -   Barometer
