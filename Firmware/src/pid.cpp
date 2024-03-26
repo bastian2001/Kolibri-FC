@@ -25,14 +25,14 @@ fix32 pidGains[3][7];
 fix32 pidGainsVVel[4], pidGainsHVel[3];
 fix32 angleModeP = 10, velocityModeP = 3;
 
-fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
+fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast, vVelLastSetpoint;
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
 fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, vVelFF, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
 fix32 altSetpoint;
 fix32 tRR, tRL, tFR, tFL;
 fix32 throttle;
 
-fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8], vVelSetpoints[8];
+fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8];
 
 u32 pidLoopCounter = 0;
 
@@ -63,7 +63,7 @@ void initPID() {
 		rateFactors[4][i] = 800;
 	}
 	pidGainsVVel[P]  = 20;    // additional throttle if velocity is 1m/s too low
-	pidGainsVVel[I]  = .07;  // increase throttle by 3200x this value, when error is 1m/s
+	pidGainsVVel[I]  = .07;   // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D]  = 20000; // additional throttle, if accelerating by 3200m/s^2
 	pidGainsVVel[FF] = 3000;
 	pidGainsHVel[P]  = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
@@ -169,9 +169,9 @@ void pidLoop() {
 	decodeErpm();
 
 	if (armed) {
-		static u32 ffBufPos = 0;
 		// Quad armed
-		static fix32 polynomials[5][3]; // always recreating variables is slow, but exposing is bad, hence static
+		static u32 ffBufPos = 0;
+		static fix32 polynomials[5][3];
 		ELRS->getSmoothChannels(smoothChannels);
 		// calculate setpoints
 		polynomials[0][0] = (smoothChannels[0] - 1500) >> 9; //-1...+1
@@ -232,6 +232,10 @@ void pidLoop() {
 
 			if (flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
 				fix32 t = throttle - 1000;
+				static PT1 vVelDFilter(30, 3200);
+				static PT1 vVelFFFilter(20, 3200);
+				static elapsedMillis setAltSetpointTimer;
+				static u32 stickWasCentered = 0;
 				// deadband in center of stick
 				if (t > 0) {
 					t -= 100;
@@ -242,18 +246,33 @@ void pidLoop() {
 				}
 				// estimate throttle
 				vVelSetpoint = t / 180; // +/- 5 m/s
-				altSetpoint += vVelSetpoint / 3200;
-				vVelSetpoint += (altSetpoint - combinedAltitude) / 5; // prevent vVel drift slowly
+				static u8 counter;
+				if (counter++ == 0) Serial.println(vVelSetpoint.getf32());
+				if (vVelSetpoint == 0) {
+					if (!stickWasCentered) {
+						setAltSetpointTimer = 0;
+						stickWasCentered    = 1;
+					} else if (setAltSetpointTimer > 1000) {
+						if (stickWasCentered == 1) {
+							// set altitude setpoint 1s after throttle is centered
+							altSetpoint      = combinedAltitude;
+							stickWasCentered = 2;
+						}
+						vVelSetpoint += (altSetpoint - combinedAltitude) / 5; // prevent vVel drift slowly
+					}
+				} else {
+					stickWasCentered = 0;
+				}
 				vVelError = vVelSetpoint - vVel;
-				fix32 ff  = vVelSetpoint - vVelSetpoints[ffBufPos];
-				vVelErrorSum += ff.abs() < fix32(0.02f) ? vVelError : vVelError / 2; // reduce windup during fast changes
-				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
-				vVelP        = pidGainsVVel[P] * vVelError;
-				vVelI        = pidGainsVVel[I] * vVelErrorSum;
-				vVelD        = pidGainsVVel[D] * (vVelLast - vVel);
-				vVelFF       = pidGainsVVel[FF] * ff;
-				throttle     = vVelP + vVelI + vVelD + vVelFF;
-				throttle     = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
+				vVelErrorSum += vVelFFFilter.update(vVelSetpoint - vVelLastSetpoint).abs() < fix32(0.001f) ? vVelError : vVelError / 2; // reduce windup during fast changes
+				vVelErrorSum     = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
+				vVelP            = pidGainsVVel[P] * vVelError;
+				vVelI            = pidGainsVVel[I] * vVelErrorSum;
+				vVelD            = pidGainsVVel[D] * vVelDFilter.update(vVelLast - vVel);
+				vVelFF           = pidGainsVVel[FF] * vVelFFFilter;
+				vVelLastSetpoint = vVelSetpoint;
+				throttle         = vVelP + vVelI + vVelD + vVelFF;
+				throttle         = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
 			} else {
 				vVelErrorSum = 0;
 			}
@@ -313,7 +332,6 @@ void pidLoop() {
 		rollSetpoints[ffBufPos]  = rollSetpoint;
 		pitchSetpoints[ffBufPos] = pitchSetpoint;
 		yawSetpoints[ffBufPos]   = yawSetpoint;
-		vVelSetpoints[ffBufPos]  = vVelSetpoint;
 		ffBufPos++;
 		ffBufPos &= 7;
 
