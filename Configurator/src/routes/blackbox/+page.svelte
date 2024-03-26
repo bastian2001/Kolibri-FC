@@ -1443,7 +1443,7 @@
 				const bitNum = j % 8;
 				const flagIsSet = flags[byteNum] & (1 << bitNum);
 				if (!flagIsSet) continue;
-				if (j == 26 || j == 35) frameSize += 6;
+				if (j == 26 || [35, 36, 37].includes(j)) frameSize += 6;
 				else if (j == 28) frameSize++;
 				else frameSize += 2;
 			}
