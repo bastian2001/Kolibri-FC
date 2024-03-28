@@ -31,6 +31,7 @@ fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pit
 fix32 altSetpoint;
 fix32 tRR, tRL, tFR, tFL;
 fix32 throttle;
+PT1 dFilterRoll(100, 3200), dFilterPitch(100, 3200), dFilterYaw(100, 3200);
 
 fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8];
 
@@ -62,10 +63,10 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
-	pidGainsVVel[P]  = 20;    // additional throttle if velocity is 1m/s too low
-	pidGainsVVel[I]  = .07;   // increase throttle by 3200x this value, when error is 1m/s
+	pidGainsVVel[P]  = 100;   // additional throttle if velocity is 1m/s too low
+	pidGainsVVel[I]  = .03;   // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D]  = 20000; // additional throttle, if accelerating by 3200m/s^2
-	pidGainsVVel[FF] = 3000;
+	pidGainsVVel[FF] = 30000;
 	pidGainsHVel[P]  = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I]  = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D]  = 7;             // tilt in degrees, if changing speed by 3200m/s /s
@@ -232,8 +233,8 @@ void pidLoop() {
 
 			if (flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
 				fix32 t = throttle - 1000;
-				static PT1 vVelDFilter(30, 3200);
-				static PT1 vVelFFFilter(20, 3200);
+				static PT1 vVelDFilter(15, 3200);
+				static PT1 vVelFFFilter(2, 3200);
 				static elapsedMillis setAltSetpointTimer;
 				static u32 stickWasCentered = 0;
 				// deadband in center of stick
@@ -269,7 +270,7 @@ void pidLoop() {
 				vVelP            = pidGainsVVel[P] * vVelError;
 				vVelI            = pidGainsVVel[I] * vVelErrorSum;
 				vVelD            = pidGainsVVel[D] * vVelDFilter.update(vVelLast - vVel);
-				vVelFF           = pidGainsVVel[FF] * vVelFFFilter;
+				vVelFF           = pidGainsVVel[FF] * vVelFFFilter * 2;
 				vVelLastSetpoint = vVelSetpoint;
 				throttle         = vVelP + vVelI + vVelD + vVelFF;
 				throttle         = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
@@ -319,9 +320,9 @@ void pidLoop() {
 		rollI   = pidGains[0][I] * rollErrorSum;
 		pitchI  = pidGains[1][I] * pitchErrorSum;
 		yawI    = pidGains[2][I] * yawErrorSum;
-		rollD   = pidGains[0][D] * (rollLast - gyroData[AXIS_ROLL]);
-		pitchD  = pidGains[1][D] * (pitchLast - gyroData[AXIS_PITCH]);
-		yawD    = pidGains[2][D] * (yawLast - gyroData[AXIS_YAW]);
+		rollD   = pidGains[0][D] * dFilterRoll.update(rollLast - gyroData[AXIS_ROLL]);
+		pitchD  = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroData[AXIS_PITCH]);
+		yawD    = pidGains[2][D] * dFilterYaw.update(yawLast - gyroData[AXIS_YAW]);
 		rollFF  = pidGains[0][FF] * (rollSetpoint - rollSetpoints[ffBufPos]);
 		pitchFF = pidGains[1][FF] * (pitchSetpoint - pitchSetpoints[ffBufPos]);
 		yawFF   = pidGains[2][FF] * (yawSetpoint - yawSetpoints[ffBufPos]);
