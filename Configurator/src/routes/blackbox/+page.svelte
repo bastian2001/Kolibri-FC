@@ -1719,7 +1719,8 @@
 			}
 			//write down frame number, time in s after start and values next to the cursor at the top
 			const frame = sliceAndSkip[closestFrame - startFrame];
-			const timeText = (closestFrame / loadedLog!.framesPerSecond).toFixed(3) + 's';
+			const timeText =
+				(closestFrame / loadedLog!.framesPerSecond).toFixed(3) + 's, Frame ' + closestFrame;
 			const valueTexts = [] as string[];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
@@ -1811,12 +1812,12 @@
 			let pointY = textY + textPadding + textHeight + 6;
 			for (let i = 0; i < graphs.length; i++) {
 				for (let j = 0; j < graphs[i].length; j++) {
+					if (!graphs[i][j].flagName) continue;
 					ctx.fillStyle = graphs[i][j].color;
 					ctx.beginPath();
 					ctx.arc(textX + textPadding + 8, pointY, 5, 0, Math.PI * 2);
 					ctx.fill();
 					pointY += textHeight;
-					// text
 				}
 			}
 			domCtx.drawImage(highlightCanvas, 0, 0);
