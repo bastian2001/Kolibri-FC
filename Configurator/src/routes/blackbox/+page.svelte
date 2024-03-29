@@ -1460,6 +1460,32 @@
 	const canvas = document.createElement('canvas');
 	let sliceAndSkip = [] as LogFrame[];
 	let skipValue = 0;
+	const durationBarRaster = [
+		'1ms',
+		'2ms',
+		'5ms',
+		'10ms',
+		'20ms',
+		'50ms',
+		'100ms',
+		'200ms',
+		'0.5s',
+		'1s',
+		'2s',
+		'5s',
+		'10s',
+		'20s',
+		'30s',
+		'1min',
+		'2min',
+		'5min'
+	];
+	function decodeDuration(duration: string): number {
+		let seconds = parseFloat(duration.replaceAll(/[a-zA-Z]/g, ''));
+		if (duration.endsWith('min')) seconds *= 60;
+		else if (duration.endsWith('ms')) seconds *= 0.001;
+		return seconds;
+	}
 	function drawCanvas(allowShortening = true) {
 		if (!mounted) return;
 		if (allowShortening) {
@@ -1491,7 +1517,39 @@
 				sliceAndSkip.push(dataSlice[i]);
 			}
 		}
+		const pixelsPerSec =
+			(dataViewer.clientWidth * loadedLog!.framesPerSecond) / (dataSlice.length - 1);
+		//filter out all the ones that don't fit
+		let durations = durationBarRaster.filter((el) => {
+			const seconds = decodeDuration(el);
+			if (seconds * pixelsPerSec >= dataViewer.clientWidth - 80) return false;
+			if (seconds * pixelsPerSec <= (dataViewer.clientWidth - 80) * 0.1) return false;
+			return true;
+		});
+		let barDuration = '';
+		for (let i = 0; i < durations.length - 1; i++) {
+			if (pixelsPerSec * decodeDuration(durations[i]) > 200) {
+				barDuration = durations[i];
+				break;
+			}
+		}
+		barDuration = barDuration || durations[durations.length - 1];
+		const barLength = pixelsPerSec * decodeDuration(barDuration || '1s');
 		ctx.clearRect(0, 0, dataViewer.clientWidth, dataViewer.clientHeight);
+		ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+		ctx.lineWidth = 3;
+		ctx.textAlign = 'center';
+		ctx.font = '16px sans-serif';
+		ctx.textBaseline = 'bottom';
+		ctx.fillStyle = 'white';
+		if (barDuration) {
+			ctx.beginPath();
+			ctx.moveTo(16, 40);
+			ctx.lineTo(16 + barLength, 40);
+			ctx.stroke();
+			ctx.fillText(barDuration, 16 + barLength / 2, 35);
+		}
+
 		const frameWidth = width / (sliceAndSkip.length - 1);
 		const numGraphs = graphs.length;
 		const heightPerGraph = (height - dataViewer.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
@@ -1564,6 +1622,28 @@
 	let startStartFrame = 0;
 	let startEndFrame = 0;
 	const selectionCanvas = document.createElement('canvas');
+	function drawSelection(startX: number, endX: number) {
+		const ctx = selectionCanvas.getContext('2d') as CanvasRenderingContext2D;
+		ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+		ctx.fillStyle = 'rgba(0,0,0,0.2)';
+		ctx.fillRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+		ctx.clearRect(startX, 0, endX - startX, selectionCanvas.height);
+		ctx.strokeStyle = 'white';
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(startX, 0);
+		ctx.lineTo(startX, selectionCanvas.height);
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.moveTo(endX, 0);
+		ctx.lineTo(endX, selectionCanvas.height);
+		ctx.stroke();
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
+		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+		domCtx.drawImage(canvas, 0, 0);
+		domCtx.drawImage(selectionCanvas, 0, 0);
+	}
 	function onMouseMove(e: MouseEvent) {
 		if (!loadedLog) return;
 		if (e.buttons !== 1) {
@@ -1639,7 +1719,8 @@
 			}
 			//write down frame number, time in s after start and values next to the cursor at the top
 			const frame = sliceAndSkip[closestFrame - startFrame];
-			const timeText = (closestFrame / loadedLog!.framesPerSecond).toFixed(3) + 's';
+			const timeText =
+				(closestFrame / loadedLog!.framesPerSecond).toFixed(3) + 's, Frame ' + closestFrame;
 			const valueTexts = [] as string[];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
@@ -1731,12 +1812,12 @@
 			let pointY = textY + textPadding + textHeight + 6;
 			for (let i = 0; i < graphs.length; i++) {
 				for (let j = 0; j < graphs[i].length; j++) {
+					if (!graphs[i][j].flagName) continue;
 					ctx.fillStyle = graphs[i][j].color;
 					ctx.beginPath();
 					ctx.arc(textX + textPadding + 8, pointY, 5, 0, Math.PI * 2);
 					ctx.fill();
 					pointY += textHeight;
-					// text
 				}
 			}
 			domCtx.drawImage(highlightCanvas, 0, 0);
@@ -1756,26 +1837,7 @@
 			return;
 		}
 		trackingEndX = e.clientX;
-		const ctx = selectionCanvas.getContext('2d') as CanvasRenderingContext2D;
-		ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-		ctx.fillStyle = 'rgba(0,0,0,0.2)';
-		ctx.fillRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-		ctx.clearRect(trackingStartX, 0, trackingEndX - trackingStartX, selectionCanvas.height);
-		ctx.strokeStyle = 'white';
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.moveTo(trackingStartX, 0);
-		ctx.lineTo(trackingStartX, selectionCanvas.height);
-		ctx.stroke();
-		ctx.beginPath();
-		ctx.moveTo(trackingEndX, 0);
-		ctx.lineTo(trackingEndX, selectionCanvas.height);
-		ctx.stroke();
-		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
-		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
-		domCtx.drawImage(canvas, 0, 0);
-		domCtx.drawImage(selectionCanvas, 0, 0);
+		drawSelection(trackingStartX, trackingEndX);
 	}
 	function onMouseDown(e: MouseEvent) {
 		if (!loadedLog || e.button !== 0) return;
@@ -1788,23 +1850,7 @@
 		}
 		trackingStartX = e.offsetX;
 		trackingEndX = e.offsetX;
-		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-		selectionCanvas.width = domCanvas.width;
-		selectionCanvas.height = domCanvas.height;
-		const ctx = selectionCanvas.getContext('2d') as CanvasRenderingContext2D;
-		ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-		ctx.fillStyle = 'rgba(0,0,0,0.2)';
-		ctx.fillRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-		ctx.strokeStyle = 'white';
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.moveTo(trackingStartX, 0);
-		ctx.lineTo(trackingStartX, selectionCanvas.height);
-		ctx.stroke();
-		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
-		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
-		domCtx.drawImage(canvas, 0, 0);
-		domCtx.drawImage(selectionCanvas, 0, 0);
+		drawSelection(trackingStartX, trackingEndX);
 	}
 	function onMouseUp() {
 		if (trackingStartX === -1) return;
@@ -1830,20 +1876,17 @@
 		trackingStartX = -1;
 	}
 	function onMouseWheel(e: WheelEvent) {
-		const framesBefore = startFrame,
-			framesAfter = loadedLog!.frameCount - 1 - endFrame;
+		e.preventDefault();
+		if (!loadedLog) return;
 		const visibleFrames = endFrame - startFrame;
 		let moveBy = e.deltaY * 0.002 * visibleFrames;
+		if (moveBy > 0 && moveBy < 1) moveBy = 1;
+		if (moveBy < 0 && moveBy > -1) moveBy = -1;
+		if (moveBy > visibleFrames * 0.3) moveBy = visibleFrames * 0.3;
+		if (moveBy < -visibleFrames * 0.3) moveBy = -visibleFrames * 0.3;
 		moveBy = Math.round(moveBy);
-		if (-moveBy > framesBefore) moveBy = -framesBefore;
-		if (moveBy > framesAfter) moveBy = framesAfter;
-		if (moveBy > 0) {
-			if (moveBy < 1) moveBy = 1;
-			else if (moveBy > visibleFrames * 0.3) moveBy = visibleFrames * 0.3;
-		} else {
-			if (moveBy > -1) moveBy = -1;
-			else if (moveBy < -visibleFrames * 0.3) moveBy = -visibleFrames * 0.3;
-		}
+		if (startFrame + moveBy < 0) moveBy = -startFrame;
+		if (endFrame + moveBy > loadedLog.frameCount - 1) moveBy = loadedLog.frameCount - 1 - endFrame;
 		startFrame += moveBy;
 		endFrame += moveBy;
 	}
@@ -1853,6 +1896,121 @@
 			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
 			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
 			domCtx.drawImage(canvas, 0, 0);
+		}
+	}
+	let touchStartX = 0,
+		touchEndX = 0,
+		frame0 = 0,
+		frame1 = 0; //0 and 1 are the touch identifiers, and frames are the frames they are clamped to
+	let touchMode: 'none' | 'move' | 'zoom' = 'none';
+	function onTouchDown(e: TouchEvent) {
+		e.preventDefault();
+		if (!loadedLog) return;
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const touches = [];
+		const changedTouches = [];
+		for (let i = 0; i < e.touches.length; i++)
+			if (e.touches[i].identifier < 2) touches.push(e.touches[i]);
+		for (let i = 0; i < e.changedTouches.length; i++)
+			if (e.changedTouches[i].identifier < 2) changedTouches.push(e.changedTouches[i]);
+
+		if (changedTouches.length === 1) {
+			if (touchMode === 'none') {
+				touchMode = 'move';
+				touchStartX = changedTouches[0].clientX;
+				startStartFrame = startFrame;
+				startEndFrame = endFrame;
+			} else {
+				touchMode = 'zoom';
+				frame0 =
+					startFrame + Math.round((endFrame - startFrame) * (touches[0].clientX / domCanvas.width));
+				frame1 =
+					startFrame + Math.round((endFrame - startFrame) * (touches[1].clientX / domCanvas.width));
+				if (frame1 === frame0) {
+					frame1++;
+					if (frame1 > loadedLog.frameCount - 1) {
+						frame1 = loadedLog.frameCount - 1;
+						frame0 = frame1 - 1;
+					}
+				}
+			}
+		} else {
+			touchMode = 'zoom';
+			frame0 =
+				startFrame + Math.round((endFrame - startFrame) * (touches[0].clientX / domCanvas.width));
+			frame1 =
+				startFrame + Math.round((endFrame - startFrame) * (touches[1].clientX / domCanvas.width));
+			if (frame1 === frame0) {
+				frame1++;
+				if (frame1 > loadedLog.frameCount - 1) {
+					frame1 = loadedLog.frameCount - 1;
+					frame0 = frame1 - 1;
+				}
+			}
+		}
+	}
+	function onTouchMove(e: TouchEvent) {
+		e.preventDefault();
+		if (!loadedLog) return;
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const touches = [];
+		for (let i = 0; i < e.touches.length; i++)
+			if (e.touches[i].identifier < 2) touches.push(e.touches[i]);
+		if (touchMode === 'move') {
+			const diff = touches[0].clientX - touchStartX;
+			const ratio = (startStartFrame - startEndFrame) / domCanvas.width;
+			let deltaFrames = Math.floor(diff * ratio);
+			if (startEndFrame + deltaFrames > loadedLog!.frameCount - 1)
+				deltaFrames = loadedLog!.frameCount - 1 - startEndFrame;
+			if (startStartFrame + deltaFrames < 0) deltaFrames = -startStartFrame;
+			startFrame = startStartFrame + deltaFrames;
+			endFrame = startEndFrame + deltaFrames;
+		}
+		if (touchMode === 'zoom') {
+			let span = Math.round(
+				((frame1 - frame0) * domCanvas.width) / (e.touches[1].clientX - e.touches[0].clientX)
+			);
+			if (span < 0) span = loadedLog.frameCount - 1;
+			if (span >= loadedLog.frameCount - 1) {
+				startFrame = 0;
+				endFrame = loadedLog.frameCount - 1;
+				return;
+			}
+			const frameCenter = Math.round((frame0 + frame1) / 2);
+			const centerPos = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+			startFrame = frameCenter - Math.round(span * (centerPos / domCanvas.width));
+			endFrame = frameCenter + Math.round(span * (1 - centerPos / domCanvas.width));
+			if (startFrame < 0) {
+				endFrame -= startFrame;
+				startFrame = 0;
+			}
+			if (endFrame >= loadedLog.frameCount) {
+				startFrame -= endFrame - loadedLog.frameCount + 1;
+				endFrame = loadedLog.frameCount - 1;
+			}
+		}
+	}
+	function onTouchUp(e: TouchEvent) {
+		e.preventDefault();
+		if (!loadedLog) return;
+		if (touchMode === 'none') return;
+		if (touchMode === 'move' && (e.touches[0]?.identifier || 2) >= 2) {
+			touchMode = 'none';
+			return;
+		}
+		if (touchMode === 'zoom') {
+			if (
+				(e.touches[0]?.identifier === 0 || e.touches[0]?.identifier === 1) &&
+				e.touches[1]?.identifier !== 1
+			) {
+				touchMode = 'move';
+				touchStartX = e.touches[0].clientX;
+				startStartFrame = startFrame;
+				startEndFrame = endFrame;
+				return;
+			} else if (e.touches[1]?.identifier !== 1) {
+				touchMode = 'none';
+			}
 		}
 	}
 
@@ -2002,6 +2160,8 @@
 		const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 		canvas.height = dataViewer.clientHeight;
 		canvas.width = dataViewer.clientWidth;
+		selectionCanvas.height = dataViewer.clientHeight;
+		selectionCanvas.width = dataViewer.clientWidth;
 
 		drawCanvas();
 	}
@@ -2050,6 +2210,9 @@
 			on:mousemove={onMouseMove}
 			on:mouseleave={onMouseLeave}
 			on:wheel={onMouseWheel}
+			on:touchstart={onTouchDown}
+			on:touchmove={onTouchMove}
+			on:touchend={onTouchUp}
 			on:dblclick={() => {
 				startFrame = 0;
 				endFrame = (loadedLog?.frameCount || 1) - 1;
