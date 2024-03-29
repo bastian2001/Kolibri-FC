@@ -1929,6 +1929,13 @@
 					startFrame + Math.round((endFrame - startFrame) * (touches[0].clientX / domCanvas.width));
 				frame1 =
 					startFrame + Math.round((endFrame - startFrame) * (touches[1].clientX / domCanvas.width));
+				if (frame1 === frame0) {
+					frame1++;
+					if (frame1 > loadedLog.frameCount - 1) {
+						frame1 = loadedLog.frameCount - 1;
+						frame0 = frame1 - 1;
+					}
+				}
 			}
 		} else {
 			touchMode = 'zoom';
@@ -1936,6 +1943,13 @@
 				startFrame + Math.round((endFrame - startFrame) * (touches[0].clientX / domCanvas.width));
 			frame1 =
 				startFrame + Math.round((endFrame - startFrame) * (touches[1].clientX / domCanvas.width));
+			if (frame1 === frame0) {
+				frame1++;
+				if (frame1 > loadedLog.frameCount - 1) {
+					frame1 = loadedLog.frameCount - 1;
+					frame0 = frame1 - 1;
+				}
+			}
 		}
 	}
 	function onTouchMove(e: TouchEvent) {
