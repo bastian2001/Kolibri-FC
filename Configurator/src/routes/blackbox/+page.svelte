@@ -1877,20 +1877,16 @@
 	}
 	function onMouseWheel(e: WheelEvent) {
 		e.preventDefault();
-		const framesBefore = startFrame,
-			framesAfter = loadedLog!.frameCount - 1 - endFrame;
+		if (!loadedLog) return;
 		const visibleFrames = endFrame - startFrame;
 		let moveBy = e.deltaY * 0.002 * visibleFrames;
+		if (moveBy > 0 && moveBy < 1) moveBy = 1;
+		if (moveBy < 0 && moveBy > -1) moveBy = -1;
+		if (moveBy > visibleFrames * 0.3) moveBy = visibleFrames * 0.3;
+		if (moveBy < -visibleFrames * 0.3) moveBy = -visibleFrames * 0.3;
 		moveBy = Math.round(moveBy);
-		if (-moveBy > framesBefore) moveBy = -framesBefore;
-		if (moveBy > framesAfter) moveBy = framesAfter;
-		if (moveBy > 0) {
-			if (moveBy < 1) moveBy = 1;
-			else if (moveBy > visibleFrames * 0.3) moveBy = visibleFrames * 0.3;
-		} else {
-			if (moveBy > -1) moveBy = -1;
-			else if (moveBy < -visibleFrames * 0.3) moveBy = -visibleFrames * 0.3;
-		}
+		if (startFrame + moveBy < 0) moveBy = -startFrame;
+		if (endFrame + moveBy > loadedLog.frameCount - 1) moveBy = loadedLog.frameCount - 1 - endFrame;
 		startFrame += moveBy;
 		endFrame += moveBy;
 	}
