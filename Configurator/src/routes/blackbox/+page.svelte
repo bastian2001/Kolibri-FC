@@ -1622,6 +1622,28 @@
 	let startStartFrame = 0;
 	let startEndFrame = 0;
 	const selectionCanvas = document.createElement('canvas');
+	function drawSelection(startX: number, endX: number) {
+		const ctx = selectionCanvas.getContext('2d') as CanvasRenderingContext2D;
+		ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+		ctx.fillStyle = 'rgba(0,0,0,0.2)';
+		ctx.fillRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+		ctx.clearRect(startX, 0, endX - startX, selectionCanvas.height);
+		ctx.strokeStyle = 'white';
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(startX, 0);
+		ctx.lineTo(startX, selectionCanvas.height);
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.moveTo(endX, 0);
+		ctx.lineTo(endX, selectionCanvas.height);
+		ctx.stroke();
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
+		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+		domCtx.drawImage(canvas, 0, 0);
+		domCtx.drawImage(selectionCanvas, 0, 0);
+	}
 	function onMouseMove(e: MouseEvent) {
 		if (!loadedLog) return;
 		if (e.buttons !== 1) {
@@ -1814,26 +1836,7 @@
 			return;
 		}
 		trackingEndX = e.clientX;
-		const ctx = selectionCanvas.getContext('2d') as CanvasRenderingContext2D;
-		ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-		ctx.fillStyle = 'rgba(0,0,0,0.2)';
-		ctx.fillRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-		ctx.clearRect(trackingStartX, 0, trackingEndX - trackingStartX, selectionCanvas.height);
-		ctx.strokeStyle = 'white';
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.moveTo(trackingStartX, 0);
-		ctx.lineTo(trackingStartX, selectionCanvas.height);
-		ctx.stroke();
-		ctx.beginPath();
-		ctx.moveTo(trackingEndX, 0);
-		ctx.lineTo(trackingEndX, selectionCanvas.height);
-		ctx.stroke();
-		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
-		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
-		domCtx.drawImage(canvas, 0, 0);
-		domCtx.drawImage(selectionCanvas, 0, 0);
+		drawSelection(trackingStartX, trackingEndX);
 	}
 	function onMouseDown(e: MouseEvent) {
 		if (!loadedLog || e.button !== 0) return;
@@ -1846,23 +1849,7 @@
 		}
 		trackingStartX = e.offsetX;
 		trackingEndX = e.offsetX;
-		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-		selectionCanvas.width = domCanvas.width;
-		selectionCanvas.height = domCanvas.height;
-		const ctx = selectionCanvas.getContext('2d') as CanvasRenderingContext2D;
-		ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-		ctx.fillStyle = 'rgba(0,0,0,0.2)';
-		ctx.fillRect(0, 0, selectionCanvas.width, selectionCanvas.height);
-		ctx.strokeStyle = 'white';
-		ctx.lineWidth = 1;
-		ctx.beginPath();
-		ctx.moveTo(trackingStartX, 0);
-		ctx.lineTo(trackingStartX, selectionCanvas.height);
-		ctx.stroke();
-		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
-		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
-		domCtx.drawImage(canvas, 0, 0);
-		domCtx.drawImage(selectionCanvas, 0, 0);
+		drawSelection(trackingStartX, trackingEndX);
 	}
 	function onMouseUp() {
 		if (trackingStartX === -1) return;
@@ -1911,6 +1898,103 @@
 			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
 			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
 			domCtx.drawImage(canvas, 0, 0);
+		}
+	}
+	let touchStartX = 0,
+		touchEndX = 0,
+		frame0 = 0,
+		frame1 = 0; //0 and 1 are the touch identifiers, and frames are the frames they are clamped to
+	let touchMode: 'none' | 'move' | 'zoom' = 'none';
+	function onTouchDown(e: TouchEvent) {
+		e.preventDefault();
+		if (!loadedLog) return;
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const touches = [];
+		const changedTouches = [];
+		for (let i = 0; i < e.touches.length; i++)
+			if (e.touches[i].identifier < 2) touches.push(e.touches[i]);
+		for (let i = 0; i < e.changedTouches.length; i++)
+			if (e.changedTouches[i].identifier < 2) changedTouches.push(e.changedTouches[i]);
+
+		if (changedTouches.length === 1) {
+			if (touchMode === 'none') {
+				touchMode = 'move';
+				touchStartX = changedTouches[0].clientX;
+				startStartFrame = startFrame;
+				startEndFrame = endFrame;
+			} else {
+				touchMode = 'zoom';
+				frame0 =
+					startFrame + Math.round((endFrame - startFrame) * (touches[0].clientX / domCanvas.width));
+				frame1 =
+					startFrame + Math.round((endFrame - startFrame) * (touches[1].clientX / domCanvas.width));
+			}
+		} else {
+			touchMode = 'zoom';
+			frame0 =
+				startFrame + Math.round((endFrame - startFrame) * (touches[0].clientX / domCanvas.width));
+			frame1 =
+				startFrame + Math.round((endFrame - startFrame) * (touches[1].clientX / domCanvas.width));
+		}
+	}
+	function onTouchMove(e: TouchEvent) {
+		e.preventDefault();
+		if (!loadedLog) return;
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const touches = [];
+		for (let i = 0; i < e.touches.length; i++)
+			if (e.touches[i].identifier < 2) touches.push(e.touches[i]);
+		if (e.touches[0].identifier === 1) return;
+		if (touchMode === 'move') {
+			const diff = touches[0].clientX - touchStartX;
+			const ratio = (startStartFrame - startEndFrame) / domCanvas.width;
+			let deltaFrames = Math.floor(diff * ratio);
+			if (startEndFrame + deltaFrames > loadedLog!.frameCount - 1)
+				deltaFrames = loadedLog!.frameCount - 1 - startEndFrame;
+			if (startStartFrame + deltaFrames < 0) deltaFrames = -startStartFrame;
+			startFrame = startStartFrame + deltaFrames;
+			endFrame = startEndFrame + deltaFrames;
+		}
+		if (touchMode === 'zoom') {
+			let span = Math.round(
+				((frame1 - frame0) * domCanvas.width) / (e.touches[1].clientX - e.touches[0].clientX)
+			);
+			if (span < 0) span = loadedLog.frameCount - 1;
+			if (span >= loadedLog.frameCount - 1) {
+				startFrame = 0;
+				endFrame = loadedLog.frameCount - 1;
+				return;
+			}
+			const frameCenter = Math.round((frame0 + frame1) / 2);
+			const centerPos = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+			startFrame = frameCenter - Math.round(span * (centerPos / domCanvas.width));
+			endFrame = frameCenter + Math.round(span * (1 - centerPos / domCanvas.width));
+			if (startFrame < 0) {
+				endFrame -= startFrame;
+				startFrame = 0;
+			}
+			if (endFrame >= loadedLog.frameCount) {
+				startFrame -= endFrame - loadedLog.frameCount + 1;
+				endFrame = loadedLog.frameCount - 1;
+			}
+		}
+	}
+	function onTouchUp(e: TouchEvent) {
+		e.preventDefault();
+		if (!loadedLog) return;
+		if (touchMode === 'none') return;
+		if (touchMode === 'move') {
+			touchMode = 'none';
+			return;
+		}
+		if (touchMode === 'zoom') {
+			if (e.touches[0]?.identifier === 0) {
+				touchMode = 'move';
+				touchStartX = e.touches[0].clientX;
+				startStartFrame = startFrame;
+				startEndFrame = endFrame;
+				return;
+			} else touchMode = 'none';
 		}
 	}
 
@@ -2060,6 +2144,8 @@
 		const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 		canvas.height = dataViewer.clientHeight;
 		canvas.width = dataViewer.clientWidth;
+		selectionCanvas.height = dataViewer.clientHeight;
+		selectionCanvas.width = dataViewer.clientWidth;
 
 		drawCanvas();
 	}
@@ -2108,6 +2194,9 @@
 			on:mousemove={onMouseMove}
 			on:mouseleave={onMouseLeave}
 			on:wheel={onMouseWheel}
+			on:touchstart={onTouchDown}
+			on:touchmove={onTouchMove}
+			on:touchend={onTouchUp}
 			on:dblclick={() => {
 				startFrame = 0;
 				endFrame = (loadedLog?.frameCount || 1) - 1;
