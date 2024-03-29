@@ -1460,6 +1460,32 @@
 	const canvas = document.createElement('canvas');
 	let sliceAndSkip = [] as LogFrame[];
 	let skipValue = 0;
+	const durationBarRaster = [
+		'1ms',
+		'2ms',
+		'5ms',
+		'10ms',
+		'20ms',
+		'50ms',
+		'100ms',
+		'200ms',
+		'0.5s',
+		'1s',
+		'2s',
+		'5s',
+		'10s',
+		'20s',
+		'30s',
+		'1min',
+		'2min',
+		'5min'
+	];
+	function decodeDuration(duration: string): number {
+		let seconds = parseFloat(duration.replaceAll(/[a-zA-Z]/g, ''));
+		if (duration.endsWith('min')) seconds *= 60;
+		else if (duration.endsWith('ms')) seconds *= 0.001;
+		return seconds;
+	}
 	function drawCanvas(allowShortening = true) {
 		if (!mounted) return;
 		if (allowShortening) {
@@ -1491,7 +1517,39 @@
 				sliceAndSkip.push(dataSlice[i]);
 			}
 		}
+		const pixelsPerSec =
+			(dataViewer.clientWidth * loadedLog!.framesPerSecond) / (dataSlice.length - 1);
+		//filter out all the ones that don't fit
+		let durations = durationBarRaster.filter((el) => {
+			const seconds = decodeDuration(el);
+			if (seconds * pixelsPerSec >= dataViewer.clientWidth - 80) return false;
+			if (seconds * pixelsPerSec <= (dataViewer.clientWidth - 80) * 0.1) return false;
+			return true;
+		});
+		let barDuration = '';
+		for (let i = 0; i < durations.length - 1; i++) {
+			if (pixelsPerSec * decodeDuration(durations[i]) > 200) {
+				barDuration = durations[i];
+				break;
+			}
+		}
+		barDuration = barDuration || durations[durations.length - 1];
+		const barLength = pixelsPerSec * decodeDuration(barDuration || '1s');
 		ctx.clearRect(0, 0, dataViewer.clientWidth, dataViewer.clientHeight);
+		ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+		ctx.lineWidth = 3;
+		ctx.textAlign = 'center';
+		ctx.font = '16px sans-serif';
+		ctx.textBaseline = 'bottom';
+		ctx.fillStyle = 'white';
+		if (barDuration) {
+			ctx.beginPath();
+			ctx.moveTo(16, 40);
+			ctx.lineTo(16 + barLength, 40);
+			ctx.stroke();
+			ctx.fillText(barDuration, 16 + barLength / 2, 35);
+		}
+
 		const frameWidth = width / (sliceAndSkip.length - 1);
 		const numGraphs = graphs.length;
 		const heightPerGraph = (height - dataViewer.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
