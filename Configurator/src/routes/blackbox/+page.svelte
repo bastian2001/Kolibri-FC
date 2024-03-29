@@ -1875,6 +1875,7 @@
 		trackingStartX = -1;
 	}
 	function onMouseWheel(e: WheelEvent) {
+		e.preventDefault();
 		const framesBefore = startFrame,
 			framesAfter = loadedLog!.frameCount - 1 - endFrame;
 		const visibleFrames = endFrame - startFrame;
