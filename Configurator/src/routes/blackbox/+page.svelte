@@ -1945,7 +1945,6 @@
 		const touches = [];
 		for (let i = 0; i < e.touches.length; i++)
 			if (e.touches[i].identifier < 2) touches.push(e.touches[i]);
-		if (e.touches[0].identifier === 1) return;
 		if (touchMode === 'move') {
 			const diff = touches[0].clientX - touchStartX;
 			const ratio = (startStartFrame - startEndFrame) / domCanvas.width;
@@ -1984,18 +1983,23 @@
 		e.preventDefault();
 		if (!loadedLog) return;
 		if (touchMode === 'none') return;
-		if (touchMode === 'move') {
+		if (touchMode === 'move' && (e.touches[0]?.identifier || 2) >= 2) {
 			touchMode = 'none';
 			return;
 		}
 		if (touchMode === 'zoom') {
-			if (e.touches[0]?.identifier === 0) {
+			if (
+				(e.touches[0]?.identifier === 0 || e.touches[0]?.identifier === 1) &&
+				e.touches[1]?.identifier !== 1
+			) {
 				touchMode = 'move';
 				touchStartX = e.touches[0].clientX;
 				startStartFrame = startFrame;
 				startEndFrame = endFrame;
 				return;
-			} else touchMode = 'none';
+			} else if (e.touches[1]?.identifier !== 1) {
+				touchMode = 'none';
+			}
 		}
 	}
 
