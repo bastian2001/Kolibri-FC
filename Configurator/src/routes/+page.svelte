@@ -189,6 +189,9 @@
 			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
 				console.log(command.data);
 				break;
+			case ConfigCmd.CALIBRATE_ACCELEROMETER | 0x4000:
+				console.log('Accelerometer calibrated');
+				break;
 		}
 	}
 
@@ -205,6 +208,9 @@
 	function ledOff() {
 		port.sendCommand(ConfigCmd.SET_DEBUG_LED, [0]);
 	}
+	function calibrateAccel() {
+		port.sendCommand(ConfigCmd.CALIBRATE_ACCELEROMETER);
+	}
 	function playSound() {
 		port.sendCommand(ConfigCmd.PLAY_SOUND);
 	}
@@ -219,7 +225,7 @@
 	onMount(() => {
 		getRotationInterval = setInterval(() => {
 			port.sendCommand(ConfigCmd.GET_ROTATION).catch(() => {});
-		}, 50);
+		}, 20);
 		getGpsData = setInterval(() => {
 			port
 				.sendCommand(ConfigCmd.GET_GPS_ACCURACY)
@@ -252,6 +258,7 @@
 <div>
 	<button on:click={() => ledOn()}>LED On</button>
 	<button on:click={() => ledOff()}>LED Off</button>
+	<button on:click={() => calibrateAccel()}>Calibrate Accelerometer</button>
 	<button on:click={() => playSound()}>Play Sound</button>
 	<input
 		type="number"

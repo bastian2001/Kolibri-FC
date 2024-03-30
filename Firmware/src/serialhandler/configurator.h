@@ -7,6 +7,7 @@
 #define CONFIG_BUFFER_DATA 6
 
 extern bool configuratorConnected;
+extern u8 accelCalDone;
 
 // responses to commands have the command | 0x4000, followed by the data, no separate response codes
 // When a command fails, the response code is command | 0x8000, followed by the error, no separate error codes.
@@ -47,6 +48,7 @@ enum class ConfigCmd {
 	REBOOT_BY_WATCHDOG,
 	GET_CRASH_DUMP,
 	CLEAR_CRASH_DUMP,
+	CALIBRATE_ACCELEROMETER,
 	MAG_POINT,
 	MAG_CALIBRATE,
 

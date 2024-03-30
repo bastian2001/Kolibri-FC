@@ -134,9 +134,11 @@
 		if (!loadedLog) return;
 		const startFrameX = (startFrame / loadedLog.frameCount) * canvas.width;
 		const endFrameX = (endFrame / loadedLog.frameCount) * canvas.width;
-		if (Math.abs(e.offsetX - startFrameX) < 10) {
+		const selectionWidth = Math.abs(endFrameX - startFrameX);
+		const maxInside = Math.min(selectionWidth / 3, 10);
+		if (e.offsetX - startFrameX < maxInside && startFrameX - e.offsetX < 10) {
 			currentlyTracking = 'start';
-		} else if (Math.abs(e.offsetX - endFrameX) < 10) {
+		} else if (endFrameX - e.offsetX < maxInside && e.offsetX - endFrameX < 10) {
 			currentlyTracking = 'end';
 		} else if (e.offsetX > startFrameX && e.offsetX < endFrameX) {
 			currentlyTracking = 'move';

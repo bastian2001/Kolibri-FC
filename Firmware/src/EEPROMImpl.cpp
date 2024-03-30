@@ -17,6 +17,9 @@ void readEEPROM() {
 		EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rf);
 		EEPROM.put((u16)EEPROM_POS::BB_FLAGS, (u64)0);
 		EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, (u8)2);
+		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION, (u16)0);
+		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, (u16)0);
+		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, (u16)0);
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD, (i16)0);
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, (i16)0);
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, (i16)0);
@@ -36,6 +39,12 @@ void readEEPROM() {
 	EEPROM.get((u16)EEPROM_POS::BB_FLAGS, bbFlags);
 	EEPROM.get((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 	i16 data;
+	EEPROM.get((u16)EEPROM_POS::ACCEL_CALIBRATION, data);
+	accelCalibrationOffset[0] = data;
+	EEPROM.get((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, data);
+	accelCalibrationOffset[1] = data;
+	EEPROM.get((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, data);
+	accelCalibrationOffset[2] = data;
 	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD, data);
 	magOffset[0] = data;
 	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, data);

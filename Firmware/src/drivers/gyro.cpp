@@ -5,9 +5,12 @@
 u32 gyroLastState         = 0;
 elapsedMicros lastPIDLoop = 0;
 
-u32 gyroCalibratedCycles         = 0;
-i32 gyroCalibrationOffset[3]     = {0};
-i16 gyroCalibrationOffsetTemp[3] = {0};
+u32 gyroCalibratedCycles          = 0;
+i32 gyroCalibrationOffset[3]      = {0};
+i32 accelCalibrationOffset[3]     = {0};
+i16 gyroCalibrationOffsetTemp[3]  = {0};
+i32 accelCalibrationOffsetTemp[3] = {0};
+u16 accelCalibrationCycles        = 0;
 
 void gyroLoop() {
 	u8 gpioState = gpio_get(PIN_GYRO_INT1);
@@ -32,13 +35,34 @@ void gyroLoop() {
 						gyroCalibrationOffset[0] = gyroCalibrationOffsetTemp[0] / CALIBRATION_SAMPLES;
 						gyroCalibrationOffset[1] = gyroCalibrationOffsetTemp[1] / CALIBRATION_SAMPLES;
 						gyroCalibrationOffset[2] = gyroCalibrationOffsetTemp[2] / CALIBRATION_SAMPLES;
-						char buf[100];
 					}
 				} else {
 					gyroCalibrationOffsetTemp[0] = 0;
 					gyroCalibrationOffsetTemp[1] = 0;
 					gyroCalibrationOffsetTemp[2] = 0;
 					gyroCalibratedCycles         = 0;
+				}
+				if (accelCalibrationCycles) {
+					if (accelCalibrationCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
+						accelCalibrationOffset[0]     = 0;
+						accelCalibrationOffset[1]     = 0;
+						accelCalibrationOffset[2]     = 0;
+						accelCalibrationOffsetTemp[0] = 0;
+						accelCalibrationOffsetTemp[1] = 0;
+						accelCalibrationOffsetTemp[2] = 0;
+					}
+					accelCalibrationCycles--;
+					if (accelCalibrationCycles < CALIBRATION_SAMPLES) {
+						accelCalibrationOffsetTemp[0] += accelDataRaw[0];
+						accelCalibrationOffsetTemp[1] += accelDataRaw[1];
+						accelCalibrationOffsetTemp[2] += accelDataRaw[2] - 2048;
+						if (accelCalibrationCycles == 0) {
+							accelCalibrationOffset[0] = accelCalibrationOffsetTemp[0] / CALIBRATION_SAMPLES;
+							accelCalibrationOffset[1] = accelCalibrationOffsetTemp[1] / CALIBRATION_SAMPLES;
+							accelCalibrationOffset[2] = accelCalibrationOffsetTemp[2] / CALIBRATION_SAMPLES;
+							accelCalDone              = 1;
+						}
+					}
 				}
 			}
 		}
@@ -91,7 +115,7 @@ int gyroInit() {
 	data = 0x03; // +/- 16g
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_RANGE, &data, 1, 500);
 	// GYR_CONF: gyr_filter_perf (7) | gyr_noise_perf (6) | gyr_bwp (5...4) | gyr_odr (3...0)
-	data = 1 << 7 | 1 << 6 | 0x02 << 4 | 0x0D; // performance optimized, 3200Hz
+	data = 1 << 7 | 1 << 6 | 0x00 << 4 | 0x0D; // performance optimized, 3200Hz
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::GYR_CONF, &data, 1, 500);
 	// GYR_RANGE: ois_range (3) | gyr_range (2...0)
 	data = 0x00; // +/- 2000dps
@@ -120,9 +144,12 @@ u32 gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
 void gyroGetData(i16 *buf) {
 	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_X_LSB, (u8 *)buf, 12);
-	buf[0] -= gyroCalibrationOffset[0];
-	buf[1] -= gyroCalibrationOffset[1];
-	buf[2] -= gyroCalibrationOffset[2];
+	buf[0] -= accelCalibrationOffset[0];
+	buf[1] -= accelCalibrationOffset[1];
+	buf[2] -= accelCalibrationOffset[2];
+	buf[3] -= gyroCalibrationOffset[0];
+	buf[4] -= gyroCalibrationOffset[1];
+	buf[5] -= gyroCalibrationOffset[2];
 	gyroUpdateFlag = 0xFFFFFFFF;
 }
 
