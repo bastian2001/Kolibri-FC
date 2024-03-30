@@ -438,7 +438,8 @@ void handleConfigCmd() {
 		i32 vVelRaw = vVel.getRaw();
 		memcpy(&buf[32], &cAlt, 4);
 		memcpy(&buf[36], &vVelRaw, 4);
-		sendCommand(configMsgCommand | 0x4000, buf, 40);
+		memcpy(&buf[40], &magHeading, 4);
+		sendCommand(configMsgCommand | 0x4000, buf, 44);
 	} break;
 	case ConfigCmd::REBOOT_BY_WATCHDOG:
 		delay(1000);
@@ -456,6 +457,12 @@ void handleConfigCmd() {
 			EEPROM.write(4096 - 256 + i, 0);
 		}
 		sendCommand(configMsgCommand | 0x4000);
+	} break;
+	case ConfigCmd::MAG_CALIBRATE: {
+		magStateAfterRead = MAG_CALIBRATE;
+		char calString[128];
+		snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
+		sendCommand((u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
 	} break;
 	default: {
 		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));

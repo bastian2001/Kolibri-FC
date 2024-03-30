@@ -4,18 +4,12 @@
 
 u32 magState = 0;
 elapsedMicros magTimer;
-u8 magBuffer[6]  = {0};
-fix32 magData[3] = {0};
+u8 magBuffer[6] = {0};
+i32 magData[3]  = {0};
 
-i32 minMag[3] = {2047};
-i32 maxMag[3] = {-2048};
-
-i32 magOffset[3]  = {0};
-fix32 magScale[3] = {1, 1, 1};
+i16 magOffset[3] = {0};
 
 fix32 magHeading = 0;
-
-u32 magOutOfRange = 0;
 
 void initMag() {
 	i2c_init(I2C_MAG, 400000);
@@ -43,21 +37,32 @@ void initMag() {
 	magBuffer[2] = MAG_RANGE_2_5;
 	magBuffer[3] = MAG_MODE_CONTINUOUS | MAG_MODE_HS_I2C;
 	i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 4, false);
-	Serial.println(i2c_set_baudrate(I2C_MAG, 3400000));
+	i2c_set_baudrate(I2C_MAG, 3400000);
 	magState = 2;
 }
 
-enum MAG_STATES {
-	MAG_NOT_INIT = 0,
-	MAG_INIT,
-	MAG_MEASURING,
-	MAG_SOON_READY,
-	MAG_CHECK_DATA_READY,
-	MAG_READ_DATA,
-	MAG_PROCESS_DATA,
-};
-
 u32 magStateAfterRead = MAG_PROCESS_DATA;
+float xtxMatrix[4][4] = {0};
+float xtyVector[4]    = {0};
+u32 calibrationCycle  = 0;
+
+float cofactor(float matrix[4][4], i32 row, i32 col) {
+	i32 rows[3] = {0};
+	i32 cols[3] = {0};
+	for (int i = 0; i < 3; i++) {
+		rows[i] = i >= row ? i + 1 : i;
+		cols[i] = i >= col ? i + 1 : i;
+	}
+	float temp = 0;
+	temp += matrix[rows[0]][cols[0]] * matrix[rows[1]][cols[1]] * matrix[rows[2]][cols[2]];
+	temp += matrix[rows[0]][cols[1]] * matrix[rows[1]][cols[2]] * matrix[rows[2]][cols[0]];
+	temp += matrix[rows[0]][cols[2]] * matrix[rows[1]][cols[0]] * matrix[rows[2]][cols[1]];
+	temp -= matrix[rows[0]][cols[2]] * matrix[rows[1]][cols[1]] * matrix[rows[2]][cols[0]];
+	temp -= matrix[rows[0]][cols[1]] * matrix[rows[1]][cols[0]] * matrix[rows[2]][cols[2]];
+	temp -= matrix[rows[0]][cols[0]] * matrix[rows[1]][cols[2]] * matrix[rows[2]][cols[1]];
+	temp *= (row + col) % 2 == 0 ? 1 : -1;
+	return temp;
+}
 
 void magLoop() {
 	switch (magState) {
@@ -75,6 +80,7 @@ void magLoop() {
 			magState = MAG_CHECK_DATA_READY;
 			magTimer = 0;
 		}
+		break;
 	case MAG_CHECK_DATA_READY: {
 		// check every ms if data is ready
 		magBuffer[0] = (u8)MAG_REG::STATUS;
@@ -93,19 +99,79 @@ void magLoop() {
 	} break;
 	case MAG_PROCESS_DATA: {
 		static i32 magDataRaw[3];
-		magDataRaw[0] = (i16)(magBuffer[1] + (magBuffer[0] << 8)) - magOffset[0];
-		magDataRaw[1] = (i16)(magBuffer[5] + (magBuffer[4] << 8)) - magOffset[1];
-		magDataRaw[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8)) - magOffset[2];
-		magData[0]    = magScale[0] * (int)magDataRaw[0]; // scale to normalised vector
-		magData[1]    = magScale[1] * (int)magDataRaw[1]; // scale to normalised vector
-		magData[2]    = magScale[2] * (int)magDataRaw[2]; // scale to normalised vector
-		fix32 normSq  = magData[0] * magData[0] + magData[1] * magData[1] + magData[2] * magData[2];
-		if (normSq > 2 || normSq < .5f) {
-			magOutOfRange++;
-		} else
-			magOutOfRange = 0;
-		magHeading = atan2f(magData[1].getf32(), magData[0].getf32());
-		magState   = MAG_MEASURING;
-	}
+		magDataRaw[0]     = (i16)(magBuffer[1] + (magBuffer[0] << 8));
+		magDataRaw[1]     = (i16)(magBuffer[5] + (magBuffer[4] << 8));
+		magDataRaw[2]     = (i16)(magBuffer[3] + (magBuffer[2] << 8));
+		magData[0]        = magDataRaw[0] - magOffset[0];
+		magData[1]        = magDataRaw[1] - magOffset[1];
+		magData[2]        = magDataRaw[2] - magOffset[2];
+		magHeading        = atan2f(-magData[0], -magData[1]);
+		magHeading        = magHeading * 180 / FIX_PI;
+		i16 raw[3]        = {(i16)magData[0], (i16)magData[1], (i16)magData[2]};
+		static u8 counter = 0;
+		if (counter++ % 10 == 0)
+			sendCommand((u16)ConfigCmd::MAG_POINT | 0xC000, (char *)raw, 6);
+		magState = MAG_MEASURING;
+	} break;
+	case MAG_CALIBRATE: {
+		i16 val[4] = {
+			(i16)magBuffer[1] + (magBuffer[0] << 8), // x
+			(i16)magBuffer[5] + (magBuffer[4] << 8), // y
+			(i16)magBuffer[3] + (magBuffer[2] << 8), // z
+			1};
+		for (int row = 0; row < 4; row++) {
+			for (int col = 0; col < 4; col++) {
+				xtxMatrix[row][col] += val[row] * val[col];
+			}
+			xtyVector[row] += val[row] * (val[0] * val[0] + val[1] * val[1] + val[2] * val[2]);
+		}
+		if (++calibrationCycle == 1000) {
+			magState          = MAG_PROCESS_CALIBRATION;
+			calibrationCycle  = 0;
+			magStateAfterRead = MAG_MEASURING;
+		} else {
+			magState = MAG_MEASURING;
+		}
+	} break;
+	case MAG_PROCESS_CALIBRATION: {
+		float xtxMatrixInv[4][4];
+		float det = 0;
+		for (int step = 0; step < 4; step++) {
+			det += xtxMatrix[0][step] * cofactor(xtxMatrix, 0, step);
+		}
+		if (det == 0) {
+			Serial.println("Determinant is 0");
+			break;
+		}
+		for (int row = 0; row < 4; row++) {
+			for (int col = 0; col < 4; col++) {
+				xtxMatrixInv[col][row] = (float)cofactor(xtxMatrix, row, col) / det;
+			}
+		}
+		float calibration[4];
+		for (int row = 0; row < 4; row++) {
+			calibration[row] = 0;
+			for (int col = 0; col < 4; col++) {
+				calibration[row] += (float)xtxMatrixInv[row][col] * xtyVector[col];
+			}
+		}
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				xtxMatrix[i][j] = 0;
+			}
+			xtyVector[i] = 0;
+		}
+		magOffset[0] = calibration[0] / 2;
+		magOffset[1] = calibration[1] / 2;
+		magOffset[2] = calibration[2] / 2;
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD, magOffset[0]);
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, magOffset[1]);
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, magOffset[2]);
+		EEPROM.commit();
+		magState = MAG_MEASURING;
+		char calString[128];
+		snprintf(calString, 128, "Offsets: %d %d %d, det: %f", magOffset[0], magOffset[1], magOffset[2], det);
+		sendCommand((u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
+	} break;
 	}
 }

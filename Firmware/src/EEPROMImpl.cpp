@@ -17,7 +17,9 @@ void readEEPROM() {
 		EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rf);
 		EEPROM.put((u16)EEPROM_POS::BB_FLAGS, (u64)0);
 		EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, (u8)2);
-
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD, (i16)0);
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, (i16)0);
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, (i16)0);
 		rp2040.wdt_reset();
 		EEPROM.commit();
 	}
@@ -33,4 +35,11 @@ void readEEPROM() {
 			rateFactors[i][j].setRaw(rf[i][j]);
 	EEPROM.get((u16)EEPROM_POS::BB_FLAGS, bbFlags);
 	EEPROM.get((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
+	i16 data;
+	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD, data);
+	magOffset[0] = data;
+	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, data);
+	magOffset[1] = data;
+	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, data);
+	magOffset[2] = data;
 }

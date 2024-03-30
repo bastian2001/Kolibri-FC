@@ -103,7 +103,8 @@
 		second: 0
 	};
 	let combinedAltitude = 0,
-		verticalVelocity = 0;
+		verticalVelocity = 0,
+		magHeading = 0;
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
@@ -161,6 +162,7 @@
 				};
 				combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
 				verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
+				magHeading = leBytesToInt(command.data.slice(40, 44), true) / 65536;
 				break;
 			case ConfigCmd.GET_GPS_STATUS | 0x4000:
 				gpsStatus = {
@@ -296,6 +298,7 @@
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT)}>Reboot</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_BY_WATCHDOG)}>Reboot (Watchdog)</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_TO_BOOTLOADER)}>Bootloader</button>
+	<button on:click={() => port.sendCommand(ConfigCmd.MAG_CALIBRATE)}>Calibrate Magnetometer</button>
 </div>
 <div class="droneStatus">
 	Flight Mode: {FLIGHT_MODES[flightMode]}, Armed: {armed ? 'Yes' : 'No'}, Configurator Connected: {configuratorConnected
@@ -334,7 +337,8 @@
 	<div class="axisLabel axisYaw">Yaw: {roundToDecimal(attitude.yaw, 2)}°</div>
 	<br />
 	Combined Altitude: {roundToDecimal(combinedAltitude, 2)}m<br />
-	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s
+	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s<br />
+	Magnetic Heading: {roundToDecimal(magHeading, 2)}°
 </div>
 <div class="gpsAcc gpsInfo">
 	Time Accuracy: {roundToDecimal(gpsAcc.tAcc, 2)}µs<br />

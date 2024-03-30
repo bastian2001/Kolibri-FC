@@ -47,6 +47,10 @@
 		{
 			name: 'Tuning',
 			path: '/tuning'
+		},
+		{
+			name: 'GPS & Mag',
+			path: '/gpsmag'
 		}
 	];
 

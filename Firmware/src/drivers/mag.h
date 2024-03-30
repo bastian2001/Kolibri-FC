@@ -50,3 +50,19 @@ enum class MAG_REG {
 void initMag();
 
 void magLoop();
+
+extern u32 magStateAfterRead;
+extern i16 magOffset[3];
+extern fix32 magHeading;
+
+enum MAG_STATES {
+	MAG_NOT_INIT = 0,
+	MAG_INIT,
+	MAG_MEASURING,
+	MAG_SOON_READY,
+	MAG_CHECK_DATA_READY,
+	MAG_READ_DATA,
+	MAG_PROCESS_DATA,
+	MAG_CALIBRATE,
+	MAG_PROCESS_CALIBRATION
+};

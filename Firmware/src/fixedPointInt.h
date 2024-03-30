@@ -232,3 +232,7 @@ public:
 		return fix32::fromRaw(-this->value);
 	};
 };
+
+extern const fix32 FIX_PI;
+extern const fix32 FIX_2PI;
+extern const fix32 FIX_PI_2;

@@ -47,6 +47,8 @@ enum class ConfigCmd {
 	REBOOT_BY_WATCHDOG,
 	GET_CRASH_DUMP,
 	CLEAR_CRASH_DUMP,
+	MAG_POINT,
+	MAG_CALIBRATE,
 
 	// indicators
 	IND_MESSAGE = 0xC000,

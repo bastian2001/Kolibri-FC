@@ -11,6 +11,7 @@ enum class EEPROM_POS : u16 {
 	UAV_TYPE                = 169,
 	BB_FLAGS                = 170,
 	BB_FREQ_DIVIDER         = 178,
+	MAG_CALIBRATION_HARD    = 185, // two bytes per axis,
 };
 
 void readEEPROM();
