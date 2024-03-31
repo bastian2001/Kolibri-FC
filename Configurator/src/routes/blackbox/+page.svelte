@@ -383,6 +383,13 @@
 			maxValue: 10,
 			decimals: 2,
 			unit: 'm/s'
+		},
+		LOG_MAG_HEADING: {
+			name: 'Mag Heading',
+			path: 'motion.magHeading',
+			minValue: -180,
+			maxValue: 180,
+			unit: '°'
 		}
 	} as {
 		[key: string]: {
@@ -1029,6 +1036,7 @@
 				else frameSize += 2;
 			}
 		}
+		console.log(frameSize);
 		const framesPerSecond = pidFreq / freqDiv;
 		const frames = data.length / frameSize;
 		const log: LogFrame[] = [];
@@ -1361,6 +1369,13 @@
 						data.slice(i + offsets['LOG_VVEL_SETPOINT'], i + offsets['LOG_VVEL_SETPOINT'] + 2),
 						true
 					) / 4096;
+			}
+			if (flags.includes('LOG_MAG_HEADING')) {
+				frame.motion.magHeading =
+					leBytesToInt(
+						data.slice(i + offsets['LOG_MAG_HEADING'], i + offsets['LOG_MAG_HEADING'] + 2),
+						true
+					) / 128;
 			}
 			log.push(frame);
 		}

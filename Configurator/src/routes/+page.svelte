@@ -104,7 +104,9 @@
 	};
 	let combinedAltitude = 0,
 		verticalVelocity = 0,
-		magHeading = 0;
+		magHeading = 0,
+		magX = 0,
+		magY = 0;
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
@@ -192,6 +194,9 @@
 			case ConfigCmd.CALIBRATE_ACCELEROMETER | 0x4000:
 				console.log('Accelerometer calibrated');
 				break;
+			case ConfigCmd.MAG_POINT | 0xc000:
+				magX = leBytesToInt(command.data.slice(0, 2), true);
+				magY = leBytesToInt(command.data.slice(2, 4), true);
 		}
 	}
 
@@ -345,7 +350,8 @@
 	<br />
 	Combined Altitude: {roundToDecimal(combinedAltitude, 2)}m<br />
 	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s<br />
-	Magnetic Heading: {roundToDecimal(magHeading, 2)}°
+	Magnetic Heading: {roundToDecimal(magHeading, 2)}°<br />
+	Mag X: {magX}, Mag Y: {magY}
 </div>
 <div class="gpsAcc gpsInfo">
 	Time Accuracy: {roundToDecimal(gpsAcc.tAcc, 2)}µs<br />

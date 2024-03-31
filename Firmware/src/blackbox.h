@@ -42,6 +42,7 @@
 #define LOG_ACCEL_FILTERED 1LL << 37 // 6 bytes
 #define LOG_VERTICAL_ACCEL 1LL << 38 // 2 bytes
 #define LOG_VVEL_SETPOINT 1LL << 39  // 2 bytes
+#define LOG_MAG_HEADING 1LL << 40    // 2 bytes
 
 #define LOG_HEAD_MAGIC 0
 #define LOG_HEAD_BB_VERSION 4

@@ -40,7 +40,7 @@
 
 	let groups = [] as string[][];
 
-	const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 8];
+	const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 9];
 
 	onMount(() => {
 		flagNames = Object.keys(flags);

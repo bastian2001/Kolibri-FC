@@ -67,7 +67,7 @@ void initPID() {
 	pidGainsVVel[I]  = .03;   // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D]  = 20000; // additional throttle, if accelerating by 3200m/s^2
 	pidGainsVVel[FF] = 30000;
-	pidGainsHVel[P]  = 12;            // immediate target tilt in degree @ 1m/s too slow/fast
+	pidGainsHVel[P]  = 5;             // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I]  = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D]  = 7;             // tilt in degrees, if changing speed by 3200m/s /s
 	vVelMaxErrorSum  = 2000 / pidGainsVVel[I].getf32();
@@ -191,8 +191,8 @@ void pidLoop() {
 				rollSetpoint  = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FLIGHT_MODE::GPS_VEL) {
-				fix32 cosfhead = cosFix(fix32::fromRaw(combinedHeading) / fix32(87.43f));
-				fix32 sinfhead = sinFix(fix32::fromRaw(combinedHeading) / fix32(87.43f));
+				fix32 cosfhead = cosFix(magHeading / 180 * FIX_PI);
+				fix32 sinfhead = sinFix(magHeading / 180 * FIX_PI);
 				eVelSetpoint   = cosfhead * (smoothChannels[0] - 1500) + sinfhead * (smoothChannels[1] - 1500);
 				nVelSetpoint   = -sinfhead * (smoothChannels[0] - 1500) + cosfhead * (smoothChannels[1] - 1500);
 				eVelSetpoint   = eVelSetpoint >> 9; //+-500 => +-1
