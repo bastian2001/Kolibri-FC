@@ -99,26 +99,42 @@ void magLoop() {
 	} break;
 	case MAG_PROCESS_DATA: {
 		static i32 magDataRaw[3];
-		magDataRaw[0]  = (i16)(magBuffer[1] + (magBuffer[0] << 8));
-		magDataRaw[1]  = (i16)(magBuffer[5] + (magBuffer[4] << 8));
-		magDataRaw[2]  = (i16)(magBuffer[3] + (magBuffer[2] << 8));
-		magData[0]     = magDataRaw[0] - magOffset[0];
-		magData[1]     = magDataRaw[1] - magOffset[1];
-		magData[2]     = magDataRaw[2] - magOffset[2];
+		magDataRaw[0] = (i16)(magBuffer[1] + (magBuffer[0] << 8));
+		magDataRaw[1] = (i16)(magBuffer[5] + (magBuffer[4] << 8));
+		magDataRaw[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8));
+		magData[0]    = magDataRaw[0] - magOffset[0];
+		magData[1]    = magDataRaw[1] - magOffset[1];
+		magData[2]    = magDataRaw[2] - magOffset[2];
+		startFixTrig();
 		fix32 cosRoll  = cosFix(roll);
 		fix32 sinRoll  = sinFix(roll);
 		fix32 cosPitch = cosFix(pitch);
 		fix32 sinPitch = sinFix(pitch);
 		// x: right, y: backward, z: down
 		// roll: left, pitch: front
-		fix32 magX        = cosRoll * magData[0] + sinRoll * cosPitch * magData[2] + sinRoll * sinPitch * magData[1];
-		fix32 magY        = cosPitch * magData[1] + sinPitch * magData[2];
-		magHeading        = atan2f(-magData[0], -magData[1]);
-		magHeading        = magHeading * 180 / FIX_PI + fix32(3.25);
-		i16 raw[3]        = {(i16)magX.getInt(), (i16)magY.getInt(), (i16)magData[2]};
+		fix32 magX = 0;
+		magX += cosRoll * magData[0];
+		magX += sinRoll * magData[2];
+
+		fix32 magY = 0;
+		magY += cosPitch * magData[1];
+		magY -= sinPitch * sinRoll * magData[0];
+		magY += sinPitch * cosRoll * magData[2];
+		magHeading = atan2f(-magX.getf32(), -magY.getf32());
+		magHeading = magHeading + fix32(0.05643f); // 3.25° magnetic declination in radians
+		fix32 updateVal = magHeading - yaw;
+		if (updateVal - (fix32)magHeadingCorrection > fix32(PI)) {
+			updateVal -= fix32(2 * PI);
+		} else if (updateVal - (fix32)magHeadingCorrection < fix32(-PI)) {
+			updateVal += fix32(2 * PI);
+		}
+		magHeadingCorrection.update(updateVal);
+		i16 raw[3]        = {magData[0], magData[1], (i16)magData[2]};
 		static u8 counter = 0;
-		if (counter++ % 10 == 0)
+		if (counter++ % 10 == 0) {
 			sendCommand((u16)ConfigCmd::MAG_POINT | 0xC000, (char *)raw, 6);
+			// Serial.printf("roll: %.2f, pitch: %.2f, cal: %5d %5d %5d, x: %5d, y%5d, xx: %.2f zx: %.2f, xy: %.2f yy: %.2f, zy: %.2f\n", roll * 180 / M_PI, pitch * 180 / M_PI, magData[0], magData[1], magData[2], magX.getInt(), magY.getInt(), cosRoll.getf32(), sinRoll.getf32(), (-sinPitch * sinRoll).getf32(), cosPitch.getf32(), (sinPitch * cosRoll).getf32());
+		}
 		magState = MAG_MEASURING;
 	} break;
 	case MAG_CALIBRATE: {
