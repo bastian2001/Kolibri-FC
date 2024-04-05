@@ -21,7 +21,7 @@
 				const y = leBytesToInt(data.slice(2, 4), true);
 				const z = leBytesToInt(data.slice(4, 6), true);
 				//each canvas plots values from -1000 to 1000
-				const scale = 500 / 2000;
+				const scale = 500 / 1000;
 				const xpx = x * scale + 250;
 				const ypx = y * scale + 250;
 				const zpx = z * scale + 250;
@@ -41,6 +41,21 @@
 	}
 </script>
 
-<canvas width="500" height="500" bind:this={canvasxy} style="display:inline-block" />
-<canvas width="500" height="500" bind:this={canvasyz} style="display:inline-block" />
-<canvas width="500" height="500" bind:this={canvaszx} style="display:inline-block" />
+<canvas
+	width="500"
+	height="500"
+	bind:this={canvasxy}
+	style="display:inline-block; border: 1px solid white;"
+/>
+<canvas
+	width="500"
+	height="500"
+	bind:this={canvasyz}
+	style="display:inline-block; border: 1px solid white;"
+/>
+<canvas
+	width="500"
+	height="500"
+	bind:this={canvaszx}
+	style="display:inline-block; border: 1px solid white;"
+/>
