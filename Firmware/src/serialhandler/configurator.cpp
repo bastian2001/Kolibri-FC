@@ -341,13 +341,16 @@ void handleConfigCmd() {
 		int rotationPitch = pitch * 8192;
 		int rotationRoll  = roll * 8192;
 		int rotationYaw   = yaw * 8192;
+		int heading       = combinedHeading.getRaw() >> 3;
 		buf[0]            = rotationPitch & 0xFF;
 		buf[1]            = rotationPitch >> 8;
 		buf[2]            = rotationRoll & 0xFF;
 		buf[3]            = rotationRoll >> 8;
 		buf[4]            = rotationYaw & 0xFF;
 		buf[5]            = rotationYaw >> 8;
-		sendCommand(configMsgCommand | 0x4000, buf, 6);
+		buf[6]            = heading & 0xFF;
+		buf[7]            = heading >> 8;
+		sendCommand(configMsgCommand | 0x4000, buf, 8);
 	} break;
 	case ConfigCmd::SERIAL_PASSTHROUGH: {
 		u8 serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
@@ -445,9 +448,10 @@ void handleConfigCmd() {
 		memcpy(&buf[28], &gpsMotion.headMot, 4);
 		i32 cAlt    = combinedAltitude.getRaw();
 		i32 vVelRaw = vVel.getRaw();
+		fix32 head  = magHeading * 180 / (float)M_PI;
 		memcpy(&buf[32], &cAlt, 4);
 		memcpy(&buf[36], &vVelRaw, 4);
-		memcpy(&buf[40], &magHeading, 4);
+		memcpy(&buf[40], &head, 4);
 		sendCommand(configMsgCommand | 0x4000, buf, 44);
 	} break;
 	case ConfigCmd::REBOOT_BY_WATCHDOG:
