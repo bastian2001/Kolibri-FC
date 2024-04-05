@@ -20,7 +20,7 @@ const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for ro
 PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 
 f32 pitch, roll, yaw;
-fix32 combinedHeading;             // NOT heading of motion, but heading of quad
+fix32 combinedHeading;       // NOT heading of motion, but heading of quad
 PT1 magHeadingCorrection(.02, 75); // 0.1Hz cutoff frequency with 75Hz update rate
 fix32 vVel, combinedAltitude, vVelHelper;
 fix32 eVel, nVel;
@@ -107,9 +107,9 @@ void __not_in_flash_func(updateFromAccel)() {
 }
 
 void __not_in_flash_func(updatePitchRollValues)() {
-	roll            = atan2f(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
-	pitch           = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
-	yaw             = atan2f(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
+	roll       = atan2f(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
+	pitch      = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
+	yaw        = atan2f(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
 	fix32 temp = (fix32)magHeadingCorrection + yaw;
 	if (temp > fix32(PI)) {
 		temp -= fix32(PI) * 2;

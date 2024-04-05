@@ -122,7 +122,7 @@ void magLoop() {
 		magY += sinPitch * cosRoll * magData[2];
 		magHeading      = atan2f(-magX.getf32(), -magY.getf32());
 		magHeading      = magHeading + 0.05643f; // 3.25° magnetic declination in radians
-		fix32 updateVal = magHeading - yaw;
+		fix32 updateVal = magHeading - fix32(yaw);
 		if (updateVal - (fix32)magHeadingCorrection > fix32(PI)) {
 			updateVal -= fix32(2 * PI);
 		} else if (updateVal - (fix32)magHeadingCorrection < fix32(-PI)) {
