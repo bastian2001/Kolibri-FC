@@ -28,8 +28,10 @@
 	let attitude = {
 		roll: 0,
 		pitch: 0,
-		yaw: 0
+		yaw: 0,
+		heading: 0
 	};
+	let showHeading = false;
 	let serialNum = 1;
 	let baudRate = 115200;
 	let getGpsData = 0,
@@ -106,7 +108,10 @@
 		verticalVelocity = 0,
 		magHeading = 0,
 		magX = 0,
-		magY = 0;
+		magY = 0,
+		magZ = 0,
+		magRight = 0,
+		magRear = 0;
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
@@ -127,13 +132,17 @@
 				let yaw = leBytesToInt(command.data.slice(4, 6), true);
 				yaw /= 8192.0;
 				yaw *= 180.0 / Math.PI;
-				zBox.style.transform = `rotateX(90deg) rotateZ(${yaw}deg) translate3d(0px, 0px, -180px)`;
+				let heading = leBytesToInt(command.data.slice(6, 8), true);
+				heading /= 8192.0;
+				heading *= 180.0 / Math.PI;
+				zBox.style.transform = `rotateZ(${showHeading ? heading : yaw}deg) translateZ(10px)`;
 				yBox.style.transform = `rotateX(${pitch}deg)`;
 				xBox.style.transform = `rotateY(${-roll}deg)`;
 				attitude = {
 					roll,
 					pitch,
-					yaw
+					yaw,
+					heading
 				};
 				break;
 			case ConfigCmd.SERIAL_PASSTHROUGH | 0x4000:
@@ -197,6 +206,9 @@
 			case ConfigCmd.MAG_POINT | 0xc000:
 				magX = leBytesToInt(command.data.slice(0, 2), true);
 				magY = leBytesToInt(command.data.slice(2, 4), true);
+				magZ = leBytesToInt(command.data.slice(4, 6), true);
+				magRight = leBytesToInt(command.data.slice(6, 8), true);
+				magRear = leBytesToInt(command.data.slice(8, 10), true);
 		}
 	}
 
@@ -325,19 +337,21 @@
 	Ping from Configurator: {pingFromConfigurator} - Ping from FC: {pingFromFC}
 </div>
 <div class="drone3DPreview">
-	<div class="zBox droneAxes" bind:this={zBox}>
-		<div class="yBox droneAxes" bind:this={yBox}>
-			<div class="xBox droneAxes" bind:this={xBox}>
-				<div class="droneFrame">
-					<div class="flrrBar" />
-					<div class="rlfrBar" />
-				</div>
-				<div class="arrowForward" />
-				<div class="props">
-					<div class="dronePropellerRR" />
-					<div class="dronePropellerFR" />
-					<div class="dronePropellerRL" />
-					<div class="dronePropellerFL" />
+	<div class="droneBase droneAxes">
+		<div class="zBox droneAxes" bind:this={zBox}>
+			<div class="yBox droneAxes" bind:this={yBox}>
+				<div class="xBox droneAxes" bind:this={xBox}>
+					<div class="droneFrame">
+						<div class="flrrBar" />
+						<div class="rlfrBar" />
+					</div>
+					<div class="arrowForward" />
+					<div class="props">
+						<div class="dronePropellerRR" />
+						<div class="dronePropellerFR" />
+						<div class="dronePropellerRL" />
+						<div class="dronePropellerFL" />
+					</div>
 				</div>
 			</div>
 		</div>
@@ -346,12 +360,20 @@
 <div class="attInfo">
 	<div class="axisLabel axisRoll">Roll: {roundToDecimal(attitude.roll, 2)}°</div>
 	<div class="axisLabel axisPitch">Pitch: {roundToDecimal(attitude.pitch, 2)}°</div>
-	<div class="axisLabel axisYaw">Yaw: {roundToDecimal(attitude.yaw, 2)}°</div>
+	{#if showHeading}
+		<div class="axisLabel axisHeading">Heading: {roundToDecimal(attitude.heading, 2)}°</div>
+	{:else}
+		<div class="axisLabel axisYaw">Yaw: {roundToDecimal(attitude.yaw, 2)}°</div>
+	{/if}
 	<br />
 	Combined Altitude: {roundToDecimal(combinedAltitude, 2)}m<br />
 	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s<br />
 	Magnetic Heading: {roundToDecimal(magHeading, 2)}°<br />
-	Mag X: {magX}, Mag Y: {magY}
+	Mag X: {magX}, Mag Y: {magY}, Mag Z: {magZ}<br />
+	Mag Right: {magRight}, Mag Rear: {magRear}<br />
+	<input type="checkbox" bind:checked={showHeading} id="headingCheckbox" /><label
+		for="headingCheckbox">Show Heading instead of Yaw</label
+	>
 </div>
 <div class="gpsAcc gpsInfo">
 	Time Accuracy: {roundToDecimal(gpsAcc.tAcc, 2)}µs<br />
@@ -399,9 +421,17 @@
 		position: relative;
 		display: inline-block;
 	}
+	.droneBase {
+		transform: rotateX(60deg) translate3d(0px, 0px, -180px);
+		top: -170px;
+		border-radius: 50%;
+		border: 5px solid #000;
+		background-image: url($lib/images/grid.png);
+		background-size: 20px 20px;
+		image-rendering: crisp-edges;
+	}
 	.zBox {
-		top: -130px;
-		transform: rotateX(90deg) rotateY(0deg) translate3d(0px, 0px, -180px);
+		transform: rotateZ(0deg) translateZ(10px);
 	}
 	/*Rotating the bounding box later via JS will rotate the whole drone with it*/
 	.xBox,
@@ -437,22 +467,24 @@
 		width: 150px;
 		transform-style: preserve-3d;
 		height: 150px;
-		background-color: #f00;
 		position: absolute;
-		transform-style: preserve-3d;
 		border-radius: 100%;
 	}
 	.dronePropellerFL {
 		transform: translate3d(60px, 60px, 15px);
+		background-color: #282;
 	}
 	.dronePropellerFR {
 		transform: translate3d(290px, 60px, 15px);
+		background-color: #282;
 	}
 	.dronePropellerRL {
 		transform: translate3d(60px, 290px, 15px);
+		background-color: #d00;
 	}
 	.dronePropellerRR {
 		transform: translate3d(290px, 290px, 15px);
+		background-color: #d00;
 	}
 	.arrowForward {
 		width: 100px;
@@ -461,7 +493,7 @@
 		left: 50%;
 		top: 150px;
 		transform: translate3d(-50%, -50%, 10px);
-		background-color: green;
+		background-color: #000;
 		clip-path: polygon(0 100%, 50% 0, 100% 100%);
 	}
 	.attInfo,
