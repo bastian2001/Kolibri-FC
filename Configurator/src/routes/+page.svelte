@@ -203,12 +203,6 @@
 			case ConfigCmd.CALIBRATE_ACCELEROMETER | 0x4000:
 				console.log('Accelerometer calibrated');
 				break;
-			case ConfigCmd.MAG_POINT | 0xc000:
-				magX = leBytesToInt(command.data.slice(0, 2), true);
-				magY = leBytesToInt(command.data.slice(2, 4), true);
-				magZ = leBytesToInt(command.data.slice(4, 6), true);
-				magRight = leBytesToInt(command.data.slice(6, 8), true);
-				magRear = leBytesToInt(command.data.slice(8, 10), true);
 		}
 	}
 
@@ -368,48 +362,9 @@
 	<br />
 	Combined Altitude: {roundToDecimal(combinedAltitude, 2)}m<br />
 	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s<br />
-	Magnetic Heading: {roundToDecimal(magHeading, 2)}°<br />
-	Mag X: {magX}, Mag Y: {magY}, Mag Z: {magZ}<br />
-	Mag Right: {magRight}, Mag Rear: {magRear}<br />
 	<input type="checkbox" bind:checked={showHeading} id="headingCheckbox" /><label
 		for="headingCheckbox">Show Heading instead of Yaw</label
 	>
-</div>
-<div class="gpsAcc gpsInfo">
-	Time Accuracy: {roundToDecimal(gpsAcc.tAcc, 2)}µs<br />
-	Horizontal Accuracy: {roundToDecimal(gpsAcc.hAcc, 2)}m<br />
-	Vertical Accuracy: {roundToDecimal(gpsAcc.vAcc, 2)}m<br />
-	Heading Accuracy: {roundToDecimal(gpsAcc.headAcc, 2)}°<br />
-	Speed Accuracy: {roundToDecimal(gpsAcc.sAcc, 2)}m/s<br />
-	PDOP: {roundToDecimal(gpsAcc.pDop, 2)}
-</div>
-<div class="gpsMotion gpsInfo">
-	Latitude: {degToDegMinSec(gpsMotion.lat)} - {roundToDecimal(gpsMotion.lat, 7)}°<br />
-	Longitude: {degToDegMinSec(gpsMotion.lon)} - {roundToDecimal(gpsMotion.lon, 7)}°<br />
-	Altitude: {roundToDecimal(gpsMotion.alt, 2)}m<br />
-	North Velocity: {roundToDecimal(gpsMotion.velN, 2)}m/s<br />
-	East Velocity: {roundToDecimal(gpsMotion.velE, 2)}m/s<br />
-	Down Velocity: {roundToDecimal(gpsMotion.velD, 2)}m/s<br />
-	Ground Speed: {roundToDecimal(gpsMotion.gSpeed, 2)}m/s<br />
-	Heading: {roundToDecimal(gpsMotion.headMot, 2)}°
-</div>
-<div class="gpsStatus gpsInfo">
-	GPS Inited: {gpsStatus.gpsInited ? 'Yes' : 'No'}<br />
-	Init Step: {gpsStatus.initStep}<br />
-	Fix: {gpsStatus.fix}<br />
-	Time Validity Flags: {gpsStatus.timeValidityFlags}<br />
-	Flags: {gpsStatus.flags}<br />
-	Flags2: {gpsStatus.flags2}<br />
-	Flags3: {gpsStatus.flags3}<br />
-	Satellite Count: {gpsStatus.satCount}
-</div>
-<div class="gpsTime gpsInfo">
-	Year: {gpsTime.year}<br />
-	Month: {gpsTime.month}<br />
-	Day: {gpsTime.day}<br />
-	Hour: {gpsTime.hour}<br />
-	Minute: {gpsTime.minute}<br />
-	Second: {gpsTime.second}
 </div>
 
 <style>

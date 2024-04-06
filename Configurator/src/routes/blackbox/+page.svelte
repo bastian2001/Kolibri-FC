@@ -390,6 +390,13 @@
 			minValue: -180,
 			maxValue: 180,
 			unit: '°'
+		},
+		LOG_COMBINED_HEADING: {
+			name: 'Combined Heading',
+			path: 'motion.combinedHeading',
+			minValue: -180,
+			maxValue: 180,
+			unit: '°'
 		}
 	} as {
 		[key: string]: {
@@ -1372,10 +1379,27 @@
 			}
 			if (flags.includes('LOG_MAG_HEADING')) {
 				frame.motion.magHeading =
-					leBytesToInt(
+					((leBytesToInt(
 						data.slice(i + offsets['LOG_MAG_HEADING'], i + offsets['LOG_MAG_HEADING'] + 2),
 						true
-					) / 128;
+					) /
+						8192) *
+						180) /
+					Math.PI;
+			}
+			if (flags.includes('LOG_COMBINED_HEADING')) {
+				frame.motion.combinedHeading =
+					((leBytesToInt(
+						data.slice(
+							i + offsets['LOG_COMBINED_HEADING'],
+							i + offsets['LOG_COMBINED_HEADING'] + 2
+						),
+						true
+					) /
+						8192) *
+						180) /
+					Math.PI;
+				console.log(frame.motion.combinedHeading);
 			}
 			log.push(frame);
 		}

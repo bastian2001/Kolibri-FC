@@ -448,7 +448,7 @@ void handleConfigCmd() {
 		memcpy(&buf[28], &gpsMotion.headMot, 4);
 		i32 cAlt    = combinedAltitude.getRaw();
 		i32 vVelRaw = vVel.getRaw();
-		i32 head  = magHeading.getRaw() * 180 / (float)M_PI;
+		i32 head    = magHeading.getRaw() * 180 / (float)M_PI;
 		memcpy(&buf[32], &cAlt, 4);
 		memcpy(&buf[36], &vVelRaw, 4);
 		memcpy(&buf[40], &head, 4);
@@ -475,6 +475,10 @@ void handleConfigCmd() {
 		accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
 		armingDisableFlags |= 0x40;
 		break;
+	case ConfigCmd::GET_MAG_DATA: {
+		i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
+		sendCommand(configMsgCommand | 0x4000, (char *)raw, 12);
+	} break;
 	case ConfigCmd::MAG_CALIBRATE: {
 		magStateAfterRead = MAG_CALIBRATE;
 		char calString[128];

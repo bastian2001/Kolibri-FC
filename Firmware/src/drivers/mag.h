@@ -54,6 +54,8 @@ void magLoop();
 extern u32 magStateAfterRead;
 extern i16 magOffset[3];
 extern fix32 magHeading;
+extern i32 magData[3];
+extern fix32 magX, magY;
 
 enum MAG_STATES {
 	MAG_NOT_INIT = 0,

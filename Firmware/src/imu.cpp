@@ -20,7 +20,7 @@ const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for ro
 PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 
 f32 pitch, roll, yaw;
-fix32 combinedHeading;       // NOT heading of motion, but heading of quad
+fix32 combinedHeading;             // NOT heading of motion, but heading of quad
 PT1 magHeadingCorrection(.02, 75); // 0.1Hz cutoff frequency with 75Hz update rate
 fix32 vVel, combinedAltitude, vVelHelper;
 fix32 eVel, nVel;

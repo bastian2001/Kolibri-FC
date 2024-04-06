@@ -470,7 +470,12 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = v >> 8;
 	}
 	if (currentBBFlags & LOG_MAG_HEADING) {
-		i16 h                 = (i16)(magHeading.getRaw() >> 9);
+		i16 h                 = (i16)(magHeading.getRaw() >> 3);
+		bbBuffer[bufferPos++] = h;
+		bbBuffer[bufferPos++] = h >> 8;
+	}
+	if (currentBBFlags & LOG_COMBINED_HEADING) {
+		int h                 = combinedHeading.getRaw() >> 3;
 		bbBuffer[bufferPos++] = h;
 		bbBuffer[bufferPos++] = h >> 8;
 	}
