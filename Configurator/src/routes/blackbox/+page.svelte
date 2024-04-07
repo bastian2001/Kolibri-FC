@@ -1223,7 +1223,7 @@
 			if (flags.includes('LOG_VVEL')) {
 				//10.6 fixed point
 				frame.motion.vvel =
-					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) / 64;
+					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) / 256;
 			}
 			if (flags.includes('LOG_GPS')) {
 				frame.motion.gps = log[log.length - 1]?.motion.gps || {};

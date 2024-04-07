@@ -391,7 +391,7 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = height >> 8;
 	}
 	if (currentBBFlags & LOG_VVEL) {
-		const i32 vvel        = vVel.getRaw() >> 10; // 10.6 fixed point, approx. 16mm/s resolution, +-512m/s max
+		const i32 vvel        = vVel.getRaw() >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
 		bbBuffer[bufferPos++] = vvel;
 		bbBuffer[bufferPos++] = vvel >> 8;
 	}
