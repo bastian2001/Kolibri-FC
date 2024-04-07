@@ -81,8 +81,14 @@
 		minute: 0,
 		second: 0
 	};
+	let combinedAltitude = 0,
+		verticalVelocity = 0;
+
+	let getGpsData = 0,
+		gpsDataSlow = 0;
 
 	$: handleCommand($port);
+	let lastMagData = 0;
 	function handleCommand(command: Command) {
 		switch (command.command) {
 			case ConfigCmd.GET_MAG_DATA | 0x4000:
@@ -115,6 +121,7 @@
 				ctxzx.beginPath();
 				ctxzx.arc(zpx, xpx, 2, 0, 2 * Math.PI);
 				ctxzx.fill();
+				break;
 			case ConfigCmd.GET_GPS_ACCURACY | 0x4000:
 				gpsAcc = {
 					tAcc: leBytesToInt(command.data.slice(0, 4)) * 1e-3,
@@ -136,9 +143,8 @@
 					gSpeed: leBytesToInt(command.data.slice(24, 28), true) * 1e-3,
 					headMot: leBytesToInt(command.data.slice(28, 32), true) * 1e-5
 				};
-				// combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
-				// verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
-				magHeading = leBytesToInt(command.data.slice(40, 44), true) / 65536;
+				combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
+				verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
 				break;
 			case ConfigCmd.GET_GPS_STATUS | 0x4000:
 				gpsStatus = {
@@ -169,6 +175,28 @@
 		magPointInterval = setInterval(() => {
 			port.sendCommand(ConfigCmd.GET_MAG_DATA);
 		}, 50);
+		getGpsData = setInterval(() => {
+			port
+				.sendCommand(ConfigCmd.GET_GPS_ACCURACY)
+				.then(() => {
+					return port.sendCommand(ConfigCmd.GET_GPS_MOTION);
+				})
+				.catch(() => {});
+		}, 200);
+		gpsDataSlow = setInterval(() => {
+			port
+				.sendCommand(ConfigCmd.GET_GPS_STATUS)
+				.then(() => {
+					return port.sendCommand(ConfigCmd.GET_GPS_TIME);
+				})
+				.catch(() => {});
+		}, 1000);
+	});
+
+	onDestroy(() => {
+		clearInterval(magPointInterval);
+		clearInterval(getGpsData);
+		clearInterval(gpsDataSlow);
 	});
 
 	function degToDegMinSec(deg: number) {
@@ -196,11 +224,15 @@
 	height="500"
 	bind:this={canvaszx}
 	style="display:inline-block; border: 1px solid white;"
-/>
+/><br />
+<button on:click={() => port.sendCommand(ConfigCmd.MAG_CALIBRATE)}>Calibrate Magnetometer</button
+><br />
 <div class="gpsInfo magStatus">
 	Magnetic Heading: {roundToDecimal(magHeading, 2)}°<br />
 	Mag X: {magX}, Mag Y: {magY}, Mag Z: {magZ}<br />
 	Mag Right: {magRight}, Mag Rear: {magRear}<br />
+	Combined Altitude: {roundToDecimal(combinedAltitude, 2)}m<br />
+	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s<br />
 </div>
 <div class="gpsAcc gpsInfo">
 	Time Accuracy: {roundToDecimal(gpsAcc.tAcc, 2)}µs<br />
@@ -238,3 +270,14 @@
 	Minute: {gpsTime.minute}<br />
 	Second: {gpsTime.second}
 </div>
+
+<style>
+	.gpsInfo {
+		display: inline-block;
+		margin: 0 1rem;
+		min-width: 200px;
+	}
+	button {
+		color: black;
+	}
+</style>

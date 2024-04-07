@@ -34,10 +34,6 @@
 	let showHeading = false;
 	let serialNum = 1;
 	let baudRate = 115200;
-	let getGpsData = 0,
-		gpsDataSlow = 0;
-	let combinedAltitude = 0,
-		verticalVelocity = 0;
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
@@ -109,22 +105,6 @@
 		getRotationInterval = setInterval(() => {
 			port.sendCommand(ConfigCmd.GET_ROTATION).catch(() => {});
 		}, 20);
-		getGpsData = setInterval(() => {
-			port
-				.sendCommand(ConfigCmd.GET_GPS_ACCURACY)
-				.then(() => {
-					return port.sendCommand(ConfigCmd.GET_GPS_MOTION);
-				})
-				.catch(() => {});
-		}, 200);
-		gpsDataSlow = setInterval(() => {
-			port
-				.sendCommand(ConfigCmd.GET_GPS_STATUS)
-				.then(() => {
-					return port.sendCommand(ConfigCmd.GET_GPS_TIME);
-				})
-				.catch(() => {});
-		}, 1500);
 		pingInterval = setInterval(() => {
 			pingFromConfigurator = port.getPingTime().fromConfigurator;
 			pingFromFC = port.getPingTime().fromFC;
@@ -132,8 +112,6 @@
 	});
 	onDestroy(() => {
 		clearInterval(getRotationInterval);
-		clearInterval(getGpsData);
-		clearInterval(gpsDataSlow);
 		clearInterval(pingInterval);
 	});
 </script>
@@ -188,7 +166,6 @@
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT)}>Reboot</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_BY_WATCHDOG)}>Reboot (Watchdog)</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_TO_BOOTLOADER)}>Bootloader</button>
-	<button on:click={() => port.sendCommand(ConfigCmd.MAG_CALIBRATE)}>Calibrate Magnetometer</button>
 </div>
 <div class="droneStatus">
 	Flight Mode: {FLIGHT_MODES[flightMode]}, Armed: {armed ? 'Yes' : 'No'}, Configurator Connected: {configuratorConnected
@@ -232,8 +209,6 @@
 		<div class="axisLabel axisYaw">Yaw: {roundToDecimal(attitude.yaw, 2)}°</div>
 	{/if}
 	<br />
-	Combined Altitude: {roundToDecimal(combinedAltitude, 2)}m<br />
-	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s<br />
 	<input type="checkbox" bind:checked={showHeading} id="headingCheckbox" /><label
 		for="headingCheckbox">Show Heading instead of Yaw</label
 	>
@@ -323,8 +298,7 @@
 		background-color: #000;
 		clip-path: polygon(0 100%, 50% 0, 100% 100%);
 	}
-	.attInfo,
-	.gpsInfo {
+	.attInfo {
 		display: inline-block;
 		margin: 0 1rem;
 		min-width: 200px;

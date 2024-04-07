@@ -128,10 +128,13 @@ void magLoop() {
 	} break;
 	case MAG_CALIBRATE: {
 		i16 val[4];
-		val[0] = magBuffer[1] + (magBuffer[0] << 8); // x
-		val[1] = magBuffer[5] + (magBuffer[4] << 8); // y
-		val[2] = magBuffer[3] + (magBuffer[2] << 8); // z
-		val[3] = 1;
+		val[0]     = magBuffer[1] + (magBuffer[0] << 8); // x
+		val[1]     = magBuffer[5] + (magBuffer[4] << 8); // y
+		val[2]     = magBuffer[3] + (magBuffer[2] << 8); // z
+		val[3]     = 1;
+		magData[0] = val[0] - magOffset[0];
+		magData[1] = val[1] - magOffset[1];
+		magData[2] = val[2] - magOffset[2];
 		for (int row = 0; row < 4; row++) {
 			for (int col = 0; col < 4; col++) {
 				xtxMatrix[row][col] += val[row] * val[col];

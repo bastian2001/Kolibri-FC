@@ -448,11 +448,9 @@ void handleConfigCmd() {
 		memcpy(&buf[28], &gpsMotion.headMot, 4);
 		i32 cAlt    = combinedAltitude.getRaw();
 		i32 vVelRaw = vVel.getRaw();
-		i32 head    = magHeading.getRaw() * 180 / (float)M_PI;
 		memcpy(&buf[32], &cAlt, 4);
 		memcpy(&buf[36], &vVelRaw, 4);
-		memcpy(&buf[40], &head, 4);
-		sendCommand(configMsgCommand | 0x4000, buf, 44);
+		sendCommand(configMsgCommand | 0x4000, buf, 40);
 	} break;
 	case ConfigCmd::REBOOT_BY_WATCHDOG:
 		delay(1000);
