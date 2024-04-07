@@ -67,9 +67,9 @@ void initPID() {
 	pidGainsVVel[I]  = .03;   // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D]  = 20000; // additional throttle, if accelerating by 3200m/s^2
 	pidGainsVVel[FF] = 30000;
-	pidGainsHVel[P]  = 5;             // immediate target tilt in degree @ 1m/s too slow/fast
-	pidGainsHVel[I]  = 10.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
-	pidGainsHVel[D]  = 7;             // tilt in degrees, if changing speed by 3200m/s /s
+	pidGainsHVel[P]  = 6;             // immediate target tilt in degree @ 1m/s too slow/fast
+	pidGainsHVel[I]  = 2.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
+	pidGainsHVel[D]  = 0;             // tilt in degrees, if changing speed by 3200m/s /s
 	vVelMaxErrorSum  = 2000 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum  = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
 }

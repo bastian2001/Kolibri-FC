@@ -37,7 +37,7 @@
 	let getGpsData = 0,
 		gpsDataSlow = 0;
 	let combinedAltitude = 0,
-		verticalVelocity = 0,
+		verticalVelocity = 0;
 
 	$: handleCommand($port);
 	function handleCommand(command: Command) {

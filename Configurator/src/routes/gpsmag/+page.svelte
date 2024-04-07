@@ -136,8 +136,8 @@
 					gSpeed: leBytesToInt(command.data.slice(24, 28), true) * 1e-3,
 					headMot: leBytesToInt(command.data.slice(28, 32), true) * 1e-5
 				};
-				combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
-				verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
+				// combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
+				// verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
 				magHeading = leBytesToInt(command.data.slice(40, 44), true) / 65536;
 				break;
 			case ConfigCmd.GET_GPS_STATUS | 0x4000:
