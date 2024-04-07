@@ -383,6 +383,20 @@
 			maxValue: 10,
 			decimals: 2,
 			unit: 'm/s'
+		},
+		LOG_MAG_HEADING: {
+			name: 'Mag Heading',
+			path: 'motion.magHeading',
+			minValue: -180,
+			maxValue: 180,
+			unit: '°'
+		},
+		LOG_COMBINED_HEADING: {
+			name: 'Combined Heading',
+			path: 'motion.combinedHeading',
+			minValue: -180,
+			maxValue: 180,
+			unit: '°'
 		}
 	} as {
 		[key: string]: {
@@ -1029,6 +1043,7 @@
 				else frameSize += 2;
 			}
 		}
+		console.log(frameSize);
 		const framesPerSecond = pidFreq / freqDiv;
 		const frames = data.length / frameSize;
 		const log: LogFrame[] = [];
@@ -1208,7 +1223,7 @@
 			if (flags.includes('LOG_VVEL')) {
 				//10.6 fixed point
 				frame.motion.vvel =
-					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) / 64;
+					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) / 256;
 			}
 			if (flags.includes('LOG_GPS')) {
 				frame.motion.gps = log[log.length - 1]?.motion.gps || {};
@@ -1362,6 +1377,30 @@
 						true
 					) / 4096;
 			}
+			if (flags.includes('LOG_MAG_HEADING')) {
+				frame.motion.magHeading =
+					((leBytesToInt(
+						data.slice(i + offsets['LOG_MAG_HEADING'], i + offsets['LOG_MAG_HEADING'] + 2),
+						true
+					) /
+						8192) *
+						180) /
+					Math.PI;
+			}
+			if (flags.includes('LOG_COMBINED_HEADING')) {
+				frame.motion.combinedHeading =
+					((leBytesToInt(
+						data.slice(
+							i + offsets['LOG_COMBINED_HEADING'],
+							i + offsets['LOG_COMBINED_HEADING'] + 2
+						),
+						true
+					) /
+						8192) *
+						180) /
+					Math.PI;
+				console.log(frame.motion.combinedHeading);
+			}
 			log.push(frame);
 		}
 		loadedLog = {
@@ -1443,7 +1482,7 @@
 				const bitNum = j % 8;
 				const flagIsSet = flags[byteNum] & (1 << bitNum);
 				if (!flagIsSet) continue;
-				if (j == 26 || j == 35) frameSize += 6;
+				if (j == 26 || [35, 36, 37].includes(j)) frameSize += 6;
 				else if (j == 28) frameSize++;
 				else frameSize += 2;
 			}

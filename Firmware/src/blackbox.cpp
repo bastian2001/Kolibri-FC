@@ -391,7 +391,7 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = height >> 8;
 	}
 	if (currentBBFlags & LOG_VVEL) {
-		const i32 vvel        = vVel.getRaw() >> 10; // 10.6 fixed point, approx. 16mm/s resolution, +-512m/s max
+		const i32 vvel        = vVel.getRaw() >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
 		bbBuffer[bufferPos++] = vvel;
 		bbBuffer[bufferPos++] = vvel >> 8;
 	}
@@ -468,6 +468,16 @@ void __not_in_flash_func(writeSingleFrame)() {
 		i16 v                 = (i16)(vVelSetpoint.getRaw() >> 4) * ((u8)flightMode >= 2);
 		bbBuffer[bufferPos++] = v;
 		bbBuffer[bufferPos++] = v >> 8;
+	}
+	if (currentBBFlags & LOG_MAG_HEADING) {
+		i16 h                 = (i16)(magHeading.getRaw() >> 3);
+		bbBuffer[bufferPos++] = h;
+		bbBuffer[bufferPos++] = h >> 8;
+	}
+	if (currentBBFlags & LOG_COMBINED_HEADING) {
+		int h                 = combinedHeading.getRaw() >> 3;
+		bbBuffer[bufferPos++] = h;
+		bbBuffer[bufferPos++] = h >> 8;
 	}
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);

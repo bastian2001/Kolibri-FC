@@ -12,6 +12,7 @@ enum class EEPROM_POS : u16 {
 	BB_FLAGS                = 170,
 	BB_FREQ_DIVIDER         = 178,
 	ACCEL_CALIBRATION       = 179, // 6 bytes: 2 bytes each for x, y, z
+	MAG_CALIBRATION_HARD    = 185, // two bytes per axis,
 };
 
 void readEEPROM();

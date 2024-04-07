@@ -341,13 +341,16 @@ void handleConfigCmd() {
 		int rotationPitch = pitch * 8192;
 		int rotationRoll  = roll * 8192;
 		int rotationYaw   = yaw * 8192;
+		int heading       = combinedHeading.getRaw() >> 3;
 		buf[0]            = rotationPitch & 0xFF;
 		buf[1]            = rotationPitch >> 8;
 		buf[2]            = rotationRoll & 0xFF;
 		buf[3]            = rotationRoll >> 8;
 		buf[4]            = rotationYaw & 0xFF;
 		buf[5]            = rotationYaw >> 8;
-		sendCommand(configMsgCommand | 0x4000, buf, 6);
+		buf[6]            = heading & 0xFF;
+		buf[7]            = heading >> 8;
+		sendCommand(configMsgCommand | 0x4000, buf, 8);
 	} break;
 	case ConfigCmd::SERIAL_PASSTHROUGH: {
 		u8 serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
@@ -470,6 +473,16 @@ void handleConfigCmd() {
 		accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
 		armingDisableFlags |= 0x40;
 		break;
+	case ConfigCmd::GET_MAG_DATA: {
+		i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
+		sendCommand(configMsgCommand | 0x4000, (char *)raw, 12);
+	} break;
+	case ConfigCmd::MAG_CALIBRATE: {
+		magStateAfterRead = MAG_CALIBRATE;
+		char calString[128];
+		snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
+		sendCommand((u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
+	} break;
 	default: {
 		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));
 	} break;

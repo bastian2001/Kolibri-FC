@@ -32,9 +32,9 @@ void gyroLoop() {
 					}
 					if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
 						armingDisableFlags &= 0xFFFFFFBF;
-						gyroCalibrationOffset[0] = gyroCalibrationOffsetTemp[0] / CALIBRATION_SAMPLES;
-						gyroCalibrationOffset[1] = gyroCalibrationOffsetTemp[1] / CALIBRATION_SAMPLES;
-						gyroCalibrationOffset[2] = gyroCalibrationOffsetTemp[2] / CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[0] = (gyroCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[1] = (gyroCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[2] = (gyroCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
 					}
 				} else {
 					gyroCalibrationOffsetTemp[0] = 0;
@@ -57,9 +57,9 @@ void gyroLoop() {
 						accelCalibrationOffsetTemp[1] += accelDataRaw[1];
 						accelCalibrationOffsetTemp[2] += accelDataRaw[2] - 2048;
 						if (accelCalibrationCycles == 0) {
-							accelCalibrationOffset[0] = accelCalibrationOffsetTemp[0] / CALIBRATION_SAMPLES;
-							accelCalibrationOffset[1] = accelCalibrationOffsetTemp[1] / CALIBRATION_SAMPLES;
-							accelCalibrationOffset[2] = accelCalibrationOffsetTemp[2] / CALIBRATION_SAMPLES;
+							accelCalibrationOffset[0] = (accelCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+							accelCalibrationOffset[1] = (accelCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+							accelCalibrationOffset[2] = (accelCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
 							accelCalDone              = 1;
 						}
 					}

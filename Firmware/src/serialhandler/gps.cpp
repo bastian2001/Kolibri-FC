@@ -248,22 +248,8 @@ void gpsLoop() {
 				gpsAcc.pDop                 = DECODE_U2(&msgData[76]);
 				gpsStatus.flags3            = DECODE_U2(&msgData[78]);
 				timestamp                   = gpsTime.second & 0x3F | (gpsTime.minute & 0x3F) << 6 | (gpsTime.hour & 0x1F) << 12 | (gpsTime.day & 0x1F) << 17 | (gpsTime.month & 0x0F) << 22 | (gpsTime.year - 2020) << 26;
-				static i32 lastHeadMot      = 0;
-				if (gpsStatus.fixType == fixTypes::FIX_3D && gpsMotion.gSpeed > 5000 && lastHeadMot != gpsMotion.headMot && gpsAcc.headAcc < 200000 && gpsStatus.satCount >= 6) {
-					// speed > 18 km/h, thus the heading is likely valid
-					// heading changed (if not, then that means the GPS module just took the old heading, which is probably inaccurate), and the heading accuracy is good (less than +-2°)
-					// gps acts as a LPF to bring the heading into the right direction, while the gyro acts as a HPF to adjust the heading quickly
-					i32 diff = gpsMotion.headMot - combinedHeadMot;
-					if (diff > 18000000) diff -= 36000000;
-					if (diff < -18000000) diff += 36000000;
-					diff /= 20;
-					headingAdjustment += diff;
-					if (headingAdjustment > 18000000) headingAdjustment -= 36000000;
-					if (headingAdjustment < -18000000) headingAdjustment += 36000000;
-				}
-				lastHeadMot = gpsMotion.headMot;
-				eVel        = fix32(0.8f) * eVel + fix32(0.0002f) * (int)gpsMotion.velE;
-				nVel        = fix32(0.8f) * nVel + fix32(0.0002f) * (int)gpsMotion.velN;
+				eVel                        = fix32(0.8f) * eVel + fix32(0.0002f) * (int)gpsMotion.velE;
+				nVel                        = fix32(0.8f) * nVel + fix32(0.0002f) * (int)gpsMotion.velN;
 				u8 buf[16];
 				snprintf((char *)buf, 16, "\x89%.7f", gpsMotion.lat / 10000000.f);
 				updateElem(OSDElem::LATITUDE, (char *)buf);
@@ -273,7 +259,7 @@ void gpsLoop() {
 				// updateElem(OSDElem::ALTITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "%d\x9E ", gpsMotion.gSpeed / 278);
 				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
-				snprintf((char *)buf, 16, "%dD ", combinedHeading / 100000);
+				snprintf((char *)buf, 16, "%dD ", combinedHeading * 180 / PI);
 				updateElem(OSDElem::HEADING, (char *)buf);
 				f32 toRadians = 1.745329251e-9f;
 				f32 sin1      = sinf((gpsMotion.lat - startPointLat) * (toRadians / 2));

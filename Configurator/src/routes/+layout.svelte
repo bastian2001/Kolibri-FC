@@ -47,6 +47,10 @@
 		{
 			name: 'Tuning',
 			path: '/tuning'
+		},
+		{
+			name: 'GPS & Mag',
+			path: '/gpsmag'
 		}
 	];
 
@@ -289,7 +293,7 @@
 	.pageContent {
 		flex-shrink: 1;
 		flex-grow: 1;
-		overflow: hidden;
+		overflow: auto;
 	}
 
 	.battery p {

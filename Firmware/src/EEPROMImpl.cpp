@@ -20,6 +20,9 @@ void readEEPROM() {
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION, (u16)0);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, (u16)0);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, (u16)0);
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD, (i16)0);
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, (i16)0);
+		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, (i16)0);
 		rp2040.wdt_reset();
 		EEPROM.commit();
 	}
@@ -42,4 +45,10 @@ void readEEPROM() {
 	accelCalibrationOffset[1] = data;
 	EEPROM.get((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, data);
 	accelCalibrationOffset[2] = data;
+	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD, data);
+	magOffset[0] = data;
+	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, data);
+	magOffset[1] = data;
+	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, data);
+	magOffset[2] = data;
 }

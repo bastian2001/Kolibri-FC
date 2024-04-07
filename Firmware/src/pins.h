@@ -21,6 +21,8 @@ enum class MOTOR : u8 {
 	RL,
 	FL,
 };
+#define PIN_SDA0 24
+#define PIN_SCL0 25
 #define PIN_GYRO_INT1 26
 #define PIN_BARO_CS 27
 #define PIN_ADC_CURRENT 28

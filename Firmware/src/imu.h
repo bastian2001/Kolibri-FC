@@ -3,7 +3,8 @@
 #include <Arduino.h>
 
 extern f32 pitch, roll, yaw;
-extern i32 headMotAtt, combinedHeading, combinedHeadMot;
+extern fix32 combinedHeading;
+extern PT1 magHeadingCorrection;
 extern fix32 vVel, combinedAltitude;
 extern fix32 eVel, nVel;
 extern Quaternion q;

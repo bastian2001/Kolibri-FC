@@ -20,9 +20,8 @@ const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for ro
 PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 
 f32 pitch, roll, yaw;
-i32 headMotAtt;      // heading of motion by attitude, i.e. yaw but with pitch/roll compensation
-i32 combinedHeading; // NOT heading of motion, but heading of quad
-i32 combinedHeadMot; // heading of motion, but with headingAdjustment applied
+fix32 combinedHeading;             // NOT heading of motion, but heading of quad
+PT1 magHeadingCorrection(.02, 75); // 0.1Hz cutoff frequency with 75Hz update rate
 fix32 vVel, combinedAltitude, vVelHelper;
 fix32 eVel, nVel;
 fix32 vAccel;
@@ -38,6 +37,7 @@ void imuInit() {
 	q.v[1] = 0;
 	q.v[2] = 0;
 	initFixTrig();
+	magHeadingCorrection.setRolloverParams(-PI, PI);
 }
 
 void __not_in_flash_func(updateFromGyro)() {
@@ -107,27 +107,22 @@ void __not_in_flash_func(updateFromAccel)() {
 }
 
 void __not_in_flash_func(updatePitchRollValues)() {
-	roll  = atan2f(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
-	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
-	yaw   = atan2f(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
+	roll       = atan2f(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
+	pitch      = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
+	yaw        = atan2f(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
+	fix32 temp = (fix32)magHeadingCorrection + yaw;
+	if (temp > fix32(PI)) {
+		temp -= fix32(PI) * 2;
+	} else if (temp < fix32(-PI)) {
+		temp += fix32(PI) * 2;
+	}
+	combinedHeading = temp;
 
-	headMotAtt      = yaw * 5729578;                  // 5729578 = 360 / (2 * PI) * 100000
-	combinedHeading = headMotAtt + headingAdjustment; // heading of quad
-	if (combinedHeading > 18000000) combinedHeading -= 36000000;
-	if (combinedHeading < -18000000) combinedHeading += 36000000;
-	if (roll > .2618f || pitch > .2618f || roll < -.2618f || pitch < -.2618f) {
-		// assume the quad is flying into the direction of pitch and roll, if the angle is larger than 15°
-		headMotAtt += atan2f(-orientation_vector[1], -orientation_vector[0]) * 5729578;
-		combinedHeadMot = headMotAtt + headingAdjustment; // heading of motion
-		if (combinedHeadMot > 18000000) combinedHeadMot -= 36000000;
-		if (combinedHeadMot < -18000000) combinedHeadMot += 36000000;
-	} else
-		combinedHeadMot = combinedHeading;
 	fix32 preHelper = vVelHelper;
 	startFixTrig();
 	vAccel = cosFix((fix32)roll) * cosFix((fix32)pitch) * accelDataFiltered[2] * RAW_TO_M2_PER_SEC;
 	vAccel += sinFix((fix32)roll) * cosFix((fix32)pitch) * accelDataFiltered[0] * RAW_TO_M2_PER_SEC;
-	vAccel += sinFix((fix32)pitch) * accelDataFiltered[1] * RAW_TO_M2_PER_SEC;
+	vAccel -= sinFix((fix32)pitch) * accelDataFiltered[1] * RAW_TO_M2_PER_SEC;
 	vVelHelper += (vAccel - 9.81f) / 3200;
 	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	vVel += vVelHelper - preHelper;

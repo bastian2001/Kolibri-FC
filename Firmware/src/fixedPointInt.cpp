@@ -24,7 +24,7 @@ void initFixTrig() {
  */
 fix32 sinFix(const fix32 x) {
 	i32 xNew = (x / FIX_PI).getRaw();
-	i32 sign = ((xNew >> 16) & 1) * 2 - 1; // 1 if 0 <= x < PI +/-2n*PI, -1 otherwise
+	i32 sign = 1 - ((xNew >> 16) & 1) * 2; // 1 if 0 <= x < PI +/-2n*PI, -1 otherwise
 	xNew &= 0xFFFF;                        // %= PI
 	u32 high          = xNew >> 8;
 	u32 low           = xNew & 0xFF;
