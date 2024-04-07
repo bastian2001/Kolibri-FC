@@ -109,8 +109,10 @@ void modesLoop() {
 		if (duration > tasks[TASK_MODES].maxDuration) {
 			tasks[TASK_MODES].maxDuration = duration;
 		}
-	} else if (ELRS->sinceLastRCMessage >= 500000)
+	} else if (ELRS->sinceLastRCMessage >= 500000) {
 		armed = false;
+		endLogging();
+	}
 }
 
 void modesInit() {
