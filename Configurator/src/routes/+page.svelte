@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { port, ConfigCmd } from '../stores';
+	import { port, ConfigCmd } from '../portStore';
 	import { onMount, onDestroy } from 'svelte';
-	import type { Command } from '../stores';
+	import type { Command } from '../portStore';
 	import { leBytesToInt, roundToDecimal } from '../utils';
 
 	const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
@@ -164,7 +164,6 @@
 	<button on:click={() => port.sendCommand(ConfigCmd.GET_CRASH_DUMP)}>Get Crash Dump</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.CLEAR_CRASH_DUMP)}>Clear Crash Dump</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT)}>Reboot</button>
-	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_BY_WATCHDOG)}>Reboot (Watchdog)</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_TO_BOOTLOADER)}>Bootloader</button>
 </div>
 <div class="droneStatus">

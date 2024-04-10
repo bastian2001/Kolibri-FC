@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, ConfigCmd } from '../../stores';
+	import { port, type Command, ConfigCmd } from '../../portStore';
 	import { onDestroy, onMount } from 'svelte';
 	import { leBytesToInt } from '../../utils';
 	import { error } from '@sveltejs/kit';

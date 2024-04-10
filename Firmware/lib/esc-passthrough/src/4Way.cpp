@@ -1,11 +1,10 @@
 #include <Arduino.h>
 
-#include "4Way.h"                  // 4Way defines
-#include "ESC_Serial.h"            // ESC Serial Code
-#include "Global.h"                // Global variables
+#include "4Way.h"       // 4Way defines
+#include "ESC_Serial.h" // ESC Serial Code
+#include "Global.h"     // Global variables
 
-uint8_t pioAvailable();
-uint8_t pioRead();
+uint8_t passthroughBreakout = false;
 
 uint16_t Check_4Way(uint8_t buf[]) {
 	uint8_t cmd           = buf[1];
@@ -180,7 +179,8 @@ uint16_t Check_4Way(uint8_t buf[]) {
 
 	else if (cmd == cmd_InterfaceExit) {
 		DeinitSerialOutput(); // initialisiert PPM IN/OUT
-		O_Param_Len = 0x01;
+		O_Param_Len         = 0x01;
+		passthroughBreakout = true;
 	}
 
 	else if (cmd == cmd_ProtocolGetVersion) {

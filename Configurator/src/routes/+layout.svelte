@@ -2,8 +2,8 @@
 	import { invoke } from '@tauri-apps/api';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
-	import { port, ConfigCmd } from '../stores';
-	import type { Command } from '../stores';
+	import { port, ConfigCmd } from '../portStore';
+	import type { Command } from '../portStore';
 	import { leBytesToInt } from '../utils';
 
 	let devices: any = [];

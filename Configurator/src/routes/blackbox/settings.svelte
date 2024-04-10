@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, ConfigCmd, type Command } from '../../stores';
+	import { port, ConfigCmd, type Command } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
 	import { onMount, createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();

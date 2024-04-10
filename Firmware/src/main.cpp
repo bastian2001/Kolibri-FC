@@ -1,42 +1,20 @@
+#include "esc_passthrough.h"
 #include "global.h"
 #include "hardware/structs/xip_ctrl.h"
-#include "onewire_receive.pio.h"
-#include "onewire_transmit.pio.h"
-#include "serial_comm.h"
 
 volatile u8 setupDone = 0b00;
 
-PIO testPio;
-u32 offsetPioReceive, offsetPioTransmit;
-u8 testSm = 0;
-pio_sm_config configPioReceive, configPioTransmit;
+u8 __uninitialized_ram(connectEscPassthrough);
 
 void setup() {
 	Serial.begin(115200);
-	{
-		testPio           = pio0;
-		offsetPioReceive  = pio_add_program(testPio, &onewire_receive_program);
-		offsetPioTransmit = pio_add_program(testPio, &onewire_transmit_program);
-		pio_claim_sm_mask(testPio, 0b1);
-#define TEST_PIN PIN_MOTORS
-		pio_gpio_init(testPio, TEST_PIN);
-		gpio_set_pulls(TEST_PIN, true, false);
-		configPioReceive = onewire_receive_program_get_default_config(offsetPioReceive);
-		sm_config_set_set_pins(&configPioReceive, TEST_PIN, 1);
-		sm_config_set_in_pins(&configPioReceive, TEST_PIN);
-		sm_config_set_jmp_pin(&configPioReceive, TEST_PIN);
-		sm_config_set_in_shift(&configPioReceive, true, false, 32);
-		sm_config_set_clkdiv_int_frac(&configPioReceive, 859, 128);
-		configPioTransmit = onewire_transmit_program_get_default_config(offsetPioTransmit);
-		sm_config_set_set_pins(&configPioTransmit, TEST_PIN, 1);
-		sm_config_set_out_pins(&configPioTransmit, TEST_PIN, 1);
-		sm_config_set_out_shift(&configPioTransmit, true, false, 8);
-		sm_config_set_clkdiv_int_frac(&configPioTransmit, 859, 128);
-		pio_sm_init(testPio, testSm, offsetPioReceive, &configPioReceive);
-		pio_sm_set_enabled(testPio, testSm, true);
-	}
-	while (true) {
-		process_serial();
+
+	if (connectEscPassthrough) { // 0 if disabled, pin + 1 if enabled
+		beginPassthrough(connectEscPassthrough - 1);
+		for (u8 breakout = 0; !breakout;) {
+			breakout = processPassthrough();
+		}
+		endPassthrough();
 	}
 	EEPROM.begin(4096);
 	Serial.println("Setup started");
@@ -124,7 +102,7 @@ void loop() {
 
 u32 *speakerRxPacket;
 void setup1() {
-	for (;;) {
+	while (!(setupDone & 0b01)) {
 	}
 	initESCs();
 	setupDone |= 0b10;

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { port, type Command, ConfigCmd } from '../../stores';
+	import { port, type Command, ConfigCmd } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
 
 	$: handleCommand($port);

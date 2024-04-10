@@ -1,44 +1,42 @@
 #include <Arduino.h>
 
-#include "../../../src/typedefs.h"
 #include "ESC_Serial.h" // ESC Serial Header
 #include "Global.h"     // Global variables
 #include "elapsedMillis.h"
 #include <deque>
 
-extern u32 offsetPioReceive, offsetPioTransmit;
-extern pio_sm_config configPioReceive, configPioTransmit;
-extern PIO testPio;
-extern u8 testSm;
+uint32_t offsetPioReceive, offsetPioTransmit;
+pio_sm_config configPioReceive, configPioTransmit;
+PIO escPassthroughPio;
+uint8_t escPassthroughSm;
 
 std::deque<uint8_t> escRxBuf;
 
 uint16_t esc_crc = 0;
 
 void pioSetProgram(uint offset, pio_sm_config c) {
-	pio_sm_set_config(testPio, testSm, &c);
-	pio_sm_exec(testPio, testSm, pio_encode_jmp(offset));
+	pio_sm_set_config(escPassthroughPio, escPassthroughSm, &c);
+	pio_sm_exec(escPassthroughPio, escPassthroughSm, pio_encode_jmp(offset));
 }
 
 void pioResetESC() {
 	pioSetProgram(offsetPioTransmit, configPioTransmit);
 	delay(1);
-	pio_sm_exec_wait_blocking(testPio, testSm, pio_encode_set(pio_pins, 0));
+	pio_sm_exec_wait_blocking(escPassthroughPio, escPassthroughSm, pio_encode_set(pio_pins, 0));
 	delay(300);
-	pio_sm_exec_wait_blocking(testPio, testSm, pio_encode_set(pio_pins, 1));
+	pio_sm_exec_wait_blocking(escPassthroughPio, escPassthroughSm, pio_encode_set(pio_pins, 1));
 	pioSetProgram(offsetPioReceive, configPioReceive);
 }
 
-void pioEnableTx(bool enable) {
-	if (enable) {
-		pioSetProgram(offsetPioTransmit, configPioTransmit);
-	} else {
-		while (!pio_sm_is_tx_fifo_empty(testPio, testSm)) {
-		}
-		while (pio_sm_get_pc(testPio, testSm) != offsetPioTransmit + 2) {
-		}
-		pioSetProgram(offsetPioReceive, configPioReceive);
+void pioEnableTx() {
+	pioSetProgram(offsetPioTransmit, configPioTransmit);
+}
+void pioDisableTx() {
+	while (!pio_sm_is_tx_fifo_empty(escPassthroughPio, escPassthroughSm)) {
 	}
+	while (pio_sm_get_pc(escPassthroughPio, escPassthroughSm) != offsetPioTransmit + 2) {
+	}
+	pioSetProgram(offsetPioReceive, configPioReceive);
 }
 
 void InitSerialOutput() {
@@ -49,32 +47,32 @@ void DeinitSerialOutput() {
 	Enable4Way = false;
 }
 
-void pioWrite(u8 data) {
-	pio_sm_put_blocking(testPio, testSm, data);
+void pioWrite(uint8_t data) {
+	pio_sm_put_blocking(escPassthroughPio, escPassthroughSm, data);
 }
 
-u32 pioAvailable() {
+uint32_t pioAvailable() {
 	return escRxBuf.size();
 }
-u8 pioRead() {
-	u8 data = escRxBuf.front();
+uint8_t pioRead() {
+	uint8_t data = escRxBuf.front();
 	escRxBuf.pop_front();
 	return data;
 }
 
-void delayWhileRead(u16 ms) {
+void delayWhileRead(uint16_t ms) {
 	elapsedMillis x = 0;
 	do {
-		if (pio_sm_get_rx_fifo_level(testPio, testSm)) {
-			escRxBuf.push_back(pio_sm_get(testPio, testSm) >> 24);
+		if (pio_sm_get_rx_fifo_level(escPassthroughPio, escPassthroughSm)) {
+			escRxBuf.push_back(pio_sm_get(escPassthroughPio, escPassthroughSm) >> 24);
 		}
 	} while (x < ms);
 }
-void delayMicrosWhileRead(u16 us) {
+void delayMicrosWhileRead(uint16_t us) {
 	elapsedMicros x = 0;
 	do {
-		if (pio_sm_get_rx_fifo_level(testPio, testSm)) {
-			escRxBuf.push_back(pio_sm_get(testPio, testSm) >> 24);
+		if (pio_sm_get_rx_fifo_level(escPassthroughPio, escPassthroughSm)) {
+			escRxBuf.push_back(pio_sm_get(escPassthroughPio, escPassthroughSm) >> 24);
 		}
 	} while (x < us);
 }
@@ -85,7 +83,7 @@ void SendESC(uint8_t tx_buf[], uint16_t buf_size, bool CRC) {
 	if (buf_size == 0) {
 		buf_size = 256;
 	}
-	pioEnableTx(true);
+	pioEnableTx();
 	for (i = 0; i < buf_size; i++) {
 		pioWrite(tx_buf[i]);
 		esc_crc = ByteCrc(tx_buf[i], esc_crc);
@@ -95,15 +93,13 @@ void SendESC(uint8_t tx_buf[], uint16_t buf_size, bool CRC) {
 		pioWrite((esc_crc >> 8) & 0xff);
 		buf_size = buf_size + 2;
 	}
-	pioEnableTx(false);
+	pioDisableTx();
 }
 
 uint16_t GetESC(uint8_t rx_buf[], uint16_t wait_ms) {
-	uint16_t i      = 0;
-	esc_crc         = 0;
-	bool timeout    = false;
-	u32 y           = 0;
-	elapsedMillis x = 0;
+	uint16_t i   = 0;
+	esc_crc      = 0;
+	bool timeout = false;
 	while ((!pioAvailable()) && (!timeout)) {
 		delayWhileRead(1);
 		i++;
@@ -112,14 +108,12 @@ uint16_t GetESC(uint8_t rx_buf[], uint16_t wait_ms) {
 			return 0;
 		}
 	}
-	y = i;
 	i = 0;
 	while (pioAvailable()) {
 		rx_buf[i] = pioRead();
 		i++;
 		delayMicrosWhileRead(500);
 	}
-	u32 m = x;
 	return i;
 }
 

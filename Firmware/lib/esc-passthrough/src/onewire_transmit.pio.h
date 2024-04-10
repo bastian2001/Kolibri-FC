@@ -16,8 +16,8 @@
 #define onewire_transmit_wrap 6
 
 static const uint16_t onewire_transmit_program_instructions[] = {
-    0xe001, //  0: set    pins, 1                    
-    0xe081, //  1: set    pindirs, 1                 
+    0xe201, //  0: set    pins, 1                [2] 
+    0xe281, //  1: set    pindirs, 1             [2] 
             //     .wrap_target
     0x80a0, //  2: pull   block                      
     0xef00, //  3: set    pins, 0                [15]

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { port, type Command, ConfigCmd } from '../../stores';
+	import { port, type Command, ConfigCmd } from '../../portStore';
 	import TracePlacer from './tracePlacer.svelte';
 	import Timeline from './timeline.svelte';
 	import Settings from './settings.svelte';
@@ -1223,7 +1223,8 @@
 			if (flags.includes('LOG_VVEL')) {
 				//10.6 fixed point
 				frame.motion.vvel =
-					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) / 256;
+					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) /
+					256;
 			}
 			if (flags.includes('LOG_GPS')) {
 				frame.motion.gps = log[log.length - 1]?.motion.gps || {};
