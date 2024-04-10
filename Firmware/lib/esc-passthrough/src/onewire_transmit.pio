@@ -1,0 +1,13 @@
+.program onewire_transmit
+
+set pins, 1
+set pindirs, 1
+.wrap_target
+pull block
+set X, 7
+set pins, 0 [31]
+write_bit:
+out pins, 1 [30]
+jmp X--, write_bit
+set pins, 1 [29]
+.wrap

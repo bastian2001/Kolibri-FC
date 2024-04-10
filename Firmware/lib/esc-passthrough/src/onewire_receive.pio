@@ -1,0 +1,13 @@
+.program onewire_receive
+
+set pins, 1
+set pindirs, 0
+.wrap_target
+set X, 7
+wait 0 pin, 0 [31]
+nop [15]
+read_bit:
+in pins, 1 [30]
+jmp X--, read_bit
+push block
+.wrap

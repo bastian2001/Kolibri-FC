@@ -23,7 +23,7 @@ const u32 escDecodeLut[32] = {
 void initESCs() {
 	escPio       = pio0;
 	escPioOffset = pio_add_program(escPio, &bidir_dshot_x1_program);
-	pio_claim_sm_mask(pio0, 0b1111);
+	pio_claim_sm_mask(escPio, 0b1111);
 
 	for (i32 i = 0; i < 4; i++) {
 		pio_gpio_init(escPio, PIN_MOTORS + i);
