@@ -1,6 +1,5 @@
 .program onewire_receive
 
-set pins, 1
 set pindirs, 0
 start:
 mov isr, null

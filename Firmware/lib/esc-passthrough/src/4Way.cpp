@@ -131,10 +131,6 @@ uint16_t Check_4Way(uint8_t buf[]) {
 		uint16_t RX_Size    = 0;
 		uint8_t RX_Buf[300] = {0};
 		uint16_t esc_rx_crc = 0;
-		delayWhileRead(5);
-		while (pioAvailable()) {
-			pioRead();
-		}
 		SendESC(ESC_data, Data_Size);
 		delayWhileRead(5);
 		RX_Size = GetESC(RX_Buf, 200);

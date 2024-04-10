@@ -15,29 +15,29 @@ std::deque<uint8_t> escRxBuf;
 
 uint16_t esc_crc = 0;
 
-void pio_set_program(uint offset, pio_sm_config c) {
+void pioSetProgram(uint offset, pio_sm_config c) {
 	pio_sm_set_config(testPio, testSm, &c);
 	pio_sm_exec(testPio, testSm, pio_encode_jmp(offset));
 }
 
 void pioResetESC() {
-	pio_set_program(offsetPioTransmit, configPioTransmit);
+	pioSetProgram(offsetPioTransmit, configPioTransmit);
 	delay(1);
 	pio_sm_exec_wait_blocking(testPio, testSm, pio_encode_set(pio_pins, 0));
 	delay(300);
 	pio_sm_exec_wait_blocking(testPio, testSm, pio_encode_set(pio_pins, 1));
-	pio_set_program(offsetPioReceive, configPioReceive);
+	pioSetProgram(offsetPioReceive, configPioReceive);
 }
 
 void pioEnableTx(bool enable) {
 	if (enable) {
-		pio_set_program(offsetPioTransmit, configPioTransmit);
+		pioSetProgram(offsetPioTransmit, configPioTransmit);
 	} else {
 		while (!pio_sm_is_tx_fifo_empty(testPio, testSm)) {
 		}
 		while (pio_sm_get_pc(testPio, testSm) != offsetPioTransmit + 2) {
 		}
-		pio_set_program(offsetPioReceive, configPioReceive);
+		pioSetProgram(offsetPioReceive, configPioReceive);
 	}
 }
 
@@ -52,13 +52,6 @@ void DeinitSerialOutput() {
 void pioWrite(u8 data) {
 	pio_sm_put_blocking(testPio, testSm, data);
 }
-u8 pioAvailableRaw() {
-	u8 level = pio_sm_get_rx_fifo_level(testPio, testSm);
-	return level;
-}
-u8 pioReadRaw() {
-	return pio_sm_get(testPio, testSm) >> 24;
-}
 
 u32 pioAvailable() {
 	return escRxBuf.size();
@@ -72,16 +65,16 @@ u8 pioRead() {
 void delayWhileRead(u16 ms) {
 	elapsedMillis x = 0;
 	do {
-		if (pioAvailableRaw()) {
-			escRxBuf.push_back(pioReadRaw());
+		if (pio_sm_get_rx_fifo_level(testPio, testSm)) {
+			escRxBuf.push_back(pio_sm_get(testPio, testSm) >> 24);
 		}
 	} while (x < ms);
 }
 void delayMicrosWhileRead(u16 us) {
 	elapsedMicros x = 0;
 	do {
-		if (pioAvailableRaw()) {
-			escRxBuf.push_back(pioReadRaw());
+		if (pio_sm_get_rx_fifo_level(testPio, testSm)) {
+			escRxBuf.push_back(pio_sm_get(testPio, testSm) >> 24);
 		}
 	} while (x < us);
 }
