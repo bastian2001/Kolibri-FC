@@ -20,10 +20,10 @@ static const uint16_t onewire_transmit_program_instructions[] = {
     0xe081, //  1: set    pindirs, 1                 
             //     .wrap_target
     0x80a0, //  2: pull   block                      
-    0xff00, //  3: set    pins, 0                [31]
-    0x7e01, //  4: out    pins, 1                [30]
+    0xef00, //  3: set    pins, 0                [15]
+    0x6e01, //  4: out    pins, 1                [14]
     0x00e4, //  5: jmp    !osre, 4                   
-    0xfe01, //  6: set    pins, 1                [30]
+    0xee01, //  6: set    pins, 1                [14]
             //     .wrap
 };
 

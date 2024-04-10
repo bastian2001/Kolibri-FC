@@ -1,13 +1,11 @@
 #include <Arduino.h>
 
-#include "../../../src/pins.h"
-#include "../../../src/typedefs.h" // Typedefs
 #include "4Way.h"                  // 4Way defines
 #include "ESC_Serial.h"            // ESC Serial Code
 #include "Global.h"                // Global variables
 
-u8 pioAvailable();
-u8 pioRead();
+uint8_t pioAvailable();
+uint8_t pioRead();
 
 uint16_t Check_4Way(uint8_t buf[]) {
 	uint8_t cmd           = buf[1];
@@ -101,9 +99,6 @@ uint16_t Check_4Way(uint8_t buf[]) {
 				uint16_t RX_Size    = 0;
 				SendESC(ESC_data, Data_Size);
 				// Betaflight setzt ausgang Low -> wartet 300ms -> setzt Ausgang High
-				// digitalWrite(SERVO_OUT, LOW);
-				// delay(300);
-				// digitalWrite(SERVO_OUT, HIGH);
 				pioResetESC();
 				// Keine Antwort vom ESC -> trotzdem serial leeren
 				uint8_t RX_Buf[5] = {0};

@@ -1,6 +1,5 @@
 #include <Arduino.h>
 
-#include "../../../src/pins.h"
 #include "../../../src/typedefs.h"
 #include "ESC_Serial.h" // ESC Serial Header
 #include "Global.h"     // Global variables

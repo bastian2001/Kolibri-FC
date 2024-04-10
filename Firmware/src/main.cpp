@@ -26,12 +26,12 @@ void setup() {
 		sm_config_set_in_pins(&configPioReceive, TEST_PIN);
 		sm_config_set_jmp_pin(&configPioReceive, TEST_PIN);
 		sm_config_set_in_shift(&configPioReceive, true, false, 32);
-		sm_config_set_clkdiv_int_frac(&configPioReceive, 429, 176);
+		sm_config_set_clkdiv_int_frac(&configPioReceive, 859, 128);
 		configPioTransmit = onewire_transmit_program_get_default_config(offsetPioTransmit);
 		sm_config_set_set_pins(&configPioTransmit, TEST_PIN, 1);
 		sm_config_set_out_pins(&configPioTransmit, TEST_PIN, 1);
 		sm_config_set_out_shift(&configPioTransmit, true, false, 8);
-		sm_config_set_clkdiv_int_frac(&configPioTransmit, 429, 176);
+		sm_config_set_clkdiv_int_frac(&configPioTransmit, 859, 128);
 		pio_sm_init(testPio, testSm, offsetPioReceive, &configPioReceive);
 		pio_sm_set_enabled(testPio, testSm, true);
 	}

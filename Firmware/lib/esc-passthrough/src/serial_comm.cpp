@@ -1,6 +1,5 @@
 #include <Arduino.h>
 
-#include "../../../src/pins.h"
 #include "4Way.h"        // 4way process
 #include "Global.h"      // globale variablen
 #include "MSP.h"         // MSP process
@@ -12,11 +11,9 @@ uint16_t serial_buffer_len = 0;
 
 bool serial_command = false;
 
-void delayWhileRead(u16 ms);
-
 void process_serial(void) {
 	if (Serial.available()) {
-		delayWhileRead(10);
+		delay(10);
 		serial_command = true;
 		while (Serial.available()) {
 			serial_rx[serial_rx_counter] = Serial.read();

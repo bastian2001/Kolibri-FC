@@ -6,13 +6,12 @@ start:
 mov isr, null
 .wrap_target
 set X, 7
-wait 0 pin, 0 [31]
-nop [15]
+wait 0 pin, 0 [23]
 read_bit:
-in pins, 1 [30]
+in pins, 1 [14]
 jmp X--, read_bit
 jmp pin, push_byte
-jmp start [9]
+jmp start [2]
 push_byte:
-push block [10]
+push block [3]
 .wrap
