@@ -13,25 +13,24 @@
 // ---------------- //
 
 #define onewire_transmit_wrap_target 2
-#define onewire_transmit_wrap 7
+#define onewire_transmit_wrap 6
 
 static const uint16_t onewire_transmit_program_instructions[] = {
     0xe001, //  0: set    pins, 1                    
     0xe081, //  1: set    pindirs, 1                 
             //     .wrap_target
     0x80a0, //  2: pull   block                      
-    0xe027, //  3: set    x, 7                       
-    0xff00, //  4: set    pins, 0                [31]
-    0x7e01, //  5: out    pins, 1                [30]
-    0x0045, //  6: jmp    x--, 5                     
-    0xfd01, //  7: set    pins, 1                [29]
+    0xff00, //  3: set    pins, 0                [31]
+    0x7e01, //  4: out    pins, 1                [30]
+    0x00e4, //  5: jmp    !osre, 4                   
+    0xfe01, //  6: set    pins, 1                [30]
             //     .wrap
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program onewire_transmit_program = {
     .instructions = onewire_transmit_program_instructions,
-    .length = 8,
+    .length = 7,
     .origin = -1,
 };
 

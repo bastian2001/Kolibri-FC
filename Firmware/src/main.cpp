@@ -11,17 +11,6 @@ u32 offsetPioReceive, offsetPioTransmit;
 u8 testSm = 0;
 pio_sm_config configPioReceive, configPioTransmit;
 
-void delayWhileRead(u16 ms);
-void pioEnableTx(bool enable);
-u8 pioAvailable();
-u8 pioRead();
-void pio_set_program(uint offset, pio_sm_config c, int waitForInst = -1);
-
-// void serialWrite(u8 *data, u16 len) {
-// 	for (u16 i = 0; i < len; i++) {
-// 		pio_sm_put_blocking(testPio, testSm, data[i]);
-// 	}
-// }
 void setup() {
 	Serial.begin(115200);
 	{
@@ -34,22 +23,17 @@ void setup() {
 		gpio_set_pulls(TEST_PIN, true, false);
 		configPioReceive = onewire_receive_program_get_default_config(offsetPioReceive);
 		sm_config_set_set_pins(&configPioReceive, TEST_PIN, 1);
-		sm_config_set_out_pins(&configPioReceive, TEST_PIN, 1);
 		sm_config_set_in_pins(&configPioReceive, TEST_PIN);
 		sm_config_set_jmp_pin(&configPioReceive, TEST_PIN);
-		sm_config_set_out_shift(&configPioReceive, true, false, 32);
 		sm_config_set_in_shift(&configPioReceive, true, false, 32);
+		sm_config_set_clkdiv_int_frac(&configPioReceive, 429, 176);
 		configPioTransmit = onewire_transmit_program_get_default_config(offsetPioTransmit);
 		sm_config_set_set_pins(&configPioTransmit, TEST_PIN, 1);
 		sm_config_set_out_pins(&configPioTransmit, TEST_PIN, 1);
-		sm_config_set_in_pins(&configPioTransmit, TEST_PIN);
-		sm_config_set_jmp_pin(&configPioTransmit, TEST_PIN);
-		sm_config_set_out_shift(&configPioTransmit, true, false, 32);
-		sm_config_set_in_shift(&configPioTransmit, true, false, 32);
+		sm_config_set_out_shift(&configPioTransmit, true, false, 8);
+		sm_config_set_clkdiv_int_frac(&configPioTransmit, 429, 176);
 		pio_sm_init(testPio, testSm, offsetPioReceive, &configPioReceive);
-		pio_sm_set_consecutive_pindirs(testPio, testSm, TEST_PIN, 1, false);
 		pio_sm_set_enabled(testPio, testSm, true);
-		pio_sm_set_clkdiv_int_frac(testPio, testSm, 429, 176);
 	}
 	while (true) {
 		process_serial();

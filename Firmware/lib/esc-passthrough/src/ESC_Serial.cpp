@@ -16,14 +16,9 @@ std::deque<uint8_t> escRxBuf;
 
 uint16_t esc_crc = 0;
 
-// SoftwareSerial swSer1;
-
 void pio_set_program(uint offset, pio_sm_config c) {
-	pio_sm_set_enabled(testPio, testSm, false);
 	pio_sm_set_config(testPio, testSm, &c);
-	pio_sm_set_enabled(testPio, testSm, true);
 	pio_sm_exec(testPio, testSm, pio_encode_jmp(offset));
-	pio_sm_set_clkdiv_int_frac(testPio, testSm, 429, 176);
 }
 
 void pioResetESC() {
@@ -49,12 +44,9 @@ void pioEnableTx(bool enable) {
 
 void InitSerialOutput() {
 	Enable4Way = true;
-	// swSer1.begin(19200, SWSERIAL_8N1, SERVO_OUT, SERVO_OUT, false, 512);
-	// swSer1.enableIntTx(false);
 }
 
 void DeinitSerialOutput() {
-	// swSer1.end();
 	Enable4Way = false;
 }
 
