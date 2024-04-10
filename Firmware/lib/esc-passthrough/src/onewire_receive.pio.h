@@ -12,26 +12,29 @@
 // onewire_receive //
 // --------------- //
 
-#define onewire_receive_wrap_target 2
-#define onewire_receive_wrap 7
+#define onewire_receive_wrap_target 3
+#define onewire_receive_wrap 10
 
 static const uint16_t onewire_receive_program_instructions[] = {
     0xe001, //  0: set    pins, 1                    
     0xe080, //  1: set    pindirs, 0                 
+    0xa0c3, //  2: mov    isr, null                  
             //     .wrap_target
-    0xe027, //  2: set    x, 7                       
-    0x3f20, //  3: wait   0 pin, 0               [31]
-    0xaf42, //  4: nop                           [15]
-    0x5e01, //  5: in     pins, 1                [30]
-    0x0045, //  6: jmp    x--, 5                     
-    0x8020, //  7: push   block                      
+    0xe027, //  3: set    x, 7                       
+    0x3f20, //  4: wait   0 pin, 0               [31]
+    0xaf42, //  5: nop                           [15]
+    0x5e01, //  6: in     pins, 1                [30]
+    0x0046, //  7: jmp    x--, 6                     
+    0x00ca, //  8: jmp    pin, 10                    
+    0x0902, //  9: jmp    2                      [9] 
+    0x8a20, // 10: push   block                  [10]
             //     .wrap
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program onewire_receive_program = {
     .instructions = onewire_receive_program_instructions,
-    .length = 8,
+    .length = 11,
     .origin = -1,
 };
 

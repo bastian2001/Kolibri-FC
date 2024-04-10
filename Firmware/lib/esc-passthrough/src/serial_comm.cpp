@@ -15,6 +15,7 @@ bool serial_command = false;
 void delayWhileRead(u16 ms);
 
 void process_serial(void) {
+	Serial2.print(1);
 	if (Serial.available()) {
 		delayWhileRead(10);
 		serial_command = true;
@@ -40,31 +41,31 @@ void process_serial(void) {
 			}
 		}
 	}
-
+	Serial2.print(2);
 	if (serial_command) {
 		if ((serial_rx[0] == 0x2F) && (serial_rx_counter == serial_buffer_len)) {
 			// 4 Way Command
 			// 4 Way proceed
+			Serial2.print(3);
 			serial_tx_counter = Check_4Way(serial_rx);
-			for (uint8_t b = 0; b < serial_tx_counter; b++) {
-				// digitalWrite(PIN_LED_DEBUG, HIGH); // Debug LED (ON)
+			Serial2.printf("TX4: %d\n", serial_tx_counter);
+			for (uint16_t b = 0; b < serial_tx_counter; b++) {
 				Serial.write(serial_rx[b]);
-				delayMicroseconds(100);
-				// digitalWrite(PIN_LED_DEBUG, LOW); // Debug LED (OFF)
 			}
+			Serial2.print("done");
 			serial_command    = false;
 			serial_rx_counter = 0;
 			serial_tx_counter = 0;
 		} else if (serial_rx[0] == 0x24 && serial_rx[1] == 0x4D && serial_rx[2] == 0x3C) {
 			// MSP Command
 			// MSP Proceed
+			Serial2.print(4);
 			serial_tx_counter = MSP_Check(serial_rx, serial_rx_counter);
-			for (uint8_t b = 0; b < serial_tx_counter; b++) {
-				// digitalWrite(PIN_LED_DEBUG, HIGH); // Debug LED (ON)
+			Serial2.printf("TXM: %d\n", serial_tx_counter);
+			for (uint16_t b = 0; b < serial_tx_counter; b++) {
 				Serial.write(serial_rx[b]);
-				delayMicroseconds(100);
-				// digitalWrite(PIN_LED_DEBUG, LOW); // Debug LED (OFF)
 			}
+			Serial2.print("done");
 			serial_command    = false;
 			serial_rx_counter = 0;
 			serial_tx_counter = 0;

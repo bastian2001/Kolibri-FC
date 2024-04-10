@@ -2,6 +2,8 @@
 
 set pins, 1
 set pindirs, 0
+start:
+mov isr, null
 .wrap_target
 set X, 7
 wait 0 pin, 0 [31]
@@ -9,5 +11,8 @@ nop [15]
 read_bit:
 in pins, 1 [30]
 jmp X--, read_bit
-push block
+jmp pin, push_byte
+jmp start [9]
+push_byte:
+push block [10]
 .wrap

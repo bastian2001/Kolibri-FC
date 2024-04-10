@@ -6,6 +6,9 @@
 #include "ESC_Serial.h"            // ESC Serial Code
 #include "Global.h"                // Global variables
 
+u8 pioAvailable();
+u8 pioRead();
+
 uint16_t Check_4Way(uint8_t buf[]) {
 	uint8_t cmd           = buf[1];
 	uint8_t addr_high     = buf[2];
@@ -133,6 +136,10 @@ uint16_t Check_4Way(uint8_t buf[]) {
 		uint16_t RX_Size    = 0;
 		uint8_t RX_Buf[300] = {0};
 		uint16_t esc_rx_crc = 0;
+		delayWhileRead(5);
+		while (pioAvailable()) {
+			pioRead();
+		}
 		SendESC(ESC_data, Data_Size);
 		delayWhileRead(5);
 		RX_Size = GetESC(RX_Buf, 200);
@@ -150,20 +157,33 @@ uint16_t Check_4Way(uint8_t buf[]) {
 				O_Param_Len = param;
 			}
 			RX_Size = GetESC(RX_Buf, 500);
+			Serial2.printf("param: %d\n", param);
+			Serial2.printf("RX_Size: %d\n", RX_Size);
+			for (int i = 0; i < RX_Size; i++) {
+				Serial2.printf("%02X ", RX_Buf[i]);
+			}
+			Serial2.println();
 			if (RX_Size != 0) {
 				if (RX_Buf[(RX_Size - 1)] == brSUCCESS) {
+					Serial2.print('a');
 				} else {
 					ack_out = ACK_D_GENERAL_ERROR;
+					Serial2.print('b');
 				}
 				RX_Size     = RX_Size - 3; // CRC High, CRC_Low and ACK from ESC
 				O_Param_Len = RX_Size;
+				Serial2.print('c');
 				for (uint16_t i = 5; i < (RX_Size + 5); i++) {
 					buf[i]     = RX_Buf[i - 5]; // buf[5] = RX_Buf[0]
 					esc_rx_crc = ByteCrc(buf[i], esc_rx_crc);
 					// Data_Size = i;
 				}
+				Serial2.print('d');
+				Serial2.print(esc_rx_crc, HEX);
 				esc_rx_crc = ByteCrc(RX_Buf[(RX_Size)], esc_rx_crc);
 				esc_rx_crc = ByteCrc(RX_Buf[(RX_Size + 1)], esc_rx_crc);
+				Serial2.print('e');
+				Serial2.print(esc_rx_crc, HEX);
 				if (esc_rx_crc == 0) {
 				} else {
 					ack_out     = ACK_D_GENERAL_ERROR;
