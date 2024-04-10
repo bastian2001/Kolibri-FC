@@ -63,7 +63,6 @@ void pioWrite(u8 data) {
 }
 u8 pioAvailableRaw() {
 	u8 level = pio_sm_get_rx_fifo_level(testPio, testSm);
-	if (level > 2) digitalWrite(PIN_LED_ACTIVITY, LOW);
 	return level;
 }
 u8 pioReadRaw() {
@@ -116,10 +115,10 @@ void SendESC(uint8_t tx_buf[], uint16_t buf_size, bool CRC) {
 }
 
 uint16_t GetESC(uint8_t rx_buf[], uint16_t wait_ms) {
-	uint16_t i   = 0;
-	esc_crc      = 0;
-	bool timeout = false;
-	u32 y = 0;
+	uint16_t i      = 0;
+	esc_crc         = 0;
+	bool timeout    = false;
+	u32 y           = 0;
 	elapsedMillis x = 0;
 	while ((!pioAvailable()) && (!timeout)) {
 		delayWhileRead(1);
@@ -134,12 +133,9 @@ uint16_t GetESC(uint8_t rx_buf[], uint16_t wait_ms) {
 	while (pioAvailable()) {
 		rx_buf[i] = pioRead();
 		i++;
-		// digitalWrite(PIN_LED_ACTIVITY, HIGH);
 		delayMicrosWhileRead(500);
-		// digitalWrite(PIN_LED_ACTIVITY, LOW);
 	}
 	u32 m = x;
-	Serial2.printf("Waited %d of %d ms with %d bytes available, total runtime %d ms\n", y, wait_ms, i, m);
 	return i;
 }
 
