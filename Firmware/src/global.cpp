@@ -28,3 +28,6 @@ f64 DECODE_R8(const u8 *buf) {
 }
 
 volatile u32 __uninitialized_ram(crashInfo)[256];
+u8 __uninitialized_ram(connectEscPassthrough);
+bool powerOnReset;
+u64 __uninitialized_ram(powerOnResetMagicNumber);

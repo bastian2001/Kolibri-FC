@@ -68,3 +68,6 @@ i64 DECODE_I8(const u8 *buf);
 f64 DECODE_R8(const u8 *buf);
 
 extern volatile u32 crashInfo[256];
+extern u8 connectEscPassthrough;
+extern bool powerOnReset;
+extern u64 powerOnResetMagicNumber;

@@ -4,13 +4,18 @@
 
 volatile u8 setupDone = 0b00;
 
-u8 __uninitialized_ram(connectEscPassthrough);
-
 void setup() {
 	Serial.begin(115200);
 
-	if (connectEscPassthrough) { // 0 if disabled, pin + 1 if enabled
+	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
+		powerOnReset = false;
+	else
+		powerOnReset = true;
+	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
+
+	if (connectEscPassthrough && !powerOnReset) { // 0 if disabled, pin + 1 if enabled
 		beginPassthrough(connectEscPassthrough - 1);
+		connectEscPassthrough = 0;
 		for (u8 breakout = 0; !breakout;) {
 			breakout = processPassthrough();
 		}

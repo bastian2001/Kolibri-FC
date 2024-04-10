@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { invoke } from '@tauri-apps/api';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
-	import { port, ConfigCmd } from '../portStore';
-	import type { Command } from '../portStore';
+	import { port, type Command, ConfigCmd } from '../portStore';
+	import { configuratorLog } from '../logStore';
 	import { leBytesToInt } from '../utils';
 
 	let devices: any = [];
@@ -54,25 +53,11 @@
 		}
 	];
 
-	let log: string[] = [];
-
-	function addLogEntry(str: string) {
-		const date = new Date();
-		str =
-			date.getHours().toString().padStart(2, '0') +
-			':' +
-			date.getMinutes().toString().padStart(2, '0') +
-			':' +
-			date.getSeconds().toString().padStart(2, '0') +
-			' -> ' +
-			str;
-		log = [...log, str];
-
+	configuratorLog.subscribe(() => {
 		tick().then(() => {
 			logDiv.scrollTop = logDiv.scrollHeight;
 		});
-	}
-
+	});
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
 		switch (command.command) {
@@ -80,32 +65,23 @@
 				battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
 				break;
 			case ConfigCmd.IND_MESSAGE:
-				addLogEntry(command.dataStr);
+				configuratorLog.push(command.dataStr);
 				break;
 			case ConfigCmd.PLAY_SOUND | 0x4000:
 				console.log(command.data);
 				break;
 			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
-				addLogEntry('See console for crash dump');
+				configuratorLog.push('See console for crash dump');
 				break;
 			case ConfigCmd.CLEAR_CRASH_DUMP | 0x4000:
-				addLogEntry('Crash dump cleared');
-				break;
-			case ConfigCmd.BB_FORMAT | 0x4000:
-				addLogEntry('Blackbox formatted');
-				break;
-			case ConfigCmd.BB_FORMAT | 0x8000:
-				addLogEntry('Blackbox format failed');
-				break;
-			case ConfigCmd.BB_FILE_DELETE | 0x8000:
-				addLogEntry(`Deleting file ${command.data[0]} failed`);
+				configuratorLog.push('Crash dump cleared');
 				break;
 			case ConfigCmd.CONFIGURATOR_PING:
 				//ping received from FC, confirm
 				port.sendCommand(ConfigCmd.CONFIGURATOR_PING | 0x4000);
 				break;
 			case ConfigCmd.SAVE_SETTINGS | 0x4000:
-				addLogEntry('EEPROM saved');
+				configuratorLog.push('EEPROM saved');
 		}
 	}
 
@@ -133,7 +109,7 @@
 			.connect(device)
 			.then(() => {
 				connected = true;
-				log = [];
+				configuratorLog.clearEntries();
 			})
 			.catch(() => {
 				connected = false;
@@ -174,7 +150,7 @@
 			</div>
 		{/if}
 		<div class="log" bind:this={logDiv}>
-			{#each log as l}<p>{l}</p>{/each}
+			{#each $configuratorLog as l}<p>{l}</p>{/each}
 		</div>
 	</div>
 

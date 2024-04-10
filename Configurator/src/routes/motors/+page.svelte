@@ -3,6 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import Motor from './motor.svelte';
 	import { leBytesToInt } from '../../utils';
+	import { configuratorLog } from '../../logStore';
 	const motorMapping = [3, 1, 2, 0];
 	let int = -1;
 	let throttles = [0, 0, 0, 0];
@@ -31,7 +32,11 @@
 				}
 				break;
 			case ConfigCmd.ESC_PASSTHROUGH | 0x4000:
+				configuratorLog.push('FC reboots into passthrough mode');
+				port.disconnect();
 				break;
+			case ConfigCmd.ESC_PASSTHROUGH | 0x8000:
+				configuratorLog.push(command.dataStr);
 		}
 	}
 	let motors = [0, 0, 0, 0];
@@ -53,7 +58,9 @@
 		throttles[motor] = 150;
 		throttles = [...throttles];
 	}
-	function startPassthrough() {}
+	function startPassthrough() {
+		port.sendCommand(ConfigCmd.ESC_PASSTHROUGH, [passthroughMotorNumber]);
+	}
 	onMount(() => {
 		getMotorsInterval = setInterval(() => {
 			port.sendCommand(ConfigCmd.GET_MOTORS);

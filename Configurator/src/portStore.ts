@@ -1,4 +1,4 @@
-import { get, writable } from 'svelte/store';
+import { writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api';
 import { leBytesToInt } from './utils';
 
@@ -51,12 +51,8 @@ export type Command = {
 	cmdType: 'request' | 'response' | 'error' | 'info';
 };
 function createPort() {
-	// let port: any = null;
 	let devices: string[] = [];
-	// let reader: null | ReadableStreamDefaultReader = null;
 
-	// let resolveOnClose: any = null;
-	// let rejectOnClose: any = null;
 	const { subscribe, set } = writable({
 		command: 65535,
 		length: 0,

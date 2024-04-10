@@ -452,8 +452,19 @@ void handleConfigCmd() {
 		memcpy(&buf[36], &vVelRaw, 4);
 		sendCommand(configMsgCommand | 0x4000, buf, 40);
 	} break;
-	case ConfigCmd::REBOOT_BY_WATCHDOG:
-		delay(1000);
+	case ConfigCmd::ESC_PASSTHROUGH:
+		connectEscPassthrough = configSerialBuffer[CONFIG_BUFFER_DATA] + PIN_MOTORS + 1;
+		if (connectEscPassthrough < PIN_MOTORS + 1 || connectEscPassthrough > PIN_MOTORS + 4) {
+			connectEscPassthrough = 0;
+			sendCommand(configMsgCommand | 0x8000, "Invalid ESC number", strlen("Invalid ESC number"));
+		} else {
+			sendCommand(configMsgCommand | 0x4000);
+			Serial.flush();
+			delay(100);
+			rp2040.wdt_reset();
+			delay(100);
+			rp2040.reboot();
+		}
 		break;
 	case ConfigCmd::GET_CRASH_DUMP: {
 		for (int i = 0; i < 256; i++) {

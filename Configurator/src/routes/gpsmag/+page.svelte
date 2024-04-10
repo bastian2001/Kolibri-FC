@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { port, ConfigCmd } from '../../portStore';
+	import { port, type Command, ConfigCmd } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
-	import type { Command } from '../../portStore';
 	import { leBytesToInt, roundToDecimal } from '../../utils';
 	let canvasxy: HTMLCanvasElement;
 	let canvasyz: HTMLCanvasElement;
