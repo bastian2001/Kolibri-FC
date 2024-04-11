@@ -107,13 +107,6 @@ void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *out
  * Calculates the conjugate of the quaternion: (w, -v)
  */
 void Quaternion_conjugate(Quaternion *q, Quaternion *output);
-/*
-f32 fastSin(f32 x);
-f32 fastAtan2(f32 fp1, f32 fp2);
-f32 fastCos(f32 x);
-f32 fastSin(f32 x);
-f32 fastAcos(f32 x);
-f32 fastAsin(f32 x);*/
 
 extern const f32 QUATERNION_EPS;
 extern const f32 ONE_MINUS_EPS;

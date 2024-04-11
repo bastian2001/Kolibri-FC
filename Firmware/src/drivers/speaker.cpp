@@ -181,7 +181,7 @@ void speakerLoop() {
 		if (soundDuration != 65535 && sinceStart > soundDuration) {
 			stopSound();
 		} else if (soundType == 1) {
-			int thisCycle = sinceStart % (onTime + offTime);
+			i32 thisCycle = sinceStart % ((u32)onTime + (u32)offTime);
 			if (thisCycle > onTime) {
 				pwm_set_gpio_level(PIN_SPEAKER, 0);
 			} else {
@@ -207,7 +207,7 @@ void speakerLoop() {
 						u32 thisFreq = songToPlay.notes[noteIndex].frequency + ((songToPlay.notes[noteIndex + 1].frequency - songToPlay.notes[noteIndex].frequency) * thisCycle) / songToPlay.notes[noteIndex].duration;
 						currentWrap  = FREQ_TO_WRAP(thisFreq);
 					} else {
-						currentWrap = FREQ_TO_WRAP(songToPlay.notes[noteIndex].frequency);
+						currentWrap = songToPlay.notes[noteIndex].frequency ? FREQ_TO_WRAP(songToPlay.notes[noteIndex].frequency) : 0;
 					}
 					pwm_set_wrap(sliceNum, currentWrap);
 					int level = currentWrap >> 1;
@@ -229,7 +229,7 @@ void speakerLoop() {
 				}
 			}
 		} else if (soundType == 0) {
-			u32 thisCycle = sinceStart % (onTime + offTime);
+			u32 thisCycle = sinceStart % ((u32)onTime + (u32)offTime);
 			if (thisCycle > onTime) {
 				pwm_set_gpio_level(PIN_SPEAKER, 0);
 			} else {
@@ -276,6 +276,7 @@ bool playWav(const char *filename) {
 }
 
 void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs) {
+	if (!tOnMs) return;
 	soundType   = 0;
 	currentWrap = FREQ_TO_WRAP(frequency);
 	pwm_set_wrap(sliceNum, currentWrap);
@@ -292,6 +293,7 @@ void stopSound() {
 
 // sweep from startFrequency to endFrequency over tOnMs, then stop for tOffMs, repeat for duration
 void makeSweepSound(u16 startFrequency, u16 endFrequency, u16 duration, u16 tOnMs, u16 tOffMs) {
+	if (!tOnMs) return;
 	soundType           = 1;
 	sweepStartFrequency = startFrequency;
 	sweepEndFrequency   = endFrequency;
@@ -378,6 +380,7 @@ void makeRtttlSound(const char *song) {
 		} else {
 			i += 2;
 			b = parseInt(song, &i);
+			if (!b) b = 125;
 		}
 	}
 	int noteIndex = 0;

@@ -39,7 +39,7 @@ f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 	f32 angle   = acosf(q->w) * 2;
 	f32 divider = sqrtf(1 - q->w * q->w);
 
-	if (divider != 0.f) {
+	if (divider > 0.0001f) {
 		// Calculate the axis
 		f32 divNew = 1 / divider;
 		output[0]  = q->v[0] * divNew;
@@ -82,7 +82,7 @@ f32 Quaternion_norm(Quaternion *q) {
 void Quaternion_normalize(Quaternion *q, Quaternion *output) {
 
 	f32 len = Quaternion_norm(q);
-	if (len == 0) {
+	if (len < 0.0001f) {
 		Quaternion_setIdentity(output);
 		return;
 	}

@@ -161,14 +161,14 @@ void magLoop() {
 		}
 		for (int row = 0; row < 4; row++) {
 			for (int col = 0; col < 4; col++) {
-				xtxMatrixInv[col][row] = (float)cofactor(xtxMatrix, row, col) / det;
+				xtxMatrixInv[col][row] = cofactor(xtxMatrix, row, col) / det;
 			}
 		}
 		float calibration[4];
 		for (int row = 0; row < 4; row++) {
 			calibration[row] = 0;
 			for (int col = 0; col < 4; col++) {
-				calibration[row] += (float)xtxMatrixInv[row][col] * xtyVector[col];
+				calibration[row] += xtxMatrixInv[row][col] * xtyVector[col];
 			}
 		}
 		for (int i = 0; i < 4; i++) {
