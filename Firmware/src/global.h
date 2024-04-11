@@ -67,4 +67,16 @@ f32 DECODE_R4(const u8 *buf);
 i64 DECODE_I8(const u8 *buf);
 f64 DECODE_R8(const u8 *buf);
 
+enum class BootReason {
+	POR,
+	CMD_REBOOT,
+	CMD_BOOTLOADER,
+	WATCHDOG,
+	CMD_ESC_PASSTHROUGH
+};
+
 extern volatile u32 crashInfo[256];
+extern u8 connectEscPassthrough;
+extern BootReason bootReason;
+extern BootReason rebootReason;
+extern u64 powerOnResetMagicNumber;

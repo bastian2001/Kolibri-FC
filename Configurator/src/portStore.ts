@@ -1,4 +1,4 @@
-import { get, writable } from 'svelte/store';
+import { writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api';
 import { leBytesToInt } from './utils';
 
@@ -34,7 +34,7 @@ export const ConfigCmd = {
 	GET_GPS_ACCURACY: 28,
 	GET_GPS_TIME: 29,
 	GET_GPS_MOTION: 30,
-	REBOOT_BY_WATCHDOG: 31,
+	ESC_PASSTHROUGH: 31,
 	GET_CRASH_DUMP: 32,
 	CLEAR_CRASH_DUMP: 33,
 	CALIBRATE_ACCELEROMETER: 34,
@@ -51,12 +51,8 @@ export type Command = {
 	cmdType: 'request' | 'response' | 'error' | 'info';
 };
 function createPort() {
-	// let port: any = null;
 	let devices: string[] = [];
-	// let reader: null | ReadableStreamDefaultReader = null;
 
-	// let resolveOnClose: any = null;
-	// let rejectOnClose: any = null;
 	const { subscribe, set } = writable({
 		command: 65535,
 		length: 0,

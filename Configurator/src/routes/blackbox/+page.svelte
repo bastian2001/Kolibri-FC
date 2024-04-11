@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { port, type Command, ConfigCmd } from '../../stores';
+	import { port, type Command, ConfigCmd } from '../../portStore';
+	import { configuratorLog } from '../../logStore';
 	import TracePlacer from './tracePlacer.svelte';
 	import Timeline from './timeline.svelte';
 	import Settings from './settings.svelte';
@@ -911,6 +912,15 @@
 				} else if (index >= logNums.length) selected = logNums[logNums.length - 1].num;
 				else selected = logNums[index].num;
 				break;
+			case ConfigCmd.BB_FORMAT | 0x4000:
+				configuratorLog.push('Blackbox formatted');
+				break;
+			case ConfigCmd.BB_FORMAT | 0x8000:
+				configuratorLog.push('Blackbox format failed');
+				break;
+			case ConfigCmd.BB_FILE_DELETE | 0x8000:
+				configuratorLog.push(`Deleting file ${command.data[0]} failed`);
+				break;
 			default:
 				if (
 					typeof command.command === 'number' &&
@@ -1223,7 +1233,8 @@
 			if (flags.includes('LOG_VVEL')) {
 				//10.6 fixed point
 				frame.motion.vvel =
-					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) / 256;
+					leBytesToInt(data.slice(i + offsets['LOG_VVEL'], i + offsets['LOG_VVEL'] + 2), true) /
+					256;
 			}
 			if (flags.includes('LOG_GPS')) {
 				frame.motion.gps = log[log.length - 1]?.motion.gps || {};

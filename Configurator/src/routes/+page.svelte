@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { port, ConfigCmd } from '../stores';
+	import { port, type Command, ConfigCmd } from '../portStore';
 	import { onMount, onDestroy } from 'svelte';
-	import type { Command } from '../stores';
 	import { leBytesToInt, roundToDecimal } from '../utils';
+	import { configuratorLog } from '../logStore';
 
 	const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
 	const ARMING_DISABLE_FLAGS = [
@@ -70,13 +70,27 @@
 			case ConfigCmd.SERIAL_PASSTHROUGH | 0x4000:
 				const sPort = command.data[0];
 				const baud = leBytesToInt(command.data.slice(1, 5));
-				console.log(`Serial passthrough started on Serial${sPort} with baud rate ${baud}`);
+				configuratorLog.push(`Serial passthrough started on Serial${sPort} with baud rate ${baud}`);
 				port.disconnect();
 			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
 				console.log(command.data);
 				break;
 			case ConfigCmd.CALIBRATE_ACCELEROMETER | 0x4000:
-				console.log('Accelerometer calibrated');
+				configuratorLog.push('Accelerometer calibrated');
+				break;
+			case ConfigCmd.REBOOT | 0x4000:
+				configuratorLog.push('Rebooting');
+				port.disconnect();
+				break;
+			case ConfigCmd.REBOOT_TO_BOOTLOADER | 0x4000:
+				configuratorLog.push('Rebooting to bootloader');
+				port.disconnect();
+				break;
+			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
+				configuratorLog.push('See console for crash dump');
+				break;
+			case ConfigCmd.CLEAR_CRASH_DUMP | 0x4000:
+				configuratorLog.push('Crash dump cleared');
 				break;
 		}
 	}
@@ -164,7 +178,6 @@
 	<button on:click={() => port.sendCommand(ConfigCmd.GET_CRASH_DUMP)}>Get Crash Dump</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.CLEAR_CRASH_DUMP)}>Clear Crash Dump</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT)}>Reboot</button>
-	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_BY_WATCHDOG)}>Reboot (Watchdog)</button>
 	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_TO_BOOTLOADER)}>Bootloader</button>
 </div>
 <div class="droneStatus">

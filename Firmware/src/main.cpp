@@ -1,3 +1,4 @@
+#include "esc_passthrough.h"
 #include "global.h"
 #include "hardware/structs/xip_ctrl.h"
 
@@ -5,6 +6,23 @@ volatile u8 setupDone = 0b00;
 
 void setup() {
 	Serial.begin(115200);
+
+	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
+		bootReason = rebootReason;
+	else
+		bootReason = BootReason::POR;
+	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
+	rebootReason            = BootReason::WATCHDOG;
+
+	if (connectEscPassthrough && bootReason == BootReason::CMD_ESC_PASSTHROUGH) { // 0 if disabled, pin + 1 if enabled
+		beginPassthrough(connectEscPassthrough - 1);
+		connectEscPassthrough = 0;
+		for (u8 breakout = 0; !breakout;) {
+			breakout = processPassthrough();
+		}
+		endPassthrough();
+	}
+	connectEscPassthrough = 0;
 	EEPROM.begin(4096);
 	Serial.println("Setup started");
 	readEEPROM();
@@ -50,9 +68,6 @@ void setup() {
 		rp2040.wdt_reset();
 	}
 	xip_ctrl_hw->flush = 1;
-	// makeRtttlSound("o=6,b=800:1c#6,1d#6,1g#6.,1d#6$1,1g#6.$1,1d#6$2,1g#6$2");
-	// makeRtttlSound("NokiaTune:d=4,o=5,b=160:8e6$4,8d6$4,4f#5$4,4g#5$4,8c#6$4,8b5$4,4d5$4,4e5$4,8b5$4,8a5$4,4c#5$4,4e5$4,1a5$4");
-	// makeSound(1000, 100, 100, 0);
 }
 
 elapsedMillis activityTimer;
@@ -94,6 +109,8 @@ void loop() {
 
 u32 *speakerRxPacket;
 void setup1() {
+	while (!(setupDone & 0b01)) {
+	}
 	initESCs();
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {

@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { port, type Command, ConfigCmd } from '../../stores';
+	import { port, type Command, ConfigCmd } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import Motor from './motor.svelte';
 	import { leBytesToInt } from '../../utils';
+	import { configuratorLog } from '../../logStore';
 	const motorMapping = [3, 1, 2, 0];
 	let int = -1;
 	let throttles = [0, 0, 0, 0];
 	let throttlesU8 = [0, 0, 0, 0, 0, 0, 0, 0];
+	let passthroughMotorNumber = 0;
 	$: throttlesU8 = [
 		throttles[0] & 0xff,
 		throttles[0] >> 8,
@@ -19,12 +21,22 @@
 	];
 	$: handleCommand($port);
 	function handleCommand(command: Command) {
-		if (command.command === (ConfigCmd.GET_MOTORS | 0x4000)) {
-			const m = [] as number[];
-			for (let i = 0; i < 4; i++) {
-				m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
-			}
-			motors = m;
+		switch (command.command) {
+			case ConfigCmd.GET_MOTORS | 0x4000:
+				{
+					const m = [] as number[];
+					for (let i = 0; i < 4; i++) {
+						m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
+					}
+					motors = m;
+				}
+				break;
+			case ConfigCmd.ESC_PASSTHROUGH | 0x4000:
+				configuratorLog.push('FC reboots into passthrough mode');
+				port.disconnect();
+				break;
+			case ConfigCmd.ESC_PASSTHROUGH | 0x8000:
+				configuratorLog.push(command.dataStr);
 		}
 	}
 	let motors = [0, 0, 0, 0];
@@ -46,6 +58,9 @@
 		throttles[motor] = 150;
 		throttles = [...throttles];
 	}
+	function startPassthrough() {
+		port.sendCommand(ConfigCmd.ESC_PASSTHROUGH, [passthroughMotorNumber]);
+	}
 	onMount(() => {
 		getMotorsInterval = setInterval(() => {
 			port.sendCommand(ConfigCmd.GET_MOTORS);
@@ -66,6 +81,8 @@
 	<button on:click={() => spinMotor(3)}>Spin FL</button>
 	<button on:click={() => stopMotors()}>Stop</button>
 	<button on:click={() => startMotors()}>Start</button>
+	<input type="number" bind:value={passthroughMotorNumber} placeholder="0=RR,1=FR,2=RL,3=FL" />
+	<button on:click={startPassthrough}>Passthrough</button>
 	<div class="quadPreview">
 		{#each motors.map((m, i) => motors[motorMapping[i]]) as motor}
 			<Motor throttlePct={motor / 20} />
