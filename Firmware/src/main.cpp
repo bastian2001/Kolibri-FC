@@ -8,12 +8,13 @@ void setup() {
 	Serial.begin(115200);
 
 	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
-		powerOnReset = false;
+		bootReason = rebootReason;
 	else
-		powerOnReset = true;
+		bootReason = BootReason::POR;
 	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
+	rebootReason            = BootReason::WATCHDOG;
 
-	if (connectEscPassthrough && !powerOnReset) { // 0 if disabled, pin + 1 if enabled
+	if (connectEscPassthrough && bootReason == BootReason::CMD_ESC_PASSTHROUGH) { // 0 if disabled, pin + 1 if enabled
 		beginPassthrough(connectEscPassthrough - 1);
 		connectEscPassthrough = 0;
 		for (u8 breakout = 0; !breakout;) {
@@ -21,6 +22,7 @@ void setup() {
 		}
 		endPassthrough();
 	}
+	connectEscPassthrough = 0;
 	EEPROM.begin(4096);
 	Serial.println("Setup started");
 	readEEPROM();

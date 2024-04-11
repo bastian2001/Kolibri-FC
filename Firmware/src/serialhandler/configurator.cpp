@@ -88,6 +88,8 @@ void handleConfigCmd() {
 	} break;
 	case ConfigCmd::REBOOT:
 		sendCommand(configMsgCommand | 0x4000);
+		Serial.flush();
+		rebootReason = BootReason::CMD_REBOOT;
 		delay(100);
 		rp2040.reboot();
 		break;
@@ -258,6 +260,8 @@ void handleConfigCmd() {
 	} break;
 	case ConfigCmd::REBOOT_TO_BOOTLOADER:
 		sendCommand(configMsgCommand | 0x4000);
+		Serial.flush();
+		rebootReason = BootReason::CMD_BOOTLOADER;
 		delay(100);
 		rp2040.rebootToBootloader();
 		break;
@@ -460,8 +464,7 @@ void handleConfigCmd() {
 		} else {
 			sendCommand(configMsgCommand | 0x4000);
 			Serial.flush();
-			delay(100);
-			rp2040.wdt_reset();
+			rebootReason = BootReason::CMD_ESC_PASSTHROUGH;
 			delay(100);
 			rp2040.reboot();
 		}
