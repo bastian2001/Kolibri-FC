@@ -70,12 +70,6 @@
 			case ConfigCmd.PLAY_SOUND | 0x4000:
 				console.log(command.data);
 				break;
-			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
-				configuratorLog.push('See console for crash dump');
-				break;
-			case ConfigCmd.CLEAR_CRASH_DUMP | 0x4000:
-				configuratorLog.push('Crash dump cleared');
-				break;
 			case ConfigCmd.CONFIGURATOR_PING:
 				//ping received from FC, confirm
 				port.sendCommand(ConfigCmd.CONFIGURATOR_PING | 0x4000);
