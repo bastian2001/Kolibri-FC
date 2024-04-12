@@ -1,4 +1,6 @@
 #include <Arduino.h>
+
+/// @brief Positions of the different values in the EEPROM (4KiB max)
 enum class EEPROM_POS : u16 {
 	EEPROM_INIT             = 0,
 	EEPROM_VERSION          = 1,
@@ -15,4 +17,5 @@ enum class EEPROM_POS : u16 {
 	MAG_CALIBRATION_HARD    = 185, // two bytes per axis,
 };
 
+/// @brief Write configuration values from EEPROM, write default if the EEPROM is not initialized
 void readEEPROM();

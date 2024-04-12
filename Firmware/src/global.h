@@ -49,34 +49,32 @@
 #include "serialhandler/gps.h"
 #include "taskManager.h"
 
-#define SPI_GYRO spi0
-#define SPI_OSD spi0
-#define SPI_BARO spi0
-#define SPI_SD spi1
-#define I2C_MAG i2c0
+#define SPI_GYRO spi0 // SPI for gyro
+#define SPI_OSD spi0 // SPI for OSD
+#define SPI_BARO spi0 // SPI for baro
+#define SPI_SD spi1 // SPI for SD card
+#define I2C_MAG i2c0 // I2C for magnetometer
 #define PROPS_OUT
 
-extern ExpressLRS *ELRS;
-#define DECODE_RU1_3(buf) ((*(buf) & 0x1F) << ((*(u8 *)(buf)) >> 5))
-#define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((u8 *)(buf) + 1) << 8))
-#define DECODE_RU2_5(buf) ((*(buf) + ((*((buf) + 1) & 0x7) * << 8)) << ((*((u8 *)(buf) + 1)) >> 3))
-#define DECODE_I2(buf) ((*(buf) & 0xFF) + ((*((u8 *)(buf) + 1)) << 8))
-u32 DECODE_U4(const u8 *buf);
-i32 DECODE_I4(const u8 *buf);
-f32 DECODE_R4(const u8 *buf);
-i64 DECODE_I8(const u8 *buf);
-f64 DECODE_R8(const u8 *buf);
+extern ExpressLRS *ELRS; // global ELRS instance
+#define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((u8 *)(buf) + 1) << 8)) // Decode 2 bytes from a buffer into a 16-bit unsigned integer
+#define DECODE_I2(buf) ((*(buf) & 0xFF) + ((*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer
+u32 DECODE_U4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit unsigned integer
+i32 DECODE_I4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit signed integer
+f32 DECODE_R4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit float
+i64 DECODE_I8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit signed integer
+f64 DECODE_R8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit float / double
 
 enum class BootReason {
-	POR,
+	POR, // Power-on reset
 	CMD_REBOOT,
 	CMD_BOOTLOADER,
 	WATCHDOG,
 	CMD_ESC_PASSTHROUGH
 };
 
-extern volatile u32 crashInfo[256];
-extern u8 connectEscPassthrough;
-extern BootReason bootReason;
-extern BootReason rebootReason;
-extern u64 powerOnResetMagicNumber;
+extern volatile u32 crashInfo[256]; // Crash info buffer (arbitrary data to be saved to EEPROM in case of a crash)
+extern u8 connectEscPassthrough; // ESC passthrough pin + 1 if enabled, 0 if disabled
+extern BootReason bootReason; // Reason for booting
+extern BootReason rebootReason; // Reason for rebooting (can be set right before an intentional reboot, WATCHDOG otherwise)
+extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0xdeadbeefdeadbeef)

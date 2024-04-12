@@ -16,6 +16,11 @@ public:
 		delete[] buffer;
 	}
 
+	/**
+	 * @brief push a new value to the buffer, overwriting the oldest value if the buffer is full
+	 *
+	 * @param value The new value to be pushed
+	 */
 	void push(T value) {
 		buffer[wrPtr++] = value;
 		if (wrPtr == size) wrPtr = 0;
@@ -26,6 +31,11 @@ public:
 		}
 	}
 
+	/**
+	 * @brief pop the oldest value from the buffer (FIFO)
+	 *
+	 * @return T The oldest value in the buffer
+	 */
 	T pop() {
 		if (wrPtr == rdPtr) {
 			return T(); // Buffer is empty
@@ -36,22 +46,35 @@ public:
 		return value;
 	}
 
+	/// @brief check if the buffer is empty
+	/// @return true if the buffer is empty
 	bool isEmpty() const {
 		return wrPtr == rdPtr;
 	}
 
+	/// @brief check if the buffer is full
+	/// @return true if the buffer is full
 	bool isFull() const {
 		return (wrPtr + 1) % size == rdPtr;
 	}
+	/// @brief get the number of items in the buffer
+	/// @return size_t the number of items in the buffer
 	size_t itemCount() const {
 		if (wrPtr >= rdPtr)
 			return wrPtr - rdPtr;
 		else
 			return size - rdPtr + wrPtr;
 	}
+	/// @brief get the number of free spaces in the buffer
 	size_t freeSpace() const {
 		return size - itemCount() - 1;
 	}
+	/**
+	 * @brief resize the buffer, keeping the oldest items
+	 *
+	 * @param newSize
+	 * @return u8
+	 */
 	u8 resize(size_t newSize) {
 		T *newBuffer = new T[newSize + 1];
 		if (newBuffer == nullptr) return 1;
@@ -66,18 +89,27 @@ public:
 		rdPtr  = 0;
 		return 0;
 	}
+	/// @brief get the item at index index, does not pop
 	T &operator[](size_t index) {
 		return buffer[(index + rdPtr) % size];
 	}
+	/// @brief clear the buffer
 	void clear() {
 		wrPtr = 0;
 		rdPtr = 0;
 	}
-	// erase all items before index (0 inclusive to index exclusive)
+	/// @brief erase all items before index (0 inclusive to index exclusive)
 	void erase(size_t index) {
 		if (index > itemCount()) index = itemCount();
 		rdPtr = (rdPtr + index) % size;
 	}
+	/**
+	 * @brief copy the buffer to an array
+	 *
+	 * @param array pointer where to copy
+	 * @param start skip the first start items
+	 * @param arraySize number of items to copy
+	 */
 	void copyToArray(T *array, size_t start, size_t arraySize) {
 		if (start >= itemCount()) return;
 		if (start + arraySize > itemCount()) arraySize = itemCount() - start;

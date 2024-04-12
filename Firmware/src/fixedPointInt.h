@@ -8,7 +8,7 @@ extern interp_config sinInterpConfig0, sinInterpConfig1;
 void initFixTrig();
 /**
  * @brief prepares the interpolator for blend mode
- * Call this once before every sinFix/cosFix calculation batch
+ * @details Call this once before every sinFix/cosFix calculation batch
  */
 inline void startFixTrig() {
 	interp_set_config(interp0, 0, &sinInterpConfig0);

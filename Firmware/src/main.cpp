@@ -23,6 +23,7 @@ void setup() {
 		endPassthrough();
 	}
 	connectEscPassthrough = 0;
+	initPID();
 	EEPROM.begin(4096);
 	Serial.println("Setup started");
 	readEEPROM();

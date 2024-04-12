@@ -57,23 +57,42 @@
 #define LOG_HEAD_MOTOR_POLES 166
 #define LOG_HEAD_LENGTH 256
 
-extern u64 bbFlags;
-extern volatile bool bbLogging, fsReady;
-extern FSInfo64 fs_info;
-extern elapsedMillis infoAge;
-extern u8 bbFreqDivider;
+extern u64 bbFlags;                      // 64 bits of flags for the blackbox (LOG_ macros)
+extern volatile bool bbLogging, fsReady; // Blackbox state
+extern u8 bbFreqDivider;                 // Blackbox frequency divider (compared to PID loop)
 
+/// @brief Set up SD card and create /kolibri folder
 void initBlackbox();
 
+/// @brief Start a logging file
 void startLogging();
 
+/// @brief Stop logging and close the file
 void endLogging();
 
+/**
+ * @brief Delete all blackbox files
+ *
+ * @return true if all files were deleted
+ * @return false if any file could not be deleted
+ */
 bool clearBlackbox();
 
+/// @brief Write a single frame to the blackbox file
 void writeSingleFrame();
 
+/**
+ * @brief Print a log file to the configurator using ConfigCmd::BB_FILE_DOWNLOAD
+ *
+ * @details Chunk Size is 1024 bytes
+ *
+ * @param logNum log number to print
+ * @param chunkNum chunk number to print, -1 (default) for all
+ */
 void printLogBin(u8 logNum, i16 chunkNum = -1);
+
+/// @brief Print a log file raw to Serial, no framing
 void printLogBinRaw(u8 logNum);
 
+/// @brief Writes the prepared blackbox frames to the SD card
 void blackboxLoop();

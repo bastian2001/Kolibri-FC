@@ -1,5 +1,6 @@
 #include <Arduino.h>
 // Rust just has better names for these types
+
 typedef float f32;
 typedef double f64;
 typedef int8_t i8;

@@ -11,38 +11,53 @@ using std::vector;
 extern RingBuffer<u8> elrsBuffer;
 class ExpressLRS {
 public:
+	/**
+	 * @brief New ExpressLRS instance
+	 *
+	 * @param elrsSerial Serial port used for telemetry output
+	 * @param baudrate Baudrate that is used to set up the serial port
+	 * @param pinTX TX pin for the serial port
+	 * @param pinRX RX pin for the serial port
+	 */
 	ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX = -1, u8 pinRX = -1);
 	~ExpressLRS();
+	/// @brief Called regularly to process incoming bytes and send telemetry
 	void loop();
-	u32 channels[16]     = {0};
-	u32 lastChannels[16] = {0};
-	void getSmoothChannels(fix32 smoothChannels[4]); // calculates the sticks' smooth position
-	elapsedMicros sinceLastRCMessage;
-	elapsedMicros sinceLastMessage;
-	bool isLinkUp                             = false;
-	bool isReceiverUp                         = false;
-	u32 msgCount                              = 0;
-	u32 rcMsgCount                            = 0;
-	u32 errorCount                            = 0;
-	bool errorFlag                            = false;
-	u8 lastError                              = 0;
+	u32 channels[16]     = {0}; // raw RC channels (1000-2000 for throttle and switches, 988-2012 for other sticks)
+	u32 lastChannels[16] = {0}; // RC channels from the last packet (1000-2000 for throttle and switches, 988-2012 for other sticks)
+	/**
+	 * @brief Calculate the smoothed RC channels
+	 *
+	 * @details uses linear interpolation over 4ms / extrapolation up to 8ms and clamps the values to 1000-2000 / 988-2012
+	 * @param smoothChannels Array to store the smoothed channels
+	 */
+	void getSmoothChannels(fix32 smoothChannels[4]);
+	elapsedMicros sinceLastRCMessage;                     // time (µs) since the last valid RC message was received
+	elapsedMicros sinceLastMessage;                       // time (µs) since the last valid message was received
+	bool isLinkUp                             = false;    // true if the link is up (300 RC messages received and 20 in the last second)
+	bool isReceiverUp                         = false;    // true if the receiver recognized (1 message in the last second)
+	u32 msgCount                              = 0;        // total count of any received message
+	u32 rcMsgCount                            = 0;        // total count of received RC messages
+	u32 errorCount                            = 0;        // total count of errors (CRC, buffer overflow, unsupported command, invalid prefix, invalid length)
+	bool errorFlag                            = false;    // set to true whenever an error occurs
+	u8 lastError                              = NO_ERROR; // last error code
 	static const u8 NO_ERROR                  = 0x00;
 	static const u8 ERROR_CRC                 = 0x01;
 	static const u8 ERROR_BUFFER_OVERFLOW     = 0x02;
 	static const u8 ERROR_UNSUPPORTED_COMMAND = 0x03;
 	static const u8 ERROR_INVALID_PREFIX      = 0x04;
 	static const u8 ERROR_INVALID_LENGTH      = 0x05;
-	i16 uplinkRssi[2]                         = {0};
-	u8 uplinkLinkQuality                      = 0;
-	i8 uplinkSNR                              = 0;
-	u8 antennaSelection                       = 0;
-	u8 packetRate                             = 0;
-	u8 txPower                                = 0;
-	i16 downlinkRssi                          = 0;
-	u8 downlinkLinkQuality                    = 0;
-	i8 downlinkSNR                            = 0;
-	u32 consecutiveArmedCycles                = 0;
-	u32 newPacketFlag                         = 0;
+	i16 uplinkRssi[2]                         = {0}; // RX RSSI values of both antennas (signed, more negative = worse)
+	u8 uplinkLinkQuality                      = 0;   // RX packet success rate 0-100 [%]
+	i8 uplinkSNR                              = 0;   // RX SNR in dB
+	u8 antennaSelection                       = 0;   // used antenna (0 = antenna 1, 1 = antenna 2)
+	u8 packetRate                             = 0;   // packet rate index
+	u16 txPower                               = 0;   // current TX power in mW
+	i16 downlinkRssi                          = 0;   // telemetry RSSI (signed, more negative = worse)
+	u8 downlinkLinkQuality                    = 0;   // telemetry packet success rate 0-100 [%]
+	i8 downlinkSNR                            = 0;   // telemetry SNR in dB
+	u32 consecutiveArmedCycles                = 0;   // number of cycles the switch is in the armed position, reset to 0 when disarmed
+	u32 newPacketFlag                         = 0;   // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
 
 private:
 	const u16 powerStates[9]                  = {0, 10, 25, 100, 500, 1000, 2000, 50, 250};

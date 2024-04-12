@@ -4,14 +4,29 @@ using std::vector;
 
 #define GPS_BUF_LEN 1024
 
-extern RingBuffer<u8> gpsBuffer;
-extern i32 headingAdjustment;
-extern elapsedMillis lastPvtMessage;
+extern RingBuffer<u8> gpsBuffer;     // GPS incoming serial buffer
+extern elapsedMillis lastPvtMessage; // time since the last PVT (position velocity time) message was received
+/**
+ * ## current time provided by the GPS
+ *
+ * This is the time the GPS module thinks it is. It is updated every time a PVT message is received.
+ * Format:
+ */
 extern u32 timestamp;
 extern u8 currentPvtMsg[92];
 extern u32 newPvtMessageFlag;
 
+/**
+ * @brief initialize GPS driver
+ *
+ * @details Uses Serial2 and sets the baudrate to 38400, also enables the OSD elements
+ */
 void initGPS();
+
+/**
+ * @brief GPS message decoding and setup
+ * @details setup of GPS module and decoding of messages like PVT
+ */
 void gpsLoop();
 enum fixTypes : u8 {
 	FIX_NONE               = 0,
@@ -33,18 +48,12 @@ typedef struct gpsTime {
 	u8 second;
 } GpsTime;
 typedef struct gpsAccuracy {
-	// unit: ns
-	u32 tAcc;
-	// unit: mm
-	u32 hAcc;
-	// unit: mm
-	u32 vAcc;
-	// unit: mm/s
-	u32 sAcc;
-	// unit: 10^-5 deg
-	u32 headAcc;
-	// unit: 10^-2
-	u32 pDop;
+	u32 tAcc;    // unit: ns
+	u32 hAcc;    // unit: mm
+	u32 vAcc;    // unit: mm
+	u32 sAcc;    // unit: mm/s
+	u32 headAcc; // unit: 10^-5 deg
+	u32 pDop;    // unit: 10^-2
 } GpsAccuracy;
 typedef struct gpsStatus {
 	u8 gpsInited;
@@ -57,22 +66,14 @@ typedef struct gpsStatus {
 	u8 satCount;
 } GpsStatus;
 typedef struct gpsMotion {
-	// unit: 10^-7 deg
-	i32 lat;
-	// unit: 10^-7 deg
-	i32 lon;
-	// unit: mm, above mean sea level
-	i32 alt;
-	// unit: mm/s
-	i32 velN;
-	// unit: mm/s
-	i32 velE;
-	// unit: mm/s
-	i32 velD;
-	// unit: mm/s
-	i32 gSpeed;
-	// unit: 10^-5 deg
-	i32 headMot;
+	i32 lat;     // unit: 10^-7 deg
+	i32 lon;     // unit: 10^-7 deg
+	i32 alt;     // unit: mm, above mean sea level
+	i32 velN;    // unit: mm/s
+	i32 velE;    // unit: mm/s
+	i32 velD;    // unit: mm/s
+	i32 gSpeed;  // unit: mm/s
+	i32 headMot; // unit: 10^-5 deg
 } GpsMotion;
 extern GpsAccuracy gpsAcc;
 extern GpsTime gpsTime;

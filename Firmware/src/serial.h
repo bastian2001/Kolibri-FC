@@ -11,4 +11,5 @@
 #define SERIAL_CONFIGURATOR 1 << 6
 #define SERIAL_MSP 1 << 7
 
+/// @brief reads the serial port and sends it to the appropriate handler
 void serialLoop();

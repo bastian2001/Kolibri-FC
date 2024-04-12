@@ -12,6 +12,8 @@ i16 gyroCalibrationOffsetTemp[3]  = {0};
 i32 accelCalibrationOffsetTemp[3] = {0};
 u16 accelCalibrationCycles        = 0;
 
+extern const u8 bmi270_config_file[8192];
+
 void gyroLoop() {
 	u8 gpioState = gpio_get(PIN_GYRO_INT1);
 	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
@@ -86,7 +88,7 @@ int gyroInit() {
 	if (data != 0x24) {
 		Serial.print("Failed to load BMI270, wrong Chip ID: "); // chip id should be 0x24
 		Serial.println(data, HEX);
-		// return 1;
+		return 1;
 	}
 	data = 0;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save

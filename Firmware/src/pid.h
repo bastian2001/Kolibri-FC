@@ -11,11 +11,11 @@
 #define FF_SHIFT 13
 #define S_SHIFT 8 // setpoint follow
 
-extern i16 bmiDataRaw[6];
-extern i16 *gyroDataRaw;
-extern i16 *accelDataRaw;
-extern fix32 gyroData[3];
-extern fix32 rateFactors[5][3];
+extern i16 bmiDataRaw[6];       // raw data from the BMI160 after calibration
+extern i16 *gyroDataRaw;        // raw gyro data from the BMI160 after calibration, part of bmiDataRaw
+extern i16 *accelDataRaw;       // raw accelerometer data from the BMI160 after calibration, part of bmiDataRaw
+extern fix32 gyroData[3];       // gyro data in deg/s
+extern fix32 rateFactors[5][3]; // rate factors for the PID controller, 0 = x^1, 1 = x^2... (x normalized to +-1 at full deflection)
 enum {
 	P,
 	I,
@@ -24,17 +24,23 @@ enum {
 	S,
 	iFalloff
 };
-extern fix32 pidGains[3][7];
-extern fix32 pidGainsVVel[4], pidGainsHVel[3];
-extern fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;
-extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
-extern fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
-extern fix32 altSetpoint;
-extern fix32 throttle;
-extern fix32 smoothChannels[4];
-extern i16 throttles[4];
-extern u32 pidLoopCounter;
-extern u16 condensedRpm[4];
+extern fix32 pidGains[3][7];                                                                                             // PID gains for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
+extern fix32 pidGainsVVel[4];                                                                                            // PID gains for the vertical velocity PID controller
+extern fix32 pidGainsHVel[3];                                                                                            // PID gains for the horizontal velocity PID controller
+extern fix32 rollSetpoint, pitchSetpoint, yawSetpoint;                                                                   // acro setpoint (deg/s)
+extern fix32 rollError, pitchError, yawError;                                                                            // acro rate error (deg/s)
+extern fix32 rollLast, pitchLast, yawLast;                                                                               // acro rate of last PID cycle (deg/s)
+extern fix32 vVelSetpoint, vVelError, vVelLast;                                                                          // vertical velocity PID states
+extern fix32 eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast;                                       // horizontal velocity PID states
+extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS; // acro PID summands
+extern fix32 vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;                                              // velocity PID summands
+extern fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;                         // I term sum for the PID controller
+extern fix32 altSetpoint;                                                                                                // altitude setpoint (m ASL)
+extern fix32 throttle;                                                                                                   // current throttle setpoint (0-2000)
+extern fix32 smoothChannels[4];                                                                                          // smoothed RC channel values (1000ish to 2000ish)
+extern i16 throttles[4];                                                                                                 // throttle values for the motors (0-2000)
+extern u32 pidLoopCounter;                                                                                               // counter of PID controller loops
+extern u16 condensedRpm[4];                                                                                              // condensed ERPM periods for the motors (eeem mmmm mmmm)
 enum class FLIGHT_MODE {
 	ACRO,
 	ANGLE,
@@ -43,8 +49,14 @@ enum class FLIGHT_MODE {
 	GPS_POS, // set a position and hold it/fly to it
 	LENGTH   // place behind all other modes, acts as a limit for loops etc.
 };
-extern FLIGHT_MODE flightMode;
+extern FLIGHT_MODE flightMode; // currently selected flight mode (NOT whether the drone is armed)
 
+/**
+ * @brief PID controller loop
+ *
+ * @details 1. read the gyro data and convert to deg/s, 2. update attitude, 3. decode ERPM, 4. run pid controllers for the selected mode, 5. air mode, 6. send motor values, 7. blackbox logging
+ */
 void pidLoop();
 
+/// @brief intialize PID terms and gains
 void initPID();

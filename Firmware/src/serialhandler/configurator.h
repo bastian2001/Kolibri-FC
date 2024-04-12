@@ -6,14 +6,15 @@
 #define CONFIG_BUFFER_COMMAND 4
 #define CONFIG_BUFFER_DATA 6
 
-extern bool configuratorConnected;
-extern u8 accelCalDone;
+extern bool configuratorConnected; // true if the configurator is connected
+extern u8 accelCalDone;            // accel calibration flag to send a message to the configurator
 
-// responses to commands have the command | 0x4000, followed by the data, no separate response codes
-// When a command fails, the response code is command | 0x8000, followed by the error, no separate error codes.
-// indicators have a command starting with the 0xC000 bit set
-enum class ConfigCmd {
-	// commands/responses/errors
+/**
+ * @brief Kolibri Serial commands
+ *
+ * @details These commands are used to communicate with the configurator. Each command has a corresponding response. The command is sent as a 16-bit value, followed by the data. The response is the same 16-bit value, followed by the data. If the command fails, the response is the command with the 0x8000 bit set, followed by the error message. A successful command is responded to with the command | 0x4000, followed by the data. Indicators are commands starting with the 0xC000 bit set.
+ */
+enum class ConfigCmd { // commands/responses/errors
 	STATUS,
 	TASK_STATUS,
 	REBOOT,
@@ -56,7 +57,26 @@ enum class ConfigCmd {
 	IND_MESSAGE = 0xC000,
 };
 
+/**
+ * @brief Send a command to the configurator
+ *
+ * @param command command to issue
+ * @param data data buffer, default is nullptr for no data
+ * @param len length of the data buffer, default is 0
+ */
 void sendCommand(u16 command, const char *data = nullptr, u16 len = 0);
+
+/**
+ * @brief Process a byte from the configurator
+ *
+ * @param c data byte
+ * @param serialNum serial port number to send the response to
+ */
 void configuratorHandleByte(u8 c, u8 serialNum);
+
+/// @brief counter for the motor override timeout
+/// @details If the configurator is connected, it can override the motor values when this is < 1000, and it is possible to arm with an attached configurator
 extern elapsedMillis configOverrideMotors;
+
+/// @brief handles configurator pings and asynchronous operations
 void configuratorLoop();

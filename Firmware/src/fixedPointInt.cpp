@@ -18,7 +18,8 @@ void initFixTrig() {
 
 /**
  * @brief calculates the sine of a fixed point number, faster than sinf
- * accurate to about 0.0001. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix calculation batch to prepare the interpolator for blend mode
+ * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start.
+ * Also call startFixTrig() once before every sinFix/cosFix calculation batch to prepare the interpolator for blend mode
  * @param x
  * @return fix32
  */
@@ -37,7 +38,7 @@ fix32 sinFix(const fix32 x) {
 }
 /**
  * @brief calculates the cosine of a fixed point number, faster than cosf
- * accurate to about 0.0001. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix calculation batch to prepare the interpolator for blend mode
+ * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix calculation batch to prepare the interpolator for blend mode
  * @param x
  * @return fix32
  */

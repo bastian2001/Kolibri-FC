@@ -34,18 +34,38 @@ typedef enum {
 	DSHOT_CMD_MAX                      = 47
 } ESCCommand;
 
-extern PIO escPio;
-extern u8 escSm;
-extern volatile u32 erpmEdges[4][32];
-extern volatile u32 escRpm[4];
-extern const u32 escDecodeLut[32];
-extern u8 escErpmFail;
-extern u8 escDmaChannel[4];
-extern u8 escClearDmaChannel;
+extern PIO escPio;                    // pio block used for the ESC communication
+extern volatile u32 erpmEdges[4][32]; // edge detection durations for each motor
+extern volatile u32 escRpm[4];        // decoded RPM values
+extern const u32 escDecodeLut[32];    // lookup table for GCR decoding
+extern u8 escErpmFail;                // flags for failed RPM decoding
+extern u8 escDmaChannel[4];           // DMA channels for the ESC communication
+extern u8 escClearDmaChannel;         // DMA channel for clearing the erpm edges, essentially memset(0) for the erpmEdges array
 
+/// @brief Initializes the ESC communication
 void initESCs();
 
-// 11 bit value without checksum and telemetry bit
+/**
+ * @brief Sends throttles to all four ESCs
+ *
+ * @details Telemetry bit is not set
+ *
+ * @param throttles Array of four throttle values (0-2000)
+ */
 void sendThrottles(const i16 throttles[4]);
+
+/**
+ * @brief Sends raw values to all four ESCs (useful for special commands)
+ *
+ * @details Telemetry bit always set
+ *
+ * @param raw Array of four raw values (0-2047, with 1-47 being the special commands, and the others being the throttle values)
+ */
 void sendRaw11Bit(const u16 raw[4]);
+
+/**
+ * @brief Sends raw values to all four ESCs (useful for special commands)
+ *
+ * @param raw Array of four raw values, including the telemetry bits and checksum
+ */
 void sendRaw16Bit(const u16 raw[4]);

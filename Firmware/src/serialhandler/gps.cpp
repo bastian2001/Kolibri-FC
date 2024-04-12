@@ -7,9 +7,8 @@ GpsAccuracy gpsAcc;
 GpsTime gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
-i32 headingAdjustment = 0;
-char olcString[14]    = "AABBCCDD+EEFG";
-char olcAlphabet[]    = "23456789CFGHJMPQRVWX";
+char olcString[14] = "AABBCCDD+EEFG";
+char olcAlphabet[] = "23456789CFGHJMPQRVWX";
 u8 currentPvtMsg[92];
 u32 newPvtMessageFlag = 0;
 

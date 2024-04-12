@@ -1,6 +1,5 @@
 #include "global.h"
 void readEEPROM() {
-	initPID();
 	if (EEPROM.read((u16)EEPROM_POS::EEPROM_INIT) != 0x42) {
 		// EEPROM is not initialized
 		EEPROM.write((u16)EEPROM_POS::EEPROM_INIT, 0x42);

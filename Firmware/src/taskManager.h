@@ -2,18 +2,18 @@
 #include <Arduino.h>
 
 typedef struct task {
-	u32 runCounter;
-	u32 minDuration;
-	u32 maxDuration;
-	u32 frequency;
-	u32 avgDuration;
-	u32 errorCount;
-	u32 lastError;
-	u32 totalDuration;
-	u32 debugInfo;
-	u32 maxGap;
+	u32 runCounter;    // incremented every time the task is run, reset every second
+	u32 minDuration;   // minimum duration of the task
+	u32 maxDuration;   // maximum duration of the task
+	u32 frequency;     // how often the task is run in the last second
+	u32 avgDuration;   // average duration of the task in the last second
+	u32 errorCount;    // how often the task has thrown an error since boot
+	u32 lastError;     // last error code (different for each task)
+	u32 totalDuration; // total duration the task has taken since the reset every second
+	u32 debugInfo;     // debug info (different for each task)
+	u32 maxGap;        // maximum gap between two runs of the task (from end to start)
 } FCTask;
-extern volatile FCTask tasks[32];
+extern volatile FCTask tasks[32]; // holds all the task stats
 
 enum Tasks {
 	TASK_LOOP0,
@@ -39,5 +39,8 @@ enum Tasks {
 	TASK_BAROREAD
 };
 
+/// @brief resets all task stats
 void initTaskManager();
+
+/// @brief checks if a second has passed and updates the task stats
 void taskManagerLoop();
