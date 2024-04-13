@@ -906,6 +906,7 @@
 			case ConfigCmd.BB_FILE_DELETE | 0x4000:
 				const index = logNums.findIndex((l) => l.num === selected);
 				if (index !== -1) logNums.splice(index, 1);
+				logNums = [...logNums];
 				if (!logNums.length) {
 					logNums = [{ text: 'No logs found', num: -1 }];
 					selected = -1;
