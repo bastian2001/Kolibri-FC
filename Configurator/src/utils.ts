@@ -141,6 +141,23 @@ export type BBLog = {
 	motorPoles: number;
 };
 
+export type TraceInGraph = {
+	flagName: string;
+	color: string;
+	strokeWidth: number;
+	minValue: number;
+	maxValue: number;
+	modifier: any;
+	id: number;
+	unit?: string;
+	states?: string[];
+	decimals?: number;
+	displayName?: string;
+	overrideAuto?: { min: number; max: number };
+	overrideData?: number[];
+	overrideSliceAndSkip?: number[];
+};
+
 export function getNestedProperty(
 	obj: any,
 	path: string,
@@ -159,4 +176,8 @@ export function getNestedProperty(
 
 export function roundToDecimal(num: number, places: number) {
 	return Math.round(num * Math.pow(10, places)) / Math.pow(10, places);
+}
+
+export function constrain(num: number, min: number, max: number) {
+	return Math.min(max, Math.max(min, num));
 }

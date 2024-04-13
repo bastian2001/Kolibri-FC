@@ -1,24 +1,13 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
+	import { type BBLog, type TraceInGraph, getNestedProperty } from '../../utils';
+
 	const dispatch = createEventDispatcher();
-	type TraceInGraph = {
-		flagName: string;
-		color: string;
-		strokeWidth: number;
-		autoRange: boolean;
-		minValue: number;
-		maxValue: number;
-		modifier: any;
-		id: number;
-		unit?: string;
-		states?: string[];
-		decimals?: number;
-		displayName?: string;
-	};
 	export let flags: string[];
 	export let autoRange: { min: number; max: number };
-	export let flagProps: { [key: string]: { name: string; unit: string } };
+	export let flagProps: { [key: string]: { name: string; unit: string; path: string } };
 	export let genFlagProps: { [key: string]: { name: string; unit: string } };
+	export let log: BBLog;
 
 	let autoRangeOn = true;
 	let flagName = '';
@@ -28,6 +17,10 @@
 	let color = '#000000';
 	let autoMin = 0;
 	let autoMax = 1;
+	let filteringOn = false;
+	let filterType: 'pt1' | 'sma' | 'binomial' = 'pt1';
+	let filterValue1 = 0;
+	let filterValue2 = false;
 	const gpsModifier = [
 		{
 			displayNameShort: 'Year',
@@ -274,11 +267,24 @@
 		if (autoRange.max !== autoMax) autoMax = autoRange.max;
 	}
 
+	function getBinomialCoeff(n: number, k: number) {
+		let result = 1;
+		for (let i = 1; i <= n; i++) {
+			result *= i;
+		}
+		for (let i = 1; i <= k; i++) {
+			result /= i;
+		}
+		for (let i = 1; i <= n - k; i++) {
+			result /= i;
+		}
+		return result;
+	}
+
 	let traceInGraph: TraceInGraph = {} as TraceInGraph;
 	$: {
 		traceInGraph.flagName = flagName;
 		traceInGraph.color = color;
-		traceInGraph.autoRange = autoRangeOn;
 		traceInGraph.minValue = autoRangeOn ? autoMin || 0 : minValue;
 		traceInGraph.maxValue = autoRangeOn ? autoMax || 1 : maxValue;
 		minValue = traceInGraph.minValue;
@@ -290,6 +296,63 @@
 		if (traceInGraph.displayName)
 			traceInGraph.displayName = flagProps[flagName].name + ' ' + traceInGraph.displayName;
 		traceInGraph.modifier = modifier;
+		if (filteringOn) {
+			const path = flagProps[flagName].path + (modifier ? '.' + modifier : '');
+			switch (filterType) {
+				case 'pt1':
+					traceInGraph.overrideData = [getNestedProperty(log.frames[0], path)];
+					let state = traceInGraph.overrideData[0] || 0;
+					const omega = (2 * Math.PI * (filterValue1 || 0.01)) / log.framesPerSecond;
+					const alpha = omega / (1 + omega);
+					for (let i = 1; i < log.frames.length; i++) {
+						state =
+							state + alpha * (getNestedProperty(log.frames[i], path, { defaultValue: 0 }) - state);
+						traceInGraph.overrideData.push(state);
+					}
+					break;
+				case 'sma':
+					{
+						traceInGraph.overrideData = [];
+						filterValue1 = Math.min(filterValue1, log.frames.length);
+						filterValue1 = Math.max(filterValue1, 1);
+						const compFrames = filterValue2 ? filterValue1 / 2 : 0;
+						for (let i = 0; i < log.frames.length; i++) {
+							let sum = 0;
+							for (let j = 0; j < filterValue1; j++) {
+								sum += getNestedProperty(log.frames[Math.round(i - j + compFrames)] || {}, path, {
+									defaultValue: 0
+								}); // || {} to prevent undefined => default value will be used
+							}
+							traceInGraph.overrideData.push(sum / filterValue1);
+						}
+					}
+					break;
+				case 'binomial':
+					{
+						traceInGraph.overrideData = [];
+						const binomialCoeffs = [];
+						filterValue1 = Math.min(filterValue1, log.frames.length);
+						filterValue1 = Math.max(filterValue1, 1);
+						let binomSum = 0;
+						for (let i = 0; i < filterValue1; i++) {
+							binomialCoeffs.push(getBinomialCoeff(filterValue1 - 1, i));
+							binomSum += binomialCoeffs[i];
+						}
+						const compFrames = filterValue2 ? filterValue1 / 2 : 0;
+						for (let i = 0; i < log.frames.length; i++) {
+							let sum = 0;
+							for (let j = 0; j < filterValue1; j++) {
+								sum +=
+									getNestedProperty(log.frames[Math.round(i - j + compFrames)] || {}, path, {
+										defaultValue: 0
+									}) * binomialCoeffs[j];
+							}
+							traceInGraph.overrideData.push(sum / binomSum);
+						}
+					}
+					break;
+			}
+		} else if (traceInGraph.overrideData) delete traceInGraph.overrideData;
 		dispatch('update', traceInGraph);
 	}
 
@@ -333,14 +396,14 @@
 		</select>
 	{/if}
 	{#if flagName === 'LOG_GPS'}
-		<select name="gpsModifier" id="gpsModifier" bind:value={modifier} style="width: auto">
+		<select name="gpsModifier" id="gpsModifier" bind:value={modifier} style="width: 4.5rem">
 			{#each gpsModifier as m}
 				<option value={m.path}>{m.displayNameShort}</option>
 			{/each}
 		</select>
 	{/if}
 	{#if flagName === 'LOG_ACCEL_RAW' || flagName === 'LOG_ACCEL_FILTERED'}
-		<select name="accelModifier" id="accelModifier" bind:value={modifier} style="width: auto">
+		<select name="accelModifier" id="accelModifier" bind:value={modifier} style="width: 4.5rem">
 			{#each ['X', 'Y', 'Z'] as m}
 				<option value={m}>{m}</option>
 			{/each}
@@ -350,10 +413,10 @@
 		class="delete"
 		on:click={() => {
 			dispatch('delete');
-		}}>Del</button
+		}}><i class="fa-solid fa-delete-left"></i></button
 	>
 	<br />
-	<label><input type="checkbox" bind:checked={autoRangeOn} />Auto </label>&nbsp;
+	<label><input type="checkbox" bind:checked={autoRangeOn} /> Auto </label>&nbsp;
 	<input
 		type="number"
 		name="minValue"
@@ -364,6 +427,51 @@
 	<input type="number" name="maxValue" id="maxValue" bind:value={maxValue} disabled={autoRangeOn} />
 	&nbsp;
 	<p class="unit">{flagProps[flagName]?.unit || genFlagProps[flagName]?.unit || ''}</p>
+	<br />
+	<label><input type="checkbox" bind:checked={filteringOn} /> Filtering</label>
+	{#if filteringOn}
+		<select bind:value={filterType} style="width:5rem">
+			<option value="pt1">PT1</option>
+			<option value="sma">SMA</option>
+			<option value="binomial">Binomial</option>
+		</select>
+		{#if filterType === 'pt1'}
+			<input
+				type="number"
+				name="pt1Cutoff"
+				id="pt1Cutoff"
+				placeholder="cutoff"
+				bind:value={filterValue1}
+				class="val1Input"
+			/>
+		{:else if filterType === 'sma'}
+			<input
+				type="number"
+				name="smaN"
+				id="smaN"
+				placeholder="frames"
+				bind:value={filterValue1}
+				class="val1Input"
+			/>
+		{:else if filterType === 'binomial'}
+			<input
+				type="number"
+				name="binomialN"
+				id="binomialN"
+				placeholder="frames"
+				bind:value={filterValue1}
+				class="val1Input"
+			/>
+		{/if}
+		<label>
+			<input
+				type="checkbox"
+				name="delayComp"
+				id="delayCompCheckbox"
+				bind:checked={filterValue2}
+			/>Delay Comp.</label
+		>
+	{/if}
 </div>
 
 <style>
@@ -418,5 +526,9 @@
 	.unit {
 		display: inline-block;
 		margin: 0;
+	}
+
+	.val1Input {
+		width: 5rem;
 	}
 </style>

@@ -9,24 +9,11 @@
 		leBytesToInt,
 		type BBLog,
 		type LogFrame,
+		type TraceInGraph,
 		getNestedProperty,
-		roundToDecimal
+		roundToDecimal,
+		constrain
 	} from '../../utils';
-
-	type TraceInGraph = {
-		flagName: string;
-		color: string;
-		strokeWidth: number;
-		minValue: number;
-		maxValue: number;
-		modifier: any;
-		id: number;
-		unit?: string;
-		states?: string[];
-		decimals?: number;
-		displayName?: string;
-		overrideAuto?: { min: number; max: number };
-	};
 
 	let graphs: TraceInGraph[][] = [[]];
 
@@ -948,7 +935,6 @@
 		}
 		const chunkNum = leBytesToInt(data.slice(1, 3));
 		if (chunkNum === 0xffff) {
-			console.log('final chunk');
 			totalChunks = leBytesToInt(data.slice(3, 5));
 		} else {
 			const chunkSize = data.length - 3;
@@ -1054,7 +1040,6 @@
 				else frameSize += 2;
 			}
 		}
-		console.log(frameSize);
 		const framesPerSecond = pidFreq / freqDiv;
 		const frames = data.length / frameSize;
 		const log: LogFrame[] = [];
@@ -1411,7 +1396,6 @@
 						8192) *
 						180) /
 					Math.PI;
-				console.log(frame.motion.combinedHeading);
 			}
 			log.push(frame);
 		}
@@ -1629,6 +1613,19 @@
 				const scale = heightPerGraph / range;
 				ctx.strokeStyle = trace.color;
 				ctx.lineWidth = trace.strokeWidth;
+				trace.overrideSliceAndSkip = [];
+				if (trace.overrideData) {
+					const overrideSlice = trace.overrideData.slice(
+						Math.max(0, Math.min(startFrame, endFrame)),
+						Math.max(0, Math.max(startFrame, endFrame)) + 1
+					);
+					if (everyNth > 2 && allowShortening) {
+						const len = overrideSlice.length;
+						for (let i = 0; i < len; i += everyNth) {
+							trace.overrideSliceAndSkip.push(overrideSlice[i]);
+						}
+					} else trace.overrideSliceAndSkip = overrideSlice;
+				}
 				let bbFlag = BB_ALL_FLAGS[trace.flagName];
 				if (trace.flagName.startsWith('GEN_'))
 					bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
@@ -1641,10 +1638,12 @@
 				let pointY =
 					heightOffset +
 					heightPerGraph -
-					(getNestedProperty(sliceAndSkip[0], path, {
-						max: Math.max(trace.maxValue, trace.minValue),
-						min: Math.min(trace.minValue, trace.maxValue)
-					}) -
+					((trace.overrideData
+						? constrain(trace.overrideSliceAndSkip[0], trace.minValue, trace.maxValue)
+						: getNestedProperty(sliceAndSkip[0], path, {
+								max: Math.max(trace.maxValue, trace.minValue),
+								min: Math.min(trace.minValue, trace.maxValue)
+							})) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1652,10 +1651,12 @@
 					pointY =
 						heightOffset +
 						heightPerGraph -
-						(getNestedProperty(sliceAndSkip[k], path, {
-							max: Math.max(trace.maxValue, trace.minValue),
-							min: Math.min(trace.minValue, trace.maxValue)
-						}) -
+						((trace.overrideData
+							? constrain(trace.overrideSliceAndSkip[k], trace.minValue, trace.maxValue)
+							: getNestedProperty(sliceAndSkip[k], path, {
+									max: Math.max(trace.maxValue, trace.minValue),
+									min: Math.min(trace.minValue, trace.maxValue)
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -1746,14 +1747,20 @@
 					const pointY =
 						heightOffset +
 						heightPerGraph -
-						(getNestedProperty(
-							sliceAndSkip[Math.floor((closestFrame - startFrame) / skipValue)],
-							path,
-							{
-								max: Math.max(trace.maxValue, trace.minValue),
-								min: Math.min(trace.minValue, trace.maxValue)
-							}
-						) -
+						((trace.overrideData
+							? constrain(
+									trace.overrideSliceAndSkip![Math.floor((closestFrame - startFrame) / skipValue)],
+									trace.minValue,
+									trace.maxValue
+								)
+							: getNestedProperty(
+									sliceAndSkip[Math.floor((closestFrame - startFrame) / skipValue)],
+									path,
+									{
+										max: Math.max(trace.maxValue, trace.minValue),
+										min: Math.min(trace.minValue, trace.maxValue)
+									}
+								)) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();
@@ -1787,7 +1794,9 @@
 						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
 						else continue;
 					}
-					let value = getNestedProperty(frame, path);
+					let value = trace.overrideData
+						? trace.overrideSliceAndSkip![closestFrame - startFrame]
+						: getNestedProperty(frame, path);
 					value = roundToDecimal(value, trace.decimals || bbFlag.decimals || 0);
 					if (bbFlag.states) value = bbFlag.states[value] || value;
 					if (trace.states) value = trace.states[value] || value;
@@ -2183,7 +2192,8 @@
 			decimals: tr.decimals,
 			states: tr.states,
 			displayName: tr.displayName,
-			overrideAuto: graphs[graphIndex][traceIndex].overrideAuto
+			overrideAuto: graphs[graphIndex][traceIndex].overrideAuto,
+			overrideData: tr.overrideData
 		};
 		drawCanvas();
 	}
@@ -2232,6 +2242,10 @@
 		port.removeOnConnectHandler(getFileList);
 		window.removeEventListener('resize', onResize);
 	});
+	// use with caution, only exists because svelte does not allow typescript in the template
+	function logButItsThere() {
+		return loadedLog!;
+	}
 </script>
 
 <div class="blackbox">
@@ -2283,6 +2297,7 @@
 									? BB_GEN_FLAGS[trace.flagName].replaces
 									: trace.flagName
 							)}
+						log={logButItsThere()}
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
 						on:update={(event) => {
@@ -2468,7 +2483,7 @@
 		grid-column: span 2;
 	}
 	.flagSelector {
-		width: 21rem;
+		width: 23rem;
 		overflow: auto;
 	}
 	.graphSelector {
