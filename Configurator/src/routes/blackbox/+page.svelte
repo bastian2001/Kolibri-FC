@@ -491,8 +491,8 @@
 				{
 					displayNameShort: 'Vel N',
 					displayName: 'Velocity North',
-					min: -50,
-					max: 50,
+					min: -10,
+					max: 10,
 					path: 'vel_n',
 					unit: 'm/s',
 					decimals: 2
@@ -500,8 +500,8 @@
 				{
 					displayNameShort: 'Vel E',
 					displayName: 'Velocity East',
-					min: -50,
-					max: 50,
+					min: -10,
+					max: 10,
 					path: 'vel_e',
 					unit: 'm/s',
 					decimals: 2
@@ -509,8 +509,8 @@
 				{
 					displayNameShort: 'Vel D',
 					displayName: 'Velocity Down',
-					min: -50,
-					max: 50,
+					min: 10,
+					max: -10, //down is positive, invert by default
 					path: 'vel_d',
 					unit: 'm/s',
 					decimals: 2
