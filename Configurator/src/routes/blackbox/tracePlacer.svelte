@@ -18,7 +18,7 @@
 	let autoMin = 0;
 	let autoMax = 1;
 	let filteringOn = false;
-	let filterType: 'pt1' | 'sma' | 'binomial' = 'pt1';
+	let filterType: 'pt1' | 'pt2' | 'pt3' | 'sma' | 'binomial' = 'pt1';
 	let filterValue1 = 0;
 	let filterValue2 = false;
 	const gpsModifier = [
@@ -300,20 +300,61 @@
 			const path = flagProps[flagName].path + (modifier ? '.' + modifier : '');
 			switch (filterType) {
 				case 'pt1':
-					traceInGraph.overrideData = [getNestedProperty(log.frames[0], path)];
-					let state = traceInGraph.overrideData[0] || 0;
-					const omega = (2 * Math.PI * (filterValue1 || 0.01)) / log.framesPerSecond;
-					const alpha = omega / (1 + omega);
-					for (let i = 1; i < log.frames.length; i++) {
-						state =
-							state + alpha * (getNestedProperty(log.frames[i], path, { defaultValue: 0 }) - state);
-						traceInGraph.overrideData.push(state);
+					{
+						traceInGraph.overrideData = [getNestedProperty(log.frames[0], path)];
+						let state = traceInGraph.overrideData[0] || 0;
+						if (filterValue1 && filterValue1 < 0) filterValue1 = 0;
+						const omega = (2 * Math.PI * (filterValue1 || 0.1)) / log.framesPerSecond;
+						const alpha = omega / (1 + omega);
+						for (let i = 1; i < log.frames.length; i++) {
+							state =
+								state +
+								alpha * (getNestedProperty(log.frames[i], path, { defaultValue: 0 }) - state);
+							traceInGraph.overrideData.push(state);
+						}
+					}
+					break;
+				case 'pt2':
+					{
+						traceInGraph.overrideData = [getNestedProperty(log.frames[0], path)];
+						let state1 = traceInGraph.overrideData[0] || 0;
+						let state = traceInGraph.overrideData[0] || 0;
+						if (filterValue1 && filterValue1 < 0) filterValue1 = 0;
+						const omega = (1.554 * (2 * Math.PI * (filterValue1 || 0.1))) / log.framesPerSecond;
+						const alpha = omega / (1 + omega);
+						for (let i = 1; i < log.frames.length; i++) {
+							state1 =
+								state1 +
+								alpha * (getNestedProperty(log.frames[i], path, { defaultValue: 0 }) - state1);
+							state = state + alpha * (state1 - state);
+							traceInGraph.overrideData.push(state);
+						}
+					}
+					break;
+				case 'pt3':
+					{
+						traceInGraph.overrideData = [getNestedProperty(log.frames[0], path)];
+						let state1 = traceInGraph.overrideData[0] || 0;
+						let state2 = traceInGraph.overrideData[0] || 0;
+						let state = traceInGraph.overrideData[0] || 0;
+						if (filterValue1 && filterValue1 < 0) filterValue1 = 0;
+						const omega = (1.961 * (2 * Math.PI * (filterValue1 || 0.1))) / log.framesPerSecond;
+						const alpha = omega / (1 + omega);
+						for (let i = 1; i < log.frames.length; i++) {
+							state1 =
+								state1 +
+								alpha * (getNestedProperty(log.frames[i], path, { defaultValue: 0 }) - state1);
+							state2 = state2 + alpha * (state1 - state2);
+							state = state + alpha * (state2 - state);
+							traceInGraph.overrideData.push(state);
+						}
 					}
 					break;
 				case 'sma':
 					{
 						traceInGraph.overrideData = [];
-						filterValue1 = Math.min(filterValue1, log.frames.length);
+						filterValue1 = Math.round(filterValue1);
+						filterValue1 = Math.min(filterValue1, 100);
 						filterValue1 = Math.max(filterValue1, 1);
 						const compFrames = filterValue2 ? filterValue1 / 2 : 0;
 						for (let i = 0; i < log.frames.length; i++) {
@@ -331,7 +372,8 @@
 					{
 						traceInGraph.overrideData = [];
 						const binomialCoeffs = [];
-						filterValue1 = Math.min(filterValue1, log.frames.length);
+						filterValue1 = Math.round(filterValue1);
+						filterValue1 = Math.min(filterValue1, 100);
 						filterValue1 = Math.max(filterValue1, 1);
 						let binomSum = 0;
 						for (let i = 0; i < filterValue1; i++) {
@@ -432,6 +474,8 @@
 	{#if filteringOn}
 		<select bind:value={filterType} style="width:5rem">
 			<option value="pt1">PT1</option>
+			<option value="pt2">PT2</option>
+			<option value="pt3">PT3</option>
 			<option value="sma">SMA</option>
 			<option value="binomial">Binomial</option>
 		</select>
@@ -440,6 +484,24 @@
 				type="number"
 				name="pt1Cutoff"
 				id="pt1Cutoff"
+				placeholder="cutoff"
+				bind:value={filterValue1}
+				class="val1Input"
+			/>
+		{:else if filterType === 'pt2'}
+			<input
+				type="number"
+				name="pt2Cutoff"
+				id="pt2Cutoff"
+				placeholder="cutoff"
+				bind:value={filterValue1}
+				class="val1Input"
+			/>
+		{:else if filterType === 'pt3'}
+			<input
+				type="number"
+				name="pt3Cutoff"
+				id="pt3Cutoff"
 				placeholder="cutoff"
 				bind:value={filterValue1}
 				class="val1Input"

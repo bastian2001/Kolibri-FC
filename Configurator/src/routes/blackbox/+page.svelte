@@ -1522,7 +1522,7 @@
 		return seconds;
 	}
 	function drawCanvas(allowShortening = true) {
-		if (!mounted) return;
+		if (!mounted || !loadedLog) return;
 		if (allowShortening) {
 			clearTimeout(drawFullCanvasTimeout);
 			drawFullCanvasTimeout = setTimeout(() => drawCanvas(false), 250);
