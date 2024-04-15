@@ -9,24 +9,14 @@
 		leBytesToInt,
 		type BBLog,
 		type LogFrame,
+		type TraceInGraph,
 		getNestedProperty,
-		roundToDecimal
+		roundToDecimal,
+		constrain,
+		type FlagProps,
+		type GenFlagProps,
+		prefixZeros
 	} from '../../utils';
-
-	type TraceInGraph = {
-		flagName: string;
-		color: string;
-		strokeWidth: number;
-		minValue: number;
-		maxValue: number;
-		modifier: any;
-		id: number;
-		unit?: string;
-		states?: string[];
-		decimals?: number;
-		displayName?: string;
-		overrideAuto?: { min: number; max: number };
-	};
 
 	let graphs: TraceInGraph[][] = [[]];
 
@@ -39,11 +29,7 @@
 
 	let drawFullCanvasTimeout = -1;
 
-	$: dataSlice =
-		loadedLog?.frames.slice(
-			Math.max(0, Math.min(startFrame, endFrame)),
-			Math.max(0, Math.max(startFrame, endFrame)) + 1
-		) || [];
+	$: dataSlice = loadedLog?.frames.slice(startFrame, endFrame + 1) || [];
 	$: dataSlice, drawCanvas();
 
 	let logNums: { text: string; num: number }[] = [];
@@ -282,7 +268,28 @@
 			minValue: 0,
 			maxValue: 2000,
 			unit: '',
-			usesModifier: true
+			modifier: [
+				{
+					displayNameShort: 'RR',
+					displayName: 'Rear Right',
+					path: 'rr'
+				},
+				{
+					displayNameShort: 'FR',
+					displayName: 'Front Right',
+					path: 'fr'
+				},
+				{
+					displayNameShort: 'FL',
+					displayName: 'Front Left',
+					path: 'fl'
+				},
+				{
+					displayNameShort: 'RL',
+					displayName: 'Rear Left',
+					path: 'rl'
+				}
+			]
 		},
 		LOG_FRAMETIME: {
 			name: 'Frametime',
@@ -320,7 +327,245 @@
 			minValue: 0,
 			maxValue: 100,
 			unit: '',
-			usesModifier: true
+			modifier: [
+				{
+					displayNameShort: 'Year',
+					displayName: 'Year',
+					min: 2020,
+					max: 2030,
+					path: 'year'
+				},
+				{
+					displayNameShort: 'Month',
+					displayName: 'Month',
+					min: 1,
+					max: 12,
+					path: 'month',
+					states: [
+						'',
+						'January',
+						'February',
+						'March',
+						'April',
+						'May',
+						'June',
+						'July',
+						'August',
+						'September',
+						'October',
+						'November',
+						'December'
+					]
+				},
+				{
+					displayNameShort: 'Day',
+					displayName: 'Day',
+					min: 1,
+					max: 31,
+					path: 'day'
+				},
+				{
+					displayNameShort: 'Hour',
+					displayName: 'Hour',
+					min: 0,
+					max: 23,
+					path: 'hour'
+				},
+				{
+					displayNameShort: 'Minute',
+					displayName: 'Minute',
+					min: 0,
+					max: 59,
+					path: 'minute'
+				},
+				{
+					displayNameShort: 'Second',
+					displayName: 'Second',
+					min: 0,
+					max: 59,
+					path: 'second'
+				},
+				{
+					displayNameShort: 'Valid',
+					displayName: 'Validity Flags',
+					min: 0,
+					max: 255,
+					path: 'time_validity_flags'
+				},
+				{
+					displayNameShort: 'T Acc',
+					displayName: 'Time Accuracy',
+					min: 0,
+					max: 100,
+					path: 't_acc',
+					unit: 'ns'
+				},
+				{
+					displayNameShort: 'Nanosec',
+					displayName: 'Nanoseconds',
+					min: 0,
+					max: 1e9,
+					path: 'ns',
+					unit: 'ns'
+				},
+				{
+					displayNameShort: 'Fix',
+					displayName: 'Fix Type',
+					min: 0,
+					max: 5,
+					path: 'fix_type',
+					states: [
+						'No Fix',
+						'Dead reckoning only',
+						'2D Fix',
+						'3D Fix',
+						'GPS + Dead reckoning',
+						'Time only fix'
+					]
+				},
+				{
+					displayNameShort: 'Flags',
+					displayName: 'Flags',
+					min: 0,
+					max: 255,
+					path: 'flags'
+				},
+				{
+					displayNameShort: 'Flags2',
+					displayName: 'Flags2',
+					min: 0,
+					max: 255,
+					path: 'flags2'
+				},
+				{
+					displayNameShort: 'Sats',
+					displayName: 'Satellite Count',
+					min: 0,
+					max: 30,
+					path: 'sat_count'
+				},
+				{
+					displayNameShort: 'Lon',
+					displayName: 'Longitude',
+					min: -180,
+					max: 180,
+					path: 'lon',
+					unit: '°',
+					decimals: 7
+				},
+				{
+					displayNameShort: 'Lat',
+					displayName: 'Latitude',
+					min: -90,
+					max: 90,
+					path: 'lat',
+					unit: '°',
+					decimals: 7
+				},
+				{
+					displayNameShort: 'Alt',
+					displayName: 'Altitude',
+					rangeFn: getAltitudeRange,
+					path: 'alt',
+					unit: 'm',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'Hor Acc',
+					displayName: 'Horizontal Accuracy',
+					min: 0,
+					max: 20,
+					path: 'h_acc',
+					unit: 'm',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'Ver Acc',
+					displayName: 'Vertical Accuracy',
+					min: 0,
+					max: 20,
+					path: 'v_acc',
+					unit: 'm',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'Vel N',
+					displayName: 'Velocity North',
+					min: -10,
+					max: 10,
+					path: 'vel_n',
+					unit: 'm/s',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'Vel E',
+					displayName: 'Velocity East',
+					min: -10,
+					max: 10,
+					path: 'vel_e',
+					unit: 'm/s',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'Vel D',
+					displayName: 'Velocity Down',
+					min: 10,
+					max: -10, //down is positive, invert by default
+					path: 'vel_d',
+					unit: 'm/s',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'G Speed',
+					displayName: 'Ground Speed',
+					min: 0,
+					max: 50,
+					path: 'g_speed',
+					unit: 'm/s',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'Head Mot',
+					displayName: 'Heading of Motion',
+					min: -180,
+					max: 180,
+					path: 'head_mot',
+					unit: '°'
+				},
+				{
+					displayNameShort: 'S Acc',
+					displayName: 'Speed Accuracy',
+					min: 0,
+					max: 10,
+					path: 's_acc',
+					unit: 'm/s',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'Head Acc',
+					displayName: 'Heading Accuracy',
+					min: 0,
+					max: 20,
+					path: 'head_acc',
+					unit: '°',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'pDop',
+					displayName: 'pDop',
+					min: 0,
+					max: 100,
+					path: 'p_dop',
+					decimals: 2
+				},
+				{
+					displayNameShort: 'Flags3',
+					displayName: 'Flags3',
+					min: 0,
+					max: 31,
+					path: 'flags3'
+				}
+			]
 		},
 		LOG_ATT_ROLL: {
 			name: 'Roll Angle',
@@ -349,7 +594,28 @@
 			minValue: 0,
 			maxValue: 50000,
 			unit: 'rpm',
-			usesModifier: true
+			modifier: [
+				{
+					displayNameShort: 'RR',
+					displayName: 'Rear Right',
+					path: 'rr'
+				},
+				{
+					displayNameShort: 'FR',
+					displayName: 'Front Right',
+					path: 'fr'
+				},
+				{
+					displayNameShort: 'FL',
+					displayName: 'Front Left',
+					path: 'fl'
+				},
+				{
+					displayNameShort: 'RL',
+					displayName: 'Rear Left',
+					path: 'rl'
+				}
+			]
 		},
 		LOG_ACCEL_RAW: {
 			name: 'Accel Raw',
@@ -358,7 +624,23 @@
 			maxValue: 40,
 			unit: 'm/s²',
 			decimals: 3,
-			usesModifier: true
+			modifier: [
+				{
+					displayNameShort: 'X',
+					displayName: 'X',
+					path: 'x'
+				},
+				{
+					displayNameShort: 'Y',
+					displayName: 'Y',
+					path: 'y'
+				},
+				{
+					displayNameShort: 'Z',
+					displayName: 'Z',
+					path: 'z'
+				}
+			]
 		},
 		LOG_ACCEL_FILTERED: {
 			name: 'Accel Filtered',
@@ -367,7 +649,23 @@
 			maxValue: 40,
 			unit: 'm/s²',
 			decimals: 3,
-			usesModifier: true
+			modifier: [
+				{
+					displayNameShort: 'X',
+					displayName: 'X',
+					path: 'x'
+				},
+				{
+					displayNameShort: 'Y',
+					displayName: 'Y',
+					path: 'y'
+				},
+				{
+					displayNameShort: 'Z',
+					displayName: 'Z',
+					path: 'z'
+				}
+			]
 		},
 		LOG_VERTICAL_ACCEL: {
 			name: 'Vertical Accel',
@@ -400,17 +698,7 @@
 			unit: '°'
 		}
 	} as {
-		[key: string]: {
-			name: string;
-			path: string;
-			minValue?: number;
-			maxValue?: number;
-			rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
-			unit: string;
-			usesModifier?: boolean;
-			decimals?: number;
-			states?: string[];
-		};
+		[key: string]: FlagProps;
 	};
 
 	const BB_GEN_FLAGS = {
@@ -579,13 +867,7 @@
 			exact: false
 		}
 	} as {
-		[key: string]: {
-			name: string;
-			replaces: string;
-			requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
-			unit: string;
-			exact: boolean;
-		};
+		[key: string]: GenFlagProps;
 	};
 
 	function fillLogWithGenFlags(log: BBLog) {
@@ -948,7 +1230,6 @@
 		}
 		const chunkNum = leBytesToInt(data.slice(1, 3));
 		if (chunkNum === 0xffff) {
-			console.log('final chunk');
 			totalChunks = leBytesToInt(data.slice(3, 5));
 		} else {
 			const chunkSize = data.length - 3;
@@ -1054,7 +1335,6 @@
 				else frameSize += 2;
 			}
 		}
-		console.log(frameSize);
 		const framesPerSecond = pidFreq / freqDiv;
 		const frames = data.length / frameSize;
 		const log: LogFrame[] = [];
@@ -1411,7 +1691,6 @@
 						8192) *
 						180) /
 					Math.PI;
-				console.log(frame.motion.combinedHeading);
 			}
 			log.push(frame);
 		}
@@ -1538,7 +1817,7 @@
 		return seconds;
 	}
 	function drawCanvas(allowShortening = true) {
-		if (!mounted) return;
+		if (!mounted || !loadedLog) return;
 		if (allowShortening) {
 			clearTimeout(drawFullCanvasTimeout);
 			drawFullCanvasTimeout = setTimeout(() => drawCanvas(false), 250);
@@ -1629,11 +1908,24 @@
 				const scale = heightPerGraph / range;
 				ctx.strokeStyle = trace.color;
 				ctx.lineWidth = trace.strokeWidth;
+				trace.overrideSliceAndSkip = [];
+				if (trace.overrideData) {
+					const overrideSlice = trace.overrideData.slice(
+						Math.max(0, Math.min(startFrame, endFrame)),
+						Math.max(0, Math.max(startFrame, endFrame)) + 1
+					);
+					if (everyNth > 2 && allowShortening) {
+						const len = overrideSlice.length;
+						for (let i = 0; i < len; i += everyNth) {
+							trace.overrideSliceAndSkip.push(overrideSlice[i]);
+						}
+					} else trace.overrideSliceAndSkip = overrideSlice;
+				}
 				let bbFlag = BB_ALL_FLAGS[trace.flagName];
 				if (trace.flagName.startsWith('GEN_'))
 					bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
 				let path = bbFlag?.path || '';
-				if (bbFlag?.usesModifier) {
+				if (bbFlag?.modifier) {
 					if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
 					else continue;
 				}
@@ -1641,10 +1933,12 @@
 				let pointY =
 					heightOffset +
 					heightPerGraph -
-					(getNestedProperty(sliceAndSkip[0], path, {
-						max: Math.max(trace.maxValue, trace.minValue),
-						min: Math.min(trace.minValue, trace.maxValue)
-					}) -
+					((trace.overrideData
+						? constrain(trace.overrideSliceAndSkip[0], trace.minValue, trace.maxValue)
+						: getNestedProperty(sliceAndSkip[0], path, {
+								max: Math.max(trace.maxValue, trace.minValue),
+								min: Math.min(trace.minValue, trace.maxValue)
+							})) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1652,10 +1946,12 @@
 					pointY =
 						heightOffset +
 						heightPerGraph -
-						(getNestedProperty(sliceAndSkip[k], path, {
-							max: Math.max(trace.maxValue, trace.minValue),
-							min: Math.min(trace.minValue, trace.maxValue)
-						}) -
+						((trace.overrideData
+							? constrain(trace.overrideSliceAndSkip[k], trace.minValue, trace.maxValue)
+							: getNestedProperty(sliceAndSkip[k], path, {
+									max: Math.max(trace.maxValue, trace.minValue),
+									min: Math.min(trace.minValue, trace.maxValue)
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -1704,8 +2000,10 @@
 			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
 			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
 			domCtx.drawImage(canvas, 0, 0);
-			const closestFrame =
-				Math.round(e.offsetX / (domCanvas.width / (endFrame - startFrame))) + startFrame;
+			const closestFrameSliceSkip = Math.round(
+				(e.offsetX / domCanvas.width) * (sliceAndSkip.length - 1)
+			);
+			const closestFrameNum = startFrame + closestFrameSliceSkip * skipValue;
 			//draw vertical line
 			const highlightCanvas = document.createElement('canvas');
 			highlightCanvas.width = domCanvas.width;
@@ -1716,8 +2014,8 @@
 			ctx.beginPath();
 			const height = dataViewer.clientHeight * 0.98; //1% free space top and bottom
 			const width = dataViewer.clientWidth;
-			const frameWidth = width / (endFrame - startFrame);
-			const frameX = (closestFrame - startFrame) * frameWidth;
+			const frameWidth = width / (sliceAndSkip.length - 1);
+			const frameX = closestFrameSliceSkip * frameWidth;
 			ctx.moveTo(frameX, 0);
 			ctx.lineTo(frameX, highlightCanvas.height);
 			ctx.stroke();
@@ -1726,6 +2024,7 @@
 			const heightPerGraph =
 				(height - dataViewer.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
 			let heightOffset = 0.01 * dataViewer.clientHeight;
+			const frame = sliceAndSkip[closestFrameSliceSkip];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
 				const numTraces = graph.length;
@@ -1739,39 +2038,34 @@
 					if (trace.flagName.startsWith('GEN_'))
 						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
 					let path = bbFlag?.path || '';
-					if (bbFlag?.usesModifier) {
+					if (bbFlag?.modifier) {
 						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
 						else continue;
 					}
 					const pointY =
 						heightOffset +
 						heightPerGraph -
-						(getNestedProperty(
-							sliceAndSkip[Math.floor((closestFrame - startFrame) / skipValue)],
-							path,
-							{
-								max: Math.max(trace.maxValue, trace.minValue),
-								min: Math.min(trace.minValue, trace.maxValue)
-							}
-						) -
+						((trace.overrideData
+							? constrain(
+									trace.overrideSliceAndSkip![closestFrameSliceSkip],
+									trace.minValue,
+									trace.maxValue
+								)
+							: getNestedProperty(frame, path, {
+									max: Math.max(trace.maxValue, trace.minValue),
+									min: Math.min(trace.minValue, trace.maxValue)
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();
-					ctx.arc(
-						(closestFrame - startFrame) * frameWidth,
-						pointY,
-						trace.strokeWidth * 4,
-						0,
-						Math.PI * 2
-					);
+					ctx.arc(frameX, pointY, trace.strokeWidth * 4, 0, Math.PI * 2);
 					ctx.stroke();
 				}
 				heightOffset += heightPerGraph + 0.02 * dataViewer.clientHeight;
 			}
 			//write down frame number, time in s after start and values next to the cursor at the top
-			const frame = sliceAndSkip[closestFrame - startFrame];
 			const timeText =
-				(closestFrame / loadedLog!.framesPerSecond).toFixed(3) + 's, Frame ' + closestFrame;
+				(closestFrameNum / loadedLog!.framesPerSecond).toFixed(3) + 's, Frame ' + closestFrameNum;
 			const valueTexts = [] as string[];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
@@ -1783,17 +2077,17 @@
 					if (trace.flagName.startsWith('GEN_'))
 						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
 					let path = bbFlag?.path || '';
-					if (bbFlag?.usesModifier) {
+					if (bbFlag?.modifier) {
 						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
 						else continue;
 					}
-					let value = getNestedProperty(frame, path);
-					value = roundToDecimal(value, trace.decimals || bbFlag.decimals || 0);
+					let value = trace.overrideData
+						? trace.overrideSliceAndSkip![closestFrameSliceSkip]
+						: getNestedProperty(frame, path);
+					value = roundToDecimal(value, trace.decimals);
 					if (bbFlag.states) value = bbFlag.states[value] || value;
 					if (trace.states) value = trace.states[value] || value;
-					valueTexts.push(
-						(trace.displayName || bbFlag.name) + ': ' + value + ' ' + (trace.unit || bbFlag.unit)
-					);
+					valueTexts.push(trace.displayName + ': ' + value + ' ' + trace.unit);
 				}
 			}
 			const textHeight = 14;
@@ -1920,15 +2214,43 @@
 			trackingEndX = p;
 		}
 		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-		const pStart = startFrame;
-		startFrame =
+		const nStart =
 			startFrame + Math.floor((endFrame - startFrame) * (trackingStartX / domCanvas.width));
-		endFrame = pStart + Math.floor((endFrame - pStart) * (trackingEndX / domCanvas.width));
+		const nEnd =
+			startFrame + Math.floor((endFrame - startFrame) * (trackingEndX / domCanvas.width));
+		startFrame = Math.min(nStart, nEnd);
+		endFrame = Math.max(nStart, nEnd);
 		trackingStartX = -1;
 	}
 	function onMouseWheel(e: WheelEvent) {
 		e.preventDefault();
 		if (!loadedLog) return;
+		if (e.getModifierState('Control')) {
+			let visibleFrames = endFrame - startFrame;
+			const leftPct = e.offsetX / dataViewer.clientWidth;
+			const grabFrame = startFrame + visibleFrames * leftPct;
+			const zoomFactor = e.deltaY > 0 ? 1.333 : 0.75;
+			visibleFrames *= zoomFactor;
+			if (visibleFrames < 10) visibleFrames = 10;
+			startFrame = grabFrame - visibleFrames * leftPct;
+			endFrame = startFrame + visibleFrames;
+			startFrame = Math.round(startFrame);
+			endFrame = Math.round(endFrame);
+			visibleFrames = endFrame - startFrame;
+			if (startFrame < 0) {
+				startFrame = 0;
+				endFrame = visibleFrames;
+			}
+			if (endFrame > loadedLog.frameCount - 1) {
+				endFrame = loadedLog.frameCount - 1;
+				startFrame = endFrame - visibleFrames;
+			}
+			if (startFrame < 0) {
+				startFrame = 0;
+				endFrame = loadedLog.frameCount - 1;
+			}
+			return;
+		}
 		const visibleFrames = endFrame - startFrame;
 		let moveBy = e.deltaY * 0.002 * visibleFrames;
 		if (moveBy > 0 && moveBy < 1) moveBy = 1;
@@ -2077,11 +2399,6 @@
 			})
 			.catch(console.error);
 	}
-	function prefixZeros(num: number = 0, totalDigits: number, char: string = '0') {
-		let str = num.toString();
-		while (str.length < totalDigits) str = char + str;
-		return str;
-	}
 	function downloadLog(type: 'kbb' | 'json' = 'kbb') {
 		getLog(selected)
 			.then((data) => {
@@ -2160,6 +2477,9 @@
 			strokeWidth: 1,
 			flagName: '',
 			modifier: '',
+			decimals: 0,
+			unit: '',
+			displayName: '',
 			id: Math.random()
 		};
 		graphs[graphIndex] = [...graphs[graphIndex], defaultTrace];
@@ -2171,30 +2491,9 @@
 	}
 	function updateTrace(event: any, graphIndex: number, traceIndex: number, id: number) {
 		const tr: TraceInGraph = event.detail;
-		graphs[graphIndex][traceIndex] = {
-			color: tr.color,
-			maxValue: tr.maxValue,
-			minValue: tr.minValue,
-			strokeWidth: 1,
-			flagName: tr.flagName,
-			modifier: tr.modifier,
-			id,
-			unit: tr.unit,
-			decimals: tr.decimals,
-			states: tr.states,
-			displayName: tr.displayName,
-			overrideAuto: graphs[graphIndex][traceIndex].overrideAuto
-		};
+		tr.id = id;
+		graphs[graphIndex][traceIndex] = tr;
 		drawCanvas();
-	}
-	function getAutoRangeByFlagName(flagName: string) {
-		const flag = BB_ALL_FLAGS[flagName];
-		const range = { max: 10, min: 0 };
-		if (!flag) return range;
-		if (flag.rangeFn) return flag.rangeFn(loadedLog);
-		range.max = flag.maxValue || 10;
-		range.min = flag.minValue || 0;
-		return range;
 	}
 	function deleteGraph(g: number) {
 		graphs = graphs.filter((_, i) => i !== g);
@@ -2232,6 +2531,10 @@
 		port.removeOnConnectHandler(getFileList);
 		window.removeEventListener('resize', onResize);
 	});
+	// use with caution, only exists because svelte does not allow typescript in the template
+	function logButItsThere() {
+		return loadedLog!;
+	}
 </script>
 
 <div class="blackbox">
@@ -2276,13 +2579,7 @@
 			<div class="graphSelector">
 				{#each graph as trace, traceIndex (trace.id)}
 					<TracePlacer
-						flags={loadedLog?.flags || []}
-						autoRange={trace.overrideAuto ||
-							getAutoRangeByFlagName(
-								trace.flagName.startsWith('GEN_')
-									? BB_GEN_FLAGS[trace.flagName].replaces
-									: trace.flagName
-							)}
+						log={logButItsThere()}
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
 						on:update={(event) => {
@@ -2290,9 +2587,6 @@
 						}}
 						on:delete={() => {
 							deleteTrace(graphIndex, traceIndex);
-						}}
-						on:overrideAuto={(event) => {
-							trace.overrideAuto = event.detail;
 						}}
 					/>
 				{/each}
@@ -2400,8 +2694,8 @@
 			{startFrame}
 			{endFrame}
 			on:update={(event) => {
-				startFrame = event.detail.startFrame;
-				endFrame = event.detail.endFrame;
+				startFrame = Math.min(event.detail.startFrame, event.detail.endFrame);
+				endFrame = Math.max(event.detail.startFrame, event.detail.endFrame);
 			}}
 		/>
 	</div>
@@ -2468,7 +2762,7 @@
 		grid-column: span 2;
 	}
 	.flagSelector {
-		width: 21rem;
+		width: 23rem;
 		overflow: auto;
 	}
 	.graphSelector {
