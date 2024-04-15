@@ -210,3 +210,9 @@ export type GenFlagProps = {
 	unit: string;
 	exact: boolean;
 };
+
+export function prefixZeros(num: number = 0, totalDigits: number, char: string = '0') {
+	let str = num.toString();
+	while (str.length < totalDigits) str = char + str;
+	return str;
+}

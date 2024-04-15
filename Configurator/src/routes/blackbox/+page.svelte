@@ -14,7 +14,8 @@
 		roundToDecimal,
 		constrain,
 		type FlagProps,
-		type GenFlagProps
+		type GenFlagProps,
+		prefixZeros
 	} from '../../utils';
 
 	let graphs: TraceInGraph[][] = [[]];
@@ -2381,11 +2382,6 @@
 				drawCanvas();
 			})
 			.catch(console.error);
-	}
-	function prefixZeros(num: number = 0, totalDigits: number, char: string = '0') {
-		let str = num.toString();
-		while (str.length < totalDigits) str = char + str;
-		return str;
 	}
 	function downloadLog(type: 'kbb' | 'json' = 'kbb') {
 		getLog(selected)
