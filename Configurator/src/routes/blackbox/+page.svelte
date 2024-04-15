@@ -29,11 +29,7 @@
 
 	let drawFullCanvasTimeout = -1;
 
-	$: dataSlice =
-		loadedLog?.frames.slice(
-			Math.max(0, Math.min(startFrame, endFrame)),
-			Math.max(0, Math.max(startFrame, endFrame)) + 1
-		) || [];
+	$: dataSlice = loadedLog?.frames.slice(startFrame, endFrame + 1) || [];
 	$: dataSlice, drawCanvas();
 
 	let logNums: { text: string; num: number }[] = [];
@@ -2226,15 +2222,43 @@
 			trackingEndX = p;
 		}
 		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-		const pStart = startFrame;
-		startFrame =
+		const nStart =
 			startFrame + Math.floor((endFrame - startFrame) * (trackingStartX / domCanvas.width));
-		endFrame = pStart + Math.floor((endFrame - pStart) * (trackingEndX / domCanvas.width));
+		const nEnd =
+			startFrame + Math.floor((endFrame - startFrame) * (trackingEndX / domCanvas.width));
+		startFrame = Math.min(nStart, nEnd);
+		endFrame = Math.max(nStart, nEnd);
 		trackingStartX = -1;
 	}
 	function onMouseWheel(e: WheelEvent) {
 		e.preventDefault();
 		if (!loadedLog) return;
+		if (e.getModifierState('Control')) {
+			let visibleFrames = endFrame - startFrame;
+			const leftPct = e.offsetX / dataViewer.clientWidth;
+			const grabFrame = startFrame + visibleFrames * leftPct;
+			const zoomFactor = e.deltaY > 0 ? 1.333 : 0.75;
+			visibleFrames *= zoomFactor;
+			if (visibleFrames < 10) visibleFrames = 10;
+			startFrame = grabFrame - visibleFrames * leftPct;
+			endFrame = startFrame + visibleFrames;
+			startFrame = Math.round(startFrame);
+			endFrame = Math.round(endFrame);
+			visibleFrames = endFrame - startFrame;
+			if (startFrame < 0) {
+				startFrame = 0;
+				endFrame = visibleFrames;
+			}
+			if (endFrame > loadedLog.frameCount - 1) {
+				endFrame = loadedLog.frameCount - 1;
+				startFrame = endFrame - visibleFrames;
+			}
+			if (startFrame < 0) {
+				startFrame = 0;
+				endFrame = loadedLog.frameCount - 1;
+			}
+			return;
+		}
 		const visibleFrames = endFrame - startFrame;
 		let moveBy = e.deltaY * 0.002 * visibleFrames;
 		if (moveBy > 0 && moveBy < 1) moveBy = 1;
@@ -2479,15 +2503,6 @@
 		graphs[graphIndex][traceIndex] = tr;
 		drawCanvas();
 	}
-	function getAutoRangeByFlagName(flagName: string) {
-		const flag = BB_ALL_FLAGS[flagName];
-		const range = { max: 10, min: 0 };
-		if (!flag) return range;
-		if (flag.rangeFn) return flag.rangeFn(loadedLog);
-		range.max = flag.maxValue || 10;
-		range.min = flag.minValue || 0;
-		return range;
-	}
 	function deleteGraph(g: number) {
 		graphs = graphs.filter((_, i) => i !== g);
 		graphs = [...graphs];
@@ -2687,8 +2702,8 @@
 			{startFrame}
 			{endFrame}
 			on:update={(event) => {
-				startFrame = event.detail.startFrame;
-				endFrame = event.detail.endFrame;
+				startFrame = Math.min(event.detail.startFrame, event.detail.endFrame);
+				endFrame = Math.max(event.detail.startFrame, event.detail.endFrame);
 			}}
 		/>
 	</div>
