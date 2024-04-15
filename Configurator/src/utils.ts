@@ -147,13 +147,12 @@ export type TraceInGraph = {
 	strokeWidth: number;
 	minValue: number;
 	maxValue: number;
-	modifier: any;
+	modifier: string;
 	id: number;
-	unit?: string;
+	unit: string;
 	states?: string[];
-	decimals?: number;
-	displayName?: string;
-	overrideAuto?: { min: number; max: number };
+	decimals: number;
+	displayName: string;
 	overrideData?: number[];
 	overrideSliceAndSkip?: number[];
 };
@@ -181,3 +180,33 @@ export function roundToDecimal(num: number, places: number) {
 export function constrain(num: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, num));
 }
+
+export type FlagProps = {
+	name: string;
+	path: string;
+	minValue?: number;
+	maxValue?: number;
+	rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
+	unit: string;
+	decimals?: number;
+	states?: string[];
+	modifier?: {
+		displayNameShort: string;
+		displayName: string;
+		min?: number;
+		max?: number;
+		rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
+		path: string;
+		unit?: string;
+		decimals?: number;
+		states?: string[];
+	}[];
+};
+
+export type GenFlagProps = {
+	name: string;
+	replaces: string;
+	requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
+	unit: string;
+	exact: boolean;
+};
