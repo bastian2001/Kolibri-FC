@@ -253,9 +253,9 @@
 	&nbsp;
 	<p class="unit">{flagProps[flagName]?.unit || genFlagProps[flagName]?.unit || ''}</p>
 	<br />
-	<label><input type="checkbox" bind:checked={filteringOn} /> Filtering</label>
+	<label><input type="checkbox" bind:checked={filteringOn} /> Filter </label>
 	{#if filteringOn}
-		<select bind:value={filterType} style="width:5rem">
+		<select bind:value={filterType} style="width:4rem">
 			<option value="pt1">PT1</option>
 			<option value="pt2">PT2</option>
 			<option value="pt3">PT3</option>
@@ -269,7 +269,6 @@
 				id="pt1Cutoff"
 				placeholder="cutoff"
 				bind:value={filterValue1}
-				class="val1Input"
 			/>
 		{:else if filterType === 'pt2'}
 			<input
@@ -278,7 +277,6 @@
 				id="pt2Cutoff"
 				placeholder="cutoff"
 				bind:value={filterValue1}
-				class="val1Input"
 			/>
 		{:else if filterType === 'pt3'}
 			<input
@@ -287,17 +285,9 @@
 				id="pt3Cutoff"
 				placeholder="cutoff"
 				bind:value={filterValue1}
-				class="val1Input"
 			/>
 		{:else if filterType === 'sma'}
-			<input
-				type="number"
-				name="smaN"
-				id="smaN"
-				placeholder="frames"
-				bind:value={filterValue1}
-				class="val1Input"
-			/>
+			<input type="number" name="smaN" id="smaN" placeholder="frames" bind:value={filterValue1} />
 		{:else if filterType === 'binomial'}
 			<input
 				type="number"
@@ -305,7 +295,6 @@
 				id="binomialN"
 				placeholder="frames"
 				bind:value={filterValue1}
-				class="val1Input"
 			/>
 		{/if}
 		<label>
@@ -371,9 +360,5 @@
 	.unit {
 		display: inline-block;
 		margin: 0;
-	}
-
-	.val1Input {
-		width: 5rem;
 	}
 </style>

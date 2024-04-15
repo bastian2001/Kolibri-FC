@@ -2000,8 +2000,10 @@
 			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
 			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
 			domCtx.drawImage(canvas, 0, 0);
-			const closestFrame =
-				Math.round(e.offsetX / (domCanvas.width / (endFrame - startFrame))) + startFrame;
+			const closestFrameSliceSkip = Math.round(
+				(e.offsetX / domCanvas.width) * (sliceAndSkip.length - 1)
+			);
+			const closestFrameNum = startFrame + closestFrameSliceSkip * skipValue;
 			//draw vertical line
 			const highlightCanvas = document.createElement('canvas');
 			highlightCanvas.width = domCanvas.width;
@@ -2012,8 +2014,8 @@
 			ctx.beginPath();
 			const height = dataViewer.clientHeight * 0.98; //1% free space top and bottom
 			const width = dataViewer.clientWidth;
-			const frameWidth = width / (endFrame - startFrame);
-			const frameX = (closestFrame - startFrame) * frameWidth;
+			const frameWidth = width / (sliceAndSkip.length - 1);
+			const frameX = closestFrameSliceSkip * frameWidth;
 			ctx.moveTo(frameX, 0);
 			ctx.lineTo(frameX, highlightCanvas.height);
 			ctx.stroke();
@@ -2022,6 +2024,7 @@
 			const heightPerGraph =
 				(height - dataViewer.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
 			let heightOffset = 0.01 * dataViewer.clientHeight;
+			const frame = sliceAndSkip[closestFrameSliceSkip];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
 				const numTraces = graph.length;
@@ -2044,36 +2047,25 @@
 						heightPerGraph -
 						((trace.overrideData
 							? constrain(
-									trace.overrideSliceAndSkip![Math.floor((closestFrame - startFrame) / skipValue)],
+									trace.overrideSliceAndSkip![closestFrameSliceSkip],
 									trace.minValue,
 									trace.maxValue
 								)
-							: getNestedProperty(
-									sliceAndSkip[Math.floor((closestFrame - startFrame) / skipValue)],
-									path,
-									{
-										max: Math.max(trace.maxValue, trace.minValue),
-										min: Math.min(trace.minValue, trace.maxValue)
-									}
-								)) -
+							: getNestedProperty(frame, path, {
+									max: Math.max(trace.maxValue, trace.minValue),
+									min: Math.min(trace.minValue, trace.maxValue)
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();
-					ctx.arc(
-						(closestFrame - startFrame) * frameWidth,
-						pointY,
-						trace.strokeWidth * 4,
-						0,
-						Math.PI * 2
-					);
+					ctx.arc(frameX, pointY, trace.strokeWidth * 4, 0, Math.PI * 2);
 					ctx.stroke();
 				}
 				heightOffset += heightPerGraph + 0.02 * dataViewer.clientHeight;
 			}
 			//write down frame number, time in s after start and values next to the cursor at the top
-			const frame = sliceAndSkip[closestFrame - startFrame];
 			const timeText =
-				(closestFrame / loadedLog!.framesPerSecond).toFixed(3) + 's, Frame ' + closestFrame;
+				(closestFrameNum / loadedLog!.framesPerSecond).toFixed(3) + 's, Frame ' + closestFrameNum;
 			const valueTexts = [] as string[];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
@@ -2090,7 +2082,7 @@
 						else continue;
 					}
 					let value = trace.overrideData
-						? trace.overrideSliceAndSkip![closestFrame - startFrame]
+						? trace.overrideSliceAndSkip![closestFrameSliceSkip]
 						: getNestedProperty(frame, path);
 					value = roundToDecimal(value, trace.decimals);
 					if (bbFlag.states) value = bbFlag.states[value] || value;
