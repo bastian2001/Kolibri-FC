@@ -3,12 +3,13 @@ template <typename T>
 class RingBuffer {
 private:
 	size_t size;
+	size_t pSize; // physical size
 	size_t wrPtr;
 	size_t rdPtr;
 	T *buffer;
 
 public:
-	RingBuffer(size_t size) : size(size), wrPtr(0), rdPtr(0) {
+	RingBuffer(size_t size) : size(size), wrPtr(0), rdPtr(0), pSize(size + 1) {
 		buffer = new T[size + 1];
 	}
 
@@ -23,11 +24,11 @@ public:
 	 */
 	void push(T value) {
 		buffer[wrPtr++] = value;
-		if (wrPtr == size) wrPtr = 0;
+		if (wrPtr == pSize) wrPtr = 0;
 
 		if (wrPtr == rdPtr) {
 			rdPtr++; // Overwrite the oldest value
-			if (rdPtr == size) rdPtr = 0;
+			if (rdPtr == pSize) rdPtr = 0;
 		}
 	}
 
@@ -42,7 +43,7 @@ public:
 		}
 
 		T value = buffer[rdPtr++];
-		if (rdPtr == size) rdPtr = 0;
+		if (rdPtr == pSize) rdPtr = 0;
 		return value;
 	}
 
@@ -55,7 +56,7 @@ public:
 	/// @brief check if the buffer is full
 	/// @return true if the buffer is full
 	bool isFull() const {
-		return (wrPtr + 1) % size == rdPtr;
+		return (wrPtr + 1) % pSize == rdPtr;
 	}
 	/// @brief get the number of items in the buffer
 	/// @return size_t the number of items in the buffer
@@ -63,11 +64,11 @@ public:
 		if (wrPtr >= rdPtr)
 			return wrPtr - rdPtr;
 		else
-			return size - rdPtr + wrPtr;
+			return pSize - rdPtr + wrPtr;
 	}
 	/// @brief get the number of free spaces in the buffer
 	size_t freeSpace() const {
-		return size - itemCount() - 1;
+		return size - itemCount();
 	}
 	/**
 	 * @brief resize the buffer, keeping the oldest items
@@ -85,13 +86,14 @@ public:
 		delete[] buffer;
 		buffer = newBuffer;
 		size   = newSize;
+		pSize  = newSize + 1;
 		wrPtr  = i;
 		rdPtr  = 0;
 		return 0;
 	}
 	/// @brief get the item at index index, does not pop
 	T &operator[](size_t index) {
-		return buffer[(index + rdPtr) % size];
+		return buffer[(index + rdPtr) % pSize];
 	}
 	/// @brief clear the buffer
 	void clear() {
@@ -101,7 +103,7 @@ public:
 	/// @brief erase all items before index (0 inclusive to index exclusive)
 	void erase(size_t index) {
 		if (index > itemCount()) index = itemCount();
-		rdPtr = (rdPtr + index) % size;
+		rdPtr = (rdPtr + index) % pSize;
 	}
 	/**
 	 * @brief copy the buffer to an array
@@ -114,12 +116,12 @@ public:
 		if (start >= itemCount()) return;
 		if (start + arraySize > itemCount()) arraySize = itemCount() - start;
 		// use memcpy for speed
-		if (wrPtr > rdPtr || rdPtr + start + arraySize < size) {
+		if (wrPtr > rdPtr || rdPtr + start + arraySize < pSize) {
 			memcpy(array, buffer + rdPtr + start, arraySize * sizeof(T));
-		} else if (rdPtr + start >= size) {
+		} else if (rdPtr + start >= pSize) {
 			memcpy(array, buffer + rdPtr + start - size, arraySize * sizeof(T));
 		} else {
-			size_t itemsInFirstPart = size - rdPtr - start;
+			size_t itemsInFirstPart = pSize - rdPtr - start;
 			memcpy(array, buffer + rdPtr + start, itemsInFirstPart * sizeof(T));
 			memcpy(array + itemsInFirstPart, buffer, (arraySize - itemsInFirstPart) * sizeof(T));
 		}
