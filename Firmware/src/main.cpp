@@ -7,6 +7,8 @@ volatile u8 setupDone = 0b00;
 void setup() {
 	Serial.begin(115200);
 
+	runUnitTests();
+
 	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
 		bootReason = rebootReason;
 	else
