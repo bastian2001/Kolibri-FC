@@ -28,10 +28,10 @@ uint8_t MSP_Check(uint8_t MSP_buf[], uint8_t buf_size) {
 		MSP_buf[2] = 0x3E;                                    // Response Header
 		MSP_buf[3] = 0x04;                                    // Size
 		MSP_buf[4] = MSP_FC_VARIANT;
-		MSP_buf[5] = 0x42; // BETAFLIGHT_IDENTIFIER "B"
-		MSP_buf[6] = 0x54; // BETAFLIGHT_IDENTIFIER "T"
-		MSP_buf[7] = 0x46; // BETAFLIGHT_IDENTIFIER "F"
-		MSP_buf[8] = 0x4C; // BETAFLIGHT_IDENTIFIER "L"
+		MSP_buf[5] = 'K'; // BETAFLIGHT_IDENTIFIER "B"
+		MSP_buf[6] = 'O'; // BETAFLIGHT_IDENTIFIER "T"
+		MSP_buf[7] = 'L'; // BETAFLIGHT_IDENTIFIER "F"
+		MSP_buf[8] = 'I'; // BETAFLIGHT_IDENTIFIER "L"
 		MSP_OSize  = 9;
 	}
 
@@ -292,7 +292,7 @@ uint8_t MSP_Check(uint8_t MSP_buf[], uint8_t buf_size) {
 		MSP_buf[2] = 0x3E;
 		MSP_buf[3] = 0x01;
 		MSP_buf[4] = MSP_SET_4WAY_IF;
-		MSP_buf[5] = 0x01; // 0x04;    // get channel number, switch all motor lines HI, reply with the count of ESC found
+		MSP_buf[5] = 0x04; // 0x04;    // get channel number, switch all motor lines HI, reply with the count of ESC found
 		InitSerialOutput();
 		MSP_OSize = 6;
 	}

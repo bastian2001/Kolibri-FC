@@ -9,6 +9,8 @@ uint32_t offsetPioReceive, offsetPioTransmit;
 pio_sm_config configPioReceive, configPioTransmit;
 PIO escPassthroughPio;
 uint8_t escPassthroughSm;
+uint8_t currentPin = 255;
+bool isTxEnabled   = false;
 
 std::deque<uint8_t> escRxBuf;
 
@@ -28,8 +30,23 @@ void pioResetESC() {
 	pioSetProgram(offsetPioReceive, configPioReceive);
 }
 
+void changePin(uint8_t newPin) {
+	sm_config_set_in_pins(&configPioReceive, newPin);
+	sm_config_set_set_pins(&configPioReceive, newPin, 1);
+	sm_config_set_jmp_pin(&configPioReceive, newPin);
+	sm_config_set_out_pins(&configPioTransmit, newPin, 1);
+	sm_config_set_set_pins(&configPioTransmit, newPin, 1);
+	currentPin = newPin;
+	if (isTxEnabled) {
+		pioSetProgram(offsetPioTransmit, configPioTransmit);
+	} else {
+		pioSetProgram(offsetPioReceive, configPioReceive);
+	}
+}
+
 void pioEnableTx() {
 	pioSetProgram(offsetPioTransmit, configPioTransmit);
+	isTxEnabled = true;
 }
 void pioDisableTx() {
 	while (!pio_sm_is_tx_fifo_empty(escPassthroughPio, escPassthroughSm)) {
@@ -37,6 +54,7 @@ void pioDisableTx() {
 	while (pio_sm_get_pc(escPassthroughPio, escPassthroughSm) != offsetPioTransmit + 2) {
 	}
 	pioSetProgram(offsetPioReceive, configPioReceive);
+	isTxEnabled = false;
 }
 
 void InitSerialOutput() {

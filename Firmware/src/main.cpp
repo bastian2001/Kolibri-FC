@@ -17,7 +17,8 @@ void setup() {
 	rebootReason            = BootReason::WATCHDOG;
 
 	if (connectEscPassthrough && bootReason == BootReason::CMD_ESC_PASSTHROUGH) { // 0 if disabled, pin + 1 if enabled
-		beginPassthrough(connectEscPassthrough - 1);
+		u8 pins[4] = {PIN_MOTORS, PIN_MOTORS + 1, PIN_MOTORS + 2, PIN_MOTORS + 3};
+		beginPassthrough(pins);
 		connectEscPassthrough = 0;
 		for (u8 breakout = 0; !breakout;) {
 			breakout = processPassthrough();
