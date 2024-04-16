@@ -29,13 +29,13 @@ void serialLoop() {
 				taskTimer -= timer;
 			}
 			if (serialFunctions[i] & SERIAL_ELRS) {
-				if (elrsBuffer.itemCount() < 260)
+				if (!elrsBuffer.isFull())
 					elrsBuffer.push(readChar);
 			}
 			if (serialFunctions[i] & SERIAL_ESC_TELEM) {
 			}
 			if (serialFunctions[i] & SERIAL_GPS) {
-				if (gpsBuffer.itemCount() < GPS_BUF_LEN)
+				if (!gpsBuffer.isFull())
 					gpsBuffer.push(readChar);
 			}
 			if (serialFunctions[i] & SERIAL_IRC_TRAMP) {
