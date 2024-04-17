@@ -8,7 +8,6 @@
 	let int = -1;
 	let throttles = [0, 0, 0, 0];
 	let throttlesU8 = [0, 0, 0, 0, 0, 0, 0, 0];
-	let passthroughMotorNumber = 0;
 	$: throttlesU8 = [
 		throttles[0] & 0xff,
 		throttles[0] >> 8,
@@ -59,7 +58,7 @@
 		throttles = [...throttles];
 	}
 	function startPassthrough() {
-		port.sendCommand(ConfigCmd.ESC_PASSTHROUGH, [passthroughMotorNumber]);
+		port.sendCommand(ConfigCmd.ESC_PASSTHROUGH);
 	}
 	onMount(() => {
 		getMotorsInterval = setInterval(() => {
@@ -81,7 +80,6 @@
 	<button on:click={() => spinMotor(3)}>Spin FL</button>
 	<button on:click={() => stopMotors()}>Stop</button>
 	<button on:click={() => startMotors()}>Start</button>
-	<input type="number" bind:value={passthroughMotorNumber} placeholder="0=RR,1=FR,2=RL,3=FL" />
 	<button on:click={startPassthrough}>Passthrough</button>
 	<div class="quadPreview">
 		{#each motors.map((m, i) => motors[motorMapping[i]]) as motor}

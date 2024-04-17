@@ -251,8 +251,6 @@ void pidLoop() {
 				}
 				// estimate throttle
 				vVelSetpoint = t / 180; // +/- 5 m/s
-				static u8 counter;
-				if (counter++ == 0) Serial.println(vVelSetpoint.getf32());
 				if (vVelSetpoint == 0) {
 					if (!stickWasCentered) {
 						setAltSetpointTimer = 0;
