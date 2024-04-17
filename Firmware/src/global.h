@@ -75,7 +75,6 @@ enum class BootReason {
 };
 
 extern volatile u32 crashInfo[256]; // Crash info buffer (arbitrary data to be saved to EEPROM in case of a crash)
-extern u8 connectEscPassthrough;    // ESC passthrough pin + 1 if enabled, 0 if disabled
 extern BootReason bootReason;       // Reason for booting
 extern BootReason rebootReason;     // Reason for rebooting (can be set right before an intentional reboot, WATCHDOG otherwise)
 extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0xdeadbeefdeadbeef)

@@ -17,11 +17,11 @@ bool serial_command = false;
 
 bool passthroughSetup = false;
 
-uint8_t passthroughPin = 255;
+uint8_t passthroughPins[4] = {255, 255, 255, 255};
 
-gpio_function externalPinFunction = GPIO_FUNC_NULL;
+gpio_function externalPinFunctions[4] = {GPIO_FUNC_NULL, GPIO_FUNC_NULL, GPIO_FUNC_NULL, GPIO_FUNC_NULL};
 
-void beginPassthrough(uint8_t pin, PIO pio, int8_t sm) {
+void beginPassthrough(uint8_t pins[4], PIO pio, int8_t sm) {
 	if (passthroughSetup) {
 		return;
 	}
@@ -34,23 +34,26 @@ void beginPassthrough(uint8_t pin, PIO pio, int8_t sm) {
 		escPassthroughSm = sm;
 		pio_claim_sm_mask(escPassthroughPio, 1u << sm);
 	}
-	externalPinFunction = gpio_get_function(pin);
-	pio_gpio_init(escPassthroughPio, pin);
-	gpio_set_pulls(pin, true, false);
+	for (int i = 0; i < 4; i++) {
+		externalPinFunctions[i] = gpio_get_function(pins[i]);
+		pio_gpio_init(escPassthroughPio, pins[i]);
+		gpio_set_pulls(pins[i], true, false);
+		passthroughPins[i] = pins[i];
+	}
 	configPioReceive = onewire_receive_program_get_default_config(offsetPioReceive);
-	sm_config_set_set_pins(&configPioReceive, pin, 1);
-	sm_config_set_in_pins(&configPioReceive, pin);
-	sm_config_set_jmp_pin(&configPioReceive, pin);
+	sm_config_set_set_pins(&configPioReceive, pins[0], 1);
+	sm_config_set_in_pins(&configPioReceive, pins[0]);
+	sm_config_set_jmp_pin(&configPioReceive, pins[0]);
 	sm_config_set_in_shift(&configPioReceive, true, false, 32);
 	sm_config_set_clkdiv_int_frac(&configPioReceive, 859, 128);
 	configPioTransmit = onewire_transmit_program_get_default_config(offsetPioTransmit);
-	sm_config_set_set_pins(&configPioTransmit, pin, 1);
-	sm_config_set_out_pins(&configPioTransmit, pin, 1);
+	sm_config_set_set_pins(&configPioTransmit, pins[0], 1);
+	sm_config_set_out_pins(&configPioTransmit, pins[0], 1);
 	sm_config_set_out_shift(&configPioTransmit, true, false, 8);
 	sm_config_set_clkdiv_int_frac(&configPioTransmit, 859, 128);
 	pio_sm_init(escPassthroughPio, escPassthroughSm, offsetPioReceive, &configPioReceive);
 	pio_sm_set_enabled(escPassthroughPio, escPassthroughSm, true);
-	passthroughPin      = pin;
+	currentPin          = pins[0];
 	passthroughBreakout = false;
 	passthroughSetup    = true;
 }
@@ -61,7 +64,13 @@ void endPassthrough() {
 	}
 	pio_sm_set_enabled(escPassthroughPio, escPassthroughSm, false);
 	pio_sm_unclaim(escPassthroughPio, escPassthroughSm);
-	gpio_set_function(passthroughPin, externalPinFunction);
+	for (int i = 0; i < 4; i++) {
+		if (passthroughPins[i] != 255) {
+			gpio_set_function(passthroughPins[i], externalPinFunctions[i]);
+		}
+		passthroughPins[i]      = 255;
+		externalPinFunctions[i] = GPIO_FUNC_NULL;
+	}
 	pio_remove_program(escPassthroughPio, &onewire_receive_program, offsetPioReceive);
 	pio_remove_program(escPassthroughPio, &onewire_transmit_program, offsetPioTransmit);
 	passthroughSetup = false;

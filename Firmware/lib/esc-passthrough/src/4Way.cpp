@@ -3,6 +3,7 @@
 #include "4Way.h"       // 4Way defines
 #include "ESC_Serial.h" // ESC Serial Code
 #include "Global.h"     // Global variables
+#include "esc_passthrough.h"
 
 uint8_t passthroughBreakout = false;
 
@@ -58,7 +59,8 @@ uint16_t Check_4Way(uint8_t buf[]) {
 
 	if (cmd == cmd_DeviceInitFlash) {
 		O_Param_Len = 0x04;
-		if (param == 0x00) { // ESC Count
+		if (param < 4) { // ESC Count
+			changePin(passthroughPins[param]);
 			uint8_t BootInit[]  = {0, 0, 0, 0, 0, 0, 0, 0, 0x0D, 'B', 'L', 'H', 'e', 'l', 'i', 0xF4, 0x7D};
 			uint8_t Init_Size   = 17;
 			uint8_t RX_Size     = 0;
@@ -90,7 +92,8 @@ uint16_t Check_4Way(uint8_t buf[]) {
 
 	else if (cmd == cmd_DeviceReset) {
 		O_Param_Len = 0x01;
-		if (param == 0x00) { // ESC Count
+		if (param < 4) { // ESC Count
+			changePin(passthroughPins[param]);
 			if (Enable4Way) {
 				buf[6]              = ACK_OK; // ACK
 				uint8_t ESC_data[2] = {RestartBootloader, 0};

@@ -28,10 +28,10 @@ uint8_t MSP_Check(uint8_t MSP_buf[], uint8_t buf_size) {
 		MSP_buf[2] = 0x3E;                                    // Response Header
 		MSP_buf[3] = 0x04;                                    // Size
 		MSP_buf[4] = MSP_FC_VARIANT;
-		MSP_buf[5] = 0x42; // BETAFLIGHT_IDENTIFIER "B"
-		MSP_buf[6] = 0x54; // BETAFLIGHT_IDENTIFIER "T"
-		MSP_buf[7] = 0x46; // BETAFLIGHT_IDENTIFIER "F"
-		MSP_buf[8] = 0x4C; // BETAFLIGHT_IDENTIFIER "L"
+		MSP_buf[5] = 'K'; // BETAFLIGHT_IDENTIFIER "B"
+		MSP_buf[6] = 'O'; // BETAFLIGHT_IDENTIFIER "T"
+		MSP_buf[7] = 'L'; // BETAFLIGHT_IDENTIFIER "F"
+		MSP_buf[8] = 'I'; // BETAFLIGHT_IDENTIFIER "L"
 		MSP_OSize  = 9;
 	}
 
@@ -216,7 +216,7 @@ uint8_t MSP_Check(uint8_t MSP_buf[], uint8_t buf_size) {
 		MSP_buf[8]  = 0x07; // motorConfig()->maxthrottle -> 2000
 		MSP_buf[9]  = 0xE8; // motorConfig()->mincommand -> 1000
 		MSP_buf[10] = 0x03; // motorConfig()->mincommand -> 1000
-		MSP_buf[11] = 0x01; // 0x04;   // getMotorCount()
+		MSP_buf[11] = 0x04; // 0x04;   // getMotorCount()
 		MSP_buf[12] = 0x00; // 0x10;   // motorConfig()->motorPoleCount
 		MSP_buf[13] = 0x00; // 0x01;   // motorConfig()->dev.useDshotTelemetry
 		MSP_buf[14] = 0x00; // featureIsEnabled(FEATURE_ESC_SENSOR)
@@ -229,12 +229,12 @@ uint8_t MSP_Check(uint8_t MSP_buf[], uint8_t buf_size) {
 		MSP_buf[4]  = MSP_MOTOR;
 		MSP_buf[5]  = 0xE8; // motorConvertToExternal(motor[i]) -> 1000
 		MSP_buf[6]  = 0x03; // motorConvertToExternal(motor[i]) -> 1000
-		MSP_buf[7]  = 0x00; // 0xE8;
-		MSP_buf[8]  = 0x00; // 0x03;
-		MSP_buf[9]  = 0x00; // 0xE8;
-		MSP_buf[10] = 0x00; // 0x03;
-		MSP_buf[11] = 0x00; // 0xE8;
-		MSP_buf[12] = 0x00; // 0x03;
+		MSP_buf[7]  = 0xE8; // 0xE8;
+		MSP_buf[8]  = 0x03; // 0x03;
+		MSP_buf[9]  = 0xE8; // 0xE8;
+		MSP_buf[10] = 0x03; // 0x03;
+		MSP_buf[11] = 0xE8; // 0xE8;
+		MSP_buf[12] = 0x03; // 0x03;
 		MSP_buf[13] = 0x00;
 		MSP_buf[14] = 0x00;
 		MSP_buf[15] = 0x00;
@@ -292,7 +292,7 @@ uint8_t MSP_Check(uint8_t MSP_buf[], uint8_t buf_size) {
 		MSP_buf[2] = 0x3E;
 		MSP_buf[3] = 0x01;
 		MSP_buf[4] = MSP_SET_4WAY_IF;
-		MSP_buf[5] = 0x01; // 0x04;    // get channel number, switch all motor lines HI, reply with the count of ESC found
+		MSP_buf[5] = 0x04; // 0x04;    // get channel number, switch all motor lines HI, reply with the count of ESC found
 		InitSerialOutput();
 		MSP_OSize = 6;
 	}
