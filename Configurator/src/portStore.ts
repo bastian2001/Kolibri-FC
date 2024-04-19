@@ -43,6 +43,33 @@ export const ConfigCmd = {
 	IND_MESSAGE: 0xc000
 };
 
+const MspState = {
+	IDLE: 0, // waiting for $
+	PACKET_START: 1, // receiving M or X
+	TYPE_V1: 2, // got M, receiving type byte (<, >, !)
+	LEN_V1: 3, // if 255 is received in this step, inject jumbo len bytes
+	JUMBO_LEN_LO_V1: 4,
+	JUMBO_LEN_HI_V1: 5,
+	CMD_V1: 6,
+	PAYLOAD_V1: 7,
+	FLAG_V2_OVER_V1: 8,
+	CMD_LO_V2_OVER_V1: 9,
+	CMD_HI_V2_OVER_V1: 10,
+	LEN_LO_V2_OVER_V1: 11,
+	LEN_HI_V2_OVER_V1: 12,
+	PAYLOAD_V2_OVER_V1: 13,
+	CHECKSUM_V2_OVER_V1: 14,
+	CHECKSUM_V1: 15,
+	TYPE_V2: 16, // got X, receiving type byte (<, >, !)
+	FLAG_V2: 17,
+	CMD_LO_V2: 18,
+	CMD_HI_V2: 19,
+	LEN_LO_V2: 20,
+	LEN_HI_V2: 21,
+	PAYLOAD_V2: 22,
+	CHECKSUM_V2: 23
+};
+
 export type Command = {
 	command: number;
 	length: number;
@@ -60,6 +87,23 @@ function createPort() {
 		dataStr: '',
 		cmdType: 'request'
 	} as Command);
+
+	subscribe((c) => {
+		console.log(c);
+		switch (c.command) {
+			case ConfigCmd.CONFIGURATOR_PING:
+				//ping received from FC, confirm
+				port.sendCommand(ConfigCmd.CONFIGURATOR_PING | 0x4000);
+				break;
+			case ConfigCmd.CONFIGURATOR_PING | 0x4000:
+				// pong response from FC received
+				pingTime.fromConfigurator = Date.now() - pingStarted;
+				break;
+			case ConfigCmd.CONFIGURATOR_PING | 0xc000:
+				pingTime.fromFC = leBytesToInt(c.data);
+				break;
+		}
+	});
 
 	function strToArray(str: string) {
 		const data = [];
@@ -88,11 +132,12 @@ function createPort() {
 		checksum ^= len & 0xff;
 		checksum ^= (len >> 8) & 0xff;
 		const cmd = [
-			...strToArray('_K'),
-			len & 0xff,
-			(len >> 8) & 0xff,
+			...strToArray('$X<'),
+			0,
 			command & 0xff,
 			(command >> 8) & 0xff,
+			len & 0xff,
+			(len >> 8) & 0xff,
 			...data,
 			checksum
 		];
@@ -114,57 +159,163 @@ function createPort() {
 				});
 		});
 	};
-	const rxBuf: number[] = [];
+	let rxBuf: number[] = [];
 	let pingStarted = 0;
+	let newCommand: Command = {
+		command: 65535,
+		length: 0,
+		data: [],
+		dataStr: '',
+		cmdType: 'request'
+	};
+	let mspState = 0;
 	const read = () => {
 		invoke('serial_read')
-			.then((d: unknown) => {
-				rxBuf.push(...(d as number[]));
+			.then((d) => {
+				rxBuf = d as number[];
 			})
 			.catch((e) => {
 				if (e !== 'Custom { kind: TimedOut, error: "Operation timed out" }') console.error(e);
 			})
 			.finally(() => {
-				while (rxBuf.length >= 7) {
-					if (rxBuf[0] != '_'.charCodeAt(0) || rxBuf[1] != 'K'.charCodeAt(0)) {
-						rxBuf.splice(0, 1);
-						continue;
+				rxBuf.forEach((c) => {
+					switch (mspState) {
+						case MspState.IDLE:
+							if (c === 36) mspState = MspState.PACKET_START; /* $ */
+							break;
+						case MspState.PACKET_START:
+							newCommand.data = [];
+							newCommand.dataStr = '';
+							if (c === 77) mspState = MspState.TYPE_V1; /* M */
+							else if (c === 88) mspState = MspState.TYPE_V2; /* X */
+							else mspState = MspState.IDLE;
+							break;
+						case MspState.TYPE_V1:
+							mspState = MspState.LEN_V1;
+							switch (c) {
+								case 60: // '<'
+									newCommand.cmdType = 'request';
+									break;
+								case 62: // '>'
+									newCommand.cmdType = 'response';
+									break;
+								case 33: // '!'
+									newCommand.cmdType = 'error';
+									break;
+								default:
+									mspState = MspState.IDLE;
+									break;
+							}
+							break;
+						case MspState.LEN_V1:
+							if (c === 255) {
+								mspState = MspState.JUMBO_LEN_LO_V1;
+							} else {
+								newCommand.length = c;
+								mspState = MspState.CMD_V1;
+							}
+							break;
+						case MspState.JUMBO_LEN_LO_V1:
+							newCommand.length = c;
+							mspState = MspState.JUMBO_LEN_HI_V1;
+							break;
+						case MspState.JUMBO_LEN_HI_V1:
+							newCommand.length += c << 8;
+							mspState = MspState.CMD_V1;
+							break;
+						case MspState.CMD_V1:
+							if (c === 255) {
+								mspState = MspState.FLAG_V2_OVER_V1;
+							} else {
+								newCommand.command = c;
+								mspState = newCommand.length > 0 ? MspState.PAYLOAD_V1 : MspState.CHECKSUM_V1;
+							}
+							break;
+						case MspState.PAYLOAD_V1:
+							newCommand.data.push(c);
+							newCommand.dataStr += String.fromCharCode(c);
+							if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V1;
+							break;
+						case MspState.FLAG_V2_OVER_V1:
+							mspState = MspState.CMD_LO_V2_OVER_V1;
+							break;
+						case MspState.CMD_LO_V2_OVER_V1:
+							newCommand.command = c;
+							mspState = MspState.CMD_HI_V2_OVER_V1;
+							break;
+						case MspState.CMD_HI_V2_OVER_V1:
+							newCommand.command += c << 8;
+							mspState = MspState.LEN_LO_V2_OVER_V1;
+							break;
+						case MspState.LEN_LO_V2_OVER_V1:
+							newCommand.length = c;
+							mspState = MspState.LEN_HI_V2_OVER_V1;
+							break;
+						case MspState.LEN_HI_V2_OVER_V1:
+							newCommand.length += c << 8;
+							mspState =
+								newCommand.length > 0 ? MspState.PAYLOAD_V2_OVER_V1 : MspState.CHECKSUM_V2_OVER_V1;
+							break;
+						case MspState.PAYLOAD_V2_OVER_V1:
+							newCommand.data.push(c);
+							newCommand.dataStr += String.fromCharCode(c);
+							if (newCommand.data.length === newCommand.length)
+								mspState = MspState.CHECKSUM_V2_OVER_V1;
+							break;
+						case MspState.CHECKSUM_V2_OVER_V1:
+							mspState = MspState.CHECKSUM_V1;
+							break;
+						case MspState.CHECKSUM_V1:
+							set(newCommand);
+							mspState = MspState.IDLE;
+							break;
+						case MspState.TYPE_V2:
+							mspState = MspState.FLAG_V2;
+							switch (c) {
+								case 60: // '<'
+									newCommand.cmdType = 'request';
+									break;
+								case 62: // '>'
+									newCommand.cmdType = 'response';
+									break;
+								case 33: // '!'
+									newCommand.cmdType = 'error';
+									break;
+								default:
+									mspState = MspState.IDLE;
+									break;
+							}
+							break;
+						case MspState.FLAG_V2:
+							mspState = MspState.CMD_LO_V2;
+							break;
+						case MspState.CMD_LO_V2:
+							newCommand.command = c;
+							mspState = MspState.CMD_HI_V2;
+							break;
+						case MspState.CMD_HI_V2:
+							newCommand.command += c << 8;
+							mspState = MspState.LEN_LO_V2;
+							break;
+						case MspState.LEN_LO_V2:
+							newCommand.length = c;
+							mspState = MspState.LEN_HI_V2;
+							break;
+						case MspState.LEN_HI_V2:
+							newCommand.length += c << 8;
+							mspState = newCommand.length > 0 ? MspState.PAYLOAD_V2 : MspState.CHECKSUM_V2;
+							break;
+						case MspState.PAYLOAD_V2:
+							newCommand.data.push(c);
+							newCommand.dataStr += String.fromCharCode(c);
+							if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V2;
+							break;
+						case MspState.CHECKSUM_V2:
+							set(newCommand);
+							mspState = MspState.IDLE;
+							break;
 					}
-					const len = rxBuf[2] + rxBuf[3] * 256;
-					if (rxBuf.length < len + 7) return;
-					let checksum = 0;
-					for (let i = 2; i < len + 7; i++) checksum ^= rxBuf[i];
-					if (checksum !== 0) {
-						rxBuf.splice(0, 1);
-						continue;
-					}
-					const data = rxBuf.slice(6, len + 6);
-					const command = rxBuf[4] + rxBuf[5] * 256;
-					rxBuf.splice(0, len + 7);
-					let dataStr = '';
-					for (let i = 0; i < data.length; i++) {
-						dataStr += String.fromCharCode(data[i]);
-					}
-					let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
-					if (command < 0x4000) cmdType = 'request';
-					else if (command < 0x8000) cmdType = 'response';
-					else if (command < 0xc000) cmdType = 'error';
-					const c: Command = {
-						command,
-						data,
-						dataStr,
-						cmdType,
-						length: len
-					};
-					set(c);
-					if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0x4000)) {
-						pingTime.fromConfigurator = Date.now() - pingStarted;
-						//pong response from FC received
-					} else if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0xc000)) {
-						pingTime.fromFC = leBytesToInt(c.data);
-					}
-					return;
-				}
+				});
 			});
 	};
 	let pingInterval: number = -1;

@@ -1,18 +1,23 @@
 #include "global.h"
 
-u8 configSerialBuffer[256] = {0};
-u8 configSerialBufferIndex = 0;
-u8 configMsgLength         = 0;
-u8 accelCalDone            = 0;
-u16 configMsgCommand       = 0;
+u8 configSerialBuffer[2048] = {0};
+u16 configSerialBufferIndex = 0;
+u16 configMsgLength         = 0;
+u8 accelCalDone             = 0;
+u16 configMsgCommand        = 0;
+MspMsgType configMsgType    = MspMsgType::ERROR;
+u8 configMsgFlag            = 0;
 
 elapsedMillis configTimer = 0;
+
+MspState mspState = MspState::IDLE;
 
 elapsedMillis configOverrideMotors = 1001;
 
 elapsedMillis lastConfigPingRx = 0;
 elapsedMillis lastConfigPingTx = 0;
 bool configuratorConnected     = false;
+u16 payloadStartIndex = 0, payloadStopIndex = 0;
 
 void configuratorLoop() {
 	if (lastConfigPingRx > 1000)
@@ -33,12 +38,8 @@ void configuratorLoop() {
 }
 
 void sendCommand(u16 command, const char *data, u16 len) {
-	Serial.write('_');
-	Serial.write('K');
-	Serial.write(len & 0xFF);
-	Serial.write(len >> 8);
-	Serial.write(command & 0xFF);
-	Serial.write(command >> 8);
+	u8 header[8] = {'$', 'X', '<', 0, (u8)command, (u8)(command >> 8), (u8)len, (u8)(len >> 8)};
+	Serial.write(header, 8);
 
 	if (data == nullptr)
 		len = 0;
@@ -142,16 +143,16 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, index);
 	} break;
 	case ConfigCmd::BB_FILE_DOWNLOAD: {
-		u8 fileNum   = configSerialBuffer[CONFIG_BUFFER_DATA];
+		u8 fileNum   = configSerialBuffer[payloadStartIndex];
 		i16 chunkNum = -1;
 		if (configMsgLength > 1) {
-			chunkNum = configSerialBuffer[CONFIG_BUFFER_DATA + 1] + (configSerialBuffer[CONFIG_BUFFER_DATA + 2] << 8);
+			chunkNum = configSerialBuffer[payloadStartIndex + 1] + (configSerialBuffer[payloadStartIndex + 2] << 8);
 		}
 		printLogBin(fileNum, chunkNum);
 	} break;
 	case ConfigCmd::BB_FILE_DELETE: {
 		// data just includes one byte of file number
-		u8 fileNum = configSerialBuffer[CONFIG_BUFFER_DATA];
+		u8 fileNum = configSerialBuffer[payloadStartIndex];
 		char path[32];
 #if BLACKBOX_STORAGE == LITTLEFS_BB
 		snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
@@ -177,9 +178,9 @@ void handleConfigCmd() {
 		 * 13. byte that indicates frequency divider
 		 * 14-21: recording flags
 		 */
-		u8 len       = configSerialBuffer[CONFIG_BUFFER_LENGTH];
+		u8 len       = configMsgLength;
 		len          = len > 12 ? 12 : len;
-		u8 *fileNums = &configSerialBuffer[CONFIG_BUFFER_DATA];
+		u8 *fileNums = &configSerialBuffer[payloadStartIndex];
 		u8 buffer[22 * len];
 		u8 index = 0;
 		for (int i = 0; i < len; i++) {
@@ -223,14 +224,14 @@ void handleConfigCmd() {
 			sendCommand(configMsgCommand | 0x8000);
 			break;
 		}
-		updateCharacter(configSerialBuffer[CONFIG_BUFFER_DATA], &configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
-		sendCommand(configMsgCommand | 0x4000, (const char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 1);
+		updateCharacter(configSerialBuffer[payloadStartIndex], &configSerialBuffer[payloadStartIndex + 1]);
+		sendCommand(configMsgCommand | 0x4000, (const char *)&configSerialBuffer[payloadStartIndex], 1);
 		break;
 	case ConfigCmd::SET_MOTORS:
-		throttles[(u8)MOTOR::RR] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 0] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 1] << 8);
-		throttles[(u8)MOTOR::FR] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 2] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 3] << 8);
-		throttles[(u8)MOTOR::RL] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 4] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 5] << 8);
-		throttles[(u8)MOTOR::FL] = (u16)configSerialBuffer[CONFIG_BUFFER_DATA + 6] + ((u16)configSerialBuffer[CONFIG_BUFFER_DATA + 7] << 8);
+		throttles[(u8)MOTOR::RR] = (u16)configSerialBuffer[payloadStartIndex + 0] + ((u16)configSerialBuffer[payloadStartIndex + 1] << 8);
+		throttles[(u8)MOTOR::FR] = (u16)configSerialBuffer[payloadStartIndex + 2] + ((u16)configSerialBuffer[payloadStartIndex + 3] << 8);
+		throttles[(u8)MOTOR::RL] = (u16)configSerialBuffer[payloadStartIndex + 4] + ((u16)configSerialBuffer[payloadStartIndex + 5] << 8);
+		throttles[(u8)MOTOR::FL] = (u16)configSerialBuffer[payloadStartIndex + 6] + ((u16)configSerialBuffer[payloadStartIndex + 7] << 8);
 		configOverrideMotors     = 0;
 		sendCommand(configMsgCommand | 0x4000);
 		break;
@@ -243,10 +244,10 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, (char *)motors, sizeof(motors));
 	} break;
 	case ConfigCmd::BB_FILE_DOWNLOAD_RAW:
-		printLogBinRaw(configSerialBuffer[CONFIG_BUFFER_DATA]);
+		printLogBinRaw(configSerialBuffer[payloadStartIndex]);
 		break;
 	case ConfigCmd::SET_DEBUG_LED:
-		gpio_put(PIN_LED_DEBUG, configSerialBuffer[CONFIG_BUFFER_DATA]);
+		gpio_put(PIN_LED_DEBUG, configSerialBuffer[payloadStartIndex]);
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	case ConfigCmd::CONFIGURATOR_PING:
@@ -273,12 +274,12 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, name, strlen(name));
 	} break;
 	case ConfigCmd::SET_NAME: {
-		u8 len = configSerialBuffer[CONFIG_BUFFER_LENGTH];
+		u8 len = configSerialBuffer[payloadStartIndex];
 		if (len > 20)
 			sendCommand(configMsgCommand | 0x8000);
 		break;
 		for (int i = 0; i < len; i++)
-			EEPROM.write((u16)EEPROM_POS::UAV_NAME + i, configSerialBuffer[CONFIG_BUFFER_DATA + i]);
+			EEPROM.write((u16)EEPROM_POS::UAV_NAME + i, configSerialBuffer[payloadStartIndex + i]);
 		sendCommand(configMsgCommand | 0x4000);
 		break;
 	}
@@ -297,7 +298,7 @@ void handleConfigCmd() {
 	} break;
 	case ConfigCmd::SET_PIDS: {
 		u16 pids[3][7];
-		memcpy(pids, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(pids));
+		memcpy(pids, &configSerialBuffer[payloadStartIndex], sizeof(pids));
 		for (int i = 0; i < 3; i++) {
 			pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
 			pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
@@ -318,7 +319,7 @@ void handleConfigCmd() {
 	} break;
 	case ConfigCmd::SET_RATES: {
 		u16 rates[3][5];
-		memcpy(rates, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(rates));
+		memcpy(rates, &configSerialBuffer[payloadStartIndex], sizeof(rates));
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 5; j++)
 				rateFactors[j][i] = rates[i][j];
@@ -333,7 +334,7 @@ void handleConfigCmd() {
 	} break;
 	case ConfigCmd::SET_BB_SETTINGS: {
 		u8 bbSettings[9];
-		memcpy(bbSettings, &configSerialBuffer[CONFIG_BUFFER_DATA], sizeof(bbSettings));
+		memcpy(bbSettings, &configSerialBuffer[payloadStartIndex], sizeof(bbSettings));
 		bbFreqDivider = bbSettings[0];
 		memcpy(&bbFlags, &bbSettings[1], 8);
 		sendCommand(configMsgCommand | 0x4000);
@@ -357,9 +358,9 @@ void handleConfigCmd() {
 		sendCommand(configMsgCommand | 0x4000, buf, 8);
 	} break;
 	case ConfigCmd::SERIAL_PASSTHROUGH: {
-		u8 serialNum = configSerialBuffer[CONFIG_BUFFER_DATA];
-		u32 baud     = DECODE_U4(&configSerialBuffer[CONFIG_BUFFER_DATA + 1]);
-		sendCommand(configMsgCommand | 0x4000, (char *)&configSerialBuffer[CONFIG_BUFFER_DATA], 5);
+		u8 serialNum = configSerialBuffer[payloadStartIndex];
+		u32 baud     = DECODE_U4(&configSerialBuffer[payloadStartIndex + 1]);
+		sendCommand(configMsgCommand | 0x4000, (char *)&configSerialBuffer[payloadStartIndex], 5);
 		u8 plusCount                  = 0;
 		elapsedMillis breakoutCounter = 0;
 		switch (serialNum) {
@@ -501,30 +502,159 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_CONFIGURATOR].runCounter++;
 	configSerialBuffer[configSerialBufferIndex++] = c;
-	// every message from the configurator starts with _K, followed by two bytes of data length (only for the data, thus between 0 and 65535), then 2 bytes command, then the data, then the checksum (1 byte XOR of length, command and data)
-	// 2 bytes prefix, 2 bytes length, 2 bytes command, data, 1 byte checksum
-	if (configSerialBufferIndex == 1 && c != '_') {
-		configSerialBufferIndex = 0;
-		return;
-	} else if (configSerialBufferIndex == 2 && c != 'K') {
-		configSerialBufferIndex = 0;
-		return;
-	} else if (configSerialBufferIndex == 4) {
-		configMsgLength = configSerialBuffer[2] + (configSerialBuffer[3] << 8); // low byte first
-	} else if (configSerialBufferIndex == 6) {
-		configMsgCommand = configSerialBuffer[4] + (configSerialBuffer[5] << 8); // low byte first
-	}
-	if (configSerialBufferIndex == configMsgLength + 7) {
-		u8 crc = 0;
-		for (int i = 2; i < configMsgLength + 7; i++)
-			crc ^= configSerialBuffer[i];
-		if (crc != 0) {
+
+	switch (mspState) {
+	case MspState::IDLE:
+		if (c == '$')
+			mspState = MspState::PACKET_START;
+		else
 			configSerialBufferIndex = 0;
-			Serial.printf("CRC error");
-			return;
+		break;
+	case MspState::PACKET_START:
+		switch (c) {
+		case 'M':
+			mspState = MspState::TYPE_V1;
+			break;
+		case 'X':
+			mspState = MspState::TYPE_V2;
+			break;
+		default:
+			configSerialBufferIndex = 0;
+			mspState                = MspState::IDLE;
+			break;
 		}
-		handleConfigCmd();
+		break;
+	case MspState::TYPE_V1:
+		mspState = MspState::LEN_V1;
+		switch (c) {
+		case '<':
+			configMsgType = MspMsgType::REQUEST;
+			break;
+		case '>':
+			configMsgType = MspMsgType::RESPONSE;
+			break;
+		case '!':
+			configMsgType = MspMsgType::ERROR;
+			break;
+		default:
+			configSerialBufferIndex = 0;
+			mspState                = MspState::IDLE;
+			break;
+		}
+		break;
+	case MspState::LEN_V1:
+		if (c == 255) {
+			mspState = MspState::JUMBO_LEN_LO_V1;
+		} else {
+			configMsgLength = c;
+			mspState        = MspState::CMD_V1;
+		}
+		break;
+	case MspState::JUMBO_LEN_LO_V1:
+		configMsgLength = c;
+		mspState        = MspState::JUMBO_LEN_HI_V1;
+		break;
+	case MspState::JUMBO_LEN_HI_V1:
+		configMsgLength |= ((u16)c << 8);
+		mspState = MspState::CMD_V1;
+		break;
+	case MspState::CMD_V1:
+		if (c == 255) {
+			mspState = MspState::FLAG_V2_OVER_V1;
+		} else {
+			configMsgCommand = c;
+			mspState         = configMsgLength ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
+		}
+		break;
+	case MspState::PAYLOAD_V1:
+		if (configSerialBufferIndex == configMsgLength)
+			mspState = MspState::CHECKSUM_V1;
+		break;
+	case MspState::FLAG_V2_OVER_V1:
+		configMsgFlag = c;
+		mspState      = MspState::CMD_LO_V2_OVER_V1;
+		break;
+	case MspState::CMD_LO_V2_OVER_V1:
+		configMsgCommand = c;
+		mspState         = MspState::CMD_HI_V2_OVER_V1;
+		break;
+	case MspState::CMD_HI_V2_OVER_V1:
+		configMsgCommand |= ((u16)c << 8);
+		mspState = MspState::LEN_LO_V2_OVER_V1;
+		break;
+	case MspState::LEN_LO_V2_OVER_V1:
+		configMsgLength = c;
+		mspState        = MspState::LEN_HI_V2_OVER_V1;
+		break;
+	case MspState::LEN_HI_V2_OVER_V1:
+		configMsgLength |= ((u16)c << 8);
+		mspState = configMsgLength ? MspState::PAYLOAD_V2_OVER_V1 : MspState::CHECKSUM_V2_OVER_V1;
+		break;
+	case MspState::PAYLOAD_V2_OVER_V1:
+		if (configSerialBufferIndex == configMsgLength)
+			mspState = MspState::CHECKSUM_V2_OVER_V1;
+		break;
+	case MspState::CHECKSUM_V2_OVER_V1:
+		mspState = MspState::CHECKSUM_V1;
+		break;
+	case MspState::CHECKSUM_V1:
+		if (configMsgType == MspMsgType::REQUEST)
+			handleConfigCmd();
 		configSerialBufferIndex = 0;
+		mspState                = MspState::IDLE;
+		break;
+	case MspState::TYPE_V2:
+		mspState = MspState::FLAG_V2;
+		switch (c) {
+		case '<':
+			configMsgType = MspMsgType::REQUEST;
+			break;
+		case '>':
+			configMsgType = MspMsgType::RESPONSE;
+			break;
+		case '!':
+			configMsgType = MspMsgType::ERROR;
+			break;
+		default:
+			configSerialBufferIndex = 0;
+			mspState                = MspState::IDLE;
+			break;
+		}
+		break;
+	case MspState::FLAG_V2:
+		configMsgFlag = c;
+		mspState      = MspState::CMD_LO_V2;
+		break;
+	case MspState::CMD_LO_V2:
+		configMsgCommand = c;
+		mspState         = MspState::CMD_HI_V2;
+		break;
+	case MspState::CMD_HI_V2:
+		configMsgCommand |= ((u16)c << 8);
+		mspState = MspState::LEN_LO_V2;
+		break;
+	case MspState::LEN_LO_V2:
+		configMsgLength = c;
+		mspState        = MspState::LEN_HI_V2;
+		break;
+	case MspState::LEN_HI_V2:
+		configMsgLength |= ((u16)c << 8);
+		payloadStartIndex = configSerialBufferIndex;
+		payloadStopIndex  = payloadStartIndex + configMsgLength;
+		mspState          = configMsgLength ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
+		break;
+	case MspState::PAYLOAD_V2:
+		if (configSerialBufferIndex == payloadStopIndex) {
+			mspState = MspState::CHECKSUM_V2;
+		}
+		break;
+	case MspState::CHECKSUM_V2:
+		if (configMsgType == MspMsgType::REQUEST) {
+			handleConfigCmd();
+		}
+		configSerialBufferIndex = 0;
+		mspState                = MspState::IDLE;
+		break;
 	}
 	u32 duration = taskTimer;
 	tasks[TASK_CONFIGURATOR].totalDuration += duration;

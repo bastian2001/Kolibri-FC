@@ -1,0 +1,6 @@
+{
+	"editor.defaultFormatter": null,
+	"[typescript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	}
+}

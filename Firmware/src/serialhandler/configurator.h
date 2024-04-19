@@ -1,11 +1,6 @@
 #pragma once
 #include <Arduino.h>
 
-#define CONFIG_BUFFER_PREFIX 0
-#define CONFIG_BUFFER_LENGTH 2
-#define CONFIG_BUFFER_COMMAND 4
-#define CONFIG_BUFFER_DATA 6
-
 extern bool configuratorConnected; // true if the configurator is connected
 extern u8 accelCalDone;            // accel calibration flag to send a message to the configurator
 
@@ -55,6 +50,38 @@ enum class ConfigCmd { // commands/responses/errors
 
 	// indicators
 	IND_MESSAGE = 0xC000,
+};
+
+enum class MspState {
+	IDLE,         // waiting for $
+	PACKET_START, // receiving M or X
+	TYPE_V1,      // got M, receiving type byte (<, >, !)
+	LEN_V1,       // if 255 is received in this step, inject jumbo len bytes
+	JUMBO_LEN_LO_V1,
+	JUMBO_LEN_HI_V1,
+	CMD_V1,
+	PAYLOAD_V1,
+	FLAG_V2_OVER_V1,
+	CMD_LO_V2_OVER_V1,
+	CMD_HI_V2_OVER_V1,
+	LEN_LO_V2_OVER_V1,
+	LEN_HI_V2_OVER_V1,
+	PAYLOAD_V2_OVER_V1,
+	CHECKSUM_V2_OVER_V1,
+	CHECKSUM_V1,
+	TYPE_V2, // got X, receiving type byte (<, >, !)
+	FLAG_V2,
+	CMD_LO_V2,
+	CMD_HI_V2,
+	LEN_LO_V2,
+	LEN_HI_V2,
+	PAYLOAD_V2,
+	CHECKSUM_V2,
+};
+enum class MspMsgType {
+	REQUEST  = '<',
+	RESPONSE = '>',
+	ERROR    = '!',
 };
 
 /**
