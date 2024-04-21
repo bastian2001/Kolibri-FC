@@ -1,35 +1,35 @@
 <script lang="ts">
 	import { port, ConfigCmd, type Command } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
-	import { onMount, createEventDispatcher } from 'svelte';
+	import { onMount, createEventDispatcher, onDestroy } from 'svelte';
 	const dispatch = createEventDispatcher();
-
-	$: handleCommand($port);
 
 	let divider = 0;
 
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.GET_BB_SETTINGS | 0x4000:
-				if (command.length !== 9) break;
-				divider = command.data[0];
-				const selectedBin = leBytesToInt(command.data.slice(1, 5), false);
-				const selectedBin2 = leBytesToInt(command.data.slice(5, 9), false);
-				const sel = [];
-				for (let i = 0; i < 32; i++) {
-					if (selectedBin & (1 << i)) sel.push(flagNames[i]);
-					if (selectedBin2 & (1 << i)) sel.push(flagNames[i + 32]);
-				}
-				selected = sel;
-				break;
-			case ConfigCmd.SET_BB_SETTINGS | 0x4000:
-				port.sendCommand(ConfigCmd.SAVE_SETTINGS);
-				break;
-			case ConfigCmd.SAVE_SETTINGS | 0x4000:
-				dispatch('close');
-				break;
+	const unsubscribe = port.subscribe(command => {
+		if (command.cmdType === 'response') {
+			switch (command.command) {
+				case ConfigCmd.GET_BB_SETTINGS:
+					if (command.length !== 9) break;
+					divider = command.data[0];
+					const selectedBin = leBytesToInt(command.data.slice(1, 5), false);
+					const selectedBin2 = leBytesToInt(command.data.slice(5, 9), false);
+					const sel = [];
+					for (let i = 0; i < 32; i++) {
+						if (selectedBin & (1 << i)) sel.push(flagNames[i]);
+						if (selectedBin2 & (1 << i)) sel.push(flagNames[i + 32]);
+					}
+					selected = sel;
+					break;
+				case ConfigCmd.SET_BB_SETTINGS:
+					port.sendCommand('request', ConfigCmd.SAVE_SETTINGS);
+					break;
+				case ConfigCmd.SAVE_SETTINGS:
+					dispatch('close');
+					break;
+			}
 		}
-	}
+	});
 
 	export let flags: {
 		[key: string]: { name: string };
@@ -51,7 +51,10 @@
 			i += size;
 		}
 		groups = g;
-		port.sendCommand(ConfigCmd.GET_BB_SETTINGS);
+		port.sendCommand('request', ConfigCmd.GET_BB_SETTINGS);
+	});
+	onDestroy(() => {
+		unsubscribe();
 	});
 
 	function saveSettings() {
@@ -63,7 +66,7 @@
 			bytes[byte] |= 1 << bit;
 		}
 
-		port.sendCommand(ConfigCmd.SET_BB_SETTINGS, [divider, ...bytes]);
+		port.sendCommand('request', ConfigCmd.SET_BB_SETTINGS, [divider, ...bytes]);
 	}
 	function cancel() {
 		dispatch('close');

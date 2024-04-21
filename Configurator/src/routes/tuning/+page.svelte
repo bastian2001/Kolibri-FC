@@ -9,48 +9,49 @@
 
 	let saveTimeout = 0;
 
-	$: handleCommand($port);
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.GET_PIDS | 0x4000:
-				if (command.length !== 3 * 2 * 7) break;
-				for (let ax = 0; ax < 3; ax++) {
-					for (let i = 0; i < 6; i++)
-						pids[ax][i] = leBytesToInt(
-							command.data.slice(ax * 14 + i * 2, ax * 14 + i * 2 + 2),
-							false
-						);
-					pids[ax][5] /= 65536;
-					pids[ax][5] = Math.round(pids[ax][5] * 10000) / 10000;
-				}
-				break;
-			case ConfigCmd.GET_RATES | 0x4000:
-				if (command.length !== 5 * 2 * 3) break;
-				for (let ax = 0; ax < 3; ax++) {
-					for (let i = 0; i < 5; i++)
-						rateFactors[ax][i] = leBytesToInt(
-							command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2)
-						);
-				}
-				break;
-			case ConfigCmd.SET_PIDS | 0x4000:
-				const data = [];
-				for (let ax = 0; ax < 3; ax++)
-					for (let i = 0; i < 5; i++)
-						data.push(rateFactors[ax][i] & 0xff, (rateFactors[ax][i] >> 8) & 0xff);
-				port.sendCommand(ConfigCmd.SET_RATES, data);
-				break;
-			case ConfigCmd.SET_RATES | 0x4000:
-				port.sendCommand(ConfigCmd.SAVE_SETTINGS);
-				break;
-			case ConfigCmd.SAVE_SETTINGS | 0x4000:
-				clearTimeout(saveTimeout);
-				break;
+	const unsubscribe = port.subscribe(command => {
+		if (command.cmdType === 'response') {
+			switch (command.command) {
+				case ConfigCmd.GET_PIDS:
+					if (command.length !== 3 * 2 * 7) break;
+					for (let ax = 0; ax < 3; ax++) {
+						for (let i = 0; i < 6; i++)
+							pids[ax][i] = leBytesToInt(
+								command.data.slice(ax * 14 + i * 2, ax * 14 + i * 2 + 2),
+								false
+							);
+						pids[ax][5] /= 65536;
+						pids[ax][5] = Math.round(pids[ax][5] * 10000) / 10000;
+					}
+					break;
+				case ConfigCmd.GET_RATES:
+					if (command.length !== 5 * 2 * 3) break;
+					for (let ax = 0; ax < 3; ax++) {
+						for (let i = 0; i < 5; i++)
+							rateFactors[ax][i] = leBytesToInt(
+								command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2)
+							);
+					}
+					break;
+				case ConfigCmd.SET_PIDS:
+					const data = [];
+					for (let ax = 0; ax < 3; ax++)
+						for (let i = 0; i < 5; i++)
+							data.push(rateFactors[ax][i] & 0xff, (rateFactors[ax][i] >> 8) & 0xff);
+					port.sendCommand('request', ConfigCmd.SET_RATES, data);
+					break;
+				case ConfigCmd.SET_RATES:
+					port.sendCommand('request', ConfigCmd.SAVE_SETTINGS);
+					break;
+				case ConfigCmd.SAVE_SETTINGS:
+					clearTimeout(saveTimeout);
+					break;
+			}
 		}
-	}
+	});
 	function getSettings() {
-		port.sendCommand(ConfigCmd.GET_PIDS).then(() => {
-			port.sendCommand(ConfigCmd.GET_RATES);
+		port.sendCommand('request', ConfigCmd.GET_PIDS).then(() => {
+			port.sendCommand('request', ConfigCmd.GET_RATES);
 		});
 	}
 	onMount(() => {
@@ -59,6 +60,7 @@
 	});
 	onDestroy(() => {
 		port.removeOnConnectHandler(getSettings);
+		unsubscribe();
 	});
 
 	function scrollInputPID(e: WheelEvent, i: number, j: number) {
@@ -88,7 +90,7 @@
 			);
 			data.push(0, 0);
 		}
-		port.sendCommand(ConfigCmd.SET_PIDS, data).then(() => {
+		port.sendCommand('request', ConfigCmd.SET_PIDS, data).then(() => {
 			saveTimeout = setTimeout(() => {
 				console.error('Save timeout');
 			}, 500);
@@ -120,7 +122,7 @@
 							><input
 								type="number"
 								bind:value={pids[i][j]}
-								on:wheel={(e) => {
+								on:wheel={e => {
 									scrollInputPID(e, i, j);
 								}}
 							/></td
@@ -149,7 +151,7 @@
 							><input
 								type="number"
 								bind:value={rateFactors[i][j]}
-								on:wheel={(e) => {
+								on:wheel={e => {
 									scrollInputRate(e, i, j);
 								}}
 							/></td

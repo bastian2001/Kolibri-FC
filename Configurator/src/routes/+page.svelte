@@ -35,81 +35,84 @@
 	let serialNum = 1;
 	let baudRate = 115200;
 
-	$: handleCommand($port);
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.STATUS | 0x4000:
-				armed = command.data[2] === 1;
-				flightMode = command.data[3];
-				armingDisableFlags = leBytesToInt(command.data.slice(4, 8));
-				configuratorConnected = command.data[8] === 1;
-				break;
-			case ConfigCmd.GET_ROTATION | 0x4000:
-				let pitch = leBytesToInt(command.data.slice(0, 2), true);
-				pitch /= 8192.0;
-				pitch *= 180.0 / Math.PI;
-				let roll = leBytesToInt(command.data.slice(2, 4), true);
-				roll /= 8192.0;
-				roll *= 180.0 / Math.PI;
-				let yaw = leBytesToInt(command.data.slice(4, 6), true);
-				yaw /= 8192.0;
-				yaw *= 180.0 / Math.PI;
-				let heading = leBytesToInt(command.data.slice(6, 8), true);
-				heading /= 8192.0;
-				heading *= 180.0 / Math.PI;
-				zBox.style.transform = `rotateZ(${showHeading ? heading : yaw}deg) translateZ(10px)`;
-				yBox.style.transform = `rotateX(${pitch}deg)`;
-				xBox.style.transform = `rotateY(${-roll}deg)`;
-				attitude = {
-					roll,
-					pitch,
-					yaw,
-					heading
-				};
-				break;
-			case ConfigCmd.SERIAL_PASSTHROUGH | 0x4000:
-				const sPort = command.data[0];
-				const baud = leBytesToInt(command.data.slice(1, 5));
-				configuratorLog.push(`Serial passthrough started on Serial${sPort} with baud rate ${baud}`);
-				port.disconnect();
-			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
-				console.log(command.data);
-				break;
-			case ConfigCmd.CALIBRATE_ACCELEROMETER | 0x4000:
-				configuratorLog.push('Accelerometer calibrated');
-				break;
-			case ConfigCmd.REBOOT | 0x4000:
-				configuratorLog.push('Rebooting');
-				port.disconnect();
-				break;
-			case ConfigCmd.REBOOT_TO_BOOTLOADER | 0x4000:
-				configuratorLog.push('Rebooting to bootloader');
-				port.disconnect();
-				break;
-			case ConfigCmd.GET_CRASH_DUMP | 0x4000:
-				configuratorLog.push('See console for crash dump');
-				break;
-			case ConfigCmd.CLEAR_CRASH_DUMP | 0x4000:
-				configuratorLog.push('Crash dump cleared');
-				break;
+	const unsubscribe = port.subscribe(command => {
+		if (command.cmdType === 'response') {
+			switch (command.command) {
+				case ConfigCmd.STATUS:
+					armed = command.data[2] === 1;
+					flightMode = command.data[3];
+					armingDisableFlags = leBytesToInt(command.data.slice(4, 8));
+					configuratorConnected = command.data[8] === 1;
+					break;
+				case ConfigCmd.GET_ROTATION:
+					let pitch = leBytesToInt(command.data.slice(0, 2), true);
+					pitch /= 8192.0;
+					pitch *= 180.0 / Math.PI;
+					let roll = leBytesToInt(command.data.slice(2, 4), true);
+					roll /= 8192.0;
+					roll *= 180.0 / Math.PI;
+					let yaw = leBytesToInt(command.data.slice(4, 6), true);
+					yaw /= 8192.0;
+					yaw *= 180.0 / Math.PI;
+					let heading = leBytesToInt(command.data.slice(6, 8), true);
+					heading /= 8192.0;
+					heading *= 180.0 / Math.PI;
+					zBox.style.transform = `rotateZ(${showHeading ? heading : yaw}deg) translateZ(10px)`;
+					yBox.style.transform = `rotateX(${pitch}deg)`;
+					xBox.style.transform = `rotateY(${-roll}deg)`;
+					attitude = {
+						roll,
+						pitch,
+						yaw,
+						heading
+					};
+					break;
+				case ConfigCmd.SERIAL_PASSTHROUGH:
+					const sPort = command.data[0];
+					const baud = leBytesToInt(command.data.slice(1, 5));
+					configuratorLog.push(
+						`Serial passthrough started on Serial${sPort} with baud rate ${baud}`
+					);
+					port.disconnect();
+				case ConfigCmd.GET_CRASH_DUMP:
+					console.log(command.data);
+					break;
+				case ConfigCmd.CALIBRATE_ACCELEROMETER:
+					configuratorLog.push('Accelerometer calibrated');
+					break;
+				case ConfigCmd.REBOOT:
+					configuratorLog.push('Rebooting');
+					port.disconnect();
+					break;
+				case ConfigCmd.REBOOT_TO_BOOTLOADER:
+					configuratorLog.push('Rebooting to bootloader');
+					port.disconnect();
+					break;
+				case ConfigCmd.GET_CRASH_DUMP:
+					configuratorLog.push('See console for crash dump');
+					break;
+				case ConfigCmd.CLEAR_CRASH_DUMP:
+					configuratorLog.push('Crash dump cleared');
+					break;
+			}
 		}
-	}
+	});
 
 	function ledOn() {
-		port.sendCommand(ConfigCmd.SET_DEBUG_LED, [1]);
+		port.sendCommand('request', ConfigCmd.SET_DEBUG_LED, [1]);
 	}
 	function ledOff() {
-		port.sendCommand(ConfigCmd.SET_DEBUG_LED, [0]);
+		port.sendCommand('request', ConfigCmd.SET_DEBUG_LED, [0]);
 	}
 	function calibrateAccel() {
-		port.sendCommand(ConfigCmd.CALIBRATE_ACCELEROMETER);
+		port.sendCommand('request', ConfigCmd.CALIBRATE_ACCELEROMETER);
 	}
 	function playSound() {
-		port.sendCommand(ConfigCmd.PLAY_SOUND);
+		port.sendCommand('request', ConfigCmd.PLAY_SOUND);
 	}
 
 	function delay(ms: number) {
-		return new Promise((resolve) => {
+		return new Promise(resolve => {
 			setTimeout(resolve, ms);
 		});
 	}
@@ -117,7 +120,7 @@
 	let pingInterval = 0;
 	onMount(() => {
 		getRotationInterval = setInterval(() => {
-			port.sendCommand(ConfigCmd.GET_ROTATION).catch(() => {});
+			port.sendCommand('request', ConfigCmd.GET_ROTATION).catch(() => {});
 		}, 20);
 		pingInterval = setInterval(() => {
 			pingFromConfigurator = port.getPingTime().fromConfigurator;
@@ -127,6 +130,7 @@
 	onDestroy(() => {
 		clearInterval(getRotationInterval);
 		clearInterval(pingInterval);
+		unsubscribe();
 	});
 </script>
 
@@ -155,7 +159,7 @@
 	/>
 	<button
 		on:click={() => {
-			port.sendCommand(ConfigCmd.SERIAL_PASSTHROUGH, [
+			port.sendCommand('request', ConfigCmd.SERIAL_PASSTHROUGH, [
 				serialNum,
 				baudRate & 0xff,
 				(baudRate >> 8) & 0xff,
@@ -175,10 +179,16 @@
 				.then(() => port.enableCommands(true));
 		}}>Stop Serial Passthrough</button
 	>
-	<button on:click={() => port.sendCommand(ConfigCmd.GET_CRASH_DUMP)}>Get Crash Dump</button>
-	<button on:click={() => port.sendCommand(ConfigCmd.CLEAR_CRASH_DUMP)}>Clear Crash Dump</button>
-	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT)}>Reboot</button>
-	<button on:click={() => port.sendCommand(ConfigCmd.REBOOT_TO_BOOTLOADER)}>Bootloader</button>
+	<button on:click={() => port.sendCommand('request', ConfigCmd.GET_CRASH_DUMP)}
+		>Get Crash Dump</button
+	>
+	<button on:click={() => port.sendCommand('request', ConfigCmd.CLEAR_CRASH_DUMP)}
+		>Clear Crash Dump</button
+	>
+	<button on:click={() => port.sendCommand('request', ConfigCmd.REBOOT)}>Reboot</button>
+	<button on:click={() => port.sendCommand('request', ConfigCmd.REBOOT_TO_BOOTLOADER)}
+		>Bootloader</button
+	>
 </div>
 <div class="droneStatus">
 	Flight Mode: {FLIGHT_MODES[flightMode]}, Armed: {armed ? 'Yes' : 'No'}, Configurator Connected: {configuratorConnected

@@ -53,27 +53,32 @@
 		}
 	];
 
-	configuratorLog.subscribe(() => {
+	const unsubscribeLog = configuratorLog.subscribe(() => {
 		tick().then(() => {
 			logDiv.scrollTop = logDiv.scrollHeight;
 		});
 	});
-	$: handleCommand($port);
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.STATUS | 0x4000:
-				battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
-				break;
-			case ConfigCmd.IND_MESSAGE:
-				configuratorLog.push(command.dataStr);
-				break;
-			case ConfigCmd.PLAY_SOUND | 0x4000:
-				console.log(command.data);
-				break;
-			case ConfigCmd.SAVE_SETTINGS | 0x4000:
-				configuratorLog.push('EEPROM saved');
+
+	const unsubscribePort = port.subscribe(command => {
+		if (command.cmdType === 'request') {
+			switch (command.command) {
+				case ConfigCmd.IND_MESSAGE:
+					configuratorLog.push(command.dataStr);
+					break;
+			}
+		} else if (command.cmdType === 'response') {
+			switch (command.command) {
+				case ConfigCmd.STATUS:
+					battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
+					break;
+				case ConfigCmd.PLAY_SOUND:
+					console.log(command.data);
+					break;
+				case ConfigCmd.SAVE_SETTINGS:
+					configuratorLog.push('EEPROM saved');
+			}
 		}
-	}
+	});
 
 	function listDevices() {
 		devices = port.getDevices();
@@ -93,6 +98,8 @@
 		clearInterval(listInterval);
 		disconnect();
 		port.removeOnDisconnectHandler(odh);
+		unsubscribeLog();
+		unsubscribePort();
 	});
 	function connect() {
 		port

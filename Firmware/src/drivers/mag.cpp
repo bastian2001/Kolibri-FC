@@ -187,7 +187,7 @@ void magLoop() {
 		magState = MAG_MEASURING;
 		char calString[128];
 		snprintf(calString, 128, "Offsets: %d %d %d, det: %f", magOffset[0], magOffset[1], magOffset[2], det);
-		sendCommand((u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
+		sendCommand(MspMsgType::REQUEST, (u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
 	} break;
 	}
 }

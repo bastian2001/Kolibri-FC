@@ -60,7 +60,7 @@
 			if (maxSetpoints[i] > max) max = maxSetpoints[i];
 			if (maxSetpoints[i] < min) min = maxSetpoints[i];
 		}
-		file.frames.forEach((f) => {
+		file.frames.forEach(f => {
 			if (f.gyro.roll! > max) max = f.gyro.roll!;
 			if (f.gyro.pitch! > max) max = f.gyro.pitch!;
 			if (f.gyro.yaw! > max) max = f.gyro.yaw!;
@@ -75,7 +75,7 @@
 		if (!file) return { max: 300, min: 0 };
 		let max = -20000,
 			min = 20000;
-		file.frames.forEach((f) => {
+		file.frames.forEach(f => {
 			if (f.motion.altitude! > max) max = f.motion.altitude!;
 			if (f.motion.altitude! < min) min = f.motion.altitude!;
 		});
@@ -878,7 +878,7 @@
 			const flag = BB_GEN_FLAGS[flagName];
 			if (log.flags.includes(flag.replaces)) continue;
 			if (
-				flag.requires.every((r) => {
+				flag.requires.every(r => {
 					if (typeof r === 'string') return log.flags.includes(r);
 					if (Array.isArray(r)) {
 						for (const s of r) if (log.flags.includes(s)) return true;
@@ -893,7 +893,7 @@
 				const path = BB_ALL_FLAGS[flag.replaces].path;
 				switch (flagName) {
 					case 'GEN_ROLL_SETPOINT':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							const polynomials: number[] = [(f.elrs.roll! - 1500) / 512];
 							for (let i = 1; i < 5; i++) {
 								polynomials[i] = polynomials[0] * polynomials[i - 1];
@@ -905,7 +905,7 @@
 						});
 						break;
 					case 'GEN_PITCH_SETPOINT':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							const polynomials: number[] = [(f.elrs.pitch! - 1500) / 512];
 							for (let i = 1; i < 5; i++) {
 								polynomials[i] = polynomials[0] * polynomials[i - 1];
@@ -917,12 +917,12 @@
 						});
 						break;
 					case 'GEN_THROTTLE_SETPOINT':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							f.setpoint.throttle = f.elrs.throttle;
 						});
 						break;
 					case 'GEN_YAW_SETPOINT':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							const polynomials: number[] = [(f.elrs.yaw! - 1500) / 512];
 							for (let i = 1; i < 5; i++) {
 								polynomials[i] = polynomials[0] * polynomials[i - 1];
@@ -933,17 +933,17 @@
 						});
 						break;
 					case 'GEN_ROLL_PID_P':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							f.pid.roll.p = (f.setpoint.roll! - f.gyro.roll!) * log.pidConstants[0][0];
 						});
 						break;
 					case 'GEN_PITCH_PID_P':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							f.pid.pitch.p = (f.setpoint.pitch! - f.gyro.pitch!) * log.pidConstants[1][0];
 						});
 						break;
 					case 'GEN_YAW_PID_P':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							f.pid.yaw.p = (f.setpoint.yaw! - f.gyro.yaw!) * log.pidConstants[2][0];
 						});
 						break;
@@ -1005,17 +1005,17 @@
 						}
 						break;
 					case 'GEN_ROLL_PID_S':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							f.pid.roll.s = f.setpoint.roll! * log.pidConstants[0][4];
 						});
 						break;
 					case 'GEN_PITCH_PID_S':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							f.pid.pitch.s = f.setpoint.pitch! * log.pidConstants[1][4];
 						});
 						break;
 					case 'GEN_YAW_PID_S':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							f.pid.yaw.s = f.setpoint.yaw! * log.pidConstants[2][4];
 						});
 						break;
@@ -1023,7 +1023,7 @@
 						{
 							let rollI = 0;
 							let takeoffCounter = 0;
-							log.frames.forEach((f) => {
+							log.frames.forEach(f => {
 								rollI += f.setpoint.roll! - f.gyro.roll!;
 								if (f.setpoint.throttle! > 1020) takeoffCounter += log.frequencyDivider;
 								else if (takeoffCounter < 1000) takeoffCounter = 0;
@@ -1037,7 +1037,7 @@
 						{
 							let pitchI = 0;
 							let takeoffCounter = 0;
-							log.frames.forEach((f) => {
+							log.frames.forEach(f => {
 								pitchI += f.setpoint.pitch! - f.gyro.pitch!;
 								if (f.setpoint.throttle! > 1020) takeoffCounter += log.frequencyDivider;
 								else if (takeoffCounter < 1000) takeoffCounter = 0;
@@ -1051,7 +1051,7 @@
 						{
 							let yawI = 0;
 							let takeoffCounter = 0;
-							log.frames.forEach((f) => {
+							log.frames.forEach(f => {
 								yawI += f.setpoint.yaw! - f.gyro.yaw!;
 								if (f.setpoint.throttle! > 1020) takeoffCounter += log.frequencyDivider;
 								else if (takeoffCounter < 1000) takeoffCounter = 0;
@@ -1062,7 +1062,7 @@
 						}
 						break;
 					case 'GEN_MOTOR_OUTPUTS':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							const rollTerm =
 								f.pid.roll.p! + f.pid.roll.i! + f.pid.roll.d! + f.pid.roll.ff! + f.pid.roll.s!;
 							const pitchTerm =
@@ -1142,7 +1142,7 @@
 						});
 						break;
 					case 'GEN_VVEL_SETPOINT':
-						log.frames.forEach((f) => {
+						log.frames.forEach(f => {
 							let t = (f.elrs.throttle! - 1500) * 2;
 							if (t > 0) {
 								t -= 100;
@@ -1163,56 +1163,58 @@
 		return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
 	}
 
-	$: handleCommand($port);
-
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.BB_FILE_LIST | 0x4000:
-				logNums = command.data.map((n) => ({ text: '', num: n }));
-				if (!logNums.length) {
-					logNums = [{ text: 'No logs found', num: -1 }];
-					selected = -1;
-					return;
-				}
-				selected = logNums[0].num;
-				logInfoPosition = 0;
-				//@ts-ignore
-				logInfoInterval = setInterval(getLogInfo, 100);
-				break;
-			case ConfigCmd.BB_FILE_INFO | 0x4000:
-				processLogInfo(command.data);
-				break;
-			case ConfigCmd.BB_FILE_DOWNLOAD | 0x4000:
-				handleFileChunk(command.data);
-				break;
-			case ConfigCmd.BB_FILE_DELETE | 0x4000:
-				const index = logNums.findIndex((l) => l.num === selected);
-				if (index !== -1) logNums.splice(index, 1);
-				logNums = [...logNums];
-				if (!logNums.length) {
-					logNums = [{ text: 'No logs found', num: -1 }];
-					selected = -1;
-				} else if (index >= logNums.length) selected = logNums[logNums.length - 1].num;
-				else selected = logNums[index].num;
-				break;
-			case ConfigCmd.BB_FORMAT | 0x4000:
-				configuratorLog.push('Blackbox formatted');
-				break;
-			case ConfigCmd.BB_FORMAT | 0x8000:
-				configuratorLog.push('Blackbox format failed');
-				break;
-			case ConfigCmd.BB_FILE_DELETE | 0x8000:
-				configuratorLog.push(`Deleting file ${command.data[0]} failed`);
-				break;
-			default:
-				if (
-					typeof command.command === 'number' &&
-					!Number.isNaN(command.command) &&
-					!Object.values(ConfigCmd).includes(command.command & 0x3fff)
-				)
-					console.log({ ...command });
+	const unsubscribe = port.subscribe(command => {
+		if (command.cmdType === 'response') {
+			switch (command.command) {
+				case ConfigCmd.BB_FILE_LIST:
+					logNums = command.data.map(n => ({ text: '', num: n }));
+					if (!logNums.length) {
+						logNums = [{ text: 'No logs found', num: -1 }];
+						selected = -1;
+						return;
+					}
+					selected = logNums[0].num;
+					logInfoPosition = 0;
+					logInfoInterval = setInterval(getLogInfo, 100);
+					break;
+				case ConfigCmd.BB_FILE_INFO:
+					processLogInfo(command.data);
+					break;
+				case ConfigCmd.BB_FILE_DOWNLOAD:
+					handleFileChunk(command.data);
+					break;
+				case ConfigCmd.BB_FILE_DELETE:
+					const index = logNums.findIndex(l => l.num === selected);
+					if (index !== -1) logNums.splice(index, 1);
+					logNums = [...logNums];
+					if (!logNums.length) {
+						logNums = [{ text: 'No logs found', num: -1 }];
+						selected = -1;
+					} else if (index >= logNums.length) selected = logNums[logNums.length - 1].num;
+					else selected = logNums[index].num;
+					break;
+				case ConfigCmd.BB_FORMAT:
+					configuratorLog.push('Blackbox formatted');
+					break;
+				default:
+					if (
+						typeof command.command === 'number' &&
+						!Number.isNaN(command.command) &&
+						!Object.values(ConfigCmd).includes(command.command & 0x3fff)
+					)
+						console.log({ ...command });
+			}
+		} else if (command.cmdType === 'error') {
+			switch (command.command) {
+				case ConfigCmd.BB_FORMAT:
+					configuratorLog.push('Blackbox format failed');
+					break;
+				case ConfigCmd.BB_FILE_DELETE:
+					configuratorLog.push(`Deleting file ${command.data[0]} failed`);
+					break;
+			}
 		}
-	}
+	});
 
 	function handleFileChunk(data: number[]) {
 		//1027 data bytes per packet
@@ -1243,7 +1245,11 @@
 			for (let i = 0; i < totalChunks; i++) {
 				if (!receivedChunks[i]) {
 					console.log('Missing chunk: ' + i);
-					port.sendCommand(ConfigCmd.BB_FILE_DOWNLOAD, [binFileNumber, i & 0xff, (i >> 8) & 0xff]);
+					port.sendCommand('request', ConfigCmd.BB_FILE_DOWNLOAD, [
+						binFileNumber,
+						i & 0xff,
+						(i >> 8) & 0xff
+					]);
 					return;
 				}
 			}
@@ -1732,7 +1738,7 @@
 		for (let i = 0; i < infoNums.length; i++) checksum ^= infoNums[i];
 		checksum ^= 0x06;
 		checksum ^= infoNums.length;
-		port.sendCommand(0x06, infoNums);
+		port.sendCommand('request', ConfigCmd.BB_FILE_INFO, infoNums);
 	}
 
 	function processLogInfo(data: number[]) {
@@ -1779,7 +1785,7 @@
 			}
 			const frames = dataBytes / frameSize;
 			//append duration of log file to logNums
-			const index = logNums.findIndex((n) => n.num == fileNum);
+			const index = logNums.findIndex(n => n.num == fileNum);
 			if (index == -1) continue;
 			const duration = Math.round(frames / framesPerSecond);
 			logNums[index].text = `${logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
@@ -1850,7 +1856,7 @@
 		const pixelsPerSec =
 			(dataViewer.clientWidth * loadedLog!.framesPerSecond) / (dataSlice.length - 1);
 		//filter out all the ones that don't fit
-		let durations = durationBarRaster.filter((el) => {
+		let durations = durationBarRaster.filter(el => {
 			const seconds = decodeDuration(el);
 			if (seconds * pixelsPerSec >= dataViewer.clientWidth - 80) return false;
 			if (seconds * pixelsPerSec <= (dataViewer.clientWidth - 80) * 0.1) return false;
@@ -2095,7 +2101,7 @@
 			const textBorderRadius = 8;
 			ctx.font = '14px sans-serif';
 			const textWidth = Math.max(
-				...valueTexts.map((t) => ctx.measureText(t).width),
+				...valueTexts.map(t => ctx.measureText(t).width),
 				ctx.measureText(timeText).width
 			);
 			const textHeightTotal = textHeight * (valueTexts.length + 1) + textPadding * 2;
@@ -2388,11 +2394,11 @@
 	}
 
 	function deleteLog() {
-		port.sendCommand(ConfigCmd.BB_FILE_DELETE, [selected]);
+		port.sendCommand('request', ConfigCmd.BB_FILE_DELETE, [selected]);
 	}
 	function openLog() {
 		getLog(selected)
-			.then((data) => {
+			.then(data => {
 				startFrame = 0;
 				endFrame = data.frameCount - 1;
 				drawCanvas();
@@ -2401,7 +2407,7 @@
 	}
 	function downloadLog(type: 'kbb' | 'json' = 'kbb') {
 		getLog(selected)
-			.then((data) => {
+			.then(data => {
 				const file = data.rawFile;
 				const blob = new Blob([new Uint8Array(file)], { type: 'application/octet-stream' });
 				const blobJSON = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -2431,7 +2437,7 @@
 			}
 		} else {
 			//KBB file
-			binFile = file.split('').map((c) => c.charCodeAt(0));
+			binFile = file.split('').map(c => c.charCodeAt(0));
 		}
 		decodeBinFile();
 		startFrame = 0;
@@ -2441,7 +2447,7 @@
 	function getLog(num: number): Promise<BBLog> {
 		binFileNumber = -1;
 
-		port.sendCommand(ConfigCmd.BB_FILE_DOWNLOAD, [num]);
+		port.sendCommand('request', ConfigCmd.BB_FILE_DOWNLOAD, [num]);
 		return new Promise((resolve, reject) => {
 			resolveWhenReady = resolve;
 			rejectWrongFile = reject;
@@ -2466,7 +2472,7 @@
 		}
 	}
 	function formatBB() {
-		port.sendCommand(ConfigCmd.BB_FORMAT);
+		port.sendCommand('request', ConfigCmd.BB_FORMAT);
 	}
 
 	function addTrace(graphIndex: number) {
@@ -2516,7 +2522,7 @@
 		drawCanvas();
 	}
 	function getFileList() {
-		port.sendCommand(ConfigCmd.BB_FILE_LIST).catch(console.error);
+		port.sendCommand('request', ConfigCmd.BB_FILE_LIST).catch(console.error);
 	}
 	onMount(() => {
 		mounted = true;
@@ -2530,6 +2536,7 @@
 		clearTimeout(drawFullCanvasTimeout);
 		port.removeOnConnectHandler(getFileList);
 		window.removeEventListener('resize', onResize);
+		unsubscribe();
 	});
 	// use with caution, only exists because svelte does not allow typescript in the template
 	function logButItsThere() {
@@ -2582,7 +2589,7 @@
 						log={logButItsThere()}
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
-						on:update={(event) => {
+						on:update={event => {
 							updateTrace(event, graphIndex, traceIndex, trace.id);
 						}}
 						on:delete={() => {
@@ -2617,8 +2624,8 @@
 				<div style="white-space: preserve">
 					Flags: {'\n  - ' +
 						loadedLog.flags
-							.filter((n) => n.startsWith('LOG_'))
-							.map((el) => BB_ALL_FLAGS[el].name)
+							.filter(n => n.startsWith('LOG_'))
+							.map(el => BB_ALL_FLAGS[el].name)
 							.join('\n  - ')}
 				</div>
 				<div>File Size: {(loadedLog.rawFile.length / 1000).toFixed(1)} KB</div>
@@ -2693,7 +2700,7 @@
 			genFlagProps={BB_GEN_FLAGS}
 			{startFrame}
 			{endFrame}
-			on:update={(event) => {
+			on:update={event => {
 				startFrame = Math.min(event.detail.startFrame, event.detail.endFrame);
 				endFrame = Math.max(event.detail.startFrame, event.detail.endFrame);
 			}}

@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api';
+import { tick } from 'svelte';
 import { leBytesToInt } from './utils';
 
 export const ConfigCmd = {
@@ -70,12 +71,20 @@ const MspState = {
 	CHECKSUM_V2: 23
 };
 
+const MspVersion = {
+	V2: 0,
+	V1: 1,
+	V1_JUMBO: 2,
+	V2_OVER_V1: 3,
+	V2_OVER_V1_JUMBO: 4
+};
+
 export type Command = {
 	command: number;
 	length: number;
 	data: number[];
 	dataStr: string;
-	cmdType: 'request' | 'response' | 'error' | 'info';
+	cmdType: 'request' | 'response' | 'error';
 };
 function createPort() {
 	let devices: string[] = [];
@@ -88,20 +97,23 @@ function createPort() {
 		cmdType: 'request'
 	} as Command);
 
-	subscribe((c) => {
-		console.log(c);
-		switch (c.command) {
-			case ConfigCmd.CONFIGURATOR_PING:
-				//ping received from FC, confirm
-				port.sendCommand(ConfigCmd.CONFIGURATOR_PING | 0x4000);
-				break;
-			case ConfigCmd.CONFIGURATOR_PING | 0x4000:
-				// pong response from FC received
-				pingTime.fromConfigurator = Date.now() - pingStarted;
-				break;
-			case ConfigCmd.CONFIGURATOR_PING | 0xc000:
-				pingTime.fromFC = leBytesToInt(c.data);
-				break;
+	subscribe(c => {
+		if (c.cmdType === 'request') {
+			switch (c.command) {
+				case ConfigCmd.CONFIGURATOR_PING:
+					//ping received from FC, confirm
+					sendCommand('response', ConfigCmd.CONFIGURATOR_PING);
+					break;
+				case ConfigCmd.CONFIGURATOR_PING | 0xc000:
+					pingTime.fromFC = leBytesToInt(c.data);
+			}
+		} else if (c.cmdType === 'response') {
+			switch (c.command) {
+				case ConfigCmd.CONFIGURATOR_PING:
+					// pong response from FC received
+					pingTime.fromConfigurator = Date.now() - pingStarted;
+					break;
+			}
 		}
 	});
 
@@ -119,7 +131,12 @@ function createPort() {
 	const onDisconnectHandlers: (() => void)[] = [];
 	const onConnectHandlers: (() => void)[] = [];
 
-	const sendCommand = (command: number, data: number[] = [], dataStr: string = '') => {
+	const sendCommand = (
+		type: 'request' | 'response' | 'error',
+		command: number,
+		data: number[] = [],
+		dataStr: string = ''
+	) => {
 		if (!cmdEnabled) return new Promise((resolve: any) => resolve());
 		if (data.length === 0 && dataStr !== '') data = strToArray(dataStr);
 		const len = data.length;
@@ -131,8 +148,14 @@ function createPort() {
 		checksum ^= (command >> 8) & 0xff;
 		checksum ^= len & 0xff;
 		checksum ^= (len >> 8) & 0xff;
+		const typeLut = {
+			request: 60,
+			response: 62,
+			error: 33
+		};
 		const cmd = [
-			...strToArray('$X<'),
+			...strToArray('$X'),
+			typeLut[type],
 			0,
 			command & 0xff,
 			(command >> 8) & 0xff,
@@ -144,7 +167,7 @@ function createPort() {
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_write', { data: cmd })
 				.then(resolve)
-				.catch((e) => {
+				.catch(e => {
 					reject(e);
 				});
 		});
@@ -154,7 +177,7 @@ function createPort() {
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_write', { data })
 				.then(resolve)
-				.catch((e) => {
+				.catch(e => {
 					reject(e);
 				});
 		});
@@ -171,14 +194,14 @@ function createPort() {
 	let mspState = 0;
 	const read = () => {
 		invoke('serial_read')
-			.then((d) => {
+			.then(d => {
 				rxBuf = d as number[];
 			})
-			.catch((e) => {
+			.catch(e => {
 				if (e !== 'Custom { kind: TimedOut, error: "Operation timed out" }') console.error(e);
 			})
 			.finally(() => {
-				rxBuf.forEach((c) => {
+				rxBuf.forEach(async c => {
 					switch (mspState) {
 						case MspState.IDLE:
 							if (c === 36) mspState = MspState.PACKET_START; /* $ */
@@ -311,8 +334,9 @@ function createPort() {
 							if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V2;
 							break;
 						case MspState.CHECKSUM_V2:
-							set(newCommand);
 							mspState = MspState.IDLE;
+							set(newCommand);
+							await tick();
 							break;
 					}
 				});
@@ -329,16 +353,16 @@ function createPort() {
 					cmdEnabled = true;
 					readInterval = setInterval(read, 3);
 					pingInterval = setInterval(() => {
-						sendCommand(ConfigCmd.CONFIGURATOR_PING).catch(() => {});
+						sendCommand('request', ConfigCmd.CONFIGURATOR_PING).catch(() => {});
 						pingStarted = Date.now();
 					}, 200);
 					statusInterval = setInterval(() => {
-						sendCommand(ConfigCmd.STATUS).catch(() => {});
+						sendCommand('request', ConfigCmd.STATUS).catch(() => {});
 					}, 1000);
-					onConnectHandlers.forEach((h) => h());
+					onConnectHandlers.forEach(h => h());
 					resolve();
 				})
-				.catch((e) => {
+				.catch(e => {
 					console.error(e);
 					disconnect();
 					reject(e);
@@ -349,7 +373,7 @@ function createPort() {
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_close')
 				.then(() => {
-					onDisconnectHandlers.forEach((h) => h());
+					onDisconnectHandlers.forEach(h => h());
 					resolve();
 				})
 				.catch(console.error)

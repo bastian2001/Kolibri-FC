@@ -86,107 +86,108 @@
 	let getGpsData = 0,
 		gpsDataSlow = 0;
 
-	$: handleCommand($port);
 	let lastMagData = 0;
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.GET_MAG_DATA | 0x4000:
-				if (!canvasxy || !canvasyz || !canvaszx) return;
-				const ctxxy = canvasxy.getContext('2d');
-				const ctxyz = canvasyz.getContext('2d');
-				const ctxzx = canvaszx.getContext('2d');
-				if (!ctxxy || !ctxyz || !ctxzx) return;
-				const data = command.data;
-				magX = leBytesToInt(command.data.slice(0, 2), true);
-				magY = leBytesToInt(command.data.slice(2, 4), true);
-				magZ = leBytesToInt(command.data.slice(4, 6), true);
-				magRight = leBytesToInt(command.data.slice(6, 8), true);
-				magRear = leBytesToInt(command.data.slice(8, 10), true);
-				magHeading = leBytesToInt(command.data.slice(10, 12), true);
-				//each canvas plots values from -1000 to 1000
-				const scale = 500 / 1000;
-				const xpx = magX * scale + 250;
-				const ypx = magY * scale + 250;
-				const zpx = magZ * scale + 250;
-				ctxxy.fillStyle = 'red';
-				ctxxy.beginPath();
-				ctxxy.arc(xpx, ypx, 2, 0, 2 * Math.PI);
-				ctxxy.fill();
-				ctxyz.fillStyle = 'green';
-				ctxyz.beginPath();
-				ctxyz.arc(ypx, zpx, 2, 0, 2 * Math.PI);
-				ctxyz.fill();
-				ctxzx.fillStyle = 'blue';
-				ctxzx.beginPath();
-				ctxzx.arc(zpx, xpx, 2, 0, 2 * Math.PI);
-				ctxzx.fill();
-				break;
-			case ConfigCmd.GET_GPS_ACCURACY | 0x4000:
-				gpsAcc = {
-					tAcc: leBytesToInt(command.data.slice(0, 4)) * 1e-3,
-					hAcc: leBytesToInt(command.data.slice(4, 8)) * 1e-3,
-					vAcc: leBytesToInt(command.data.slice(8, 12)) * 1e-3,
-					sAcc: leBytesToInt(command.data.slice(12, 16)) * 1e-3,
-					headAcc: leBytesToInt(command.data.slice(16, 20)) * 1e-5,
-					pDop: leBytesToInt(command.data.slice(20, 24)) * 0.01
-				};
-				break;
-			case ConfigCmd.GET_GPS_MOTION | 0x4000:
-				gpsMotion = {
-					lat: leBytesToInt(command.data.slice(0, 4), true) * 1e-7,
-					lon: leBytesToInt(command.data.slice(4, 8), true) * 1e-7,
-					alt: leBytesToInt(command.data.slice(8, 12), true) * 1e-3,
-					velN: leBytesToInt(command.data.slice(12, 16), true) * 1e-3,
-					velE: leBytesToInt(command.data.slice(16, 20), true) * 1e-3,
-					velD: leBytesToInt(command.data.slice(20, 24), true) * 1e-3,
-					gSpeed: leBytesToInt(command.data.slice(24, 28), true) * 1e-3,
-					headMot: leBytesToInt(command.data.slice(28, 32), true) * 1e-5
-				};
-				combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
-				verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
-				break;
-			case ConfigCmd.GET_GPS_STATUS | 0x4000:
-				gpsStatus = {
-					gpsInited: command.data[0] === 1,
-					initStep: command.data[1],
-					fix: command.data[2],
-					timeValidityFlags: command.data[3],
-					flags: command.data[4],
-					flags2: command.data[5],
-					flags3: leBytesToInt(command.data.slice(6, 8)),
-					satCount: command.data[8]
-				};
-				break;
-			case ConfigCmd.GET_GPS_TIME | 0x4000:
-				gpsTime = {
-					year: leBytesToInt(command.data.slice(0, 2)),
-					month: command.data[2],
-					day: command.data[3],
-					hour: command.data[4],
-					minute: command.data[5],
-					second: command.data[6]
-				};
-				break;
+	const unsubscribe = port.subscribe(command => {
+		if (command.cmdType === 'response') {
+			switch (command.command) {
+				case ConfigCmd.GET_MAG_DATA:
+					if (!canvasxy || !canvasyz || !canvaszx) return;
+					const ctxxy = canvasxy.getContext('2d');
+					const ctxyz = canvasyz.getContext('2d');
+					const ctxzx = canvaszx.getContext('2d');
+					if (!ctxxy || !ctxyz || !ctxzx) return;
+					const data = command.data;
+					magX = leBytesToInt(command.data.slice(0, 2), true);
+					magY = leBytesToInt(command.data.slice(2, 4), true);
+					magZ = leBytesToInt(command.data.slice(4, 6), true);
+					magRight = leBytesToInt(command.data.slice(6, 8), true);
+					magRear = leBytesToInt(command.data.slice(8, 10), true);
+					magHeading = leBytesToInt(command.data.slice(10, 12), true);
+					//each canvas plots values from -1000 to 1000
+					const scale = 500 / 1000;
+					const xpx = magX * scale + 250;
+					const ypx = magY * scale + 250;
+					const zpx = magZ * scale + 250;
+					ctxxy.fillStyle = 'red';
+					ctxxy.beginPath();
+					ctxxy.arc(xpx, ypx, 2, 0, 2 * Math.PI);
+					ctxxy.fill();
+					ctxyz.fillStyle = 'green';
+					ctxyz.beginPath();
+					ctxyz.arc(ypx, zpx, 2, 0, 2 * Math.PI);
+					ctxyz.fill();
+					ctxzx.fillStyle = 'blue';
+					ctxzx.beginPath();
+					ctxzx.arc(zpx, xpx, 2, 0, 2 * Math.PI);
+					ctxzx.fill();
+					break;
+				case ConfigCmd.GET_GPS_ACCURACY:
+					gpsAcc = {
+						tAcc: leBytesToInt(command.data.slice(0, 4)) * 1e-3,
+						hAcc: leBytesToInt(command.data.slice(4, 8)) * 1e-3,
+						vAcc: leBytesToInt(command.data.slice(8, 12)) * 1e-3,
+						sAcc: leBytesToInt(command.data.slice(12, 16)) * 1e-3,
+						headAcc: leBytesToInt(command.data.slice(16, 20)) * 1e-5,
+						pDop: leBytesToInt(command.data.slice(20, 24)) * 0.01
+					};
+					break;
+				case ConfigCmd.GET_GPS_MOTION:
+					gpsMotion = {
+						lat: leBytesToInt(command.data.slice(0, 4), true) * 1e-7,
+						lon: leBytesToInt(command.data.slice(4, 8), true) * 1e-7,
+						alt: leBytesToInt(command.data.slice(8, 12), true) * 1e-3,
+						velN: leBytesToInt(command.data.slice(12, 16), true) * 1e-3,
+						velE: leBytesToInt(command.data.slice(16, 20), true) * 1e-3,
+						velD: leBytesToInt(command.data.slice(20, 24), true) * 1e-3,
+						gSpeed: leBytesToInt(command.data.slice(24, 28), true) * 1e-3,
+						headMot: leBytesToInt(command.data.slice(28, 32), true) * 1e-5
+					};
+					combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
+					verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
+					break;
+				case ConfigCmd.GET_GPS_STATUS:
+					gpsStatus = {
+						gpsInited: command.data[0] === 1,
+						initStep: command.data[1],
+						fix: command.data[2],
+						timeValidityFlags: command.data[3],
+						flags: command.data[4],
+						flags2: command.data[5],
+						flags3: leBytesToInt(command.data.slice(6, 8)),
+						satCount: command.data[8]
+					};
+					break;
+				case ConfigCmd.GET_GPS_TIME:
+					gpsTime = {
+						year: leBytesToInt(command.data.slice(0, 2)),
+						month: command.data[2],
+						day: command.data[3],
+						hour: command.data[4],
+						minute: command.data[5],
+						second: command.data[6]
+					};
+					break;
+			}
 		}
-	}
+	});
 
 	onMount(() => {
 		magPointInterval = setInterval(() => {
-			port.sendCommand(ConfigCmd.GET_MAG_DATA);
+			port.sendCommand('request', ConfigCmd.GET_MAG_DATA);
 		}, 50);
 		getGpsData = setInterval(() => {
 			port
-				.sendCommand(ConfigCmd.GET_GPS_ACCURACY)
+				.sendCommand('request', ConfigCmd.GET_GPS_ACCURACY)
 				.then(() => {
-					return port.sendCommand(ConfigCmd.GET_GPS_MOTION);
+					return port.sendCommand('request', ConfigCmd.GET_GPS_MOTION);
 				})
 				.catch(() => {});
 		}, 200);
 		gpsDataSlow = setInterval(() => {
 			port
-				.sendCommand(ConfigCmd.GET_GPS_STATUS)
+				.sendCommand('request', ConfigCmd.GET_GPS_STATUS)
 				.then(() => {
-					return port.sendCommand(ConfigCmd.GET_GPS_TIME);
+					return port.sendCommand('request', ConfigCmd.GET_GPS_TIME);
 				})
 				.catch(() => {});
 		}, 1000);
@@ -196,6 +197,7 @@
 		clearInterval(magPointInterval);
 		clearInterval(getGpsData);
 		clearInterval(gpsDataSlow);
+		unsubscribe();
 	});
 
 	function degToDegMinSec(deg: number) {
@@ -224,7 +226,8 @@
 	bind:this={canvaszx}
 	style="display:inline-block; border: 1px solid white;"
 /><br />
-<button on:click={() => port.sendCommand(ConfigCmd.MAG_CALIBRATE)}>Calibrate Magnetometer</button
+<button on:click={() => port.sendCommand('request', ConfigCmd.MAG_CALIBRATE)}
+	>Calibrate Magnetometer</button
 ><br />
 <div class="gpsInfo magStatus">
 	Magnetic Heading: {roundToDecimal(magHeading, 2)}°<br />

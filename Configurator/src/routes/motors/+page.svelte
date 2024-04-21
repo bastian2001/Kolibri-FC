@@ -18,32 +18,31 @@
 		throttles[3] & 0xff,
 		throttles[3] >> 8
 	];
-	$: handleCommand($port);
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.GET_MOTORS | 0x4000:
-				{
-					const m = [] as number[];
-					for (let i = 0; i < 4; i++) {
-						m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
+	const unsubscribe = port.subscribe(command => {
+		if (command.cmdType === 'response') {
+			switch (command.command) {
+				case ConfigCmd.GET_MOTORS:
+					{
+						const m = [] as number[];
+						for (let i = 0; i < 4; i++) {
+							m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
+						}
+						motors = m;
 					}
-					motors = m;
-				}
-				break;
-			case ConfigCmd.ESC_PASSTHROUGH | 0x4000:
-				configuratorLog.push('FC reboots into passthrough mode');
-				port.disconnect();
-				break;
-			case ConfigCmd.ESC_PASSTHROUGH | 0x8000:
-				configuratorLog.push(command.dataStr);
+					break;
+				case ConfigCmd.ESC_PASSTHROUGH:
+					configuratorLog.push('FC reboots into passthrough mode');
+					port.disconnect();
+					break;
+			}
 		}
-	}
+	});
 	let motors = [0, 0, 0, 0];
 	let getMotorsInterval = 0;
 	function startMotors() {
 		clearInterval(int);
 		int = setInterval(() => {
-			port.sendCommand(11, throttlesU8);
+			port.sendCommand('request', ConfigCmd.SET_MOTORS, throttlesU8);
 		}, 100);
 	}
 	function stopMotors() {
@@ -58,11 +57,11 @@
 		throttles = [...throttles];
 	}
 	function startPassthrough() {
-		port.sendCommand(ConfigCmd.ESC_PASSTHROUGH);
+		port.sendCommand('request', ConfigCmd.ESC_PASSTHROUGH);
 	}
 	onMount(() => {
 		getMotorsInterval = setInterval(() => {
-			port.sendCommand(ConfigCmd.GET_MOTORS);
+			port.sendCommand('request', ConfigCmd.GET_MOTORS);
 		}, 100);
 		port.addOnDisconnectHandler(stopMotors);
 	});
@@ -70,6 +69,7 @@
 		clearInterval(getMotorsInterval);
 		stopMotors();
 		port.removeOnDisconnectHandler(stopMotors);
+		unsubscribe();
 	});
 </script>
 

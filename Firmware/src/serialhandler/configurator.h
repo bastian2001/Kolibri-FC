@@ -84,6 +84,14 @@ enum class MspMsgType {
 	ERROR    = '!',
 };
 
+enum class MspVersion {
+	V2,
+	V1,
+	V1_JUMBO,
+	V2_OVER_V1,
+	V2_OVER_V1_JUMBO,
+};
+
 /**
  * @brief Send a command to the configurator
  *
@@ -91,7 +99,7 @@ enum class MspMsgType {
  * @param data data buffer, default is nullptr for no data
  * @param len length of the data buffer, default is 0
  */
-void sendCommand(u16 command, const char *data = nullptr, u16 len = 0);
+void sendCommand(MspMsgType type, u16 command, const char *data = nullptr, u16 len = 0);
 
 /**
  * @brief Process a byte from the configurator

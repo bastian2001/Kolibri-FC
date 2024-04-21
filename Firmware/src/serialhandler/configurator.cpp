@@ -7,6 +7,7 @@ u8 accelCalDone             = 0;
 u16 configMsgCommand        = 0;
 MspMsgType configMsgType    = MspMsgType::ERROR;
 u8 configMsgFlag            = 0;
+MspVersion configMsgVersion = MspVersion::V2;
 
 elapsedMillis configTimer = 0;
 
@@ -23,22 +24,22 @@ void configuratorLoop() {
 	if (lastConfigPingRx > 1000)
 		configuratorConnected = false;
 	if (lastConfigPingTx > 1000 && configuratorConnected) {
-		sendCommand((u16)ConfigCmd::CONFIGURATOR_PING);
+		sendCommand(MspMsgType::REQUEST, (u16)ConfigCmd::CONFIGURATOR_PING);
 		lastConfigPingTx = 0;
 	}
 	if (accelCalDone) {
 		accelCalDone = 0;
-		sendCommand((u16)ConfigCmd::CALIBRATE_ACCELEROMETER | 0x4000);
+		sendCommand(MspMsgType::RESPONSE, (u16)ConfigCmd::CALIBRATE_ACCELEROMETER);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION, (i16)accelCalibrationOffset[0]);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, (i16)accelCalibrationOffset[1]);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, (i16)accelCalibrationOffset[2]);
 		EEPROM.commit();
-		sendCommand((u16)ConfigCmd::SAVE_SETTINGS | 0x4000);
+		sendCommand(MspMsgType::RESPONSE, (u16)ConfigCmd::SAVE_SETTINGS);
 	}
 }
 
-void sendCommand(u16 command, const char *data, u16 len) {
-	u8 header[8] = {'$', 'X', '<', 0, (u8)command, (u8)(command >> 8), (u8)len, (u8)(len >> 8)};
+void sendCommand(MspMsgType type, u16 command, const char *data, u16 len) {
+	u8 header[8] = {'$', 'X', (u8)type, 0, (u8)command, (u8)(command >> 8), (u8)len, (u8)(len >> 8)};
 	Serial.write(header, 8);
 
 	if (data == nullptr)
@@ -54,447 +55,454 @@ void sendCommand(u16 command, const char *data, u16 len) {
 void handleConfigCmd() {
 	char buf[256] = {0};
 	u8 len        = 0;
-	switch ((ConfigCmd)configMsgCommand) {
-	case ConfigCmd::STATUS: {
-		u16 voltage = adcVoltage;
-		buf[len++]  = voltage & 0xFF;
-		buf[len++]  = voltage >> 8;
-		buf[len++]  = armed;
-		buf[len++]  = (u8)flightMode;
-		buf[len++]  = (u8)(armingDisableFlags & 0xFF);
-		buf[len++]  = (u8)(armingDisableFlags >> 8);
-		buf[len++]  = (u8)(armingDisableFlags >> 16);
-		buf[len++]  = (u8)(armingDisableFlags >> 24);
-		buf[len++]  = (u8)(configuratorConnected & 0xFF);
-		sendCommand(configMsgCommand | 0x4000, buf, len);
-	} break;
-	case ConfigCmd::TASK_STATUS: {
-		u32 buf[256];
-		for (int i = 0; i < 32; i++) {
-			buf[i * 8 + 0] = tasks[i].debugInfo;
-			buf[i * 8 + 1] = tasks[i].minDuration;
-			buf[i * 8 + 2] = tasks[i].maxDuration;
-			buf[i * 8 + 3] = tasks[i].frequency;
-			buf[i * 8 + 4] = tasks[i].avgDuration;
-			buf[i * 8 + 5] = tasks[i].errorCount;
-			buf[i * 8 + 6] = tasks[i].lastError;
-			buf[i * 8 + 7] = tasks[i].maxGap;
-		}
-		sendCommand(configMsgCommand | 0x4000, (char *)buf, sizeof(buf));
-		for (int i = 0; i < 32; i++) {
-			tasks[i].minDuration = 0xFFFFFFFF;
-			tasks[i].maxDuration = 0;
-			tasks[i].maxGap      = 0;
-		}
-	} break;
-	case ConfigCmd::REBOOT:
-		sendCommand(configMsgCommand | 0x4000);
-		Serial.flush();
-		rebootReason = BootReason::CMD_REBOOT;
-		delay(100);
-		rp2040.reboot();
-		break;
-	case ConfigCmd::SAVE_SETTINGS:
-		rp2040.wdt_reset();
-		EEPROM.commit();
-		sendCommand(configMsgCommand | 0x4000);
-		break;
-	case ConfigCmd::PLAY_SOUND: {
-		const u16 startFreq     = random(1000, 5000);
-		const u16 endFreq       = random(1000, 5000);
-		const u16 sweepDuration = random(400, 1000);
-		u16 pauseDuration       = random(100, 1000);
-		const u16 pauseEn       = random(0, 2);
-		pauseDuration *= pauseEn;
-		const u16 repeat = random(1, 11);
-		makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
-		u8 len     = 0;
-		buf[len++] = startFreq & 0xFF;
-		buf[len++] = startFreq >> 8;
-		buf[len++] = endFreq & 0xFF;
-		buf[len++] = endFreq >> 8;
-		buf[len++] = sweepDuration & 0xFF;
-		buf[len++] = sweepDuration >> 8;
-		buf[len++] = pauseDuration & 0xFF;
-		buf[len++] = pauseDuration >> 8;
-		buf[len++] = pauseEn;
-		buf[len++] = repeat;
-		buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
-		buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
-		sendCommand(configMsgCommand | 0x4000, buf, len);
-	} break;
-	case ConfigCmd::BB_FILE_LIST: {
-		int index         = 0;
-		char shortbuf[16] = {0};
-		for (int i = 0; i < 100; i++) {
-			rp2040.wdt_reset();
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-			snprintf(shortbuf, 16, "/logs%01d/%01d.kbb", i / 10, i % 10);
-			if (LittleFS.exists(shortbuf)) {
-				buf[index++] = i;
+	if (configMsgType == MspMsgType::REQUEST) {
+		switch ((ConfigCmd)configMsgCommand) {
+		case ConfigCmd::STATUS: {
+			u16 voltage = adcVoltage;
+			buf[len++]  = voltage & 0xFF;
+			buf[len++]  = voltage >> 8;
+			buf[len++]  = armed;
+			buf[len++]  = (u8)flightMode;
+			buf[len++]  = (u8)(armingDisableFlags & 0xFF);
+			buf[len++]  = (u8)(armingDisableFlags >> 8);
+			buf[len++]  = (u8)(armingDisableFlags >> 16);
+			buf[len++]  = (u8)(armingDisableFlags >> 24);
+			buf[len++]  = (u8)(configuratorConnected & 0xFF);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, len);
+		} break;
+		case ConfigCmd::TASK_STATUS: {
+			u32 buf[256];
+			for (int i = 0; i < 32; i++) {
+				buf[i * 8 + 0] = tasks[i].debugInfo;
+				buf[i * 8 + 1] = tasks[i].minDuration;
+				buf[i * 8 + 2] = tasks[i].maxDuration;
+				buf[i * 8 + 3] = tasks[i].frequency;
+				buf[i * 8 + 4] = tasks[i].avgDuration;
+				buf[i * 8 + 5] = tasks[i].errorCount;
+				buf[i * 8 + 6] = tasks[i].lastError;
+				buf[i * 8 + 7] = tasks[i].maxGap;
 			}
-#elif BLACKBOX_STORAGE == SD_BB
-			snprintf(shortbuf, 16, "/kolibri/%01d.kbb", i);
-			if (SDFS.exists(shortbuf)) {
-				buf[index++] = i;
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)buf, sizeof(buf));
+			for (int i = 0; i < 32; i++) {
+				tasks[i].minDuration = 0xFFFFFFFF;
+				tasks[i].maxDuration = 0;
+				tasks[i].maxGap      = 0;
 			}
-#endif
-		}
-		sendCommand(configMsgCommand | 0x4000, buf, index);
-	} break;
-	case ConfigCmd::BB_FILE_DOWNLOAD: {
-		u8 fileNum   = configSerialBuffer[payloadStartIndex];
-		i16 chunkNum = -1;
-		if (configMsgLength > 1) {
-			chunkNum = configSerialBuffer[payloadStartIndex + 1] + (configSerialBuffer[payloadStartIndex + 2] << 8);
-		}
-		printLogBin(fileNum, chunkNum);
-	} break;
-	case ConfigCmd::BB_FILE_DELETE: {
-		// data just includes one byte of file number
-		u8 fileNum = configSerialBuffer[payloadStartIndex];
-		char path[32];
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-		snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
-		if (LittleFS.remove(path))
-#elif BLACKBOX_STORAGE == SD_BB
-		snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
-		if (SDFS.remove(path))
-#endif
-			sendCommand(configMsgCommand | 0x4000, (char *)&fileNum, 1);
-		else
-			sendCommand(configMsgCommand | 0x8000, (char *)&fileNum, 1);
-	} break;
-	case ConfigCmd::BB_FILE_INFO: {
-		/* data of command
-		 * 0...len-1: file numbers
-		 *
-		 * data of response
-		 * 0. file number
-		 * 1-4. file size in bytes
-		 * 5-7. version of bb file format
-		 * 8-11: time of recording start
-		 * 12. byte that indicates PID frequency
-		 * 13. byte that indicates frequency divider
-		 * 14-21: recording flags
-		 */
-		u8 len       = configMsgLength;
-		len          = len > 12 ? 12 : len;
-		u8 *fileNums = &configSerialBuffer[payloadStartIndex];
-		u8 buffer[22 * len];
-		u8 index = 0;
-		for (int i = 0; i < len; i++) {
+		} break;
+		case ConfigCmd::REBOOT:
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			Serial.flush();
+			rebootReason = BootReason::CMD_REBOOT;
+			delay(100);
+			rp2040.reboot();
+			break;
+		case ConfigCmd::SAVE_SETTINGS:
 			rp2040.wdt_reset();
+			EEPROM.commit();
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			break;
+		case ConfigCmd::PLAY_SOUND: {
+			const u16 startFreq     = random(1000, 5000);
+			const u16 endFreq       = random(1000, 5000);
+			const u16 sweepDuration = random(400, 1000);
+			u16 pauseDuration       = random(100, 1000);
+			const u16 pauseEn       = random(0, 2);
+			pauseDuration *= pauseEn;
+			const u16 repeat = random(1, 11);
+			makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
+			u8 len     = 0;
+			buf[len++] = startFreq & 0xFF;
+			buf[len++] = startFreq >> 8;
+			buf[len++] = endFreq & 0xFF;
+			buf[len++] = endFreq >> 8;
+			buf[len++] = sweepDuration & 0xFF;
+			buf[len++] = sweepDuration >> 8;
+			buf[len++] = pauseDuration & 0xFF;
+			buf[len++] = pauseDuration >> 8;
+			buf[len++] = pauseEn;
+			buf[len++] = repeat;
+			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
+			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, len);
+		} break;
+		case ConfigCmd::BB_FILE_LIST: {
+			int index         = 0;
+			char shortbuf[16] = {0};
+			for (int i = 0; i < 100; i++) {
+				rp2040.wdt_reset();
+#if BLACKBOX_STORAGE == LITTLEFS_BB
+				snprintf(shortbuf, 16, "/logs%01d/%01d.kbb", i / 10, i % 10);
+				if (LittleFS.exists(shortbuf)) {
+					buf[index++] = i;
+				}
+#elif BLACKBOX_STORAGE == SD_BB
+				snprintf(shortbuf, 16, "/kolibri/%01d.kbb", i);
+				if (SDFS.exists(shortbuf)) {
+					buf[index++] = i;
+				}
+#endif
+			}
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, index);
+		} break;
+		case ConfigCmd::BB_FILE_DOWNLOAD: {
+			u8 fileNum   = configSerialBuffer[payloadStartIndex];
+			i16 chunkNum = -1;
+			if (configMsgLength > 1) {
+				chunkNum = configSerialBuffer[payloadStartIndex + 1] + (configSerialBuffer[payloadStartIndex + 2] << 8);
+			}
+			printLogBin(fileNum, chunkNum);
+		} break;
+		case ConfigCmd::BB_FILE_DELETE: {
+			// data just includes one byte of file number
+			u8 fileNum = configSerialBuffer[payloadStartIndex];
 			char path[32];
-			u8 fileNum = fileNums[i];
 #if BLACKBOX_STORAGE == LITTLEFS_BB
 			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
-			File logFile = LittleFS.open(path, "r");
+			if (LittleFS.remove(path))
 #elif BLACKBOX_STORAGE == SD_BB
 			snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
-			File logFile = SDFS.open(path, "r");
+			if (SDFS.remove(path))
 #endif
-			if (!logFile)
-				continue;
-			buffer[index++] = fileNum;
-			buffer[index++] = logFile.size() & 0xFF;
-			buffer[index++] = (logFile.size() >> 8) & 0xFF;
-			buffer[index++] = (logFile.size() >> 16) & 0xFF;
-			buffer[index++] = (logFile.size() >> 24) & 0xFF;
-			logFile.seek(LOG_HEAD_BB_VERSION, SeekSet);
-			// version, timestamp, pid and divider can directly be read from the file
-			for (int i = 0; i < 9; i++)
-				buffer[index++] = logFile.read();
-			logFile.seek(LOG_HEAD_LOGGED_FIELDS, SeekSet);
-			// flags
-			for (int i = 0; i < 8; i++)
-				buffer[index++] = logFile.read();
-			logFile.close();
-		}
-		sendCommand(configMsgCommand | 0x4000, (char *)buffer, index);
-	} break;
-	case ConfigCmd::BB_FORMAT:
-		if (clearBlackbox())
-			sendCommand(configMsgCommand | 0x4000);
-		else
-			sendCommand(configMsgCommand | 0x8000);
-		break;
-	case ConfigCmd::WRITE_OSD_FONT_CHARACTER:
-		if (configMsgLength < 55) {
-			sendCommand(configMsgCommand | 0x8000);
-			break;
-		}
-		updateCharacter(configSerialBuffer[payloadStartIndex], &configSerialBuffer[payloadStartIndex + 1]);
-		sendCommand(configMsgCommand | 0x4000, (const char *)&configSerialBuffer[payloadStartIndex], 1);
-		break;
-	case ConfigCmd::SET_MOTORS:
-		throttles[(u8)MOTOR::RR] = (u16)configSerialBuffer[payloadStartIndex + 0] + ((u16)configSerialBuffer[payloadStartIndex + 1] << 8);
-		throttles[(u8)MOTOR::FR] = (u16)configSerialBuffer[payloadStartIndex + 2] + ((u16)configSerialBuffer[payloadStartIndex + 3] << 8);
-		throttles[(u8)MOTOR::RL] = (u16)configSerialBuffer[payloadStartIndex + 4] + ((u16)configSerialBuffer[payloadStartIndex + 5] << 8);
-		throttles[(u8)MOTOR::FL] = (u16)configSerialBuffer[payloadStartIndex + 6] + ((u16)configSerialBuffer[payloadStartIndex + 7] << 8);
-		configOverrideMotors     = 0;
-		sendCommand(configMsgCommand | 0x4000);
-		break;
-	case ConfigCmd::GET_MOTORS: {
-		u16 motors[4];
-		motors[0] = throttles[(u8)MOTOR::RR];
-		motors[1] = throttles[(u8)MOTOR::FR];
-		motors[2] = throttles[(u8)MOTOR::RL];
-		motors[3] = throttles[(u8)MOTOR::FL];
-		sendCommand(configMsgCommand | 0x4000, (char *)motors, sizeof(motors));
-	} break;
-	case ConfigCmd::BB_FILE_DOWNLOAD_RAW:
-		printLogBinRaw(configSerialBuffer[payloadStartIndex]);
-		break;
-	case ConfigCmd::SET_DEBUG_LED:
-		gpio_put(PIN_LED_DEBUG, configSerialBuffer[payloadStartIndex]);
-		sendCommand(configMsgCommand | 0x4000);
-		break;
-	case ConfigCmd::CONFIGURATOR_PING:
-		sendCommand(configMsgCommand | 0x4000);
-		configuratorConnected = true;
-		lastConfigPingRx      = 0;
-		break;
-	case (ConfigCmd)((u16)ConfigCmd::CONFIGURATOR_PING | 0x4000): {
-		u32 duration = lastConfigPingTx;
-		sendCommand((u16)ConfigCmd::CONFIGURATOR_PING | 0xC000, (char *)&duration, 4);
-	} break;
-	case ConfigCmd::REBOOT_TO_BOOTLOADER:
-		sendCommand(configMsgCommand | 0x4000);
-		Serial.flush();
-		rebootReason = BootReason::CMD_BOOTLOADER;
-		delay(100);
-		rp2040.rebootToBootloader();
-		break;
-	case ConfigCmd::GET_NAME: {
-		char name[20] = {0};
-		for (int i = 0; i < 20; i++)
-			name[i] = EEPROM.read((u16)EEPROM_POS::UAV_NAME + i);
-		name[19] = '\0';
-		sendCommand(configMsgCommand | 0x4000, name, strlen(name));
-	} break;
-	case ConfigCmd::SET_NAME: {
-		u8 len = configSerialBuffer[payloadStartIndex];
-		if (len > 20)
-			sendCommand(configMsgCommand | 0x8000);
-		break;
-		for (int i = 0; i < len; i++)
-			EEPROM.write((u16)EEPROM_POS::UAV_NAME + i, configSerialBuffer[payloadStartIndex + i]);
-		sendCommand(configMsgCommand | 0x4000);
-		break;
-	}
-	case ConfigCmd::GET_PIDS: {
-		u16 pids[3][7];
-		for (int i = 0; i < 3; i++) {
-			pids[i][0] = pidGains[i][0].getRaw() >> P_SHIFT;
-			pids[i][1] = pidGains[i][1].getRaw() >> I_SHIFT;
-			pids[i][2] = pidGains[i][2].getRaw() >> D_SHIFT;
-			pids[i][3] = pidGains[i][3].getRaw() >> FF_SHIFT;
-			pids[i][4] = pidGains[i][4].getRaw() >> S_SHIFT;
-			pids[i][5] = pidGains[i][5].getRaw() & 0xFFFF;
-			pids[i][6] = 0;
-		}
-		sendCommand(configMsgCommand | 0x4000, (char *)pids, sizeof(pids));
-	} break;
-	case ConfigCmd::SET_PIDS: {
-		u16 pids[3][7];
-		memcpy(pids, &configSerialBuffer[payloadStartIndex], sizeof(pids));
-		for (int i = 0; i < 3; i++) {
-			pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
-			pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
-			pidGains[i][2].setRaw(pids[i][2] << D_SHIFT);
-			pidGains[i][3].setRaw(pids[i][3] << FF_SHIFT);
-			pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
-			pidGains[i][5].setRaw(pids[i][5]);
-		}
-		EEPROM.put((u16)EEPROM_POS::PID_GAINS, pidGains);
-		sendCommand(configMsgCommand | 0x4000);
-	} break;
-	case ConfigCmd::GET_RATES: {
-		u16 rates[3][5];
-		for (int i = 0; i < 3; i++)
-			for (int j = 0; j < 5; j++)
-				rates[i][j] = rateFactors[j][i].getInt();
-		sendCommand(configMsgCommand | 0x4000, (char *)rates, sizeof(rates));
-	} break;
-	case ConfigCmd::SET_RATES: {
-		u16 rates[3][5];
-		memcpy(rates, &configSerialBuffer[payloadStartIndex], sizeof(rates));
-		for (int i = 0; i < 3; i++)
-			for (int j = 0; j < 5; j++)
-				rateFactors[j][i] = rates[i][j];
-		sendCommand(configMsgCommand | 0x4000);
-		EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rateFactors);
-	} break;
-	case ConfigCmd::GET_BB_SETTINGS: {
-		u8 bbSettings[9];
-		bbSettings[0] = bbFreqDivider;
-		memcpy(&bbSettings[1], &bbFlags, 8);
-		sendCommand(configMsgCommand | 0x4000, (char *)bbSettings, sizeof(bbSettings));
-	} break;
-	case ConfigCmd::SET_BB_SETTINGS: {
-		u8 bbSettings[9];
-		memcpy(bbSettings, &configSerialBuffer[payloadStartIndex], sizeof(bbSettings));
-		bbFreqDivider = bbSettings[0];
-		memcpy(&bbFlags, &bbSettings[1], 8);
-		sendCommand(configMsgCommand | 0x4000);
-		EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
-		EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
-	} break;
-	case ConfigCmd::GET_ROTATION: {
-		// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
-		int rotationPitch = pitch * 8192;
-		int rotationRoll  = roll * 8192;
-		int rotationYaw   = yaw * 8192;
-		int heading       = combinedHeading.getRaw() >> 3;
-		buf[0]            = rotationPitch & 0xFF;
-		buf[1]            = rotationPitch >> 8;
-		buf[2]            = rotationRoll & 0xFF;
-		buf[3]            = rotationRoll >> 8;
-		buf[4]            = rotationYaw & 0xFF;
-		buf[5]            = rotationYaw >> 8;
-		buf[6]            = heading & 0xFF;
-		buf[7]            = heading >> 8;
-		sendCommand(configMsgCommand | 0x4000, buf, 8);
-	} break;
-	case ConfigCmd::SERIAL_PASSTHROUGH: {
-		u8 serialNum = configSerialBuffer[payloadStartIndex];
-		u32 baud     = DECODE_U4(&configSerialBuffer[payloadStartIndex + 1]);
-		sendCommand(configMsgCommand | 0x4000, (char *)&configSerialBuffer[payloadStartIndex], 5);
-		u8 plusCount                  = 0;
-		elapsedMillis breakoutCounter = 0;
-		switch (serialNum) {
-		case 1:
-			Serial1.end();
-			Serial1.begin(baud);
-			while (true) {
-				if (breakoutCounter > 1000 && plusCount >= 3) break;
-				if (Serial.available()) {
-					breakoutCounter = 0;
-
-					char c = Serial.read();
-					if (c == '+')
-						plusCount++;
-					else
-						plusCount = 0;
-					Serial1.write(c);
-				}
-				if (Serial1.available()) {
-					Serial.write(Serial1.read());
-					Serial.flush();
-				}
+				sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)&fileNum, 1);
+			else
+				sendCommand(MspMsgType::ERROR, configMsgCommand, (char *)&fileNum, 1);
+		} break;
+		case ConfigCmd::BB_FILE_INFO: {
+			/* data of command
+			 * 0...len-1: file numbers
+			 *
+			 * data of response
+			 * 0. file number
+			 * 1-4. file size in bytes
+			 * 5-7. version of bb file format
+			 * 8-11: time of recording start
+			 * 12. byte that indicates PID frequency
+			 * 13. byte that indicates frequency divider
+			 * 14-21: recording flags
+			 */
+			u8 len       = configMsgLength;
+			len          = len > 12 ? 12 : len;
+			u8 *fileNums = &configSerialBuffer[payloadStartIndex];
+			u8 buffer[22 * len];
+			u8 index = 0;
+			for (int i = 0; i < len; i++) {
 				rp2040.wdt_reset();
+				char path[32];
+				u8 fileNum = fileNums[i];
+#if BLACKBOX_STORAGE == LITTLEFS_BB
+				snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
+				File logFile = LittleFS.open(path, "r");
+#elif BLACKBOX_STORAGE == SD_BB
+				snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
+				File logFile = SDFS.open(path, "r");
+#endif
+				if (!logFile)
+					continue;
+				buffer[index++] = fileNum;
+				buffer[index++] = logFile.size() & 0xFF;
+				buffer[index++] = (logFile.size() >> 8) & 0xFF;
+				buffer[index++] = (logFile.size() >> 16) & 0xFF;
+				buffer[index++] = (logFile.size() >> 24) & 0xFF;
+				logFile.seek(LOG_HEAD_BB_VERSION, SeekSet);
+				// version, timestamp, pid and divider can directly be read from the file
+				for (int i = 0; i < 9; i++)
+					buffer[index++] = logFile.read();
+				logFile.seek(LOG_HEAD_LOGGED_FIELDS, SeekSet);
+				// flags
+				for (int i = 0; i < 8; i++)
+					buffer[index++] = logFile.read();
+				logFile.close();
 			}
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)buffer, index);
+		} break;
+		case ConfigCmd::BB_FORMAT:
+			if (clearBlackbox())
+				sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			else
+				sendCommand(MspMsgType::ERROR, configMsgCommand);
 			break;
-		case 2:
-			Serial2.end();
-			Serial2.begin(baud);
-			while (true) {
-				if (breakoutCounter > 1000 && plusCount == 3) break;
-				if (Serial.available()) {
-					breakoutCounter = 0;
+		case ConfigCmd::WRITE_OSD_FONT_CHARACTER:
+			if (configMsgLength < 55) {
+				sendCommand(MspMsgType::ERROR, configMsgCommand);
+				break;
+			}
+			updateCharacter(configSerialBuffer[payloadStartIndex], &configSerialBuffer[payloadStartIndex + 1]);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (const char *)&configSerialBuffer[payloadStartIndex], 1);
+			break;
+		case ConfigCmd::SET_MOTORS:
+			throttles[(u8)MOTOR::RR] = (u16)configSerialBuffer[payloadStartIndex + 0] + ((u16)configSerialBuffer[payloadStartIndex + 1] << 8);
+			throttles[(u8)MOTOR::FR] = (u16)configSerialBuffer[payloadStartIndex + 2] + ((u16)configSerialBuffer[payloadStartIndex + 3] << 8);
+			throttles[(u8)MOTOR::RL] = (u16)configSerialBuffer[payloadStartIndex + 4] + ((u16)configSerialBuffer[payloadStartIndex + 5] << 8);
+			throttles[(u8)MOTOR::FL] = (u16)configSerialBuffer[payloadStartIndex + 6] + ((u16)configSerialBuffer[payloadStartIndex + 7] << 8);
+			configOverrideMotors     = 0;
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			break;
+		case ConfigCmd::GET_MOTORS: {
+			u16 motors[4];
+			motors[0] = throttles[(u8)MOTOR::RR];
+			motors[1] = throttles[(u8)MOTOR::FR];
+			motors[2] = throttles[(u8)MOTOR::RL];
+			motors[3] = throttles[(u8)MOTOR::FL];
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)motors, sizeof(motors));
+		} break;
+		case ConfigCmd::BB_FILE_DOWNLOAD_RAW:
+			printLogBinRaw(configSerialBuffer[payloadStartIndex]);
+			break;
+		case ConfigCmd::SET_DEBUG_LED:
+			gpio_put(PIN_LED_DEBUG, configSerialBuffer[payloadStartIndex]);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			break;
+		case ConfigCmd::CONFIGURATOR_PING:
+			configuratorConnected = true;
+			lastConfigPingRx      = 0;
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			break;
+		case ConfigCmd::REBOOT_TO_BOOTLOADER:
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			Serial.flush();
+			rebootReason = BootReason::CMD_BOOTLOADER;
+			delay(100);
+			rp2040.rebootToBootloader();
+			break;
+		case ConfigCmd::GET_NAME: {
+			char name[20] = {0};
+			for (int i = 0; i < 20; i++)
+				name[i] = EEPROM.read((u16)EEPROM_POS::UAV_NAME + i);
+			name[19] = '\0';
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, name, strlen(name));
+		} break;
+		case ConfigCmd::SET_NAME: {
+			u8 len = configSerialBuffer[payloadStartIndex];
+			if (len > 20) {
+				sendCommand(MspMsgType::ERROR, configMsgCommand);
+				break;
+			}
+			for (int i = 0; i < len; i++)
+				EEPROM.write((u16)EEPROM_POS::UAV_NAME + i, configSerialBuffer[payloadStartIndex + i]);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			break;
+		}
+		case ConfigCmd::GET_PIDS: {
+			u16 pids[3][7];
+			for (int i = 0; i < 3; i++) {
+				pids[i][0] = pidGains[i][0].getRaw() >> P_SHIFT;
+				pids[i][1] = pidGains[i][1].getRaw() >> I_SHIFT;
+				pids[i][2] = pidGains[i][2].getRaw() >> D_SHIFT;
+				pids[i][3] = pidGains[i][3].getRaw() >> FF_SHIFT;
+				pids[i][4] = pidGains[i][4].getRaw() >> S_SHIFT;
+				pids[i][5] = pidGains[i][5].getRaw() & 0xFFFF;
+				pids[i][6] = 0;
+			}
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)pids, sizeof(pids));
+		} break;
+		case ConfigCmd::SET_PIDS: {
+			u16 pids[3][7];
+			memcpy(pids, &configSerialBuffer[payloadStartIndex], sizeof(pids));
+			for (int i = 0; i < 3; i++) {
+				pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
+				pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
+				pidGains[i][2].setRaw(pids[i][2] << D_SHIFT);
+				pidGains[i][3].setRaw(pids[i][3] << FF_SHIFT);
+				pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
+				pidGains[i][5].setRaw(pids[i][5]);
+			}
+			EEPROM.put((u16)EEPROM_POS::PID_GAINS, pidGains);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+		} break;
+		case ConfigCmd::GET_RATES: {
+			u16 rates[3][5];
+			for (int i = 0; i < 3; i++)
+				for (int j = 0; j < 5; j++)
+					rates[i][j] = rateFactors[j][i].getInt();
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)rates, sizeof(rates));
+		} break;
+		case ConfigCmd::SET_RATES: {
+			u16 rates[3][5];
+			memcpy(rates, &configSerialBuffer[payloadStartIndex], sizeof(rates));
+			for (int i = 0; i < 3; i++)
+				for (int j = 0; j < 5; j++)
+					rateFactors[j][i] = rates[i][j];
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rateFactors);
+		} break;
+		case ConfigCmd::GET_BB_SETTINGS: {
+			u8 bbSettings[9];
+			bbSettings[0] = bbFreqDivider;
+			memcpy(&bbSettings[1], &bbFlags, 8);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)bbSettings, sizeof(bbSettings));
+		} break;
+		case ConfigCmd::SET_BB_SETTINGS: {
+			u8 bbSettings[9];
+			memcpy(bbSettings, &configSerialBuffer[payloadStartIndex], sizeof(bbSettings));
+			bbFreqDivider = bbSettings[0];
+			memcpy(&bbFlags, &bbSettings[1], 8);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
+			EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
+		} break;
+		case ConfigCmd::GET_ROTATION: {
+			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+			int rotationPitch = pitch * 8192;
+			int rotationRoll  = roll * 8192;
+			int rotationYaw   = yaw * 8192;
+			int heading       = combinedHeading.getRaw() >> 3;
+			buf[0]            = rotationPitch & 0xFF;
+			buf[1]            = rotationPitch >> 8;
+			buf[2]            = rotationRoll & 0xFF;
+			buf[3]            = rotationRoll >> 8;
+			buf[4]            = rotationYaw & 0xFF;
+			buf[5]            = rotationYaw >> 8;
+			buf[6]            = heading & 0xFF;
+			buf[7]            = heading >> 8;
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 8);
+		} break;
+		case ConfigCmd::SERIAL_PASSTHROUGH: {
+			u8 serialNum = configSerialBuffer[payloadStartIndex];
+			u32 baud     = DECODE_U4(&configSerialBuffer[payloadStartIndex + 1]);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)&configSerialBuffer[payloadStartIndex], 5);
+			Serial.flush();
+			u8 plusCount                  = 0;
+			elapsedMillis breakoutCounter = 0;
+			switch (serialNum) {
+			case 1:
+				Serial1.end();
+				Serial1.begin(baud);
+				while (true) {
+					if (breakoutCounter > 1000 && plusCount >= 3) break;
+					if (Serial.available()) {
+						breakoutCounter = 0;
 
-					char c = Serial.read();
-					if (c == '+')
-						plusCount++;
-					else
-						plusCount = 0;
-					Serial2.write(c);
+						char c = Serial.read();
+						if (c == '+')
+							plusCount++;
+						else
+							plusCount = 0;
+						Serial1.write(c);
+					}
+					if (Serial1.available()) {
+						Serial.write(Serial1.read());
+						Serial.flush();
+					}
+					rp2040.wdt_reset();
 				}
-				if (Serial2.available()) {
-					Serial.write(Serial2.read());
-					Serial.flush();
+				break;
+			case 2:
+				Serial2.end();
+				Serial2.begin(baud);
+				while (true) {
+					if (breakoutCounter > 1000 && plusCount == 3) break;
+					if (Serial.available()) {
+						breakoutCounter = 0;
+
+						char c = Serial.read();
+						if (c == '+')
+							plusCount++;
+						else
+							plusCount = 0;
+						Serial2.write(c);
+					}
+					if (Serial2.available()) {
+						Serial.write(Serial2.read());
+						Serial.flush();
+					}
+					rp2040.wdt_reset();
 				}
-				rp2040.wdt_reset();
+				break;
 			}
+		} break;
+		case ConfigCmd::GET_GPS_ACCURACY: {
+			// through padding and compiler optimization, it is not possible to just memcpy the struct
+			memcpy(buf, &gpsAcc.tAcc, 4);
+			memcpy(&buf[4], &gpsAcc.hAcc, 4);
+			memcpy(&buf[8], &gpsAcc.vAcc, 4);
+			memcpy(&buf[12], &gpsAcc.sAcc, 4);
+			memcpy(&buf[16], &gpsAcc.headAcc, 4);
+			memcpy(&buf[20], &gpsAcc.pDop, 4);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 24);
+		} break;
+		case ConfigCmd::GET_GPS_STATUS: {
+			buf[0] = gpsStatus.gpsInited;
+			buf[1] = gpsStatus.initStep;
+			buf[2] = gpsStatus.fixType;
+			buf[3] = gpsStatus.timeValidityFlags;
+			buf[4] = gpsStatus.flags;
+			buf[5] = gpsStatus.flags2;
+			buf[6] = gpsStatus.flags3 & 0xFF;
+			buf[7] = gpsStatus.flags3 >> 8;
+			buf[8] = gpsStatus.satCount;
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 9);
+		} break;
+		case ConfigCmd::GET_GPS_TIME: {
+			buf[0] = gpsTime.year & 0xFF;
+			buf[1] = gpsTime.year >> 8;
+			buf[2] = gpsTime.month;
+			buf[3] = gpsTime.day;
+			buf[4] = gpsTime.hour;
+			buf[5] = gpsTime.minute;
+			buf[6] = gpsTime.second;
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 7);
+		} break;
+		case ConfigCmd::GET_GPS_MOTION: {
+			memcpy(buf, &gpsMotion.lat, 4);
+			memcpy(&buf[4], &gpsMotion.lon, 4);
+			memcpy(&buf[8], &gpsMotion.alt, 4);
+			memcpy(&buf[12], &gpsMotion.velN, 4);
+			memcpy(&buf[16], &gpsMotion.velE, 4);
+			memcpy(&buf[20], &gpsMotion.velD, 4);
+			memcpy(&buf[24], &gpsMotion.gSpeed, 4);
+			memcpy(&buf[28], &gpsMotion.headMot, 4);
+			i32 cAlt    = combinedAltitude.getRaw();
+			i32 vVelRaw = vVel.getRaw();
+			memcpy(&buf[32], &cAlt, 4);
+			memcpy(&buf[36], &vVelRaw, 4);
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 40);
+		} break;
+		case ConfigCmd::ESC_PASSTHROUGH:
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			Serial.flush();
+			rebootReason = BootReason::CMD_ESC_PASSTHROUGH;
+			delay(100);
+			rp2040.reboot();
 			break;
+		case ConfigCmd::GET_CRASH_DUMP: {
+			for (int i = 0; i < 256; i++) {
+				rp2040.wdt_reset();
+				buf[i] = EEPROM.read(4096 - 256 + i);
+			}
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 256);
+		} break;
+		case ConfigCmd::CLEAR_CRASH_DUMP: {
+			for (int i = 0; i < 256; i++) {
+				rp2040.wdt_reset();
+				EEPROM.write(4096 - 256 + i, 0);
+			}
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+		} break;
+		case ConfigCmd::CALIBRATE_ACCELEROMETER:
+			accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
+			armingDisableFlags |= 0x40;
+			break;
+		case ConfigCmd::GET_MAG_DATA: {
+			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
+			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)raw, 12);
+		} break;
+		case ConfigCmd::MAG_CALIBRATE: {
+			magStateAfterRead = MAG_CALIBRATE;
+			char calString[128];
+			snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
+			sendCommand(MspMsgType::REQUEST, (u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
+		} break;
+		default: {
+			sendCommand(MspMsgType::ERROR, configMsgCommand, "Unknown command", strlen("Unknown command"));
+		} break;
 		}
-	} break;
-	case ConfigCmd::GET_GPS_ACCURACY: {
-		// through padding and compiler optimization, it is not possible to just memcpy the struct
-		memcpy(buf, &gpsAcc.tAcc, 4);
-		memcpy(&buf[4], &gpsAcc.hAcc, 4);
-		memcpy(&buf[8], &gpsAcc.vAcc, 4);
-		memcpy(&buf[12], &gpsAcc.sAcc, 4);
-		memcpy(&buf[16], &gpsAcc.headAcc, 4);
-		memcpy(&buf[20], &gpsAcc.pDop, 4);
-		sendCommand(configMsgCommand | 0x4000, buf, 24);
-	} break;
-	case ConfigCmd::GET_GPS_STATUS: {
-		buf[0] = gpsStatus.gpsInited;
-		buf[1] = gpsStatus.initStep;
-		buf[2] = gpsStatus.fixType;
-		buf[3] = gpsStatus.timeValidityFlags;
-		buf[4] = gpsStatus.flags;
-		buf[5] = gpsStatus.flags2;
-		buf[6] = gpsStatus.flags3 & 0xFF;
-		buf[7] = gpsStatus.flags3 >> 8;
-		buf[8] = gpsStatus.satCount;
-		sendCommand(configMsgCommand | 0x4000, buf, 9);
-	} break;
-	case ConfigCmd::GET_GPS_TIME: {
-		buf[0] = gpsTime.year & 0xFF;
-		buf[1] = gpsTime.year >> 8;
-		buf[2] = gpsTime.month;
-		buf[3] = gpsTime.day;
-		buf[4] = gpsTime.hour;
-		buf[5] = gpsTime.minute;
-		buf[6] = gpsTime.second;
-		sendCommand(configMsgCommand | 0x4000, buf, 7);
-	} break;
-	case ConfigCmd::GET_GPS_MOTION: {
-		memcpy(buf, &gpsMotion.lat, 4);
-		memcpy(&buf[4], &gpsMotion.lon, 4);
-		memcpy(&buf[8], &gpsMotion.alt, 4);
-		memcpy(&buf[12], &gpsMotion.velN, 4);
-		memcpy(&buf[16], &gpsMotion.velE, 4);
-		memcpy(&buf[20], &gpsMotion.velD, 4);
-		memcpy(&buf[24], &gpsMotion.gSpeed, 4);
-		memcpy(&buf[28], &gpsMotion.headMot, 4);
-		i32 cAlt    = combinedAltitude.getRaw();
-		i32 vVelRaw = vVel.getRaw();
-		memcpy(&buf[32], &cAlt, 4);
-		memcpy(&buf[36], &vVelRaw, 4);
-		sendCommand(configMsgCommand | 0x4000, buf, 40);
-	} break;
-	case ConfigCmd::ESC_PASSTHROUGH:
-		sendCommand(configMsgCommand | 0x4000);
-		Serial.flush();
-		rebootReason = BootReason::CMD_ESC_PASSTHROUGH;
-		delay(100);
-		rp2040.reboot();
-		break;
-	case ConfigCmd::GET_CRASH_DUMP: {
-		for (int i = 0; i < 256; i++) {
-			rp2040.wdt_reset();
-			buf[i] = EEPROM.read(4096 - 256 + i);
+	} else if (configMsgType == MspMsgType::RESPONSE) {
+		switch ((ConfigCmd)configMsgCommand) {
+		case ConfigCmd::CONFIGURATOR_PING: {
+			u32 duration = lastConfigPingTx;
+			sendCommand(MspMsgType::REQUEST, (u16)ConfigCmd::CONFIGURATOR_PING | 0xC000, (char *)&duration, 4);
+		} break;
 		}
-		sendCommand(configMsgCommand | 0x4000, buf, 256);
-	} break;
-	case ConfigCmd::CLEAR_CRASH_DUMP: {
-		for (int i = 0; i < 256; i++) {
-			rp2040.wdt_reset();
-			EEPROM.write(4096 - 256 + i, 0);
-		}
-		sendCommand(configMsgCommand | 0x4000);
-	} break;
-	case ConfigCmd::CALIBRATE_ACCELEROMETER:
-		accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
-		armingDisableFlags |= 0x40;
-		break;
-	case ConfigCmd::GET_MAG_DATA: {
-		i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
-		sendCommand(configMsgCommand | 0x4000, (char *)raw, 12);
-	} break;
-	case ConfigCmd::MAG_CALIBRATE: {
-		magStateAfterRead = MAG_CALIBRATE;
-		char calString[128];
-		snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
-		sendCommand((u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
-	} break;
-	default: {
-		sendCommand(configMsgCommand | 0x8000, "Unknown command", strlen("Unknown command"));
-	} break;
 	}
 }
 
@@ -544,10 +552,12 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 		break;
 	case MspState::LEN_V1:
 		if (c == 255) {
-			mspState = MspState::JUMBO_LEN_LO_V1;
+			configMsgVersion = MspVersion::V1_JUMBO;
+			mspState         = MspState::JUMBO_LEN_LO_V1;
 		} else {
-			configMsgLength = c;
-			mspState        = MspState::CMD_V1;
+			configMsgLength  = c;
+			configMsgVersion = MspVersion::V1;
+			mspState         = MspState::CMD_V1;
 		}
 		break;
 	case MspState::JUMBO_LEN_LO_V1:
@@ -560,7 +570,8 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 		break;
 	case MspState::CMD_V1:
 		if (c == 255) {
-			mspState = MspState::FLAG_V2_OVER_V1;
+			configMsgVersion = configMsgVersion == MspVersion::V1 ? MspVersion::V2_OVER_V1 : MspVersion::V2_OVER_V1_JUMBO;
+			mspState         = MspState::FLAG_V2_OVER_V1;
 		} else {
 			configMsgCommand = c;
 			mspState         = configMsgLength ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
@@ -598,13 +609,13 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 		mspState = MspState::CHECKSUM_V1;
 		break;
 	case MspState::CHECKSUM_V1:
-		if (configMsgType == MspMsgType::REQUEST)
-			handleConfigCmd();
+		handleConfigCmd();
 		configSerialBufferIndex = 0;
 		mspState                = MspState::IDLE;
 		break;
 	case MspState::TYPE_V2:
-		mspState = MspState::FLAG_V2;
+		mspState         = MspState::FLAG_V2;
+		configMsgVersion = MspVersion::V2;
 		switch (c) {
 		case '<':
 			configMsgType = MspMsgType::REQUEST;
@@ -649,9 +660,7 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 		}
 		break;
 	case MspState::CHECKSUM_V2:
-		if (configMsgType == MspMsgType::REQUEST) {
-			handleConfigCmd();
-		}
+		handleConfigCmd();
 		configSerialBufferIndex = 0;
 		mspState                = MspState::IDLE;
 		break;
