@@ -71,9 +71,9 @@ const MspState = {
 };
 
 const MspVersion = {
-	V2: 0,
+	V1_JUMBO: 0,
 	V1: 1,
-	V1_JUMBO: 2,
+	V2: 2,
 	V2_OVER_V1: 3,
 	V2_OVER_V1_JUMBO: 4
 };
@@ -84,6 +84,8 @@ export type Command = {
 	data: number[];
 	dataStr: string;
 	cmdType: 'request' | 'response' | 'error';
+	flag: number;
+	version: number;
 };
 function createPort() {
 	let devices: string[] = [];
@@ -93,7 +95,9 @@ function createPort() {
 		length: 0,
 		data: [],
 		dataStr: '',
-		cmdType: 'request'
+		cmdType: 'request',
+		flag: 0,
+		version: MspVersion.V2
 	} as Command);
 
 	subscribe(c => {
@@ -183,7 +187,9 @@ function createPort() {
 		length: 0,
 		data: [],
 		dataStr: '',
-		cmdType: 'request'
+		cmdType: 'request',
+		flag: 0,
+		version: MspVersion.V2
 	};
 	let mspState = 0;
 	const read = () => {
@@ -209,6 +215,7 @@ function createPort() {
 							break;
 						case MspState.TYPE_V1:
 							mspState = MspState.LEN_V1;
+							newCommand.version = MspVersion.V1;
 							switch (c) {
 								case 60: // '<'
 									newCommand.cmdType = 'request';
@@ -238,6 +245,7 @@ function createPort() {
 							break;
 						case MspState.JUMBO_LEN_HI_V1:
 							newCommand.length += c << 8;
+							newCommand.version = MspVersion.V1_JUMBO;
 							mspState = MspState.CMD_V1;
 							break;
 						case MspState.CMD_V1:
@@ -255,6 +263,7 @@ function createPort() {
 							break;
 						case MspState.FLAG_V2_OVER_V1:
 							mspState = MspState.CMD_LO_V2_OVER_V1;
+							newCommand.flag = c;
 							break;
 						case MspState.CMD_LO_V2_OVER_V1:
 							newCommand.command = c;
@@ -262,6 +271,10 @@ function createPort() {
 							break;
 						case MspState.CMD_HI_V2_OVER_V1:
 							newCommand.command += c << 8;
+							newCommand.version =
+								newCommand.version === MspVersion.V1_JUMBO
+									? MspVersion.V2_OVER_V1_JUMBO
+									: MspVersion.V2_OVER_V1;
 							mspState = MspState.LEN_LO_V2_OVER_V1;
 							break;
 						case MspState.LEN_LO_V2_OVER_V1:
@@ -288,6 +301,7 @@ function createPort() {
 							break;
 						case MspState.TYPE_V2:
 							mspState = MspState.FLAG_V2;
+							newCommand.version = MspVersion.V2;
 							switch (c) {
 								case 60: // '<'
 									newCommand.cmdType = 'request';
@@ -304,6 +318,7 @@ function createPort() {
 							}
 							break;
 						case MspState.FLAG_V2:
+							newCommand.flag = c;
 							mspState = MspState.CMD_LO_V2;
 							break;
 						case MspState.CMD_LO_V2:
