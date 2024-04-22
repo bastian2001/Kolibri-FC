@@ -56,7 +56,7 @@
 	};
 	$: {
 		const flag = flagProps[flagName];
-		const mod = flagProps[flagName]?.modifier?.find((m) => m.path === modifier);
+		const mod = flagProps[flagName]?.modifier?.find(m => m.path === modifier);
 		if (flag) {
 			autoMin = mod?.min || flag.minValue || 0;
 			autoMax = mod?.max || flag.maxValue || 1;
@@ -80,16 +80,16 @@
 			maxValue = trace.maxValue;
 			trace.flagName = flagName;
 			trace.decimals =
-				flagProps[flagName].modifier?.find((m) => m.path === modifier)?.decimals ||
+				flagProps[flagName].modifier?.find(m => m.path === modifier)?.decimals ||
 				flagProps[flagName].decimals ||
 				0;
 			trace.unit =
-				flagProps[flagName].modifier?.find((m) => m.path === modifier)?.unit ||
+				flagProps[flagName].modifier?.find(m => m.path === modifier)?.unit ||
 				flagProps[flagName].unit ||
 				'';
-			trace.states = flagProps[flagName].modifier?.find((m) => m.path === modifier)?.states;
+			trace.states = flagProps[flagName].modifier?.find(m => m.path === modifier)?.states;
 			trace.displayName =
-				flagProps[flagName].modifier?.find((m) => m.path === modifier)?.displayName || '';
+				flagProps[flagName].modifier?.find(m => m.path === modifier)?.displayName || '';
 			if (trace.displayName) trace.displayName = flagProps[flagName].name + ' ' + trace.displayName;
 			else trace.displayName = flagProps[flagName].name;
 			trace.modifier = modifier;
@@ -216,12 +216,12 @@
 <div class="wrapper">
 	<span class="colorMark" style:background-color={color}>&nbsp;</span>
 	<select name="flag" id="flagSelector" bind:value={flagName}>
-		{#each log.flags.filter((f) => {
+		{#each log.flags.filter(f => {
 			return f.startsWith('LOG_');
 		}) as flag}
 			<option value={flag}>{flagProps[flag].name}</option>
 		{/each}
-		{#each log.flags.filter((f) => {
+		{#each log.flags.filter(f => {
 			return f.startsWith('GEN_');
 		}) as flag}
 			<option value={flag}>{genFlagProps[flag].name} (Gen.)</option>

@@ -12,7 +12,7 @@ function createLog() {
 			date.getSeconds().toString().padStart(2, '0') +
 			' -> ' +
 			entry;
-		update((entries) => [...entries, entry]);
+		update(entries => [...entries, entry]);
 	};
 	const clearEntries = () => {
 		set([]);
