@@ -44,9 +44,9 @@
 #include "quaternion.h"
 #include "ringbuffer.h"
 #include "serial.h"
-#include "serialhandler/configurator.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
+#include "serialhandler/msp.h"
 #include "taskManager.h"
 #include "unittest.h"
 
