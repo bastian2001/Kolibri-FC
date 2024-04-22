@@ -1,7 +1,6 @@
 import { writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api';
-import { tick } from 'svelte';
-import { leBytesToInt } from './utils';
+import { configuratorLog } from './logStore';
 
 export const MspFn = {
 	STATUS: 0x4000,
@@ -90,7 +89,7 @@ function createPort() {
 	let devices: string[] = [];
 
 	const { subscribe, set } = writable({
-		command: 65535,
+		command: NaN,
 		length: 0,
 		data: [],
 		dataStr: '',
@@ -105,6 +104,10 @@ function createPort() {
 					fcPing = Date.now() - pingStarted;
 					break;
 			}
+		}
+		if (!Object.values(MspFn).includes(c.command) && !Number.isNaN(c.command)) {
+			console.log(structuredClone(c));
+			configuratorLog.push('Unsupported command, see console for details.');
 		}
 	});
 
@@ -192,7 +195,7 @@ function createPort() {
 				if (e !== 'Custom { kind: TimedOut, error: "Operation timed out" }') console.error(e);
 			})
 			.finally(() => {
-				rxBuf.forEach(async c => {
+				rxBuf.forEach(c => {
 					switch (mspState) {
 						case MspState.IDLE:
 							if (c === 36) mspState = MspState.PACKET_START; /* $ */
@@ -326,9 +329,7 @@ function createPort() {
 							break;
 						case MspState.CHECKSUM_V2:
 							mspState = MspState.IDLE;
-							console.log(newCommand.command);
 							set(newCommand);
-							// await tick();
 							break;
 					}
 				});

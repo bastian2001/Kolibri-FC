@@ -1196,13 +1196,6 @@
 				case MspFn.BB_FORMAT:
 					configuratorLog.push('Blackbox formatted');
 					break;
-				default:
-					if (
-						typeof command.command === 'number' &&
-						!Number.isNaN(command.command) &&
-						!Object.values(MspFn).includes(command.command & 0x3fff)
-					)
-						console.log({ ...command });
 			}
 		} else if (command.cmdType === 'error') {
 			switch (command.command) {

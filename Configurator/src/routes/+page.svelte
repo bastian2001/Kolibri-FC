@@ -35,7 +35,6 @@
 	let baudRate = 115200;
 
 	const unsubscribe = port.subscribe(command => {
-		console.log(command.command, command.data);
 		if (command.cmdType === 'response') {
 			switch (command.command) {
 				case MspFn.STATUS:
