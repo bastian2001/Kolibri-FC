@@ -1,19 +1,17 @@
 #include "global.h"
 
-u8 configSerialBuffer[2048] = {0};
-u16 configSerialBufferIndex = 0;
-u16 configMsgLength         = 0;
-u8 accelCalDone             = 0;
-u16 configMsgCommand        = 0;
-MspMsgType configMsgType    = MspMsgType::ERROR;
-u8 configMsgFlag            = 0;
-MspVersion configMsgVersion = MspVersion::V2;
-
-elapsedMillis configTimer = 0;
+u8 mspSerialBuffer[2048] = {0};
+u16 mspSerialBufferIndex = 0;
+u16 mspMspLength         = 0;
+u8 accelCalDone          = 0;
+MspFn mspMsgCommand;
+MspMsgType mspMsgType    = MspMsgType::ERROR;
+u8 mspMsgFlag            = 0;
+MspVersion mspMsgVersion = MspVersion::V2;
 
 MspState mspState = MspState::IDLE;
 
-elapsedMillis configOverrideMotors = 1001;
+elapsedMillis mspOverrideMotors = 1001;
 
 elapsedMillis lastConfigPingRx = 0;
 bool configuratorConnected     = false;
@@ -24,22 +22,22 @@ void configuratorLoop() {
 		configuratorConnected = false;
 	if (accelCalDone) {
 		accelCalDone = 0;
-		sendCommand(MspMsgType::RESPONSE, (u16)ConfigCmd::CALIBRATE_ACCELEROMETER);
+		sendMsp(MspMsgType::RESPONSE, MspFn::CALIBRATE_ACCELEROMETER);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION, (i16)accelCalibrationOffset[0]);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, (i16)accelCalibrationOffset[1]);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, (i16)accelCalibrationOffset[2]);
 		EEPROM.commit();
-		sendCommand(MspMsgType::RESPONSE, (u16)ConfigCmd::SAVE_SETTINGS);
+		sendMsp(MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS);
 	}
 }
 
-void sendCommand(MspMsgType type, u16 command, const char *data, u16 len) {
-	u8 header[8] = {'$', 'X', (u8)type, 0, (u8)command, (u8)(command >> 8), (u8)len, (u8)(len >> 8)};
+void sendMsp(MspMsgType type, MspFn fn, const char *data, u16 len) {
+	u8 header[8] = {'$', 'X', (u8)type, 0, (u8)fn, (u8)((u32)fn >> 8), (u8)len, (u8)(len >> 8)};
 	Serial.write(header, 8);
 
 	if (data == nullptr)
 		len = 0;
-	u8 crc = (command & 0xFF) ^ (command >> 8) ^ (len & 0xFF) ^ (len >> 8);
+	u8 crc = ((u32)fn & 0xFF) ^ ((u32)fn >> 8) ^ (len & 0xFF) ^ (len >> 8);
 	for (int i = 0; i < len; i++) {
 		Serial.write(data[i]);
 		crc ^= data[i];
@@ -47,12 +45,12 @@ void sendCommand(MspMsgType type, u16 command, const char *data, u16 len) {
 	Serial.write(crc);
 }
 
-void handleConfigCmd() {
+void processMspCmd() {
 	char buf[256] = {0};
 	u8 len        = 0;
-	if (configMsgType == MspMsgType::REQUEST) {
-		switch ((ConfigCmd)configMsgCommand) {
-		case ConfigCmd::STATUS: {
+	if (mspMsgType == MspMsgType::REQUEST) {
+		switch ((MspFn)mspMsgCommand) {
+		case MspFn::STATUS: {
 			u16 voltage = adcVoltage;
 			buf[len++]  = voltage & 0xFF;
 			buf[len++]  = voltage >> 8;
@@ -63,9 +61,9 @@ void handleConfigCmd() {
 			buf[len++]  = (u8)(armingDisableFlags >> 16);
 			buf[len++]  = (u8)(armingDisableFlags >> 24);
 			buf[len++]  = (u8)(configuratorConnected & 0xFF);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, len);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, len);
 		} break;
-		case ConfigCmd::TASK_STATUS: {
+		case MspFn::TASK_STATUS: {
 			u32 buf[256];
 			for (int i = 0; i < 32; i++) {
 				buf[i * 8 + 0] = tasks[i].debugInfo;
@@ -77,26 +75,26 @@ void handleConfigCmd() {
 				buf[i * 8 + 6] = tasks[i].lastError;
 				buf[i * 8 + 7] = tasks[i].maxGap;
 			}
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)buf, sizeof(buf));
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)buf, sizeof(buf));
 			for (int i = 0; i < 32; i++) {
 				tasks[i].minDuration = 0xFFFFFFFF;
 				tasks[i].maxDuration = 0;
 				tasks[i].maxGap      = 0;
 			}
 		} break;
-		case ConfigCmd::REBOOT:
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+		case MspFn::REBOOT:
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			Serial.flush();
 			rebootReason = BootReason::CMD_REBOOT;
 			delay(100);
 			rp2040.reboot();
 			break;
-		case ConfigCmd::SAVE_SETTINGS:
+		case MspFn::SAVE_SETTINGS:
 			rp2040.wdt_reset();
 			EEPROM.commit();
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			break;
-		case ConfigCmd::PLAY_SOUND: {
+		case MspFn::PLAY_SOUND: {
 			const u16 startFreq     = random(1000, 5000);
 			const u16 endFreq       = random(1000, 5000);
 			const u16 sweepDuration = random(400, 1000);
@@ -118,9 +116,9 @@ void handleConfigCmd() {
 			buf[len++] = repeat;
 			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
 			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, len);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, len);
 		} break;
-		case ConfigCmd::BB_FILE_LIST: {
+		case MspFn::BB_FILE_LIST: {
 			int index         = 0;
 			char shortbuf[16] = {0};
 			for (int i = 0; i < 100; i++) {
@@ -137,19 +135,19 @@ void handleConfigCmd() {
 				}
 #endif
 			}
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, index);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, index);
 		} break;
-		case ConfigCmd::BB_FILE_DOWNLOAD: {
-			u8 fileNum   = configSerialBuffer[payloadStartIndex];
+		case MspFn::BB_FILE_DOWNLOAD: {
+			u8 fileNum   = mspSerialBuffer[payloadStartIndex];
 			i16 chunkNum = -1;
-			if (configMsgLength > 1) {
-				chunkNum = configSerialBuffer[payloadStartIndex + 1] + (configSerialBuffer[payloadStartIndex + 2] << 8);
+			if (mspMspLength > 1) {
+				chunkNum = mspSerialBuffer[payloadStartIndex + 1] + (mspSerialBuffer[payloadStartIndex + 2] << 8);
 			}
 			printLogBin(fileNum, chunkNum);
 		} break;
-		case ConfigCmd::BB_FILE_DELETE: {
+		case MspFn::BB_FILE_DELETE: {
 			// data just includes one byte of file number
-			u8 fileNum = configSerialBuffer[payloadStartIndex];
+			u8 fileNum = mspSerialBuffer[payloadStartIndex];
 			char path[32];
 #if BLACKBOX_STORAGE == LITTLEFS_BB
 			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
@@ -158,11 +156,11 @@ void handleConfigCmd() {
 			snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
 			if (SDFS.remove(path))
 #endif
-				sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)&fileNum, 1);
+				sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)&fileNum, 1);
 			else
-				sendCommand(MspMsgType::ERROR, configMsgCommand, (char *)&fileNum, 1);
+				sendMsp(MspMsgType::ERROR, mspMsgCommand, (char *)&fileNum, 1);
 		} break;
-		case ConfigCmd::BB_FILE_INFO: {
+		case MspFn::BB_FILE_INFO: {
 			/* data of command
 			 * 0...len-1: file numbers
 			 *
@@ -175,9 +173,9 @@ void handleConfigCmd() {
 			 * 13. byte that indicates frequency divider
 			 * 14-21: recording flags
 			 */
-			u8 len       = configMsgLength;
+			u8 len       = mspMspLength;
 			len          = len > 12 ? 12 : len;
-			u8 *fileNums = &configSerialBuffer[payloadStartIndex];
+			u8 *fileNums = &mspSerialBuffer[payloadStartIndex];
 			u8 buffer[22 * len];
 			u8 index = 0;
 			for (int i = 0; i < len; i++) {
@@ -208,76 +206,76 @@ void handleConfigCmd() {
 					buffer[index++] = logFile.read();
 				logFile.close();
 			}
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)buffer, index);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)buffer, index);
 		} break;
-		case ConfigCmd::BB_FORMAT:
+		case MspFn::BB_FORMAT:
 			if (clearBlackbox())
-				sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+				sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			else
-				sendCommand(MspMsgType::ERROR, configMsgCommand);
+				sendMsp(MspMsgType::ERROR, mspMsgCommand);
 			break;
-		case ConfigCmd::WRITE_OSD_FONT_CHARACTER:
-			if (configMsgLength < 55) {
-				sendCommand(MspMsgType::ERROR, configMsgCommand);
+		case MspFn::WRITE_OSD_FONT_CHARACTER:
+			if (mspMspLength < 55) {
+				sendMsp(MspMsgType::ERROR, mspMsgCommand);
 				break;
 			}
-			updateCharacter(configSerialBuffer[payloadStartIndex], &configSerialBuffer[payloadStartIndex + 1]);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (const char *)&configSerialBuffer[payloadStartIndex], 1);
+			updateCharacter(mspSerialBuffer[payloadStartIndex], &mspSerialBuffer[payloadStartIndex + 1]);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (const char *)&mspSerialBuffer[payloadStartIndex], 1);
 			break;
-		case ConfigCmd::SET_MOTORS:
-			throttles[(u8)MOTOR::RR] = (u16)configSerialBuffer[payloadStartIndex + 0] + ((u16)configSerialBuffer[payloadStartIndex + 1] << 8);
-			throttles[(u8)MOTOR::FR] = (u16)configSerialBuffer[payloadStartIndex + 2] + ((u16)configSerialBuffer[payloadStartIndex + 3] << 8);
-			throttles[(u8)MOTOR::RL] = (u16)configSerialBuffer[payloadStartIndex + 4] + ((u16)configSerialBuffer[payloadStartIndex + 5] << 8);
-			throttles[(u8)MOTOR::FL] = (u16)configSerialBuffer[payloadStartIndex + 6] + ((u16)configSerialBuffer[payloadStartIndex + 7] << 8);
-			configOverrideMotors     = 0;
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+		case MspFn::SET_MOTORS:
+			throttles[(u8)MOTOR::RR] = (u16)mspSerialBuffer[payloadStartIndex + 0] + ((u16)mspSerialBuffer[payloadStartIndex + 1] << 8);
+			throttles[(u8)MOTOR::FR] = (u16)mspSerialBuffer[payloadStartIndex + 2] + ((u16)mspSerialBuffer[payloadStartIndex + 3] << 8);
+			throttles[(u8)MOTOR::RL] = (u16)mspSerialBuffer[payloadStartIndex + 4] + ((u16)mspSerialBuffer[payloadStartIndex + 5] << 8);
+			throttles[(u8)MOTOR::FL] = (u16)mspSerialBuffer[payloadStartIndex + 6] + ((u16)mspSerialBuffer[payloadStartIndex + 7] << 8);
+			mspOverrideMotors        = 0;
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			break;
-		case ConfigCmd::GET_MOTORS: {
+		case MspFn::GET_MOTORS: {
 			u16 motors[4];
 			motors[0] = throttles[(u8)MOTOR::RR];
 			motors[1] = throttles[(u8)MOTOR::FR];
 			motors[2] = throttles[(u8)MOTOR::RL];
 			motors[3] = throttles[(u8)MOTOR::FL];
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)motors, sizeof(motors));
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)motors, sizeof(motors));
 		} break;
-		case ConfigCmd::BB_FILE_DOWNLOAD_RAW:
-			printLogBinRaw(configSerialBuffer[payloadStartIndex]);
+		case MspFn::BB_FILE_DOWNLOAD_RAW:
+			printLogBinRaw(mspSerialBuffer[payloadStartIndex]);
 			break;
-		case ConfigCmd::SET_DEBUG_LED:
-			gpio_put(PIN_LED_DEBUG, configSerialBuffer[payloadStartIndex]);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+		case MspFn::SET_DEBUG_LED:
+			gpio_put(PIN_LED_DEBUG, mspSerialBuffer[payloadStartIndex]);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			break;
-		case ConfigCmd::CONFIGURATOR_PING:
+		case MspFn::CONFIGURATOR_PING:
 			configuratorConnected = true;
 			lastConfigPingRx      = 0;
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			break;
-		case ConfigCmd::REBOOT_TO_BOOTLOADER:
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+		case MspFn::REBOOT_TO_BOOTLOADER:
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			Serial.flush();
 			rebootReason = BootReason::CMD_BOOTLOADER;
 			delay(100);
 			rp2040.rebootToBootloader();
 			break;
-		case ConfigCmd::GET_NAME: {
+		case MspFn::GET_NAME: {
 			char name[20] = {0};
 			for (int i = 0; i < 20; i++)
 				name[i] = EEPROM.read((u16)EEPROM_POS::UAV_NAME + i);
 			name[19] = '\0';
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, name, strlen(name));
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, name, strlen(name));
 		} break;
-		case ConfigCmd::SET_NAME: {
-			u8 len = configSerialBuffer[payloadStartIndex];
+		case MspFn::SET_NAME: {
+			u8 len = mspSerialBuffer[payloadStartIndex];
 			if (len > 20) {
-				sendCommand(MspMsgType::ERROR, configMsgCommand);
+				sendMsp(MspMsgType::ERROR, mspMsgCommand);
 				break;
 			}
 			for (int i = 0; i < len; i++)
-				EEPROM.write((u16)EEPROM_POS::UAV_NAME + i, configSerialBuffer[payloadStartIndex + i]);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+				EEPROM.write((u16)EEPROM_POS::UAV_NAME + i, mspSerialBuffer[payloadStartIndex + i]);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			break;
 		}
-		case ConfigCmd::GET_PIDS: {
+		case MspFn::GET_PIDS: {
 			u16 pids[3][7];
 			for (int i = 0; i < 3; i++) {
 				pids[i][0] = pidGains[i][0].getRaw() >> P_SHIFT;
@@ -288,11 +286,11 @@ void handleConfigCmd() {
 				pids[i][5] = pidGains[i][5].getRaw() & 0xFFFF;
 				pids[i][6] = 0;
 			}
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)pids, sizeof(pids));
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)pids, sizeof(pids));
 		} break;
-		case ConfigCmd::SET_PIDS: {
+		case MspFn::SET_PIDS: {
 			u16 pids[3][7];
-			memcpy(pids, &configSerialBuffer[payloadStartIndex], sizeof(pids));
+			memcpy(pids, &mspSerialBuffer[payloadStartIndex], sizeof(pids));
 			for (int i = 0; i < 3; i++) {
 				pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
 				pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
@@ -302,40 +300,40 @@ void handleConfigCmd() {
 				pidGains[i][5].setRaw(pids[i][5]);
 			}
 			EEPROM.put((u16)EEPROM_POS::PID_GAINS, pidGains);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 		} break;
-		case ConfigCmd::GET_RATES: {
+		case MspFn::GET_RATES: {
 			u16 rates[3][5];
 			for (int i = 0; i < 3; i++)
 				for (int j = 0; j < 5; j++)
 					rates[i][j] = rateFactors[j][i].getInt();
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)rates, sizeof(rates));
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)rates, sizeof(rates));
 		} break;
-		case ConfigCmd::SET_RATES: {
+		case MspFn::SET_RATES: {
 			u16 rates[3][5];
-			memcpy(rates, &configSerialBuffer[payloadStartIndex], sizeof(rates));
+			memcpy(rates, &mspSerialBuffer[payloadStartIndex], sizeof(rates));
 			for (int i = 0; i < 3; i++)
 				for (int j = 0; j < 5; j++)
 					rateFactors[j][i] = rates[i][j];
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rateFactors);
 		} break;
-		case ConfigCmd::GET_BB_SETTINGS: {
+		case MspFn::GET_BB_SETTINGS: {
 			u8 bbSettings[9];
 			bbSettings[0] = bbFreqDivider;
 			memcpy(&bbSettings[1], &bbFlags, 8);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)bbSettings, sizeof(bbSettings));
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)bbSettings, sizeof(bbSettings));
 		} break;
-		case ConfigCmd::SET_BB_SETTINGS: {
+		case MspFn::SET_BB_SETTINGS: {
 			u8 bbSettings[9];
-			memcpy(bbSettings, &configSerialBuffer[payloadStartIndex], sizeof(bbSettings));
+			memcpy(bbSettings, &mspSerialBuffer[payloadStartIndex], sizeof(bbSettings));
 			bbFreqDivider = bbSettings[0];
 			memcpy(&bbFlags, &bbSettings[1], 8);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
 			EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 		} break;
-		case ConfigCmd::GET_ROTATION: {
+		case MspFn::GET_ROTATION: {
 			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 			int rotationPitch = pitch * 8192;
 			int rotationRoll  = roll * 8192;
@@ -349,12 +347,12 @@ void handleConfigCmd() {
 			buf[5]            = rotationYaw >> 8;
 			buf[6]            = heading & 0xFF;
 			buf[7]            = heading >> 8;
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 8);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, 8);
 		} break;
-		case ConfigCmd::SERIAL_PASSTHROUGH: {
-			u8 serialNum = configSerialBuffer[payloadStartIndex];
-			u32 baud     = DECODE_U4(&configSerialBuffer[payloadStartIndex + 1]);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)&configSerialBuffer[payloadStartIndex], 5);
+		case MspFn::SERIAL_PASSTHROUGH: {
+			u8 serialNum = mspSerialBuffer[payloadStartIndex];
+			u32 baud     = DECODE_U4(&mspSerialBuffer[payloadStartIndex + 1]);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)&mspSerialBuffer[payloadStartIndex], 5);
 			Serial.flush();
 			u8 plusCount                  = 0;
 			elapsedMillis breakoutCounter = 0;
@@ -405,7 +403,7 @@ void handleConfigCmd() {
 				break;
 			}
 		} break;
-		case ConfigCmd::GET_GPS_ACCURACY: {
+		case MspFn::GET_GPS_ACCURACY: {
 			// through padding and compiler optimization, it is not possible to just memcpy the struct
 			memcpy(buf, &gpsAcc.tAcc, 4);
 			memcpy(&buf[4], &gpsAcc.hAcc, 4);
@@ -413,9 +411,9 @@ void handleConfigCmd() {
 			memcpy(&buf[12], &gpsAcc.sAcc, 4);
 			memcpy(&buf[16], &gpsAcc.headAcc, 4);
 			memcpy(&buf[20], &gpsAcc.pDop, 4);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 24);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, 24);
 		} break;
-		case ConfigCmd::GET_GPS_STATUS: {
+		case MspFn::GET_GPS_STATUS: {
 			buf[0] = gpsStatus.gpsInited;
 			buf[1] = gpsStatus.initStep;
 			buf[2] = gpsStatus.fixType;
@@ -425,9 +423,9 @@ void handleConfigCmd() {
 			buf[6] = gpsStatus.flags3 & 0xFF;
 			buf[7] = gpsStatus.flags3 >> 8;
 			buf[8] = gpsStatus.satCount;
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 9);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, 9);
 		} break;
-		case ConfigCmd::GET_GPS_TIME: {
+		case MspFn::GET_GPS_TIME: {
 			buf[0] = gpsTime.year & 0xFF;
 			buf[1] = gpsTime.year >> 8;
 			buf[2] = gpsTime.month;
@@ -435,9 +433,9 @@ void handleConfigCmd() {
 			buf[4] = gpsTime.hour;
 			buf[5] = gpsTime.minute;
 			buf[6] = gpsTime.second;
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 7);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, 7);
 		} break;
-		case ConfigCmd::GET_GPS_MOTION: {
+		case MspFn::GET_GPS_MOTION: {
 			memcpy(buf, &gpsMotion.lat, 4);
 			memcpy(&buf[4], &gpsMotion.lon, 4);
 			memcpy(&buf[8], &gpsMotion.alt, 4);
@@ -450,61 +448,61 @@ void handleConfigCmd() {
 			i32 vVelRaw = vVel.getRaw();
 			memcpy(&buf[32], &cAlt, 4);
 			memcpy(&buf[36], &vVelRaw, 4);
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 40);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, 40);
 		} break;
-		case ConfigCmd::ESC_PASSTHROUGH:
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+		case MspFn::ESC_PASSTHROUGH:
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 			Serial.flush();
 			rebootReason = BootReason::CMD_ESC_PASSTHROUGH;
 			delay(100);
 			rp2040.reboot();
 			break;
-		case ConfigCmd::GET_CRASH_DUMP: {
+		case MspFn::GET_CRASH_DUMP: {
 			for (int i = 0; i < 256; i++) {
 				rp2040.wdt_reset();
 				buf[i] = EEPROM.read(4096 - 256 + i);
 			}
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, buf, 256);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, buf, 256);
 		} break;
-		case ConfigCmd::CLEAR_CRASH_DUMP: {
+		case MspFn::CLEAR_CRASH_DUMP: {
 			for (int i = 0; i < 256; i++) {
 				rp2040.wdt_reset();
 				EEPROM.write(4096 - 256 + i, 0);
 			}
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand);
 		} break;
-		case ConfigCmd::CALIBRATE_ACCELEROMETER:
+		case MspFn::CALIBRATE_ACCELEROMETER:
 			accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
 			armingDisableFlags |= 0x40;
 			break;
-		case ConfigCmd::GET_MAG_DATA: {
+		case MspFn::GET_MAG_DATA: {
 			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
-			sendCommand(MspMsgType::RESPONSE, configMsgCommand, (char *)raw, 12);
+			sendMsp(MspMsgType::RESPONSE, mspMsgCommand, (char *)raw, 12);
 		} break;
-		case ConfigCmd::MAG_CALIBRATE: {
+		case MspFn::MAG_CALIBRATE: {
 			magStateAfterRead = MAG_CALIBRATE;
 			char calString[128];
 			snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
-			sendCommand(MspMsgType::REQUEST, (u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
+			sendMsp(MspMsgType::REQUEST, MspFn::IND_MESSAGE, (char *)calString, strlen(calString));
 		} break;
 		default: {
-			sendCommand(MspMsgType::ERROR, configMsgCommand, "Unknown command", strlen("Unknown command"));
+			sendMsp(MspMsgType::ERROR, mspMsgCommand, "Unknown command", strlen("Unknown command"));
 		} break;
 		}
 	}
 }
 
-void configuratorHandleByte(u8 c, u8 _serialNum) {
+void mspHandleByte(u8 c, u8 _serialNum) {
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_CONFIGURATOR].runCounter++;
-	configSerialBuffer[configSerialBufferIndex++] = c;
+	mspSerialBuffer[mspSerialBufferIndex++] = c;
 
 	switch (mspState) {
 	case MspState::IDLE:
 		if (c == '$')
 			mspState = MspState::PACKET_START;
 		else
-			configSerialBufferIndex = 0;
+			mspSerialBufferIndex = 0;
 		break;
 	case MspState::PACKET_START:
 		switch (c) {
@@ -515,8 +513,8 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 			mspState = MspState::TYPE_V2;
 			break;
 		default:
-			configSerialBufferIndex = 0;
-			mspState                = MspState::IDLE;
+			mspSerialBufferIndex = 0;
+			mspState             = MspState::IDLE;
 			break;
 		}
 		break;
@@ -524,133 +522,133 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 		mspState = MspState::LEN_V1;
 		switch (c) {
 		case '<':
-			configMsgType = MspMsgType::REQUEST;
+			mspMsgType = MspMsgType::REQUEST;
 			break;
 		case '>':
-			configMsgType = MspMsgType::RESPONSE;
+			mspMsgType = MspMsgType::RESPONSE;
 			break;
 		case '!':
-			configMsgType = MspMsgType::ERROR;
+			mspMsgType = MspMsgType::ERROR;
 			break;
 		default:
-			configSerialBufferIndex = 0;
-			mspState                = MspState::IDLE;
+			mspSerialBufferIndex = 0;
+			mspState             = MspState::IDLE;
 			break;
 		}
 		break;
 	case MspState::LEN_V1:
 		if (c == 255) {
-			configMsgVersion = MspVersion::V1_JUMBO;
-			mspState         = MspState::JUMBO_LEN_LO_V1;
+			mspMsgVersion = MspVersion::V1_JUMBO;
+			mspState      = MspState::JUMBO_LEN_LO_V1;
 		} else {
-			configMsgLength  = c;
-			configMsgVersion = MspVersion::V1;
-			mspState         = MspState::CMD_V1;
+			mspMspLength  = c;
+			mspMsgVersion = MspVersion::V1;
+			mspState      = MspState::CMD_V1;
 		}
 		break;
 	case MspState::JUMBO_LEN_LO_V1:
-		configMsgLength = c;
-		mspState        = MspState::JUMBO_LEN_HI_V1;
+		mspMspLength = c;
+		mspState     = MspState::JUMBO_LEN_HI_V1;
 		break;
 	case MspState::JUMBO_LEN_HI_V1:
-		configMsgLength |= ((u16)c << 8);
+		mspMspLength |= ((u16)c << 8);
 		mspState = MspState::CMD_V1;
 		break;
 	case MspState::CMD_V1:
 		if (c == 255) {
-			configMsgVersion = configMsgVersion == MspVersion::V1 ? MspVersion::V2_OVER_V1 : MspVersion::V2_OVER_V1_JUMBO;
-			mspState         = MspState::FLAG_V2_OVER_V1;
+			mspMsgVersion = mspMsgVersion == MspVersion::V1 ? MspVersion::V2_OVER_V1 : MspVersion::V2_OVER_V1_JUMBO;
+			mspState      = MspState::FLAG_V2_OVER_V1;
 		} else {
-			configMsgCommand = c;
-			mspState         = configMsgLength ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
+			mspMsgCommand = (MspFn)c;
+			mspState      = mspMspLength ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
 		}
 		break;
 	case MspState::PAYLOAD_V1:
-		if (configSerialBufferIndex == configMsgLength)
+		if (mspSerialBufferIndex == mspMspLength)
 			mspState = MspState::CHECKSUM_V1;
 		break;
 	case MspState::FLAG_V2_OVER_V1:
-		configMsgFlag = c;
-		mspState      = MspState::CMD_LO_V2_OVER_V1;
+		mspMsgFlag = c;
+		mspState   = MspState::CMD_LO_V2_OVER_V1;
 		break;
 	case MspState::CMD_LO_V2_OVER_V1:
-		configMsgCommand = c;
-		mspState         = MspState::CMD_HI_V2_OVER_V1;
+		mspMsgCommand = (MspFn)c;
+		mspState      = MspState::CMD_HI_V2_OVER_V1;
 		break;
 	case MspState::CMD_HI_V2_OVER_V1:
-		configMsgCommand |= ((u16)c << 8);
-		mspState = MspState::LEN_LO_V2_OVER_V1;
+		mspMsgCommand = (MspFn)((u32)mspMsgCommand | (u32)c << 8);
+		mspState      = MspState::LEN_LO_V2_OVER_V1;
 		break;
 	case MspState::LEN_LO_V2_OVER_V1:
-		configMsgLength = c;
-		mspState        = MspState::LEN_HI_V2_OVER_V1;
+		mspMspLength = c;
+		mspState     = MspState::LEN_HI_V2_OVER_V1;
 		break;
 	case MspState::LEN_HI_V2_OVER_V1:
-		configMsgLength |= ((u16)c << 8);
-		mspState = configMsgLength ? MspState::PAYLOAD_V2_OVER_V1 : MspState::CHECKSUM_V2_OVER_V1;
+		mspMspLength |= ((u16)c << 8);
+		mspState = mspMspLength ? MspState::PAYLOAD_V2_OVER_V1 : MspState::CHECKSUM_V2_OVER_V1;
 		break;
 	case MspState::PAYLOAD_V2_OVER_V1:
-		if (configSerialBufferIndex == configMsgLength)
+		if (mspSerialBufferIndex == mspMspLength)
 			mspState = MspState::CHECKSUM_V2_OVER_V1;
 		break;
 	case MspState::CHECKSUM_V2_OVER_V1:
 		mspState = MspState::CHECKSUM_V1;
 		break;
 	case MspState::CHECKSUM_V1:
-		handleConfigCmd();
-		configSerialBufferIndex = 0;
-		mspState                = MspState::IDLE;
+		processMspCmd();
+		mspSerialBufferIndex = 0;
+		mspState             = MspState::IDLE;
 		break;
 	case MspState::TYPE_V2:
-		mspState         = MspState::FLAG_V2;
-		configMsgVersion = MspVersion::V2;
+		mspState      = MspState::FLAG_V2;
+		mspMsgVersion = MspVersion::V2;
 		switch (c) {
 		case '<':
-			configMsgType = MspMsgType::REQUEST;
+			mspMsgType = MspMsgType::REQUEST;
 			break;
 		case '>':
-			configMsgType = MspMsgType::RESPONSE;
+			mspMsgType = MspMsgType::RESPONSE;
 			break;
 		case '!':
-			configMsgType = MspMsgType::ERROR;
+			mspMsgType = MspMsgType::ERROR;
 			break;
 		default:
-			configSerialBufferIndex = 0;
-			mspState                = MspState::IDLE;
+			mspSerialBufferIndex = 0;
+			mspState             = MspState::IDLE;
 			break;
 		}
 		break;
 	case MspState::FLAG_V2:
-		configMsgFlag = c;
-		mspState      = MspState::CMD_LO_V2;
+		mspMsgFlag = c;
+		mspState   = MspState::CMD_LO_V2;
 		break;
 	case MspState::CMD_LO_V2:
-		configMsgCommand = c;
-		mspState         = MspState::CMD_HI_V2;
+		mspMsgCommand = (MspFn)c;
+		mspState      = MspState::CMD_HI_V2;
 		break;
 	case MspState::CMD_HI_V2:
-		configMsgCommand |= ((u16)c << 8);
-		mspState = MspState::LEN_LO_V2;
+		mspMsgCommand = (MspFn)((u32)mspMsgCommand | (u32)c << 8);
+		mspState      = MspState::LEN_LO_V2;
 		break;
 	case MspState::LEN_LO_V2:
-		configMsgLength = c;
-		mspState        = MspState::LEN_HI_V2;
+		mspMspLength = c;
+		mspState     = MspState::LEN_HI_V2;
 		break;
 	case MspState::LEN_HI_V2:
-		configMsgLength |= ((u16)c << 8);
-		payloadStartIndex = configSerialBufferIndex;
-		payloadStopIndex  = payloadStartIndex + configMsgLength;
-		mspState          = configMsgLength ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
+		mspMspLength |= ((u16)c << 8);
+		payloadStartIndex = mspSerialBufferIndex;
+		payloadStopIndex  = payloadStartIndex + mspMspLength;
+		mspState          = mspMspLength ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
 		break;
 	case MspState::PAYLOAD_V2:
-		if (configSerialBufferIndex == payloadStopIndex) {
+		if (mspSerialBufferIndex == payloadStopIndex) {
 			mspState = MspState::CHECKSUM_V2;
 		}
 		break;
 	case MspState::CHECKSUM_V2:
-		handleConfigCmd();
-		configSerialBufferIndex = 0;
-		mspState                = MspState::IDLE;
+		processMspCmd();
+		mspSerialBufferIndex = 0;
+		mspState             = MspState::IDLE;
 		break;
 	}
 	u32 duration = taskTimer;
@@ -660,6 +658,6 @@ void configuratorHandleByte(u8 c, u8 _serialNum) {
 	}
 	if (duration > tasks[TASK_CONFIGURATOR].maxDuration) {
 		tasks[TASK_CONFIGURATOR].maxDuration = duration;
-		tasks[TASK_CONFIGURATOR].debugInfo   = configMsgCommand;
+		tasks[TASK_CONFIGURATOR].debugInfo   = (u32)mspMsgCommand;
 	}
 }

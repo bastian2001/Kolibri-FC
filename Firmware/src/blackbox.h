@@ -82,7 +82,7 @@ bool clearBlackbox();
 void writeSingleFrame();
 
 /**
- * @brief Print a log file to the configurator using ConfigCmd::BB_FILE_DOWNLOAD
+ * @brief Print a log file to the configurator using MspFn::BB_FILE_DOWNLOAD
  *
  * @details Chunk Size is 1024 bytes
  *

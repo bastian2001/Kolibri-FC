@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { port, type Command, ConfigCmd } from '../../portStore';
+	import { port, type Command, MspFn } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
 
 	const TASK_NAMES = [
@@ -55,7 +55,7 @@
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
-				case ConfigCmd.TASK_STATUS:
+				case MspFn.TASK_STATUS:
 					for (let i = 0; i < tasks.length; i++) {
 						tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 32, i * 32 + 4));
 						tasks[i].minDuration = leBytesToInt(command.data.slice(i * 32 + 4, i * 32 + 8));
@@ -73,7 +73,7 @@
 	let interval: number;
 	onMount(() => {
 		interval = setInterval(() => {
-			port.sendCommand('request', ConfigCmd.TASK_STATUS);
+			port.sendCommand('request', MspFn.TASK_STATUS);
 		}, 200);
 	});
 	onDestroy(() => {

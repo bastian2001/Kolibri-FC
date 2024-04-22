@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
-	import { port, type Command, ConfigCmd } from '../portStore';
+	import { port, type Command, MspFn } from '../portStore';
 	import { configuratorLog } from '../logStore';
 	import { leBytesToInt } from '../utils';
 
@@ -62,19 +62,19 @@
 	const unsubscribePort = port.subscribe(command => {
 		if (command.cmdType === 'request') {
 			switch (command.command) {
-				case ConfigCmd.IND_MESSAGE:
+				case MspFn.IND_MESSAGE:
 					configuratorLog.push(command.dataStr);
 					break;
 			}
 		} else if (command.cmdType === 'response') {
 			switch (command.command) {
-				case ConfigCmd.STATUS:
+				case MspFn.STATUS:
 					battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
 					break;
-				case ConfigCmd.PLAY_SOUND:
+				case MspFn.PLAY_SOUND:
 					console.log(command.data);
 					break;
-				case ConfigCmd.SAVE_SETTINGS:
+				case MspFn.SAVE_SETTINGS:
 					configuratorLog.push('EEPROM saved');
 			}
 		}

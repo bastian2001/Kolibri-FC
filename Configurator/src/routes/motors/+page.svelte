@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, ConfigCmd } from '../../portStore';
+	import { port, type Command, MspFn } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import Motor from './motor.svelte';
 	import { leBytesToInt } from '../../utils';
@@ -21,7 +21,7 @@
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
-				case ConfigCmd.GET_MOTORS:
+				case MspFn.GET_MOTORS:
 					{
 						const m = [] as number[];
 						for (let i = 0; i < 4; i++) {
@@ -30,7 +30,7 @@
 						motors = m;
 					}
 					break;
-				case ConfigCmd.ESC_PASSTHROUGH:
+				case MspFn.ESC_PASSTHROUGH:
 					configuratorLog.push('FC reboots into passthrough mode');
 					port.disconnect();
 					break;
@@ -42,7 +42,7 @@
 	function startMotors() {
 		clearInterval(int);
 		int = setInterval(() => {
-			port.sendCommand('request', ConfigCmd.SET_MOTORS, throttlesU8);
+			port.sendCommand('request', MspFn.SET_MOTORS, throttlesU8);
 		}, 100);
 	}
 	function stopMotors() {
@@ -57,11 +57,11 @@
 		throttles = [...throttles];
 	}
 	function startPassthrough() {
-		port.sendCommand('request', ConfigCmd.ESC_PASSTHROUGH);
+		port.sendCommand('request', MspFn.ESC_PASSTHROUGH);
 	}
 	onMount(() => {
 		getMotorsInterval = setInterval(() => {
-			port.sendCommand('request', ConfigCmd.GET_MOTORS);
+			port.sendCommand('request', MspFn.GET_MOTORS);
 		}, 100);
 		port.addOnDisconnectHandler(stopMotors);
 	});

@@ -425,7 +425,7 @@ void pidLoop() {
 	} else {
 		// Quad disarmed or RC disconnected
 		// all motors off
-		if (configOverrideMotors > 1000)
+		if (mspOverrideMotors > 1000)
 			for (int i = 0; i < 4; i++)
 				throttles[i] = 0;
 		if (ELRS->channels[9] < 1500) {

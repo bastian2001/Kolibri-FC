@@ -27,7 +27,7 @@ void modesLoop() {
 				armingDisableFlags |= 0x00000002;
 			// if (lastPvtMessage > 1000)
 			// 	armingDisableFlags |= 0x00000004;
-			if (configuratorConnected && configOverrideMotors > 1000)
+			if (configuratorConnected && mspOverrideMotors > 1000)
 				armingDisableFlags |= 0x00000008;
 			else
 				armingDisableFlags &= 0xFFFFFFF7;

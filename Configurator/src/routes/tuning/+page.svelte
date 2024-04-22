@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, ConfigCmd } from '../../portStore';
+	import { port, type Command, MspFn } from '../../portStore';
 	import { onDestroy, onMount } from 'svelte';
 	import { leBytesToInt } from '../../utils';
 	import { error } from '@sveltejs/kit';
@@ -12,7 +12,7 @@
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
-				case ConfigCmd.GET_PIDS:
+				case MspFn.GET_PIDS:
 					if (command.length !== 3 * 2 * 7) break;
 					for (let ax = 0; ax < 3; ax++) {
 						for (let i = 0; i < 6; i++)
@@ -24,7 +24,7 @@
 						pids[ax][5] = Math.round(pids[ax][5] * 10000) / 10000;
 					}
 					break;
-				case ConfigCmd.GET_RATES:
+				case MspFn.GET_RATES:
 					if (command.length !== 5 * 2 * 3) break;
 					for (let ax = 0; ax < 3; ax++) {
 						for (let i = 0; i < 5; i++)
@@ -33,25 +33,25 @@
 							);
 					}
 					break;
-				case ConfigCmd.SET_PIDS:
+				case MspFn.SET_PIDS:
 					const data = [];
 					for (let ax = 0; ax < 3; ax++)
 						for (let i = 0; i < 5; i++)
 							data.push(rateFactors[ax][i] & 0xff, (rateFactors[ax][i] >> 8) & 0xff);
-					port.sendCommand('request', ConfigCmd.SET_RATES, data);
+					port.sendCommand('request', MspFn.SET_RATES, data);
 					break;
-				case ConfigCmd.SET_RATES:
-					port.sendCommand('request', ConfigCmd.SAVE_SETTINGS);
+				case MspFn.SET_RATES:
+					port.sendCommand('request', MspFn.SAVE_SETTINGS);
 					break;
-				case ConfigCmd.SAVE_SETTINGS:
+				case MspFn.SAVE_SETTINGS:
 					clearTimeout(saveTimeout);
 					break;
 			}
 		}
 	});
 	function getSettings() {
-		port.sendCommand('request', ConfigCmd.GET_PIDS).then(() => {
-			port.sendCommand('request', ConfigCmd.GET_RATES);
+		port.sendCommand('request', MspFn.GET_PIDS).then(() => {
+			port.sendCommand('request', MspFn.GET_RATES);
 		});
 	}
 	onMount(() => {
@@ -90,7 +90,7 @@
 			);
 			data.push(0, 0);
 		}
-		port.sendCommand('request', ConfigCmd.SET_PIDS, data).then(() => {
+		port.sendCommand('request', MspFn.SET_PIDS, data).then(() => {
 			saveTimeout = setTimeout(() => {
 				console.error('Save timeout');
 			}, 500);

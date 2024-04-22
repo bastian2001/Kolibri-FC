@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, ConfigCmd } from '../portStore';
+	import { port, type Command, MspFn } from '../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import { leBytesToInt, roundToDecimal } from '../utils';
 	import { configuratorLog } from '../logStore';
@@ -38,13 +38,13 @@
 		console.log(command.command, command.data);
 		if (command.cmdType === 'response') {
 			switch (command.command) {
-				case ConfigCmd.STATUS:
+				case MspFn.STATUS:
 					armed = command.data[2] === 1;
 					flightMode = command.data[3];
 					armingDisableFlags = leBytesToInt(command.data.slice(4, 8));
 					configuratorConnected = command.data[8] === 1;
 					break;
-				case ConfigCmd.GET_ROTATION:
+				case MspFn.GET_ROTATION:
 					let pitch = leBytesToInt(command.data.slice(0, 2), true);
 					pitch /= 8192.0;
 					pitch *= 180.0 / Math.PI;
@@ -67,31 +67,31 @@
 						heading
 					};
 					break;
-				case ConfigCmd.SERIAL_PASSTHROUGH:
+				case MspFn.SERIAL_PASSTHROUGH:
 					const sPort = command.data[0];
 					const baud = leBytesToInt(command.data.slice(1, 5));
 					configuratorLog.push(
 						`Serial passthrough started on Serial${sPort} with baud rate ${baud}`
 					);
 					port.disconnect();
-				case ConfigCmd.GET_CRASH_DUMP:
+				case MspFn.GET_CRASH_DUMP:
 					console.log(command.data);
 					break;
-				case ConfigCmd.CALIBRATE_ACCELEROMETER:
+				case MspFn.CALIBRATE_ACCELEROMETER:
 					configuratorLog.push('Accelerometer calibrated');
 					break;
-				case ConfigCmd.REBOOT:
+				case MspFn.REBOOT:
 					configuratorLog.push('Rebooting');
 					port.disconnect();
 					break;
-				case ConfigCmd.REBOOT_TO_BOOTLOADER:
+				case MspFn.REBOOT_TO_BOOTLOADER:
 					configuratorLog.push('Rebooting to bootloader');
 					port.disconnect();
 					break;
-				case ConfigCmd.GET_CRASH_DUMP:
+				case MspFn.GET_CRASH_DUMP:
 					configuratorLog.push('See console for crash dump');
 					break;
-				case ConfigCmd.CLEAR_CRASH_DUMP:
+				case MspFn.CLEAR_CRASH_DUMP:
 					configuratorLog.push('Crash dump cleared');
 					break;
 			}
@@ -99,16 +99,16 @@
 	});
 
 	function ledOn() {
-		port.sendCommand('request', ConfigCmd.SET_DEBUG_LED, [1]);
+		port.sendCommand('request', MspFn.SET_DEBUG_LED, [1]);
 	}
 	function ledOff() {
-		port.sendCommand('request', ConfigCmd.SET_DEBUG_LED, [0]);
+		port.sendCommand('request', MspFn.SET_DEBUG_LED, [0]);
 	}
 	function calibrateAccel() {
-		port.sendCommand('request', ConfigCmd.CALIBRATE_ACCELEROMETER);
+		port.sendCommand('request', MspFn.CALIBRATE_ACCELEROMETER);
 	}
 	function playSound() {
-		port.sendCommand('request', ConfigCmd.PLAY_SOUND);
+		port.sendCommand('request', MspFn.PLAY_SOUND);
 	}
 
 	function delay(ms: number) {
@@ -120,7 +120,7 @@
 	let pingInterval = 0;
 	onMount(() => {
 		getRotationInterval = setInterval(() => {
-			port.sendCommand('request', ConfigCmd.GET_ROTATION).catch(() => {});
+			port.sendCommand('request', MspFn.GET_ROTATION).catch(() => {});
 		}, 20);
 		pingInterval = setInterval(() => {
 			fcPing = port.getPingTime();
@@ -158,7 +158,7 @@
 	/>
 	<button
 		on:click={() => {
-			port.sendCommand('request', ConfigCmd.SERIAL_PASSTHROUGH, [
+			port.sendCommand('request', MspFn.SERIAL_PASSTHROUGH, [
 				serialNum,
 				baudRate & 0xff,
 				(baudRate >> 8) & 0xff,
@@ -178,14 +178,12 @@
 				.then(() => port.enableCommands(true));
 		}}>Stop Serial Passthrough</button
 	>
-	<button on:click={() => port.sendCommand('request', ConfigCmd.GET_CRASH_DUMP)}
-		>Get Crash Dump</button
-	>
-	<button on:click={() => port.sendCommand('request', ConfigCmd.CLEAR_CRASH_DUMP)}
+	<button on:click={() => port.sendCommand('request', MspFn.GET_CRASH_DUMP)}>Get Crash Dump</button>
+	<button on:click={() => port.sendCommand('request', MspFn.CLEAR_CRASH_DUMP)}
 		>Clear Crash Dump</button
 	>
-	<button on:click={() => port.sendCommand('request', ConfigCmd.REBOOT)}>Reboot</button>
-	<button on:click={() => port.sendCommand('request', ConfigCmd.REBOOT_TO_BOOTLOADER)}
+	<button on:click={() => port.sendCommand('request', MspFn.REBOOT)}>Reboot</button>
+	<button on:click={() => port.sendCommand('request', MspFn.REBOOT_TO_BOOTLOADER)}
 		>Bootloader</button
 	>
 </div>

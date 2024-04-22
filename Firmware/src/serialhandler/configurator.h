@@ -5,12 +5,12 @@ extern bool configuratorConnected; // true if the configurator is connected
 extern u8 accelCalDone;            // accel calibration flag to send a message to the configurator
 
 /**
- * @brief Kolibri Serial commands
+ * @brief MSP Serial Functions
  *
- * @details These commands are used to communicate with the configurator. Each command has a corresponding response. The command is sent as a 16-bit value, followed by the data. The response is the same 16-bit value, followed by the data. If the command fails, the response is the command with the 0x8000 bit set, followed by the error message. A successful command is responded to with the command | 0x4000, followed by the data. Indicators are commands starting with the 0xC000 bit set.
+ * @details These commands are used to communicate with the configurator and other peripherals. For Kolibri specific functions, the space 0x4000-0x4FFF is used. More details: https://github.com/iNavFlight/inav/wiki/MSP-V2
  */
-enum class ConfigCmd { // commands/responses/errors
-	STATUS,
+enum class MspFn {
+	STATUS = 0x4000,
 	TASK_STATUS,
 	REBOOT,
 	SAVE_SETTINGS,
@@ -47,9 +47,7 @@ enum class ConfigCmd { // commands/responses/errors
 	CALIBRATE_ACCELEROMETER,
 	GET_MAG_DATA,
 	MAG_CALIBRATE,
-
-	// indicators
-	IND_MESSAGE = 0xC000,
+	IND_MESSAGE,
 };
 
 enum class MspState {
@@ -93,13 +91,14 @@ enum class MspVersion {
 };
 
 /**
- * @brief Send a command to the configurator
+ * @brief Send an MSP packet to the configurator
  *
- * @param command command to issue
+ * @param type message type (request, response, error)
+ * @param fn function to send
  * @param data data buffer, default is nullptr for no data
  * @param len length of the data buffer, default is 0
  */
-void sendCommand(MspMsgType type, u16 command, const char *data = nullptr, u16 len = 0);
+void sendMsp(MspMsgType type, MspFn fn, const char *data = nullptr, u16 len = 0);
 
 /**
  * @brief Process a byte from the configurator
@@ -107,11 +106,11 @@ void sendCommand(MspMsgType type, u16 command, const char *data = nullptr, u16 l
  * @param c data byte
  * @param serialNum serial port number to send the response to
  */
-void configuratorHandleByte(u8 c, u8 serialNum);
+void mspHandleByte(u8 c, u8 serialNum);
 
 /// @brief counter for the motor override timeout
 /// @details If the configurator is connected, it can override the motor values when this is < 1000, and it is possible to arm with an attached configurator
-extern elapsedMillis configOverrideMotors;
+extern elapsedMillis mspOverrideMotors;
 
 /// @brief handles configurator pings and asynchronous operations
 void configuratorLoop();

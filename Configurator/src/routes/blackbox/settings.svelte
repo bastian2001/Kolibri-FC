@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, ConfigCmd, type Command } from '../../portStore';
+	import { port, MspFn, type Command } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
 	import { onMount, createEventDispatcher, onDestroy } from 'svelte';
 	const dispatch = createEventDispatcher();
@@ -9,7 +9,7 @@
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
-				case ConfigCmd.GET_BB_SETTINGS:
+				case MspFn.GET_BB_SETTINGS:
 					if (command.length !== 9) break;
 					divider = command.data[0];
 					const selectedBin = leBytesToInt(command.data.slice(1, 5), false);
@@ -21,10 +21,10 @@
 					}
 					selected = sel;
 					break;
-				case ConfigCmd.SET_BB_SETTINGS:
-					port.sendCommand('request', ConfigCmd.SAVE_SETTINGS);
+				case MspFn.SET_BB_SETTINGS:
+					port.sendCommand('request', MspFn.SAVE_SETTINGS);
 					break;
-				case ConfigCmd.SAVE_SETTINGS:
+				case MspFn.SAVE_SETTINGS:
 					dispatch('close');
 					break;
 			}
@@ -51,7 +51,7 @@
 			i += size;
 		}
 		groups = g;
-		port.sendCommand('request', ConfigCmd.GET_BB_SETTINGS);
+		port.sendCommand('request', MspFn.GET_BB_SETTINGS);
 	});
 	onDestroy(() => {
 		unsubscribe();
@@ -66,7 +66,7 @@
 			bytes[byte] |= 1 << bit;
 		}
 
-		port.sendCommand('request', ConfigCmd.SET_BB_SETTINGS, [divider, ...bytes]);
+		port.sendCommand('request', MspFn.SET_BB_SETTINGS, [divider, ...bytes]);
 	}
 	function cancel() {
 		dispatch('close');

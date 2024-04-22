@@ -3,45 +3,45 @@ import { invoke } from '@tauri-apps/api';
 import { tick } from 'svelte';
 import { leBytesToInt } from './utils';
 
-export const ConfigCmd = {
-	STATUS: 0,
-	TASK_STATUS: 1,
-	REBOOT: 2,
-	SAVE_SETTINGS: 3,
-	PLAY_SOUND: 4,
-	BB_FILE_LIST: 5,
-	BB_FILE_INFO: 6,
-	BB_FILE_DOWNLOAD: 7,
-	BB_FILE_DELETE: 8,
-	BB_FORMAT: 9,
-	WRITE_OSD_FONT_CHARACTER: 10,
-	SET_MOTORS: 11,
-	GET_MOTORS: 12,
-	BB_FILE_DOWNLOAD_RAW: 13,
-	SET_DEBUG_LED: 14,
-	CONFIGURATOR_PING: 15,
-	REBOOT_TO_BOOTLOADER: 16,
-	GET_NAME: 17,
-	SET_NAME: 18,
-	GET_PIDS: 19,
-	SET_PIDS: 20,
-	GET_RATES: 21,
-	SET_RATES: 22,
-	GET_BB_SETTINGS: 23,
-	SET_BB_SETTINGS: 24,
-	GET_ROTATION: 25,
-	SERIAL_PASSTHROUGH: 26,
-	GET_GPS_STATUS: 27,
-	GET_GPS_ACCURACY: 28,
-	GET_GPS_TIME: 29,
-	GET_GPS_MOTION: 30,
-	ESC_PASSTHROUGH: 31,
-	GET_CRASH_DUMP: 32,
-	CLEAR_CRASH_DUMP: 33,
-	CALIBRATE_ACCELEROMETER: 34,
-	GET_MAG_DATA: 35,
-	MAG_CALIBRATE: 36,
-	IND_MESSAGE: 0xc000
+export const MspFn = {
+	STATUS: 0x4000,
+	TASK_STATUS: 0x4001,
+	REBOOT: 0x4002,
+	SAVE_SETTINGS: 0x4003,
+	PLAY_SOUND: 0x4004,
+	BB_FILE_LIST: 0x4005,
+	BB_FILE_INFO: 0x4006,
+	BB_FILE_DOWNLOAD: 0x4007,
+	BB_FILE_DELETE: 0x4008,
+	BB_FORMAT: 0x4009,
+	WRITE_OSD_FONT_CHARACTER: 0x400a,
+	SET_MOTORS: 0x400b,
+	GET_MOTORS: 0x400c,
+	BB_FILE_DOWNLOAD_RAW: 0x400d,
+	SET_DEBUG_LED: 0x400e,
+	CONFIGURATOR_PING: 0x400f,
+	REBOOT_TO_BOOTLOADER: 0x4010,
+	GET_NAME: 0x4011,
+	SET_NAME: 0x4012,
+	GET_PIDS: 0x4013,
+	SET_PIDS: 0x4014,
+	GET_RATES: 0x4015,
+	SET_RATES: 0x4016,
+	GET_BB_SETTINGS: 0x4017,
+	SET_BB_SETTINGS: 0x4018,
+	GET_ROTATION: 0x4019,
+	SERIAL_PASSTHROUGH: 0x401a,
+	GET_GPS_STATUS: 0x401b,
+	GET_GPS_ACCURACY: 0x401c,
+	GET_GPS_TIME: 0x401d,
+	GET_GPS_MOTION: 0x401e,
+	ESC_PASSTHROUGH: 0x401f,
+	GET_CRASH_DUMP: 0x4020,
+	CLEAR_CRASH_DUMP: 0x4021,
+	CALIBRATE_ACCELEROMETER: 0x4022,
+	GET_MAG_DATA: 0x4023,
+	MAG_CALIBRATE: 0x4024,
+	IND_MESSAGE: 0x4025
 };
 
 const MspState = {
@@ -100,7 +100,7 @@ function createPort() {
 	subscribe(c => {
 		if (c.cmdType === 'response') {
 			switch (c.command) {
-				case ConfigCmd.CONFIGURATOR_PING:
+				case MspFn.CONFIGURATOR_PING:
 					// pong response from FC received
 					fcPing = Date.now() - pingStarted;
 					break;
@@ -345,11 +345,11 @@ function createPort() {
 					cmdEnabled = true;
 					readInterval = setInterval(read, 3);
 					pingInterval = setInterval(() => {
-						sendCommand('request', ConfigCmd.CONFIGURATOR_PING).catch(() => {});
+						sendCommand('request', MspFn.CONFIGURATOR_PING).catch(() => {});
 						pingStarted = Date.now();
 					}, 200);
 					statusInterval = setInterval(() => {
-						sendCommand('request', ConfigCmd.STATUS).catch(() => {});
+						sendCommand('request', MspFn.STATUS).catch(() => {});
 					}, 1000);
 					onConnectHandlers.forEach(h => h());
 					resolve();

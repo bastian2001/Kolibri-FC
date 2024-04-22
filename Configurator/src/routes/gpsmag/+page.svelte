@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, ConfigCmd } from '../../portStore';
+	import { port, type Command, MspFn } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import { leBytesToInt, roundToDecimal } from '../../utils';
 	let canvasxy: HTMLCanvasElement;
@@ -90,7 +90,7 @@
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
-				case ConfigCmd.GET_MAG_DATA:
+				case MspFn.GET_MAG_DATA:
 					if (!canvasxy || !canvasyz || !canvaszx) return;
 					const ctxxy = canvasxy.getContext('2d');
 					const ctxyz = canvasyz.getContext('2d');
@@ -121,7 +121,7 @@
 					ctxzx.arc(zpx, xpx, 2, 0, 2 * Math.PI);
 					ctxzx.fill();
 					break;
-				case ConfigCmd.GET_GPS_ACCURACY:
+				case MspFn.GET_GPS_ACCURACY:
 					gpsAcc = {
 						tAcc: leBytesToInt(command.data.slice(0, 4)) * 1e-3,
 						hAcc: leBytesToInt(command.data.slice(4, 8)) * 1e-3,
@@ -131,7 +131,7 @@
 						pDop: leBytesToInt(command.data.slice(20, 24)) * 0.01
 					};
 					break;
-				case ConfigCmd.GET_GPS_MOTION:
+				case MspFn.GET_GPS_MOTION:
 					gpsMotion = {
 						lat: leBytesToInt(command.data.slice(0, 4), true) * 1e-7,
 						lon: leBytesToInt(command.data.slice(4, 8), true) * 1e-7,
@@ -145,7 +145,7 @@
 					combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
 					verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
 					break;
-				case ConfigCmd.GET_GPS_STATUS:
+				case MspFn.GET_GPS_STATUS:
 					gpsStatus = {
 						gpsInited: command.data[0] === 1,
 						initStep: command.data[1],
@@ -157,7 +157,7 @@
 						satCount: command.data[8]
 					};
 					break;
-				case ConfigCmd.GET_GPS_TIME:
+				case MspFn.GET_GPS_TIME:
 					gpsTime = {
 						year: leBytesToInt(command.data.slice(0, 2)),
 						month: command.data[2],
@@ -173,21 +173,21 @@
 
 	onMount(() => {
 		magPointInterval = setInterval(() => {
-			port.sendCommand('request', ConfigCmd.GET_MAG_DATA);
+			port.sendCommand('request', MspFn.GET_MAG_DATA);
 		}, 50);
 		getGpsData = setInterval(() => {
 			port
-				.sendCommand('request', ConfigCmd.GET_GPS_ACCURACY)
+				.sendCommand('request', MspFn.GET_GPS_ACCURACY)
 				.then(() => {
-					return port.sendCommand('request', ConfigCmd.GET_GPS_MOTION);
+					return port.sendCommand('request', MspFn.GET_GPS_MOTION);
 				})
 				.catch(() => {});
 		}, 200);
 		gpsDataSlow = setInterval(() => {
 			port
-				.sendCommand('request', ConfigCmd.GET_GPS_STATUS)
+				.sendCommand('request', MspFn.GET_GPS_STATUS)
 				.then(() => {
-					return port.sendCommand('request', ConfigCmd.GET_GPS_TIME);
+					return port.sendCommand('request', MspFn.GET_GPS_TIME);
 				})
 				.catch(() => {});
 		}, 1000);
@@ -226,7 +226,7 @@
 	bind:this={canvaszx}
 	style="display:inline-block; border: 1px solid white;"
 /><br />
-<button on:click={() => port.sendCommand('request', ConfigCmd.MAG_CALIBRATE)}
+<button on:click={() => port.sendCommand('request', MspFn.MAG_CALIBRATE)}
 	>Calibrate Magnetometer</button
 ><br />
 <div class="gpsInfo magStatus">

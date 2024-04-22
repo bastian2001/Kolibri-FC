@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { port, type Command, ConfigCmd } from '../../portStore';
+	import { port, type Command, MspFn } from '../../portStore';
 	import { configuratorLog } from '../../logStore';
 	import TracePlacer from './tracePlacer.svelte';
 	import Timeline from './timeline.svelte';
@@ -1166,7 +1166,7 @@
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
-				case ConfigCmd.BB_FILE_LIST:
+				case MspFn.BB_FILE_LIST:
 					logNums = command.data.map(n => ({ text: '', num: n }));
 					if (!logNums.length) {
 						logNums = [{ text: 'No logs found', num: -1 }];
@@ -1177,13 +1177,13 @@
 					logInfoPosition = 0;
 					logInfoInterval = setInterval(getLogInfo, 100);
 					break;
-				case ConfigCmd.BB_FILE_INFO:
+				case MspFn.BB_FILE_INFO:
 					processLogInfo(command.data);
 					break;
-				case ConfigCmd.BB_FILE_DOWNLOAD:
+				case MspFn.BB_FILE_DOWNLOAD:
 					handleFileChunk(command.data);
 					break;
-				case ConfigCmd.BB_FILE_DELETE:
+				case MspFn.BB_FILE_DELETE:
 					const index = logNums.findIndex(l => l.num === selected);
 					if (index !== -1) logNums.splice(index, 1);
 					logNums = [...logNums];
@@ -1193,23 +1193,23 @@
 					} else if (index >= logNums.length) selected = logNums[logNums.length - 1].num;
 					else selected = logNums[index].num;
 					break;
-				case ConfigCmd.BB_FORMAT:
+				case MspFn.BB_FORMAT:
 					configuratorLog.push('Blackbox formatted');
 					break;
 				default:
 					if (
 						typeof command.command === 'number' &&
 						!Number.isNaN(command.command) &&
-						!Object.values(ConfigCmd).includes(command.command & 0x3fff)
+						!Object.values(MspFn).includes(command.command & 0x3fff)
 					)
 						console.log({ ...command });
 			}
 		} else if (command.cmdType === 'error') {
 			switch (command.command) {
-				case ConfigCmd.BB_FORMAT:
+				case MspFn.BB_FORMAT:
 					configuratorLog.push('Blackbox format failed');
 					break;
-				case ConfigCmd.BB_FILE_DELETE:
+				case MspFn.BB_FILE_DELETE:
 					configuratorLog.push(`Deleting file ${command.data[0]} failed`);
 					break;
 			}
@@ -1245,7 +1245,7 @@
 			for (let i = 0; i < totalChunks; i++) {
 				if (!receivedChunks[i]) {
 					console.log('Missing chunk: ' + i);
-					port.sendCommand('request', ConfigCmd.BB_FILE_DOWNLOAD, [
+					port.sendCommand('request', MspFn.BB_FILE_DOWNLOAD, [
 						binFileNumber,
 						i & 0xff,
 						(i >> 8) & 0xff
@@ -1738,7 +1738,7 @@
 		for (let i = 0; i < infoNums.length; i++) checksum ^= infoNums[i];
 		checksum ^= 0x06;
 		checksum ^= infoNums.length;
-		port.sendCommand('request', ConfigCmd.BB_FILE_INFO, infoNums);
+		port.sendCommand('request', MspFn.BB_FILE_INFO, infoNums);
 	}
 
 	function processLogInfo(data: number[]) {
@@ -2394,7 +2394,7 @@
 	}
 
 	function deleteLog() {
-		port.sendCommand('request', ConfigCmd.BB_FILE_DELETE, [selected]);
+		port.sendCommand('request', MspFn.BB_FILE_DELETE, [selected]);
 	}
 	function openLog() {
 		getLog(selected)
@@ -2447,7 +2447,7 @@
 	function getLog(num: number): Promise<BBLog> {
 		binFileNumber = -1;
 
-		port.sendCommand('request', ConfigCmd.BB_FILE_DOWNLOAD, [num]);
+		port.sendCommand('request', MspFn.BB_FILE_DOWNLOAD, [num]);
 		return new Promise((resolve, reject) => {
 			resolveWhenReady = resolve;
 			rejectWrongFile = reject;
@@ -2472,7 +2472,7 @@
 		}
 	}
 	function formatBB() {
-		port.sendCommand('request', ConfigCmd.BB_FORMAT);
+		port.sendCommand('request', MspFn.BB_FORMAT);
 	}
 
 	function addTrace(graphIndex: number) {
@@ -2522,7 +2522,7 @@
 		drawCanvas();
 	}
 	function getFileList() {
-		port.sendCommand('request', ConfigCmd.BB_FILE_LIST).catch(console.error);
+		port.sendCommand('request', MspFn.BB_FILE_LIST).catch(console.error);
 	}
 	onMount(() => {
 		mounted = true;

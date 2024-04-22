@@ -8,7 +8,7 @@ Stream *serials[3] = {
 
 // 0 = serial, 1 = serial1, 2 = serial2
 u32 serialFunctions[3] = {
-	SERIAL_CONFIGURATOR,
+	SERIAL_MSP,
 	SERIAL_ELRS,
 	SERIAL_GPS};
 
@@ -22,10 +22,10 @@ void serialLoop() {
 		int available  = serial->available();
 		for (int j = 0; j < available; j++) {
 			readChar = serial->read();
-			if (serialFunctions[i] & SERIAL_CONFIGURATOR) {
+			if (serialFunctions[i] & SERIAL_MSP) {
 				rp2040.wdt_reset();
 				elapsedMicros timer = 0;
-				configuratorHandleByte(readChar, i % 3);
+				mspHandleByte(readChar, i % 3);
 				taskTimer -= timer;
 			}
 			if (serialFunctions[i] & SERIAL_ELRS) {
@@ -39,8 +39,6 @@ void serialLoop() {
 					gpsBuffer.push(readChar);
 			}
 			if (serialFunctions[i] & SERIAL_IRC_TRAMP) {
-			}
-			if (serialFunctions[i] & SERIAL_MSP) {
 			}
 			if (serialFunctions[i] & SERIAL_SMARTAUDIO) {
 			}
