@@ -7,6 +7,8 @@ u8 accelCalDone          = 0;
 MspFn mspMsgCommand;
 MspMsgType mspMsgType    = MspMsgType::ERROR;
 u8 mspMsgFlag            = 0;
+u32 mspCrcV1             = 0;
+u32 mspCrcV2             = 0;
 MspVersion mspMsgVersion = MspVersion::V2;
 
 MspState mspState = MspState::IDLE;
@@ -37,12 +39,15 @@ void sendMsp(MspMsgType type, MspFn fn, const char *data, u16 len) {
 
 	if (data == nullptr)
 		len = 0;
-	u8 crc = ((u32)fn & 0xFF) ^ ((u32)fn >> 8) ^ (len & 0xFF) ^ (len >> 8);
-	for (int i = 0; i < len; i++) {
-		Serial.write(data[i]);
-		crc ^= data[i];
+	u32 crc = 0;
+	for (int i = 3; i < 8; i++) {
+		crc = crcLutD5[crc ^ header[i]];
 	}
-	Serial.write(crc);
+	for (int i = 0; i < len; i++) {
+		crc = crcLutD5[crc ^ data[i]];
+	}
+	Serial.write(data, len);
+	Serial.write((u8)crc);
 }
 
 void processMspCmd() {
@@ -519,6 +524,7 @@ void mspHandleByte(u8 c, u8 _serialNum) {
 		}
 		break;
 	case MspState::TYPE_V1:
+		mspCrcV1 = 0;
 		mspState = MspState::LEN_V1;
 		switch (c) {
 		case '<':
@@ -537,6 +543,7 @@ void mspHandleByte(u8 c, u8 _serialNum) {
 		}
 		break;
 	case MspState::LEN_V1:
+		mspCrcV1 ^= c;
 		if (c == 255) {
 			mspMsgVersion = MspVersion::V1_JUMBO;
 			mspState      = MspState::JUMBO_LEN_LO_V1;
@@ -548,13 +555,16 @@ void mspHandleByte(u8 c, u8 _serialNum) {
 		break;
 	case MspState::JUMBO_LEN_LO_V1:
 		mspMspLength = c;
-		mspState     = MspState::JUMBO_LEN_HI_V1;
+		mspCrcV1 ^= c;
+		mspState = MspState::JUMBO_LEN_HI_V1;
 		break;
 	case MspState::JUMBO_LEN_HI_V1:
 		mspMspLength |= ((u16)c << 8);
+		mspCrcV1 ^= c;
 		mspState = MspState::CMD_V1;
 		break;
 	case MspState::CMD_V1:
+		mspCrcV1 ^= c;
 		if (c == 255) {
 			mspMsgVersion = mspMsgVersion == MspVersion::V1 ? MspVersion::V2_OVER_V1 : MspVersion::V2_OVER_V1_JUMBO;
 			mspState      = MspState::FLAG_V2_OVER_V1;
@@ -564,38 +574,58 @@ void mspHandleByte(u8 c, u8 _serialNum) {
 		}
 		break;
 	case MspState::PAYLOAD_V1:
+		mspCrcV1 ^= c;
 		if (mspSerialBufferIndex == mspMspLength)
 			mspState = MspState::CHECKSUM_V1;
 		break;
 	case MspState::FLAG_V2_OVER_V1:
 		mspMsgFlag = c;
-		mspState   = MspState::CMD_LO_V2_OVER_V1;
+		mspCrcV1 ^= c;
+		mspCrcV2 = crcLutD5[c];
+		mspState = MspState::CMD_LO_V2_OVER_V1;
 		break;
 	case MspState::CMD_LO_V2_OVER_V1:
 		mspMsgCommand = (MspFn)c;
-		mspState      = MspState::CMD_HI_V2_OVER_V1;
+		mspCrcV1 ^= c;
+		mspCrcV2 = crcLutD5[c ^ mspCrcV2];
+		mspState = MspState::CMD_HI_V2_OVER_V1;
 		break;
 	case MspState::CMD_HI_V2_OVER_V1:
 		mspMsgCommand = (MspFn)((u32)mspMsgCommand | (u32)c << 8);
-		mspState      = MspState::LEN_LO_V2_OVER_V1;
+		mspCrcV1 ^= c;
+		mspCrcV2 = crcLutD5[c ^ mspCrcV2];
+		mspState = MspState::LEN_LO_V2_OVER_V1;
 		break;
 	case MspState::LEN_LO_V2_OVER_V1:
 		mspMspLength = c;
-		mspState     = MspState::LEN_HI_V2_OVER_V1;
+		mspCrcV1 ^= c;
+		mspCrcV2 = crcLutD5[c ^ mspCrcV2];
+		mspState = MspState::LEN_HI_V2_OVER_V1;
 		break;
 	case MspState::LEN_HI_V2_OVER_V1:
 		mspMspLength |= ((u16)c << 8);
+		mspCrcV1 ^= c;
+		mspCrcV2 = crcLutD5[c ^ mspCrcV2];
 		mspState = mspMspLength ? MspState::PAYLOAD_V2_OVER_V1 : MspState::CHECKSUM_V2_OVER_V1;
 		break;
 	case MspState::PAYLOAD_V2_OVER_V1:
+		mspCrcV1 ^= c;
+		mspCrcV2 = crcLutD5[c ^ mspCrcV2];
 		if (mspSerialBufferIndex == mspMspLength)
 			mspState = MspState::CHECKSUM_V2_OVER_V1;
 		break;
 	case MspState::CHECKSUM_V2_OVER_V1:
+		if (c != mspCrcV2) {
+			mspSerialBufferIndex = 0;
+			mspState             = MspState::IDLE;
+			break;
+		}
+		mspCrcV1 ^= c;
 		mspState = MspState::CHECKSUM_V1;
 		break;
 	case MspState::CHECKSUM_V1:
-		processMspCmd();
+		if (c == mspCrcV1)
+			processMspCmd();
 		mspSerialBufferIndex = 0;
 		mspState             = MspState::IDLE;
 		break;
@@ -620,33 +650,39 @@ void mspHandleByte(u8 c, u8 _serialNum) {
 		break;
 	case MspState::FLAG_V2:
 		mspMsgFlag = c;
+		mspCrcV2   = crcLutD5[c];
 		mspState   = MspState::CMD_LO_V2;
 		break;
 	case MspState::CMD_LO_V2:
 		mspMsgCommand = (MspFn)c;
+		mspCrcV2      = crcLutD5[c ^ mspCrcV2];
 		mspState      = MspState::CMD_HI_V2;
 		break;
 	case MspState::CMD_HI_V2:
 		mspMsgCommand = (MspFn)((u32)mspMsgCommand | (u32)c << 8);
+		mspCrcV2      = crcLutD5[c ^ mspCrcV2];
 		mspState      = MspState::LEN_LO_V2;
 		break;
 	case MspState::LEN_LO_V2:
 		mspMspLength = c;
+		mspCrcV2     = crcLutD5[c ^ mspCrcV2];
 		mspState     = MspState::LEN_HI_V2;
 		break;
 	case MspState::LEN_HI_V2:
 		mspMspLength |= ((u16)c << 8);
 		payloadStartIndex = mspSerialBufferIndex;
 		payloadStopIndex  = payloadStartIndex + mspMspLength;
+		mspCrcV2          = crcLutD5[c ^ mspCrcV2];
 		mspState          = mspMspLength ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
 		break;
 	case MspState::PAYLOAD_V2:
-		if (mspSerialBufferIndex == payloadStopIndex) {
+		mspCrcV2 = crcLutD5[c ^ mspCrcV2];
+		if (mspSerialBufferIndex == payloadStopIndex)
 			mspState = MspState::CHECKSUM_V2;
-		}
 		break;
 	case MspState::CHECKSUM_V2:
-		processMspCmd();
+		if (c == mspCrcV2)
+			processMspCmd();
 		mspSerialBufferIndex = 0;
 		mspState             = MspState::IDLE;
 		break;

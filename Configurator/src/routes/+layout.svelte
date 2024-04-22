@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
-	import { port, type Command, MspFn } from '../portStore';
+	import { port, MspFn } from '../portStore';
 	import { configuratorLog } from '../logStore';
 	import { leBytesToInt } from '../utils';
 

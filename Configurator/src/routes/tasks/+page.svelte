@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { port, type Command, MspFn } from '../../portStore';
+	import { port, MspFn } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
 
 	const TASK_NAMES = [

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, MspFn } from '../../portStore';
+	import { port, MspFn, MspVersion } from '../../portStore';
 	import { onDestroy, onMount } from 'svelte';
 	import { leBytesToInt } from '../../utils';
 	import { error } from '@sveltejs/kit';
@@ -38,7 +38,7 @@
 					for (let ax = 0; ax < 3; ax++)
 						for (let i = 0; i < 5; i++)
 							data.push(rateFactors[ax][i] & 0xff, (rateFactors[ax][i] >> 8) & 0xff);
-					port.sendCommand('request', MspFn.SET_RATES, data);
+					port.sendCommand('request', MspFn.SET_RATES, MspVersion.V2, data);
 					break;
 				case MspFn.SET_RATES:
 					port.sendCommand('request', MspFn.SAVE_SETTINGS);
@@ -90,7 +90,7 @@
 			);
 			data.push(0, 0);
 		}
-		port.sendCommand('request', MspFn.SET_PIDS, data).then(() => {
+		port.sendCommand('request', MspFn.SET_PIDS, MspVersion.V2, data).then(() => {
 			saveTimeout = setTimeout(() => {
 				console.error('Save timeout');
 			}, 500);

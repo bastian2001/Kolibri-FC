@@ -70,7 +70,7 @@ const MspState = {
 	CHECKSUM_V2: 23
 };
 
-const MspVersion = {
+export const MspVersion = {
 	V1_JUMBO: 0,
 	V1: 1,
 	V2: 2,
@@ -132,20 +132,13 @@ function createPort() {
 	const sendCommand = (
 		type: 'request' | 'response' | 'error',
 		command: number,
+		version: number = MspVersion.V2,
 		data: number[] = [],
 		dataStr: string = ''
 	) => {
 		if (!cmdEnabled) return new Promise((resolve: any) => resolve());
 		if (data.length === 0 && dataStr !== '') data = strToArray(dataStr);
 		const len = data.length;
-		let checksum = 0;
-		for (let i = 0; i < len; i++) {
-			checksum ^= data[i];
-		}
-		checksum ^= command & 0xff;
-		checksum ^= (command >> 8) & 0xff;
-		checksum ^= len & 0xff;
-		checksum ^= (len >> 8) & 0xff;
 		const typeLut = {
 			request: 60,
 			response: 62,
@@ -159,9 +152,31 @@ function createPort() {
 			(command >> 8) & 0xff,
 			len & 0xff,
 			(len >> 8) & 0xff,
-			...data,
-			checksum
+			...data
 		];
+		const crcV2StartLut = {
+			[MspVersion.V2]: 3,
+			[MspVersion.V2_OVER_V1]: 5,
+			[MspVersion.V2_OVER_V1_JUMBO]: 7,
+			[MspVersion.V1]: 0x7fffffff, // such that slice returns empty array
+			[MspVersion.V1_JUMBO]: 0x7fffffff // such that slice returns empty array
+		};
+
+		let checksumV1 = cmd.slice(3).reduce((a, b) => a ^ b, 0),
+			checksumV2 = cmd.slice(crcV2StartLut[version]).reduce(crc8DvbS2, 0);
+		if ([MspVersion.V2, MspVersion.V2_OVER_V1, MspVersion.V2_OVER_V1_JUMBO].includes(version)) {
+			cmd.push(checksumV2);
+		}
+		if (
+			[
+				MspVersion.V1,
+				MspVersion.V1_JUMBO,
+				MspVersion.V2_OVER_V1,
+				MspVersion.V2_OVER_V1_JUMBO
+			].includes(version)
+		) {
+			cmd.push(checksumV1);
+		}
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_write', { data: cmd })
 				.then(resolve)
@@ -192,6 +207,19 @@ function createPort() {
 		version: MspVersion.V2
 	};
 	let mspState = 0;
+	let checksumV1 = 0,
+		checksumV2 = 0;
+	function crc8DvbS2(crc: number, data: number): number {
+		crc ^= data;
+		for (let i = 0; i < 8; i++) {
+			if (crc & 0x80) {
+				crc = (crc << 1) ^ 0xd5;
+			} else {
+				crc <<= 1;
+			}
+		}
+		return crc & 0xff;
+	}
 	const read = () => {
 		invoke('serial_read')
 			.then(d => {
@@ -215,6 +243,7 @@ function createPort() {
 							break;
 						case MspState.TYPE_V1:
 							mspState = MspState.LEN_V1;
+							checksumV1 = 0;
 							newCommand.version = MspVersion.V1;
 							switch (c) {
 								case 60: // '<'
@@ -232,6 +261,7 @@ function createPort() {
 							}
 							break;
 						case MspState.LEN_V1:
+							checksumV1 ^= c;
 							if (c === 255) {
 								mspState = MspState.JUMBO_LEN_LO_V1;
 							} else {
@@ -240,16 +270,20 @@ function createPort() {
 							}
 							break;
 						case MspState.JUMBO_LEN_LO_V1:
+							checksumV1 ^= c;
 							newCommand.length = c;
 							mspState = MspState.JUMBO_LEN_HI_V1;
 							break;
 						case MspState.JUMBO_LEN_HI_V1:
+							checksumV1 ^= c;
 							newCommand.length += c << 8;
 							newCommand.version = MspVersion.V1_JUMBO;
 							mspState = MspState.CMD_V1;
 							break;
 						case MspState.CMD_V1:
+							checksumV1 ^= c;
 							if (c === 255) {
+								checksumV2 = 0;
 								mspState = MspState.FLAG_V2_OVER_V1;
 							} else {
 								newCommand.command = c;
@@ -259,18 +293,25 @@ function createPort() {
 						case MspState.PAYLOAD_V1:
 							newCommand.data.push(c);
 							newCommand.dataStr += String.fromCharCode(c);
+							checksumV1 ^= c;
 							if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V1;
 							break;
 						case MspState.FLAG_V2_OVER_V1:
-							mspState = MspState.CMD_LO_V2_OVER_V1;
 							newCommand.flag = c;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = MspState.CMD_LO_V2_OVER_V1;
 							break;
 						case MspState.CMD_LO_V2_OVER_V1:
 							newCommand.command = c;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							mspState = MspState.CMD_HI_V2_OVER_V1;
 							break;
 						case MspState.CMD_HI_V2_OVER_V1:
 							newCommand.command += c << 8;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							newCommand.version =
 								newCommand.version === MspVersion.V1_JUMBO
 									? MspVersion.V2_OVER_V1_JUMBO
@@ -279,29 +320,41 @@ function createPort() {
 							break;
 						case MspState.LEN_LO_V2_OVER_V1:
 							newCommand.length = c;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							mspState = MspState.LEN_HI_V2_OVER_V1;
 							break;
 						case MspState.LEN_HI_V2_OVER_V1:
 							newCommand.length += c << 8;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							mspState =
 								newCommand.length > 0 ? MspState.PAYLOAD_V2_OVER_V1 : MspState.CHECKSUM_V2_OVER_V1;
 							break;
 						case MspState.PAYLOAD_V2_OVER_V1:
 							newCommand.data.push(c);
 							newCommand.dataStr += String.fromCharCode(c);
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							if (newCommand.data.length === newCommand.length)
 								mspState = MspState.CHECKSUM_V2_OVER_V1;
 							break;
 						case MspState.CHECKSUM_V2_OVER_V1:
+							if (checksumV2 !== c) {
+								mspState = MspState.IDLE;
+								break;
+							}
+							checksumV1 ^= c;
 							mspState = MspState.CHECKSUM_V1;
 							break;
 						case MspState.CHECKSUM_V1:
-							set(newCommand);
+							if (checksumV1 === c) set(newCommand);
 							mspState = MspState.IDLE;
 							break;
 						case MspState.TYPE_V2:
 							mspState = MspState.FLAG_V2;
 							newCommand.version = MspVersion.V2;
+							checksumV2 = 0;
 							switch (c) {
 								case 60: // '<'
 									newCommand.cmdType = 'request';
@@ -319,32 +372,38 @@ function createPort() {
 							break;
 						case MspState.FLAG_V2:
 							newCommand.flag = c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							mspState = MspState.CMD_LO_V2;
 							break;
 						case MspState.CMD_LO_V2:
 							newCommand.command = c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							mspState = MspState.CMD_HI_V2;
 							break;
 						case MspState.CMD_HI_V2:
 							newCommand.command += c << 8;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							mspState = MspState.LEN_LO_V2;
 							break;
 						case MspState.LEN_LO_V2:
 							newCommand.length = c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							mspState = MspState.LEN_HI_V2;
 							break;
 						case MspState.LEN_HI_V2:
 							newCommand.length += c << 8;
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							mspState = newCommand.length > 0 ? MspState.PAYLOAD_V2 : MspState.CHECKSUM_V2;
 							break;
 						case MspState.PAYLOAD_V2:
 							newCommand.data.push(c);
 							newCommand.dataStr += String.fromCharCode(c);
+							checksumV2 = crc8DvbS2(checksumV2, c);
 							if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V2;
 							break;
 						case MspState.CHECKSUM_V2:
+							if (checksumV2 === c) set(newCommand);
 							mspState = MspState.IDLE;
-							set(newCommand);
 							break;
 					}
 				});

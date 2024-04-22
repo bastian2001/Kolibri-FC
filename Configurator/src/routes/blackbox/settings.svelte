@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, MspFn, type Command } from '../../portStore';
+	import { port, MspFn, MspVersion } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
 	import { onMount, createEventDispatcher, onDestroy } from 'svelte';
 	const dispatch = createEventDispatcher();
@@ -66,7 +66,7 @@
 			bytes[byte] |= 1 << bit;
 		}
 
-		port.sendCommand('request', MspFn.SET_BB_SETTINGS, [divider, ...bytes]);
+		port.sendCommand('request', MspFn.SET_BB_SETTINGS, MspVersion.V2, [divider, ...bytes]);
 	}
 	function cancel() {
 		dispatch('close');

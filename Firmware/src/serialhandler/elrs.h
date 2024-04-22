@@ -77,7 +77,6 @@ private:
 	static const u8 PARAMETER_WRITE           = 0x2D;
 	static const u8 COMMAND                   = 0x32;
 	static const u8 MSP_REQ                   = 0x7A;
-	static u32 crcLut[256];
 	static interp_config interpConfig0; // used to interpolate for smooth sticks
 	static interp_config interpConfig1; // used to interpolate for smooth sticks
 	static interp_config interpConfig2; // used to clamp smoothed values

@@ -10,5 +10,10 @@
 #define SERIAL_ESC_TELEM 1 << 5
 #define SERIAL_MSP 1 << 6
 
+extern u32 crcLutD5[256]; // u32 is used because it is faster than u8
+
+/// @brief fills crcLutD5
+void initSerial();
+
 /// @brief reads the serial port and sends it to the appropriate handler
 void serialLoop();

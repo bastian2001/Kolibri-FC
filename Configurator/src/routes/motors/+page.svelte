@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, MspFn } from '../../portStore';
+	import { port, MspFn, MspVersion } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import Motor from './motor.svelte';
 	import { leBytesToInt } from '../../utils';
@@ -42,7 +42,7 @@
 	function startMotors() {
 		clearInterval(int);
 		int = setInterval(() => {
-			port.sendCommand('request', MspFn.SET_MOTORS, throttlesU8);
+			port.sendCommand('request', MspFn.SET_MOTORS, MspVersion.V2, throttlesU8);
 		}, 100);
 	}
 	function stopMotors() {

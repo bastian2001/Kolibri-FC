@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, MspFn } from '../portStore';
+	import { port, MspFn, MspVersion } from '../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import { leBytesToInt, roundToDecimal } from '../utils';
 	import { configuratorLog } from '../logStore';
@@ -98,10 +98,10 @@
 	});
 
 	function ledOn() {
-		port.sendCommand('request', MspFn.SET_DEBUG_LED, [1]);
+		port.sendCommand('request', MspFn.SET_DEBUG_LED, MspVersion.V2, [1]);
 	}
 	function ledOff() {
-		port.sendCommand('request', MspFn.SET_DEBUG_LED, [0]);
+		port.sendCommand('request', MspFn.SET_DEBUG_LED, MspVersion.V2, [0]);
 	}
 	function calibrateAccel() {
 		port.sendCommand('request', MspFn.CALIBRATE_ACCELEROMETER);
@@ -157,7 +157,7 @@
 	/>
 	<button
 		on:click={() => {
-			port.sendCommand('request', MspFn.SERIAL_PASSTHROUGH, [
+			port.sendCommand('request', MspFn.SERIAL_PASSTHROUGH, MspVersion.V2, [
 				serialNum,
 				baudRate & 0xff,
 				(baudRate >> 8) & 0xff,

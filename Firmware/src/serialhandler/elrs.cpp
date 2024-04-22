@@ -1,7 +1,6 @@
 #include "global.h"
 #include "hardware/interp.h"
 RingBuffer<u8> elrsBuffer(260);
-u32 ExpressLRS::crcLut[256] = {0};
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 
 ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
@@ -16,16 +15,6 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	elrsSerial.setRTS(UART_PIN_NOT_DEFINED);
 	elrsSerial.setFIFOSize(256);
 	elrsSerial.begin(baudrate, SERIAL_8N1);
-	for (u32 i = 0; i < 256; i++) {
-		u32 crc = i;
-		for (u32 j = 0; j < 8; j++) {
-			if (crc & 0x80)
-				crc = (crc << 1) ^ 0xD5;
-			else
-				crc <<= 1;
-		}
-		crcLut[i] = crc & 0xFF;
-	}
 	interpConfig0 = interp_default_config();
 	interp_config_set_blend(&interpConfig0, 1);
 	interpConfig1 = interp_default_config();
@@ -96,7 +85,7 @@ void ExpressLRS::loop() {
 			u32 telemCrc    = 0;
 			for (int i = 2; i < 18; i++) {
 				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
+				telemCrc = crcLutD5[telemCrc];
 			}
 			telemBuffer[18] = telemCrc;
 			telemLen        = 19;
@@ -112,7 +101,7 @@ void ExpressLRS::loop() {
 			u32 telemCrc   = 0;
 			for (int i = 2; i < 5; i++) {
 				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
+				telemCrc = crcLutD5[telemCrc];
 			}
 			telemBuffer[5] = telemCrc;
 			telemLen       = 6;
@@ -135,7 +124,7 @@ void ExpressLRS::loop() {
 			u32 telemCrc    = 0;
 			for (int i = 2; i < 11; i++) {
 				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
+				telemCrc = crcLutD5[telemCrc];
 			}
 			telemBuffer[11] = telemCrc;
 			telemLen        = 12;
@@ -155,7 +144,7 @@ void ExpressLRS::loop() {
 			u32 telemCrc   = 0;
 			for (int i = 2; i < 7; i++) {
 				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
+				telemCrc = crcLutD5[telemCrc];
 			}
 			telemBuffer[7] = telemCrc;
 			telemLen       = 8;
@@ -177,7 +166,7 @@ void ExpressLRS::loop() {
 			u32 telemCrc   = 0;
 			for (int i = 2; i < 9; i++) {
 				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
+				telemCrc = crcLutD5[telemCrc];
 			}
 			telemBuffer[9] = telemCrc;
 			telemLen       = 10;
@@ -211,7 +200,7 @@ void ExpressLRS::loop() {
 			u32 telemCrc = 0;
 			for (int i = 2; i < 1 + telemBuffer[1]; i++) {
 				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
+				telemCrc = crcLutD5[telemCrc];
 			}
 			telemBuffer[1 + telemBuffer[1]] = telemCrc;
 			telemLen                        = 2 + telemBuffer[1];
@@ -229,7 +218,7 @@ void ExpressLRS::loop() {
 		msgBuffer[msgBufIndex] = elrsBuffer.pop();
 		if (msgBufIndex >= 2) {
 			crc ^= msgBuffer[msgBufIndex];
-			crc = crcLut[crc];
+			crc = crcLutD5[crc];
 		} else
 			crc = 0;
 		msgBufIndex++;

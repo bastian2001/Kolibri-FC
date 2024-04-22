@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, MspFn } from '../../portStore';
+	import { port, MspFn } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import { leBytesToInt, roundToDecimal } from '../../utils';
 	let canvasxy: HTMLCanvasElement;

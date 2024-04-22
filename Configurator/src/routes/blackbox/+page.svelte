@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { port, type Command, MspFn } from '../../portStore';
+	import { port, MspFn, MspVersion } from '../../portStore';
 	import { configuratorLog } from '../../logStore';
 	import TracePlacer from './tracePlacer.svelte';
 	import Timeline from './timeline.svelte';
@@ -1238,7 +1238,7 @@
 			for (let i = 0; i < totalChunks; i++) {
 				if (!receivedChunks[i]) {
 					console.log('Missing chunk: ' + i);
-					port.sendCommand('request', MspFn.BB_FILE_DOWNLOAD, [
+					port.sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [
 						binFileNumber,
 						i & 0xff,
 						(i >> 8) & 0xff
@@ -1731,7 +1731,7 @@
 		for (let i = 0; i < infoNums.length; i++) checksum ^= infoNums[i];
 		checksum ^= 0x06;
 		checksum ^= infoNums.length;
-		port.sendCommand('request', MspFn.BB_FILE_INFO, infoNums);
+		port.sendCommand('request', MspFn.BB_FILE_INFO, MspVersion.V2, infoNums);
 	}
 
 	function processLogInfo(data: number[]) {
@@ -2387,7 +2387,7 @@
 	}
 
 	function deleteLog() {
-		port.sendCommand('request', MspFn.BB_FILE_DELETE, [selected]);
+		port.sendCommand('request', MspFn.BB_FILE_DELETE, MspVersion.V2, [selected]);
 	}
 	function openLog() {
 		getLog(selected)
@@ -2440,7 +2440,7 @@
 	function getLog(num: number): Promise<BBLog> {
 		binFileNumber = -1;
 
-		port.sendCommand('request', MspFn.BB_FILE_DOWNLOAD, [num]);
+		port.sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [num]);
 		return new Promise((resolve, reject) => {
 			resolveWhenReady = resolve;
 			rejectWrongFile = reject;

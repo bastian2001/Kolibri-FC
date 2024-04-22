@@ -48,6 +48,7 @@ void setup() {
 	initADC();
 	modesInit();
 	initMag();
+	initSerial();
 
 	// init ELRS on pins 0 and 1 using Serial1 (UART0)
 	ELRS = new ExpressLRS(Serial1, 420000, PIN_TX0, PIN_RX0);
