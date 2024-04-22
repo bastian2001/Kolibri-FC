@@ -18,8 +18,7 @@
 	let armingDisableFlags = 0;
 	let armed = false;
 	let configuratorConnected = false;
-	let pingFromConfigurator = -1,
-		pingFromFC = -1;
+	let fcPing = -1;
 
 	let getRotationInterval = 0;
 	let xBox: any = null;
@@ -36,6 +35,7 @@
 	let baudRate = 115200;
 
 	const unsubscribe = port.subscribe(command => {
+		console.log(command.command, command.data);
 		if (command.cmdType === 'response') {
 			switch (command.command) {
 				case ConfigCmd.STATUS:
@@ -123,8 +123,7 @@
 			port.sendCommand('request', ConfigCmd.GET_ROTATION).catch(() => {});
 		}, 20);
 		pingInterval = setInterval(() => {
-			pingFromConfigurator = port.getPingTime().fromConfigurator;
-			pingFromFC = port.getPingTime().fromFC;
+			fcPing = port.getPingTime();
 		}, 1000);
 	});
 	onDestroy(() => {
@@ -200,7 +199,7 @@
 	}).join('')}
 </div>
 <div>
-	Ping from Configurator: {pingFromConfigurator} - Ping from FC: {pingFromFC}
+	Ping: {fcPing} ms
 </div>
 <div class="drone3DPreview">
 	<div class="droneBase droneAxes">

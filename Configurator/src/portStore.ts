@@ -98,20 +98,11 @@ function createPort() {
 	} as Command);
 
 	subscribe(c => {
-		if (c.cmdType === 'request') {
-			switch (c.command) {
-				case ConfigCmd.CONFIGURATOR_PING:
-					//ping received from FC, confirm
-					sendCommand('response', ConfigCmd.CONFIGURATOR_PING);
-					break;
-				case ConfigCmd.CONFIGURATOR_PING | 0xc000:
-					pingTime.fromFC = leBytesToInt(c.data);
-			}
-		} else if (c.cmdType === 'response') {
+		if (c.cmdType === 'response') {
 			switch (c.command) {
 				case ConfigCmd.CONFIGURATOR_PING:
 					// pong response from FC received
-					pingTime.fromConfigurator = Date.now() - pingStarted;
+					fcPing = Date.now() - pingStarted;
 					break;
 			}
 		}
@@ -335,8 +326,9 @@ function createPort() {
 							break;
 						case MspState.CHECKSUM_V2:
 							mspState = MspState.IDLE;
+							console.log(newCommand.command);
 							set(newCommand);
-							await tick();
+							// await tick();
 							break;
 					}
 				});
@@ -412,12 +404,9 @@ function createPort() {
 		const i = onConnectHandlers.indexOf(handler);
 		if (i >= 0) onConnectHandlers.splice(i, 1);
 	};
-	let pingTime = {
-		fromConfigurator: -1,
-		fromFC: -1
-	};
+	let fcPing = -1;
 	function getPingTime() {
-		return pingTime;
+		return fcPing;
 	}
 	return {
 		subscribe,

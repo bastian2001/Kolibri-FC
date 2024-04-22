@@ -16,17 +16,12 @@ MspState mspState = MspState::IDLE;
 elapsedMillis configOverrideMotors = 1001;
 
 elapsedMillis lastConfigPingRx = 0;
-elapsedMillis lastConfigPingTx = 0;
 bool configuratorConnected     = false;
 u16 payloadStartIndex = 0, payloadStopIndex = 0;
 
 void configuratorLoop() {
 	if (lastConfigPingRx > 1000)
 		configuratorConnected = false;
-	if (lastConfigPingTx > 1000 && configuratorConnected) {
-		sendCommand(MspMsgType::REQUEST, (u16)ConfigCmd::CONFIGURATOR_PING);
-		lastConfigPingTx = 0;
-	}
 	if (accelCalDone) {
 		accelCalDone = 0;
 		sendCommand(MspMsgType::RESPONSE, (u16)ConfigCmd::CALIBRATE_ACCELEROMETER);
@@ -494,13 +489,6 @@ void handleConfigCmd() {
 		} break;
 		default: {
 			sendCommand(MspMsgType::ERROR, configMsgCommand, "Unknown command", strlen("Unknown command"));
-		} break;
-		}
-	} else if (configMsgType == MspMsgType::RESPONSE) {
-		switch ((ConfigCmd)configMsgCommand) {
-		case ConfigCmd::CONFIGURATOR_PING: {
-			u32 duration = lastConfigPingTx;
-			sendCommand(MspMsgType::REQUEST, (u16)ConfigCmd::CONFIGURATOR_PING | 0xC000, (char *)&duration, 4);
 		} break;
 		}
 	}
