@@ -1,7 +1,7 @@
 #include "global.h"
 
 PIO escPio;
-
+u32 enableDShot  = 1;
 u32 escPioOffset = 0;
 
 volatile u32 erpmEdges[4][32] = {0};
@@ -70,6 +70,7 @@ u16 appendChecksum(u16 data) {
 }
 
 void sendRaw16Bit(const u16 raw[4]) {
+	if (!enableDShot) return;
 	dma_channel_abort(escClearDmaChannel); // abort if not completed
 	for (i32 i = 0; i < 4; i++) {
 		pio_sm_exec(escPio, i, pio_encode_jmp(escPioOffset));

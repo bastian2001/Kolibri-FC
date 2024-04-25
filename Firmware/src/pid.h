@@ -1,6 +1,7 @@
 #pragma once
 #include "fixedPointInt.h"
 #include <Arduino.h>
+#define IDLE_PERMILLE 25
 #define AXIS_ROLL 1
 #define AXIS_PITCH 0
 #define AXIS_YAW 2

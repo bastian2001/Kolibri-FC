@@ -33,10 +33,23 @@
 	let showHeading = false;
 	let serialNum = 1;
 	let baudRate = 115200;
+	$: if (xBox && yBox && zBox) {
+		zBox.style.transform = `rotateZ(${showHeading ? attitude.heading : attitude.yaw}deg) translateZ(10px)`;
+		yBox.style.transform = `rotateX(${attitude.pitch}deg)`;
+		xBox.style.transform = `rotateY(${-attitude.roll}deg)`;
+	}
 
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
+				case MspFn.MSP_ATTITUDE:
+					attitude = {
+						roll: -leBytesToInt(command.data.slice(0, 2), true) / 10,
+						pitch: leBytesToInt(command.data.slice(2, 4), true) / 10,
+						yaw: leBytesToInt(command.data.slice(4, 6), true),
+						heading: leBytesToInt(command.data.slice(4, 6), true)
+					};
+					break;
 				case MspFn.STATUS:
 					armed = command.data[2] === 1;
 					flightMode = command.data[3];
@@ -56,9 +69,6 @@
 					let heading = leBytesToInt(command.data.slice(6, 8), true);
 					heading /= 8192.0;
 					heading *= 180.0 / Math.PI;
-					zBox.style.transform = `rotateZ(${showHeading ? heading : yaw}deg) translateZ(10px)`;
-					yBox.style.transform = `rotateX(${pitch}deg)`;
-					xBox.style.transform = `rotateY(${-roll}deg)`;
 					attitude = {
 						roll,
 						pitch,

@@ -68,6 +68,34 @@
 			}
 		} else if (command.cmdType === 'response') {
 			switch (command.command) {
+				case MspFn.API_VERSION:
+					configuratorLog.push(
+						`Protocol: ${command.data[0]}, API: ${command.data[1]}.${command.data[2]}`
+					);
+					break;
+				case MspFn.FIRMWARE_VARIANT:
+					configuratorLog.push(`Firmware: ${command.dataStr}`);
+					if (command.dataStr !== 'KOLI') {
+						configuratorLog.push(
+							`This configurator is only compatible with Kolibri firmware, disconnecting...`
+						);
+						disconnect();
+					}
+					break;
+				case MspFn.FIRMWARE_VERSION:
+					configuratorLog.push(`Version: ${command.data[0]}.${command.data[1]}.${command.data[2]}`);
+					break;
+				case MspFn.BOARD_INFO:
+					configuratorLog.push(
+						`Board: ${command.dataStr.substring(0, 4)} => ${command.dataStr.substring(9, 9 + command.data[8])}`
+					);
+					break;
+				case MspFn.BUILD_INFO:
+					configuratorLog.push(`Build: ${command.dataStr}`);
+					break;
+				case MspFn.GET_NAME:
+					configuratorLog.push(`Name: ${command.dataStr}`);
+					break;
 				case MspFn.STATUS:
 					battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
 					break;
@@ -87,30 +115,37 @@
 	function odh() {
 		connected = false;
 	}
+	function och() {
+		connected = true;
+		configuratorLog.clearEntries();
+		port
+			.sendCommand('request', MspFn.API_VERSION)
+			.then(() => port.sendCommand('request', MspFn.FIRMWARE_VARIANT))
+			.then(() => port.sendCommand('request', MspFn.FIRMWARE_VERSION))
+			.then(() => port.sendCommand('request', MspFn.BOARD_INFO))
+			.then(() => port.sendCommand('request', MspFn.BUILD_INFO))
+			.then(() => port.sendCommand('request', MspFn.GET_NAME));
+	}
 	onMount(() => {
 		disconnect();
 		listInterval = setInterval(() => {
 			listDevices();
 		}, 1000);
+		port.addOnConnectHandler(och);
 		port.addOnDisconnectHandler(odh);
 	});
 	onDestroy(() => {
 		clearInterval(listInterval);
 		disconnect();
+		port.removeOnConnectHandler(och);
 		port.removeOnDisconnectHandler(odh);
 		unsubscribeLog();
 		unsubscribePort();
 	});
 	function connect() {
-		port
-			.connect(device)
-			.then(() => {
-				connected = true;
-				configuratorLog.clearEntries();
-			})
-			.catch(() => {
-				connected = false;
-			});
+		port.connect(device).catch(() => {
+			connected = false;
+		});
 	}
 	function disconnect() {
 		port.disconnect().catch(() => {
@@ -225,7 +260,8 @@
 		height: 3rem;
 		padding: 0 0.5rem;
 		color: var(--text-color);
-		font-size: 0.8rem;
+		font-size: 0.7rem;
+		line-height: 100%;
 		overflow-y: scroll;
 	}
 	.log p {
