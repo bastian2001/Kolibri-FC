@@ -58,6 +58,9 @@
 #define I2C_MAG i2c0  // I2C for magnetometer
 #define PROPS_OUT
 
+#define DEBUG_ON gpio_put(PIN_LED_DEBUG, 1);
+#define DEBUG_OFF gpio_put(PIN_LED_DEBUG, 0);
+
 extern ExpressLRS *ELRS;                                               // global ELRS instance
 #define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((u8 *)(buf) + 1) << 8))   // Decode 2 bytes from a buffer into a 16-bit unsigned integer
 #define DECODE_I2(buf) ((*(buf) & 0xFF) + ((*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer

@@ -142,7 +142,7 @@ enum class MspState {
 #define FIRMWARE_VERSION_MINOR 1
 #define FIRMWARE_VERSION_PATCH 0
 
-#define KOLIBRI_IDENTIFIER "BTFL" // Baseflight: BAFL, Betaflight: BTFL, Cleanflight: CLFL, iNav: INAV, MultiWii: MWII, Raceflight: RCFL
+#define KOLIBRI_IDENTIFIER "KOLI" // Baseflight: BAFL, Betaflight: BTFL, Cleanflight: CLFL, iNav: INAV, MultiWii: MWII, Raceflight: RCFL
 #define FIRMWARE_IDENTIFIER_LENGTH 4
 
 enum class McuType : u8 {

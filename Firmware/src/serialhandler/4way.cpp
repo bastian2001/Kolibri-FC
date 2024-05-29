@@ -23,6 +23,7 @@ std::deque<uint8_t> escRxBuf;
 
 #define SERIAL_4WAY_VERSION_HI (uint8_t)(SERIAL_4WAY_VERSION / 100)
 #define SERIAL_4WAY_VERSION_LO (uint8_t)(SERIAL_4WAY_VERSION % 100)
+#define IM_ARM_BLB 4
 
 enum class State4Way {
 	IDLE, // waiting for '/'
@@ -66,6 +67,7 @@ enum class Cmd4Way {
 	DEVICE_READ_EEPROM    = 0x3D,
 	DEVICE_WRITE_EEPROM   = 0x3E,
 	INTERFACE_SET_MODE    = 0x3F,
+	DEVICE_VERIFY         = 0x40,
 };
 #define RESTART_BOOTLOADER_4WAY 0
 #define EXIT_BOOTLOADER_4WAY 1
@@ -122,9 +124,20 @@ void pioEnableTx() {
 }
 void pioDisableTx() {
 	while (!pio_sm_is_tx_fifo_empty(escPio, 0)) {
+		rp2040.wdt_reset();
 	}
-	while (pio_sm_get_pc(escPio, 0) != offsetPioTransmit + 2) {
-	}
+	// u8 pc = pio_sm_get_pc(escPio, 0);
+	// for (int i = 0; i < pc; i++) {
+	// 	DEBUG_ON
+	// 	delay(10);
+	// 	DEBUG_OFF
+	// 	delay(180);
+	// 	rp2040.wdt_reset();
+	// }
+	// while (pio_sm_get_pc(escPio, 0) != offsetPioTransmit + 2) {
+	// 	rp2040.wdt_reset();
+	// }
+	delayMicroseconds(500);
 	pioSetProgram(offsetPioReceive, configPioReceive);
 	isTxEnabled = false;
 }
@@ -228,7 +241,7 @@ uint16_t getEsc(uint8_t rx_buf[], uint16_t wait_ms) {
 void begin4Way() {
 	if (setup4WayDone) return;
 	pio_set_sm_mask_enabled(escPio, 0b1111, false);
-	pio_clear_instruction_memory(escPio);
+	pio_remove_program(escPio, &bidir_dshot_x1_program, escPioOffset);
 	offsetPioReceive  = pio_add_program(escPio, &onewire_receive_program);
 	offsetPioTransmit = pio_add_program(escPio, &onewire_transmit_program);
 	for (int i = 0; i < 4; i++) {
@@ -286,7 +299,7 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 		payload = &dummy;
 	if (len == 0) len = 256;
 	u16 crc      = 0;
-	u8 header[5] = {0x2E, cmd, (u8)(address >> 8), (u8)(address & 0xFF), (u8)len};
+	u8 header[5] = {0x2E, cmd, (u8)(address >> 8), (u8)(address & 0xFF), (u8)(len & 0xFF)};
 	for (u16 i = 0; i < 5; i++) {
 		crc = crcUpdateXmodem(crc, header[i]);
 	}
@@ -303,12 +316,14 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 }
 
 void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
-	u8 buf[300];
+	u8 buf[300] = {0};
 	switch ((Cmd4Way)cmd) {
 	case Cmd4Way::INTERFACE_TEST_ALIVE:
 		buf[0] = (u8)BlCmd::KEEP_ALIVE;
 		buf[1] = 0;
 		sendEsc(buf, 2);
+		delayWhileRead(5);
+		getEsc(buf, 200); // data is ignored
 		send4WayResponse(cmd, address);
 		break;
 	case Cmd4Way::PROTOCOL_GET_VERSION:
@@ -333,10 +348,9 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 			buf[0] = RESTART_BOOTLOADER_4WAY;
 			buf[1] = 0;
 			sendEsc(buf, 2);
-			// sleep_ms(5);
+			// sleep_ms(5); //DIFF
 			pioResetESC();
-			sleep_ms(50);
-			rp2040.wdt_reset();
+			getEsc(buf, 50); // data is ignored
 			send4WayResponse(cmd, address);
 		} else {
 			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_INVALID_CHANNEL);
@@ -349,17 +363,17 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 			sendEsc(bootInit, 17, false);
 			delayWhileRead(50);
 			u16 rxSize = getEsc(buf, 200);
-			if (buf[rxSize - 1] == (u8)BlRes::SUCCESS) {
+			if (rxSize && buf[rxSize - 1] == (u8)BlRes::SUCCESS) {
 				buf[0] = buf[5]; // Device Signature2?
 				buf[1] = buf[4]; // Device Signature1?
 				buf[2] = buf[3]; // "c"?
-				buf[3] = 4;      // IM_ARM_BLB
+				buf[3] = IM_ARM_BLB;
 				send4WayResponse(cmd, address, buf, 4);
 			} else {
-				buf[0] = 0x06; // Device Signature2?
-				buf[1] = 0x33; // Device Signature1?
-				buf[2] = 0x67; // "c"?
-				buf[3] = 4;    // Boot Pages?
+				buf[0] = 0x06;       // Device Signature2?
+				buf[1] = 0x33;       // Device Signature1?
+				buf[2] = 0x67;       // "c"?
+				buf[3] = IM_ARM_BLB; // Boot Pages?
 				send4WayResponse(cmd, address, buf, 4, Res4Way::NACK_GENERAL_ERROR);
 			}
 		} else {
@@ -378,9 +392,10 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 			buf[0] = (u8)BlCmd::READ_FLASH_SIL;
 			buf[1] = payload[0];
 			sendEsc(buf, 2);
-			u16 txLen = payload[0];
-			if (txLen == 0) txLen = 256;
-			delayWhileRead(txLen);
+			if (payload[0])
+				delayWhileRead(payload[0]);
+			else
+				delayWhileRead(256);
 			rxSize = getEsc(buf, 500);
 			if (rxSize) {
 				u16 rxCrc = 0;
@@ -390,8 +405,7 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 				}
 				rxSize -= 3;
 				for (i16 i = 0; i < rxSize; i++) {
-					buf[i] = buf[i + 5];
-					rxCrc  = byteCrc4Way(buf[i], rxCrc);
+					rxCrc = byteCrc4Way(buf[i], rxCrc);
 				}
 				rxCrc = byteCrc4Way(buf[rxSize], rxCrc);
 				rxCrc = byteCrc4Way(buf[rxSize + 1], rxCrc);
