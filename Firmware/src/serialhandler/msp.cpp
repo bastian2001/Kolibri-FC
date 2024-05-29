@@ -305,7 +305,7 @@ void processMspCmd() {
 			break;
 		case MspFn::ENABLE_4WAY_IF:
 			begin4Way();
-			buf[0] = 4; //ESC count
+			buf[0] = 4; // ESC count
 			sendMsp(MspMsgType::RESPONSE, mspMsgFn, mspMsgVersion, buf, 1);
 			break;
 		case MspFn::STATUS: {
@@ -674,13 +674,6 @@ void processMspCmd() {
 			memcpy(&buf[36], &vVelRaw, 4);
 			sendMsp(MspMsgType::RESPONSE, mspMsgFn, mspMsgVersion, buf, 40);
 		} break;
-		case MspFn::ESC_PASSTHROUGH:
-			sendMsp(MspMsgType::RESPONSE, mspMsgFn);
-			Serial.flush();
-			rebootReason = BootReason::CMD_ESC_PASSTHROUGH;
-			delay(100);
-			rp2040.reboot();
-			break;
 		case MspFn::GET_CRASH_DUMP: {
 			for (int i = 0; i < 256; i++) {
 				rp2040.wdt_reset();

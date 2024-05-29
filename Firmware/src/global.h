@@ -74,8 +74,7 @@ enum class BootReason {
 	POR, // Power-on reset
 	CMD_REBOOT,
 	CMD_BOOTLOADER,
-	WATCHDOG,
-	CMD_ESC_PASSTHROUGH
+	WATCHDOG
 };
 
 extern volatile u32 crashInfo[256]; // Crash info buffer (arbitrary data to be saved to EEPROM in case of a crash)

@@ -98,13 +98,13 @@ enum class MspFn {
 	GET_GPS_ACCURACY         = 0x401C,
 	GET_GPS_TIME             = 0x401D,
 	GET_GPS_MOTION           = 0x401E,
-	ESC_PASSTHROUGH          = 0x401F,
-	GET_CRASH_DUMP           = 0x4020,
-	CLEAR_CRASH_DUMP         = 0x4021,
-	CALIBRATE_ACCELEROMETER  = 0x4022,
-	GET_MAG_DATA             = 0x4023,
-	MAG_CALIBRATE            = 0x4024,
-	IND_MESSAGE              = 0x4025,
+	// ESC_PASSTHROUGH          = 0x401F,
+	GET_CRASH_DUMP          = 0x4020,
+	CLEAR_CRASH_DUMP        = 0x4021,
+	CALIBRATE_ACCELEROMETER = 0x4022,
+	GET_MAG_DATA            = 0x4023,
+	MAG_CALIBRATE           = 0x4024,
+	IND_MESSAGE             = 0x4025,
 };
 
 enum class MspState {

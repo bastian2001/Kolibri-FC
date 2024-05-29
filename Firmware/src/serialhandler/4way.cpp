@@ -124,20 +124,9 @@ void pioEnableTx() {
 }
 void pioDisableTx() {
 	while (!pio_sm_is_tx_fifo_empty(escPio, 0)) {
-		rp2040.wdt_reset();
 	}
-	// u8 pc = pio_sm_get_pc(escPio, 0);
-	// for (int i = 0; i < pc; i++) {
-	// 	DEBUG_ON
-	// 	delay(10);
-	// 	DEBUG_OFF
-	// 	delay(180);
-	// 	rp2040.wdt_reset();
-	// }
-	// while (pio_sm_get_pc(escPio, 0) != offsetPioTransmit + 2) {
-	// 	rp2040.wdt_reset();
-	// }
-	delayMicroseconds(500);
+	while (pio_sm_get_pc(escPio, 0) != offsetPioTransmit + 2) {
+	}
 	pioSetProgram(offsetPioReceive, configPioReceive);
 	isTxEnabled = false;
 }
@@ -240,6 +229,7 @@ uint16_t getEsc(uint8_t rx_buf[], uint16_t wait_ms) {
 
 void begin4Way() {
 	if (setup4WayDone) return;
+	enableDShot = 0;
 	pio_set_sm_mask_enabled(escPio, 0b1111, false);
 	pio_remove_program(escPio, &bidir_dshot_x1_program, escPioOffset);
 	offsetPioReceive  = pio_add_program(escPio, &onewire_receive_program);
@@ -271,8 +261,7 @@ void end4Way() {
 	pio_sm_unclaim(escPio, 0);
 	pio_remove_program(escPio, &onewire_receive_program, offsetPioReceive);
 	pio_remove_program(escPio, &onewire_transmit_program, offsetPioTransmit);
-	setup4WayDone = false;
-	escPioOffset  = pio_add_program(escPio, &bidir_dshot_x1_program);
+	escPioOffset = pio_add_program(escPio, &bidir_dshot_x1_program);
 	pio_claim_sm_mask(escPio, 0b1111);
 	for (i32 i = 0; i < 4; i++) {
 		pio_sm_config c = bidir_dshot_x1_program_get_default_config(escPioOffset);
@@ -288,7 +277,8 @@ void end4Way() {
 		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
 	}
 	serialFunctions[0] &= ~SERIAL_4WAY;
-	enableDShot = 1;
+	enableDShot   = 1;
+	setup4WayDone = false;
 }
 
 void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, Res4Way resCode = Res4Way::ACK_OK) {
@@ -315,8 +305,47 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 	Serial.flush();
 }
 
+uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {
+	if (addrHi == 0xFF && addrLo == 0xFF) return 1;
+	uint8_t sCmd[]    = {(u8)BlCmd::SET_ADDRESS, 0x00, addrHi, addrLo};
+	uint8_t rxBuf[50] = {0};
+	sendEsc(sCmd, 4);
+	delayWhileRead(5);
+	uint16_t rxSize = getEsc(rxBuf, 20);
+	// return (rxSize ? rxBuf[rxSize - 1] : brNONE) == brSUCCESS;
+	return rxSize && rxBuf[rxSize - 1] == (u8)BlRes::SUCCESS;
+}
+
+uint8_t blSendCmdSetBuf(uint8_t len, uint8_t buf[256]) {
+	uint8_t sCmd[]    = {(u8)BlCmd::SET_BUFFER, 0x00, len == 0, len};
+	uint8_t rxBuf[50] = {0};
+	sendEsc(sCmd, 4);
+	delayWhileRead(5);
+	uint16_t rxSize = getEsc(rxBuf, 20);
+	if (rxSize && rxBuf[rxSize - 1] != (u8)BlRes::NONE) return 0;
+
+	sendEsc(buf, len);
+	delayWhileRead(5);
+	rxSize = getEsc(rxBuf, 80);
+	return rxSize && rxBuf[rxSize - 1] == (u8)BlRes::SUCCESS;
+}
+
+uint8_t blVerifyFlash(uint8_t len, uint8_t buf[256], uint8_t addrHi, uint8_t addrLo) {
+	if (blSendCmdSetAddr(addrHi, addrLo)) {
+		uint8_t sCmd[]    = {(u8)BlCmd::VERIFY_FLASH_ARM, 0x01};
+		uint8_t rxBuf[50] = {0};
+		if (!blSendCmdSetBuf(len, buf)) return 0;
+		sendEsc(sCmd, 2);
+		delayWhileRead(5);
+		uint16_t rxSize = getEsc(rxBuf, 20);
+		return rxSize ? rxBuf[rxSize - 1] : (u8)BlRes::NONE;
+	}
+	return 0;
+}
+
 void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 	u8 buf[300] = {0};
+
 	switch ((Cmd4Way)cmd) {
 	case Cmd4Way::INTERFACE_TEST_ALIVE:
 		buf[0] = (u8)BlCmd::KEEP_ALIVE;
@@ -326,29 +355,33 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 		getEsc(buf, 200); // data is ignored
 		send4WayResponse(cmd, address);
 		break;
+
 	case Cmd4Way::PROTOCOL_GET_VERSION:
 		buf[0] = 108; // version number
 		send4WayResponse(cmd, address, buf);
 		break;
+
 	case Cmd4Way::INTERFACE_GET_NAME:
 		send4WayResponse(cmd, address, (u8 *)INTERFACE_NAME_4WAY, strlen(INTERFACE_NAME_4WAY));
 		break;
+
 	case Cmd4Way::INTERFACE_GET_VERSION:
 		buf[0] = SERIAL_4WAY_VERSION_HI;
 		buf[1] = SERIAL_4WAY_VERSION_LO;
 		send4WayResponse(cmd, address, buf, 2);
 		break;
+
 	case Cmd4Way::INTERFACE_EXIT:
 		end4Way();
 		send4WayResponse(cmd, address);
 		break;
+
 	case Cmd4Way::DEVICE_RESET:
 		if (payload[0] < 4) { // ESC count
 			changePin(PIN_MOTORS + payload[0]);
 			buf[0] = RESTART_BOOTLOADER_4WAY;
 			buf[1] = 0;
 			sendEsc(buf, 2);
-			// sleep_ms(5); //DIFF
 			pioResetESC();
 			getEsc(buf, 50); // data is ignored
 			send4WayResponse(cmd, address);
@@ -356,13 +389,14 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_INVALID_CHANNEL);
 		}
 		break;
+
 	case Cmd4Way::DEVICE_INIT_FLASH:
 		if (payload[0] < 4) { // ESC count
 			changePin(PIN_MOTORS + payload[0]);
 			u8 bootInit[] = {0, 0, 0, 0, 0, 0, 0, 0, 0x0D, 'B', 'L', 'H', 'e', 'l', 'i', 0xF4, 0x7D};
 			sendEsc(bootInit, 17, false);
 			delayWhileRead(50);
-			u16 rxSize = getEsc(buf, 200);
+			u8 rxSize = getEsc(buf, 200);
 			if (rxSize && buf[rxSize - 1] == (u8)BlRes::SUCCESS) {
 				buf[0] = buf[5]; // Device Signature2?
 				buf[1] = buf[4]; // Device Signature1?
@@ -380,6 +414,7 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_INVALID_CHANNEL);
 		}
 		break;
+
 	case Cmd4Way::DEVICE_READ: {
 		buf[0] = (u8)BlCmd::SET_ADDRESS;
 		buf[1] = 0;
@@ -421,6 +456,7 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_VERIFY_ERROR);
 		}
 	} break;
+
 	case Cmd4Way::DEVICE_WRITE: {
 		buf[0] = (u8)BlCmd::SET_ADDRESS;
 		buf[1] = 0;
@@ -456,11 +492,55 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 		else
 			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_GENERAL_ERROR);
 	} break;
+
 	case Cmd4Way::INTERFACE_SET_MODE:
 		if (payload[0] == 4)
 			send4WayResponse(cmd, address);
 		else
 			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_INVALID_PARAM);
+		break;
+
+	case Cmd4Way::DEVICE_VERIFY:
+		switch ((BlRes)blVerifyFlash(len, payload, address >> 8, address & 0xFF)) {
+		case BlRes::SUCCESS:
+			send4WayResponse(cmd, address);
+			break;
+		case BlRes::ERROR_VERIFY:
+			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_VERIFY_ERROR);
+			break;
+		default:
+			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_GENERAL_ERROR);
+			break;
+		}
+		break;
+
+	case Cmd4Way::DEVICE_PAGE_ERASE: {
+		u8 ack     = (u8)Res4Way::ACK_OK;
+		u8 rx[250] = {0};
+
+		buf[0] = (u8)BlCmd::SET_ADDRESS;
+		buf[1] = 0;
+		buf[2] = (payload[0]) << 2;
+		buf[3] = 0;
+		sendEsc(buf, 4);
+		delayWhileRead(5);
+		getEsc(rx, 200);
+		if (rx[0] != (u8)BlRes::SUCCESS)
+			ack = (u8)Res4Way::NACK_GENERAL_ERROR;
+
+		buf[0] = (u8)BlCmd::ERASE_FLASH;
+		buf[1] = 0x01;
+		sendEsc(buf, 2);
+		delayWhileRead(50);
+		getEsc(rx, 100);
+		if (rx[0] != (u8)BlRes::SUCCESS)
+			ack = (u8)Res4Way::NACK_GENERAL_ERROR;
+
+		send4WayResponse(cmd, address, nullptr, 1, (Res4Way)ack);
+	} break;
+
+	default:
+		send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_INVALID_CMD);
 		break;
 	}
 }
