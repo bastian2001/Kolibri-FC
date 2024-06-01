@@ -924,6 +924,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	case MspState::CHECKSUM_V2_OVER_V1:
 		if (c != crcV2) {
 			mspState = MspState::IDLE;
+			sendMsp(serialNum, MspMsgType::ERROR, fn, msgMspVer, "CRCv2", 5);
 			break;
 		}
 		crcV1 ^= c;
@@ -932,6 +933,8 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	case MspState::CHECKSUM_V1:
 		if (c == crcV1)
 			processMspCmd(serialNum, msgType, fn, msgMspVer, payloadBuf, payloadLen);
+		else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, msgMspVer, "CRCv1", 5);
 		mspState = MspState::IDLE;
 		break;
 	case MspState::TYPE_V2:
@@ -990,6 +993,8 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	case MspState::CHECKSUM_V2:
 		if (c == crcV2)
 			processMspCmd(serialNum, msgType, fn, msgMspVer, payloadBuf, payloadLen);
+		else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, msgMspVer, "CRCv2", 5);
 		mspState = MspState::IDLE;
 		break;
 	}

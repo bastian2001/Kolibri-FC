@@ -111,6 +111,10 @@ function createPort() {
 	} as Command);
 
 	subscribe(c => {
+		if (c.cmdType === 'error') {
+			console.error(structuredClone(c));
+			configuratorLog.push('Error, see console for details.');
+		}
 		if (c.cmdType === 'response') {
 			switch (c.command) {
 				case MspFn.CONFIGURATOR_PING:
@@ -132,6 +136,9 @@ function createPort() {
 		}
 		return data;
 	}
+	function charToInt(c: string) {
+		return c.charCodeAt(0);
+	}
 	let cmdEnabled = true;
 	const enableCommands = (en: boolean) => {
 		cmdEnabled = en;
@@ -149,21 +156,48 @@ function createPort() {
 		if (!cmdEnabled) return new Promise((resolve: any) => resolve());
 		if (data.length === 0 && dataStr !== '') data = strToArray(dataStr);
 		const len = data.length;
+
+		if (len > 254 && version === MspVersion.V1) version = MspVersion.V1_JUMBO;
+		if (len < 255 && version === MspVersion.V1_JUMBO) version = MspVersion.V1;
+		if (len > 248 && version === MspVersion.V2_OVER_V1) version = MspVersion.V2_OVER_V1_JUMBO;
+		if (len < 249 && version === MspVersion.V2_OVER_V1_JUMBO) version = MspVersion.V2_OVER_V1;
+
 		const typeLut = {
 			request: 60,
 			response: 62,
 			error: 33
 		};
-		const cmd = [
-			...strToArray('$X'),
-			typeLut[type],
-			0,
-			command & 0xff,
-			(command >> 8) & 0xff,
-			len & 0xff,
-			(len >> 8) & 0xff,
-			...data
-		];
+		const cmd = [charToInt('$'), charToInt(version === MspVersion.V2 ? 'X' : 'M'), typeLut[type]];
+		switch (version) {
+			case MspVersion.V1_JUMBO:
+				cmd.push(0xff, len & 0xff, len >> 8);
+				cmd.push(command & 0xff);
+				break;
+			case MspVersion.V1:
+				cmd.push(len & 0xff);
+				cmd.push(command & 0xff);
+				break;
+			case MspVersion.V2:
+				cmd.push(0);
+				cmd.push(command & 0xff, command >> 8);
+				cmd.push(len & 0xff, len >> 8);
+				break;
+			case MspVersion.V2_OVER_V1:
+				cmd.push((len + 6) & 0xff); // V1 len
+				cmd.push(0xff); //  V2 trigger
+				cmd.push(0); // V2 flag
+				cmd.push(command & 0xff, command >> 8); // V2 command
+				cmd.push(len & 0xff, len >> 8); // V2 len
+				break;
+			case MspVersion.V2_OVER_V1_JUMBO:
+				cmd.push(0xff, (len + 6) & 0xff, (len + 6) >> 8); // V1 len, v1 jumbo len
+				cmd.push(0xff); //  V2 trigger
+				cmd.push(0); // V2 flag
+				cmd.push(command & 0xff, command >> 8); // V2 command
+				cmd.push(len & 0xff, len >> 8); // V2 len
+				break;
+		}
+		cmd.push(...data);
 		const crcV2StartLut = {
 			[MspVersion.V2]: 3,
 			[MspVersion.V2_OVER_V1]: 5,
@@ -176,6 +210,7 @@ function createPort() {
 			checksumV2 = cmd.slice(crcV2StartLut[version]).reduce(crc8DvbS2, 0);
 		if ([MspVersion.V2, MspVersion.V2_OVER_V1, MspVersion.V2_OVER_V1_JUMBO].includes(version)) {
 			cmd.push(checksumV2);
+			checksumV1 ^= checksumV2;
 		}
 		if (
 			[
