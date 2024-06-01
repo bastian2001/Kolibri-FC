@@ -1241,7 +1241,9 @@
 					port.sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [
 						binFileNumber,
 						i & 0xff,
-						(i >> 8) & 0xff
+						(i >> 8) & 0xff,
+						(i >> 16) & 0xff,
+						(i >> 24) & 0xff
 					]);
 					return;
 				}

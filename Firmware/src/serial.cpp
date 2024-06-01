@@ -42,7 +42,7 @@ void serialLoop() {
 			if (serialFunctions[i] & SERIAL_MSP) {
 				rp2040.wdt_reset();
 				elapsedMicros timer = 0;
-				mspHandleByte(readChar, i % 3);
+				mspHandleByte(readChar, i);
 				taskTimer -= timer;
 			}
 			if (serialFunctions[i] & SERIAL_GPS) {

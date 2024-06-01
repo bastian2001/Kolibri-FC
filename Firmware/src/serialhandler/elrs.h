@@ -1,6 +1,7 @@
 #pragma once
 #include "elapsedMillis.h"
 #include "hardware/interp.h"
+#include "msp.h"
 #include <Arduino.h>
 #include <vector>
 using std::vector;
@@ -58,6 +59,9 @@ public:
 	i8 downlinkSNR                            = 0;   // telemetry SNR in dB
 	u32 consecutiveArmedCycles                = 0;   // number of cycles the switch is in the armed position, reset to 0 when disarmed
 	u32 newPacketFlag                         = 0;   // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
+	void sendPacket(u8 cmd, const char *payload, u8 payloadLen);
+	void sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen);
+	void sendMspResponse(u8 mspVersion, const char *payload, u16 payloadLen, bool isError);
 
 private:
 	const u16 powerStates[9]                  = {0, 10, 25, 100, 500, 1000, 2000, 50, 250};
@@ -77,6 +81,9 @@ private:
 	static const u8 PARAMETER_WRITE           = 0x2D;
 	static const u8 COMMAND                   = 0x32;
 	static const u8 MSP_REQ                   = 0x7A;
+	static const u8 MSP_RESP                  = 0x7B;
+	static const u8 MSP_WRITE                 = 0x7C;
+	static const u8 ADDRESS_FLIGHT_CONTROLLER = 0xC8;
 	static interp_config interpConfig0; // used to interpolate for smooth sticks
 	static interp_config interpConfig1; // used to interpolate for smooth sticks
 	static interp_config interpConfig2; // used to clamp smoothed values
@@ -84,7 +91,10 @@ private:
 	u8 telemBuffer[30]     = {0};
 	u32 currentTelemSensor = 0;
 	u8 msgBufIndex         = 0;
+	u8 mspTelemSeq         = 0;
 	SerialUART &elrsSerial;
+	Stream *elrsStream;
+	u8 serialNum = 255;
 	const u8 pinTX;
 	const u8 pinRX;
 	const u32 baudrate;
@@ -94,5 +104,14 @@ private:
 	u32 packetRateCounter   = 0;
 	u32 lastMsgCount        = 0;
 	u32 crc                 = 0;
+	u8 lastExtSrcAddr       = 0;
+	u8 mspRxPayload[512]    = {0};
+	u16 mspRxPayloadLen     = 0;
+	u16 mspRxCmd            = 0;
+	u8 mspRxSeq             = 0;
+	u16 mspRxPos            = 0;
+	u8 mspRxFlag            = 0;
+	bool mspRecording       = false;
+	MspVersion mspVersion   = MspVersion::V2_OVER_CRSF;
 	void processMessage();
 };

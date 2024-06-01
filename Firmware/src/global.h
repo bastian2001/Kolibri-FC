@@ -61,6 +61,8 @@
 #define DEBUG_ON gpio_put(PIN_LED_DEBUG, 1);
 #define DEBUG_OFF gpio_put(PIN_LED_DEBUG, 0);
 
+#define ARRAYLEN(arr) (sizeof(arr) / sizeof(arr[0])) // Get the length of an array
+
 extern ExpressLRS *ELRS;                                               // global ELRS instance
 #define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((u8 *)(buf) + 1) << 8))   // Decode 2 bytes from a buffer into a 16-bit unsigned integer
 #define DECODE_I2(buf) ((*(buf) & 0xFF) + ((*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer

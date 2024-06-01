@@ -1,5 +1,6 @@
 #include "FS.h"
 #include "elapsedMillis.h"
+#include "serialhandler/msp.h"
 #include "typedefs.h"
 #include <Arduino.h>
 #define LOG_ROLL_ELRS_RAW (1 << 0)       // 2 bytes
@@ -86,10 +87,12 @@ void writeSingleFrame();
  *
  * @details Chunk Size is 1024 bytes
  *
+ * @param serialNum serial number of the device
+ * @param mspVer MSP version to use
  * @param logNum log number to print
- * @param chunkNum chunk number to print, -1 (default) for all
+ * @param singleChunk chunk number to print, -1 for all
  */
-void printLogBin(u8 logNum, i16 chunkNum = -1);
+void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk);
 
 /// @brief Print a log file raw to Serial, no framing
 void printLogBinRaw(u8 logNum);

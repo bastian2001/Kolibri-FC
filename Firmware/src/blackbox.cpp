@@ -110,7 +110,7 @@ void printLogBinRaw(u8 logNum) {
 	logFile.close();
 }
 
-void printLogBin(u8 logNum, i16 singleChunk) {
+void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == LITTLEFS
 	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
@@ -120,7 +120,7 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 	File logFile = SDFS.open(path, "r");
 #endif
 	if (!logFile) {
-		sendMsp(MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, MspVersion::V2, "File not found", strlen("File not found"));
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
 		return;
 	}
 	u8 buffer[1027];
@@ -137,7 +137,7 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 		bytesRead = logFile.read(buffer + 3, 1024);
 		buffer[1] = chunkNum & 0xFF;
 		buffer[2] = chunkNum >> 8;
-		sendMsp(MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, MspVersion::V2, (char *)buffer, bytesRead + 3);
+		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 3);
 		Serial.flush();
 		while (Serial.available())
 			Serial.read();
@@ -154,7 +154,7 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 	buffer[2] = 0xFF;
 	buffer[3] = chunkNum & 0xFF;
 	buffer[4] = chunkNum >> 8;
-	sendMsp(MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, MspVersion::V2, (char *)buffer, 5);
+	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, 5);
 }
 
 void startLogging() {

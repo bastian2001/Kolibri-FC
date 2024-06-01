@@ -57,6 +57,7 @@ enum class MspFn {
 	REBOOT                   = 68,
 	GET_ADVANCED_CONFIG      = 90,
 	SET_ADVANCED_CONFIG      = 91,
+	SET_ARMING_DISABLED      = 99,
 	MSP_STATUS               = 101,
 	GET_MOTOR                = 104,
 	MSP_ATTITUDE             = 108,
@@ -68,6 +69,7 @@ enum class MspFn {
 	SET_MOTOR_3D_CONFIG      = 217,
 	SET_MOTOR_CONFIG         = 222,
 	ENABLE_4WAY_IF           = 245,
+	MSP_SET_RTC              = 246,
 	MSP_V2_FRAME             = 255,
 	STATUS                   = 0x4000,
 	TASK_STATUS              = 0x4001,
@@ -180,18 +182,28 @@ enum class MspVersion {
 	V1_JUMBO,
 	V2_OVER_V1,
 	V2_OVER_V1_JUMBO,
+
+	V2_OVER_CRSF,
+	V1_OVER_CRSF,
+	V1_JUMBO_OVER_CRSF,
+	V2_OVER_V1_OVER_CRSF,
+	V2_OVER_V1_JUMBO_OVER_CRSF,
 };
+
+extern u8 lastMspSerial;
+extern MspVersion lastMspVersion;
 
 /**
  * @brief Send an MSP packet to the configurator
  *
+ * @param serialNum serial port number to send the response to
  * @param type message type (request, response, error)
  * @param fn function to send
  * @param version MSP version to use
  * @param data data buffer, default is nullptr for no data
  * @param len length of the data buffer, default is 0
  */
-void sendMsp(MspMsgType type, MspFn fn, MspVersion version = MspVersion::V2, const char *data = nullptr, u16 len = 0);
+void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const char *data = nullptr, u16 len = 0);
 
 /**
  * @brief Process a byte from the configurator
@@ -207,3 +219,5 @@ extern elapsedMillis mspOverrideMotors;
 
 /// @brief handles configurator pings and asynchronous operations
 void configuratorLoop();
+
+void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen);
