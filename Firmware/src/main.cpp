@@ -13,16 +13,8 @@ void setup() {
 	else
 		bootReason = BootReason::POR;
 	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
-	rebootReason            = BootReason::WATCHDOG;
+	rebootReason = BootReason::WATCHDOG;
 
-	// if (bootReason == BootReason::CMD_ESC_PASSTHROUGH) { // 0 if disabled, pin + 1 if enabled
-	// 	u8 pins[4] = {PIN_MOTORS, PIN_MOTORS + 1, PIN_MOTORS + 2, PIN_MOTORS + 3};
-	// 	beginPassthrough(pins);
-	// 	for (u8 breakout = 0; !breakout;) {
-	// 		breakout = processPassthrough();
-	// 	}
-	// 	endPassthrough();
-	// }
 	initPID();
 	EEPROM.begin(4096);
 	Serial.println("Setup started");
@@ -120,7 +112,7 @@ void setup1() {
 	}
 }
 elapsedMicros taskTimer = 0;
-u32 taskState           = 0;
+u32 taskState = 0;
 
 extern PIO speakerPio;
 extern u8 speakerSm;

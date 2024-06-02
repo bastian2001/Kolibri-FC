@@ -11,16 +11,16 @@
 // X: right / pitch up
 // Z: up / yaw left
 
-const f32 RAW_TO_RAD_PER_SEC  = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
-const f32 FRAME_TIME          = 1. / 3200;
-const f32 RAW_TO_HALF_ANGLE   = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
-const f32 ANGLE_CHANGE_LIMIT  = .0002;
+const f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
+const f32 FRAME_TIME = 1. / 3200;
+const f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
+const f32 ANGLE_CHANGE_LIMIT = .0002;
 const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 
 PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 
 f32 pitch, roll, yaw;
-fix32 combinedHeading;             // NOT heading of motion, but heading of quad
+fix32 combinedHeading; // NOT heading of motion, but heading of quad
 PT1 magHeadingCorrection(.02, 75); // 0.1Hz cutoff frequency with 75Hz update rate
 fix32 vVel, combinedAltitude, vVelHelper;
 fix32 eVel, nVel;
@@ -29,10 +29,10 @@ fix32 vAccel;
 Quaternion q;
 
 void imuInit() {
-	pitch  = 0; // pitch up
-	roll   = 0; // roll right
-	yaw    = 0; // yaw right
-	q.w    = 1;
+	pitch = 0; // pitch up
+	roll = 0; // roll right
+	yaw = 0; // yaw right
+	q.w = 1;
 	q.v[0] = 0;
 	q.v[1] = 0;
 	q.v[2] = 0;
@@ -43,7 +43,7 @@ void imuInit() {
 void __not_in_flash_func(updateFromGyro)() {
 	// quaternion of all 3 axis rotations combined
 
-	f32 all[]         = {-gyroDataRaw[1] * RAW_TO_HALF_ANGLE, -gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
+	f32 all[] = {-gyroDataRaw[1] * RAW_TO_HALF_ANGLE, -gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
 	Quaternion buffer = q;
 	q.w += (-buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2]);
 	q.v[0] += (+buffer.w * all[0] - buffer.v[1] * all[2] + buffer.v[2] * all[1]);
@@ -74,9 +74,9 @@ void __not_in_flash_func(updateFromAccel)() {
 	f32 accelVector[3];
 	if (accelVectorNorm > 0.01f) {
 		f32 invAccelVectorNorm = 1 / accelVectorNorm;
-		accelVector[0]         = invAccelVectorNorm * accelDataRaw[1];
-		accelVector[1]         = invAccelVectorNorm * accelDataRaw[0];
-		accelVector[2]         = invAccelVectorNorm * -accelDataRaw[2];
+		accelVector[0] = invAccelVectorNorm * accelDataRaw[1];
+		accelVector[1] = invAccelVectorNorm * accelDataRaw[0];
+		accelVector[2] = invAccelVectorNorm * -accelDataRaw[2];
 	} else
 		return;
 	Quaternion shortest_path;
@@ -92,24 +92,24 @@ void __not_in_flash_func(updateFromAccel)() {
 	// Quaternion_multiply(&c, &q, &q);
 	f32 c[3]; // correction quaternion, but w is 1
 	f32 co = accAngle * 0.5f;
-	c[0]   = axis[0] * co;
-	c[1]   = axis[1] * co;
-	c[2]   = axis[2] * co;
+	c[0] = axis[0] * co;
+	c[1] = axis[1] * co;
+	c[2] = axis[2] * co;
 
 	Quaternion buffer;
-	buffer.w    = q.w - c[0] * q.v[0] - c[1] * q.v[1] - c[2] * q.v[2];
+	buffer.w = q.w - c[0] * q.v[0] - c[1] * q.v[1] - c[2] * q.v[2];
 	buffer.v[0] = c[0] * q.w + q.v[0] + c[1] * q.v[2] - c[2] * q.v[1];
 	buffer.v[1] = q.v[1] - c[0] * q.v[2] + c[1] * q.w + c[2] * q.v[0];
 	buffer.v[2] = q.v[2] + c[0] * q.v[1] - c[1] * q.v[0] + c[2] * q.w;
-	q           = buffer;
+	q = buffer;
 
 	Quaternion_normalize(&q, &q);
 }
 
 void __not_in_flash_func(updatePitchRollValues)() {
-	roll       = atan2f(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
-	pitch      = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
-	yaw        = atan2f(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
+	roll = atan2f(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
+	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
+	yaw = atan2f(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
 	fix32 temp = (fix32)magHeadingCorrection + yaw;
 	if (temp > fix32(PI)) {
 		temp -= fix32(PI) * 2;

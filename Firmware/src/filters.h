@@ -3,27 +3,27 @@
 
 /**
  * @brief A first order low pass filter
- * 
+ *
  * @details This filter is a simple first order low pass filter with a rollover function. Internally, it uses fix32 variables
  */
 class PT1 {
 public:
 	/**
 	 * @brief Construct a new PT1 object
-	 * 
+	 *
 	 * @param cutoffFreq Cutoff frequency of the filter
 	 * @param sampleFreq Sample frequency of the filter (rate at which .update() is called)
 	 */
 	PT1(fix32 cutoffFreq, u32 sampleFreq);
 	/**
 	 * @brief Construct a new PT1 object
-	 * 
+	 *
 	 * @param alpha Alpha value of the filter
 	 */
 	PT1(fix32 alpha);
 	/**
 	 * @brief provide a new value to the filter
-	 * 
+	 *
 	 * @param value The new value/sample to be filtered
 	 * @return fix32 The filtered value
 	 */
@@ -33,26 +33,26 @@ public:
 	}
 	/**
 	 * @brief rollover if the value is out of bounds
-	 * 
+	 *
 	 * @return fix32 The new value after rollover
 	 */
 	fix32 rollover();
 	/**
 	 * @brief Set the Rollover Params object
-	 *  
+	 *
 	 * @param lowerBound The lower bound of the rollover (inclusive)
 	 * @param upperBound The upper bound of the rollover (exclusive)
 	 */
 	void setRolloverParams(fix32 lowerBound, fix32 upperBound);
 	/**
 	 * @brief Set a new cutoff frequency for the filter, useful for dynamic filters
-	 * 
+	 *
 	 * @param cutoffFreq The new cutoff frequency
 	 */
 	void updateCutoffFreq(fix32 cutoffFreq);
 	/**
 	 * @brief Set a new alpha value for the filter, useful for dynamic filters
-	 * 
+	 *
 	 * @param alpha The new alpha value
 	 */
 	void updateAlpha(fix32 alpha);
@@ -65,5 +65,5 @@ private:
 	u32 sampleFreq;
 	fix32 lowerBound = 0;
 	fix32 upperBound = 0;
-	fix32 boundDiff  = 0;
+	fix32 boundDiff = 0;
 };

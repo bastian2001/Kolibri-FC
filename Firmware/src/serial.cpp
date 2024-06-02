@@ -1,7 +1,7 @@
 #include "global.h"
 
-u8 readChar        = 0;
-u32 crcLutD5[256]  = {0};
+u8 readChar = 0;
+u32 crcLutD5[256] = {0};
 Stream *serials[3] = {
 	&Serial,
 	&Serial1,
@@ -32,7 +32,7 @@ void serialLoop() {
 		if (serialFunctions[i] & SERIAL_DISABLED)
 			continue;
 		Stream *serial = serials[i];
-		int available  = serial->available();
+		int available = serial->available();
 		for (int j = 0; j < available; j++) {
 			readChar = serial->read();
 			if (serialFunctions[i] & SERIAL_CRSF) {

@@ -1,13 +1,13 @@
 #include "global.h"
 
 elapsedMillis soundStart;
-u16 soundDuration       = 0;
-u8 soundType            = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
+u16 soundDuration = 0;
+u8 soundType = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
 u16 sweepStartFrequency = 0;
-u16 sweepEndFrequency   = 0;
-u16 onTime              = 0;
-u16 offTime             = 0;
-u16 currentWrap         = 400;
+u16 sweepEndFrequency = 0;
+u16 onTime = 0;
+u16 offTime = 0;
+u16 currentWrap = 400;
 fix32 noteFrequencies[13] =
 	{
 		16.35, // C0
@@ -22,14 +22,14 @@ fix32 noteFrequencies[13] =
 		27.50, // A0
 		29.14, // A#0
 		30.87, // B0
-		0      // error
+		0 // error
 };
 typedef struct rtttlNote {
-	u16 frequency;  // pause = 0
-	u16 duration;   // milliseconds
+	u16 frequency; // pause = 0
+	u16 duration; // milliseconds
 	u8 sweepToNext; // dash after note will sweep to next, e.g. 8e6-,8d6 will sweep from 8e6 to 8d6 within "duration" milliseconds
-	u8 quieter;     // 0 = normal, 1-3 = quieter, 4 = ring-tone-like e.g. 8e6$4 will play 8e6 like a ring-tone
-					// quietness only sweeps statically (with the quietness level of the first note)
+	u8 quieter; // 0 = normal, 1-3 = quieter, 4 = ring-tone-like e.g. 8e6$4 will play 8e6 like a ring-tone
+				// quietness only sweeps statically (with the quietness level of the first note)
 } RTTTLNote;
 typedef struct rtttlSong {
 	RTTTLNote notes[MAX_RTTTL_NOTES];
@@ -43,7 +43,7 @@ PIO speakerPio = pio1;
 u8 speakerSm, sliceNum;
 File speakerFile;
 u32 speakerDataSize = 0;
-u32 speakerCounter  = 0;
+u32 speakerCounter = 0;
 dma_channel_config speakerDmaAConfig, speakerDmaBConfig;
 u8 speakerDmaAChan, speakerDmaBChan;
 volatile u8 soundState = 1; // 1: playing PWM, 2: a needs to be filled, 4: b needs to be filled
@@ -64,8 +64,8 @@ void dmaIrqHandler() {
 }
 
 void initSpeaker() {
-	uint offset     = pio_add_program(speakerPio, &speaker8bit_program);
-	speakerSm       = pio_claim_unused_sm(speakerPio, true);
+	uint offset = pio_add_program(speakerPio, &speaker8bit_program);
+	speakerSm = pio_claim_unused_sm(speakerPio, true);
 	pio_sm_config c = speaker8bit_program_get_default_config(offset);
 	pio_gpio_init(speakerPio, PIN_SPEAKER);
 	sm_config_set_set_pins(&c, PIN_SPEAKER, 1);
@@ -81,9 +81,9 @@ void initSpeaker() {
 	pio_sm_set_enabled(speakerPio, speakerSm, true);
 	pio_sm_put(speakerPio, speakerSm, 0);
 	pio_sm_set_clkdiv_int_frac(speakerPio, speakerSm, 11, 148); // 44.1kHz * 4
-	speakerDmaAChan   = dma_claim_unused_channel(true);
+	speakerDmaAChan = dma_claim_unused_channel(true);
 	speakerDmaAConfig = dma_channel_get_default_config(speakerDmaAChan);
-	speakerDmaBChan   = dma_claim_unused_channel(true);
+	speakerDmaBChan = dma_claim_unused_channel(true);
 	speakerDmaBConfig = dma_channel_get_default_config(speakerDmaBChan);
 	channel_config_set_read_increment(&speakerDmaAConfig, true);
 	channel_config_set_write_increment(&speakerDmaAConfig, false);
@@ -121,14 +121,14 @@ void initSpeaker() {
 	pwm_set_enabled(sliceNum, true);
 }
 
-u8 beeperOn         = 0;
-u32 totalBytes      = 0;
+u8 beeperOn = 0;
+u32 totalBytes = 0;
 u8 finishedChannels = 0b00;
 u8 startSpeakerFile = true;
 void speakerLoop() {
 	if (soundState & 0b110) {
 		u32 bytesRead = 0;
-		u8 pState     = soundState;
+		u8 pState = soundState;
 		if (soundState & 0b10) {
 			soundState &= 0b1101;
 			bytesRead = speakerFile.read(speakerChanAData, 1 << SPEAKER_SIZE_POWER);
@@ -186,7 +186,7 @@ void speakerLoop() {
 				pwm_set_gpio_level(PIN_SPEAKER, 0);
 			} else {
 				u32 thisFreq = sweepStartFrequency + ((sweepEndFrequency - sweepStartFrequency) * thisCycle) / onTime;
-				currentWrap  = FREQ_TO_WRAP(thisFreq);
+				currentWrap = FREQ_TO_WRAP(thisFreq);
 				pwm_set_wrap(sliceNum, currentWrap);
 				pwm_set_gpio_level(PIN_SPEAKER, currentWrap >> 1);
 			}
@@ -205,7 +205,7 @@ void speakerLoop() {
 				} else {
 					if (songToPlay.notes[noteIndex].sweepToNext) {
 						u32 thisFreq = songToPlay.notes[noteIndex].frequency + ((songToPlay.notes[noteIndex + 1].frequency - songToPlay.notes[noteIndex].frequency) * thisCycle) / songToPlay.notes[noteIndex].duration;
-						currentWrap  = FREQ_TO_WRAP(thisFreq);
+						currentWrap = FREQ_TO_WRAP(thisFreq);
 					} else {
 						currentWrap = songToPlay.notes[noteIndex].frequency ? FREQ_TO_WRAP(songToPlay.notes[noteIndex].frequency) : 0;
 					}
@@ -277,13 +277,13 @@ bool playWav(const char *filename) {
 
 void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs) {
 	if (!tOnMs) return;
-	soundType   = 0;
+	soundType = 0;
 	currentWrap = FREQ_TO_WRAP(frequency);
 	pwm_set_wrap(sliceNum, currentWrap);
-	onTime        = tOnMs;
-	offTime       = tOffMs;
+	onTime = tOnMs;
+	offTime = tOffMs;
 	soundDuration = duration;
-	soundStart    = 0;
+	soundStart = 0;
 }
 
 void stopSound() {
@@ -294,18 +294,18 @@ void stopSound() {
 // sweep from startFrequency to endFrequency over tOnMs, then stop for tOffMs, repeat for duration
 void makeSweepSound(u16 startFrequency, u16 endFrequency, u16 duration, u16 tOnMs, u16 tOffMs) {
 	if (!tOnMs) return;
-	soundType           = 1;
+	soundType = 1;
 	sweepStartFrequency = startFrequency;
-	sweepEndFrequency   = endFrequency;
-	onTime              = tOnMs;
-	offTime             = tOffMs;
-	soundDuration       = duration;
-	soundStart          = 0;
+	sweepEndFrequency = endFrequency;
+	onTime = tOnMs;
+	offTime = tOffMs;
+	soundDuration = duration;
+	soundStart = 0;
 }
 
 int parseInt(const char *str, int *index, int defaultValue = 0) {
 	int result = 0;
-	int len    = 0;
+	int len = 0;
 	while (str[len + *index] >= '0' && str[len + *index] <= '9' && len < 9) {
 		result *= 10;
 		result += str[len + *index] - '0';
@@ -318,8 +318,8 @@ int parseInt(const char *str, int *index, int defaultValue = 0) {
 }
 
 void makeRtttlSound(const char *song) {
-	int colonCount    = 0;
-	int colon[2]      = {-1, -1};
+	int colonCount = 0;
+	int colon[2] = {-1, -1};
 	int totalDuration = 0;
 	for (int i = 0; i < MAX_RTTTL_TEXT_LENGTH; i++) {
 		if (song[i] == ':') {
@@ -335,17 +335,17 @@ void makeRtttlSound(const char *song) {
 	int d, o, b, notesStart;
 	if (colonCount == 0) {
 		notesStart = 0;
-		d          = 4;
-		o          = 5;
-		b          = 125;
+		d = 4;
+		o = 5;
+		b = 125;
 	} else if (colonCount >= 1) {
 		int start = 0, end = 0;
 		if (colonCount == 1) {
 			start = colon[0];
-			end   = 0;
+			end = 0;
 		} else if (colonCount == 2) {
 			start = colon[1];
-			end   = colon[0];
+			end = colon[0];
 		}
 		notesStart = start + 1;
 		// find index of 'd' in song before colon
@@ -401,11 +401,11 @@ void makeRtttlSound(const char *song) {
 		else
 			songToPlay.notes[noteIndex].duration = 0;
 		if (song[i] == 'p') {
-			songToPlay.notes[noteIndex].frequency   = 0;
+			songToPlay.notes[noteIndex].frequency = 0;
 			songToPlay.notes[noteIndex].sweepToNext = 0;
 			i++;
 		} else {
-			int note      = 0; // 0 = C, 1 = C#...
+			int note = 0; // 0 = C, 1 = C#...
 			char noteChar = song[i++];
 			switch (noteChar) {
 			case 'c':
@@ -472,6 +472,6 @@ void makeRtttlSound(const char *song) {
 	songToPlay.notes[songToPlay.numNotes - 1].sweepToNext = 0;
 
 	soundDuration = totalDuration;
-	soundStart    = 0;
-	soundType     = 2;
+	soundStart = 0;
+	soundType = 2;
 }

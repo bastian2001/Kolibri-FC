@@ -85,10 +85,10 @@ public:
 		}
 		delete[] buffer;
 		buffer = newBuffer;
-		size   = newSize;
-		pSize  = newSize + 1;
-		wrPtr  = i;
-		rdPtr  = 0;
+		size = newSize;
+		pSize = newSize + 1;
+		wrPtr = i;
+		rdPtr = 0;
 		return 0;
 	}
 	/// @brief get the item at index index, does not pop

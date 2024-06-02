@@ -1,14 +1,14 @@
 #include "global.h"
 
 PIO escPio;
-u32 enableDShot  = 1;
+u32 enableDShot = 1;
 u32 escPioOffset = 0;
 
 volatile u32 erpmEdges[4][32] = {0};
-volatile u32 escRpm[4]        = {0};
-u8 escDmaChannel[4]           = {0};
+volatile u32 escRpm[4] = {0};
+u8 escDmaChannel[4] = {0};
 dma_channel_config escDmaConfig[4];
-u8 escErpmFail     = 0;
+u8 escErpmFail = 0;
 u32 dmaChannelMask = 0;
 
 // basically a memset(0) channel to clear the erpm edges
@@ -21,7 +21,7 @@ const u32 escDecodeLut[32] = {
 	iv, iv, 2, 3, iv, 5, 6, 7, iv, 0, 8, 1, iv, 4, 12, iv};
 
 void initESCs() {
-	escPio       = pio0;
+	escPio = pio0;
 	escPioOffset = pio_add_program(escPio, &bidir_dshot_x1_program);
 	pio_claim_sm_mask(escPio, 0b1111);
 
@@ -40,7 +40,7 @@ void initESCs() {
 		pio_sm_set_enabled(escPio, i, true);
 		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
 		escDmaChannel[i] = dma_claim_unused_channel(true);
-		escDmaConfig[i]  = dma_channel_get_default_config(escDmaChannel[i]);
+		escDmaConfig[i] = dma_channel_get_default_config(escDmaChannel[i]);
 		channel_config_set_transfer_data_size(&escDmaConfig[i], DMA_SIZE_32);
 		channel_config_set_read_increment(&escDmaConfig[i], false);
 		channel_config_set_write_increment(&escDmaConfig[i], true);
@@ -51,7 +51,7 @@ void initESCs() {
 		dma_channel_set_trans_count(escDmaChannel[i], 32, true);
 		dmaChannelMask |= 1 << escDmaChannel[i];
 	}
-	escClearDmaChannel                   = dma_claim_unused_channel(true);
+	escClearDmaChannel = dma_claim_unused_channel(true);
 	dma_channel_config escClearDmaConfig = dma_channel_get_default_config(escClearDmaChannel);
 	channel_config_set_transfer_data_size(&escClearDmaConfig, DMA_SIZE_32);
 	channel_config_set_read_increment(&escClearDmaConfig, false);

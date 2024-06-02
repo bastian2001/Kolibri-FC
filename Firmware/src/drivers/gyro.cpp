@@ -2,15 +2,15 @@
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
-u32 gyroLastState         = 0;
+u32 gyroLastState = 0;
 elapsedMicros lastPIDLoop = 0;
 
-u32 gyroCalibratedCycles          = 0;
-i32 gyroCalibrationOffset[3]      = {0};
-i32 accelCalibrationOffset[3]     = {0};
-i16 gyroCalibrationOffsetTemp[3]  = {0};
+u32 gyroCalibratedCycles = 0;
+i32 gyroCalibrationOffset[3] = {0};
+i32 accelCalibrationOffset[3] = {0};
+i16 gyroCalibrationOffsetTemp[3] = {0};
 i32 accelCalibrationOffsetTemp[3] = {0};
-u16 accelCalibrationCycles        = 0;
+u16 accelCalibrationCycles = 0;
 
 extern const u8 bmi270_config_file[8192];
 
@@ -42,13 +42,13 @@ void gyroLoop() {
 					gyroCalibrationOffsetTemp[0] = 0;
 					gyroCalibrationOffsetTemp[1] = 0;
 					gyroCalibrationOffsetTemp[2] = 0;
-					gyroCalibratedCycles         = 0;
+					gyroCalibratedCycles = 0;
 				}
 				if (accelCalibrationCycles) {
 					if (accelCalibrationCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
-						accelCalibrationOffset[0]     = 0;
-						accelCalibrationOffset[1]     = 0;
-						accelCalibrationOffset[2]     = 0;
+						accelCalibrationOffset[0] = 0;
+						accelCalibrationOffset[1] = 0;
+						accelCalibrationOffset[2] = 0;
 						accelCalibrationOffsetTemp[0] = 0;
 						accelCalibrationOffsetTemp[1] = 0;
 						accelCalibrationOffsetTemp[2] = 0;
@@ -62,7 +62,7 @@ void gyroLoop() {
 							accelCalibrationOffset[0] = (accelCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
 							accelCalibrationOffset[1] = (accelCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
 							accelCalibrationOffset[2] = (accelCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-							accelCalDone              = 1;
+							accelCalDone = 1;
 						}
 					}
 				}
@@ -73,7 +73,7 @@ void gyroLoop() {
 
 int gyroInit() {
 	// init gyro/accel pointer
-	gyroDataRaw  = bmiDataRaw + 3;
+	gyroDataRaw = bmiDataRaw + 3;
 	accelDataRaw = bmiDataRaw;
 
 	gpio_init(PIN_GYRO_INT1);
@@ -93,7 +93,7 @@ int gyroInit() {
 	data = 0;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500);                                       // prepare config load
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // prepare config load
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
 	data = 1;
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load

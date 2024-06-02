@@ -8,12 +8,12 @@ u8 accelCalDone = 0;
 elapsedMillis mspOverrideMotors = 1001;
 
 static const char targetIdentifier[] = "KD04";
-static const char targetFullName[]   = "Kolibri Dev v0.4";
+static const char targetFullName[] = "Kolibri Dev v0.4";
 
 elapsedMillis lastConfigPingRx = 0;
-bool configuratorConnected     = false;
+bool configuratorConnected = false;
 
-u8 lastMspSerial          = 0;
+u8 lastMspSerial = 0;
 MspVersion lastMspVersion = MspVersion::V2;
 
 void configuratorLoop() {
@@ -21,7 +21,7 @@ void configuratorLoop() {
 		configuratorConnected = false;
 	if (accelCalDone) {
 		accelCalDone = 0;
-		char data    = 1;
+		char data = 1;
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::ACC_CALIBRATION, lastMspVersion, &data, 1);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION, (i16)accelCalibrationOffset[0]);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, (i16)accelCalibrationOffset[1]);
@@ -44,10 +44,10 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 	if (version == MspVersion::V2_OVER_V1_OVER_CRSF && len > 248) version = MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
 	if (version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF && len < 249) version = MspVersion::V2_OVER_V1_OVER_CRSF;
 
-	bool versionHasV1    = version == MspVersion::V1 || version == MspVersion::V1_JUMBO || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_V1_JUMBO || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
-	bool versionHasV2    = version == MspVersion::V2 || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_V1_JUMBO || version == MspVersion::V2_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
+	bool versionHasV1 = version == MspVersion::V1 || version == MspVersion::V1_JUMBO || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_V1_JUMBO || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
+	bool versionHasV2 = version == MspVersion::V2 || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_V1_JUMBO || version == MspVersion::V2_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
 	bool versionHasJumbo = version == MspVersion::V1_JUMBO || version == MspVersion::V2_OVER_V1_JUMBO || version == MspVersion::V1_JUMBO_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
-	bool versionHasCrsf  = version == MspVersion::V2_OVER_CRSF || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
+	bool versionHasCrsf = version == MspVersion::V2_OVER_CRSF || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
 	if (!versionHasV2 && fn >= MspFn::MSP_V2_FRAME) return;
 	Stream *ser = serials[serialNum];
 
@@ -92,7 +92,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 		case MspVersion::V2_OVER_V1_OVER_CRSF:
 			buf[0] = len + 5;
 			buf[1] = 255; // trigger v2 over v1
-			buf[2] = 0;   // flag
+			buf[2] = 0; // flag
 			buf[3] = (u8)fn;
 			buf[4] = (u16)fn >> 8;
 			buf[5] = len & 0xFF;
@@ -103,7 +103,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 			buf[1] = (len + 5) & 0xFF;
 			buf[2] = (len + 5) >> 8;
 			buf[3] = 255; // trigger v2 over v1
-			buf[4] = 0;   // flag
+			buf[4] = 0; // flag
 			buf[5] = (u8)fn;
 			buf[6] = (u16)fn >> 8;
 			buf[7] = len & 0xFF;
@@ -115,8 +115,8 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 	} else {
 		u8 pos = 0;
 		u8 header[12];
-		u32 crcV1     = 0; // u32 is faster
-		u32 crcV2     = 0; // u32 is faster
+		u32 crcV1 = 0; // u32 is faster
+		u32 crcV2 = 0; // u32 is faster
 		header[pos++] = '$';
 		header[pos++] = versionHasV1 ? 'M' : 'X';
 		header[pos++] = (u8)type;
@@ -179,7 +179,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 
 void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen) {
 	char buf[256] = {0};
-	u16 len       = 0;
+	u16 len = 0;
 	if (mspType == MspMsgType::REQUEST) {
 		switch (fn) {
 		case MspFn::API_VERSION:
@@ -200,15 +200,15 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::BOARD_INFO: {
 			memcpy(&buf[len], targetIdentifier, TARGET_IDENTIFIER_LENGTH);
 			len += 4;
-			buf[len++]            = 0; // board revision
-			buf[len++]            = 0;
-			buf[len++]            = 2; // 2 == FC with MAX7456
+			buf[len++] = 0; // board revision
+			buf[len++] = 0;
+			buf[len++] = 2; // 2 == FC with MAX7456
 			u8 targetCapabilities = 0;
 			targetCapabilities |= 1 << 0; // VCP / CDC
 			targetCapabilities |= 0 << 1; // no soft serial
-			buf[len++]       = targetCapabilities;
+			buf[len++] = targetCapabilities;
 			u8 targetNameLen = strlen(targetFullName);
-			buf[len++]       = targetNameLen;
+			buf[len++] = targetNameLen;
 			memcpy(&buf[len], targetFullName, targetNameLen);
 			len += targetNameLen;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
@@ -239,9 +239,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::GET_FEATURE_CONFIG: {
 			// only exists for compatibility with BLHeliSuite32
 			u32 features = 0;
-			features |= 1 << 3;  // FEATURE_RX_SERIAL
-			features |= 1 << 4;  // FEATURE_MOTOR_STOP
-			features |= 1 << 7;  // FEATURE_GPS
+			features |= 1 << 3; // FEATURE_RX_SERIAL
+			features |= 1 << 4; // FEATURE_MOTOR_STOP
+			features |= 1 << 7; // FEATURE_GPS
 			features |= 1 << 10; // FEATURE_TELEMETRY
 			features |= 1 << 18; // FEATURE_OSD
 			features |= 1 << 22; // FEATURE_AIRMODE
@@ -311,8 +311,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 0; // I2C error count
 			buf[len++] = 0;
 			buf[len++] = 0b101111; // gyro, no rangefinder, gps, mag, baro, accel
-			buf[len++] = 0;        // no other sensors
-			buf[len++] = 0;        // flight mode flags
+			buf[len++] = 0; // no other sensors
+			buf[len++] = 0; // flight mode flags
 			buf[len++] = 0;
 			buf[len++] = 0;
 			buf[len++] = 0;
@@ -343,15 +343,15 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::MSP_ATTITUDE: {
 			// not used by Kolibri configurator, that uses GET_ROTATION
-			i16 rollInt  = -roll * (RAD_TO_DEG * 10);
+			i16 rollInt = -roll * (RAD_TO_DEG * 10);
 			i16 pitchInt = pitch * (RAD_TO_DEG * 10);
-			i16 yawInt   = combinedHeading.getf32() * (RAD_TO_DEG);
-			buf[len++]   = rollInt & 0xFF;
-			buf[len++]   = rollInt >> 8;
-			buf[len++]   = pitchInt & 0xFF;
-			buf[len++]   = pitchInt >> 8;
-			buf[len++]   = yawInt & 0xFF;
-			buf[len++]   = yawInt >> 8;
+			i16 yawInt = combinedHeading.getf32() * (RAD_TO_DEG);
+			buf[len++] = rollInt & 0xFF;
+			buf[len++] = rollInt >> 8;
+			buf[len++] = pitchInt & 0xFF;
+			buf[len++] = pitchInt >> 8;
+			buf[len++] = yawInt & 0xFF;
+			buf[len++] = yawInt >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::BOXIDS:
@@ -402,7 +402,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			throttles[(u8)MOTOR::FR] = ((u16)reqPayload[2] + ((u16)reqPayload[3] << 8)) * 2 - 2000;
 			throttles[(u8)MOTOR::RL] = ((u16)reqPayload[4] + ((u16)reqPayload[5] << 8)) * 2 - 2000;
 			throttles[(u8)MOTOR::FL] = ((u16)reqPayload[6] + ((u16)reqPayload[7] << 8)) * 2 - 2000;
-			mspOverrideMotors        = 0;
+			mspOverrideMotors = 0;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::ENABLE_4WAY_IF:
@@ -436,29 +436,29 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::STATUS: {
 			u16 voltage = adcVoltage;
-			buf[len++]  = voltage & 0xFF;
-			buf[len++]  = voltage >> 8;
-			buf[len++]  = armed;
-			buf[len++]  = (u8)flightMode;
-			buf[len++]  = (u8)(armingDisableFlags & 0xFF);
-			buf[len++]  = (u8)(armingDisableFlags >> 8);
-			buf[len++]  = (u8)(armingDisableFlags >> 16);
-			buf[len++]  = (u8)(armingDisableFlags >> 24);
-			buf[len++]  = (u8)(configuratorConnected & 0xFF);
+			buf[len++] = voltage & 0xFF;
+			buf[len++] = voltage >> 8;
+			buf[len++] = armed;
+			buf[len++] = (u8)flightMode;
+			buf[len++] = (u8)(armingDisableFlags & 0xFF);
+			buf[len++] = (u8)(armingDisableFlags >> 8);
+			buf[len++] = (u8)(armingDisableFlags >> 16);
+			buf[len++] = (u8)(armingDisableFlags >> 24);
+			buf[len++] = (u8)(configuratorConnected & 0xFF);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::CONFIGURATOR_PING:
 			configuratorConnected = true;
-			lastConfigPingRx      = 0;
+			lastConfigPingRx = 0;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 			break;
 		case MspFn::SERIAL_PASSTHROUGH: {
 			u8 serialNum = reqPayload[0];
-			u32 baud     = DECODE_U4((u8 *)&reqPayload[1]);
+			u32 baud = DECODE_U4((u8 *)&reqPayload[1]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)reqPayload, 5);
 			Serial.flush();
-			u8 plusCount                  = 0;
+			u8 plusCount = 0;
 			elapsedMillis breakoutCounter = 0;
 			switch (serialNum) {
 			case 1:
@@ -536,7 +536,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 		} break;
 		case MspFn::BB_FILE_LIST: {
-			int index         = 0;
+			int index = 0;
 			char shortbuf[16] = {0};
 			for (int i = 0; i < 100; i++) {
 				rp2040.wdt_reset();
@@ -567,8 +567,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			 * 13. byte that indicates frequency divider
 			 * 14-21: recording flags
 			 */
-			u8 len       = reqLen;
-			len          = len > 12 ? 12 : len;
+			u8 len = reqLen;
+			len = len > 12 ? 12 : len;
 			u8 *fileNums = (u8 *)reqPayload;
 			u8 buffer[22 * len];
 			u8 index = 0;
@@ -603,7 +603,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buffer, index);
 		} break;
 		case MspFn::BB_FILE_DOWNLOAD: {
-			u8 fileNum   = reqPayload[0];
+			u8 fileNum = reqPayload[0];
 			i32 chunkNum = -1;
 			if (reqLen > 1) {
 				chunkNum = DECODE_I4((u8 *)&reqPayload[1]);
@@ -672,7 +672,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[20], &gpsMotion.velD, 4);
 			memcpy(&buf[24], &gpsMotion.gSpeed, 4);
 			memcpy(&buf[28], &gpsMotion.headMot, 4);
-			i32 cAlt    = combinedAltitude.getRaw();
+			i32 cAlt = combinedAltitude.getRaw();
 			i32 vVelRaw = vVel.getRaw();
 			memcpy(&buf[32], &cAlt, 4);
 			memcpy(&buf[36], &vVelRaw, 4);
@@ -685,17 +685,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::GET_ROTATION: {
 			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 			int rotationPitch = pitch * 8192;
-			int rotationRoll  = roll * 8192;
-			int rotationYaw   = yaw * 8192;
-			int heading       = combinedHeading.getRaw() >> 3;
-			buf[0]            = rotationPitch & 0xFF;
-			buf[1]            = rotationPitch >> 8;
-			buf[2]            = rotationRoll & 0xFF;
-			buf[3]            = rotationRoll >> 8;
-			buf[4]            = rotationYaw & 0xFF;
-			buf[5]            = rotationYaw >> 8;
-			buf[6]            = heading & 0xFF;
-			buf[7]            = heading >> 8;
+			int rotationRoll = roll * 8192;
+			int rotationYaw = yaw * 8192;
+			int heading = combinedHeading.getRaw() >> 3;
+			buf[0] = rotationPitch & 0xFF;
+			buf[1] = rotationPitch >> 8;
+			buf[2] = rotationRoll & 0xFF;
+			buf[3] = rotationRoll >> 8;
+			buf[4] = rotationYaw & 0xFF;
+			buf[5] = rotationYaw >> 8;
+			buf[6] = heading & 0xFF;
+			buf[7] = heading >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
 		} break;
 		case MspFn::TASK_STATUS: {
@@ -714,7 +714,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			for (int i = 0; i < 32; i++) {
 				tasks[i].minDuration = 0xFFFFFFFF;
 				tasks[i].maxDuration = 0;
-				tasks[i].maxGap      = 0;
+				tasks[i].maxGap = 0;
 			}
 		} break;
 		case MspFn::GET_PIDS: {
@@ -779,15 +779,15 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::PLAY_SOUND: {
-			const u16 startFreq     = random(1000, 5000);
-			const u16 endFreq       = random(1000, 5000);
+			const u16 startFreq = random(1000, 5000);
+			const u16 endFreq = random(1000, 5000);
 			const u16 sweepDuration = random(400, 1000);
-			u16 pauseDuration       = random(100, 1000);
-			const u16 pauseEn       = random(0, 2);
+			u16 pauseDuration = random(100, 1000);
+			const u16 pauseEn = random(0, 2);
 			pauseDuration *= pauseEn;
 			const u16 repeat = random(1, 11);
 			makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
-			u8 len     = 0;
+			u8 len = 0;
 			buf[len++] = startFreq & 0xFF;
 			buf[len++] = startFreq >> 8;
 			buf[len++] = endFreq & 0xFF;
@@ -810,17 +810,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 }
 
 void mspHandleByte(u8 c, u8 serialNum) {
-	elapsedMicros taskTimer      = 0;
+	elapsedMicros taskTimer = 0;
 	static char payloadBuf[2052] = {0}; // worst case: 2048 bytes payload + 3 bytes checksum (v2 over v1 jumbo) + 1 byte start. After the start byte, the index is reset to 0
-	static u16 payloadBufIndex   = 0;
-	static u16 payloadLen        = 0;
-	static MspFn fn              = MspFn::API_VERSION;
-	static MspMsgType msgType    = MspMsgType::ERROR;
-	static u8 msgFlag            = 0;
-	static u32 crcV1             = 0;
-	static u32 crcV2             = 0;
-	static MspVersion msgMspVer  = MspVersion::V2;
-	static MspState mspState     = MspState::IDLE;
+	static u16 payloadBufIndex = 0;
+	static u16 payloadLen = 0;
+	static MspFn fn = MspFn::API_VERSION;
+	static MspMsgType msgType = MspMsgType::ERROR;
+	static u8 msgFlag = 0;
+	static u32 crcV1 = 0;
+	static u32 crcV2 = 0;
+	static MspVersion msgMspVer = MspVersion::V2;
+	static MspState mspState = MspState::IDLE;
 
 	tasks[TASK_CONFIGURATOR].runCounter++;
 	payloadBuf[payloadBufIndex++] = c;
@@ -845,7 +845,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		}
 		break;
 	case MspState::TYPE_V1:
-		crcV1    = 0;
+		crcV1 = 0;
 		mspState = MspState::LEN_V1;
 		switch (c) {
 		case '<':
@@ -866,11 +866,11 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		crcV1 ^= c;
 		if (c == 255) {
 			msgMspVer = MspVersion::V1_JUMBO;
-			mspState  = MspState::JUMBO_LEN_LO_V1;
+			mspState = MspState::JUMBO_LEN_LO_V1;
 		} else {
 			payloadLen = c;
-			msgMspVer  = MspVersion::V1;
-			mspState   = MspState::CMD_V1;
+			msgMspVer = MspVersion::V1;
+			mspState = MspState::CMD_V1;
 		}
 		break;
 	case MspState::JUMBO_LEN_LO_V1:
@@ -887,10 +887,10 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		crcV1 ^= c;
 		if (c == (u8)MspFn::MSP_V2_FRAME) {
 			msgMspVer = msgMspVer == MspVersion::V1 ? MspVersion::V2_OVER_V1 : MspVersion::V2_OVER_V1_JUMBO;
-			mspState  = MspState::FLAG_V2_OVER_V1;
+			mspState = MspState::FLAG_V2_OVER_V1;
 		} else {
-			fn              = (MspFn)c;
-			mspState        = payloadLen ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
+			fn = (MspFn)c;
+			mspState = payloadLen ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
 			payloadBufIndex = 0;
 		}
 		break;
@@ -902,25 +902,25 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	case MspState::FLAG_V2_OVER_V1:
 		msgFlag = c;
 		crcV1 ^= c;
-		crcV2    = crcLutD5[c];
+		crcV2 = crcLutD5[c];
 		mspState = MspState::CMD_LO_V2_OVER_V1;
 		break;
 	case MspState::CMD_LO_V2_OVER_V1:
 		fn = (MspFn)c;
 		crcV1 ^= c;
-		crcV2    = crcLutD5[c ^ crcV2];
+		crcV2 = crcLutD5[c ^ crcV2];
 		mspState = MspState::CMD_HI_V2_OVER_V1;
 		break;
 	case MspState::CMD_HI_V2_OVER_V1:
 		fn = (MspFn)((u32)fn | (u32)c << 8);
 		crcV1 ^= c;
-		crcV2    = crcLutD5[c ^ crcV2];
+		crcV2 = crcLutD5[c ^ crcV2];
 		mspState = MspState::LEN_LO_V2_OVER_V1;
 		break;
 	case MspState::LEN_LO_V2_OVER_V1:
 		payloadLen = c;
 		crcV1 ^= c;
-		crcV2    = crcLutD5[c ^ crcV2];
+		crcV2 = crcLutD5[c ^ crcV2];
 		mspState = MspState::LEN_HI_V2_OVER_V1;
 		break;
 	case MspState::LEN_HI_V2_OVER_V1:
@@ -930,8 +930,8 @@ void mspHandleByte(u8 c, u8 serialNum) {
 			break;
 		}
 		crcV1 ^= c;
-		crcV2           = crcLutD5[c ^ crcV2];
-		mspState        = payloadLen ? MspState::PAYLOAD_V2_OVER_V1 : MspState::CHECKSUM_V2_OVER_V1;
+		crcV2 = crcLutD5[c ^ crcV2];
+		mspState = payloadLen ? MspState::PAYLOAD_V2_OVER_V1 : MspState::CHECKSUM_V2_OVER_V1;
 		payloadBufIndex = 0;
 		break;
 	case MspState::PAYLOAD_V2_OVER_V1:
@@ -957,7 +957,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		mspState = MspState::IDLE;
 		break;
 	case MspState::TYPE_V2:
-		mspState  = MspState::FLAG_V2;
+		mspState = MspState::FLAG_V2;
 		msgMspVer = MspVersion::V2;
 		switch (c) {
 		case '<':
@@ -975,24 +975,24 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		}
 		break;
 	case MspState::FLAG_V2:
-		msgFlag  = c;
-		crcV2    = crcLutD5[c];
+		msgFlag = c;
+		crcV2 = crcLutD5[c];
 		mspState = MspState::CMD_LO_V2;
 		break;
 	case MspState::CMD_LO_V2:
-		fn       = (MspFn)c;
-		crcV2    = crcLutD5[c ^ crcV2];
+		fn = (MspFn)c;
+		crcV2 = crcLutD5[c ^ crcV2];
 		mspState = MspState::CMD_HI_V2;
 		break;
 	case MspState::CMD_HI_V2:
-		fn       = (MspFn)((u32)fn | (u32)c << 8);
-		crcV2    = crcLutD5[c ^ crcV2];
+		fn = (MspFn)((u32)fn | (u32)c << 8);
+		crcV2 = crcLutD5[c ^ crcV2];
 		mspState = MspState::LEN_LO_V2;
 		break;
 	case MspState::LEN_LO_V2:
 		payloadLen = c;
-		crcV2      = crcLutD5[c ^ crcV2];
-		mspState   = MspState::LEN_HI_V2;
+		crcV2 = crcLutD5[c ^ crcV2];
+		mspState = MspState::LEN_HI_V2;
 		break;
 	case MspState::LEN_HI_V2:
 		payloadLen |= ((u16)c << 8);
@@ -1000,8 +1000,8 @@ void mspHandleByte(u8 c, u8 serialNum) {
 			mspState = MspState::IDLE;
 			break;
 		}
-		crcV2           = crcLutD5[c ^ crcV2];
-		mspState        = payloadLen ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
+		crcV2 = crcLutD5[c ^ crcV2];
+		mspState = payloadLen ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
 		payloadBufIndex = 0;
 		break;
 	case MspState::PAYLOAD_V2:
@@ -1024,6 +1024,6 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	}
 	if (duration > tasks[TASK_CONFIGURATOR].maxDuration) {
 		tasks[TASK_CONFIGURATOR].maxDuration = duration;
-		tasks[TASK_CONFIGURATOR].debugInfo   = (u32)fn;
+		tasks[TASK_CONFIGURATOR].debugInfo = (u32)fn;
 	}
 }

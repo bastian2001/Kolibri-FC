@@ -176,7 +176,7 @@ public:
 		}
 		bool ret = failed > 0;
 		if (clearResults) {
-			failed    = 0;
+			failed = 0;
 			succeeded = 0;
 		}
 		return ret;
@@ -186,7 +186,7 @@ private:
 	i32 value;
 	static u32 failed;
 	static u32 succeeded;
-	i32 ind             = -1;
+	i32 ind = -1;
 	char identifier[32] = "";
 	static bool silentLogging;
 };

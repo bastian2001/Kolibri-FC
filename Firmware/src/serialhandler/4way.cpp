@@ -36,57 +36,57 @@ enum class State4Way {
 	CHECKSUM_LO
 };
 enum class Res4Way {
-	ACK_OK               = 0x00,
-	NACK_INVALID_CMD     = 0x02,
-	NACK_INVALID_CRC     = 0x03,
-	NACK_VERIFY_ERROR    = 0x04,
+	ACK_OK = 0x00,
+	NACK_INVALID_CMD = 0x02,
+	NACK_INVALID_CRC = 0x03,
+	NACK_VERIFY_ERROR = 0x04,
 	NACK_INVALID_CHANNEL = 0x08,
-	NACK_INVALID_PARAM   = 0x09,
-	NACK_GENERAL_ERROR   = 0x0F
+	NACK_INVALID_PARAM = 0x09,
+	NACK_GENERAL_ERROR = 0x0F
 };
 enum class BlRes {
-	SUCCESS       = 0x30,
-	ERROR_VERIFY  = 0xC0,
+	SUCCESS = 0x30,
+	ERROR_VERIFY = 0xC0,
 	ERROR_COMMAND = 0xC1,
-	ERROR_CRC     = 0xC2,
-	NONE          = 0xFF
+	ERROR_CRC = 0xC2,
+	NONE = 0xFF
 };
 enum class Cmd4Way {
-	INTERFACE_TEST_ALIVE  = 0x30,
-	PROTOCOL_GET_VERSION  = 0x31,
-	INTERFACE_GET_NAME    = 0x32,
+	INTERFACE_TEST_ALIVE = 0x30,
+	PROTOCOL_GET_VERSION = 0x31,
+	INTERFACE_GET_NAME = 0x32,
 	INTERFACE_GET_VERSION = 0x33,
-	INTERFACE_EXIT        = 0x34,
-	DEVICE_RESET          = 0x35,
-	DEVICE_INIT_FLASH     = 0x37,
-	DEVICE_ERASE_ALL      = 0x38,
-	DEVICE_PAGE_ERASE     = 0x39,
-	DEVICE_READ           = 0x3A,
-	DEVICE_WRITE          = 0x3B,
-	DEVICE_C2CK_LOW       = 0x3C,
-	DEVICE_READ_EEPROM    = 0x3D,
-	DEVICE_WRITE_EEPROM   = 0x3E,
-	INTERFACE_SET_MODE    = 0x3F,
-	DEVICE_VERIFY         = 0x40,
+	INTERFACE_EXIT = 0x34,
+	DEVICE_RESET = 0x35,
+	DEVICE_INIT_FLASH = 0x37,
+	DEVICE_ERASE_ALL = 0x38,
+	DEVICE_PAGE_ERASE = 0x39,
+	DEVICE_READ = 0x3A,
+	DEVICE_WRITE = 0x3B,
+	DEVICE_C2CK_LOW = 0x3C,
+	DEVICE_READ_EEPROM = 0x3D,
+	DEVICE_WRITE_EEPROM = 0x3E,
+	INTERFACE_SET_MODE = 0x3F,
+	DEVICE_VERIFY = 0x40,
 };
 #define RESTART_BOOTLOADER_4WAY 0
 #define EXIT_BOOTLOADER_4WAY 1
 enum class BlCmd {
-	RUN_CMD          = 0x00,
-	PROG_FLASH       = 0x01,
-	ERASE_FLASH      = 0x02,
-	READ_FLASH_SIL   = 0x03,
-	VERIFY_FLASH     = 0x03,
+	RUN_CMD = 0x00,
+	PROG_FLASH = 0x01,
+	ERASE_FLASH = 0x02,
+	READ_FLASH_SIL = 0x03,
+	VERIFY_FLASH = 0x03,
 	VERIFY_FLASH_ARM = 0x04,
-	READ_EEPROM      = 0x04,
-	PROG_EEPROM      = 0x05,
-	READ_SRAM        = 0x06,
-	READ_FLASH_ATM   = 0x07,
-	BOOTINIT         = 0x07,
-	BOOTSIGN         = 0x08,
-	KEEP_ALIVE       = 0xFD,
-	SET_BUFFER       = 0xFE,
-	SET_ADDRESS      = 0xFF,
+	READ_EEPROM = 0x04,
+	PROG_EEPROM = 0x05,
+	READ_SRAM = 0x06,
+	READ_FLASH_ATM = 0x07,
+	BOOTINIT = 0x07,
+	BOOTSIGN = 0x08,
+	KEEP_ALIVE = 0xFD,
+	SET_BUFFER = 0xFE,
+	SET_ADDRESS = 0xFF,
 };
 
 void pioSetProgram(uint offset, pio_sm_config c) {
@@ -189,7 +189,7 @@ u16 crcUpdateXmodem(u16 crc, u8 c) {
 }
 
 void sendEsc(uint8_t tx_buf[], uint16_t buf_size, bool CRC = true) {
-	uint16_t i  = 0;
+	uint16_t i = 0;
 	u16 esc_crc = 0;
 	if (buf_size == 0) {
 		buf_size = 256;
@@ -208,7 +208,7 @@ void sendEsc(uint8_t tx_buf[], uint16_t buf_size, bool CRC = true) {
 }
 
 uint16_t getEsc(uint8_t rx_buf[], uint16_t wait_ms) {
-	uint16_t i   = 0;
+	uint16_t i = 0;
 	bool timeout = false;
 	while ((!pioAvailable()) && (!timeout)) {
 		delayWhileRead(1);
@@ -232,7 +232,7 @@ void begin4Way() {
 	enableDShot = 0;
 	pio_set_sm_mask_enabled(escPio, 0b1111, false);
 	pio_remove_program(escPio, &bidir_dshot_x1_program, escPioOffset);
-	offsetPioReceive  = pio_add_program(escPio, &onewire_receive_program);
+	offsetPioReceive = pio_add_program(escPio, &onewire_receive_program);
 	offsetPioTransmit = pio_add_program(escPio, &onewire_transmit_program);
 	for (int i = 0; i < 4; i++) {
 		pio_sm_unclaim(escPio, i);
@@ -277,7 +277,7 @@ void end4Way() {
 		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
 	}
 	serialFunctions[0] &= ~SERIAL_4WAY;
-	enableDShot   = 1;
+	enableDShot = 1;
 	setup4WayDone = false;
 }
 
@@ -288,7 +288,7 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 	else if (payload == nullptr && len == 1)
 		payload = &dummy;
 	if (len == 0) len = 256;
-	u16 crc      = 0;
+	u16 crc = 0;
 	u8 header[5] = {0x2E, cmd, (u8)(address >> 8), (u8)(address & 0xFF), (u8)(len & 0xFF)};
 	for (u16 i = 0; i < 5; i++) {
 		crc = crcUpdateXmodem(crc, header[i]);
@@ -307,7 +307,7 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 
 uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {
 	if (addrHi == 0xFF && addrLo == 0xFF) return 1;
-	uint8_t sCmd[]    = {(u8)BlCmd::SET_ADDRESS, 0x00, addrHi, addrLo};
+	uint8_t sCmd[] = {(u8)BlCmd::SET_ADDRESS, 0x00, addrHi, addrLo};
 	uint8_t rxBuf[50] = {0};
 	sendEsc(sCmd, 4);
 	delayWhileRead(5);
@@ -317,7 +317,7 @@ uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {
 }
 
 uint8_t blSendCmdSetBuf(uint8_t len, uint8_t buf[256]) {
-	uint8_t sCmd[]    = {(u8)BlCmd::SET_BUFFER, 0x00, len == 0, len};
+	uint8_t sCmd[] = {(u8)BlCmd::SET_BUFFER, 0x00, len == 0, len};
 	uint8_t rxBuf[50] = {0};
 	sendEsc(sCmd, 4);
 	delayWhileRead(5);
@@ -332,7 +332,7 @@ uint8_t blSendCmdSetBuf(uint8_t len, uint8_t buf[256]) {
 
 uint8_t blVerifyFlash(uint8_t len, uint8_t buf[256], uint8_t addrHi, uint8_t addrLo) {
 	if (blSendCmdSetAddr(addrHi, addrLo)) {
-		uint8_t sCmd[]    = {(u8)BlCmd::VERIFY_FLASH_ARM, 0x01};
+		uint8_t sCmd[] = {(u8)BlCmd::VERIFY_FLASH_ARM, 0x01};
 		uint8_t rxBuf[50] = {0};
 		if (!blSendCmdSetBuf(len, buf)) return 0;
 		sendEsc(sCmd, 2);
@@ -404,9 +404,9 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 				buf[3] = IM_ARM_BLB;
 				send4WayResponse(cmd, address, buf, 4);
 			} else {
-				buf[0] = 0x06;       // Device Signature2?
-				buf[1] = 0x33;       // Device Signature1?
-				buf[2] = 0x67;       // "c"?
+				buf[0] = 0x06; // Device Signature2?
+				buf[1] = 0x33; // Device Signature1?
+				buf[2] = 0x67; // "c"?
 				buf[3] = IM_ARM_BLB; // Boot Pages?
 				send4WayResponse(cmd, address, buf, 4, Res4Way::NACK_GENERAL_ERROR);
 			}
@@ -515,7 +515,7 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 		break;
 
 	case Cmd4Way::DEVICE_PAGE_ERASE: {
-		u8 ack     = (u8)Res4Way::ACK_OK;
+		u8 ack = (u8)Res4Way::ACK_OK;
 		u8 rx[250] = {0};
 
 		buf[0] = (u8)BlCmd::SET_ADDRESS;
@@ -558,35 +558,35 @@ void process4Way(u8 c) {
 	switch (state) {
 	case State4Way::IDLE:
 		if (c == '/') {
-			pos   = 0;
-			crc   = crcUpdateXmodem(0, c);
+			pos = 0;
+			crc = crcUpdateXmodem(0, c);
 			state = State4Way::CMD;
 		}
 		break;
 	case State4Way::CMD:
-		cmd   = c;
-		crc   = crcUpdateXmodem(crc, c);
+		cmd = c;
+		crc = crcUpdateXmodem(crc, c);
 		state = State4Way::ADDR_HI;
 		break;
 	case State4Way::ADDR_HI:
 		address = c << 8;
-		crc     = crcUpdateXmodem(crc, c);
-		state   = State4Way::ADDR_LO;
+		crc = crcUpdateXmodem(crc, c);
+		state = State4Way::ADDR_LO;
 		break;
 	case State4Way::ADDR_LO:
 		address |= c;
-		crc   = crcUpdateXmodem(crc, c);
+		crc = crcUpdateXmodem(crc, c);
 		state = State4Way::LEN;
 		break;
 	case State4Way::LEN:
 		len = c;
 		if (!len) len = 256;
-		crc   = crcUpdateXmodem(crc, c);
+		crc = crcUpdateXmodem(crc, c);
 		state = State4Way::PAYLOAD;
 		break;
 	case State4Way::PAYLOAD:
 		payload[pos++] = c;
-		crc            = crcUpdateXmodem(crc, c);
+		crc = crcUpdateXmodem(crc, c);
 		if (pos == len) {
 			state = State4Way::CHECKSUM_HI;
 		}

@@ -70,7 +70,7 @@ void drawElem(u8 elem) {
 		if (!elemData[elem][i])
 			break;
 		pos &= 0x1FF;
-		u8 posLow  = pos & 0xFF;
+		u8 posLow = pos & 0xFF;
 		u8 posHigh = pos >> 8;
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMAH, &posHigh);
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMAL, &posLow);
@@ -108,7 +108,7 @@ void osdLoop() {
 	}
 	if (osdTimer > 1000 && osdReady != 1) {
 		// gyro likely ready, check registers
-		u8 data  = 0;
+		u8 data = 0;
 		osdTimer = 0;
 		regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::STAT, &data, 1, 0, 0);
 		if (data && !(data & 0b01100000)) {

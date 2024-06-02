@@ -14,11 +14,11 @@ enum class OSDReg : u8 {
 	CMAL,
 	CMDI,
 	OSDM,
-	RB0	  = 0x10,
+	RB0 = 0x10,
 	OSDBL = 0x6C,
-	STAT  = 0xA0,
-	DMDO  = 0xB0,
-	CMDO  = 0xC0,
+	STAT = 0xA0,
+	DMDO = 0xB0,
+	CMDO = 0xC0,
 };
 
 #define OSD_WIDTH 30

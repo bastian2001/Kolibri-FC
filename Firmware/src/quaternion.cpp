@@ -15,7 +15,7 @@
 #include "global.h"
 #include <math.h>
 void Quaternion_set(f32 w, f32 v1, f32 v2, f32 v3, Quaternion *output) {
-	output->w    = w;
+	output->w = w;
 	output->v[0] = v1;
 	output->v[1] = v2;
 	output->v[2] = v3;
@@ -27,8 +27,8 @@ void Quaternion_setIdentity(Quaternion *q) {
 
 void Quaternion_fromAxisAngle(f32 axis[3], f32 angle, Quaternion *output) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/
-	output->w    = cosf(angle * .5f);
-	f32 c        = sinf(angle * .5f);
+	output->w = cosf(angle * .5f);
+	f32 c = sinf(angle * .5f);
 	output->v[0] = axis[0] * c;
 	output->v[1] = axis[1] * c;
 	output->v[2] = axis[2] * c;
@@ -36,15 +36,15 @@ void Quaternion_fromAxisAngle(f32 axis[3], f32 angle, Quaternion *output) {
 
 f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
-	f32 angle   = acosf(q->w) * 2;
+	f32 angle = acosf(q->w) * 2;
 	f32 divider = sqrtf(1 - q->w * q->w);
 
 	if (divider > 0.0001f) {
 		// Calculate the axis
 		f32 divNew = 1 / divider;
-		output[0]  = q->v[0] * divNew;
-		output[1]  = q->v[1] * divNew;
-		output[2]  = q->v[2] * divNew;
+		output[0] = q->v[0] * divNew;
+		output[1] = q->v[1] * divNew;
+		output[2] = q->v[2] * divNew;
 	} else {
 		// Arbitrary normalized axis
 		output[0] = 1;
@@ -55,21 +55,21 @@ f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 }
 
 void Quaternion_fromXRotation(f32 angle, Quaternion *output) {
-	output->w    = 1;
+	output->w = 1;
 	output->v[0] = angle / 2;
 	output->v[1] = 0;
 	output->v[2] = 0;
 }
 
 void Quaternion_fromYRotation(f32 angle, Quaternion *output) {
-	output->w    = 1;
+	output->w = 1;
 	output->v[0] = 0;
 	output->v[1] = angle / 2;
 	output->v[2] = 0;
 }
 
 void Quaternion_fromZRotation(f32 angle, Quaternion *output) {
-	output->w    = 1;
+	output->w = 1;
 	output->v[0] = 0;
 	output->v[1] = 0;
 	output->v[2] = angle / 2;
@@ -99,13 +99,13 @@ void Quaternion_multiply(Quaternion *q1, Quaternion *q2, Quaternion *output) {
 	Quaternion result;
 
 	/*
-	Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/arithmetic/index.htm
-		 a*e - b*f - c*g - d*h
-	  + i (b*e + a*f + c*h- d*g)
-	  + j (a*g - b*h + c*e + d*f)
-	  + k (a*h + b*g - c*f + d*e)
-	*/
-	result.w    = q1->w * q2->w - q1->v[0] * q2->v[0] - q1->v[1] * q2->v[1] - q1->v[2] * q2->v[2];
+	   Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/arithmetic/index.htm
+			a*e - b*f - c*g - d*h
+		 + i (b*e + a*f + c*h- d*g)
+		 + j (a*g - b*h + c*e + d*f)
+		 + k (a*h + b*g - c*f + d*e)
+	   */
+	result.w = q1->w * q2->w - q1->v[0] * q2->v[0] - q1->v[1] * q2->v[1] - q1->v[2] * q2->v[2];
 	result.v[0] = q1->v[0] * q2->w + q1->w * q2->v[0] + q1->v[1] * q2->v[2] - q1->v[2] * q2->v[1];
 	result.v[1] = q1->w * q2->v[1] - q1->v[0] * q2->v[2] + q1->v[1] * q2->w + q1->v[2] * q2->v[0];
 	result.v[2] = q1->w * q2->v[2] + q1->v[0] * q2->v[1] - q1->v[1] * q2->v[0] + q1->v[2] * q2->w;
@@ -161,7 +161,7 @@ void Vector_cross(const f32 v1[3], const f32 v2[3], f32 output[3]) {
 }
 
 const f32 QUATERNION_EPS = 1e-5;
-const f32 ONE_MINUS_EPS  = 1 - QUATERNION_EPS;
+const f32 ONE_MINUS_EPS = 1 - QUATERNION_EPS;
 
 void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *output) {
 	f32 dot;
@@ -185,7 +185,7 @@ void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *out
 }
 
 void Quaternion_conjugate(Quaternion *q, Quaternion *output) {
-	output->w    = q->w;
+	output->w = q->w;
 	output->v[0] = -q->v[0];
 	output->v[1] = -q->v[1];
 	output->v[2] = -q->v[2];

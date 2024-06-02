@@ -54,24 +54,24 @@ void initGPS() {
 	enableElem(OSDElem::PLUS_CODE);
 }
 
-int gpsSerialSpeed           = 38400;
-u8 retryCounter              = 0;
+int gpsSerialSpeed = 38400;
+u8 retryCounter = 0;
 elapsedMillis lastPvtMessage = 0;
 
 void fillOpenLocationCode() {
-	u32 lat       = gpsMotion.lat / 1250 + 720000;
-	u32 lon       = gpsMotion.lon / 1250 + 1440000;
+	u32 lat = gpsMotion.lat / 1250 + 720000;
+	u32 lon = gpsMotion.lon / 1250 + 1440000;
 	olcString[10] = olcAlphabet[lon % 20];
-	olcString[9]  = olcAlphabet[lat % 20];
+	olcString[9] = olcAlphabet[lat % 20];
 	for (int i = 7; i > 0; i -= 2) {
 		lat /= 20;
 		lon /= 20;
-		olcString[i]     = olcAlphabet[lon % 20];
+		olcString[i] = olcAlphabet[lon % 20];
 		olcString[i - 1] = olcAlphabet[lat % 20];
 	}
 	// writing to characters 12 and 11 to enhance precision (10 is +)
-	lat           = gpsMotion.lat / 50;
-	lon           = ((i64)gpsMotion.lon * 8) / 625;
+	lat = gpsMotion.lat / 50;
+	lon = ((i64)gpsMotion.lon * 8) / 625;
 	olcString[12] = olcAlphabet[(lat % 5) * 4 + (lon % 4)];
 	lat /= 5;
 	lon /= 4;
@@ -84,15 +84,15 @@ void gpsLoop() {
 		gpsStatus.fixType = fixTypes::FIX_NONE;
 		if (gpsStatus.gpsInited) {
 			gpsStatus.gpsInited = false;
-			lastPvtMessage      = 0;
+			lastPvtMessage = 0;
 		} else if (lastPvtMessage > 30000) {
 			// no PVT message received for 30 seconds
 			// reinit GPS
-			gpsStatus.initStep  = 0;
-			gpsInitAck          = false;
-			gpsInitTimer        = 0;
+			gpsStatus.initStep = 0;
+			gpsInitAck = false;
+			gpsInitTimer = 0;
 			gpsStatus.gpsInited = false;
-			lastPvtMessage      = 0;
+			lastPvtMessage = 0;
 		}
 	}
 	// UBX implementation
@@ -107,7 +107,7 @@ void gpsLoop() {
 			u8 msgSetupUart[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_PRT, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x00, 0xC2, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 			gpsChecksum(&msgSetupUart[2], 24, &msgSetupUart[26], &msgSetupUart[27]);
 			Serial2.write(msgSetupUart, 28);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 1: {
@@ -116,56 +116,56 @@ void gpsLoop() {
 			u8 msgDisableGxGGA[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x00, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGGA[2], 7, &msgDisableGxGGA[9], &msgDisableGxGGA[10]);
 			Serial2.write(msgDisableGxGGA, 11);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 2: {
 			u8 msgDisableGxGSA[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x02, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGSA[2], 7, &msgDisableGxGSA[9], &msgDisableGxGSA[10]);
 			Serial2.write(msgDisableGxGSA, 11);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 3: {
 			u8 msgDisableGxGSV[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x03, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGSV[2], 7, &msgDisableGxGSV[9], &msgDisableGxGSV[10]);
 			Serial2.write(msgDisableGxGSV, 11);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 4: {
 			u8 msgDisableGxRMC[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x04, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxRMC[2], 7, &msgDisableGxRMC[9], &msgDisableGxRMC[10]);
 			Serial2.write(msgDisableGxRMC, 11);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 5: {
 			u8 msgDisableGxVTG[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x05, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxVTG[2], 7, &msgDisableGxVTG[9], &msgDisableGxVTG[10]);
 			Serial2.write(msgDisableGxVTG, 11);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 6: {
 			u8 msgEnableNavPvt[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0x01, 0x07, 0x01, 0, 0};
 			gpsChecksum(&msgEnableNavPvt[2], 7, &msgEnableNavPvt[9], &msgEnableNavPvt[10]);
 			Serial2.write(msgEnableNavPvt, 11);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 7: {
 			u8 msgDisableGxGLL[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, 0xF0, 0x01, 0x00, 0, 0};
 			gpsChecksum(&msgDisableGxGLL[2], 7, &msgDisableGxGLL[9], &msgDisableGxGLL[10]);
 			Serial2.write(msgDisableGxGLL, 11);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 8: {
 			u8 msgSetNavRate[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_RATE, 0x06, 0x00, 0x64, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00};
 			gpsChecksum(&msgSetNavRate[2], 10, &msgSetNavRate[12], &msgSetNavRate[13]);
 			Serial2.write(msgSetNavRate, 14);
-			gpsInitAck   = false;
+			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 9:
@@ -175,7 +175,7 @@ void gpsLoop() {
 	}
 	if (gpsBuffer.itemCount() >= 8) {
 		elapsedMicros taskTimer = 0;
-		int len                 = gpsBuffer[4] + gpsBuffer[5] * 256;
+		int len = gpsBuffer[4] + gpsBuffer[5] * 256;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
 			gpsBuffer.pop();
 			return;
@@ -218,38 +218,38 @@ void gpsLoop() {
 					return;
 				}
 				memcpy(currentPvtMsg, msgData, 92);
-				lastPvtMessage    = 0;
+				lastPvtMessage = 0;
 				newPvtMessageFlag = 0xFFFFFFFF;
-				gpsTime.year      = DECODE_U2(&msgData[4]);
-				gpsTime.month     = msgData[6];
-				gpsTime.day       = msgData[7];
-				gpsTime.hour      = msgData[8];
-				gpsTime.min       = msgData[9];
-				gpsTime.sec       = msgData[10];
+				gpsTime.year = DECODE_U2(&msgData[4]);
+				gpsTime.month = msgData[6];
+				gpsTime.day = msgData[7];
+				gpsTime.hour = msgData[8];
+				gpsTime.min = msgData[9];
+				gpsTime.sec = msgData[10];
 				setDotwInDatetime(&gpsTime);
 				rtcSetDatetime(&gpsTime);
 				gpsStatus.timeValidityFlags = msgData[11];
-				gpsAcc.tAcc                 = DECODE_U4(&msgData[12]);
-				gpsStatus.fixType           = msgData[20];
-				gpsStatus.flags             = msgData[21];
-				gpsStatus.flags2            = msgData[22];
-				gpsStatus.satCount          = msgData[23];
-				gpsMotion.lon               = DECODE_I4(&msgData[24]);
-				gpsMotion.lat               = DECODE_I4(&msgData[28]);
-				gpsMotion.alt               = DECODE_I4(&msgData[36]);
-				gpsAcc.hAcc                 = DECODE_U4(&msgData[40]);
-				gpsAcc.vAcc                 = DECODE_U4(&msgData[44]);
-				gpsMotion.velN              = DECODE_I4(&msgData[48]);
-				gpsMotion.velE              = DECODE_I4(&msgData[52]);
-				gpsMotion.velD              = DECODE_I4(&msgData[56]);
-				gpsMotion.gSpeed            = DECODE_I4(&msgData[60]);
-				gpsMotion.headMot           = DECODE_I4(&msgData[64]);
-				gpsAcc.sAcc                 = DECODE_U4(&msgData[68]);
-				gpsAcc.headAcc              = DECODE_U4(&msgData[72]);
-				gpsAcc.pDop                 = DECODE_U2(&msgData[76]);
-				gpsStatus.flags3            = DECODE_U2(&msgData[78]);
-				eVel                        = fix32(0.8f) * eVel + fix32(0.0002f) * (int)gpsMotion.velE;
-				nVel                        = fix32(0.8f) * nVel + fix32(0.0002f) * (int)gpsMotion.velN;
+				gpsAcc.tAcc = DECODE_U4(&msgData[12]);
+				gpsStatus.fixType = msgData[20];
+				gpsStatus.flags = msgData[21];
+				gpsStatus.flags2 = msgData[22];
+				gpsStatus.satCount = msgData[23];
+				gpsMotion.lon = DECODE_I4(&msgData[24]);
+				gpsMotion.lat = DECODE_I4(&msgData[28]);
+				gpsMotion.alt = DECODE_I4(&msgData[36]);
+				gpsAcc.hAcc = DECODE_U4(&msgData[40]);
+				gpsAcc.vAcc = DECODE_U4(&msgData[44]);
+				gpsMotion.velN = DECODE_I4(&msgData[48]);
+				gpsMotion.velE = DECODE_I4(&msgData[52]);
+				gpsMotion.velD = DECODE_I4(&msgData[56]);
+				gpsMotion.gSpeed = DECODE_I4(&msgData[60]);
+				gpsMotion.headMot = DECODE_I4(&msgData[64]);
+				gpsAcc.sAcc = DECODE_U4(&msgData[68]);
+				gpsAcc.headAcc = DECODE_U4(&msgData[72]);
+				gpsAcc.pDop = DECODE_U2(&msgData[76]);
+				gpsStatus.flags3 = DECODE_U2(&msgData[78]);
+				eVel = fix32(0.8f) * eVel + fix32(0.0002f) * (int)gpsMotion.velE;
+				nVel = fix32(0.8f) * nVel + fix32(0.0002f) * (int)gpsMotion.velN;
 				u8 buf[16];
 				snprintf((char *)buf, 16, "\x89%.7f", gpsMotion.lat / 10000000.f);
 				updateElem(OSDElem::LATITUDE, (char *)buf);
@@ -262,8 +262,8 @@ void gpsLoop() {
 				snprintf((char *)buf, 16, "%dD ", combinedHeading * 180 / PI);
 				updateElem(OSDElem::HEADING, (char *)buf);
 				f32 toRadians = 1.745329251e-9f;
-				f32 sin1      = sinf((gpsMotion.lat - startPointLat) * (toRadians / 2));
-				f32 sin2      = sinf((gpsMotion.lon - startPointLon) * (toRadians / 2));
+				f32 sin1 = sinf((gpsMotion.lat - startPointLat) * (toRadians / 2));
+				f32 sin2 = sinf((gpsMotion.lon - startPointLon) * (toRadians / 2));
 
 				int dist = 2 * 6371000 *
 						   asinf(sqrtf(sin1 * sin1 + cosf(gpsMotion.lat * toRadians) * cosf(startPointLat * toRadians) * sin2 * sin2));
@@ -275,7 +275,7 @@ void gpsLoop() {
 				updateElem(OSDElem::PLUS_CODE, olcString);
 				if (gpsStatus.fixType == FIX_3D && gpsStatus.satCount >= 6) {
 					gpsBaroAlt.setRaw(((i64)gpsMotion.alt << 16) / 1000);
-					// 	armingDisableFlags &= 0xFFFFFFFB;
+					// armingDisableFlags &= 0xFFFFFFFB;
 				}
 				// else
 				// 	armingDisableFlags |= 0x00000004;

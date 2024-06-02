@@ -12,7 +12,7 @@
 // SPI for all other devices (Gyro, OSD, Baro)
 enum DEFAULT_SPI : u8 {
 	PIN_DEFAULT_MISO = 16,
-	PIN_DEFAULT_SCK  = 18,
+	PIN_DEFAULT_SCK = 18,
 	PIN_DEFAULT_MOSI,
 };
 #define PIN_MOTORS 20 // pin at which the motor outputs start, e.g. PIN_MOTORS + MOTOR::FL for the front left motor
@@ -30,7 +30,7 @@ enum class MOTOR : u8 {
 #define PIN_ADC_VOLTAGE 29
 enum SD_SPI : u8 {
 	PIN_SD_MISO = 12,
-	PIN_SD_SCK  = 14,
+	PIN_SD_SCK = 14,
 	PIN_SD_MOSI,
 	PIN_SD_CS = 17
 };

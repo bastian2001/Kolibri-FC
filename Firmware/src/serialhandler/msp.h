@@ -37,7 +37,7 @@
 #include <Arduino.h>
 
 extern bool configuratorConnected; // true if the configurator is connected
-extern u8 accelCalDone;            // accel calibration flag to send a message to the configurator
+extern u8 accelCalDone; // accel calibration flag to send a message to the configurator
 
 /**
  * @brief MSP Serial Functions
@@ -45,36 +45,36 @@ extern u8 accelCalDone;            // accel calibration flag to send a message t
  * @details These commands are used to communicate with the configurator and other peripherals. For Kolibri specific functions, the space 0x4000-0x4FFF is used. More details: https://github.com/iNavFlight/inav/wiki/MSP-V2
  */
 enum class MspFn {
-	API_VERSION         = 1,
-	FIRMWARE_VARIANT    = 2,
-	FIRMWARE_VERSION    = 3,
-	BOARD_INFO          = 4,
-	BUILD_INFO          = 5,
-	GET_NAME            = 10,
-	SET_NAME            = 11,
-	GET_FEATURE_CONFIG  = 36,
-	REBOOT              = 68,
+	API_VERSION = 1,
+	FIRMWARE_VARIANT = 2,
+	FIRMWARE_VERSION = 3,
+	BOARD_INFO = 4,
+	BUILD_INFO = 5,
+	GET_NAME = 10,
+	SET_NAME = 11,
+	GET_FEATURE_CONFIG = 36,
+	REBOOT = 68,
 	GET_ADVANCED_CONFIG = 90,
 	SET_ARMING_DISABLED = 99,
-	MSP_STATUS          = 101,
-	GET_MOTOR           = 104,
-	MSP_ATTITUDE        = 108,
-	BOXIDS              = 119,
+	MSP_STATUS = 101,
+	GET_MOTOR = 104,
+	MSP_ATTITUDE = 108,
+	BOXIDS = 119,
 	GET_MOTOR_3D_CONFIG = 124,
-	GET_MOTOR_CONFIG    = 131,
-	UID                 = 160,
-	ACC_CALIBRATION     = 205,
-	MAG_CALIBRATION     = 206,
-	SET_MOTOR           = 214,
-	ENABLE_4WAY_IF      = 245,
-	SET_RTC             = 246,
-	GET_RTC             = 247,
-	MSP_V2_FRAME        = 255,
+	GET_MOTOR_CONFIG = 131,
+	UID = 160,
+	ACC_CALIBRATION = 205,
+	MAG_CALIBRATION = 206,
+	SET_MOTOR = 214,
+	ENABLE_4WAY_IF = 245,
+	SET_RTC = 246,
+	GET_RTC = 247,
+	MSP_V2_FRAME = 255,
 
 	// 0x400_ Configurator related commands
-	STATUS            = 0x4000,
+	STATUS = 0x4000,
 	CONFIGURATOR_PING = 0x4001,
-	IND_MESSAGE       = 0x4002,
+	IND_MESSAGE = 0x4002,
 
 	// 0x401_ Entering special modes
 	SERIAL_PASSTHROUGH = 0x4010,
@@ -86,19 +86,19 @@ enum class MspFn {
 	WRITE_OSD_FONT_CHARACTER = 0x4110,
 
 	// 0x412_ Blackbox
-	GET_BB_SETTINGS  = 0x4120,
-	SET_BB_SETTINGS  = 0x4121,
-	BB_FILE_LIST     = 0x4122,
-	BB_FILE_INFO     = 0x4123,
+	GET_BB_SETTINGS = 0x4120,
+	SET_BB_SETTINGS = 0x4121,
+	BB_FILE_LIST = 0x4122,
+	BB_FILE_INFO = 0x4123,
 	BB_FILE_DOWNLOAD = 0x4124,
-	BB_FILE_DELETE   = 0x4125,
-	BB_FORMAT        = 0x4126,
+	BB_FILE_DELETE = 0x4125,
+	BB_FORMAT = 0x4126,
 
 	// 0x413_ GPS
-	GET_GPS_STATUS   = 0x4130,
+	GET_GPS_STATUS = 0x4130,
 	GET_GPS_ACCURACY = 0x4131,
-	GET_GPS_TIME     = 0x4132,
-	GET_GPS_MOTION   = 0x4133,
+	GET_GPS_TIME = 0x4132,
+	GET_GPS_MOTION = 0x4133,
 
 	// 0x414_ Magnetometer
 	GET_MAG_DATA = 0x4140,
@@ -112,25 +112,25 @@ enum class MspFn {
 	TASK_STATUS = 0x4170,
 
 	// 0x42__ Tuning
-	GET_PIDS  = 0x4200,
-	SET_PIDS  = 0x4201,
+	GET_PIDS = 0x4200,
+	SET_PIDS = 0x4201,
 	GET_RATES = 0x4202,
 	SET_RATES = 0x4203,
 
 	// 0x4F00-0x4F1F general debug tools
-	GET_CRASH_DUMP   = 0x4F00,
+	GET_CRASH_DUMP = 0x4F00,
 	CLEAR_CRASH_DUMP = 0x4F01,
-	SET_DEBUG_LED    = 0x4F02,
-	PLAY_SOUND       = 0x4F03,
+	SET_DEBUG_LED = 0x4F02,
+	PLAY_SOUND = 0x4F03,
 
 	// 0x4F20-0x4FFF temporary debug tools
 };
 
 enum class MspState {
-	IDLE,         // waiting for $
+	IDLE, // waiting for $
 	PACKET_START, // receiving M or X
-	TYPE_V1,      // got M, receiving type byte (<, >, !)
-	LEN_V1,       // if 255 is received in this step, inject jumbo len bytes
+	TYPE_V1, // got M, receiving type byte (<, >, !)
+	LEN_V1, // if 255 is received in this step, inject jumbo len bytes
 	JUMBO_LEN_LO_V1,
 	JUMBO_LEN_HI_V1,
 	CMD_V1,
@@ -183,14 +183,14 @@ enum class McuType : u8 {
 	G474,
 	H730,
 	AT32,
-	RP2040  = 64,
+	RP2040 = 64,
 	UNKNOWN = 255,
 };
 
 enum class MspMsgType {
-	REQUEST  = '<',
+	REQUEST = '<',
 	RESPONSE = '>',
-	ERROR    = '!',
+	ERROR = '!',
 };
 
 enum class MspVersion {

@@ -1,14 +1,14 @@
 #include "global.h"
 
-u64 bbFlags        = 0;
+u64 bbFlags = 0;
 u64 currentBBFlags = 0;
 
 volatile bool bbLogging = false;
-volatile bool fsReady   = false;
+volatile bool fsReady = false;
 
 FSInfo64 fsInfo;
 int currentLogNum = 0;
-u8 bbFreqDivider  = 2;
+u8 bbFreqDivider = 2;
 
 RingBuffer<u8 *> bbFramePtrBuffer(64);
 
@@ -22,7 +22,7 @@ void blackboxLoop() {
 		elapsedMicros taskTimer = 0;
 		tasks[TASK_BLACKBOX].runCounter++;
 		u8 *frame = (u8 *)rp2040.fifo.pop();
-		u8 len    = frame[0];
+		u8 len = frame[0];
 		if (len > 0 && bbLogging)
 			blackboxFile.write(frame + 1, len);
 		free(frame);
@@ -100,7 +100,7 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 		return;
 	}
 	u8 buffer[1027];
-	buffer[0]    = logNum;
+	buffer[0] = logNum;
 	u16 chunkNum = 0;
 	if (singleChunk >= 0) {
 		chunkNum = singleChunk;
@@ -198,7 +198,7 @@ void startLogging() {
 		blackboxFile.write((u8)0);
 	}
 	bbFrameNum = 0;
-	bbLogging  = true;
+	bbLogging = true;
 	// 256 bytes header
 	frametime = 0;
 }
@@ -213,7 +213,7 @@ void endLogging() {
 }
 
 void __not_in_flash_func(writeSingleFrame)() {
-	u8 *bbBuffer     = (u8 *)malloc(128);
+	u8 *bbBuffer = (u8 *)malloc(128);
 	size_t bufferPos = 1;
 	if (!fsReady || !bbLogging) {
 		return;
@@ -241,37 +241,37 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = ELRS->channels[3] >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_SETPOINT) {
-		i16 setpoint          = (i16)(rollSetpoint.getRaw() >> 12);
+		i16 setpoint = (i16)(rollSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_SETPOINT) {
-		i16 setpoint          = (i16)(pitchSetpoint.getRaw() >> 12);
+		i16 setpoint = (i16)(pitchSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_THROTTLE_SETPOINT) {
-		i16 t                 = (i16)(throttle.getRaw() >> 12);
+		i16 t = (i16)(throttle.getRaw() >> 12);
 		bbBuffer[bufferPos++] = t;
 		bbBuffer[bufferPos++] = t >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_SETPOINT) {
-		i16 setpoint          = (i16)(yawSetpoint.getRaw() >> 12);
+		i16 setpoint = (i16)(yawSetpoint.getRaw() >> 12);
 		bbBuffer[bufferPos++] = setpoint;
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
-		i16 i                 = (gyroData[AXIS_ROLL].getRaw() >> 12);
+		i16 i = (gyroData[AXIS_ROLL].getRaw() >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
-		i16 i                 = (gyroData[AXIS_PITCH].getRaw() >> 12);
+		i16 i = (gyroData[AXIS_PITCH].getRaw() >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
-		i16 i                 = (gyroData[AXIS_YAW].getRaw() >> 12);
+		i16 i = (gyroData[AXIS_YAW].getRaw() >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
@@ -336,7 +336,7 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = yawS.getInt() >> 8;
 	}
 	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
-		u64 throttles64       = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
+		u64 throttles64 = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
 		bbBuffer[bufferPos++] = throttles64;
 		bbBuffer[bufferPos++] = throttles64 >> 8;
 		bbBuffer[bufferPos++] = throttles64 >> 16;
@@ -345,8 +345,8 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = throttles64 >> 40;
 	}
 	if (currentBBFlags & LOG_FRAMETIME) {
-		u16 ft                = frametime;
-		frametime             = 0;
+		u16 ft = frametime;
+		frametime = 0;
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
@@ -354,18 +354,18 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = (u8)flightMode;
 	}
 	if (currentBBFlags & LOG_ALTITUDE) {
-		const u32 height      = combinedAltitude.getRaw() >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
+		const u32 height = combinedAltitude.getRaw() >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
 		bbBuffer[bufferPos++] = height;
 		bbBuffer[bufferPos++] = height >> 8;
 	}
 	if (currentBBFlags & LOG_VVEL) {
-		const i32 vvel        = vVel.getRaw() >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
+		const i32 vvel = vVel.getRaw() >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
 		bbBuffer[bufferPos++] = vvel;
 		bbBuffer[bufferPos++] = vvel >> 8;
 	}
 	if (currentBBFlags & LOG_GPS) {
 		if (bbFrameNum - newestPvtStartedAt < 46) {
-			u32 pos               = (bbFrameNum - newestPvtStartedAt) * 2;
+			u32 pos = (bbFrameNum - newestPvtStartedAt) * 2;
 			bbBuffer[bufferPos++] = currentPvtMsg[pos];
 			bbBuffer[bufferPos++] = currentPvtMsg[pos + 1];
 		} else if (newPvtMessageFlag & 1) {
@@ -389,22 +389,22 @@ void __not_in_flash_func(writeSingleFrame)() {
 		}
 	}
 	if (currentBBFlags & LOG_ATT_ROLL) {
-		i16 r                 = roll * 10000;
+		i16 r = roll * 10000;
 		bbBuffer[bufferPos++] = r;
 		bbBuffer[bufferPos++] = r >> 8;
 	}
 	if (currentBBFlags & LOG_ATT_PITCH) {
-		i16 p                 = pitch * 10000;
+		i16 p = pitch * 10000;
 		bbBuffer[bufferPos++] = p;
 		bbBuffer[bufferPos++] = p >> 8;
 	}
 	if (currentBBFlags & LOG_ATT_YAW) {
-		i16 y                 = yaw * 10000;
+		i16 y = yaw * 10000;
 		bbBuffer[bufferPos++] = y;
 		bbBuffer[bufferPos++] = y >> 8;
 	}
 	if (currentBBFlags & LOG_MOTOR_RPM) {
-		u64 rpmPacket         = condensedRpm[(u8)MOTOR::RR] | condensedRpm[(u8)MOTOR::FR] << 12 | (u64)condensedRpm[(u8)MOTOR::RL] << 24 | (u64)condensedRpm[(u8)MOTOR::FL] << 36;
+		u64 rpmPacket = condensedRpm[(u8)MOTOR::RR] | condensedRpm[(u8)MOTOR::FR] << 12 | (u64)condensedRpm[(u8)MOTOR::RL] << 24 | (u64)condensedRpm[(u8)MOTOR::FL] << 36;
 		bbBuffer[bufferPos++] = rpmPacket;
 		bbBuffer[bufferPos++] = rpmPacket >> 8;
 		bbBuffer[bufferPos++] = rpmPacket >> 16;
@@ -417,33 +417,33 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bufferPos += 6;
 	}
 	if (currentBBFlags & LOG_ACCEL_FILTERED) {
-		i16 i                 = ((fix32)accelDataFiltered[0]).getInt();
+		i16 i = ((fix32)accelDataFiltered[0]).getInt();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i                     = ((fix32)accelDataFiltered[1]).getInt();
+		i = ((fix32)accelDataFiltered[1]).getInt();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i                     = ((fix32)accelDataFiltered[2]).getInt();
+		i = ((fix32)accelDataFiltered[2]).getInt();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_VERTICAL_ACCEL) {
-		i16 a                 = (i16)(vAccel.getRaw() >> 9);
+		i16 a = (i16)(vAccel.getRaw() >> 9);
 		bbBuffer[bufferPos++] = a;
 		bbBuffer[bufferPos++] = a >> 8;
 	}
 	if (currentBBFlags & LOG_VVEL_SETPOINT) {
-		i16 v                 = (i16)(vVelSetpoint.getRaw() >> 4) * ((u8)flightMode >= 2);
+		i16 v = (i16)(vVelSetpoint.getRaw() >> 4) * ((u8)flightMode >= 2);
 		bbBuffer[bufferPos++] = v;
 		bbBuffer[bufferPos++] = v >> 8;
 	}
 	if (currentBBFlags & LOG_MAG_HEADING) {
-		i16 h                 = (i16)(magHeading.getRaw() >> 3);
+		i16 h = (i16)(magHeading.getRaw() >> 3);
 		bbBuffer[bufferPos++] = h;
 		bbBuffer[bufferPos++] = h >> 8;
 	}
 	if (currentBBFlags & LOG_COMBINED_HEADING) {
-		int h                 = combinedHeading.getRaw() >> 3;
+		int h = combinedHeading.getRaw() >> 3;
 		bbBuffer[bufferPos++] = h;
 		bbBuffer[bufferPos++] = h >> 8;
 	}

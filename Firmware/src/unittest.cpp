@@ -1,8 +1,8 @@
 #include "unittest.h"
 #include "ringbuffer.h"
 
-u32 Expect::failed         = false;
-u32 Expect::succeeded      = false;
+u32 Expect::failed = false;
+u32 Expect::succeeded = false;
 bool Expect::silentLogging = false;
 
 bool testRingBuffer() {

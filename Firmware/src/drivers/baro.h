@@ -13,8 +13,6 @@ void initBaro();
 /// Checks if a new baro value is available and reads it
 void readBaroLoop();
 
-/// Processes the previously read baro value (can be called separately from readBaroLoop() to allow splitting the workload)
-
 /**
  * @brief Processes the previously read baro value
  *

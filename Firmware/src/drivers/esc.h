@@ -19,30 +19,30 @@ typedef enum {
 	DSHOT_CMD_SAVE_SETTINGS,
 	DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE,
 	DSHOT_CMD_EXTENDED_TELEMETRY_DISABLE,
-	DSHOT_CMD_SPIN_DIRECTION_NORMAL   = 20,
+	DSHOT_CMD_SPIN_DIRECTION_NORMAL = 20,
 	DSHOT_CMD_SPIN_DIRECTION_REVERSED = 21,
-	DSHOT_CMD_LED0_ON,                       // BLHeli32 only
-	DSHOT_CMD_LED1_ON,                       // BLHeli32 only
-	DSHOT_CMD_LED2_ON,                       // BLHeli32 only
-	DSHOT_CMD_LED3_ON,                       // BLHeli32 only
-	DSHOT_CMD_LED0_OFF,                      // BLHeli32 only
-	DSHOT_CMD_LED1_OFF,                      // BLHeli32 only
-	DSHOT_CMD_LED2_OFF,                      // BLHeli32 only
-	DSHOT_CMD_LED3_OFF,                      // BLHeli32 only
+	DSHOT_CMD_LED0_ON, // BLHeli32 only
+	DSHOT_CMD_LED1_ON, // BLHeli32 only
+	DSHOT_CMD_LED2_ON, // BLHeli32 only
+	DSHOT_CMD_LED3_ON, // BLHeli32 only
+	DSHOT_CMD_LED0_OFF, // BLHeli32 only
+	DSHOT_CMD_LED1_OFF, // BLHeli32 only
+	DSHOT_CMD_LED2_OFF, // BLHeli32 only
+	DSHOT_CMD_LED3_OFF, // BLHeli32 only
 	DSHOT_CMD_AUDIO_STREAM_MODE_ON_OFF = 30, // KISS audio Stream mode on/Off
-	DSHOT_CMD_SILENT_MODE_ON_OFF       = 31, // KISS silent Mode on/Off
-	DSHOT_CMD_MAX                      = 47
+	DSHOT_CMD_SILENT_MODE_ON_OFF = 31, // KISS silent Mode on/Off
+	DSHOT_CMD_MAX = 47
 } ESCCommand;
 
-extern PIO escPio;                    // pio block used for the ESC communication
+extern PIO escPio; // pio block used for the ESC communication
 extern volatile u32 erpmEdges[4][32]; // edge detection durations for each motor
-extern volatile u32 escRpm[4];        // decoded RPM values
-extern const u32 escDecodeLut[32];    // lookup table for GCR decoding
-extern u8 escErpmFail;                // flags for failed RPM decoding
-extern u8 escDmaChannel[4];           // DMA channels for the ESC communication
-extern u8 escClearDmaChannel;         // DMA channel for clearing the erpm edges, essentially memset(0) for the erpmEdges array
-extern u32 enableDShot;               // set to 0 to disable DShot output, e.g. for 4Way
-extern u32 escPioOffset;              // offset at which the DShot program is stored
+extern volatile u32 escRpm[4]; // decoded RPM values
+extern const u32 escDecodeLut[32]; // lookup table for GCR decoding
+extern u8 escErpmFail; // flags for failed RPM decoding
+extern u8 escDmaChannel[4]; // DMA channels for the ESC communication
+extern u8 escClearDmaChannel; // DMA channel for clearing the erpm edges, essentially memset(0) for the erpmEdges array
+extern u32 enableDShot; // set to 0 to disable DShot output, e.g. for 4Way
+extern u32 escPioOffset; // offset at which the DShot program is stored
 
 /// @brief Initializes the ESC communication
 void initESCs();

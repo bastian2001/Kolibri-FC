@@ -5,7 +5,7 @@
 u32 magState = 0;
 elapsedMicros magTimer;
 u8 magBuffer[6] = {0};
-i32 magData[3]  = {0};
+i32 magData[3] = {0};
 
 i16 magOffset[3] = {0};
 fix32 magX = 0, magY = 0;
@@ -32,7 +32,7 @@ void initMag() {
 		}
 		sleep_ms(2);
 	}
-	magState     = 1;
+	magState = 1;
 	magBuffer[0] = (u8)MAG_REG::CONF_REGA;
 	magBuffer[1] = MAG_AVG_8 | MAG_ODR_75HZ | MAG_LOAD_FLOAT;
 	magBuffer[2] = MAG_RANGE_2_5;
@@ -44,8 +44,8 @@ void initMag() {
 
 u32 magStateAfterRead = MAG_PROCESS_DATA;
 float xtxMatrix[4][4] = {0};
-float xtyVector[4]    = {0};
-u32 calibrationCycle  = 0;
+float xtyVector[4] = {0};
+u32 calibrationCycle = 0;
 
 float cofactor(float matrix[4][4], i32 row, i32 col) {
 	i32 rows[3] = {0};
@@ -103,19 +103,19 @@ void magLoop() {
 		magDataRaw[0] = (i16)(magBuffer[1] + (magBuffer[0] << 8));
 		magDataRaw[1] = (i16)(magBuffer[5] + (magBuffer[4] << 8));
 		magDataRaw[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8));
-		magData[0]    = magDataRaw[0] - magOffset[0];
-		magData[1]    = magDataRaw[1] - magOffset[1];
-		magData[2]    = magDataRaw[2] - magOffset[2];
+		magData[0] = magDataRaw[0] - magOffset[0];
+		magData[1] = magDataRaw[1] - magOffset[1];
+		magData[2] = magDataRaw[2] - magOffset[2];
 		startFixTrig();
-		fix32 cosRoll  = cosFix(roll);
-		fix32 sinRoll  = sinFix(roll);
+		fix32 cosRoll = cosFix(roll);
+		fix32 sinRoll = sinFix(roll);
 		fix32 cosPitch = cosFix(pitch);
 		fix32 sinPitch = sinFix(pitch);
 		// x: right, y: backward, z: down
 		// roll: left, pitch: front
-		magX            = cosRoll * magData[0] + sinRoll * magData[2];
-		magY            = cosPitch * magData[1] - sinPitch * sinRoll * magData[0] + sinPitch * cosRoll * magData[2];
-		magHeading      = atan2f(-magX.getf32(), -magY.getf32()) + 0.05643f; // 3.25° magnetic declination in radians
+		magX = cosRoll * magData[0] + sinRoll * magData[2];
+		magY = cosPitch * magData[1] - sinPitch * sinRoll * magData[0] + sinPitch * cosRoll * magData[2];
+		magHeading = atan2f(-magX.getf32(), -magY.getf32()) + 0.05643f; // 3.25° magnetic declination in radians
 		fix32 updateVal = magHeading - fix32(yaw);
 		if (updateVal - (fix32)magHeadingCorrection > fix32(PI)) {
 			updateVal -= fix32(2 * PI);
@@ -128,10 +128,10 @@ void magLoop() {
 	} break;
 	case MAG_CALIBRATE: {
 		i16 val[4];
-		val[0]     = magBuffer[1] + (magBuffer[0] << 8); // x
-		val[1]     = magBuffer[5] + (magBuffer[4] << 8); // y
-		val[2]     = magBuffer[3] + (magBuffer[2] << 8); // z
-		val[3]     = 1;
+		val[0] = magBuffer[1] + (magBuffer[0] << 8); // x
+		val[1] = magBuffer[5] + (magBuffer[4] << 8); // y
+		val[2] = magBuffer[3] + (magBuffer[2] << 8); // z
+		val[3] = 1;
 		magData[0] = val[0] - magOffset[0];
 		magData[1] = val[1] - magOffset[1];
 		magData[2] = val[2] - magOffset[2];
@@ -142,8 +142,8 @@ void magLoop() {
 			xtyVector[row] += val[row] * (val[0] * val[0] + val[1] * val[1] + val[2] * val[2]);
 		}
 		if (++calibrationCycle == 1000) {
-			magState          = MAG_PROCESS_CALIBRATION;
-			calibrationCycle  = 0;
+			magState = MAG_PROCESS_CALIBRATION;
+			calibrationCycle = 0;
 			magStateAfterRead = MAG_PROCESS_DATA;
 		} else {
 			magState = MAG_MEASURING;
@@ -184,7 +184,7 @@ void magLoop() {
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, magOffset[1]);
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, magOffset[2]);
 		EEPROM.commit();
-		magState  = MAG_MEASURING;
+		magState = MAG_MEASURING;
 		char data = 1;
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::MAG_CALIBRATION, lastMspVersion, &data, 1);
 		char calString[64];

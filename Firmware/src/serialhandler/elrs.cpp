@@ -45,18 +45,18 @@ void ExpressLRS::loop() {
 			lastMsgCount = msgCount;
 		} else
 			isReceiverUp = false;
-		packetRateCounter   = 0;
+		packetRateCounter = 0;
 		rcPacketRateCounter = 0;
-		frequencyTimer      = 0;
+		frequencyTimer = 0;
 	}
 	if (elrsBuffer.itemCount() > 250) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
-		crc         = 0;
-		lastError   = ERROR_BUFFER_OVERFLOW;
+		crc = 0;
+		lastError = ERROR_BUFFER_OVERFLOW;
 		tasks[TASK_ELRS].errorCount++;
 		tasks[TASK_ELRS].lastError = ERROR_BUFFER_OVERFLOW;
-		errorFlag                  = true;
+		errorFlag = true;
 		errorCount++;
 		return;
 	}
@@ -67,21 +67,21 @@ void ExpressLRS::loop() {
 		switch (currentTelemSensor++) {
 		case 0: {
 			// GPS (0x02)
-			telemBuffer[0]  = gpsMotion.lat >> 24;
-			telemBuffer[1]  = gpsMotion.lat >> 16;
-			telemBuffer[2]  = gpsMotion.lat >> 8;
-			telemBuffer[3]  = gpsMotion.lat;
-			telemBuffer[4]  = gpsMotion.lon >> 24;
-			telemBuffer[5]  = gpsMotion.lon >> 16;
-			telemBuffer[6]  = gpsMotion.lon >> 8;
-			telemBuffer[7]  = gpsMotion.lon;
-			u16 data        = gpsMotion.gSpeed * 10 / 278; // mm/s to km/h / 10
-			telemBuffer[8]  = data >> 8;
-			telemBuffer[9]  = data;
-			data            = gpsMotion.headMot / 1000; // 10^-5deg to 10^-2deg
+			telemBuffer[0] = gpsMotion.lat >> 24;
+			telemBuffer[1] = gpsMotion.lat >> 16;
+			telemBuffer[2] = gpsMotion.lat >> 8;
+			telemBuffer[3] = gpsMotion.lat;
+			telemBuffer[4] = gpsMotion.lon >> 24;
+			telemBuffer[5] = gpsMotion.lon >> 16;
+			telemBuffer[6] = gpsMotion.lon >> 8;
+			telemBuffer[7] = gpsMotion.lon;
+			u16 data = gpsMotion.gSpeed * 10 / 278; // mm/s to km/h / 10
+			telemBuffer[8] = data >> 8;
+			telemBuffer[9] = data;
+			data = gpsMotion.headMot / 1000; // 10^-5deg to 10^-2deg
 			telemBuffer[10] = data >> 8;
 			telemBuffer[11] = data;
-			data            = (gpsMotion.alt + 500) / 1000 + 1000; // mm to m + 1000
+			data = (gpsMotion.alt + 500) / 1000 + 1000; // mm to m + 1000
 			telemBuffer[12] = data >> 8;
 			telemBuffer[13] = data;
 			telemBuffer[14] = gpsStatus.satCount;
@@ -89,17 +89,17 @@ void ExpressLRS::loop() {
 		} break;
 		case 1: {
 			// Vario (0x07)
-			i16 data       = -gpsMotion.velD / 10; // mm/s to cm/s
+			i16 data = -gpsMotion.velD / 10; // mm/s to cm/s
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
 			this->sendPacket(CRSF_FRAMETYPE_VARIO, (char *)telemBuffer, 2);
 		} break;
 		case 2: {
 			// Battery (0x08)
-			i32 data       = adcVoltage / 10; // cV to dV
+			i32 data = adcVoltage / 10; // cV to dV
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			data           = adcCurrent * 10; // A to dA
+			data = adcCurrent * 10; // A to dA
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
 			telemBuffer[4] = 0;
@@ -111,23 +111,23 @@ void ExpressLRS::loop() {
 		case 3: {
 			// Baro Altitude (0x09)
 			i32 data = combinedAltitude.getRaw() / 6554; // dm;
-			data += 10000;                               // dm + 10000
+			data += 10000; // dm + 10000
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			data           = vVel.getRaw() / 655;
+			data = vVel.getRaw() / 655;
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
 			this->sendPacket(CRSF_FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);
 		} break;
 		case 4: {
 			// Attitude (0x1E)
-			i16 data       = pitch * 10000; // 10^-5 rad;
+			i16 data = pitch * 10000; // 10^-5 rad;
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			data           = roll * 10000; // 10^-5 rad;
+			data = roll * 10000; // 10^-5 rad;
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
-			data           = yaw * 10000; // 10^-5 rad;
+			data = yaw * 10000; // 10^-5 rad;
 			telemBuffer[4] = data >> 8;
 			telemBuffer[5] = data;
 		} break;
@@ -170,11 +170,11 @@ void ExpressLRS::loop() {
 	}
 	if (msgBufIndex > 0 && msgBuffer[0] != CRSF_SYNC_BYTE) {
 		msgBufIndex = 0;
-		crc         = 0;
-		lastError   = ERROR_INVALID_PREFIX;
+		crc = 0;
+		lastError = ERROR_INVALID_PREFIX;
 		tasks[TASK_ELRS].errorCount++;
 		tasks[TASK_ELRS].lastError = ERROR_INVALID_PREFIX;
-		errorFlag                  = true;
+		errorFlag = true;
 		errorCount++;
 	}
 	if (msgBufIndex >= 2 + msgBuffer[1]) {
@@ -227,28 +227,28 @@ void ExpressLRS::processMessage() {
 		u64 decoder, decoder2;
 		memcpy(&decoder, &msgBuffer[3], 8);
 		u32 pChannels[16];
-		pChannels[0] = decoder & 0x7FF;         // 0...10
+		pChannels[0] = decoder & 0x7FF; // 0...10
 		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
 		pChannels[2] = (decoder >> 22) & 0x7FF; // 22...32
 		pChannels[3] = (decoder >> 33) & 0x7FF; // 33...43
 		pChannels[4] = (decoder >> 44) & 0x7FF; // 44...54
-		decoder >>= 55;                         // 55, 9 bits left
+		decoder >>= 55; // 55, 9 bits left
 		memcpy(&decoder2, &msgBuffer[11], 6);
-		decoder |= (decoder2 << 9);             // 57 bits left
-		pChannels[5] = decoder & 0x7FF;         // 55...65
+		decoder |= (decoder2 << 9); // 57 bits left
+		pChannels[5] = decoder & 0x7FF; // 55...65
 		pChannels[6] = (decoder >> 11) & 0x7FF; // 66...76
 		pChannels[7] = (decoder >> 22) & 0x7FF; // 77...87
 		pChannels[8] = (decoder >> 33) & 0x7FF; // 88...98
 		pChannels[9] = (decoder >> 44) & 0x7FF; // 99...109
-		decoder >>= 55;                         // 55, 2 bits left
+		decoder >>= 55; // 55, 2 bits left
 		memcpy(&decoder2, &msgBuffer[17], 7);
-		decoder |= (decoder2 << 2);              // 58 bits left
-		pChannels[10] = decoder & 0x7FF;         // 110...120
+		decoder |= (decoder2 << 2); // 58 bits left
+		pChannels[10] = decoder & 0x7FF; // 110...120
 		pChannels[11] = (decoder >> 11) & 0x7FF; // 121...131
 		pChannels[12] = (decoder >> 22) & 0x7FF; // 132...142
 		pChannels[13] = (decoder >> 33) & 0x7FF; // 143...153
 		pChannels[14] = (decoder >> 44) & 0x7FF; // 154...164
-		decoder >>= 55;                          // 55, 3 bits left
+		decoder >>= 55; // 55, 3 bits left
 		pChannels[15] = decoder | (msgBuffer[24] << 3);
 		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
 		for (u8 i = 0; i < 16; i++) {
@@ -298,16 +298,16 @@ void ExpressLRS::processMessage() {
 			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
 			break;
 		}
-		uplinkRssi[0]       = -msgBuffer[3];
-		uplinkRssi[1]       = -msgBuffer[4];
-		uplinkLinkQuality   = msgBuffer[5];
-		uplinkSNR           = msgBuffer[6];
-		antennaSelection    = msgBuffer[7];
-		packetRate          = msgBuffer[8];
-		txPower             = powerStates[msgBuffer[9]];
-		downlinkRssi        = -msgBuffer[10];
+		uplinkRssi[0] = -msgBuffer[3];
+		uplinkRssi[1] = -msgBuffer[4];
+		uplinkLinkQuality = msgBuffer[5];
+		uplinkSNR = msgBuffer[6];
+		antennaSelection = msgBuffer[7];
+		packetRate = msgBuffer[8];
+		txPower = powerStates[msgBuffer[9]];
+		downlinkRssi = -msgBuffer[10];
 		downlinkLinkQuality = msgBuffer[11];
-		downlinkSNR         = msgBuffer[12];
+		downlinkSNR = msgBuffer[12];
 		break;
 	}
 	case DEVICE_PING:
@@ -326,15 +326,15 @@ void ExpressLRS::processMessage() {
 	case MSP_REQ:
 	case MSP_WRITE: {
 		char *extPayload = (char *)&msgBuffer[5];
-		i8 packetSize    = size - 4;
-		u8 minSize       = 2;
+		i8 packetSize = size - 4;
+		u8 minSize = 2;
 		if (packetSize < minSize) break;
-		char &stat           = *extPayload++;
+		char &stat = *extPayload++;
 		this->lastExtSrcAddr = msgBuffer[4];
 		if (stat & 0x10) {
 			// new MSP request
-			this->mspRxSeq   = (stat + 1) & 0x0F;
-			this->mspRxPos   = 0;
+			this->mspRxSeq = (stat + 1) & 0x0F;
+			this->mspRxPos = 0;
 			this->mspVersion = (stat >> 5) == 1 ? MspVersion::V1_OVER_CRSF : MspVersion::V2_OVER_CRSF;
 			if (this->mspVersion == MspVersion::V1_OVER_CRSF) {
 				minSize = 3;
@@ -373,7 +373,7 @@ void ExpressLRS::processMessage() {
 				minSize = 6;
 				if (packetSize < minSize) break;
 				this->mspRxFlag = *extPayload++;
-				this->mspRxCmd  = *extPayload++;
+				this->mspRxCmd = *extPayload++;
 				this->mspRxCmd |= (*extPayload++) << 8;
 				this->mspRxPayloadLen = *extPayload++;
 				this->mspRxPayloadLen |= (*extPayload++) << 8;
@@ -396,7 +396,7 @@ void ExpressLRS::processMessage() {
 		lastError = ERROR_UNSUPPORTED_COMMAND;
 		tasks[TASK_ELRS].errorCount++;
 		tasks[TASK_ELRS].lastError = ERROR_UNSUPPORTED_COMMAND;
-		errorFlag                  = true;
+		errorFlag = true;
 		errorCount++;
 		msgBufIndex -= size;
 		crc = 0;
@@ -407,7 +407,7 @@ void ExpressLRS::processMessage() {
 	}
 
 	msgBufIndex = 0;
-	crc         = 0;
+	crc = 0;
 }
 
 void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
@@ -421,16 +421,16 @@ void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 	interp_set_config(interp0, 1, &interpConfig1);
 	interp_set_config(interp1, 0, &interpConfig2);
 	interp0->accum[1] = sinceLast;
-	interp1->base[0]  = 988 << 16;
-	interp1->base[1]  = 2012 << 16;
+	interp1->base[0] = 988 << 16;
+	interp1->base[1] = 2012 << 16;
 	for (int i = 0; i < 4; i++) {
-		interp0->base[0]  = lastChannels[i] << 16;
-		interp0->base[1]  = (channels[i] * 2 - lastChannels[i]) << 16;
+		interp0->base[0] = lastChannels[i] << 16;
+		interp0->base[1] = (channels[i] * 2 - lastChannels[i]) << 16;
 		interp1->accum[0] = interp0->peek[1];
 		smoothChannels[i].setRaw(interp1->peek[0]);
 	}
-	interp1->base[0]  = 1000 << 16;
-	interp1->base[1]  = 2000 << 16;
+	interp1->base[0] = 1000 << 16;
+	interp1->base[1] = 2000 << 16;
 	interp1->accum[0] = smoothChannels[2].getRaw();
 	smoothChannels[2].setRaw(interp1->peek[0]);
 }
@@ -462,7 +462,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
-	u8 chunkCount  = (payloadLen) / 57 + 1;
+	u8 chunkCount = (payloadLen) / 57 + 1;
 	u8 firstPacket = 1;
 	for (u8 chunk = 0; chunk < chunkCount; chunk++) {
 		u8 chunkSize = 57;
@@ -476,7 +476,7 @@ void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload,
 		stat |= mspVersion << 5;
 		stat |= (type == MspMsgType::ERROR) << 7;
 		u8 packet[60] = {this->lastExtSrcAddr, ADDRESS_FLIGHT_CONTROLLER, stat};
-		firstPacket   = 0;
+		firstPacket = 0;
 		memcpy(&packet[3], &payload[chunk * 57], chunkSize);
 		if (type != MspMsgType::REQUEST)
 			sendPacket(MSP_RESP, (char *)packet, chunkSize + 3);

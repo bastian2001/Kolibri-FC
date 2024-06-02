@@ -1,5 +1,5 @@
 #include "global.h"
-bool armed                 = false;
+bool armed = false;
 FLIGHT_MODE lastFlightMode = FLIGHT_MODE::LENGTH;
 i32 startPointLat, startPointLon;
 /**
