@@ -378,9 +378,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::MAG_CALIBRATION:
 			magStateAfterRead = MAG_CALIBRATE;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
-			char calString[128];
-			snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
-			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, (char *)calString, strlen(calString));
+			snprintf(buf, 32, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
+			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, buf, strlen(buf));
 			break;
 		case MspFn::SET_MOTOR:
 			throttles[(u8)MOTOR::RR] = ((u16)reqPayload[0] + ((u16)reqPayload[1] << 8)) * 2 - 2000;
