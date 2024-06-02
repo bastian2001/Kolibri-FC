@@ -14,6 +14,13 @@
 		'Not Acro or Angle',
 		'Gyro not calibrated'
 	];
+	const REBOOT_MODES = {
+		FIRMWARE: 0,
+		BOOTLOADER_ROM: 1,
+		MSC: 2,
+		MSC_UTC: 3,
+		BOOTLOADER_FLASH: 4
+	};
 	let flightMode = 0;
 	let armingDisableFlags = 0;
 	let armed = false;
@@ -92,10 +99,6 @@
 					break;
 				case MspFn.REBOOT:
 					configuratorLog.push('Rebooting');
-					port.disconnect();
-					break;
-				case MspFn.REBOOT_TO_BOOTLOADER:
-					configuratorLog.push('Rebooting to bootloader');
 					port.disconnect();
 					break;
 				case MspFn.GET_CRASH_DUMP:
@@ -186,8 +189,14 @@
 	<button on:click={() => port.sendCommand('request', MspFn.CLEAR_CRASH_DUMP)}
 		>Clear Crash Dump</button
 	>
-	<button on:click={() => port.sendCommand('request', MspFn.REBOOT)}>Reboot</button>
-	<button on:click={() => port.sendCommand('request', MspFn.REBOOT_TO_BOOTLOADER)}
+	<button
+		on:click={() =>
+			port.sendCommand('request', MspFn.REBOOT, MspVersion.V2, [REBOOT_MODES.FIRMWARE])}
+		>Reboot</button
+	>
+	<button
+		on:click={() =>
+			port.sendCommand('request', MspFn.REBOOT, MspVersion.V2, [REBOOT_MODES.BOOTLOADER_FLASH])}
 		>Bootloader</button
 	>
 </div>

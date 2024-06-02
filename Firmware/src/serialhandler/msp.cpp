@@ -196,6 +196,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = FIRMWARE_VERSION_MINOR;
 			buf[len++] = FIRMWARE_VERSION_PATCH;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			break;
 		case MspFn::BOARD_INFO: {
 			memcpy(&buf[len], targetIdentifier, TARGET_IDENTIFIER_LENGTH);
 			len += 4;
@@ -247,11 +248,26 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)features, len);
 		} break;
 		case MspFn::REBOOT:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			Serial.flush();
-			rebootReason = BootReason::CMD_REBOOT;
-			sleep_ms(100);
-			rp2040.reboot();
+			switch (reqPayload[0]) {
+			case MSP_REBOOT_FIRMWARE:
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+				Serial.flush();
+				rebootReason = BootReason::CMD_REBOOT;
+				sleep_ms(100);
+				rp2040.reboot();
+				break;
+			case MSP_REBOOT_BOOTLOADER_FLASH:
+			case MSP_REBOOT_BOOTLOADER_ROM:
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+				Serial.flush();
+				rebootReason = BootReason::CMD_BOOTLOADER;
+				sleep_ms(100);
+				rp2040.rebootToBootloader();
+				break;
+			default:
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version, "Invalid reboot mode");
+				break;
+			}
 			break;
 		case MspFn::GET_ADVANCED_CONFIG:
 			// only exists for compatibility with BLHeliSuite32
@@ -404,6 +420,20 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			rtcSetDatetime(&t);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
+		case MspFn::GET_RTC: {
+			datetime_t t;
+			rtcGetDatetime(&t);
+			buf[0] = t.year & 0xFF;
+			buf[1] = t.year >> 8;
+			buf[2] = t.month;
+			buf[3] = t.day;
+			buf[4] = t.hour;
+			buf[5] = t.min;
+			buf[6] = t.sec;
+			buf[7] = 0; // millis
+			buf[8] = 0; // millis
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 9);
+		} break;
 		case MspFn::STATUS: {
 			u16 voltage = adcVoltage;
 			buf[len++]  = voltage & 0xFF;
@@ -422,12 +452,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			lastConfigPingRx      = 0;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
-		case MspFn::REBOOT_TO_BOOTLOADER:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			Serial.flush();
-			rebootReason = BootReason::CMD_BOOTLOADER;
-			sleep_ms(100);
-			rp2040.rebootToBootloader();
 			break;
 		case MspFn::SERIAL_PASSTHROUGH: {
 			u8 serialNum = reqPayload[0];
@@ -482,30 +506,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				}
 				break;
 			}
-		} break;
-		case MspFn::PLAY_SOUND: {
-			const u16 startFreq     = random(1000, 5000);
-			const u16 endFreq       = random(1000, 5000);
-			const u16 sweepDuration = random(400, 1000);
-			u16 pauseDuration       = random(100, 1000);
-			const u16 pauseEn       = random(0, 2);
-			pauseDuration *= pauseEn;
-			const u16 repeat = random(1, 11);
-			makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
-			u8 len     = 0;
-			buf[len++] = startFreq & 0xFF;
-			buf[len++] = startFreq >> 8;
-			buf[len++] = endFreq & 0xFF;
-			buf[len++] = endFreq >> 8;
-			buf[len++] = sweepDuration & 0xFF;
-			buf[len++] = sweepDuration >> 8;
-			buf[len++] = pauseDuration & 0xFF;
-			buf[len++] = pauseDuration >> 8;
-			buf[len++] = pauseEn;
-			buf[len++] = repeat;
-			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
-			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::SAVE_SETTINGS:
 			rp2040.wdt_reset();
@@ -778,6 +778,30 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			gpio_put(PIN_LED_DEBUG, reqPayload[0]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
+		case MspFn::PLAY_SOUND: {
+			const u16 startFreq     = random(1000, 5000);
+			const u16 endFreq       = random(1000, 5000);
+			const u16 sweepDuration = random(400, 1000);
+			u16 pauseDuration       = random(100, 1000);
+			const u16 pauseEn       = random(0, 2);
+			pauseDuration *= pauseEn;
+			const u16 repeat = random(1, 11);
+			makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
+			u8 len     = 0;
+			buf[len++] = startFreq & 0xFF;
+			buf[len++] = startFreq >> 8;
+			buf[len++] = endFreq & 0xFF;
+			buf[len++] = endFreq >> 8;
+			buf[len++] = sweepDuration & 0xFF;
+			buf[len++] = sweepDuration >> 8;
+			buf[len++] = pauseDuration & 0xFF;
+			buf[len++] = pauseDuration >> 8;
+			buf[len++] = pauseEn;
+			buf[len++] = repeat;
+			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
+			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
 		default:
 			sendMsp(serialNum, MspMsgType::ERROR, fn, version, "Unknown command", strlen("Unknown command"));
 			break;

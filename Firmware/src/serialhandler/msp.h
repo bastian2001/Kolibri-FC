@@ -68,6 +68,7 @@ enum class MspFn {
 	SET_MOTOR           = 214,
 	ENABLE_4WAY_IF      = 245,
 	SET_RTC             = 246,
+	GET_RTC             = 247,
 	MSP_V2_FRAME        = 255,
 
 	// 0x400_ Configurator related commands
@@ -76,11 +77,7 @@ enum class MspFn {
 	IND_MESSAGE       = 0x4002,
 
 	// 0x401_ Entering special modes
-	REBOOT_TO_BOOTLOADER = 0x4010,
-	SERIAL_PASSTHROUGH   = 0x4011,
-
-	// 0x40F_ Miscelaneous
-	PLAY_SOUND = 0x40F0,
+	SERIAL_PASSTHROUGH = 0x4010,
 
 	// 0x410_ Settings Meta commands
 	SAVE_SETTINGS = 0x4100,
@@ -124,6 +121,7 @@ enum class MspFn {
 	GET_CRASH_DUMP   = 0x4F00,
 	CLEAR_CRASH_DUMP = 0x4F01,
 	SET_DEBUG_LED    = 0x4F02,
+	PLAY_SOUND       = 0x4F03,
 
 	// 0x4F20-0x4FFF temporary debug tools
 };

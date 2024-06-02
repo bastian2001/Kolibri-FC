@@ -34,11 +34,7 @@ export const MspFn = {
 	IND_MESSAGE: 0x4002,
 
 	// 0x401_ Entering special modes
-	REBOOT_TO_BOOTLOADER: 0x4010,
-	SERIAL_PASSTHROUGH: 0x4011,
-
-	// 0x40F_ Miscelaneous
-	PLAY_SOUND: 0x40f0,
+	SERIAL_PASSTHROUGH: 0x4010,
 
 	// 0x410_ Settings Meta commands
 	SAVE_SETTINGS: 0x4100,
@@ -81,7 +77,8 @@ export const MspFn = {
 	// 0x4F00-0x4F1F general debug tools
 	GET_CRASH_DUMP: 0x4f00,
 	CLEAR_CRASH_DUMP: 0x4f01,
-	SET_DEBUG_LED: 0x4f02
+	SET_DEBUG_LED: 0x4f02,
+	PLAY_SOUND: 0x4f03
 
 	// 0x4F20-0x4FFF temporary debug tools
 };

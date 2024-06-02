@@ -81,6 +81,13 @@ enum class BootReason {
 	CMD_BOOTLOADER,
 	WATCHDOG
 };
+enum MspRebootMode {
+	MSP_REBOOT_FIRMWARE = 0,
+	MSP_REBOOT_BOOTLOADER_ROM,
+	MSP_REBOOT_MSC,
+	MSP_REBOOT_MSC_UTC,
+	MSP_REBOOT_BOOTLOADER_FLASH
+};
 
 extern volatile u32 crashInfo[256]; // Crash info buffer (arbitrary data to be saved to EEPROM in case of a crash)
 extern BootReason bootReason;       // Reason for booting
