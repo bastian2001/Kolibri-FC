@@ -61,7 +61,7 @@ public:
 	u32 newPacketFlag                         = 0;   // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
 	void sendPacket(u8 cmd, const char *payload, u8 payloadLen);
 	void sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen);
-	void sendMspResponse(u8 mspVersion, const char *payload, u16 payloadLen, bool isError);
+	void sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen);
 
 private:
 	const u16 powerStates[9]                  = {0, 10, 25, 100, 500, 1000, 2000, 50, 250};

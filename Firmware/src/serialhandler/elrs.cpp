@@ -9,8 +9,8 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	  pinRX(pinRX),
 	  baudrate(baudrate) {
 	elrsStream = &elrsSerial;
-	for (int i = 0; i < 3; i++){
-		if (elrsStream == serials[i]){
+	for (int i = 0; i < 3; i++) {
+		if (elrsStream == serials[i]) {
 			serialNum = i;
 			break;
 		}
@@ -461,7 +461,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 	elrsSerial.write(packet, 6 + extPayloadLen);
 }
 
-void ExpressLRS::sendMspResponse(u8 mspVersion, const char *payload, u16 payloadLen, bool isError) {
+void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
 	u8 chunkCount  = (payloadLen) / 57 + 1;
 	u8 firstPacket = 1;
 	for (u8 chunk = 0; chunk < chunkCount; chunk++) {
@@ -474,10 +474,13 @@ void ExpressLRS::sendMspResponse(u8 mspVersion, const char *payload, u16 payload
 		stat |= this->mspTelemSeq;
 		stat |= (firstPacket << 4);
 		stat |= mspVersion << 5;
-		stat |= isError << 7;
+		stat |= (type == MspMsgType::ERROR) << 7;
 		u8 packet[60] = {this->lastExtSrcAddr, ADDRESS_FLIGHT_CONTROLLER, stat};
 		firstPacket   = 0;
 		memcpy(&packet[3], &payload[chunk * 57], chunkSize);
-		sendPacket(MSP_RESP, (char *)packet, chunkSize + 3);
+		if (type != MspMsgType::REQUEST)
+			sendPacket(MSP_RESP, (char *)packet, chunkSize + 3);
+		else
+			sendPacket(MSP_REQ, (char *)packet, chunkSize + 3);
 	}
 }
