@@ -30,7 +30,7 @@ void initMag() {
 			Serial.println("Failed to find magnetometer");
 			return;
 		}
-		delay(2);
+		sleep_ms(2);
 	}
 	magState     = 1;
 	magBuffer[0] = (u8)MAG_REG::CONF_REGA;

@@ -63,7 +63,7 @@ void runUnitTests() {
 		if (testsFailed) {
 			Serial.println("Unit tests failed, rerun to see results.");
 			Expect::enableSilent(false);
-			delay(10000);
+			sleep_ms(10000);
 		}
 	} while (testsFailed);
 }

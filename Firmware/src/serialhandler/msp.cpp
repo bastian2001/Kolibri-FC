@@ -251,7 +251,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			Serial.flush();
 			rebootReason = BootReason::CMD_REBOOT;
-			delay(100);
+			sleep_ms(100);
 			rp2040.reboot();
 		} break;
 		case MspFn::GET_ADVANCED_CONFIG:
@@ -573,7 +573,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			Serial.flush();
 			rebootReason = BootReason::CMD_BOOTLOADER;
-			delay(100);
+			sleep_ms(100);
 			rp2040.rebootToBootloader();
 			break;
 		case MspFn::GET_PIDS: {

@@ -33,7 +33,7 @@ void getRawPressureTemperature(volatile i32 *pressure, volatile i32 *temperature
 
 void initBaro() {
 	gpio_put(PIN_BARO_CS, 0); // enable SPI by pulling CS low (datasheet page 10)
-	delayMicroseconds(10);
+	sleep_us(10);
 	gpio_put(PIN_BARO_CS, 1);
 	u8 data[18];
 	regRead(SPI_BARO, PIN_BARO_CS, 0x0D, data, 1, 0, false); // read ID register
