@@ -245,13 +245,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			features |= 1 << 22; // FEATURE_AIRMODE
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)features, len);
 		} break;
-		case MspFn::REBOOT: {
+		case MspFn::REBOOT:
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			Serial.flush();
 			rebootReason = BootReason::CMD_REBOOT;
 			sleep_ms(100);
 			rp2040.reboot();
-		} break;
+			break;
 		case MspFn::GET_ADVANCED_CONFIG:
 			// only exists for compatibility with BLHeliSuite32
 			buf[len++] = 1; // gyro_sync_denom
@@ -405,162 +405,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++]  = (u8)(configuratorConnected & 0xFF);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
-		case MspFn::TASK_STATUS: {
-			u32 buf[256];
-			for (int i = 0; i < 32; i++) {
-				buf[i * 8 + 0] = tasks[i].debugInfo;
-				buf[i * 8 + 1] = tasks[i].minDuration;
-				buf[i * 8 + 2] = tasks[i].maxDuration;
-				buf[i * 8 + 3] = tasks[i].frequency;
-				buf[i * 8 + 4] = tasks[i].avgDuration;
-				buf[i * 8 + 5] = tasks[i].errorCount;
-				buf[i * 8 + 6] = tasks[i].lastError;
-				buf[i * 8 + 7] = tasks[i].maxGap;
-			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buf, sizeof(buf));
-			for (int i = 0; i < 32; i++) {
-				tasks[i].minDuration = 0xFFFFFFFF;
-				tasks[i].maxDuration = 0;
-				tasks[i].maxGap      = 0;
-			}
-		} break;
-		case MspFn::SAVE_SETTINGS:
-			rp2040.wdt_reset();
-			EEPROM.commit();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			break;
-		case MspFn::PLAY_SOUND: {
-			const u16 startFreq     = random(1000, 5000);
-			const u16 endFreq       = random(1000, 5000);
-			const u16 sweepDuration = random(400, 1000);
-			u16 pauseDuration       = random(100, 1000);
-			const u16 pauseEn       = random(0, 2);
-			pauseDuration *= pauseEn;
-			const u16 repeat = random(1, 11);
-			makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
-			u8 len     = 0;
-			buf[len++] = startFreq & 0xFF;
-			buf[len++] = startFreq >> 8;
-			buf[len++] = endFreq & 0xFF;
-			buf[len++] = endFreq >> 8;
-			buf[len++] = sweepDuration & 0xFF;
-			buf[len++] = sweepDuration >> 8;
-			buf[len++] = pauseDuration & 0xFF;
-			buf[len++] = pauseDuration >> 8;
-			buf[len++] = pauseEn;
-			buf[len++] = repeat;
-			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
-			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
-		} break;
-		case MspFn::BB_FILE_LIST: {
-			int index         = 0;
-			char shortbuf[16] = {0};
-			for (int i = 0; i < 100; i++) {
-				rp2040.wdt_reset();
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-				snprintf(shortbuf, 16, "/logs%01d/%01d.kbb", i / 10, i % 10);
-				if (LittleFS.exists(shortbuf)) {
-					buf[index++] = i;
-				}
-#elif BLACKBOX_STORAGE == SD_BB
-				snprintf(shortbuf, 16, "/kolibri/%01d.kbb", i);
-				if (SDFS.exists(shortbuf)) {
-					buf[index++] = i;
-				}
-#endif
-			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, index);
-		} break;
-		case MspFn::BB_FILE_DOWNLOAD: {
-			u8 fileNum   = reqPayload[0];
-			i32 chunkNum = -1;
-			if (reqLen > 1) {
-				chunkNum = DECODE_I4((u8 *)&reqPayload[1]);
-			}
-			printLogBin(serialNum, version, fileNum, chunkNum);
-		} break;
-		case MspFn::BB_FILE_DELETE: {
-			// data just includes one byte of file number
-			u8 fileNum = reqPayload[0];
-			char path[32];
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
-			if (LittleFS.remove(path))
-#elif BLACKBOX_STORAGE == SD_BB
-			snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
-			if (SDFS.remove(path))
-#endif
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 1);
-			else
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 1);
-		} break;
-		case MspFn::BB_FILE_INFO: {
-			/* data of command
-			 * 0...len-1: file numbers
-			 *
-			 * data of response
-			 * 0. file number
-			 * 1-4. file size in bytes
-			 * 5-7. version of bb file format
-			 * 8-11: time of recording start
-			 * 12. byte that indicates PID frequency
-			 * 13. byte that indicates frequency divider
-			 * 14-21: recording flags
-			 */
-			u8 len       = reqLen;
-			len          = len > 12 ? 12 : len;
-			u8 *fileNums = (u8 *)reqPayload;
-			u8 buffer[22 * len];
-			u8 index = 0;
-			for (int i = 0; i < len; i++) {
-				rp2040.wdt_reset();
-				char path[32];
-				u8 fileNum = fileNums[i];
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-				snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
-				File logFile = LittleFS.open(path, "r");
-#elif BLACKBOX_STORAGE == SD_BB
-				snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
-				File logFile = SDFS.open(path, "r");
-#endif
-				if (!logFile)
-					continue;
-				buffer[index++] = fileNum;
-				buffer[index++] = logFile.size() & 0xFF;
-				buffer[index++] = (logFile.size() >> 8) & 0xFF;
-				buffer[index++] = (logFile.size() >> 16) & 0xFF;
-				buffer[index++] = (logFile.size() >> 24) & 0xFF;
-				logFile.seek(LOG_HEAD_BB_VERSION, SeekSet);
-				// version, timestamp, pid and divider can directly be read from the file
-				for (int i = 0; i < 9; i++)
-					buffer[index++] = logFile.read();
-				logFile.seek(LOG_HEAD_LOGGED_FIELDS, SeekSet);
-				// flags
-				for (int i = 0; i < 8; i++)
-					buffer[index++] = logFile.read();
-				logFile.close();
-			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buffer, index);
-		} break;
-		case MspFn::BB_FORMAT:
-			if (clearBlackbox())
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			else
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-			break;
-		case MspFn::WRITE_OSD_FONT_CHARACTER:
-			if (reqLen < 55) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-				break;
-			}
-			updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
-			break;
-		case MspFn::SET_DEBUG_LED:
-			gpio_put(PIN_LED_DEBUG, reqPayload[0]);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			break;
 		case MspFn::CONFIGURATOR_PING:
 			configuratorConnected = true;
 			lastConfigPingRx      = 0;
@@ -573,80 +417,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sleep_ms(100);
 			rp2040.rebootToBootloader();
 			break;
-		case MspFn::GET_PIDS: {
-			u16 pids[3][7];
-			for (int i = 0; i < 3; i++) {
-				pids[i][0] = pidGains[i][0].getRaw() >> P_SHIFT;
-				pids[i][1] = pidGains[i][1].getRaw() >> I_SHIFT;
-				pids[i][2] = pidGains[i][2].getRaw() >> D_SHIFT;
-				pids[i][3] = pidGains[i][3].getRaw() >> FF_SHIFT;
-				pids[i][4] = pidGains[i][4].getRaw() >> S_SHIFT;
-				pids[i][5] = pidGains[i][5].getRaw() & 0xFFFF;
-				pids[i][6] = 0;
-			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)pids, sizeof(pids));
-		} break;
-		case MspFn::SET_PIDS: {
-			u16 pids[3][7];
-			memcpy(pids, reqPayload, sizeof(pids));
-			for (int i = 0; i < 3; i++) {
-				pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
-				pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
-				pidGains[i][2].setRaw(pids[i][2] << D_SHIFT);
-				pidGains[i][3].setRaw(pids[i][3] << FF_SHIFT);
-				pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
-				pidGains[i][5].setRaw(pids[i][5]);
-			}
-			EEPROM.put((u16)EEPROM_POS::PID_GAINS, pidGains);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-		} break;
-		case MspFn::GET_RATES: {
-			u16 rates[3][5];
-			for (int i = 0; i < 3; i++)
-				for (int j = 0; j < 5; j++)
-					rates[i][j] = rateFactors[j][i].getInt();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)rates, sizeof(rates));
-		} break;
-		case MspFn::SET_RATES: {
-			u16 rates[3][5];
-			memcpy(rates, reqPayload, sizeof(rates));
-			for (int i = 0; i < 3; i++)
-				for (int j = 0; j < 5; j++)
-					rateFactors[j][i] = rates[i][j];
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rateFactors);
-		} break;
-		case MspFn::GET_BB_SETTINGS: {
-			u8 bbSettings[9];
-			bbSettings[0] = bbFreqDivider;
-			memcpy(&bbSettings[1], &bbFlags, 8);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)bbSettings, sizeof(bbSettings));
-		} break;
-		case MspFn::SET_BB_SETTINGS: {
-			u8 bbSettings[9];
-			memcpy(bbSettings, reqPayload, sizeof(bbSettings));
-			bbFreqDivider = bbSettings[0];
-			memcpy(&bbFlags, &bbSettings[1], 8);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
-			EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
-		} break;
-		case MspFn::GET_ROTATION: {
-			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
-			int rotationPitch = pitch * 8192;
-			int rotationRoll  = roll * 8192;
-			int rotationYaw   = yaw * 8192;
-			int heading       = combinedHeading.getRaw() >> 3;
-			buf[0]            = rotationPitch & 0xFF;
-			buf[1]            = rotationPitch >> 8;
-			buf[2]            = rotationRoll & 0xFF;
-			buf[3]            = rotationRoll >> 8;
-			buf[4]            = rotationYaw & 0xFF;
-			buf[5]            = rotationYaw >> 8;
-			buf[6]            = heading & 0xFF;
-			buf[7]            = heading >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
-		} break;
 		case MspFn::SERIAL_PASSTHROUGH: {
 			u8 serialNum = reqPayload[0];
 			u32 baud     = DECODE_U4((u8 *)&reqPayload[1]);
@@ -701,17 +471,155 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				break;
 			}
 		} break;
-		case MspFn::GET_GPS_ACCURACY: {
-			// through padding and compiler optimization, it is not possible to just memcpy the struct
-			memcpy(buf, &gpsAcc.tAcc, 4);
-			memcpy(&buf[4], &gpsAcc.hAcc, 4);
-			memcpy(&buf[8], &gpsAcc.vAcc, 4);
-			memcpy(&buf[12], &gpsAcc.sAcc, 4);
-			memcpy(&buf[16], &gpsAcc.headAcc, 4);
-			memcpy(&buf[20], &gpsAcc.pDop, 4);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 24);
+		case MspFn::PLAY_SOUND: {
+			const u16 startFreq     = random(1000, 5000);
+			const u16 endFreq       = random(1000, 5000);
+			const u16 sweepDuration = random(400, 1000);
+			u16 pauseDuration       = random(100, 1000);
+			const u16 pauseEn       = random(0, 2);
+			pauseDuration *= pauseEn;
+			const u16 repeat = random(1, 11);
+			makeSweepSound(startFreq, endFreq, ((sweepDuration + pauseDuration) * repeat) - 1, sweepDuration, pauseDuration);
+			u8 len     = 0;
+			buf[len++] = startFreq & 0xFF;
+			buf[len++] = startFreq >> 8;
+			buf[len++] = endFreq & 0xFF;
+			buf[len++] = endFreq >> 8;
+			buf[len++] = sweepDuration & 0xFF;
+			buf[len++] = sweepDuration >> 8;
+			buf[len++] = pauseDuration & 0xFF;
+			buf[len++] = pauseDuration >> 8;
+			buf[len++] = pauseEn;
+			buf[len++] = repeat;
+			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
+			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
-		case MspFn::GET_GPS_STATUS: {
+		case MspFn::SAVE_SETTINGS:
+			rp2040.wdt_reset();
+			EEPROM.commit();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			break;
+		case MspFn::WRITE_OSD_FONT_CHARACTER:
+			if (reqLen < 55) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
+			break;
+		case MspFn::GET_BB_SETTINGS: {
+			u8 bbSettings[9];
+			bbSettings[0] = bbFreqDivider;
+			memcpy(&bbSettings[1], &bbFlags, 8);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)bbSettings, sizeof(bbSettings));
+		} break;
+		case MspFn::SET_BB_SETTINGS: {
+			u8 bbSettings[9];
+			memcpy(bbSettings, reqPayload, sizeof(bbSettings));
+			bbFreqDivider = bbSettings[0];
+			memcpy(&bbFlags, &bbSettings[1], 8);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
+			EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
+		} break;
+		case MspFn::BB_FILE_LIST: {
+			int index         = 0;
+			char shortbuf[16] = {0};
+			for (int i = 0; i < 100; i++) {
+				rp2040.wdt_reset();
+#if BLACKBOX_STORAGE == LITTLEFS_BB
+				snprintf(shortbuf, 16, "/logs%01d/%01d.kbb", i / 10, i % 10);
+				if (LittleFS.exists(shortbuf)) {
+					buf[index++] = i;
+				}
+#elif BLACKBOX_STORAGE == SD_BB
+				snprintf(shortbuf, 16, "/kolibri/%01d.kbb", i);
+				if (SDFS.exists(shortbuf)) {
+					buf[index++] = i;
+				}
+#endif
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, index);
+		} break;
+		case MspFn::BB_FILE_INFO: {
+			/* data of command
+			 * 0...len-1: file numbers
+			 *
+			 * data of response
+			 * 0. file number
+			 * 1-4. file size in bytes
+			 * 5-7. version of bb file format
+			 * 8-11: time of recording start
+			 * 12. byte that indicates PID frequency
+			 * 13. byte that indicates frequency divider
+			 * 14-21: recording flags
+			 */
+			u8 len       = reqLen;
+			len          = len > 12 ? 12 : len;
+			u8 *fileNums = (u8 *)reqPayload;
+			u8 buffer[22 * len];
+			u8 index = 0;
+			for (int i = 0; i < len; i++) {
+				rp2040.wdt_reset();
+				char path[32];
+				u8 fileNum = fileNums[i];
+#if BLACKBOX_STORAGE == LITTLEFS_BB
+				snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
+				File logFile = LittleFS.open(path, "r");
+#elif BLACKBOX_STORAGE == SD_BB
+				snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
+				File logFile = SDFS.open(path, "r");
+#endif
+				if (!logFile)
+					continue;
+				buffer[index++] = fileNum;
+				buffer[index++] = logFile.size() & 0xFF;
+				buffer[index++] = (logFile.size() >> 8) & 0xFF;
+				buffer[index++] = (logFile.size() >> 16) & 0xFF;
+				buffer[index++] = (logFile.size() >> 24) & 0xFF;
+				logFile.seek(LOG_HEAD_BB_VERSION, SeekSet);
+				// version, timestamp, pid and divider can directly be read from the file
+				for (int i = 0; i < 9; i++)
+					buffer[index++] = logFile.read();
+				logFile.seek(LOG_HEAD_LOGGED_FIELDS, SeekSet);
+				// flags
+				for (int i = 0; i < 8; i++)
+					buffer[index++] = logFile.read();
+				logFile.close();
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buffer, index);
+		} break;
+		case MspFn::BB_FILE_DOWNLOAD: {
+			u8 fileNum   = reqPayload[0];
+			i32 chunkNum = -1;
+			if (reqLen > 1) {
+				chunkNum = DECODE_I4((u8 *)&reqPayload[1]);
+			}
+			printLogBin(serialNum, version, fileNum, chunkNum);
+		} break;
+		case MspFn::BB_FILE_DELETE: {
+			// data just includes one byte of file number
+			u8 fileNum = reqPayload[0];
+			char path[32];
+#if BLACKBOX_STORAGE == LITTLEFS_BB
+			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
+			if (LittleFS.remove(path))
+#elif BLACKBOX_STORAGE == SD_BB
+			snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
+			if (SDFS.remove(path))
+#endif
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 1);
+			else
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 1);
+		} break;
+		case MspFn::BB_FORMAT:
+			if (clearBlackbox())
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			else
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			break;
+		case MspFn::GET_GPS_STATUS:
 			buf[0] = gpsStatus.gpsInited;
 			buf[1] = gpsStatus.initStep;
 			buf[2] = gpsStatus.fixType;
@@ -722,8 +630,18 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[7] = gpsStatus.flags3 >> 8;
 			buf[8] = gpsStatus.satCount;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 9);
-		} break;
-		case MspFn::GET_GPS_TIME: {
+			break;
+		case MspFn::GET_GPS_ACCURACY:
+			// through padding and compiler optimization, it is not possible to just memcpy the struct
+			memcpy(buf, &gpsAcc.tAcc, 4);
+			memcpy(&buf[4], &gpsAcc.hAcc, 4);
+			memcpy(&buf[8], &gpsAcc.vAcc, 4);
+			memcpy(&buf[12], &gpsAcc.sAcc, 4);
+			memcpy(&buf[16], &gpsAcc.headAcc, 4);
+			memcpy(&buf[20], &gpsAcc.pDop, 4);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 24);
+			break;
+		case MspFn::GET_GPS_TIME:
 			buf[0] = gpsTime.year & 0xFF;
 			buf[1] = gpsTime.year >> 8;
 			buf[2] = gpsTime.month;
@@ -732,7 +650,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[5] = gpsTime.min;
 			buf[6] = gpsTime.sec;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 7);
-		} break;
+			break;
 		case MspFn::GET_GPS_MOTION: {
 			memcpy(buf, &gpsMotion.lat, 4);
 			memcpy(&buf[4], &gpsMotion.lon, 4);
@@ -748,37 +666,119 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[36], &vVelRaw, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 40);
 		} break;
-		case MspFn::GET_CRASH_DUMP: {
-			for (int i = 0; i < 256; i++) {
-				rp2040.wdt_reset();
-				buf[i] = EEPROM.read(4096 - 256 + i);
-			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 256);
+		case MspFn::GET_MAG_DATA: {
+			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, 12);
 		} break;
-		case MspFn::CLEAR_CRASH_DUMP: {
-			for (int i = 0; i < 256; i++) {
-				rp2040.wdt_reset();
-				EEPROM.write(4096 - 256 + i, 0);
-			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		case MspFn::CALIBRATE_MAG:
+			magStateAfterRead = MAG_CALIBRATE;
+			char calString[128];
+			snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
+			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, (char *)calString, strlen(calString));
+			break;
+		case MspFn::GET_ROTATION: {
+			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+			int rotationPitch = pitch * 8192;
+			int rotationRoll  = roll * 8192;
+			int rotationYaw   = yaw * 8192;
+			int heading       = combinedHeading.getRaw() >> 3;
+			buf[0]            = rotationPitch & 0xFF;
+			buf[1]            = rotationPitch >> 8;
+			buf[2]            = rotationRoll & 0xFF;
+			buf[3]            = rotationRoll >> 8;
+			buf[4]            = rotationYaw & 0xFF;
+			buf[5]            = rotationYaw >> 8;
+			buf[6]            = heading & 0xFF;
+			buf[7]            = heading >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
 		} break;
 		case MspFn::CALIBRATE_ACCELEROMETER:
 			accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
 			armingDisableFlags |= 0x40;
 			break;
-		case MspFn::GET_MAG_DATA: {
-			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, 12);
+		case MspFn::TASK_STATUS: {
+			u32 buf[256];
+			for (int i = 0; i < 32; i++) {
+				buf[i * 8 + 0] = tasks[i].debugInfo;
+				buf[i * 8 + 1] = tasks[i].minDuration;
+				buf[i * 8 + 2] = tasks[i].maxDuration;
+				buf[i * 8 + 3] = tasks[i].frequency;
+				buf[i * 8 + 4] = tasks[i].avgDuration;
+				buf[i * 8 + 5] = tasks[i].errorCount;
+				buf[i * 8 + 6] = tasks[i].lastError;
+				buf[i * 8 + 7] = tasks[i].maxGap;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buf, sizeof(buf));
+			for (int i = 0; i < 32; i++) {
+				tasks[i].minDuration = 0xFFFFFFFF;
+				tasks[i].maxDuration = 0;
+				tasks[i].maxGap      = 0;
+			}
 		} break;
-		case MspFn::CALIBRATE_MAG: {
-			magStateAfterRead = MAG_CALIBRATE;
-			char calString[128];
-			snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
-			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, (char *)calString, strlen(calString));
+		case MspFn::GET_PIDS: {
+			u16 pids[3][7];
+			for (int i = 0; i < 3; i++) {
+				pids[i][0] = pidGains[i][0].getRaw() >> P_SHIFT;
+				pids[i][1] = pidGains[i][1].getRaw() >> I_SHIFT;
+				pids[i][2] = pidGains[i][2].getRaw() >> D_SHIFT;
+				pids[i][3] = pidGains[i][3].getRaw() >> FF_SHIFT;
+				pids[i][4] = pidGains[i][4].getRaw() >> S_SHIFT;
+				pids[i][5] = pidGains[i][5].getRaw() & 0xFFFF;
+				pids[i][6] = 0;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)pids, sizeof(pids));
 		} break;
-		default: {
+		case MspFn::SET_PIDS: {
+			u16 pids[3][7];
+			memcpy(pids, reqPayload, sizeof(pids));
+			for (int i = 0; i < 3; i++) {
+				pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
+				pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
+				pidGains[i][2].setRaw(pids[i][2] << D_SHIFT);
+				pidGains[i][3].setRaw(pids[i][3] << FF_SHIFT);
+				pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
+				pidGains[i][5].setRaw(pids[i][5]);
+			}
+			EEPROM.put((u16)EEPROM_POS::PID_GAINS, pidGains);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
+		case MspFn::GET_RATES: {
+			u16 rates[3][5];
+			for (int i = 0; i < 3; i++)
+				for (int j = 0; j < 5; j++)
+					rates[i][j] = rateFactors[j][i].getInt();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)rates, sizeof(rates));
+		} break;
+		case MspFn::SET_RATES: {
+			u16 rates[3][5];
+			memcpy(rates, reqPayload, sizeof(rates));
+			for (int i = 0; i < 3; i++)
+				for (int j = 0; j < 5; j++)
+					rateFactors[j][i] = rates[i][j];
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rateFactors);
+		} break;
+		case MspFn::GET_CRASH_DUMP:
+			for (int i = 0; i < 256; i++) {
+				rp2040.wdt_reset();
+				buf[i] = EEPROM.read(4096 - 256 + i);
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 256);
+			break;
+		case MspFn::CLEAR_CRASH_DUMP:
+			for (int i = 0; i < 256; i++) {
+				rp2040.wdt_reset();
+				EEPROM.write(4096 - 256 + i, 0);
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			break;
+		case MspFn::SET_DEBUG_LED:
+			gpio_put(PIN_LED_DEBUG, reqPayload[0]);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			break;
+		default:
 			sendMsp(serialNum, MspMsgType::ERROR, fn, version, "Unknown command", strlen("Unknown command"));
-		} break;
+			break;
 		}
 	}
 }
