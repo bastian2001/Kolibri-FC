@@ -21,7 +21,7 @@
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
-				case MspFn.GET_MOTORS:
+				case MspFn.GET_MOTOR:
 					{
 						const m = [] as number[];
 						for (let i = 0; i < 4; i++) {
@@ -29,10 +29,6 @@
 						}
 						motors = m;
 					}
-					break;
-				case MspFn.ESC_PASSTHROUGH:
-					configuratorLog.push('FC reboots into passthrough mode');
-					port.disconnect();
 					break;
 			}
 		}
@@ -42,7 +38,7 @@
 	function startMotors() {
 		clearInterval(int);
 		int = setInterval(() => {
-			port.sendCommand('request', MspFn.SET_MOTORS, MspVersion.V2, throttlesU8);
+			port.sendCommand('request', MspFn.SET_MOTOR, MspVersion.V2, throttlesU8);
 		}, 100);
 	}
 	function stopMotors() {
@@ -53,15 +49,12 @@
 	}
 	function spinMotor(motor: number) {
 		throttles = [0, 0, 0, 0];
-		throttles[motor] = 150;
+		throttles[motor] = 1075;
 		throttles = [...throttles];
-	}
-	function startPassthrough() {
-		port.sendCommand('request', MspFn.ESC_PASSTHROUGH);
 	}
 	onMount(() => {
 		getMotorsInterval = setInterval(() => {
-			port.sendCommand('request', MspFn.GET_MOTORS);
+			port.sendCommand('request', MspFn.GET_MOTOR);
 		}, 100);
 		port.addOnDisconnectHandler(stopMotors);
 	});
@@ -80,10 +73,9 @@
 	<button on:click={() => spinMotor(3)}>Spin FL</button>
 	<button on:click={() => stopMotors()}>Stop</button>
 	<button on:click={() => startMotors()}>Start</button>
-	<button on:click={startPassthrough}>Passthrough</button>
 	<div class="quadPreview">
 		{#each motors.map((m, i) => motors[motorMapping[i]]) as motor}
-			<Motor throttlePct={motor / 20} />
+			<Motor throttlePct={(motor - 1000) / 10} />
 		{/each}
 	</div>
 </div>

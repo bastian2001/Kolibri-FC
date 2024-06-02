@@ -1,15 +1,18 @@
 #include "global.h"
-u32 armingDisableFlags     = 0;
 bool armed                 = false;
 FLIGHT_MODE lastFlightMode = FLIGHT_MODE::LENGTH;
 i32 startPointLat, startPointLon;
-// 0: switch in armed position for >= 10 cycles
-// 1: throttle down
-// 2: GPS fix and >= 6 satellites
-// 3: configurator not attached
-// 4: at least one good ELRS packet before arming
-// 5: allowed modes during arm: acro, angle
-// 6: Gyro calibrated
+/**
+ * 0: switch in armed position for >= 10 cycles
+ * 1: throttle down
+ * 2: GPS fix and >= 6 satellites
+ * 3: configurator not attached (by configurator ping) -> used by Kolibri configurator
+ * 4: at least one good ELRS packet before arming
+ * 5: allowed modes during arm: acro, angle
+ * 6: Gyro calibrated
+ * 7: takeoff prevention from configurator (MspFn::SET_ARMING_DISABLED) -> not used by Kolibri configurator
+ */
+u32 armingDisableFlags = 0;
 
 void modesLoop() {
 	if (ELRS->newPacketFlag & 0x00000001) {

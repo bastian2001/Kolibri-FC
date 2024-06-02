@@ -235,6 +235,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_FEATURE_CONFIG: {
+			// only exists for compatibility with BLHeliSuite32
 			u32 features = 0;
 			features |= 1 << 3;  // FEATURE_RX_SERIAL
 			features |= 1 << 4;  // FEATURE_MOTOR_STOP
@@ -244,9 +245,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			features |= 1 << 22; // FEATURE_AIRMODE
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)features, len);
 		} break;
-		case MspFn::SET_FEATURE_CONFIG:
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-			break;
 		case MspFn::REBOOT: {
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			Serial.flush();
@@ -255,6 +253,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			rp2040.reboot();
 		} break;
 		case MspFn::GET_ADVANCED_CONFIG:
+			// only exists for compatibility with BLHeliSuite32
 			buf[len++] = 1; // gyro_sync_denom
 			buf[len++] = 1; // pid_process_denom
 			buf[len++] = 0; // useUnsyncedPwm => true if motors are updated asynchronously from the PID
@@ -275,14 +274,21 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 0; // checkOverflow, no overflow
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
-		case MspFn::SET_ADVANCED_CONFIG:
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-			break;
 		case MspFn::SET_ARMING_DISABLED:
-			// TODO? disable arming or use ping?
+			// not used by Kolibri configurator
+			if (reqLen < 1) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			if (reqPayload[0]) {
+				armingDisableFlags |= 1 << 7;
+			} else {
+				armingDisableFlags &= ~(1 << 7);
+			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::MSP_STATUS:
+			// only exists for compatibility with BLHeliSuite32
 			buf[len++] = 312 & 0xFF;
 			buf[len++] = 312 >> 8;
 			buf[len++] = 0; // I2C error count
@@ -319,6 +325,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::MSP_ATTITUDE: {
+			// not used by Kolibri configurator, that uses GET_ROTATION
 			i16 rollInt  = -roll * (RAD_TO_DEG * 10);
 			i16 pitchInt = pitch * (RAD_TO_DEG * 10);
 			i16 yawInt   = combinedHeading.getf32() * (RAD_TO_DEG);
@@ -331,7 +338,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::BOXIDS:
-			// need to send success response so that BLHeliSuite32 can connect
+			// only exists for compatibility with BLHeliSuite32
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::GET_MOTOR_3D_CONFIG:
@@ -363,18 +370,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::SET_MOTOR:
-			throttles[(u8)MOTOR::RR] = (u16)reqPayload[0] + ((u16)reqPayload[1] << 8);
-			throttles[(u8)MOTOR::FR] = (u16)reqPayload[2] + ((u16)reqPayload[3] << 8);
-			throttles[(u8)MOTOR::RL] = (u16)reqPayload[4] + ((u16)reqPayload[5] << 8);
-			throttles[(u8)MOTOR::FL] = (u16)reqPayload[6] + ((u16)reqPayload[7] << 8);
+			throttles[(u8)MOTOR::RR] = ((u16)reqPayload[0] + ((u16)reqPayload[1] << 8)) * 2 - 2000;
+			throttles[(u8)MOTOR::FR] = ((u16)reqPayload[2] + ((u16)reqPayload[3] << 8)) * 2 - 2000;
+			throttles[(u8)MOTOR::RL] = ((u16)reqPayload[4] + ((u16)reqPayload[5] << 8)) * 2 - 2000;
+			throttles[(u8)MOTOR::FL] = ((u16)reqPayload[6] + ((u16)reqPayload[7] << 8)) * 2 - 2000;
 			mspOverrideMotors        = 0;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			break;
-		case MspFn::SET_MOTOR_3D_CONFIG:
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-			break;
-		case MspFn::SET_MOTOR_CONFIG:
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 			break;
 		case MspFn::ENABLE_4WAY_IF:
 			begin4Way();
@@ -423,13 +424,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				tasks[i].maxGap      = 0;
 			}
 		} break;
-		case MspFn::DUMMY_REBOOT:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			Serial.flush();
-			rebootReason = BootReason::CMD_REBOOT;
-			delay(100);
-			rp2040.reboot();
-			break;
 		case MspFn::SAVE_SETTINGS:
 			rp2040.wdt_reset();
 			EEPROM.commit();
@@ -562,9 +556,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 			updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
-			break;
-		case MspFn::BB_FILE_DOWNLOAD_RAW:
-			printLogBinRaw(reqPayload[0]);
 			break;
 		case MspFn::SET_DEBUG_LED:
 			gpio_put(PIN_LED_DEBUG, reqPayload[0]);
@@ -779,7 +770,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, 12);
 		} break;
-		case MspFn::MAG_CALIBRATE: {
+		case MspFn::CALIBRATE_MAG: {
 			magStateAfterRead = MAG_CALIBRATE;
 			char calString[128];
 			snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);

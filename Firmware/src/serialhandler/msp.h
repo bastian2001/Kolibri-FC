@@ -45,68 +45,87 @@ extern u8 accelCalDone;            // accel calibration flag to send a message t
  * @details These commands are used to communicate with the configurator and other peripherals. For Kolibri specific functions, the space 0x4000-0x4FFF is used. More details: https://github.com/iNavFlight/inav/wiki/MSP-V2
  */
 enum class MspFn {
-	API_VERSION              = 1,
-	FIRMWARE_VARIANT         = 2,
-	FIRMWARE_VERSION         = 3,
-	BOARD_INFO               = 4,
-	BUILD_INFO               = 5,
-	GET_NAME                 = 10,
-	SET_NAME                 = 11,
-	GET_FEATURE_CONFIG       = 36,
-	SET_FEATURE_CONFIG       = 37,
-	REBOOT                   = 68,
-	GET_ADVANCED_CONFIG      = 90,
-	SET_ADVANCED_CONFIG      = 91,
-	SET_ARMING_DISABLED      = 99,
-	MSP_STATUS               = 101,
-	GET_MOTOR                = 104,
-	MSP_ATTITUDE             = 108,
-	BOXIDS                   = 119,
-	GET_MOTOR_3D_CONFIG      = 124,
-	GET_MOTOR_CONFIG         = 131,
-	UID                      = 160,
-	SET_MOTOR                = 214,
-	SET_MOTOR_3D_CONFIG      = 217,
-	SET_MOTOR_CONFIG         = 222,
-	ENABLE_4WAY_IF           = 245,
-	MSP_SET_RTC              = 246,
-	MSP_V2_FRAME             = 255,
-	STATUS                   = 0x4000,
-	TASK_STATUS              = 0x4001,
-	DUMMY_REBOOT             = 0x4002,
-	SAVE_SETTINGS            = 0x4003,
-	PLAY_SOUND               = 0x4004,
-	BB_FILE_LIST             = 0x4005,
-	BB_FILE_INFO             = 0x4006,
-	BB_FILE_DOWNLOAD         = 0x4007,
-	BB_FILE_DELETE           = 0x4008,
-	BB_FORMAT                = 0x4009,
-	WRITE_OSD_FONT_CHARACTER = 0x400A,
-	SET_MOTORS               = 0x400B,
-	GET_MOTORS               = 0x400C,
-	BB_FILE_DOWNLOAD_RAW     = 0x400D,
-	SET_DEBUG_LED            = 0x400E,
-	CONFIGURATOR_PING        = 0x400F,
-	REBOOT_TO_BOOTLOADER     = 0x4010,
-	GET_PIDS                 = 0x4013,
-	SET_PIDS                 = 0x4014,
-	GET_RATES                = 0x4015,
-	SET_RATES                = 0x4016,
-	GET_BB_SETTINGS          = 0x4017,
-	SET_BB_SETTINGS          = 0x4018,
-	GET_ROTATION             = 0x4019,
-	SERIAL_PASSTHROUGH       = 0x401A,
-	GET_GPS_STATUS           = 0x401B,
-	GET_GPS_ACCURACY         = 0x401C,
-	GET_GPS_TIME             = 0x401D,
-	GET_GPS_MOTION           = 0x401E,
-	// ESC_PASSTHROUGH          = 0x401F,
-	GET_CRASH_DUMP          = 0x4020,
-	CLEAR_CRASH_DUMP        = 0x4021,
-	CALIBRATE_ACCELEROMETER = 0x4022,
-	GET_MAG_DATA            = 0x4023,
-	MAG_CALIBRATE           = 0x4024,
-	IND_MESSAGE             = 0x4025,
+	API_VERSION         = 1,
+	FIRMWARE_VARIANT    = 2,
+	FIRMWARE_VERSION    = 3,
+	BOARD_INFO          = 4,
+	BUILD_INFO          = 5,
+	GET_NAME            = 10,
+	SET_NAME            = 11,
+	GET_FEATURE_CONFIG  = 36,
+	REBOOT              = 68,
+	GET_ADVANCED_CONFIG = 90,
+	SET_ARMING_DISABLED = 99,
+	MSP_STATUS          = 101,
+	GET_MOTOR           = 104,
+	MSP_ATTITUDE        = 108,
+	BOXIDS              = 119,
+	GET_MOTOR_3D_CONFIG = 124,
+	GET_MOTOR_CONFIG    = 131,
+	UID                 = 160,
+	SET_MOTOR           = 214,
+	ENABLE_4WAY_IF      = 245,
+	SET_RTC             = 246,
+	MSP_V2_FRAME        = 255,
+
+	// 0x400_ Configurator related commands
+	STATUS            = 0x4000,
+	CONFIGURATOR_PING = 0x4001,
+	IND_MESSAGE       = 0x4002,
+
+	// 0x401_ Entering special modes
+	REBOOT_TO_BOOTLOADER = 0x4010,
+	SERIAL_PASSTHROUGH   = 0x4011,
+
+	// 0x40F_ Miscelaneous
+	PLAY_SOUND = 0x40F0,
+
+	// 0x410_ Settings Meta commands
+	SAVE_SETTINGS = 0x4100,
+
+	// 0x411_ OSD settings
+	WRITE_OSD_FONT_CHARACTER = 0x4110,
+
+	// 0x412_ Blackbox
+	GET_BB_SETTINGS  = 0x4120,
+	SET_BB_SETTINGS  = 0x4121,
+	BB_FILE_LIST     = 0x4122,
+	BB_FILE_INFO     = 0x4123,
+	BB_FILE_DOWNLOAD = 0x4124,
+	BB_FILE_DELETE   = 0x4125,
+	BB_FORMAT        = 0x4126,
+
+	// 0x413_ GPS
+	GET_GPS_STATUS   = 0x4130,
+	GET_GPS_ACCURACY = 0x4131,
+	GET_GPS_TIME     = 0x4132,
+	GET_GPS_MOTION   = 0x4133,
+
+	// 0x414_ Magnetometer
+	GET_MAG_DATA  = 0x4140,
+	CALIBRATE_MAG = 0x4141,
+
+	// 0x415_ Gyro/Accel
+	GET_ROTATION            = 0x4150,
+	CALIBRATE_ACCELEROMETER = 0x4151,
+
+	// 0x416_ Barometer
+
+	// 0x417_ Task Manager
+	TASK_STATUS = 0x4170,
+
+	// 0x42__ Tuning
+	GET_PIDS  = 0x4200,
+	SET_PIDS  = 0x4201,
+	GET_RATES = 0x4202,
+	SET_RATES = 0x4203,
+
+	// 0x4F00-0x4F1F general debug tools
+	GET_CRASH_DUMP   = 0x4F00,
+	CLEAR_CRASH_DUMP = 0x4F01,
+	SET_DEBUG_LED    = 0x4F02,
+
+	// 0x4F20-0x4FFF temporary debug tools
 };
 
 enum class MspState {

@@ -94,8 +94,5 @@ void writeSingleFrame();
  */
 void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk);
 
-/// @brief Print a log file raw to Serial, no framing
-void printLogBinRaw(u8 logNum);
-
 /// @brief Writes the prepared blackbox frames to the SD card
 void blackboxLoop();

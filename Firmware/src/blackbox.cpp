@@ -86,30 +86,6 @@ void setDivider(u8 divider) {
 	EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 }
 
-void printLogBinRaw(u8 logNum) {
-	char path[32];
-	logNum %= 100;
-	rp2040.wdt_reset();
-#if BLACKBOX_STORAGE == LITTLEFS
-	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
-	File logFile = LittleFS.open(path, "r");
-#elif BLACKBOX_STORAGE == SD_BB
-	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
-	File logFile = SDFS.open(path, "r");
-#endif
-	if (!logFile)
-		return;
-	u32 fileSize = logFile.size();
-	for (u32 i = 0; i < fileSize; i++) {
-		Serial.write(logFile.read());
-		if ((i % 1024) == 0) {
-			rp2040.wdt_reset();
-			Serial.flush();
-		}
-	}
-	logFile.close();
-}
-
 void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == LITTLEFS

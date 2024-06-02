@@ -38,6 +38,7 @@ void setup() {
 	for (int i = 0; i < 256; i++) {
 		crashInfo[i] = 0;
 	}
+	rtcInit();
 	initDefaultSpi();
 	gyroInit();
 	imuInit();
