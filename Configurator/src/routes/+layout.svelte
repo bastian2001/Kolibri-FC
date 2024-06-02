@@ -91,7 +91,10 @@
 					);
 					break;
 				case MspFn.BUILD_INFO:
-					configuratorLog.push(`Build: ${command.dataStr}`);
+					const date = command.dataStr.substring(0, 11);
+					const time = command.dataStr.substring(11, 19);
+					const githash = command.dataStr.substring(19);
+					configuratorLog.push(`Firmware released: ${date} ${time} (Git: #${githash})`);
 					break;
 				case MspFn.GET_NAME:
 					configuratorLog.push(`Name: ${command.dataStr}`);
