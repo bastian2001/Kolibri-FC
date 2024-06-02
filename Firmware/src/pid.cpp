@@ -5,7 +5,6 @@ i16 *gyroDataRaw;
 i16 *accelDataRaw;
 FLIGHT_MODE flightMode = FLIGHT_MODE::ACRO;
 
-#define IDLE_PERMILLE 25
 #define MAX_ANGLE 35 // degrees
 
 /*
@@ -75,6 +74,7 @@ void initPID() {
 }
 
 void decodeErpm() {
+	if (!enableDShot) return;
 	tasks[TASK_ESC_RPM].runCounter++;
 	elapsedMicros taskTimer = 0;
 	for (int m = 0; m < 4; m++) {
@@ -425,7 +425,7 @@ void pidLoop() {
 	} else {
 		// Quad disarmed or RC disconnected
 		// all motors off
-		if (configOverrideMotors > 1000)
+		if (mspOverrideMotors > 1000)
 			for (int i = 0; i < 4; i++)
 				throttles[i] = 0;
 		if (ELRS->channels[9] < 1500) {

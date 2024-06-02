@@ -30,7 +30,7 @@ void enableOSD() {
 
 void updateCharacter(u8 cmAddr, u8 data[54]) {
 	disableOSD();
-	delayMicroseconds(100);
+	sleep_us(100);
 	regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::CMAH, &cmAddr);
 	for (int i = 0; i < 54; i++) {
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::CMAL, (u8 *)&i);
@@ -38,7 +38,7 @@ void updateCharacter(u8 cmAddr, u8 data[54]) {
 	}
 	u8 scratch = 0b10100000;
 	regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::CMM, &scratch);
-	delay(15);
+	sleep_ms(15);
 	enableOSD();
 }
 

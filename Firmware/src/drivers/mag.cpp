@@ -30,7 +30,7 @@ void initMag() {
 			Serial.println("Failed to find magnetometer");
 			return;
 		}
-		delay(2);
+		sleep_ms(2);
 	}
 	magState     = 1;
 	magBuffer[0] = (u8)MAG_REG::CONF_REGA;
@@ -184,10 +184,12 @@ void magLoop() {
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, magOffset[1]);
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, magOffset[2]);
 		EEPROM.commit();
-		magState = MAG_MEASURING;
-		char calString[128];
-		snprintf(calString, 128, "Offsets: %d %d %d, det: %f", magOffset[0], magOffset[1], magOffset[2], det);
-		sendCommand((u16)ConfigCmd::IND_MESSAGE, (char *)calString, strlen(calString));
+		magState  = MAG_MEASURING;
+		char data = 1;
+		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::MAG_CALIBRATION, lastMspVersion, &data, 1);
+		char calString[64];
+		snprintf(calString, 64, "Offsets: %d %d %d, det: %f", magOffset[0], magOffset[1], magOffset[2], det);
+		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));
 	} break;
 	}
 }

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
-	import { port, type Command, ConfigCmd } from '../portStore';
+	import { port, MspFn, MspVersion } from '../portStore';
 	import { configuratorLog } from '../logStore';
-	import { leBytesToInt } from '../utils';
+	import { leBytesToInt, delay } from '../utils';
 
 	let devices: any = [];
 
@@ -53,31 +53,66 @@
 		}
 	];
 
-	configuratorLog.subscribe(() => {
+	const unsubscribeLog = configuratorLog.subscribe(() => {
 		tick().then(() => {
 			logDiv.scrollTop = logDiv.scrollHeight;
 		});
 	});
-	$: handleCommand($port);
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.STATUS | 0x4000:
-				battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
-				break;
-			case ConfigCmd.IND_MESSAGE:
-				configuratorLog.push(command.dataStr);
-				break;
-			case ConfigCmd.PLAY_SOUND | 0x4000:
-				console.log(command.data);
-				break;
-			case ConfigCmd.CONFIGURATOR_PING:
-				//ping received from FC, confirm
-				port.sendCommand(ConfigCmd.CONFIGURATOR_PING | 0x4000);
-				break;
-			case ConfigCmd.SAVE_SETTINGS | 0x4000:
-				configuratorLog.push('EEPROM saved');
+
+	const unsubscribePort = port.subscribe(command => {
+		if (command.cmdType === 'request') {
+			switch (command.command) {
+				case MspFn.IND_MESSAGE:
+					configuratorLog.push(command.dataStr);
+					break;
+			}
+		} else if (command.cmdType === 'response') {
+			switch (command.command) {
+				case MspFn.API_VERSION:
+					configuratorLog.push(
+						`Protocol: ${command.data[0]}, API: ${command.data[1]}.${command.data[2]}`
+					);
+					break;
+				case MspFn.FIRMWARE_VARIANT:
+					configuratorLog.push(`Firmware: ${command.dataStr}`);
+					if (command.dataStr !== 'KOLI') {
+						configuratorLog.push(
+							`This configurator is only compatible with Kolibri firmware, disconnecting...`
+						);
+						disconnect();
+					}
+					break;
+				case MspFn.FIRMWARE_VERSION:
+					configuratorLog.push(`Version: ${command.data[0]}.${command.data[1]}.${command.data[2]}`);
+					break;
+				case MspFn.BOARD_INFO:
+					configuratorLog.push(
+						`Board: ${command.dataStr.substring(0, 4)} => ${command.dataStr.substring(9, 9 + command.data[8])}`
+					);
+					break;
+				case MspFn.BUILD_INFO:
+					const date = command.dataStr.substring(0, 11);
+					const time = command.dataStr.substring(11, 19);
+					const githash = command.dataStr.substring(19);
+					configuratorLog.push(`Firmware released: ${date} ${time} (Git: #${githash})`);
+					break;
+				case MspFn.GET_NAME:
+					configuratorLog.push(`Name: ${command.dataStr}`);
+					break;
+				case MspFn.STATUS:
+					battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
+					break;
+				case MspFn.SET_RTC:
+					configuratorLog.push('RTC updated');
+					break;
+				case MspFn.PLAY_SOUND:
+					console.log(command.data);
+					break;
+				case MspFn.SAVE_SETTINGS:
+					configuratorLog.push('EEPROM saved');
+			}
 		}
-	}
+	});
 
 	function listDevices() {
 		devices = port.getDevices();
@@ -86,28 +121,52 @@
 	function odh() {
 		connected = false;
 	}
+	function och() {
+		connected = true;
+		configuratorLog.clearEntries();
+		port
+			.sendCommand('request', MspFn.API_VERSION)
+			.then(() => port.sendCommand('request', MspFn.FIRMWARE_VARIANT))
+			.then(() => delay(5))
+			.then(() => port.sendCommand('request', MspFn.FIRMWARE_VERSION))
+			.then(() => delay(5))
+			.then(() => port.sendCommand('request', MspFn.BOARD_INFO))
+			.then(() => delay(5))
+			.then(() => port.sendCommand('request', MspFn.BUILD_INFO))
+			.then(() => delay(5))
+			.then(() => port.sendCommand('request', MspFn.GET_NAME))
+			.then(() => delay(5))
+			.then(() => port.sendCommand('request', MspFn.STATUS))
+			.then(() => {
+				const now = Date.now() / 1000;
+				port.sendCommand('request', MspFn.SET_RTC, MspVersion.V2, [
+					now & 0xff,
+					(now >> 8) & 0xff,
+					(now >> 16) & 0xff,
+					(now >> 24) & 0xff
+				]);
+			});
+	}
 	onMount(() => {
 		disconnect();
 		listInterval = setInterval(() => {
 			listDevices();
 		}, 1000);
+		port.addOnConnectHandler(och);
 		port.addOnDisconnectHandler(odh);
 	});
 	onDestroy(() => {
 		clearInterval(listInterval);
 		disconnect();
+		port.removeOnConnectHandler(och);
 		port.removeOnDisconnectHandler(odh);
+		unsubscribeLog();
+		unsubscribePort();
 	});
 	function connect() {
-		port
-			.connect(device)
-			.then(() => {
-				connected = true;
-				configuratorLog.clearEntries();
-			})
-			.catch(() => {
-				connected = false;
-			});
+		port.connect(device).catch(() => {
+			connected = false;
+		});
 	}
 	function disconnect() {
 		port.disconnect().catch(() => {
@@ -222,7 +281,8 @@
 		height: 3rem;
 		padding: 0 0.5rem;
 		color: var(--text-color);
-		font-size: 0.8rem;
+		font-size: 0.7rem;
+		line-height: 100%;
 		overflow-y: scroll;
 	}
 	.log p {

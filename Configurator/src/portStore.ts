@@ -1,46 +1,121 @@
 import { writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api';
-import { leBytesToInt } from './utils';
+import { configuratorLog } from './logStore';
 
-export const ConfigCmd = {
-	STATUS: 0,
-	TASK_STATUS: 1,
-	REBOOT: 2,
-	SAVE_SETTINGS: 3,
-	PLAY_SOUND: 4,
-	BB_FILE_LIST: 5,
-	BB_FILE_INFO: 6,
-	BB_FILE_DOWNLOAD: 7,
-	BB_FILE_DELETE: 8,
-	BB_FORMAT: 9,
-	WRITE_OSD_FONT_CHARACTER: 10,
-	SET_MOTORS: 11,
-	GET_MOTORS: 12,
-	BB_FILE_DOWNLOAD_RAW: 13,
-	SET_DEBUG_LED: 14,
-	CONFIGURATOR_PING: 15,
-	REBOOT_TO_BOOTLOADER: 16,
-	GET_NAME: 17,
-	SET_NAME: 18,
-	GET_PIDS: 19,
-	SET_PIDS: 20,
-	GET_RATES: 21,
-	SET_RATES: 22,
-	GET_BB_SETTINGS: 23,
-	SET_BB_SETTINGS: 24,
-	GET_ROTATION: 25,
-	SERIAL_PASSTHROUGH: 26,
-	GET_GPS_STATUS: 27,
-	GET_GPS_ACCURACY: 28,
-	GET_GPS_TIME: 29,
-	GET_GPS_MOTION: 30,
-	ESC_PASSTHROUGH: 31,
-	GET_CRASH_DUMP: 32,
-	CLEAR_CRASH_DUMP: 33,
-	CALIBRATE_ACCELEROMETER: 34,
-	GET_MAG_DATA: 35,
-	MAG_CALIBRATE: 36,
-	IND_MESSAGE: 0xc000
+export const MspFn = {
+	API_VERSION: 1,
+	FIRMWARE_VARIANT: 2,
+	FIRMWARE_VERSION: 3,
+	BOARD_INFO: 4,
+	BUILD_INFO: 5,
+	GET_NAME: 10,
+	SET_NAME: 11,
+	GET_FEATURE_CONFIG: 36,
+	REBOOT: 68,
+	GET_ADVANCED_CONFIG: 90,
+	SET_ARMING_DISABLED: 99,
+	MSP_STATUS: 101,
+	GET_MOTOR: 104,
+	MSP_ATTITUDE: 108,
+	BOXIDS: 119,
+	GET_MOTOR_3D_CONFIG: 124,
+	GET_MOTOR_CONFIG: 131,
+	UID: 160,
+	ACC_CALIBRATION: 205,
+	MAG_CALIBRATION: 206,
+	SET_MOTOR: 214,
+	ENABLE_4WAY_IF: 245,
+	SET_RTC: 246,
+	MSP_V2_FRAME: 255,
+
+	// 0x400_ Configurator related commands
+	STATUS: 0x4000,
+	CONFIGURATOR_PING: 0x4001,
+	IND_MESSAGE: 0x4002,
+
+	// 0x401_ Entering special modes
+	SERIAL_PASSTHROUGH: 0x4010,
+
+	// 0x410_ Settings Meta commands
+	SAVE_SETTINGS: 0x4100,
+
+	// 0x411_ OSD settings
+	WRITE_OSD_FONT_CHARACTER: 0x4110,
+
+	// 0x412_ Blackbox
+	GET_BB_SETTINGS: 0x4120,
+	SET_BB_SETTINGS: 0x4121,
+	BB_FILE_LIST: 0x4122,
+	BB_FILE_INFO: 0x4123,
+	BB_FILE_DOWNLOAD: 0x4124,
+	BB_FILE_DELETE: 0x4125,
+	BB_FORMAT: 0x4126,
+
+	// 0x413_ GPS
+	GET_GPS_STATUS: 0x4130,
+	GET_GPS_ACCURACY: 0x4131,
+	GET_GPS_TIME: 0x4132,
+	GET_GPS_MOTION: 0x4133,
+
+	// 0x414_ Magnetometer
+	GET_MAG_DATA: 0x4140,
+
+	// 0x415_ Gyro/Accel
+	GET_ROTATION: 0x4150,
+
+	// 0x416_ Barometer
+
+	// 0x417_ Task Manager
+	TASK_STATUS: 0x4170,
+
+	// 0x42__ Tuning
+	GET_PIDS: 0x4200,
+	SET_PIDS: 0x4201,
+	GET_RATES: 0x4202,
+	SET_RATES: 0x4203,
+
+	// 0x4F00-0x4F1F general debug tools
+	GET_CRASH_DUMP: 0x4f00,
+	CLEAR_CRASH_DUMP: 0x4f01,
+	SET_DEBUG_LED: 0x4f02,
+	PLAY_SOUND: 0x4f03
+
+	// 0x4F20-0x4FFF temporary debug tools
+};
+
+const MspState = {
+	IDLE: 0, // waiting for $
+	PACKET_START: 1, // receiving M or X
+	TYPE_V1: 2, // got M, receiving type byte (<, >, !)
+	LEN_V1: 3, // if 255 is received in this step, inject jumbo len bytes
+	JUMBO_LEN_LO_V1: 4,
+	JUMBO_LEN_HI_V1: 5,
+	CMD_V1: 6,
+	PAYLOAD_V1: 7,
+	FLAG_V2_OVER_V1: 8,
+	CMD_LO_V2_OVER_V1: 9,
+	CMD_HI_V2_OVER_V1: 10,
+	LEN_LO_V2_OVER_V1: 11,
+	LEN_HI_V2_OVER_V1: 12,
+	PAYLOAD_V2_OVER_V1: 13,
+	CHECKSUM_V2_OVER_V1: 14,
+	CHECKSUM_V1: 15,
+	TYPE_V2: 16, // got X, receiving type byte (<, >, !)
+	FLAG_V2: 17,
+	CMD_LO_V2: 18,
+	CMD_HI_V2: 19,
+	LEN_LO_V2: 20,
+	LEN_HI_V2: 21,
+	PAYLOAD_V2: 22,
+	CHECKSUM_V2: 23
+};
+
+export const MspVersion = {
+	V1_JUMBO: 0,
+	V1: 1,
+	V2: 2,
+	V2_OVER_V1: 3,
+	V2_OVER_V1_JUMBO: 4
 };
 
 export type Command = {
@@ -48,18 +123,41 @@ export type Command = {
 	length: number;
 	data: number[];
 	dataStr: string;
-	cmdType: 'request' | 'response' | 'error' | 'info';
+	cmdType: 'request' | 'response' | 'error';
+	flag: number;
+	version: number;
 };
 function createPort() {
 	let devices: string[] = [];
 
 	const { subscribe, set } = writable({
-		command: 65535,
+		command: NaN,
 		length: 0,
 		data: [],
 		dataStr: '',
-		cmdType: 'request'
+		cmdType: 'request',
+		flag: 0,
+		version: MspVersion.V2
 	} as Command);
+
+	subscribe(c => {
+		if (c.cmdType === 'error') {
+			console.error(structuredClone(c));
+			configuratorLog.push('Error, see console for details.');
+		}
+		if (c.cmdType === 'response') {
+			switch (c.command) {
+				case MspFn.CONFIGURATOR_PING:
+					// pong response from FC received
+					fcPing = Date.now() - pingStarted;
+					break;
+			}
+		}
+		if (!Object.values(MspFn).includes(c.command) && !Number.isNaN(c.command)) {
+			console.log(structuredClone(c));
+			configuratorLog.push('Unsupported command, see console for details.');
+		}
+	});
 
 	function strToArray(str: string) {
 		const data = [];
@@ -68,6 +166,9 @@ function createPort() {
 		}
 		return data;
 	}
+	function charToInt(c: string) {
+		return c.charCodeAt(0);
+	}
 	let cmdEnabled = true;
 	const enableCommands = (en: boolean) => {
 		cmdEnabled = en;
@@ -75,31 +176,86 @@ function createPort() {
 	const onDisconnectHandlers: (() => void)[] = [];
 	const onConnectHandlers: (() => void)[] = [];
 
-	const sendCommand = (command: number, data: number[] = [], dataStr: string = '') => {
+	const sendCommand = (
+		type: 'request' | 'response' | 'error',
+		command: number,
+		version: number = MspVersion.V2,
+		data: number[] = [],
+		dataStr: string = ''
+	) => {
 		if (!cmdEnabled) return new Promise((resolve: any) => resolve());
 		if (data.length === 0 && dataStr !== '') data = strToArray(dataStr);
 		const len = data.length;
-		let checksum = 0;
-		for (let i = 0; i < len; i++) {
-			checksum ^= data[i];
+
+		if (len > 254 && version === MspVersion.V1) version = MspVersion.V1_JUMBO;
+		if (len < 255 && version === MspVersion.V1_JUMBO) version = MspVersion.V1;
+		if (len > 248 && version === MspVersion.V2_OVER_V1) version = MspVersion.V2_OVER_V1_JUMBO;
+		if (len < 249 && version === MspVersion.V2_OVER_V1_JUMBO) version = MspVersion.V2_OVER_V1;
+
+		const typeLut = {
+			request: 60,
+			response: 62,
+			error: 33
+		};
+		const cmd = [charToInt('$'), charToInt(version === MspVersion.V2 ? 'X' : 'M'), typeLut[type]];
+		switch (version) {
+			case MspVersion.V1_JUMBO:
+				cmd.push(0xff, len & 0xff, len >> 8);
+				cmd.push(command & 0xff);
+				break;
+			case MspVersion.V1:
+				cmd.push(len & 0xff);
+				cmd.push(command & 0xff);
+				break;
+			case MspVersion.V2:
+				cmd.push(0);
+				cmd.push(command & 0xff, command >> 8);
+				cmd.push(len & 0xff, len >> 8);
+				break;
+			case MspVersion.V2_OVER_V1:
+				cmd.push((len + 6) & 0xff); // V1 len
+				cmd.push(0xff); //  V2 trigger
+				cmd.push(0); // V2 flag
+				cmd.push(command & 0xff, command >> 8); // V2 command
+				cmd.push(len & 0xff, len >> 8); // V2 len
+				break;
+			case MspVersion.V2_OVER_V1_JUMBO:
+				cmd.push(0xff, (len + 6) & 0xff, (len + 6) >> 8); // V1 len, v1 jumbo len
+				cmd.push(0xff); //  V2 trigger
+				cmd.push(0); // V2 flag
+				cmd.push(command & 0xff, command >> 8); // V2 command
+				cmd.push(len & 0xff, len >> 8); // V2 len
+				break;
 		}
-		checksum ^= command & 0xff;
-		checksum ^= (command >> 8) & 0xff;
-		checksum ^= len & 0xff;
-		checksum ^= (len >> 8) & 0xff;
-		const cmd = [
-			...strToArray('_K'),
-			len & 0xff,
-			(len >> 8) & 0xff,
-			command & 0xff,
-			(command >> 8) & 0xff,
-			...data,
-			checksum
-		];
+		cmd.push(...data);
+		const crcV2StartLut = {
+			[MspVersion.V2]: 3,
+			[MspVersion.V2_OVER_V1]: 5,
+			[MspVersion.V2_OVER_V1_JUMBO]: 7,
+			[MspVersion.V1]: 0x7fffffff, // such that slice returns empty array
+			[MspVersion.V1_JUMBO]: 0x7fffffff // such that slice returns empty array
+		};
+
+		let checksumV1 = cmd.slice(3).reduce((a, b) => a ^ b, 0),
+			checksumV2 = cmd.slice(crcV2StartLut[version]).reduce(crc8DvbS2, 0);
+		if ([MspVersion.V2, MspVersion.V2_OVER_V1, MspVersion.V2_OVER_V1_JUMBO].includes(version)) {
+			cmd.push(checksumV2);
+			checksumV1 ^= checksumV2;
+		}
+		if (
+			[
+				MspVersion.V1,
+				MspVersion.V1_JUMBO,
+				MspVersion.V2_OVER_V1,
+				MspVersion.V2_OVER_V1_JUMBO
+			].includes(version)
+		) {
+			cmd.push(checksumV1);
+		}
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_write', { data: cmd })
 				.then(resolve)
-				.catch((e) => {
+				.catch(e => {
 					reject(e);
 				});
 		});
@@ -109,62 +265,223 @@ function createPort() {
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_write', { data })
 				.then(resolve)
-				.catch((e) => {
+				.catch(e => {
 					reject(e);
 				});
 		});
 	};
-	const rxBuf: number[] = [];
+	let rxBuf: number[] = [];
 	let pingStarted = 0;
+	let newCommand: Command = {
+		command: 65535,
+		length: 0,
+		data: [],
+		dataStr: '',
+		cmdType: 'request',
+		flag: 0,
+		version: MspVersion.V2
+	};
+	let mspState = 0;
+	let checksumV1 = 0,
+		checksumV2 = 0;
+	function crc8DvbS2(crc: number, data: number): number {
+		crc ^= data;
+		for (let i = 0; i < 8; i++) {
+			if (crc & 0x80) {
+				crc = (crc << 1) ^ 0xd5;
+			} else {
+				crc <<= 1;
+			}
+		}
+		return crc & 0xff;
+	}
 	const read = () => {
 		invoke('serial_read')
-			.then((d: unknown) => {
-				rxBuf.push(...(d as number[]));
+			.then(d => {
+				rxBuf = d as number[];
 			})
-			.catch((e) => {
+			.catch(e => {
 				if (e !== 'Custom { kind: TimedOut, error: "Operation timed out" }') console.error(e);
 			})
 			.finally(() => {
-				while (rxBuf.length >= 7) {
-					if (rxBuf[0] != '_'.charCodeAt(0) || rxBuf[1] != 'K'.charCodeAt(0)) {
-						rxBuf.splice(0, 1);
-						continue;
+				rxBuf.forEach(c => {
+					switch (mspState) {
+						case MspState.IDLE:
+							if (c === 36) mspState = MspState.PACKET_START; /* $ */
+							break;
+						case MspState.PACKET_START:
+							newCommand.data = [];
+							newCommand.dataStr = '';
+							if (c === 77) mspState = MspState.TYPE_V1; /* M */
+							else if (c === 88) mspState = MspState.TYPE_V2; /* X */
+							else mspState = MspState.IDLE;
+							break;
+						case MspState.TYPE_V1:
+							mspState = MspState.LEN_V1;
+							checksumV1 = 0;
+							newCommand.version = MspVersion.V1;
+							switch (c) {
+								case 60: // '<'
+									newCommand.cmdType = 'request';
+									break;
+								case 62: // '>'
+									newCommand.cmdType = 'response';
+									break;
+								case 33: // '!'
+									newCommand.cmdType = 'error';
+									break;
+								default:
+									mspState = MspState.IDLE;
+									break;
+							}
+							break;
+						case MspState.LEN_V1:
+							checksumV1 ^= c;
+							if (c === 255) {
+								mspState = MspState.JUMBO_LEN_LO_V1;
+							} else {
+								newCommand.length = c;
+								mspState = MspState.CMD_V1;
+							}
+							break;
+						case MspState.JUMBO_LEN_LO_V1:
+							checksumV1 ^= c;
+							newCommand.length = c;
+							mspState = MspState.JUMBO_LEN_HI_V1;
+							break;
+						case MspState.JUMBO_LEN_HI_V1:
+							checksumV1 ^= c;
+							newCommand.length += c << 8;
+							newCommand.version = MspVersion.V1_JUMBO;
+							mspState = MspState.CMD_V1;
+							break;
+						case MspState.CMD_V1:
+							checksumV1 ^= c;
+							if (c === 255) {
+								checksumV2 = 0;
+								mspState = MspState.FLAG_V2_OVER_V1;
+							} else {
+								newCommand.command = c;
+								mspState = newCommand.length > 0 ? MspState.PAYLOAD_V1 : MspState.CHECKSUM_V1;
+							}
+							break;
+						case MspState.PAYLOAD_V1:
+							newCommand.data.push(c);
+							newCommand.dataStr += String.fromCharCode(c);
+							checksumV1 ^= c;
+							if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V1;
+							break;
+						case MspState.FLAG_V2_OVER_V1:
+							newCommand.flag = c;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = MspState.CMD_LO_V2_OVER_V1;
+							break;
+						case MspState.CMD_LO_V2_OVER_V1:
+							newCommand.command = c;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = MspState.CMD_HI_V2_OVER_V1;
+							break;
+						case MspState.CMD_HI_V2_OVER_V1:
+							newCommand.command += c << 8;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							newCommand.version =
+								newCommand.version === MspVersion.V1_JUMBO
+									? MspVersion.V2_OVER_V1_JUMBO
+									: MspVersion.V2_OVER_V1;
+							mspState = MspState.LEN_LO_V2_OVER_V1;
+							break;
+						case MspState.LEN_LO_V2_OVER_V1:
+							newCommand.length = c;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = MspState.LEN_HI_V2_OVER_V1;
+							break;
+						case MspState.LEN_HI_V2_OVER_V1:
+							newCommand.length += c << 8;
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState =
+								newCommand.length > 0 ? MspState.PAYLOAD_V2_OVER_V1 : MspState.CHECKSUM_V2_OVER_V1;
+							break;
+						case MspState.PAYLOAD_V2_OVER_V1:
+							newCommand.data.push(c);
+							newCommand.dataStr += String.fromCharCode(c);
+							checksumV1 ^= c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							if (newCommand.data.length === newCommand.length)
+								mspState = MspState.CHECKSUM_V2_OVER_V1;
+							break;
+						case MspState.CHECKSUM_V2_OVER_V1:
+							if (checksumV2 !== c) {
+								mspState = MspState.IDLE;
+								break;
+							}
+							checksumV1 ^= c;
+							mspState = MspState.CHECKSUM_V1;
+							break;
+						case MspState.CHECKSUM_V1:
+							if (checksumV1 === c) set(newCommand);
+							mspState = MspState.IDLE;
+							break;
+						case MspState.TYPE_V2:
+							mspState = MspState.FLAG_V2;
+							newCommand.version = MspVersion.V2;
+							checksumV2 = 0;
+							switch (c) {
+								case 60: // '<'
+									newCommand.cmdType = 'request';
+									break;
+								case 62: // '>'
+									newCommand.cmdType = 'response';
+									break;
+								case 33: // '!'
+									newCommand.cmdType = 'error';
+									break;
+								default:
+									mspState = MspState.IDLE;
+									break;
+							}
+							break;
+						case MspState.FLAG_V2:
+							newCommand.flag = c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = MspState.CMD_LO_V2;
+							break;
+						case MspState.CMD_LO_V2:
+							newCommand.command = c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = MspState.CMD_HI_V2;
+							break;
+						case MspState.CMD_HI_V2:
+							newCommand.command += c << 8;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = MspState.LEN_LO_V2;
+							break;
+						case MspState.LEN_LO_V2:
+							newCommand.length = c;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = MspState.LEN_HI_V2;
+							break;
+						case MspState.LEN_HI_V2:
+							newCommand.length += c << 8;
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							mspState = newCommand.length > 0 ? MspState.PAYLOAD_V2 : MspState.CHECKSUM_V2;
+							break;
+						case MspState.PAYLOAD_V2:
+							newCommand.data.push(c);
+							newCommand.dataStr += String.fromCharCode(c);
+							checksumV2 = crc8DvbS2(checksumV2, c);
+							if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V2;
+							break;
+						case MspState.CHECKSUM_V2:
+							if (checksumV2 === c) set(newCommand);
+							mspState = MspState.IDLE;
+							break;
 					}
-					const len = rxBuf[2] + rxBuf[3] * 256;
-					if (rxBuf.length < len + 7) return;
-					let checksum = 0;
-					for (let i = 2; i < len + 7; i++) checksum ^= rxBuf[i];
-					if (checksum !== 0) {
-						rxBuf.splice(0, 1);
-						continue;
-					}
-					const data = rxBuf.slice(6, len + 6);
-					const command = rxBuf[4] + rxBuf[5] * 256;
-					rxBuf.splice(0, len + 7);
-					let dataStr = '';
-					for (let i = 0; i < data.length; i++) {
-						dataStr += String.fromCharCode(data[i]);
-					}
-					let cmdType: 'request' | 'info' | 'response' | 'error' = 'info';
-					if (command < 0x4000) cmdType = 'request';
-					else if (command < 0x8000) cmdType = 'response';
-					else if (command < 0xc000) cmdType = 'error';
-					const c: Command = {
-						command,
-						data,
-						dataStr,
-						cmdType,
-						length: len
-					};
-					set(c);
-					if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0x4000)) {
-						pingTime.fromConfigurator = Date.now() - pingStarted;
-						//pong response from FC received
-					} else if (c.command === (ConfigCmd.CONFIGURATOR_PING | 0xc000)) {
-						pingTime.fromFC = leBytesToInt(c.data);
-					}
-					return;
-				}
+				});
 			});
 	};
 	let pingInterval: number = -1;
@@ -178,16 +495,16 @@ function createPort() {
 					cmdEnabled = true;
 					readInterval = setInterval(read, 3);
 					pingInterval = setInterval(() => {
-						sendCommand(ConfigCmd.CONFIGURATOR_PING).catch(() => {});
+						sendCommand('request', MspFn.CONFIGURATOR_PING).catch(() => {});
 						pingStarted = Date.now();
 					}, 200);
 					statusInterval = setInterval(() => {
-						sendCommand(ConfigCmd.STATUS).catch(() => {});
+						sendCommand('request', MspFn.STATUS).catch(() => {});
 					}, 1000);
-					onConnectHandlers.forEach((h) => h());
+					onConnectHandlers.forEach(h => h());
 					resolve();
 				})
-				.catch((e) => {
+				.catch(e => {
 					console.error(e);
 					disconnect();
 					reject(e);
@@ -198,7 +515,7 @@ function createPort() {
 		return new Promise((resolve: any, reject) => {
 			invoke('serial_close')
 				.then(() => {
-					onDisconnectHandlers.forEach((h) => h());
+					onDisconnectHandlers.forEach(h => h());
 					resolve();
 				})
 				.catch(console.error)
@@ -237,12 +554,9 @@ function createPort() {
 		const i = onConnectHandlers.indexOf(handler);
 		if (i >= 0) onConnectHandlers.splice(i, 1);
 	};
-	let pingTime = {
-		fromConfigurator: -1,
-		fromFC: -1
-	};
+	let fcPing = -1;
 	function getPingTime() {
-		return pingTime;
+		return fcPing;
 	}
 	return {
 		subscribe,

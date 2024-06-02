@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { invoke } from '@tauri-apps/api';
-	import { onMount, onDestroy } from 'svelte';
+	// import { invoke } from '@tauri-apps/api';
+	// import { onMount, onDestroy } from 'svelte';
 	let cmah = 0;
 	let file = '';
 	const chars = [] as number[][];
@@ -18,19 +18,19 @@
 		}
 	}
 	function upload() {
-		const slice = [] as number[];
-		slice.push('O'.charCodeAt(0));
-		slice.push('S'.charCodeAt(0));
-		slice.push('D'.charCodeAt(0));
-		slice.push(cmah);
-		slice.push(...chars[cmah].slice(0, 54));
-		invoke('serial_write', { data: slice })
-			.then(() => {
-				console.log('sent', cmah);
-			})
-			.catch((e) => {
-				console.log(e);
-			});
+		// const slice = [] as number[];
+		// slice.push('O'.charCodeAt(0));
+		// slice.push('S'.charCodeAt(0));
+		// slice.push('D'.charCodeAt(0));
+		// slice.push(cmah);
+		// slice.push(...chars[cmah].slice(0, 54));
+		// invoke('serial_write', { data: slice })
+		// 	.then(() => {
+		// 		console.log('sent', cmah);
+		// 	})
+		// 	.catch((e) => {
+		// 		console.log(e);
+		// 	});
 	}
 	function nextChar() {
 		cmah++;
@@ -39,28 +39,29 @@
 		upload();
 		nextChar();
 	}
-	let int = 0;
-	onMount(() => {
-		int = setInterval(() => {
-			invoke('serial_read')
-				.then((d: unknown) => {
-					//uint8array to string
-					const data = d as number[];
-					let str = '';
-					for (let i = 0; i < data.length; i++) {
-						str += String.fromCharCode(data[i]);
-					}
-					console.log(str);
-				})
-				.catch((e) => {});
-		}, 100);
-	});
-	onDestroy(() => {
-		clearInterval(int);
-	});
+	// let int = 0;
+	// onMount(() => {
+	// 	int = setInterval(() => {
+	// 		invoke('serial_read')
+	// 			.then((d: unknown) => {
+	// 				//uint8array to string
+	// 				const data = d as number[];
+	// 				let str = '';
+	// 				for (let i = 0; i < data.length; i++) {
+	// 					str += String.fromCharCode(data[i]);
+	// 				}
+	// 				console.log(str);
+	// 			})
+	// 			.catch((e) => {});
+	// 	}, 100);
+	// });
+	// onDestroy(() => {
+	// 	clearInterval(int);
+	// });
 </script>
 
 <div class="wrapper">
+	OSD upload does not work currently
 	<textarea name="font" id="fontInput" cols="30" rows="10" bind:value={file} />
 	<button on:click={() => decode()}>Decode</button>
 	<button on:click={() => upload()}>Upload</button>

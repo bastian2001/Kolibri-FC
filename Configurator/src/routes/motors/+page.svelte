@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { port, type Command, ConfigCmd } from '../../portStore';
+	import { port, MspFn, MspVersion } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import Motor from './motor.svelte';
 	import { leBytesToInt } from '../../utils';
@@ -18,32 +18,27 @@
 		throttles[3] & 0xff,
 		throttles[3] >> 8
 	];
-	$: handleCommand($port);
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.GET_MOTORS | 0x4000:
-				{
-					const m = [] as number[];
-					for (let i = 0; i < 4; i++) {
-						m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
+	const unsubscribe = port.subscribe(command => {
+		if (command.cmdType === 'response') {
+			switch (command.command) {
+				case MspFn.GET_MOTOR:
+					{
+						const m = [] as number[];
+						for (let i = 0; i < 4; i++) {
+							m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
+						}
+						motors = m;
 					}
-					motors = m;
-				}
-				break;
-			case ConfigCmd.ESC_PASSTHROUGH | 0x4000:
-				configuratorLog.push('FC reboots into passthrough mode');
-				port.disconnect();
-				break;
-			case ConfigCmd.ESC_PASSTHROUGH | 0x8000:
-				configuratorLog.push(command.dataStr);
+					break;
+			}
 		}
-	}
+	});
 	let motors = [0, 0, 0, 0];
 	let getMotorsInterval = 0;
 	function startMotors() {
 		clearInterval(int);
 		int = setInterval(() => {
-			port.sendCommand(11, throttlesU8);
+			port.sendCommand('request', MspFn.SET_MOTOR, MspVersion.V2, throttlesU8);
 		}, 100);
 	}
 	function stopMotors() {
@@ -54,15 +49,12 @@
 	}
 	function spinMotor(motor: number) {
 		throttles = [0, 0, 0, 0];
-		throttles[motor] = 150;
+		throttles[motor] = 1075;
 		throttles = [...throttles];
-	}
-	function startPassthrough() {
-		port.sendCommand(ConfigCmd.ESC_PASSTHROUGH);
 	}
 	onMount(() => {
 		getMotorsInterval = setInterval(() => {
-			port.sendCommand(ConfigCmd.GET_MOTORS);
+			port.sendCommand('request', MspFn.GET_MOTOR);
 		}, 100);
 		port.addOnDisconnectHandler(stopMotors);
 	});
@@ -70,6 +62,7 @@
 		clearInterval(getMotorsInterval);
 		stopMotors();
 		port.removeOnDisconnectHandler(stopMotors);
+		unsubscribe();
 	});
 </script>
 
@@ -80,10 +73,9 @@
 	<button on:click={() => spinMotor(3)}>Spin FL</button>
 	<button on:click={() => stopMotors()}>Stop</button>
 	<button on:click={() => startMotors()}>Start</button>
-	<button on:click={startPassthrough}>Passthrough</button>
 	<div class="quadPreview">
 		{#each motors.map((m, i) => motors[motorMapping[i]]) as motor}
-			<Motor throttlePct={motor / 20} />
+			<Motor throttlePct={(motor - 1000) / 10} />
 		{/each}
 	</div>
 </div>

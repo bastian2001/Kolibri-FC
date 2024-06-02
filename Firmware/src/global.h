@@ -31,6 +31,8 @@
 #include "hardware/i2c.h"
 #include "hardware/pio.h"
 #include "hardware/pwm.h"
+#include "hardware/resets.h"
+#include "hardware/rtc.h"
 #include "hardware/spi.h"
 #include "hardware/watchdog.h"
 #include "imu.h"
@@ -43,10 +45,12 @@
 #include "pioasm/speaker8bit.pio.h"
 #include "quaternion.h"
 #include "ringbuffer.h"
+#include "rtc.h"
 #include "serial.h"
-#include "serialhandler/configurator.h"
+#include "serialhandler/4way.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
+#include "serialhandler/msp.h"
 #include "taskManager.h"
 #include "unittest.h"
 
@@ -56,6 +60,11 @@
 #define SPI_SD spi1   // SPI for SD card
 #define I2C_MAG i2c0  // I2C for magnetometer
 #define PROPS_OUT
+
+#define DEBUG_ON gpio_put(PIN_LED_DEBUG, 1);
+#define DEBUG_OFF gpio_put(PIN_LED_DEBUG, 0);
+
+#define ARRAYLEN(arr) (sizeof(arr) / sizeof(arr[0])) // Get the length of an array
 
 extern ExpressLRS *ELRS;                                               // global ELRS instance
 #define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((u8 *)(buf) + 1) << 8))   // Decode 2 bytes from a buffer into a 16-bit unsigned integer
@@ -70,8 +79,14 @@ enum class BootReason {
 	POR, // Power-on reset
 	CMD_REBOOT,
 	CMD_BOOTLOADER,
-	WATCHDOG,
-	CMD_ESC_PASSTHROUGH
+	WATCHDOG
+};
+enum MspRebootMode {
+	MSP_REBOOT_FIRMWARE = 0,
+	MSP_REBOOT_BOOTLOADER_ROM,
+	MSP_REBOOT_MSC,
+	MSP_REBOOT_MSC_UTC,
+	MSP_REBOOT_BOOTLOADER_FLASH
 };
 
 extern volatile u32 crashInfo[256]; // Crash info buffer (arbitrary data to be saved to EEPROM in case of a crash)

@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { port, type Command, ConfigCmd } from '../../portStore';
+	import { port, MspFn } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
-
-	$: handleCommand($port);
 
 	const TASK_NAMES = [
 		'Loop 0',
@@ -54,30 +52,33 @@
 		});
 	}
 
-	function handleCommand(command: Command) {
-		switch (command.command) {
-			case ConfigCmd.TASK_STATUS | 0x4000:
-				for (let i = 0; i < tasks.length; i++) {
-					tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 32, i * 32 + 4));
-					tasks[i].minDuration = leBytesToInt(command.data.slice(i * 32 + 4, i * 32 + 8));
-					tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 32 + 8, i * 32 + 12));
-					tasks[i].frequency = leBytesToInt(command.data.slice(i * 32 + 12, i * 32 + 16));
-					tasks[i].avgDuration = leBytesToInt(command.data.slice(i * 32 + 16, i * 32 + 20));
-					tasks[i].errorCount = leBytesToInt(command.data.slice(i * 32 + 20, i * 32 + 24));
-					tasks[i].lastError = leBytesToInt(command.data.slice(i * 32 + 24, i * 32 + 28));
-					tasks[i].maxGap = leBytesToInt(command.data.slice(i * 32 + 28, i * 32 + 32));
-				}
-				break;
+	const unsubscribe = port.subscribe(command => {
+		if (command.cmdType === 'response') {
+			switch (command.command) {
+				case MspFn.TASK_STATUS:
+					for (let i = 0; i < tasks.length; i++) {
+						tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 32, i * 32 + 4));
+						tasks[i].minDuration = leBytesToInt(command.data.slice(i * 32 + 4, i * 32 + 8));
+						tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 32 + 8, i * 32 + 12));
+						tasks[i].frequency = leBytesToInt(command.data.slice(i * 32 + 12, i * 32 + 16));
+						tasks[i].avgDuration = leBytesToInt(command.data.slice(i * 32 + 16, i * 32 + 20));
+						tasks[i].errorCount = leBytesToInt(command.data.slice(i * 32 + 20, i * 32 + 24));
+						tasks[i].lastError = leBytesToInt(command.data.slice(i * 32 + 24, i * 32 + 28));
+						tasks[i].maxGap = leBytesToInt(command.data.slice(i * 32 + 28, i * 32 + 32));
+					}
+					break;
+			}
 		}
-	}
+	});
 	let interval: number;
 	onMount(() => {
 		interval = setInterval(() => {
-			port.sendCommand(ConfigCmd.TASK_STATUS);
+			port.sendCommand('request', MspFn.TASK_STATUS);
 		}, 200);
 	});
 	onDestroy(() => {
 		clearInterval(interval);
+		unsubscribe();
 	});
 </script>
 

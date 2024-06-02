@@ -86,31 +86,7 @@ void setDivider(u8 divider) {
 	EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
 }
 
-void printLogBinRaw(u8 logNum) {
-	char path[32];
-	logNum %= 100;
-	rp2040.wdt_reset();
-#if BLACKBOX_STORAGE == LITTLEFS
-	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
-	File logFile = LittleFS.open(path, "r");
-#elif BLACKBOX_STORAGE == SD_BB
-	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
-	File logFile = SDFS.open(path, "r");
-#endif
-	if (!logFile)
-		return;
-	u32 fileSize = logFile.size();
-	for (u32 i = 0; i < fileSize; i++) {
-		Serial.write(logFile.read());
-		if ((i % 1024) == 0) {
-			rp2040.wdt_reset();
-			Serial.flush();
-		}
-	}
-	logFile.close();
-}
-
-void printLogBin(u8 logNum, i16 singleChunk) {
+void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == LITTLEFS
 	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
@@ -120,7 +96,7 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 	File logFile = SDFS.open(path, "r");
 #endif
 	if (!logFile) {
-		sendCommand(((u16)ConfigCmd::BB_FILE_DOWNLOAD) | 0x8000, "File not found", strlen("File not found"));
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
 		return;
 	}
 	u8 buffer[1027];
@@ -137,7 +113,7 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 		bytesRead = logFile.read(buffer + 3, 1024);
 		buffer[1] = chunkNum & 0xFF;
 		buffer[2] = chunkNum >> 8;
-		sendCommand(((u16)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, bytesRead + 3);
+		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 3);
 		Serial.flush();
 		while (Serial.available())
 			Serial.read();
@@ -154,7 +130,7 @@ void printLogBin(u8 logNum, i16 singleChunk) {
 	buffer[2] = 0xFF;
 	buffer[3] = chunkNum & 0xFF;
 	buffer[4] = chunkNum >> 8;
-	sendCommand(((u16)ConfigCmd::BB_FILE_DOWNLOAD) | 0x4000, (char *)buffer, 5);
+	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, 5);
 }
 
 void startLogging() {
@@ -201,15 +177,7 @@ void startLogging() {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 1 // magic bytes, version
 	};
 	blackboxFile.write(data, 7);
-	u32 recordTime = timestamp;
-	if (recordTime == 0) {
-		u32 m      = millis() / 1000;
-		recordTime = (m % 60) & 0x3F;
-		recordTime |= ((m / 60) % 60) << 6;
-		recordTime |= ((m / 3600) % 24) << 12;
-		recordTime |= 1 << 17; // days start in 1
-		recordTime |= 1 << 22; // months start in 1
-	}
+	u32 recordTime = rtcGetBlackboxTimestamp();
 	blackboxFile.write((u8 *)&recordTime, 4);
 	blackboxFile.write((u8)0); // 3200Hz gyro
 	blackboxFile.write((u8)bbFreqDivider);

@@ -1,7 +1,6 @@
 #include "global.h"
 #include "hardware/interp.h"
 RingBuffer<u8> elrsBuffer(260);
-u32 ExpressLRS::crcLut[256] = {0};
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 
 ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
@@ -9,6 +8,13 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	  pinTX(pinTX),
 	  pinRX(pinRX),
 	  baudrate(baudrate) {
+	elrsStream = &elrsSerial;
+	for (int i = 0; i < 3; i++) {
+		if (elrsStream == serials[i]) {
+			serialNum = i;
+			break;
+		}
+	}
 	elrsSerial.end();
 	elrsSerial.setTX(pinTX);
 	elrsSerial.setRX(pinRX);
@@ -16,16 +22,6 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	elrsSerial.setRTS(UART_PIN_NOT_DEFINED);
 	elrsSerial.setFIFOSize(256);
 	elrsSerial.begin(baudrate, SERIAL_8N1);
-	for (u32 i = 0; i < 256; i++) {
-		u32 crc = i;
-		for (u32 j = 0; j < 8; j++) {
-			if (crc & 0x80)
-				crc = (crc << 1) ^ 0xD5;
-			else
-				crc <<= 1;
-		}
-		crcLut[i] = crc & 0xFF;
-	}
 	interpConfig0 = interp_default_config();
 	interp_config_set_blend(&interpConfig0, 1);
 	interpConfig1 = interp_default_config();
@@ -68,158 +64,95 @@ void ExpressLRS::loop() {
 	if (!maxScan && telemetryTimer >= 15) {
 		// if there is no data to read and the last sensor was transmitted more than 15ms ago, send one telemetry sensor at a time
 		telemetryTimer = 0;
-		telemBuffer[0] = CRSF_SYNC_BYTE;
-		u32 telemLen   = 0;
 		switch (currentTelemSensor++) {
 		case 0: {
 			// GPS (0x02)
-			telemBuffer[1]  = 17;
-			telemBuffer[2]  = CRSF_FRAMETYPE_GPS;
-			telemBuffer[3]  = gpsMotion.lat >> 24;
-			telemBuffer[4]  = gpsMotion.lat >> 16;
-			telemBuffer[5]  = gpsMotion.lat >> 8;
-			telemBuffer[6]  = gpsMotion.lat;
-			telemBuffer[7]  = gpsMotion.lon >> 24;
-			telemBuffer[8]  = gpsMotion.lon >> 16;
-			telemBuffer[9]  = gpsMotion.lon >> 8;
-			telemBuffer[10] = gpsMotion.lon;
+			telemBuffer[0]  = gpsMotion.lat >> 24;
+			telemBuffer[1]  = gpsMotion.lat >> 16;
+			telemBuffer[2]  = gpsMotion.lat >> 8;
+			telemBuffer[3]  = gpsMotion.lat;
+			telemBuffer[4]  = gpsMotion.lon >> 24;
+			telemBuffer[5]  = gpsMotion.lon >> 16;
+			telemBuffer[6]  = gpsMotion.lon >> 8;
+			telemBuffer[7]  = gpsMotion.lon;
 			u16 data        = gpsMotion.gSpeed * 10 / 278; // mm/s to km/h / 10
-			telemBuffer[11] = data >> 8;
-			telemBuffer[12] = data;
+			telemBuffer[8]  = data >> 8;
+			telemBuffer[9]  = data;
 			data            = gpsMotion.headMot / 1000; // 10^-5deg to 10^-2deg
-			telemBuffer[13] = data >> 8;
-			telemBuffer[14] = data;
+			telemBuffer[10] = data >> 8;
+			telemBuffer[11] = data;
 			data            = (gpsMotion.alt + 500) / 1000 + 1000; // mm to m + 1000
-			telemBuffer[15] = data >> 8;
-			telemBuffer[16] = data;
-			telemBuffer[17] = gpsStatus.satCount;
-			u32 telemCrc    = 0;
-			for (int i = 2; i < 18; i++) {
-				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
-			}
-			telemBuffer[18] = telemCrc;
-			telemLen        = 19;
-			break;
-		}
+			telemBuffer[12] = data >> 8;
+			telemBuffer[13] = data;
+			telemBuffer[14] = gpsStatus.satCount;
+			this->sendPacket(CRSF_FRAMETYPE_GPS, (char *)telemBuffer, 15);
+		} break;
 		case 1: {
 			// Vario (0x07)
 			i16 data       = -gpsMotion.velD / 10; // mm/s to cm/s
-			telemBuffer[1] = 4;
-			telemBuffer[2] = CRSF_FRAMETYPE_VARIO;
-			telemBuffer[3] = data >> 8;
-			telemBuffer[4] = data;
-			u32 telemCrc   = 0;
-			for (int i = 2; i < 5; i++) {
-				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
-			}
-			telemBuffer[5] = telemCrc;
-			telemLen       = 6;
-			break;
-		}
+			telemBuffer[0] = data >> 8;
+			telemBuffer[1] = data;
+			this->sendPacket(CRSF_FRAMETYPE_VARIO, (char *)telemBuffer, 2);
+		} break;
 		case 2: {
 			// Battery (0x08)
-			telemBuffer[1]  = 10;
-			telemBuffer[2]  = CRSF_FRAMETYPE_BATTERY;
-			i32 data        = adcVoltage / 10; // cV to dV
-			telemBuffer[3]  = data >> 8;
-			telemBuffer[4]  = data;
-			data            = adcCurrent * 10; // A to dA
-			telemBuffer[5]  = data >> 8;
-			telemBuffer[6]  = data;
-			telemBuffer[7]  = 0;
-			telemBuffer[8]  = 0;
-			telemBuffer[9]  = 0;
-			telemBuffer[10] = 0;
-			u32 telemCrc    = 0;
-			for (int i = 2; i < 11; i++) {
-				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
-			}
-			telemBuffer[11] = telemCrc;
-			telemLen        = 12;
-			break;
-		}
+			i32 data       = adcVoltage / 10; // cV to dV
+			telemBuffer[0] = data >> 8;
+			telemBuffer[1] = data;
+			data           = adcCurrent * 10; // A to dA
+			telemBuffer[2] = data >> 8;
+			telemBuffer[3] = data;
+			telemBuffer[4] = 0;
+			telemBuffer[5] = 0;
+			telemBuffer[6] = 0;
+			telemBuffer[7] = 0;
+			this->sendPacket(CRSF_FRAMETYPE_BATTERY, (char *)telemBuffer, 8);
+		} break;
 		case 3: {
 			// Baro Altitude (0x09)
-			telemBuffer[1] = 6;
-			telemBuffer[2] = CRSF_FRAMETYPE_BARO_ALT;
-			i32 data       = combinedAltitude.getRaw() / 6554; // dm;
-			data += 10000;                                     // dm + 10000
-			telemBuffer[3] = data >> 8;
-			telemBuffer[4] = data;
+			i32 data = combinedAltitude.getRaw() / 6554; // dm;
+			data += 10000;                               // dm + 10000
+			telemBuffer[0] = data >> 8;
+			telemBuffer[1] = data;
 			data           = vVel.getRaw() / 655;
-			telemBuffer[5] = data >> 8;
-			telemBuffer[6] = data;
-			u32 telemCrc   = 0;
-			for (int i = 2; i < 7; i++) {
-				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
-			}
-			telemBuffer[7] = telemCrc;
-			telemLen       = 8;
-			break;
-		}
+			telemBuffer[2] = data >> 8;
+			telemBuffer[3] = data;
+			this->sendPacket(CRSF_FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);
+		} break;
 		case 4: {
 			// Attitude (0x1E)
-			telemBuffer[1] = 8;
-			telemBuffer[2] = CRSF_FRAMETYPE_ATTITUDE;
 			i16 data       = pitch * 10000; // 10^-5 rad;
-			telemBuffer[3] = data >> 8;
-			telemBuffer[4] = data;
+			telemBuffer[0] = data >> 8;
+			telemBuffer[1] = data;
 			data           = roll * 10000; // 10^-5 rad;
-			telemBuffer[5] = data >> 8;
-			telemBuffer[6] = data;
+			telemBuffer[2] = data >> 8;
+			telemBuffer[3] = data;
 			data           = yaw * 10000; // 10^-5 rad;
-			telemBuffer[7] = data >> 8;
-			telemBuffer[8] = data;
-			u32 telemCrc   = 0;
-			for (int i = 2; i < 9; i++) {
-				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
-			}
-			telemBuffer[9] = telemCrc;
-			telemLen       = 10;
-			break;
-		}
-		case 5: {
+			telemBuffer[4] = data >> 8;
+			telemBuffer[5] = data;
+		} break;
+		case 5:
 			// Flight Mode (0x21)
-			telemBuffer[2] = CRSF_FRAMETYPE_FLIGHTMODE;
 			switch (flightMode) {
 			case FLIGHT_MODE::ACRO:
-				strcpy((char *)&telemBuffer[3], "Acro");
-				telemBuffer[1] = 7;
+				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Acro", 5);
 				break;
 			case FLIGHT_MODE::ANGLE:
-				strcpy((char *)&telemBuffer[3], "Angle");
-				telemBuffer[1] = 8;
+				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Angle", 6);
 				break;
 			case FLIGHT_MODE::ALT_HOLD:
-				strcpy((char *)&telemBuffer[3], "Altitude Hold");
-				telemBuffer[1] = 16;
+				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
 				break;
 			case FLIGHT_MODE::GPS_VEL:
-				strcpy((char *)&telemBuffer[3], "GPS Velocity");
-				telemBuffer[1] = 15;
+				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
 				break;
 			case FLIGHT_MODE::GPS_POS:
-				strcpy((char *)&telemBuffer[3], "GPS Position");
-				telemBuffer[1] = 15;
+				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Position", 13);
 				break;
 			}
-			u32 telemCrc = 0;
-			for (int i = 2; i < 1 + telemBuffer[1]; i++) {
-				telemCrc ^= telemBuffer[i];
-				telemCrc = crcLut[telemCrc];
-			}
-			telemBuffer[1 + telemBuffer[1]] = telemCrc;
-			telemLen                        = 2 + telemBuffer[1];
 			break;
 		}
-		}
 		if (currentTelemSensor > 5) currentTelemSensor = 0;
-		elrsSerial.write(telemBuffer, telemLen);
 		return;
 	}
 	taskTimer = 0;
@@ -229,7 +162,7 @@ void ExpressLRS::loop() {
 		msgBuffer[msgBufIndex] = elrsBuffer.pop();
 		if (msgBufIndex >= 2) {
 			crc ^= msgBuffer[msgBufIndex];
-			crc = crcLut[crc];
+			crc = crcLutD5[crc];
 		} else
 			crc = 0;
 		msgBufIndex++;
@@ -378,6 +311,7 @@ void ExpressLRS::processMessage() {
 		break;
 	}
 	case DEVICE_PING:
+		// TODO: Discovery of FC to ELRS
 		break;
 	case DEVICE_INFO:
 		break;
@@ -390,7 +324,74 @@ void ExpressLRS::processMessage() {
 	case COMMAND:
 		break;
 	case MSP_REQ:
-		break;
+	case MSP_WRITE: {
+		char *extPayload = (char *)&msgBuffer[5];
+		i8 packetSize    = size - 4;
+		u8 minSize       = 2;
+		if (packetSize < minSize) break;
+		char &stat           = *extPayload++;
+		this->lastExtSrcAddr = msgBuffer[4];
+		if (stat & 0x10) {
+			// new MSP request
+			this->mspRxSeq   = (stat + 1) & 0x0F;
+			this->mspRxPos   = 0;
+			this->mspVersion = (stat >> 5) == 1 ? MspVersion::V1_OVER_CRSF : MspVersion::V2_OVER_CRSF;
+			if (this->mspVersion == MspVersion::V1_OVER_CRSF) {
+				minSize = 3;
+				if (packetSize < minSize) break;
+				this->mspRxPayloadLen = *extPayload++;
+				if (this->mspRxPayloadLen == 255) {
+					minSize += 2;
+					if (packetSize < minSize) break;
+					this->mspRxPayloadLen = *extPayload++;
+					this->mspRxPayloadLen |= (*extPayload++) << 8;
+					if (this->mspRxPayloadLen > 512) {
+						this->mspRxPayloadLen = 0;
+						break;
+					}
+					this->mspVersion = MspVersion::V1_JUMBO_OVER_CRSF;
+				}
+				this->mspRxCmd = *extPayload++;
+				if (this->mspRxCmd == (u8)MspFn::MSP_V2_FRAME) {
+					minSize += 5;
+					if (packetSize < minSize) break;
+					this->mspRxPayloadLen = *extPayload++;
+					this->mspRxPayloadLen |= (*extPayload++) << 8;
+					if (this->mspRxPayloadLen > 512) {
+						this->mspRxPayloadLen = 0;
+						break;
+					}
+					if (this->mspVersion == MspVersion::V1_JUMBO_OVER_CRSF)
+						this->mspVersion = MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
+					else
+						this->mspVersion = MspVersion::V2_OVER_V1_OVER_CRSF;
+				}
+				memcpy(this->mspRxPayload, extPayload, packetSize - minSize);
+				this->mspRxPos += packetSize;
+				this->mspRecording = true;
+			} else {
+				minSize = 6;
+				if (packetSize < minSize) break;
+				this->mspRxFlag = *extPayload++;
+				this->mspRxCmd  = *extPayload++;
+				this->mspRxCmd |= (*extPayload++) << 8;
+				this->mspRxPayloadLen = *extPayload++;
+				this->mspRxPayloadLen |= (*extPayload++) << 8;
+				if (this->mspRxPayloadLen > 512) {
+					this->mspRxPayloadLen = 0;
+					break;
+				}
+				memcpy(this->mspRxPayload, extPayload, packetSize - minSize);
+				this->mspRxPos += packetSize;
+				this->mspRecording = true;
+			}
+		} else if (mspRecording) {
+		}
+		if (this->mspRxPos >= this->mspRxPayloadLen) {
+			processMspCmd(this->serialNum, MspMsgType::REQUEST, (MspFn)this->mspRxCmd, this->mspVersion, (char *)this->mspRxPayload, this->mspRxPayloadLen);
+			this->mspRecording = false;
+		}
+	} break;
 	default:
 		lastError = ERROR_UNSUPPORTED_COMMAND;
 		tasks[TASK_ELRS].errorCount++;
@@ -432,4 +433,54 @@ void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 	interp1->base[1]  = 2000 << 16;
 	interp1->accum[0] = smoothChannels[2].getRaw();
 	smoothChannels[2].setRaw(interp1->peek[0]);
+}
+
+void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
+	if (payloadLen > 60) return;
+	u8 packet[64] = {CRSF_SYNC_BYTE, (u8)(payloadLen + 2), cmd};
+	memcpy(&packet[3], payload, payloadLen);
+	u32 crc = 0;
+	for (int i = 2; i < 3 + payloadLen; i++) {
+		crc ^= packet[i];
+		crc = crcLutD5[crc];
+	}
+	packet[3 + payloadLen] = crc;
+	elrsSerial.write(packet, 4 + payloadLen);
+}
+
+void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
+	if (extPayloadLen > 58) return;
+	u8 packet[64] = {CRSF_SYNC_BYTE, (u8)(extPayloadLen + 4), cmd, destAddr, srcAddr};
+	memcpy(&packet[5], extPayload, extPayloadLen);
+	u32 crc = 0;
+	for (int i = 2; i < 5 + extPayloadLen; i++) {
+		crc ^= packet[i];
+		crc = crcLutD5[crc];
+	}
+	packet[5 + extPayloadLen] = crc;
+	elrsSerial.write(packet, 6 + extPayloadLen);
+}
+
+void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
+	u8 chunkCount  = (payloadLen) / 57 + 1;
+	u8 firstPacket = 1;
+	for (u8 chunk = 0; chunk < chunkCount; chunk++) {
+		u8 chunkSize = 57;
+		if (chunk == chunkCount - 1) {
+			chunkSize = payloadLen - chunk * 57;
+		}
+		++mspTelemSeq &= 0xF;
+		u8 stat = 0;
+		stat |= this->mspTelemSeq;
+		stat |= (firstPacket << 4);
+		stat |= mspVersion << 5;
+		stat |= (type == MspMsgType::ERROR) << 7;
+		u8 packet[60] = {this->lastExtSrcAddr, ADDRESS_FLIGHT_CONTROLLER, stat};
+		firstPacket   = 0;
+		memcpy(&packet[3], &payload[chunk * 57], chunkSize);
+		if (type != MspMsgType::REQUEST)
+			sendPacket(MSP_RESP, (char *)packet, chunkSize + 3);
+		else
+			sendPacket(MSP_REQ, (char *)packet, chunkSize + 3);
+	}
 }

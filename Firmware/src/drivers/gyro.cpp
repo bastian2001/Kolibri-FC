@@ -80,7 +80,7 @@ int gyroInit() {
 	gpio_set_dir(PIN_GYRO_INT1, GPIO_IN);
 	u8 data = 0;
 	for (int i = 0; i < 50 && data != 24; i++) {
-		delay(2);
+		sleep_ms(2);
 		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
 		data = 0;
 		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
