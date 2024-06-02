@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
-	import { port, MspFn } from '../portStore';
+	import { port, MspFn, MspVersion } from '../portStore';
 	import { configuratorLog } from '../logStore';
-	import { leBytesToInt } from '../utils';
+	import { leBytesToInt, delay } from '../utils';
 
 	let devices: any = [];
 
@@ -102,6 +102,9 @@
 				case MspFn.STATUS:
 					battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
 					break;
+				case MspFn.SET_RTC:
+					configuratorLog.push('RTC updated');
+					break;
 				case MspFn.PLAY_SOUND:
 					console.log(command.data);
 					break;
@@ -124,10 +127,25 @@
 		port
 			.sendCommand('request', MspFn.API_VERSION)
 			.then(() => port.sendCommand('request', MspFn.FIRMWARE_VARIANT))
+			.then(() => delay(5))
 			.then(() => port.sendCommand('request', MspFn.FIRMWARE_VERSION))
+			.then(() => delay(5))
 			.then(() => port.sendCommand('request', MspFn.BOARD_INFO))
+			.then(() => delay(5))
 			.then(() => port.sendCommand('request', MspFn.BUILD_INFO))
-			.then(() => port.sendCommand('request', MspFn.GET_NAME));
+			.then(() => delay(5))
+			.then(() => port.sendCommand('request', MspFn.GET_NAME))
+			.then(() => delay(5))
+			.then(() => port.sendCommand('request', MspFn.STATUS))
+			.then(() => {
+				const now = Date.now() / 1000;
+				port.sendCommand('request', MspFn.SET_RTC, MspVersion.V2, [
+					now & 0xff,
+					(now >> 8) & 0xff,
+					(now >> 16) & 0xff,
+					(now >> 24) & 0xff
+				]);
+			});
 	}
 	onMount(() => {
 		disconnect();

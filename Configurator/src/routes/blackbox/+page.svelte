@@ -1275,7 +1275,7 @@
 		const hour = (sTime >> 12) & 0b11111;
 		const minute = (sTime >> 6) & 0b111111;
 		const second = sTime & 0b111111;
-		const startTime = new Date(year + 2020, month - 1, day, hour, minute, second);
+		const startTime = new Date(year + 2000, month - 1, day, hour, minute, second);
 		const pidFreq = 3200 / (1 + header[11]);
 		const freqDiv = header[12];
 		const rangeByte = header[13];
@@ -1758,7 +1758,7 @@
 			const hour = (sTime >> 12) & 0b11111;
 			const minute = (sTime >> 6) & 0b111111;
 			const second = sTime & 0b111111;
-			const startTime = new Date(year + 2020, month - 1, day, hour, minute, second);
+			const startTime = new Date(year + 2000, month - 1, day, hour, minute, second);
 			const pidFreq = 3200 / (data[i + 12] + 1);
 			const freqDiv = data[i + 13];
 			const flags = data.slice(i + 14, i + 22);

@@ -39,14 +39,6 @@ enum fixTypes : u8 {
 
 #define UBX_SYNC1 0xB5
 #define UBX_SYNC2 0x62
-typedef struct gpsTime {
-	u16 year;
-	u8 month;
-	u8 day;
-	u8 hour;
-	u8 minute;
-	u8 second;
-} GpsTime;
 typedef struct gpsAccuracy {
 	u32 tAcc;    // unit: ns
 	u32 hAcc;    // unit: mm
@@ -76,7 +68,7 @@ typedef struct gpsMotion {
 	i32 headMot; // unit: 10^-5 deg
 } GpsMotion;
 extern GpsAccuracy gpsAcc;
-extern GpsTime gpsTime;
+extern datetime_t gpsTime;
 extern GpsStatus gpsStatus;
 extern GpsMotion gpsMotion;
 

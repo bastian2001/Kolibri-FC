@@ -4,7 +4,7 @@ RingBuffer<u8> gpsBuffer(1024);
 elapsedMillis gpsInitTimer;
 bool gpsInitAck = false;
 GpsAccuracy gpsAcc;
-GpsTime gpsTime;
+datetime_t gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
 char olcString[14] = "AABBCCDD+EEFG";
@@ -18,8 +18,8 @@ u32 newPvtMessageFlag = 0;
  * 12-16: hours
  * 17-21: days
  * 22-25: months
- * 26-31: years, since 2020
- * This is valid till 2084, which is enough
+ * 26-31: years, since 2000
+ * This is valid until the end of 2063, which is enough
  */
 u32 timestamp = 0; // since unix epoch is hard to calculate, the 32 bits are distributed as described above
 
@@ -218,14 +218,16 @@ void gpsLoop() {
 					return;
 				}
 				memcpy(currentPvtMsg, msgData, 92);
-				lastPvtMessage              = 0;
-				newPvtMessageFlag           = 0xFFFFFFFF;
-				gpsTime.year                = DECODE_U2(&msgData[4]);
-				gpsTime.month               = msgData[6];
-				gpsTime.day                 = msgData[7];
-				gpsTime.hour                = msgData[8];
-				gpsTime.minute              = msgData[9];
-				gpsTime.second              = msgData[10];
+				lastPvtMessage    = 0;
+				newPvtMessageFlag = 0xFFFFFFFF;
+				gpsTime.year      = DECODE_U2(&msgData[4]);
+				gpsTime.month     = msgData[6];
+				gpsTime.day       = msgData[7];
+				gpsTime.hour      = msgData[8];
+				gpsTime.min       = msgData[9];
+				gpsTime.sec       = msgData[10];
+				setDotwInDatetime(&gpsTime);
+				rtcSetDatetime(&gpsTime);
 				gpsStatus.timeValidityFlags = msgData[11];
 				gpsAcc.tAcc                 = DECODE_U4(&msgData[12]);
 				gpsStatus.fixType           = msgData[20];
@@ -246,7 +248,6 @@ void gpsLoop() {
 				gpsAcc.headAcc              = DECODE_U4(&msgData[72]);
 				gpsAcc.pDop                 = DECODE_U2(&msgData[76]);
 				gpsStatus.flags3            = DECODE_U2(&msgData[78]);
-				timestamp                   = gpsTime.second & 0x3F | (gpsTime.minute & 0x3F) << 6 | (gpsTime.hour & 0x1F) << 12 | (gpsTime.day & 0x1F) << 17 | (gpsTime.month & 0x0F) << 22 | (gpsTime.year - 2020) << 26;
 				eVel                        = fix32(0.8f) * eVel + fix32(0.0002f) * (int)gpsMotion.velE;
 				nVel                        = fix32(0.8f) * nVel + fix32(0.0002f) * (int)gpsMotion.velN;
 				u8 buf[16];

@@ -381,10 +381,16 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[0] = 4; // ESC count
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			break;
-		case MspFn::MSP_SET_RTC:
-			// TODO: use RTC
+		case MspFn::SET_RTC: {
+			if (reqLen < 4) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			datetime_t t;
+			rtcConvertToDatetime(DECODE_U4((u8 *)reqPayload), &t);
+			rtcSetDatetime(&t);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			break;
+		} break;
 		case MspFn::STATUS: {
 			u16 voltage = adcVoltage;
 			buf[len++]  = voltage & 0xFF;
@@ -732,8 +738,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[2] = gpsTime.month;
 			buf[3] = gpsTime.day;
 			buf[4] = gpsTime.hour;
-			buf[5] = gpsTime.minute;
-			buf[6] = gpsTime.second;
+			buf[5] = gpsTime.min;
+			buf[6] = gpsTime.sec;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 7);
 		} break;
 		case MspFn::GET_GPS_MOTION: {

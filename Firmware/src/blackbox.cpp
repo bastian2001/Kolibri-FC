@@ -201,15 +201,7 @@ void startLogging() {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 1 // magic bytes, version
 	};
 	blackboxFile.write(data, 7);
-	u32 recordTime = timestamp;
-	if (recordTime == 0) {
-		u32 m      = millis() / 1000;
-		recordTime = (m % 60) & 0x3F;
-		recordTime |= ((m / 60) % 60) << 6;
-		recordTime |= ((m / 3600) % 24) << 12;
-		recordTime |= 1 << 17; // days start in 1
-		recordTime |= 1 << 22; // months start in 1
-	}
+	u32 recordTime = rtcGetBlackboxTimestamp();
 	blackboxFile.write((u8 *)&recordTime, 4);
 	blackboxFile.write((u8)0); // 3200Hz gyro
 	blackboxFile.write((u8)bbFreqDivider);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { port, MspFn, MspVersion } from '../portStore';
 	import { onMount, onDestroy } from 'svelte';
-	import { leBytesToInt, roundToDecimal } from '../utils';
+	import { leBytesToInt, roundToDecimal, delay } from '../utils';
 	import { configuratorLog } from '../logStore';
 
 	const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
@@ -118,12 +118,6 @@
 	}
 	function playSound() {
 		port.sendCommand('request', MspFn.PLAY_SOUND);
-	}
-
-	function delay(ms: number) {
-		return new Promise(resolve => {
-			setTimeout(resolve, ms);
-		});
 	}
 
 	let pingInterval = 0;

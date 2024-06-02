@@ -216,3 +216,9 @@ export function prefixZeros(num: number = 0, totalDigits: number, char: string =
 	while (str.length < totalDigits) str = char + str;
 	return str;
 }
+
+export function delay(ms: number) {
+	return new Promise(resolve => {
+		setTimeout(resolve, ms);
+	});
+}
