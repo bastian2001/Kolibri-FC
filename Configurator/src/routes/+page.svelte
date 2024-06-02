@@ -86,8 +86,9 @@
 				case MspFn.GET_CRASH_DUMP:
 					console.log(command.data);
 					break;
-				case MspFn.CALIBRATE_ACCELEROMETER:
-					configuratorLog.push('Accelerometer calibrated');
+				case MspFn.ACC_CALIBRATION:
+					if (command.data[0] === 1) configuratorLog.push('Accelerometer calibrated');
+					else configuratorLog.push('Accelerometer calibration started');
 					break;
 				case MspFn.REBOOT:
 					configuratorLog.push('Rebooting');
@@ -114,7 +115,7 @@
 		port.sendCommand('request', MspFn.SET_DEBUG_LED, MspVersion.V2, [0]);
 	}
 	function calibrateAccel() {
-		port.sendCommand('request', MspFn.CALIBRATE_ACCELEROMETER);
+		port.sendCommand('request', MspFn.ACC_CALIBRATION);
 	}
 	function playSound() {
 		port.sendCommand('request', MspFn.PLAY_SOUND);

@@ -184,7 +184,9 @@ void magLoop() {
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, magOffset[1]);
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, magOffset[2]);
 		EEPROM.commit();
-		magState = MAG_MEASURING;
+		magState  = MAG_MEASURING;
+		char data = 1;
+		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::MAG_CALIBRATION, lastMspVersion, &data, 1);
 		char calString[128];
 		snprintf(calString, 128, "Offsets: %d %d %d, det: %f", magOffset[0], magOffset[1], magOffset[2], det);
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));

@@ -21,7 +21,8 @@ void configuratorLoop() {
 		configuratorConnected = false;
 	if (accelCalDone) {
 		accelCalDone = 0;
-		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CALIBRATE_ACCELEROMETER, lastMspVersion);
+		char data    = 1;
+		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::ACC_CALIBRATION, lastMspVersion, &data, 1);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION, (i16)accelCalibrationOffset[0]);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, (i16)accelCalibrationOffset[1]);
 		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, (i16)accelCalibrationOffset[2]);
@@ -369,6 +370,18 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			len = 12;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
+		case MspFn::ACC_CALIBRATION:
+			accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
+			armingDisableFlags |= 0x40;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			break;
+		case MspFn::MAG_CALIBRATION:
+			magStateAfterRead = MAG_CALIBRATE;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			char calString[128];
+			snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
+			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, (char *)calString, strlen(calString));
+			break;
 		case MspFn::SET_MOTOR:
 			throttles[(u8)MOTOR::RR] = ((u16)reqPayload[0] + ((u16)reqPayload[1] << 8)) * 2 - 2000;
 			throttles[(u8)MOTOR::FR] = ((u16)reqPayload[2] + ((u16)reqPayload[3] << 8)) * 2 - 2000;
@@ -670,12 +683,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, 12);
 		} break;
-		case MspFn::CALIBRATE_MAG:
-			magStateAfterRead = MAG_CALIBRATE;
-			char calString[128];
-			snprintf(calString, 128, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
-			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, (char *)calString, strlen(calString));
-			break;
 		case MspFn::GET_ROTATION: {
 			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 			int rotationPitch = pitch * 8192;
@@ -692,10 +699,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[7]            = heading >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
 		} break;
-		case MspFn::CALIBRATE_ACCELEROMETER:
-			accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
-			armingDisableFlags |= 0x40;
-			break;
 		case MspFn::TASK_STATUS: {
 			u32 buf[256];
 			for (int i = 0; i < 32; i++) {

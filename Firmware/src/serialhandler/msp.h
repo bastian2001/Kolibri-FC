@@ -63,6 +63,8 @@ enum class MspFn {
 	GET_MOTOR_3D_CONFIG = 124,
 	GET_MOTOR_CONFIG    = 131,
 	UID                 = 160,
+	ACC_CALIBRATION     = 205,
+	MAG_CALIBRATION     = 206,
 	SET_MOTOR           = 214,
 	ENABLE_4WAY_IF      = 245,
 	SET_RTC             = 246,
@@ -102,12 +104,10 @@ enum class MspFn {
 	GET_GPS_MOTION   = 0x4133,
 
 	// 0x414_ Magnetometer
-	GET_MAG_DATA  = 0x4140,
-	CALIBRATE_MAG = 0x4141,
+	GET_MAG_DATA = 0x4140,
 
 	// 0x415_ Gyro/Accel
-	GET_ROTATION            = 0x4150,
-	CALIBRATE_ACCELEROMETER = 0x4151,
+	GET_ROTATION = 0x4150,
 
 	// 0x416_ Barometer
 

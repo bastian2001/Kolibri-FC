@@ -2,6 +2,7 @@
 	import { port, MspFn } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import { leBytesToInt, roundToDecimal } from '../../utils';
+	import { configuratorLog } from '../../logStore';
 	let canvasxy: HTMLCanvasElement;
 	let canvasyz: HTMLCanvasElement;
 	let canvaszx: HTMLCanvasElement;
@@ -167,6 +168,13 @@
 						second: command.data[6]
 					};
 					break;
+				case MspFn.MAG_CALIBRATION:
+					if (command.data[0] === 1) {
+						configuratorLog.push('Magnetometer calibrated');
+					} else {
+						configuratorLog.push('Magnetometer calibration started');
+					}
+					break;
 			}
 		}
 	});
@@ -226,7 +234,7 @@
 	bind:this={canvaszx}
 	style="display:inline-block; border: 1px solid white;"
 /><br />
-<button on:click={() => port.sendCommand('request', MspFn.MAG_CALIBRATE)}
+<button on:click={() => port.sendCommand('request', MspFn.MAG_CALIBRATION)}
 	>Calibrate Magnetometer</button
 ><br />
 <div class="gpsInfo magStatus">
