@@ -1,9 +1,33 @@
 #include "unittest.h"
 #include "ringbuffer.h"
 
-u32 Expect::failed = false;
-u32 Expect::succeeded = false;
-bool Expect::silentLogging = false;
+u32 ExpectBase::failed = false;
+u32 ExpectBase::succeeded = false;
+bool ExpectBase::silentLogging = false;
+template <>
+const char *Fmt<i32>::f = "%6d";
+template <>
+const char *Fmt<u32>::f = "%6u";
+template <>
+const char *Fmt<f32>::f = "%6.2f";
+template <>
+const char *Fmt<f64>::f = "%6.2lf";
+template <>
+const char *Fmt<i16>::f = "%6d";
+template <>
+const char *Fmt<u16>::f = "%6u";
+template <>
+const char *Fmt<i8>::f = "%6d";
+template <>
+const char *Fmt<u8>::f = "%6u";
+template <>
+const char *Fmt<bool>::f = "%6d";
+template <>
+const char *Fmt<size_t>::f = "%6u";
+template <>
+const char *Fmt<i64>::f = "%6lld";
+template <>
+const char *Fmt<u64>::f = "%6llu";
 
 bool testRingBuffer() {
 	// test ringbuffer
@@ -52,17 +76,17 @@ bool testRingBuffer() {
 	Expect(rb.isEmpty()).withIndex(27).toEqual(false);
 	Expect(rb.freeSpace()).withIndex(28).toEqual(0);
 	Expect(rb.pop()).withIndex(29).toEqual(4);
-	return Expect::printResults(true, "Ringbuffer");
+	return ExpectBase::printResults(true, "Ringbuffer");
 }
 
 void runUnitTests() {
 	bool testsFailed = false;
-	Expect::enableSilent();
+	// ExpectBase::enableSilent();
 	do {
 		testsFailed = testRingBuffer() || testsFailed;
 		if (testsFailed) {
 			Serial.println("Unit tests failed, rerun to see results.");
-			Expect::enableSilent(false);
+			ExpectBase::enableSilent(false);
 			sleep_ms(10000);
 		}
 	} while (testsFailed);
