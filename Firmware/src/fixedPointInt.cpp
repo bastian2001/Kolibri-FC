@@ -59,6 +59,9 @@ fix64::fix64(const int v) {
 fix64::fix64(const f32 v) {
 	this->value = (i64)(v * 4294967296);
 }
+fix64::fix64(const fix32 v) {
+	this->value = ((i64)(v.getRaw())) << 16;
+}
 fix64 fix64::setRaw(const i64 v) {
 	this->value = v;
 	return *this;

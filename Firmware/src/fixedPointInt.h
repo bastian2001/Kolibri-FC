@@ -26,6 +26,7 @@ public:
 	fix64(const i32 value = 0);
 	fix64(const int value);
 	fix64(const f32 value);
+	fix64(const fix32 value);
 	fix64 setRaw(const i64 value);
 	i64 getRaw() const;
 	f32 getf32() const;
@@ -63,7 +64,7 @@ private:
 	i32 value = 0;
 
 public:
-	static inline fix32 fromRaw(const i32 v) {
+	static inline constexpr fix32 fromRaw(const i32 v) {
 		fix32 result;
 		return result.setRaw(v);
 	};
@@ -208,8 +209,10 @@ public:
 		return result.setRaw((i32)(((i64)this->value * (i64)other.getRaw()) >> 32));
 	};
 	inline fix64 multiply64(const fix64 other) const {
-		fix64 result;
-		return result.setRaw((i32)(((i64)this->value * (i64)other.getRaw()) >> 32));
+		i64 raw0 = other.getRaw();
+		i64 result = raw0 * (this->value >> 16);
+		result += (raw0 >> 16) * (this->value & 0xFFFF);
+		return fix64().setRaw(result);
 	};
 	inline bool operator<(const fix32 other) const {
 		return this->value < other.getRaw();

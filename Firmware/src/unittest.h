@@ -133,22 +133,22 @@ private:
 
 	void printOk() {
 		if (ind != -1 && identifier[0] != '\0') {
-			Serial.printf("Ok %s[%2d]: ", identifier, ind);
+			Serial.printf("Ok %s[%3d]: ", identifier, ind);
 		} else if (identifier[0] != '\0') {
 			Serial.printf("Ok %s: ", identifier);
 		} else if (ind != -1) {
-			Serial.printf("Ok [%2d]: ", ind);
+			Serial.printf("Ok [%3d]: ", ind);
 		} else {
 			Serial.printf("Ok: ");
 		}
 	}
 	void printFailed() {
 		if (ind != -1 && identifier[0] != '\0') {
-			Serial.printf("Failed %s[%2d]: ", identifier, ind);
+			Serial.printf("Failed %s[%3d]: ", identifier, ind);
 		} else if (identifier[0] != '\0') {
 			Serial.printf("Failed %s: ", identifier);
 		} else if (ind != -1) {
-			Serial.printf("Failed [%2d]: ", ind);
+			Serial.printf("Failed [%3d]: ", ind);
 		} else {
 			Serial.printf("Failed: ");
 		}
