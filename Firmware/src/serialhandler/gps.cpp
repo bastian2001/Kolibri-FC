@@ -259,7 +259,7 @@ void gpsLoop() {
 				// updateElem(OSDElem::ALTITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "%d\x9E ", gpsMotion.gSpeed / 278);
 				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
-				snprintf((char *)buf, 16, "%dD ", combinedHeading * 180 / PI);
+				snprintf((char *)buf, 16, "%dD ", combinedHeading * FIX_RAD_TO_DEG);
 				updateElem(OSDElem::HEADING, (char *)buf);
 				f32 toRadians = 1.745329251e-9f;
 				f32 sin1 = sinf((gpsMotion.lat - startPointLat) * (toRadians / 2));

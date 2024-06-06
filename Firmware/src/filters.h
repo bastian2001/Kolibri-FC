@@ -18,7 +18,7 @@ public:
 	/**
 	 * @brief Construct a new PT1 object
 	 *
-	 * @param alpha Alpha value of the filter
+	 * @param alpha Alpha value of the filter, typically close to 0
 	 */
 	PT1(fix32 alpha);
 	/**
@@ -60,7 +60,7 @@ public:
 	inline operator fix32() const { return y; }
 
 private:
-	fix32 alpha;
+	fix32 alpha; // close to 0, higher = less filtering
 	fix32 y = 0;
 	u32 sampleFreq;
 	fix32 lowerBound = 0;

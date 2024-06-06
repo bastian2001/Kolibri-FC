@@ -6,6 +6,8 @@ interp_config sinInterpConfig0, sinInterpConfig1;
 const fix32 FIX_PI = PI;
 const fix32 FIX_2PI = 2 * PI;
 const fix32 FIX_PI_2 = PI / 2;
+const fix32 FIX_RAD_TO_DEG = 180 / PI;
+const fix32 FIX_DEG_TO_RAD = PI / 180;
 
 void initFixTrig() {
 	for (int i = 0; i <= 256; i++) {

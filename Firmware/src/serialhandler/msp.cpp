@@ -343,9 +343,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::MSP_ATTITUDE: {
 			// not used by Kolibri configurator, that uses GET_ROTATION
-			i16 rollInt = -roll * (RAD_TO_DEG * 10);
-			i16 pitchInt = pitch * (RAD_TO_DEG * 10);
-			i16 yawInt = combinedHeading.getf32() * (RAD_TO_DEG);
+			i16 rollInt = -roll * (RAD_TO_DEG * 10); // decidegrees
+			i16 pitchInt = pitch * (RAD_TO_DEG * 10); // decidegrees
+			i16 yawInt = (combinedHeading * FIX_RAD_TO_DEG).geti32(); // degrees
 			buf[len++] = rollInt & 0xFF;
 			buf[len++] = rollInt >> 8;
 			buf[len++] = pitchInt & 0xFF;
@@ -672,14 +672,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[20], &gpsMotion.velD, 4);
 			memcpy(&buf[24], &gpsMotion.gSpeed, 4);
 			memcpy(&buf[28], &gpsMotion.headMot, 4);
-			i32 cAlt = combinedAltitude.raw;
-			i32 vVelRaw = vVel.raw;
-			memcpy(&buf[32], &cAlt, 4);
-			memcpy(&buf[36], &vVelRaw, 4);
+			memcpy(&buf[32], &combinedAltitude.raw, 4);
+			memcpy(&buf[36], &vVel.raw, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 40);
 		} break;
 		case MspFn::GET_MAG_DATA: {
-			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.geti32(), (i16)magY.geti32(), (i16)(magHeading * 180 / (fix32)PI).geti32()};
+			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.geti32(), (i16)magY.geti32(), (i16)(magHeading * FIX_RAD_TO_DEG).geti32()};
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, 12);
 		} break;
 		case MspFn::GET_ROTATION: {

@@ -433,7 +433,7 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = a >> 8;
 	}
 	if (currentBBFlags & LOG_VVEL_SETPOINT) {
-		i16 v = (i16)(vVelSetpoint.raw >> 4) * ((u8)flightMode >= 2);
+		i16 v = (i16)(vVelSetpoint.raw >> 4) * ((u32)flightMode >= 2);
 		bbBuffer[bufferPos++] = v;
 		bbBuffer[bufferPos++] = v >> 8;
 	}

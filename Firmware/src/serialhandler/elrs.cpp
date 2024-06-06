@@ -114,7 +114,7 @@ void ExpressLRS::loop() {
 			data += 10000; // dm + 10000
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			data = vVel.raw / 655;
+			data = vVel.raw / 655; // cm/s
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
 			this->sendPacket(CRSF_FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);

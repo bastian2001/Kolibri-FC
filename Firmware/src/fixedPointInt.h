@@ -410,11 +410,6 @@ public:
 	inline constexpr fix32 operator*(const fix64 other) const {
 		return fix32().setRaw((i32)(((i64)this->raw * (i64)other.raw) >> 32));
 	};
-	inline constexpr fix64 multiply64(const fix64 other) const {
-		i64 result = other.raw * (this->raw >> 16);
-		result += (other.raw >> 16) * (this->raw & 0xFFFF);
-		return fix64().setRaw(result);
-	};
 	inline constexpr fix32 operator/(const fix64 other) const {
 		return fix32().setRaw((i32)(((i64)this->raw << 32) / (i64)other.raw));
 	};
@@ -467,6 +462,8 @@ public:
 extern const fix32 FIX_PI;
 extern const fix32 FIX_2PI;
 extern const fix32 FIX_PI_2;
+extern const fix32 FIX_RAD_TO_DEG;
+extern const fix32 FIX_DEG_TO_RAD;
 
 inline constexpr fix64::fix64(const fix32 v) {
 	this->raw = (i64)v.raw << 16;
@@ -481,13 +478,10 @@ inline constexpr fix64 fix64::operator-(const fix32 other) const {
 	return fix64().setRaw(this->raw - (((i64)other.raw) << 16));
 }
 inline constexpr fix64 fix64::operator*(const fix32 other) const {
-	i32 sign0 = this->sign();
-	i32 sign1 = other.sign();
-	i32 sign = sign0 * sign1;
-	i64 raw0pos = this->raw * sign0;
-	i32 raw1pos = other.raw * sign1;
-	i64 lo = (raw0pos & 0xFFFFFFFFLL) * raw1pos;
-	i64 hi = (raw0pos >> 32) * raw1pos;
+	i32 sign = this->sign();
+	i64 pos = this->raw * sign;
+	i64 lo = (pos & 0xFFFFFFFFLL) * other.raw;
+	i64 hi = (pos >> 32) * other.raw;
 	hi <<= 16;
 	lo >>= 16;
 	return fix64().setRaw((hi + lo) * sign);

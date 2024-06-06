@@ -252,8 +252,6 @@ bool testFixedPoint() {
 	b1 = 10000;
 	Expect(a1 * b1).withIndex(101).toEqual(25000);
 	Expect(a1 * -b1).withIndex(102).toEqual(-25000);
-	Expect(a1.multiply64(b1).getf32()).withIndex(103).toEqual(25000);
-	Expect(a1.multiply64(-b1).getf32()).withIndex(104).toEqual(-25000);
 	Expect(a1 / b1).withIndex(105).toBeGreaterThan(0.00024);
 	Expect(a1 / b1).withIndex(106).toBeLessThan(0.00026);
 	Expect(a1 += b1).withIndex(107).toEqual(10002.5);
@@ -314,6 +312,9 @@ bool testFixedPoint() {
 	Expect(-b1 + -a1).withIndex(148).toEqual(-50974.50000762939453125);
 	Expect(b1 - a1).withIndex(149).toEqual(50969.50000762939453125);
 	Expect(b1 * a1).withIndex(150).toEqual(127430.000019073486328125);
+	Expect(b1 * -a1).withIndex(150).toEqual(-127430.000019073486328125);
+	Expect(-b1 * a1).withIndex(150).toEqual(-127430.000019073486328125);
+	Expect(-b1 * -a1).withIndex(150).toEqual(127430.000019073486328125);
 	Expect(b1 / a1).withIndex(151).toEqual(20388.8000030517578125);
 	Expect(b1 / fix32(0.0078125)).withIndex(151).toEqual(6524416.0009765625);
 	Expect(b1 + 2).withIndex(152).toEqual(50974.00000762939453125);
