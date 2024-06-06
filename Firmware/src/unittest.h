@@ -56,72 +56,72 @@ public:
 		return *this;
 	}
 	Expect toEqual(T expected) {
-		if (value != expected) {
-			failed++;
-			printFailed();
-			printValueExpected("is not equal to", expected);
-		} else {
+		if (value == expected) {
 			succeeded++;
 			if (!silentLogging) {
 				printOk();
 				printValueExpected("is equal to", expected);
 			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not equal to", expected);
 		}
 		return *this;
 	}
 	Expect toBeGreaterThan(T expected) {
-		if (value <= expected) {
-			failed++;
-			printFailed();
-			printValueExpected("is not greater than", expected);
-		} else {
+		if (value > expected) {
 			succeeded++;
 			if (!silentLogging) {
 				printOk();
 				printValueExpected("is greater than", expected);
 			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not greater than", expected);
 		}
 		return *this;
 	}
 	Expect toBeGreaterThanOrEqual(T expected) {
-		if (value < expected) {
-			failed++;
-			printFailed();
-			printValueExpected("is not greater than or equal to", expected);
-		} else {
+		if (value >= expected) {
 			succeeded++;
 			if (!silentLogging) {
 				printOk();
 				printValueExpected("is greater than or equal to", expected);
 			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not greater than or equal to", expected);
 		}
 		return *this;
 	}
 	Expect toBeLessThan(T expected) {
-		if (value >= expected) {
-			failed++;
-			printFailed();
-			printValueExpected("is not less than", expected);
-		} else {
+		if (value < expected) {
 			succeeded++;
 			if (!silentLogging) {
 				printOk();
 				printValueExpected("is less than", expected);
 			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not less than", expected);
 		}
 		return *this;
 	}
 	Expect toBeLessThanOrEqual(T expected) {
-		if (value > expected) {
-			failed++;
-			printFailed();
-			printValueExpected("is not less than or equal to", expected);
-		} else {
+		if (value <= expected) {
 			succeeded++;
 			if (!silentLogging) {
 				printOk();
 				printValueExpected("is less than or equal to", expected);
 			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not less than or equal to", expected);
 		}
 		return *this;
 	}
@@ -133,31 +133,29 @@ private:
 
 	void printOk() {
 		if (ind != -1 && identifier[0] != '\0') {
-			Serial.printf("Ok %s[%3d]: ", identifier, ind);
+			Serial.printf("Ok     %s[%3d]: ", identifier, ind);
 		} else if (identifier[0] != '\0') {
-			Serial.printf("Ok %s: ", identifier);
+			Serial.printf("Ok          %s: ", identifier);
 		} else if (ind != -1) {
-			Serial.printf("Ok [%3d]: ", ind);
+			Serial.printf("Ok       [%3d]: ", ind);
 		} else {
-			Serial.printf("Ok: ");
+			Serial.printf("Ok            : ");
 		}
 	}
 	void printFailed() {
 		if (ind != -1 && identifier[0] != '\0') {
 			Serial.printf("Failed %s[%3d]: ", identifier, ind);
 		} else if (identifier[0] != '\0') {
-			Serial.printf("Failed %s: ", identifier);
+			Serial.printf("Failed      %s: ", identifier);
 		} else if (ind != -1) {
-			Serial.printf("Failed [%3d]: ", ind);
+			Serial.printf("Failed   [%3d]: ", ind);
 		} else {
-			Serial.printf("Failed: ");
+			Serial.printf("Failed        : ");
 		}
 	}
 	void printValueExpected(const char *msg, T expected) {
 		Serial.printf(Fmt<T>::f, value);
-		Serial.print(' ');
-		Serial.print(msg);
-		Serial.print(' ');
+		Serial.printf(" %28s ", msg);
 		Serial.printf(Fmt<T>::f, expected);
 		Serial.println();
 	}

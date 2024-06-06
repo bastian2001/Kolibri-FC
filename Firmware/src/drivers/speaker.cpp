@@ -446,7 +446,7 @@ void makeRtttlSound(const char *song) {
 			int octave = parseInt(song, &i);
 			if (octave == 0)
 				octave = o;
-			songToPlay.notes[noteIndex].frequency = (noteFrequencies[note] << octave).getInt();
+			songToPlay.notes[noteIndex].frequency = (noteFrequencies[note] << octave).getu32();
 			if (song[i] == '.') {
 				songToPlay.notes[noteIndex].duration = songToPlay.notes[noteIndex].duration * 3 / 2;
 				i++;

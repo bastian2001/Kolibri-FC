@@ -672,14 +672,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[20], &gpsMotion.velD, 4);
 			memcpy(&buf[24], &gpsMotion.gSpeed, 4);
 			memcpy(&buf[28], &gpsMotion.headMot, 4);
-			i32 cAlt = combinedAltitude.getRaw();
-			i32 vVelRaw = vVel.getRaw();
+			i32 cAlt = combinedAltitude.raw;
+			i32 vVelRaw = vVel.raw;
 			memcpy(&buf[32], &cAlt, 4);
 			memcpy(&buf[36], &vVelRaw, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 40);
 		} break;
 		case MspFn::GET_MAG_DATA: {
-			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.getInt(), (i16)magY.getInt(), (i16)(magHeading * 180 / (fix32)PI).getInt()};
+			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.geti32(), (i16)magY.geti32(), (i16)(magHeading * 180 / (fix32)PI).geti32()};
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, 12);
 		} break;
 		case MspFn::GET_ROTATION: {
@@ -687,7 +687,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			int rotationPitch = pitch * 8192;
 			int rotationRoll = roll * 8192;
 			int rotationYaw = yaw * 8192;
-			int heading = combinedHeading.getRaw() >> 3;
+			int heading = combinedHeading.raw >> 3;
 			buf[0] = rotationPitch & 0xFF;
 			buf[1] = rotationPitch >> 8;
 			buf[2] = rotationRoll & 0xFF;
@@ -720,12 +720,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::GET_PIDS: {
 			u16 pids[3][7];
 			for (int i = 0; i < 3; i++) {
-				pids[i][0] = pidGains[i][0].getRaw() >> P_SHIFT;
-				pids[i][1] = pidGains[i][1].getRaw() >> I_SHIFT;
-				pids[i][2] = pidGains[i][2].getRaw() >> D_SHIFT;
-				pids[i][3] = pidGains[i][3].getRaw() >> FF_SHIFT;
-				pids[i][4] = pidGains[i][4].getRaw() >> S_SHIFT;
-				pids[i][5] = pidGains[i][5].getRaw() & 0xFFFF;
+				pids[i][0] = pidGains[i][0].raw >> P_SHIFT;
+				pids[i][1] = pidGains[i][1].raw >> I_SHIFT;
+				pids[i][2] = pidGains[i][2].raw >> D_SHIFT;
+				pids[i][3] = pidGains[i][3].raw >> FF_SHIFT;
+				pids[i][4] = pidGains[i][4].raw >> S_SHIFT;
+				pids[i][5] = pidGains[i][5].raw & 0xFFFF;
 				pids[i][6] = 0;
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)pids, sizeof(pids));
@@ -748,7 +748,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 rates[3][5];
 			for (int i = 0; i < 3; i++)
 				for (int j = 0; j < 5; j++)
-					rates[i][j] = rateFactors[j][i].getInt();
+					rates[i][j] = rateFactors[j][i].geti32();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)rates, sizeof(rates));
 		} break;
 		case MspFn::SET_RATES: {

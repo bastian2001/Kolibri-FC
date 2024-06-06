@@ -7,12 +7,12 @@ void readEEPROM() {
 		i32 pg[3][7];
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 7; j++)
-				pg[i][j] = pidGains[i][j].getRaw();
+				pg[i][j] = pidGains[i][j].raw;
 		EEPROM.put((u16)EEPROM_POS::PID_GAINS, pg);
 		i32 rf[5][3];
 		for (int i = 0; i < 5; i++)
 			for (int j = 0; j < 3; j++)
-				rf[i][j] = rateFactors[i][j].getRaw();
+				rf[i][j] = rateFactors[i][j].raw;
 		EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rf);
 		EEPROM.put((u16)EEPROM_POS::BB_FLAGS, (u64)0);
 		EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, (u8)2);

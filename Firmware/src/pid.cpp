@@ -205,8 +205,8 @@ void pidLoop() {
 				nVelSetpoint *= 12; //+-12m/s
 				eVelError = eVelSetpoint - eVel;
 				nVelError = nVelSetpoint - nVel;
-				eVelErrorSum += eVelError;
-				nVelErrorSum += nVelError;
+				eVelErrorSum = eVelErrorSum + eVelError;
+				nVelErrorSum = nVelErrorSum + nVelError;
 				eVelP = pidGainsHVel[P] * eVelError;
 				nVelP = pidGainsHVel[P] * nVelError;
 				eVelI = pidGainsHVel[I] * eVelErrorSum;
@@ -267,7 +267,7 @@ void pidLoop() {
 					stickWasCentered = 0;
 				}
 				vVelError = vVelSetpoint - vVel;
-				vVelErrorSum += vVelFFFilter.update(vVelSetpoint - vVelLastSetpoint).abs() < fix32(0.001f) ? vVelError : vVelError / 2; // reduce windup during fast changes
+				vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(vVelSetpoint - vVelLastSetpoint).abs() < fix32(0.001f)) ? vVelError : vVelError / 2); // reduce windup during fast changes
 				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 				vVelP = pidGainsVVel[P] * vVelError;
 				vVelI = pidGainsVVel[I] * vVelErrorSum;
@@ -275,7 +275,7 @@ void pidLoop() {
 				vVelFF = pidGainsVVel[FF] * vVelFFFilter * 2;
 				vVelLastSetpoint = vVelSetpoint;
 				throttle = vVelP + vVelI + vVelD + vVelFF;
-				throttle = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
+				throttle = constrain(throttle.geti32(), IDLE_PERMILLE * 2, 2000);
 			} else {
 				vVelErrorSum = 0;
 			}
@@ -312,9 +312,9 @@ void pidLoop() {
 			yawErrorSum = pidGains[2][iFalloff].multiply64(yawErrorSum);
 		}
 
-		rollErrorSum += rollError;
-		pitchErrorSum += pitchError;
-		yawErrorSum += yawError;
+		rollErrorSum = rollErrorSum + rollError;
+		pitchErrorSum = pitchErrorSum + pitchError;
+		yawErrorSum = yawErrorSum + yawError;
 
 		rollP = pidGains[0][P] * rollError;
 		pitchP = pidGains[1][P] * pitchError;
@@ -352,10 +352,10 @@ void pidLoop() {
 		tRL = throttle + rollTerm + pitchTerm + yawTerm;
 		tFL = throttle + rollTerm - pitchTerm - yawTerm;
 #endif
-		throttles[(u8)MOTOR::RR] = map(tRR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::RL] = map(tRL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::FR] = map(tFR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::FL] = map(tFL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::RR] = map(tRR.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::RL] = map(tRL.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::FR] = map(tFR.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::FL] = map(tFL.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
 		if (throttles[(u8)MOTOR::RR] > 2000) {
 			i16 diff = throttles[(u8)MOTOR::RR] - 2000;
 			throttles[(u8)MOTOR::RR] = 2000;
