@@ -110,11 +110,11 @@ void ExpressLRS::loop() {
 		} break;
 		case 3: {
 			// Baro Altitude (0x09)
-			i32 data = combinedAltitude.getRaw() / 6554; // dm;
+			i32 data = combinedAltitude.raw / 6554; // dm;
 			data += 10000; // dm + 10000
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			data = vVel.getRaw() / 655;
+			data = vVel.raw / 655; // cm/s
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
 			this->sendPacket(CRSF_FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);
@@ -134,19 +134,19 @@ void ExpressLRS::loop() {
 		case 5:
 			// Flight Mode (0x21)
 			switch (flightMode) {
-			case FLIGHT_MODE::ACRO:
+			case FlightMode::ACRO:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Acro", 5);
 				break;
-			case FLIGHT_MODE::ANGLE:
+			case FlightMode::ANGLE:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Angle", 6);
 				break;
-			case FLIGHT_MODE::ALT_HOLD:
+			case FlightMode::ALT_HOLD:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
 				break;
-			case FLIGHT_MODE::GPS_VEL:
+			case FlightMode::GPS_VEL:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
 				break;
-			case FLIGHT_MODE::GPS_POS:
+			case FlightMode::GPS_POS:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Position", 13);
 				break;
 			}
@@ -278,7 +278,7 @@ void ExpressLRS::processMessage() {
 		getSmoothChannels(smooth);
 		u32 smooth2[4];
 		for (int i = 0; i < 4; i++) {
-			smooth2[i] = smooth[i].getInt();
+			smooth2[i] = smooth[i].geti32();
 		}
 		memcpy(lastChannels, smooth2, 4 * sizeof(u32));
 		memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
@@ -431,7 +431,7 @@ void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 	}
 	interp1->base[0] = 1000 << 16;
 	interp1->base[1] = 2000 << 16;
-	interp1->accum[0] = smoothChannels[2].getRaw();
+	interp1->accum[0] = smoothChannels[2].raw;
 	smoothChannels[2].setRaw(interp1->peek[0]);
 }
 

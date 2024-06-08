@@ -15,9 +15,9 @@ const f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, b
 const f32 FRAME_TIME = 1. / 3200;
 const f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 const f32 ANGLE_CHANGE_LIMIT = .0002;
-const fix32 RAW_TO_M2_PER_SEC = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
-
+const fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
+
 
 f32 pitch, roll, yaw;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
@@ -111,19 +111,20 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
 	yaw = atan2f(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
 	fix32 temp = (fix32)magHeadingCorrection + yaw;
-	if (temp > fix32(PI)) {
-		temp -= fix32(PI) * 2;
-	} else if (temp < fix32(-PI)) {
-		temp += fix32(PI) * 2;
+	if (temp >= FIX_PI) {
+		temp -= FIX_2PI;
+	} else if (temp < -FIX_PI) {
+		temp += FIX_2PI;
 	}
 	combinedHeading = temp;
 
 	fix32 preHelper = vVelHelper;
 	startFixTrig();
-	vAccel = cosFix((fix32)roll) * cosFix((fix32)pitch) * accelDataFiltered[2] * RAW_TO_M2_PER_SEC;
-	vAccel += sinFix((fix32)roll) * cosFix((fix32)pitch) * accelDataFiltered[0] * RAW_TO_M2_PER_SEC;
-	vAccel -= sinFix((fix32)pitch) * accelDataFiltered[1] * RAW_TO_M2_PER_SEC;
-	vVelHelper += (vAccel - 9.81f) / 3200;
+	fix32 cosPitch = cosFix(pitch);
+	vAccel = cosFix(roll) * cosPitch * accelDataFiltered[2] * RAW_TO_M_PER_SEC2;
+	vAccel += sinFix(roll) * cosPitch * accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
+	vAccel -= sinFix(pitch) * accelDataFiltered[1] * RAW_TO_M_PER_SEC2;
+	vVelHelper += (vAccel - fix32(9.81f)) / 3200;
 	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	vVel += vVelHelper - preHelper;
 	f32 measVel;

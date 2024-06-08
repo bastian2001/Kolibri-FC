@@ -1,160 +1,18 @@
+#pragma once
 #include <typedefs.h>
 
 void runUnitTests();
 
-class Expect {
+template <typename T>
+struct Fmt {
+	static const char *f;
+};
+
+class ExpectBase {
 public:
-	Expect(i32 value) : value(value) {}
-	Expect withName(const char *n) { return name(n); }
-	Expect name(const char *name) {
-		strncpy(identifier, name, 32);
-		return *this;
-	}
-	Expect withIndex(i32 i) { return index(i); }
-	Expect index(i32 i) {
-		this->ind = i;
-		return *this;
-	}
-	Expect toEqual(i32 expected) {
-		if (value != expected) {
-			failed++;
-			if (ind != -1 && identifier[0] != '\0') {
-				Serial.printf("Failed %s[%2d]: %4d is not equal to %d\n", identifier, ind, value, expected);
-			} else if (identifier[0] != '\0') {
-				Serial.printf("Failed %s: %4d is not equal to %d\n", identifier, value, expected);
-			} else if (ind != -1) {
-				Serial.printf("Failed [%2d]: %4d is not equal to %d\n", ind, value, expected);
-			} else {
-				Serial.printf("Failed: %4d is not equal to %d\n", value, expected);
-			}
-		} else {
-			succeeded++;
-			if (!silentLogging) {
-				if (ind != -1 && identifier[0] != '\0') {
-					Serial.printf("Ok %s[%2d]: %4d is equal to %d\n", identifier, ind, value, expected);
-				} else if (identifier[0] != '\0') {
-					Serial.printf("Ok %s: %4d is equal to %d\n", identifier, value, expected);
-				} else if (ind != -1) {
-					Serial.printf("Ok [%2d]: %4d is equal to %d\n", ind, value, expected);
-				} else {
-					Serial.printf("Ok: %4d is equal to %d\n", value, expected);
-				}
-			}
-		}
-		return *this;
-	}
-	Expect toBeGreaterThan(i32 expected) {
-		if (value <= expected) {
-			failed++;
-			if (ind != -1 && identifier[0] != '\0') {
-				Serial.printf("Failed %s[%2d]: %4d is not greater than %d\n", identifier, ind, value, expected);
-			} else if (identifier[0] != '\0') {
-				Serial.printf("Failed %s: %4d is not greater than %d\n", identifier, value, expected);
-			} else if (ind != -1) {
-				Serial.printf("Failed [%2d]: %4d is not greater than %d\n", ind, value, expected);
-			} else {
-				Serial.printf("Failed: %4d is not greater than %d\n", value, expected);
-			}
-		} else {
-			succeeded++;
-			if (!silentLogging) {
-				if (ind != -1 && identifier[0] != '\0') {
-					Serial.printf("Ok %s[%2d]: %4d is greater than %d\n", identifier, ind, value, expected);
-				} else if (identifier[0] != '\0') {
-					Serial.printf("Ok %s: %4d is greater than %d\n", identifier, value, expected);
-				} else if (ind != -1) {
-					Serial.printf("Ok [%2d]: %4d is greater than %d\n", ind, value, expected);
-				} else {
-					Serial.printf("Ok: %4d is greater than %d\n", value, expected);
-				}
-			}
-		}
-		return *this;
-	}
-	Expect toBeGreaterThanOrEqual(i32 expected) {
-		if (value < expected) {
-			failed++;
-			if (ind != -1 && identifier[0] != '\0') {
-				Serial.printf("Failed %s[%2d]: %4d is not greater than or equal to %d\n", identifier, ind, value, expected);
-			} else if (identifier[0] != '\0') {
-				Serial.printf("Failed %s: %4d is not greater than or equal to %d\n", identifier, value, expected);
-			} else if (ind != -1) {
-				Serial.printf("Failed [%2d]: %4d is not greater than or equal to %d\n", ind, value, expected);
-			} else {
-				Serial.printf("Failed: %4d is not greater than or equal to %d\n", value, expected);
-			}
-		} else {
-			succeeded++;
-			if (!silentLogging) {
-				if (ind != -1 && identifier[0] != '\0') {
-					Serial.printf("Ok %s[%2d]: %4d is greater than or equal to %d\n", identifier, ind, value, expected);
-				} else if (identifier[0] != '\0') {
-					Serial.printf("Ok %s: %4d is greater than or equal to %d\n", identifier, value, expected);
-				} else if (ind != -1) {
-					Serial.printf("Ok [%2d]: %4d is greater than or equal to %d\n", ind, value, expected);
-				} else {
-					Serial.printf("Ok: %4d is greater than or equal to %d\n", value, expected);
-				}
-			}
-		}
-		return *this;
-	}
-	Expect toBeLessThan(i32 expected) {
-		if (value >= expected) {
-			failed++;
-			if (ind != -1 && identifier[0] != '\0') {
-				Serial.printf("Failed %s[%2d]: %4d is not less than %d\n", identifier, ind, value, expected);
-			} else if (identifier[0] != '\0') {
-				Serial.printf("Failed %s: %4d is not less than %d\n", identifier, value, expected);
-			} else if (ind != -1) {
-				Serial.printf("Failed [%2d]: %4d is not less than %d\n", ind, value, expected);
-			} else {
-				Serial.printf("Failed: %4d is not less than %d\n", value, expected);
-			}
-		} else {
-			succeeded++;
-			if (!silentLogging) {
-				if (ind != -1 && identifier[0] != '\0') {
-					Serial.printf("Ok %s[%2d]: %4d is less than %d\n", identifier, ind, value, expected);
-				} else if (identifier[0] != '\0') {
-					Serial.printf("Ok %s: %4d is less than %d\n", identifier, value, expected);
-				} else if (ind != -1) {
-					Serial.printf("Ok [%2d]: %4d is less than %d\n", ind, value, expected);
-				} else {
-					Serial.printf("Ok: %4d is less than %d\n", value, expected);
-				}
-			}
-		}
-		return *this;
-	}
-	Expect toBeLessThanOrEqual(i32 expected) {
-		if (value > expected) {
-			failed++;
-			if (ind != -1 && identifier[0] != '\0') {
-				Serial.printf("Failed %s[%2d]: %4d is not less than or equal to %d\n", identifier, ind, value, expected);
-			} else if (identifier[0] != '\0') {
-				Serial.printf("Failed %s: %4d is not less than or equal to %d\n", identifier, value, expected);
-			} else if (ind != -1) {
-				Serial.printf("Failed [%2d]: %4d is not less than or equal to %d\n", ind, value, expected);
-			} else {
-				Serial.printf("Failed: %4d is not less than or equal to %d\n", value, expected);
-			}
-		} else {
-			succeeded++;
-			if (!silentLogging) {
-				if (ind != -1 && identifier[0] != '\0') {
-					Serial.printf("Ok %s[%2d]: %4d is less than or equal to %d\n", identifier, ind, value, expected);
-				} else if (identifier[0] != '\0') {
-					Serial.printf("Ok %s: %4d is less than or equal to %d\n", identifier, value, expected);
-				} else if (ind != -1) {
-					Serial.printf("Ok [%2d]: %4d is less than or equal to %d\n", ind, value, expected);
-				} else {
-					Serial.printf("Ok: %4d is less than or equal to %d\n", value, expected);
-				}
-			}
-		}
-		return *this;
-	}
+	static u32 failed;
+	static u32 succeeded;
+	static bool silentLogging;
 
 	static void enableSilent(bool silent = true) {
 		silentLogging = silent;
@@ -181,12 +39,124 @@ public:
 		}
 		return ret;
 	}
+};
+
+template <typename T>
+class Expect : ExpectBase {
+public:
+	Expect(T value) : value(value) {}
+	Expect withName(const char *n) { return name(n); }
+	Expect name(const char *name) {
+		strncpy(identifier, name, 32);
+		return *this;
+	}
+	Expect withIndex(i32 i) { return index(i); }
+	Expect index(i32 i) {
+		this->ind = i;
+		return *this;
+	}
+	Expect toEqual(T expected) {
+		if (value == expected) {
+			succeeded++;
+			if (!silentLogging) {
+				printOk();
+				printValueExpected("is equal to", expected);
+			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not equal to", expected);
+		}
+		return *this;
+	}
+	Expect toBeGreaterThan(T expected) {
+		if (value > expected) {
+			succeeded++;
+			if (!silentLogging) {
+				printOk();
+				printValueExpected("is greater than", expected);
+			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not greater than", expected);
+		}
+		return *this;
+	}
+	Expect toBeGreaterThanOrEqual(T expected) {
+		if (value >= expected) {
+			succeeded++;
+			if (!silentLogging) {
+				printOk();
+				printValueExpected("is greater than or equal to", expected);
+			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not greater than or equal to", expected);
+		}
+		return *this;
+	}
+	Expect toBeLessThan(T expected) {
+		if (value < expected) {
+			succeeded++;
+			if (!silentLogging) {
+				printOk();
+				printValueExpected("is less than", expected);
+			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not less than", expected);
+		}
+		return *this;
+	}
+	Expect toBeLessThanOrEqual(T expected) {
+		if (value <= expected) {
+			succeeded++;
+			if (!silentLogging) {
+				printOk();
+				printValueExpected("is less than or equal to", expected);
+			}
+		} else {
+			failed++;
+			printFailed();
+			printValueExpected("is not less than or equal to", expected);
+		}
+		return *this;
+	}
 
 private:
-	i32 value;
-	static u32 failed;
-	static u32 succeeded;
+	T value;
 	i32 ind = -1;
 	char identifier[32] = "";
-	static bool silentLogging;
+
+	void printOk() {
+		if (ind != -1 && identifier[0] != '\0') {
+			Serial.printf("Ok     %s[%3d]: ", identifier, ind);
+		} else if (identifier[0] != '\0') {
+			Serial.printf("Ok          %s: ", identifier);
+		} else if (ind != -1) {
+			Serial.printf("Ok       [%3d]: ", ind);
+		} else {
+			Serial.printf("Ok            : ");
+		}
+	}
+	void printFailed() {
+		if (ind != -1 && identifier[0] != '\0') {
+			Serial.printf("Failed %s[%3d]: ", identifier, ind);
+		} else if (identifier[0] != '\0') {
+			Serial.printf("Failed      %s: ", identifier);
+		} else if (ind != -1) {
+			Serial.printf("Failed   [%3d]: ", ind);
+		} else {
+			Serial.printf("Failed        : ");
+		}
+	}
+	void printValueExpected(const char *msg, T expected) {
+		Serial.printf(Fmt<T>::f, value);
+		Serial.printf(" %28s ", msg);
+		Serial.printf(Fmt<T>::f, expected);
+		Serial.println();
+	}
 };

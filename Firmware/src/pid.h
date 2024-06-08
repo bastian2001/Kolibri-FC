@@ -42,7 +42,7 @@ extern fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000is
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
 extern u16 condensedRpm[4]; // condensed ERPM periods for the motors (eeem mmmm mmmm)
-enum class FLIGHT_MODE {
+enum class FlightMode {
 	ACRO,
 	ANGLE,
 	ALT_HOLD,
@@ -50,7 +50,7 @@ enum class FLIGHT_MODE {
 	GPS_POS, // set a position and hold it/fly to it
 	LENGTH // place behind all other modes, acts as a limit for loops etc.
 };
-extern FLIGHT_MODE flightMode; // currently selected flight mode (NOT whether the drone is armed)
+extern FlightMode flightMode; // currently selected flight mode (NOT whether the drone is armed)
 
 /**
  * @brief PID controller loop

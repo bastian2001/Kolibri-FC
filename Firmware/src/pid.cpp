@@ -3,7 +3,7 @@
 i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
 i16 *gyroDataRaw;
 i16 *accelDataRaw;
-FLIGHT_MODE flightMode = FLIGHT_MODE::ACRO;
+FlightMode flightMode = FlightMode::ACRO;
 
 #define MAX_ANGLE 35 // degrees
 
@@ -38,8 +38,6 @@ u32 pidLoopCounter = 0;
 
 fix32 rateFactors[5][3];
 fix64 vVelMaxErrorSum, vVelMinErrorSum;
-#undef RAD_TO_DEG
-const fix32 RAD_TO_DEG = fix32(180) / PI;
 const fix32 TO_ANGLE = fix32(MAX_ANGLE) / fix32(512);
 fix32 smoothChannels[4];
 u16 condensedRpm[4];
@@ -186,27 +184,27 @@ void pidLoop() {
 		rollSetpoint = 0;
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
-		if (flightMode == FLIGHT_MODE::ANGLE || flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
+		if (flightMode == FlightMode::ANGLE || flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 			fix32 dRoll;
 			fix32 dPitch;
-			if (flightMode < FLIGHT_MODE::GPS_VEL) {
-				dRoll = (smoothChannels[0] - 1500) * TO_ANGLE + (RAD_TO_DEG * roll);
-				dPitch = (smoothChannels[1] - 1500) * TO_ANGLE - (RAD_TO_DEG * pitch);
+			if (flightMode < FlightMode::GPS_VEL) {
+				dRoll = (smoothChannels[0] - 1500) * TO_ANGLE + (FIX_RAD_TO_DEG * roll);
+				dPitch = (smoothChannels[1] - 1500) * TO_ANGLE - (FIX_RAD_TO_DEG * pitch);
 				rollSetpoint = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
-			} else if (flightMode == FLIGHT_MODE::GPS_VEL) {
-				fix32 cosfhead = cosFix(magHeading / 180 * FIX_PI);
-				fix32 sinfhead = sinFix(magHeading / 180 * FIX_PI);
+			} else if (flightMode == FlightMode::GPS_VEL) {
+				fix32 cosfhead = cosFix(magHeading * FIX_DEG_TO_RAD);
+				fix32 sinfhead = sinFix(magHeading * FIX_DEG_TO_RAD);
 				eVelSetpoint = cosfhead * (smoothChannels[0] - 1500) + sinfhead * (smoothChannels[1] - 1500);
 				nVelSetpoint = -sinfhead * (smoothChannels[0] - 1500) + cosfhead * (smoothChannels[1] - 1500);
-				eVelSetpoint = eVelSetpoint >> 9; //+-500 => +-1
-				nVelSetpoint = nVelSetpoint >> 9; //+-500 => +-1
+				eVelSetpoint = eVelSetpoint >> 9; //+-512 => +-1
+				nVelSetpoint = nVelSetpoint >> 9; //+-512 => +-1
 				eVelSetpoint *= 12; //+-12m/s
 				nVelSetpoint *= 12; //+-12m/s
 				eVelError = eVelSetpoint - eVel;
 				nVelError = nVelSetpoint - nVel;
-				eVelErrorSum += eVelError;
-				nVelErrorSum += nVelError;
+				eVelErrorSum = eVelErrorSum + eVelError;
+				nVelErrorSum = nVelErrorSum + nVelError;
 				eVelP = pidGainsHVel[P] * eVelError;
 				nVelP = pidGainsHVel[P] * nVelError;
 				eVelI = pidGainsHVel[I] * eVelErrorSum;
@@ -220,8 +218,8 @@ void pidLoop() {
 				fix32 targetPitch = eVelPID * sinfhead + nVelPID * cosfhead;
 				targetRoll = constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
 				targetPitch = constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
-				dRoll = targetRoll + (RAD_TO_DEG * roll);
-				dPitch = targetPitch - (RAD_TO_DEG * pitch);
+				dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
+				dPitch = targetPitch - (FIX_RAD_TO_DEG * pitch);
 				rollSetpoint = dRoll * velocityModeP;
 				pitchSetpoint = dPitch * velocityModeP;
 			}
@@ -235,7 +233,7 @@ void pidLoop() {
 			for (int i = 0; i < 5; i++)
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 
-			if (flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
+			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 				fix32 t = throttle - 1000;
 				static PT1 vVelDFilter(15, 3200);
 				static PT1 vVelFFFilter(2, 3200);
@@ -267,7 +265,7 @@ void pidLoop() {
 					stickWasCentered = 0;
 				}
 				vVelError = vVelSetpoint - vVel;
-				vVelErrorSum += vVelFFFilter.update(vVelSetpoint - vVelLastSetpoint).abs() < fix32(0.001f) ? vVelError : vVelError / 2; // reduce windup during fast changes
+				vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(vVelSetpoint - vVelLastSetpoint).abs() < fix32(0.001f)) ? vVelError : vVelError / 2); // reduce windup during fast changes
 				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 				vVelP = pidGainsVVel[P] * vVelError;
 				vVelI = pidGainsVVel[I] * vVelErrorSum;
@@ -275,13 +273,12 @@ void pidLoop() {
 				vVelFF = pidGainsVVel[FF] * vVelFFFilter * 2;
 				vVelLastSetpoint = vVelSetpoint;
 				throttle = vVelP + vVelI + vVelD + vVelFF;
-				throttle = constrain(throttle.getInt(), IDLE_PERMILLE * 2, 2000);
-			} else {
-				vVelErrorSum = 0;
+				throttle = constrain(throttle.geti32(), IDLE_PERMILLE * 2, 2000);
 			}
 			vVelLast = vVel;
-		} else if (flightMode == FLIGHT_MODE::ACRO) {
-			/* at full stick deflection, ...Raw values are either +1 or -1. That will make all the
+		} else if (flightMode == FlightMode::ACRO) {
+			/*
+			 * at full stick deflection, ...Raw values are either +1 or -1. That will make all the
 			 * polynomials also +/-1. Thus, the total rate for each axis is equal to the sum of all 5 rateFactors
 			 * of that axis. The center rate is the ratefactor[x][0].
 			 */
@@ -307,14 +304,14 @@ void pidLoop() {
 			takeoffCounter = 0; // if the quad hasn't "taken off" yet, reset the counter
 		if (takeoffCounter < 1000) // enable i term falloff (windup prevention) only before takeoff
 		{
-			rollErrorSum = pidGains[0][iFalloff].multiply64(rollErrorSum);
-			pitchErrorSum = pidGains[1][iFalloff].multiply64(pitchErrorSum);
-			yawErrorSum = pidGains[2][iFalloff].multiply64(yawErrorSum);
+			rollErrorSum = rollErrorSum * pidGains[0][iFalloff];
+			pitchErrorSum = pitchErrorSum * pidGains[1][iFalloff];
+			yawErrorSum = yawErrorSum * pidGains[2][iFalloff];
 		}
 
-		rollErrorSum += rollError;
-		pitchErrorSum += pitchError;
-		yawErrorSum += yawError;
+		rollErrorSum = rollErrorSum + rollError;
+		pitchErrorSum = pitchErrorSum + pitchError;
+		yawErrorSum = yawErrorSum + yawError;
 
 		rollP = pidGains[0][P] * rollError;
 		pitchP = pidGains[1][P] * pitchError;
@@ -352,10 +349,10 @@ void pidLoop() {
 		tRL = throttle + rollTerm + pitchTerm + yawTerm;
 		tFL = throttle + rollTerm - pitchTerm - yawTerm;
 #endif
-		throttles[(u8)MOTOR::RR] = map(tRR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::RL] = map(tRL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::FR] = map(tFR.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::FL] = map(tFL.getInt(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::RR] = map(tRR.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::RL] = map(tRL.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::FR] = map(tFR.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::FL] = map(tFL.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
 		if (throttles[(u8)MOTOR::RR] > 2000) {
 			i16 diff = throttles[(u8)MOTOR::RR] - 2000;
 			throttles[(u8)MOTOR::RR] = 2000;
