@@ -354,6 +354,11 @@ bool testFixedPoint() {
 	Expect(b1 != b2).withIndex(177).toEqual(true);
 	Expect(b1 > b2).withIndex(178).toEqual(true);
 	Expect(b1 < b2).withIndex(179).toEqual(false);
+	a1 = 0.03;
+	b1 = 1000;
+	b1 = b1 / a1;
+	Expect(b1).withIndex(180).toBeGreaterThan(33330);
+	Expect(b1).withIndex(181).toBeLessThan(33336);
 
 	return ExpectBase::printResults(true, "FixedPoint");
 }

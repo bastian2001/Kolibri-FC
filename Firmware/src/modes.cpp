@@ -1,6 +1,5 @@
 #include "global.h"
 bool armed = false;
-FLIGHT_MODE lastFlightMode = FLIGHT_MODE::LENGTH;
 i32 startPointLat, startPointLon;
 /**
  * 0: switch in armed position for >= 10 cycles
@@ -38,7 +37,7 @@ void modesLoop() {
 				armingDisableFlags &= 0xFFFFFFEF;
 			else
 				armingDisableFlags |= 0x00000010;
-			if (flightMode <= FLIGHT_MODE::ANGLE)
+			if (flightMode <= FlightMode::ANGLE)
 				armingDisableFlags &= 0xFFFFFFDF;
 			else
 				armingDisableFlags |= 0x00000020;
@@ -73,35 +72,34 @@ void modesLoop() {
 			if (ELRS->lastChannels[4] > 1500)
 				endLogging();
 		}
-		flightMode = (FLIGHT_MODE)((ELRS->channels[6] - 900) / 200);
-		if (flightMode >= FLIGHT_MODE::LENGTH)
-			flightMode = FLIGHT_MODE::ACRO;
-		if (flightMode != lastFlightMode) {
+		FlightMode newFlightMode = (FlightMode)((ELRS->channels[6] - 900) / 200);
+		if (newFlightMode >= FlightMode::LENGTH)
+			newFlightMode = FlightMode::ACRO;
+		if (newFlightMode != flightMode) {
 			switch (flightMode) {
-			case FLIGHT_MODE::ACRO:
+			case FlightMode::ACRO:
 				updateElem(OSDElem::FLIGHT_MODE, "ACRO ");
 				break;
-			case FLIGHT_MODE::ANGLE:
+			case FlightMode::ANGLE:
 				updateElem(OSDElem::FLIGHT_MODE, "ANGLE");
 				break;
-			case FLIGHT_MODE::ALT_HOLD:
+			case FlightMode::ALT_HOLD:
 				updateElem(OSDElem::FLIGHT_MODE, "ALT  ");
 				break;
-			case FLIGHT_MODE::GPS_VEL:
+			case FlightMode::GPS_VEL:
 				updateElem(OSDElem::FLIGHT_MODE, "GPSV ");
 				break;
-			case FLIGHT_MODE::GPS_POS:
+			case FlightMode::GPS_POS:
 				updateElem(OSDElem::FLIGHT_MODE, "GPSP ");
 				break;
 			default:
 				break;
 			}
-			if (lastFlightMode <= FLIGHT_MODE::ANGLE && flightMode > FLIGHT_MODE::ANGLE) {
+			if (flightMode <= FlightMode::ANGLE && newFlightMode > FlightMode::ANGLE) {
 				// just switched to GPS mode, make sure the quad doesn't just fall at the beginning
 				vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
-				altSetpoint = combinedAltitude;
 			}
-			lastFlightMode = flightMode;
+			flightMode = newFlightMode;
 		}
 		u32 duration = taskTimer;
 		tasks[TASK_MODES].totalDuration += duration;

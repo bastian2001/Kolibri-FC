@@ -3,7 +3,7 @@
 i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
 i16 *gyroDataRaw;
 i16 *accelDataRaw;
-FLIGHT_MODE flightMode = FLIGHT_MODE::ACRO;
+FlightMode flightMode = FlightMode::ACRO;
 
 #define MAX_ANGLE 35 // degrees
 
@@ -184,15 +184,15 @@ void pidLoop() {
 		rollSetpoint = 0;
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
-		if (flightMode == FLIGHT_MODE::ANGLE || flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
+		if (flightMode == FlightMode::ANGLE || flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 			fix32 dRoll;
 			fix32 dPitch;
-			if (flightMode < FLIGHT_MODE::GPS_VEL) {
+			if (flightMode < FlightMode::GPS_VEL) {
 				dRoll = (smoothChannels[0] - 1500) * TO_ANGLE + (FIX_RAD_TO_DEG * roll);
 				dPitch = (smoothChannels[1] - 1500) * TO_ANGLE - (FIX_RAD_TO_DEG * pitch);
 				rollSetpoint = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
-			} else if (flightMode == FLIGHT_MODE::GPS_VEL) {
+			} else if (flightMode == FlightMode::GPS_VEL) {
 				fix32 cosfhead = cosFix(magHeading * FIX_DEG_TO_RAD);
 				fix32 sinfhead = sinFix(magHeading * FIX_DEG_TO_RAD);
 				eVelSetpoint = cosfhead * (smoothChannels[0] - 1500) + sinfhead * (smoothChannels[1] - 1500);
@@ -233,7 +233,7 @@ void pidLoop() {
 			for (int i = 0; i < 5; i++)
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 
-			if (flightMode == FLIGHT_MODE::ALT_HOLD || flightMode == FLIGHT_MODE::GPS_VEL) {
+			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 				fix32 t = throttle - 1000;
 				static PT1 vVelDFilter(15, 3200);
 				static PT1 vVelFFFilter(2, 3200);
@@ -274,11 +274,9 @@ void pidLoop() {
 				vVelLastSetpoint = vVelSetpoint;
 				throttle = vVelP + vVelI + vVelD + vVelFF;
 				throttle = constrain(throttle.geti32(), IDLE_PERMILLE * 2, 2000);
-			} else {
-				vVelErrorSum = 0;
 			}
 			vVelLast = vVel;
-		} else if (flightMode == FLIGHT_MODE::ACRO) {
+		} else if (flightMode == FlightMode::ACRO) {
 			/*
 			 * at full stick deflection, ...Raw values are either +1 or -1. That will make all the
 			 * polynomials also +/-1. Thus, the total rate for each axis is equal to the sum of all 5 rateFactors

@@ -134,19 +134,19 @@ void ExpressLRS::loop() {
 		case 5:
 			// Flight Mode (0x21)
 			switch (flightMode) {
-			case FLIGHT_MODE::ACRO:
+			case FlightMode::ACRO:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Acro", 5);
 				break;
-			case FLIGHT_MODE::ANGLE:
+			case FlightMode::ANGLE:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Angle", 6);
 				break;
-			case FLIGHT_MODE::ALT_HOLD:
+			case FlightMode::ALT_HOLD:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
 				break;
-			case FLIGHT_MODE::GPS_VEL:
+			case FlightMode::GPS_VEL:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
 				break;
-			case FLIGHT_MODE::GPS_POS:
+			case FlightMode::GPS_POS:
 				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Position", 13);
 				break;
 			}
