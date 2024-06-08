@@ -98,6 +98,7 @@ void modesLoop() {
 			if (flightMode <= FlightMode::ANGLE && newFlightMode > FlightMode::ANGLE) {
 				// just switched to GPS mode, make sure the quad doesn't just fall at the beginning
 				vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
+				altSetpoint = combinedAltitude;
 			}
 			flightMode = newFlightMode;
 		}

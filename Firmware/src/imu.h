@@ -2,7 +2,7 @@
 #include "quaternion.h"
 #include <Arduino.h>
 
-extern f32 pitch, roll, yaw; // Euler angles of the drone
+extern fix32 roll, pitch, yaw; // Euler angles of the drone
 extern fix32 combinedHeading; // heading of the drone (in rad) by combining the magnetometer and the gyro
 extern PT1 magHeadingCorrection; // PT1 filter for the magnetometer heading correction (updated on every compass read)
 extern fix32 vVel; // vertical velocity of the drone (up = positive, m/s)

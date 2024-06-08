@@ -389,17 +389,17 @@ void __not_in_flash_func(writeSingleFrame)() {
 		}
 	}
 	if (currentBBFlags & LOG_ATT_ROLL) {
-		i16 r = roll * 10000;
+		i16 r = (roll * 10000).geti32();
 		bbBuffer[bufferPos++] = r;
 		bbBuffer[bufferPos++] = r >> 8;
 	}
 	if (currentBBFlags & LOG_ATT_PITCH) {
-		i16 p = pitch * 10000;
+		i16 p = (pitch * 10000).geti32();
 		bbBuffer[bufferPos++] = p;
 		bbBuffer[bufferPos++] = p >> 8;
 	}
 	if (currentBBFlags & LOG_ATT_YAW) {
-		i16 y = yaw * 10000;
+		i16 y = (yaw * 10000).geti32();
 		bbBuffer[bufferPos++] = y;
 		bbBuffer[bufferPos++] = y >> 8;
 	}

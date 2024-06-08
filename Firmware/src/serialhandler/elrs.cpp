@@ -121,13 +121,13 @@ void ExpressLRS::loop() {
 		} break;
 		case 4: {
 			// Attitude (0x1E)
-			i16 data = pitch * 10000; // 10^-5 rad;
+			i16 data = (pitch * 10000).geti32(); // 10^-5 rad;
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			data = roll * 10000; // 10^-5 rad;
+			data = (roll * 10000).geti32(); // 10^-5 rad;
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
-			data = yaw * 10000; // 10^-5 rad;
+			data = (yaw * 10000).geti32(); // 10^-5 rad;
 			telemBuffer[4] = data >> 8;
 			telemBuffer[5] = data;
 		} break;

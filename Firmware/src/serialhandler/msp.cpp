@@ -343,8 +343,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::MSP_ATTITUDE: {
 			// not used by Kolibri configurator, that uses GET_ROTATION
-			i16 rollInt = -roll * (RAD_TO_DEG * 10); // decidegrees
-			i16 pitchInt = pitch * (RAD_TO_DEG * 10); // decidegrees
+			i16 rollInt = (-roll * (FIX_RAD_TO_DEG * 10)).geti32(); // decidegrees
+			i16 pitchInt =( pitch * (FIX_RAD_TO_DEG * 10)).geti32(); // decidegrees
 			i16 yawInt = (combinedHeading * FIX_RAD_TO_DEG).geti32(); // degrees
 			buf[len++] = rollInt & 0xFF;
 			buf[len++] = rollInt >> 8;
@@ -682,9 +682,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::GET_ROTATION: {
 			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
-			int rotationPitch = pitch * 8192;
-			int rotationRoll = roll * 8192;
-			int rotationYaw = yaw * 8192;
+			int rotationPitch = (pitch * 8192).geti32();
+			int rotationRoll = (roll * 8192).geti32();
+			int rotationYaw = (yaw * 8192).geti32();
 			int heading = combinedHeading.raw >> 3;
 			buf[0] = rotationPitch & 0xFF;
 			buf[1] = rotationPitch >> 8;
