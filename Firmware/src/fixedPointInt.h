@@ -5,6 +5,13 @@
 
 class fix32;
 extern interp_config sinInterpConfig0, sinInterpConfig1;
+
+extern const fix32 FIX_PI;
+extern const fix32 FIX_2PI;
+extern const fix32 FIX_PI_2;
+extern const fix32 FIX_RAD_TO_DEG;
+extern const fix32 FIX_DEG_TO_RAD;
+
 void initFixTrig();
 /**
  * @brief prepares the interpolator for blend mode
@@ -14,8 +21,12 @@ inline void startFixTrig() {
 	interp_set_config(interp0, 0, &sinInterpConfig0);
 	interp_set_config(interp0, 1, &sinInterpConfig1);
 }
+
 fix32 sinFix(const fix32 x);
 fix32 cosFix(const fix32 x);
+fix32 atanFix(const fix32 x);
+fix32 atan2Fix(const fix32 y, const fix32 x);
+
 class fix64 {
 	// 32.32 fixed point
 public:
@@ -458,12 +469,6 @@ public:
 		return *this * sign();
 	};
 };
-
-extern const fix32 FIX_PI;
-extern const fix32 FIX_2PI;
-extern const fix32 FIX_PI_2;
-extern const fix32 FIX_RAD_TO_DEG;
-extern const fix32 FIX_DEG_TO_RAD;
 
 inline constexpr fix64::fix64(const fix32 v) {
 	this->raw = (i64)v.raw << 16;

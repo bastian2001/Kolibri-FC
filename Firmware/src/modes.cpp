@@ -14,6 +14,15 @@ i32 startPointLat, startPointLon;
 u32 armingDisableFlags = 0;
 
 void modesLoop() {
+	static bool x = true;
+	if (millis() > 5000 && x) {
+		x = false;
+
+		initFixTrig();
+		for (int i = -250; i < 250; i++) {
+			Serial.printf("%.5f, %.5f\n", atanFix(fix32(i) / 35.7).getf32(), atanf((f32)i / 35.7));
+		}
+	}
 	if (ELRS->newPacketFlag & 0x00000001) {
 		elapsedMicros taskTimer = 0;
 		tasks[TASK_MODES].runCounter++;
