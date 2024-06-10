@@ -49,7 +49,8 @@ void ExpressLRS::loop() {
 		rcPacketRateCounter = 0;
 		frequencyTimer = 0;
 	}
-	if (elrsBuffer.itemCount() > 250) {
+	int maxScan = elrsBuffer.itemCount();
+	if (maxScan > 250) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
 		crc = 0;
@@ -60,8 +61,12 @@ void ExpressLRS::loop() {
 		errorCount++;
 		return;
 	}
-	int maxScan = elrsBuffer.itemCount();
-	if (!maxScan && telemetryTimer >= 15) {
+	if ((!maxScan && heartbeatTimer >= 300) || heartbeatTimer >= 500) {
+		// try to send every 300 ms, and force send after reaching 500ms
+		u8 buf[2] = {0, ADDRESS_FLIGHT_CONTROLLER}; // u16 address, big endian
+		this->sendPacket(FRAMETYPE_HEARTBEAT, (char *)buf, 2);
+		heartbeatTimer = 0;
+	} else if (!maxScan && telemetryTimer >= 15) {
 		// if there is no data to read and the last sensor was transmitted more than 15ms ago, send one telemetry sensor at a time
 		telemetryTimer = 0;
 		switch (currentTelemSensor++) {
@@ -85,14 +90,14 @@ void ExpressLRS::loop() {
 			telemBuffer[12] = data >> 8;
 			telemBuffer[13] = data;
 			telemBuffer[14] = gpsStatus.satCount;
-			this->sendPacket(CRSF_FRAMETYPE_GPS, (char *)telemBuffer, 15);
+			this->sendPacket(FRAMETYPE_GPS, (char *)telemBuffer, 15);
 		} break;
 		case 1: {
 			// Vario (0x07)
 			i16 data = -gpsMotion.velD / 10; // mm/s to cm/s
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			this->sendPacket(CRSF_FRAMETYPE_VARIO, (char *)telemBuffer, 2);
+			this->sendPacket(FRAMETYPE_VARIO, (char *)telemBuffer, 2);
 		} break;
 		case 2: {
 			// Battery (0x08)
@@ -106,7 +111,7 @@ void ExpressLRS::loop() {
 			telemBuffer[5] = 0;
 			telemBuffer[6] = 0;
 			telemBuffer[7] = 0;
-			this->sendPacket(CRSF_FRAMETYPE_BATTERY, (char *)telemBuffer, 8);
+			this->sendPacket(FRAMETYPE_BATTERY, (char *)telemBuffer, 8);
 		} break;
 		case 3: {
 			// Baro Altitude (0x09)
@@ -117,7 +122,7 @@ void ExpressLRS::loop() {
 			data = vVel.raw / 655; // cm/s
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
-			this->sendPacket(CRSF_FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);
+			this->sendPacket(FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);
 		} break;
 		case 4: {
 			// Attitude (0x1E)
@@ -135,19 +140,19 @@ void ExpressLRS::loop() {
 			// Flight Mode (0x21)
 			switch (flightMode) {
 			case FlightMode::ACRO:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Acro", 5);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "Acro", 5);
 				break;
 			case FlightMode::ANGLE:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Angle", 6);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "Angle", 6);
 				break;
 			case FlightMode::ALT_HOLD:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
 				break;
 			case FlightMode::GPS_VEL:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
 				break;
 			case FlightMode::GPS_POS:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Position", 13);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS Position", 13);
 				break;
 			}
 			break;
@@ -213,7 +218,7 @@ void ExpressLRS::processMessage() {
 	tasks[TASK_ELRS].runCounter++;
 
 	switch (msgBuffer[2]) {
-	case RC_CHANNELS_PACKED: {
+	case FRAMETYPE_RC_CHANNELS_PACKED: {
 		if (size != 26) // 16 channels * 11 bits + 3 bytes header + 1 byte crc
 		{
 			lastError = ERROR_INVALID_LENGTH;
@@ -288,7 +293,7 @@ void ExpressLRS::processMessage() {
 		rcMsgCount++;
 		break;
 	}
-	case LINK_STATISTICS: {
+	case FRAMETYPE_LINK_STATISTICS: {
 		if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc
 		{
 			lastError = ERROR_INVALID_LENGTH;
@@ -310,21 +315,34 @@ void ExpressLRS::processMessage() {
 		downlinkSNR = msgBuffer[12];
 		break;
 	}
-	case DEVICE_PING:
-		// TODO: Discovery of FC to ELRS
+	case FRAMETYPE_DEVICE_PING: {
+		char buf[32];
+		strncpy(buf, "Kolibri FC", 16);
+		u8 pos = strlen(buf) + 1;
+		memcpy(&buf[pos], rp2040.getChipID(), 4);
+		pos += 4;
+		buf[pos++] = 0; // hardware version
+		buf[pos++] = 0; // hardware version
+		buf[pos++] = 0; // hardware version
+		buf[pos++] = 0; // hardware version
+		buf[pos++] = 0; // software version
+		buf[pos++] = FIRMWARE_VERSION_MAJOR;
+		buf[pos++] = FIRMWARE_VERSION_MINOR;
+		buf[pos++] = FIRMWARE_VERSION_PATCH;
+		buf[pos++] = 0; // config parameter count
+		buf[pos++] = 0; // parameter protocol version (0)
+		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, msgBuffer[4], ADDRESS_FLIGHT_CONTROLLER, buf, pos);
+	} break;
+	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY:
 		break;
-	case DEVICE_INFO:
+	case FRAMETYPE_PARAMETER_READ:
 		break;
-	case PARAMETER_SETTINGS_ENTRY:
+	case FRAMETYPE_PARAMETER_WRITE:
 		break;
-	case PARAMETER_READ:
+	case FRAMETYPE_COMMAND:
 		break;
-	case PARAMETER_WRITE:
-		break;
-	case COMMAND:
-		break;
-	case MSP_REQ:
-	case MSP_WRITE: {
+	case FRAMETYPE_MSP_REQ:
+	case FRAMETYPE_MSP_WRITE: {
 		char *extPayload = (char *)&msgBuffer[5];
 		i8 packetSize = size - 4;
 		u8 minSize = 2;
@@ -479,8 +497,8 @@ void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload,
 		firstPacket = 0;
 		memcpy(&packet[3], &payload[chunk * 57], chunkSize);
 		if (type != MspMsgType::REQUEST)
-			sendPacket(MSP_RESP, (char *)packet, chunkSize + 3);
+			sendPacket(FRAMETYPE_MSP_RESP, (char *)packet, chunkSize + 3);
 		else
-			sendPacket(MSP_REQ, (char *)packet, chunkSize + 3);
+			sendPacket(FRAMETYPE_MSP_REQ, (char *)packet, chunkSize + 3);
 	}
 }

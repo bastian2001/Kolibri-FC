@@ -157,10 +157,6 @@ enum class MspState {
 #define API_VERSION_MAJOR 3
 #define API_VERSION_MINOR 0
 
-#define FIRMWARE_VERSION_MAJOR 0
-#define FIRMWARE_VERSION_MINOR 1
-#define FIRMWARE_VERSION_PATCH 0
-
 #define KOLIBRI_IDENTIFIER "KOLI" // Baseflight: BAFL, Betaflight: BTFL, Cleanflight: CLFL, iNav: INAV, MultiWii: MWII, Raceflight: RCFL
 #define FIRMWARE_IDENTIFIER_LENGTH 4
 

@@ -93,3 +93,12 @@ extern volatile u32 crashInfo[256]; // Crash info buffer (arbitrary data to be s
 extern BootReason bootReason; // Reason for booting
 extern BootReason rebootReason; // Reason for rebooting (can be set right before an intentional reboot, WATCHDOG otherwise)
 extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0xdeadbeefdeadbeef)
+
+#define FIRMWARE_NAME "Kolibri"
+#define FIRMWARE_VERSION_MAJOR 0
+#define FIRMWARE_VERSION_MINOR 1
+#define FIRMWARE_VERSION_PATCH 0
+#define RELEASE_SUFFIX "-dev"
+#define xstr(a) str(a)
+#define str(a) #a
+#define FIRMWARE_VERSION_STRING xstr(FIRMWARE_VERSION_MAJOR) "." xstr(FIRMWARE_VERSION_MINOR) "." xstr(FIRMWARE_VERSION_PATCH) RELEASE_SUFFIX

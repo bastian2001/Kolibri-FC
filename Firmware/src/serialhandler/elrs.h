@@ -63,26 +63,37 @@ public:
 	void sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen);
 	void sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen);
 
+	static const u8 FRAMETYPE_GPS = 0x02;
+	static const u8 FRAMETYPE_VARIO = 0x07;
+	static const u8 FRAMETYPE_BATTERY = 0x08;
+	static const u8 FRAMETYPE_BARO_ALT = 0x09;
+	static const u8 FRAMETYPE_HEARTBEAT = 0x0B;
+	static const u8 FRAMETYPE_LINK_STATISTICS = 0x14;
+	static const u8 FRAMETYPE_RC_CHANNELS_PACKED = 0x16;
+	static const u8 FRAMETYPE_SUBSET_RC_CHANNELS_PACKED = 0x17;
+	// static const u8 FRAMETYPE_LINK_RX_ID = 0x1C; // unclear usage, ignore
+	// static const u8 FRAMETYPE_LINK_TX_ID = 0x1D; // unclear usage, ignore
+	static const u8 FRAMETYPE_ATTITUDE = 0x1E;
+	static const u8 FRAMETYPE_FLIGHTMODE = 0x21;
+	static const u8 FRAMETYPE_DEVICE_PING = 0x28;
+	static const u8 FRAMETYPE_DEVICE_INFO = 0x29;
+	static const u8 FRAMETYPE_PARAMETER_SETTINGS_ENTRY = 0x2B;
+	static const u8 FRAMETYPE_PARAMETER_READ = 0x2C;
+	static const u8 FRAMETYPE_PARAMETER_WRITE = 0x2D;
+	// static const u8 FRAMETYPE_ELRS_STATUS = 0x2E; // only on transmitter side
+	static const u8 FRAMETYPE_COMMAND = 0x32;
+	// static const u8 FRAMETYPE_RADIO_ID = 0x3A; // only on transmitter side
+	// static const u8 FRAMETYPE_KISS_REQ = 0x78; // non-standard
+	// static const u8 FRAMETYPE_KISS_RESP = 0x79; // non-standard
+	static const u8 FRAMETYPE_MSP_REQ = 0x7A;
+	static const u8 FRAMETYPE_MSP_RESP = 0x7B;
+	static const u8 FRAMETYPE_MSP_WRITE = 0x7C;
+	static const u8 FRAMETYPE_DISPLAYPORT_CMD = 0x7D;
+	// static const u8 FRAMETYPE_ARDUPILOT_RESP = 0x80; // non-standard
+
 private:
 	const u16 powerStates[9] = {0, 10, 25, 100, 500, 1000, 2000, 50, 250};
 	static const u8 CRSF_SYNC_BYTE = 0xC8;
-	static const u8 CRSF_FRAMETYPE_GPS = 0x02;
-	static const u8 CRSF_FRAMETYPE_VARIO = 0x07;
-	static const u8 CRSF_FRAMETYPE_BATTERY = 0x08;
-	static const u8 CRSF_FRAMETYPE_BARO_ALT = 0x09;
-	static const u8 CRSF_FRAMETYPE_ATTITUDE = 0x1E;
-	static const u8 CRSF_FRAMETYPE_FLIGHTMODE = 0x21;
-	static const u8 LINK_STATISTICS = 0x14;
-	static const u8 RC_CHANNELS_PACKED = 0x16;
-	static const u8 DEVICE_PING = 0x28;
-	static const u8 DEVICE_INFO = 0x29;
-	static const u8 PARAMETER_SETTINGS_ENTRY = 0x2B;
-	static const u8 PARAMETER_READ = 0x2C;
-	static const u8 PARAMETER_WRITE = 0x2D;
-	static const u8 COMMAND = 0x32;
-	static const u8 MSP_REQ = 0x7A;
-	static const u8 MSP_RESP = 0x7B;
-	static const u8 MSP_WRITE = 0x7C;
 	static const u8 ADDRESS_FLIGHT_CONTROLLER = 0xC8;
 	static interp_config interpConfig0; // used to interpolate for smooth sticks
 	static interp_config interpConfig1; // used to interpolate for smooth sticks
@@ -100,6 +111,7 @@ private:
 	const u32 baudrate;
 	elapsedMillis frequencyTimer;
 	elapsedMillis telemetryTimer;
+	elapsedMillis heartbeatTimer;
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter = 0;
 	u32 lastMsgCount = 0;
