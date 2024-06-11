@@ -334,12 +334,32 @@ void ExpressLRS::processMessage() {
 		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, msgBuffer[4], ADDRESS_FLIGHT_CONTROLLER, buf, pos);
 	} break;
 	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY:
+		Serial.printf("FRAMETYPE_PARAMETER_SETTINGS_ENTRY with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
+		for (int i = 0; i < size - 6; i++) {
+			Serial.printf("%02X ", msgBuffer[5 + i]);
+		}
+		Serial.println();
 		break;
 	case FRAMETYPE_PARAMETER_READ:
+		Serial.printf("FRAMETYPE_PARAMETER_READ with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
+		for (int i = 0; i < size - 6; i++) {
+			Serial.printf("%02X ", msgBuffer[5 + i]);
+		}
+		Serial.println();
 		break;
 	case FRAMETYPE_PARAMETER_WRITE:
+		Serial.printf("FRAMETYPE_PARAMETER_WRITE with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
+		for (int i = 0; i < size - 6; i++) {
+			Serial.printf("%02X ", msgBuffer[5 + i]);
+		}
+		Serial.println();
 		break;
 	case FRAMETYPE_COMMAND:
+		Serial.printf("FRAMETYPE_COMMAND with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
+		for (int i = 0; i < size - 6; i++) {
+			Serial.printf("%02X ", msgBuffer[5 + i]);
+		}
+		Serial.println();
 		break;
 	case FRAMETYPE_MSP_REQ:
 	case FRAMETYPE_MSP_WRITE: {
