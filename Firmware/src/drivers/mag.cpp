@@ -18,6 +18,7 @@ void initMag() {
 	gpio_set_function(PIN_SCL0, GPIO_FUNC_I2C);
 	gpio_pull_up(PIN_SDA0);
 	gpio_pull_up(PIN_SCL0);
+#if MAG_HARDWARE == MAG_HMC5883L
 	for (u32 tries = 0; tries < 10; tries++) {
 		magBuffer[0] = (u8)MAG_REG::ID_A;
 		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
@@ -32,14 +33,33 @@ void initMag() {
 		}
 		sleep_ms(2);
 	}
-	magState = 1;
+	magState = MAG_INIT;
 	magBuffer[0] = (u8)MAG_REG::CONF_REGA;
 	magBuffer[1] = MAG_AVG_8 | MAG_ODR_75HZ | MAG_LOAD_FLOAT;
 	magBuffer[2] = MAG_RANGE_2_5;
 	magBuffer[3] = MAG_MODE_CONTINUOUS | MAG_MODE_HS_I2C;
 	i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 4, false);
 	i2c_set_baudrate(I2C_MAG, 3400000);
-	magState = 2;
+	magState = MAG_MEASURING;
+#elif MAG_HARDWARE == MAG_QMC5883L
+	for (u32 tries = 0; tries < 10; tries++) {
+		magBuffer[0] = (u8)MAG_REG::ID;
+		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
+		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
+		if (magBuffer[0] == 0xFF)
+			break;
+		if (tries == 9) {
+			Serial.println("Failed to find magnetometer");
+			return;
+		}
+		sleep_ms(2);
+	}
+	magState = MAG_INIT;
+	magBuffer[0] = (u8)MAG_REG::CONTROL_1;
+	magBuffer[1] = MAG_OSR_512 | MAG_RANGE_2 | MAG_ODR_200HZ | MAG_MODE_CONTINUOUS;
+	i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 2, false);
+	magState = MAG_MEASURING;
+#endif
 }
 
 u32 magStateAfterRead = MAG_PROCESS_DATA;
@@ -71,10 +91,17 @@ void magLoop() {
 	case MAG_INIT:
 		break;
 	case MAG_MEASURING:
+#if MAG_HARDWARE == MAG_QMC5883L
+		if (magTimer > 5000) {
+			magState = MAG_READ_DATA;
+			magTimer = 0;
+		}
+#elif MAG_HARDWARE == MAG_HMC5883L
 		if (magTimer > 13000) {
 			magState = MAG_READ_DATA;
 			magTimer = 0;
 		}
+#endif
 		break;
 	case MAG_SOON_READY:
 		if (magTimer > 100) {
@@ -93,16 +120,26 @@ void magLoop() {
 			magState = MAG_SOON_READY;
 	} break;
 	case MAG_READ_DATA: {
+#if MAG_HARDWARE == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::DATA_X_H;
+#elif MAG_HARDWARE == MAG_QMC5883L
+		magBuffer[0] = (u8)MAG_REG::DATA_X_L;
+#endif
 		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, (u8 *)magBuffer, 1, false);
 		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, (u8 *)magBuffer, 6, false);
 		magState = magStateAfterRead;
 	} break;
 	case MAG_PROCESS_DATA: {
 		static i32 magDataRaw[3];
+#if MAG_HARDWARE == MAG_HMC5883L
 		magDataRaw[0] = (i16)(magBuffer[1] + (magBuffer[0] << 8));
 		magDataRaw[1] = (i16)(magBuffer[5] + (magBuffer[4] << 8));
 		magDataRaw[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8));
+#elif MAG_HARDWARE == MAG_QMC5883L
+		magDataRaw[0] = (i16)(magBuffer[0] + (magBuffer[1] << 8));
+		magDataRaw[1] = (i16)(magBuffer[2] + (magBuffer[3] << 8));
+		magDataRaw[2] = (i16)(magBuffer[4] + (magBuffer[5] << 8));
+#endif
 		magData[0] = magDataRaw[0] - magOffset[0];
 		magData[1] = magDataRaw[1] - magOffset[1];
 		magData[2] = magDataRaw[2] - magOffset[2];
@@ -128,9 +165,15 @@ void magLoop() {
 	} break;
 	case MAG_CALIBRATE: {
 		i16 val[4];
+#if MAG_HARDWARE == MAG_HMC5883L
 		val[0] = magBuffer[1] + (magBuffer[0] << 8); // x
 		val[1] = magBuffer[5] + (magBuffer[4] << 8); // y
 		val[2] = magBuffer[3] + (magBuffer[2] << 8); // z
+#elif MAG_HARDWARE == MAG_QMC5883L
+		val[0] = magBuffer[0] + (magBuffer[1] << 8); // x
+		val[1] = magBuffer[2] + (magBuffer[3] << 8); // y
+		val[2] = magBuffer[4] + (magBuffer[5] << 8); // z
+#endif
 		val[3] = 1;
 		magData[0] = val[0] - magOffset[0];
 		magData[1] = val[1] - magOffset[1];
