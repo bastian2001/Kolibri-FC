@@ -6,7 +6,7 @@ u64 currentBBFlags = 0;
 volatile bool bbLogging = false;
 volatile bool fsReady = false;
 
-FSInfo64 fsInfo;
+FSInfo fsInfo;
 int currentLogNum = 0;
 u8 bbFreqDivider = 2;
 
@@ -40,7 +40,7 @@ void blackboxLoop() {
 void initBlackbox() {
 #if BLACKBOX_STORAGE == LITTLEFS
 	fsReady = LittleFS.begin();
-	fsReady = fsReady && LittleFS.info64(fsInfo);
+	fsReady = fsReady && LittleFS.info(fsInfo);
 #elif BLACKBOX_STORAGE == SD_BB
 	SPI1.setRX(PIN_SD_MISO);
 	SPI1.setTX(PIN_SD_MOSI);
@@ -138,7 +138,7 @@ void startLogging() {
 		return;
 	currentBBFlags = bbFlags;
 #if BLACKBOX_STORAGE == LITTLEFS
-	if (!(LittleFS.info64(fsInfo)))
+	if (!(LittleFS.info(fsInfo)))
 		return;
 	maxFileSize = fsInfo.totalBytes - fsInfo.usedBytes - 50000;
 	if (maxFileSize < 20000) {
