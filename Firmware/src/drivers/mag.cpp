@@ -136,9 +136,9 @@ void magLoop() {
 		magDataRaw[1] = (i16)(magBuffer[5] + (magBuffer[4] << 8));
 		magDataRaw[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8));
 #elif MAG_HARDWARE == MAG_QMC5883L
-		magDataRaw[0] = (i16)(magBuffer[0] + (magBuffer[1] << 8));
-		magDataRaw[1] = (i16)(magBuffer[2] + (magBuffer[3] << 8));
-		magDataRaw[2] = (i16)(magBuffer[4] + (magBuffer[5] << 8));
+		magDataRaw[0] = -(((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4);
+		magDataRaw[1] = ((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4;
+		magDataRaw[2] = -(((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4);
 #endif
 		magData[0] = magDataRaw[0] - magOffset[0];
 		magData[1] = magDataRaw[1] - magOffset[1];
@@ -170,9 +170,9 @@ void magLoop() {
 		val[1] = magBuffer[5] + (magBuffer[4] << 8); // y
 		val[2] = magBuffer[3] + (magBuffer[2] << 8); // z
 #elif MAG_HARDWARE == MAG_QMC5883L
-		val[0] = magBuffer[0] + (magBuffer[1] << 8); // x
-		val[1] = magBuffer[2] + (magBuffer[3] << 8); // y
-		val[2] = magBuffer[4] + (magBuffer[5] << 8); // z
+		val[0] = -(((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4); // x
+		val[1] = ((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4; // y
+		val[2] = -(((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4); // z
 #endif
 		val[3] = 1;
 		magData[0] = val[0] - magOffset[0];
