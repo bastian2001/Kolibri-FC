@@ -15,3 +15,5 @@ Project\ Outputs*/
 # Altium files
 __Previews
 *.htm
+Firmware/.last_git_hash
+Firmware/include/git_version.h
