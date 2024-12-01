@@ -14,6 +14,7 @@
 		'    - Serial',
 		'    - Configurator',
 		'    - GPS',
+		'    - Magnetometer',
 		'    - Task Manager',
 		'Loop 1',
 		'    - Gyro Read',
