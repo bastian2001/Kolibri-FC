@@ -92,8 +92,8 @@ void magLoop() {
 		break;
 	case MAG_MEASURING:
 #if MAG_HARDWARE == MAG_QMC5883L
-		if (magTimer > 5000) {
-			magState = MAG_READ_DATA;
+		if (magTimer > 4000) {
+			magState = MAG_CHECK_DATA_READY;
 			magTimer = 0;
 		}
 #elif MAG_HARDWARE == MAG_HMC5883L
@@ -104,12 +104,13 @@ void magLoop() {
 #endif
 		break;
 	case MAG_SOON_READY:
-		if (magTimer > 100) {
+		if (magTimer > 1000) {
 			magState = MAG_CHECK_DATA_READY;
 			magTimer = 0;
 		}
 		break;
 	case MAG_CHECK_DATA_READY: {
+#if MAG_HARDWARE == MAG_HMC5883L || MAG_HARDWARE == MAG_QMC5883L
 		// check every ms if data is ready
 		magBuffer[0] = (u8)MAG_REG::STATUS;
 		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
@@ -118,6 +119,7 @@ void magLoop() {
 			magState = MAG_READ_DATA;
 		else // data not ready, check again in 1ms
 			magState = MAG_SOON_READY;
+#endif
 	} break;
 	case MAG_READ_DATA: {
 #if MAG_HARDWARE == MAG_HMC5883L
