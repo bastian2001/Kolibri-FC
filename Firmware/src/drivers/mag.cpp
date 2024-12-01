@@ -7,6 +7,8 @@ elapsedMicros magTimer;
 u8 magBuffer[6] = {0};
 i32 magData[3] = {0};
 
+i32 magRunCounter = 0;
+
 i16 magOffset[3] = {0};
 fix32 magX = 0, magY = 0;
 
@@ -86,6 +88,7 @@ float cofactor(float matrix[4][4], i32 row, i32 col) {
 }
 
 void magLoop() {
+	elapsedMicros taskTimer = 0;
 	switch (magState) {
 	case MAG_NOT_INIT: // not initialized
 	case MAG_INIT:
@@ -122,6 +125,7 @@ void magLoop() {
 #endif
 	} break;
 	case MAG_READ_DATA: {
+		magRunCounter++;
 #if MAG_HARDWARE == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::DATA_X_H;
 #elif MAG_HARDWARE == MAG_QMC5883L
@@ -242,4 +246,11 @@ void magLoop() {
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));
 	} break;
 	}
+	u32 duration = taskTimer;
+	tasks[TASK_MAGNETOMETER].runCounter++;
+	tasks[TASK_MAGNETOMETER].totalDuration += duration;
+	if (duration < tasks[TASK_MAGNETOMETER].minDuration)
+		tasks[TASK_MAGNETOMETER].minDuration = duration;
+	if (duration > tasks[TASK_MAGNETOMETER].maxDuration)
+		tasks[TASK_MAGNETOMETER].maxDuration = duration;
 }

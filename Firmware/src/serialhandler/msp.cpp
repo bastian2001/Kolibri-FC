@@ -344,7 +344,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::MSP_ATTITUDE: {
 			// not used by Kolibri configurator, that uses GET_ROTATION
 			i16 rollInt = (-roll * (FIX_RAD_TO_DEG * 10)).geti32(); // decidegrees
-			i16 pitchInt =( pitch * (FIX_RAD_TO_DEG * 10)).geti32(); // decidegrees
+			i16 pitchInt = (pitch * (FIX_RAD_TO_DEG * 10)).geti32(); // decidegrees
 			i16 yawInt = (combinedHeading * FIX_RAD_TO_DEG).geti32(); // degrees
 			buf[len++] = rollInt & 0xFF;
 			buf[len++] = rollInt >> 8;
