@@ -16,12 +16,14 @@ The PCB is done and working in its fourth testing revision, which includes (hard
 
 Working software features:
 
--   Acro, angle and altitude hold modes
+-   Configurator
+-   Acro and angle modes
+-   altitude and position hold modes (working, but need to be tuned)
 -   ELRS
+-   GPS (UBlox) and Compass (HMC5883 + QMC5883L)
 -   Bidirectional DShot 4800 (tested up to 1200)
 -   Variable frequency beeper with WAV support
 -   SD-Blackbox incl. viewer
--   Configurator
 -   Barometer
 
 Future shit:
