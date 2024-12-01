@@ -138,7 +138,7 @@ void magLoop() {
 #elif MAG_HARDWARE == MAG_QMC5883L
 		magDataRaw[0] = -(((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4);
 		magDataRaw[1] = ((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4;
-		magDataRaw[2] = -(((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4);
+		magDataRaw[2] = ((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4;
 #endif
 		magData[0] = magDataRaw[0] - magOffset[0];
 		magData[1] = magDataRaw[1] - magOffset[1];
@@ -164,6 +164,7 @@ void magLoop() {
 		magState = MAG_MEASURING;
 	} break;
 	case MAG_CALIBRATE: {
+		// https://www.nxp.com/docs/en/application-note/AN4248.pdf
 		i16 val[4];
 #if MAG_HARDWARE == MAG_HMC5883L
 		val[0] = magBuffer[1] + (magBuffer[0] << 8); // x
@@ -172,7 +173,7 @@ void magLoop() {
 #elif MAG_HARDWARE == MAG_QMC5883L
 		val[0] = -(((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4); // x
 		val[1] = ((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4; // y
-		val[2] = -(((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4); // z
+		val[2] = ((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4; // z
 #endif
 		val[3] = 1;
 		magData[0] = val[0] - magOffset[0];
@@ -184,7 +185,11 @@ void magLoop() {
 			}
 			xtyVector[row] += val[row] * (val[0] * val[0] + val[1] * val[1] + val[2] * val[2]);
 		}
+#if MAG_HARDWARE == MAG_HMC5883L
 		if (++calibrationCycle == 1000) {
+#elif MAG_HARDWARE == MAG_QMC5883L
+		if (++calibrationCycle == 3000) {
+#endif
 			magState = MAG_PROCESS_CALIBRATION;
 			calibrationCycle = 0;
 			magStateAfterRead = MAG_PROCESS_DATA;
