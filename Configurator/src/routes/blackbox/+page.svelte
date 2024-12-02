@@ -15,7 +15,8 @@
 		constrain,
 		type FlagProps,
 		type GenFlagProps,
-		prefixZeros
+		prefixZeros,
+		map
 	} from '../../utils';
 
 	let graphs: TraceInGraph[][] = [[]];
@@ -1159,9 +1160,6 @@
 			}
 		}
 	}
-	function map(value: number, inMin: number, inMax: number, outMin: number, outMax: number) {
-		return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
-	}
 
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
@@ -1939,7 +1937,7 @@
 						: getNestedProperty(sliceAndSkip[0], path, {
 								max: Math.max(trace.maxValue, trace.minValue),
 								min: Math.min(trace.minValue, trace.maxValue)
-							})) -
+						  })) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1952,7 +1950,7 @@
 							: getNestedProperty(sliceAndSkip[k], path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-								})) -
+							  })) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -2051,11 +2049,11 @@
 									trace.overrideSliceAndSkip![closestFrameSliceSkip],
 									trace.minValue,
 									trace.maxValue
-								)
+							  )
 							: getNestedProperty(frame, path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-								})) -
+							  })) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();

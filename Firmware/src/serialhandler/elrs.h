@@ -52,11 +52,13 @@ public:
 	u8 uplinkLinkQuality = 0; // RX packet success rate 0-100 [%]
 	i8 uplinkSNR = 0; // RX SNR in dB
 	u8 antennaSelection = 0; // used antenna (0 = antenna 1, 1 = antenna 2)
-	u8 packetRate = 0; // packet rate index
+	u8 packetRateIdx = 0; // packet rate index
 	u16 txPower = 0; // current TX power in mW
 	i16 downlinkRssi = 0; // telemetry RSSI (signed, more negative = worse)
 	u8 downlinkLinkQuality = 0; // telemetry packet success rate 0-100 [%]
 	i8 downlinkSNR = 0; // telemetry SNR in dB
+	u16 targetPacketRate = 0; // in Hz
+	u16 actualPacketRate = 0; // in Hz
 	u32 consecutiveArmedCycles = 0; // number of cycles the switch is in the armed position, reset to 0 when disarmed
 	u32 newPacketFlag = 0; // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
 	void sendPacket(u8 cmd, const char *payload, u8 payloadLen);

@@ -44,6 +44,10 @@
 			path: '/motors'
 		},
 		{
+			name: 'Receiver',
+			path: '/receiver'
+		},
+		{
 			name: 'Tuning',
 			path: '/tuning'
 		},
@@ -87,7 +91,10 @@
 					break;
 				case MspFn.BOARD_INFO:
 					configuratorLog.push(
-						`Board: ${command.dataStr.substring(0, 4)} => ${command.dataStr.substring(9, 9 + command.data[8])}`
+						`Board: ${command.dataStr.substring(0, 4)} => ${command.dataStr.substring(
+							9,
+							9 + command.data[8]
+						)}`
 					);
 					break;
 				case MspFn.BUILD_INFO:
