@@ -104,7 +104,6 @@ private:
 	elapsedMillis telemetryTimer;
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter = 0;
-	u32 lastMsgCount = 0;
 	u32 crc = 0;
 	u8 lastExtSrcAddr = 0;
 	u8 mspRxPayload[512] = {0};

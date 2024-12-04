@@ -40,11 +40,7 @@ void ExpressLRS::loop() {
 			isLinkUp = true;
 		else
 			isLinkUp = false;
-		if (lastMsgCount != msgCount) {
-			isReceiverUp = true;
-			lastMsgCount = msgCount;
-		} else
-			isReceiverUp = false;
+		if (msgCount) isReceiverUp = true;
 		actualPacketRate = rcPacketRateCounter;
 		packetRateCounter = 0;
 		rcPacketRateCounter = 0;
