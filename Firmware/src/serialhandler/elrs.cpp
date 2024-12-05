@@ -260,17 +260,11 @@ void ExpressLRS::processMessage() {
 		for (u8 i = 0; i < 16; i++) {
 			if (i == 2)
 				continue;
-			pChannels[i] -= 174;
-			pChannels[i] *= 1024;
-			pChannels[i] /= 1636;
-			pChannels[i] += 988;
+			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
 			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
 		// map pChannels (throttle) to 1000-2000
-		pChannels[2] -= 174;
-		pChannels[2] *= 1000;
-		pChannels[2] /= 1636;
-		pChannels[2] += 1000; // keep radio commands within 1000-2000
+		pChannels[2] = 1500 + (1000 * ((i32)pChannels[2] - 992) / 1636);
 		pChannels[2] = constrain(pChannels[2], 1000, 2000);
 
 		newPacketFlag = 0xFFFFFFFF;
@@ -292,8 +286,10 @@ void ExpressLRS::processMessage() {
 		memcpy(channels, pChannels, 16 * sizeof(u32));
 		rcPacketRateCounter++;
 		rcMsgCount++;
-		break;
-	}
+	} break;
+	case FRAMETYPE_SUBSET_RC_CHANNELS_PACKED: {
+		Serial.println("Subset");
+	} break;
 	case FRAMETYPE_LINK_STATISTICS: {
 		if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc
 		{
@@ -315,11 +311,9 @@ void ExpressLRS::processMessage() {
 		downlinkRssi = -msgBuffer[10];
 		downlinkLinkQuality = msgBuffer[11];
 		downlinkSNR = msgBuffer[12];
-		break;
-	}
+	} break;
 	case FRAMETYPE_DEVICE_PING: {
-		char buf[32];
-		strncpy(buf, "Kolibri FC", 16);
+		char buf[32] = FIRMWARE_NAME " " FIRMWARE_VERSION_STRING;
 		u8 pos = strlen(buf) + 1;
 		memcpy(&buf[pos], rp2040.getChipID(), 4);
 		pos += 4;
@@ -344,28 +338,28 @@ void ExpressLRS::processMessage() {
 			Serial.printf("%02X ", msgBuffer[5 + i]);
 		}
 		Serial.println();
-	case FRAMETYPE_PARAMETER_READ:
 	} break;
+	case FRAMETYPE_PARAMETER_READ: {
 		Serial.printf("FRAMETYPE_PARAMETER_READ with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
 		for (int i = 0; i < size - 6; i++) {
 			Serial.printf("%02X ", msgBuffer[5 + i]);
 		}
 		Serial.println();
-		break;
-	case FRAMETYPE_PARAMETER_WRITE:
+	} break;
+	case FRAMETYPE_PARAMETER_WRITE: {
 		Serial.printf("FRAMETYPE_PARAMETER_WRITE with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
 		for (int i = 0; i < size - 6; i++) {
 			Serial.printf("%02X ", msgBuffer[5 + i]);
 		}
 		Serial.println();
-		break;
-	case FRAMETYPE_COMMAND:
+	} break;
+	case FRAMETYPE_COMMAND: {
 		Serial.printf("FRAMETYPE_COMMAND with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
 		for (int i = 0; i < size - 6; i++) {
 			Serial.printf("%02X ", msgBuffer[5 + i]);
 		}
 		Serial.println();
-		break;
+	} break;
 	case FRAMETYPE_MSP_REQ:
 	case FRAMETYPE_MSP_WRITE: {
 		char *extPayload = (char *)&msgBuffer[5];
@@ -479,9 +473,10 @@ void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 }
 
 void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
-	if (payloadLen > 60) return;
+	if (payloadLen > 60 || (payload == nullptr && payloadLen)) return;
 	u8 packet[64] = {CRSF_SYNC_BYTE, (u8)(payloadLen + 2), cmd};
-	memcpy(&packet[3], payload, payloadLen);
+	if (payloadLen)
+		memcpy(&packet[3], payload, payloadLen);
 	u32 crc = 0;
 	for (int i = 2; i < 3 + payloadLen; i++) {
 		crc ^= packet[i];
@@ -492,9 +487,10 @@ void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
 }
 
 void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
-	if (extPayloadLen > 58) return;
+	if (extPayloadLen > 58 || (extPayload == nullptr && extPayloadLen)) return;
 	u8 packet[64] = {CRSF_SYNC_BYTE, (u8)(extPayloadLen + 4), cmd, destAddr, srcAddr};
-	memcpy(&packet[5], extPayload, extPayloadLen);
+	if (extPayloadLen)
+		memcpy(&packet[5], extPayload, extPayloadLen);
 	u32 crc = 0;
 	for (int i = 2; i < 5 + extPayloadLen; i++) {
 		crc ^= packet[i];
@@ -505,6 +501,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
+	if (payload == nullptr && payloadLen) return;
 	u8 chunkCount = (payloadLen) / 57 + 1;
 	u8 firstPacket = 1;
 	for (u8 chunk = 0; chunk < chunkCount; chunk++) {
@@ -520,7 +517,8 @@ void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload,
 		stat |= (type == MspMsgType::ERROR) << 7;
 		u8 packet[60] = {this->lastExtSrcAddr, ADDRESS_FLIGHT_CONTROLLER, stat};
 		firstPacket = 0;
-		memcpy(&packet[3], &payload[chunk * 57], chunkSize);
+		if (chunkSize)
+			memcpy(&packet[3], &payload[chunk * 57], chunkSize);
 		if (type != MspMsgType::REQUEST)
 			sendPacket(FRAMETYPE_MSP_RESP, (char *)packet, chunkSize + 3);
 		else
