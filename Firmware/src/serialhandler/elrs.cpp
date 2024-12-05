@@ -301,8 +301,7 @@ void ExpressLRS::processMessage() {
 		uplinkSNR = msgBuffer[6];
 		antennaSelection = msgBuffer[7];
 		packetRateIdx = msgBuffer[8];
-		// TODO: target packet rate (index lookup)
-		targetPacketRate = 0;
+		targetPacketRate = packetRates[packetRateIdx];
 		txPower = powerStates[msgBuffer[9]];
 		downlinkRssi = -msgBuffer[10];
 		downlinkLinkQuality = msgBuffer[11];

@@ -67,6 +67,8 @@ public:
 
 private:
 	const u16 powerStates[9] = {0, 10, 25, 100, 500, 1000, 2000, 50, 250};
+	const u16 packetRates[20] = {
+		4, 25, 50, 100, 100, 150, 200, 250, 333, 500, 250, 500, 500, 1000, 50, 200, 500, 1000, 1000, 1000};
 	static const u8 CRSF_SYNC_BYTE = 0xC8;
 	static const u8 CRSF_FRAMETYPE_GPS = 0x02;
 	static const u8 CRSF_FRAMETYPE_VARIO = 0x07;

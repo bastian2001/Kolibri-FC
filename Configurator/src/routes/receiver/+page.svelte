@@ -20,7 +20,7 @@
 
 	const channelInterval = setInterval(() => {
 		port.sendCommand('request', MspFn.RC).catch(() => {});
-	}, 70);
+	}, 20);
 
 	const statusInterval = setInterval(() => {
 		port.sendCommand('request', MspFn.GET_RX_STATUS).catch(() => {});
@@ -98,6 +98,7 @@
 		flex-wrap: wrap;
 		flex-direction: row;
 		justify-content: space-between;
+		gap: 3rem;
 	}
 
 	#rxChannels {
