@@ -341,6 +341,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			len += 16;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
+		case MspFn::RC: {
+			u16 channels[16];
+			for (int i = 0; i < 16; i++)
+				channels[i] = ELRS->channels[i];
+			memcpy(buf, channels, 32);
+			len += 32;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
 		case MspFn::MSP_ATTITUDE: {
 			// not used by Kolibri configurator, that uses GET_ROTATION
 			i16 rollInt = (-roll * (FIX_RAD_TO_DEG * 10)).geti32(); // decidegrees
@@ -714,6 +722,21 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				tasks[i].maxDuration = 0;
 				tasks[i].maxGap = 0;
 			}
+		} break;
+		case MspFn::GET_RX_STATUS: {
+			buf[0] = ELRS->isReceiverUp;
+			buf[1] = ELRS->isLinkUp;
+			buf[2] = ELRS->uplinkRssi[0];
+			buf[3] = ELRS->uplinkRssi[1];
+			buf[4] = ELRS->uplinkLinkQuality;
+			buf[5] = ELRS->uplinkSNR;
+			buf[6] = ELRS->antennaSelection;
+			buf[7] = ELRS->packetRateIdx;
+			memcpy(&buf[8], &ELRS->txPower, 2);
+			memcpy(&buf[10], &ELRS->targetPacketRate, 2);
+			memcpy(&buf[12], &ELRS->actualPacketRate, 2);
+			memcpy(&buf[14], &ELRS->rcMsgCount, 4);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 18);
 		} break;
 		case MspFn::GET_PIDS: {
 			u16 pids[3][7];
