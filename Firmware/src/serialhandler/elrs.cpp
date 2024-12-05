@@ -229,33 +229,8 @@ void ExpressLRS::processMessage() {
 			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
 			break;
 		}
-		// crsf_channels_t *crsfChannels = (crsf_channels_t *)(&msgBuffer[3]); // somehow conversion through bit-fields does not work, so manual conversion
-		u64 decoder, decoder2;
-		memcpy(&decoder, &msgBuffer[3], 8);
-		u32 pChannels[16];
-		pChannels[0] = decoder & 0x7FF; // 0...10
-		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
-		pChannels[2] = (decoder >> 22) & 0x7FF; // 22...32
-		pChannels[3] = (decoder >> 33) & 0x7FF; // 33...43
-		pChannels[4] = (decoder >> 44) & 0x7FF; // 44...54
-		decoder >>= 55; // 55, 9 bits left
-		memcpy(&decoder2, &msgBuffer[11], 6);
-		decoder |= (decoder2 << 9); // 57 bits left
-		pChannels[5] = decoder & 0x7FF; // 55...65
-		pChannels[6] = (decoder >> 11) & 0x7FF; // 66...76
-		pChannels[7] = (decoder >> 22) & 0x7FF; // 77...87
-		pChannels[8] = (decoder >> 33) & 0x7FF; // 88...98
-		pChannels[9] = (decoder >> 44) & 0x7FF; // 99...109
-		decoder >>= 55; // 55, 2 bits left
-		memcpy(&decoder2, &msgBuffer[17], 7);
-		decoder |= (decoder2 << 2); // 58 bits left
-		pChannels[10] = decoder & 0x7FF; // 110...120
-		pChannels[11] = (decoder >> 11) & 0x7FF; // 121...131
-		pChannels[12] = (decoder >> 22) & 0x7FF; // 132...142
-		pChannels[13] = (decoder >> 33) & 0x7FF; // 143...153
-		pChannels[14] = (decoder >> 44) & 0x7FF; // 154...164
-		decoder >>= 55; // 55, 3 bits left
-		pChannels[15] = decoder | (msgBuffer[24] << 3);
+		crsf_channels_11 *chs = (crsf_channels_11 *)(&msgBuffer[3]);
+		u32 pChannels[16] = {chs->ch0, chs->ch1, chs->ch2, chs->ch3, chs->ch4, chs->ch5, chs->ch6, chs->ch7, chs->ch8, chs->ch9, chs->ch10, chs->ch11, chs->ch12, chs->ch13, chs->ch14, chs->ch15};
 		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
 		for (u8 i = 0; i < 16; i++) {
 			if (i == 2)
@@ -267,7 +242,6 @@ void ExpressLRS::processMessage() {
 		pChannels[2] = 1500 + (1000 * ((i32)pChannels[2] - 992) / 1636);
 		pChannels[2] = constrain(pChannels[2], 1000, 2000);
 
-		newPacketFlag = 0xFFFFFFFF;
 		if (pChannels[4] > 1500)
 			consecutiveArmedCycles++;
 		else
@@ -284,11 +258,152 @@ void ExpressLRS::processMessage() {
 		memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
 		sinceLastRCMessage = 0;
 		memcpy(channels, pChannels, 16 * sizeof(u32));
+		newPacketFlag = 0xFFFFFFFF;
 		rcPacketRateCounter++;
 		rcMsgCount++;
 	} break;
 	case FRAMETYPE_SUBSET_RC_CHANNELS_PACKED: {
-		Serial.println("Subset");
+		u8 cfg = msgBuffer[3];
+		u8 firstChannel = cfg & 0x1F;
+		u8 res = (cfg >> 5) & 0x03;
+		u8 channelCount = (size - 4) * 8 / res;
+		if (firstChannel + channelCount > 16) {
+			lastError = ERROR_INVALID_LENGTH;
+			errorFlag = true;
+			errorCount++;
+			tasks[TASK_ELRS].errorCount++;
+			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
+			break;
+		}
+		u32 pChannels[16] = {0};
+		switch (res) {
+		case 0b00: {
+			// 10 bits
+			crsf_channels_10 chs = {0};
+			memcpy(&chs, &msgBuffer[4], size - 4);
+			pChannels[0] = chs.ch0;
+			pChannels[1] = chs.ch1;
+			pChannels[2] = chs.ch2;
+			pChannels[3] = chs.ch3;
+			pChannels[4] = chs.ch4;
+			pChannels[5] = chs.ch5;
+			pChannels[6] = chs.ch6;
+			pChannels[7] = chs.ch7;
+			pChannels[8] = chs.ch8;
+			pChannels[9] = chs.ch9;
+			pChannels[10] = chs.ch10;
+			pChannels[11] = chs.ch11;
+			pChannels[12] = chs.ch12;
+			pChannels[13] = chs.ch13;
+			pChannels[14] = chs.ch14;
+			pChannels[15] = chs.ch15;
+		} break;
+		case 0b01: {
+			// 11 bits
+			crsf_channels_11 chs = {0};
+			memcpy(&chs, &msgBuffer[4], size - 4);
+			pChannels[0] = chs.ch0;
+			pChannels[1] = chs.ch1;
+			pChannels[2] = chs.ch2;
+			pChannels[3] = chs.ch3;
+			pChannels[4] = chs.ch4;
+			pChannels[5] = chs.ch5;
+			pChannels[6] = chs.ch6;
+			pChannels[7] = chs.ch7;
+			pChannels[8] = chs.ch8;
+			pChannels[9] = chs.ch9;
+			pChannels[10] = chs.ch10;
+			pChannels[11] = chs.ch11;
+			pChannels[12] = chs.ch12;
+			pChannels[13] = chs.ch13;
+			pChannels[14] = chs.ch14;
+			pChannels[15] = chs.ch15;
+		} break;
+		case 0b10: {
+			// 12 bits
+			crsf_channels_12 chs = {0};
+			memcpy(&chs, &msgBuffer[4], size - 4);
+			pChannels[0] = chs.ch0;
+			pChannels[1] = chs.ch1;
+			pChannels[2] = chs.ch2;
+			pChannels[3] = chs.ch3;
+			pChannels[4] = chs.ch4;
+			pChannels[5] = chs.ch5;
+			pChannels[6] = chs.ch6;
+			pChannels[7] = chs.ch7;
+			pChannels[8] = chs.ch8;
+			pChannels[9] = chs.ch9;
+			pChannels[10] = chs.ch10;
+			pChannels[11] = chs.ch11;
+			pChannels[12] = chs.ch12;
+			pChannels[13] = chs.ch13;
+			pChannels[14] = chs.ch14;
+			pChannels[15] = chs.ch15;
+		} break;
+		case 0b11: {
+			// 13 bits
+			crsf_channels_13 chs = {0};
+			memcpy(&chs, &msgBuffer[4], size - 4);
+			pChannels[0] = chs.ch0;
+			pChannels[1] = chs.ch1;
+			pChannels[2] = chs.ch2;
+			pChannels[3] = chs.ch3;
+			pChannels[4] = chs.ch4;
+			pChannels[5] = chs.ch5;
+			pChannels[6] = chs.ch6;
+			pChannels[7] = chs.ch7;
+			pChannels[8] = chs.ch8;
+			pChannels[9] = chs.ch9;
+			pChannels[10] = chs.ch10;
+			pChannels[11] = chs.ch11;
+			pChannels[12] = chs.ch12;
+			pChannels[13] = chs.ch13;
+			pChannels[14] = chs.ch14;
+			pChannels[15] = chs.ch15;
+		} break;
+		default:
+			return;
+		}
+		// shift pChannels by firstChannel
+		for (u32 i = channelCount - 1; i; i--) {
+			pChannels[i + firstChannel] = pChannels[i];
+		}
+		for (u32 i = 0; i < firstChannel; i++) {
+			pChannels[i] = this->channels[i];
+		}
+		for (u32 i = firstChannel + channelCount; i < 16; i++) {
+			pChannels[i] = this->channels[i];
+		}
+		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
+		for (u8 i = 0; i < 16; i++) {
+			if (i == 2)
+				continue;
+			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
+			pChannels[i] = constrain(pChannels[i], 988, 2012);
+		}
+		// map pChannels (throttle) to 1000-2000
+		pChannels[2] = 1500 + (1000 * ((i32)pChannels[2] - 992) / 1636);
+		pChannels[2] = constrain(pChannels[2], 1000, 2000);
+
+		if (pChannels[4] > 1500)
+			consecutiveArmedCycles++;
+		else
+			consecutiveArmedCycles = 0;
+
+		// update as fast as possible
+		fix32 smooth[4];
+		getSmoothChannels(smooth);
+		u32 smooth2[4];
+		for (int i = 0; i < 4; i++) {
+			smooth2[i] = smooth[i].geti32();
+		}
+		memcpy(lastChannels, smooth2, 4 * sizeof(u32));
+		memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
+		sinceLastRCMessage = 0;
+		memcpy(channels, pChannels, 16 * sizeof(u32));
+		newPacketFlag = 0xFFFFFFFF;
+		rcPacketRateCounter++;
+		rcMsgCount++;
 	} break;
 	case FRAMETYPE_LINK_STATISTICS: {
 		if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc

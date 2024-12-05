@@ -10,6 +10,7 @@ using std::vector;
 // https://github.com/crsf-wg/crsf/wiki
 
 extern RingBuffer<u8> elrsBuffer;
+
 class ExpressLRS {
 public:
 	/**
@@ -133,4 +134,80 @@ private:
 	bool mspRecording = false;
 	MspVersion mspVersion = MspVersion::V2_OVER_CRSF;
 	void processMessage();
+};
+
+struct __attribute__((packed)) crsf_channels_10 {
+	unsigned ch0 : 10;
+	unsigned ch1 : 10;
+	unsigned ch2 : 10;
+	unsigned ch3 : 10;
+	unsigned ch4 : 10;
+	unsigned ch5 : 10;
+	unsigned ch6 : 10;
+	unsigned ch7 : 10;
+	unsigned ch8 : 10;
+	unsigned ch9 : 10;
+	unsigned ch10 : 10;
+	unsigned ch11 : 10;
+	unsigned ch12 : 10;
+	unsigned ch13 : 10;
+	unsigned ch14 : 10;
+	unsigned ch15 : 10;
+};
+
+struct __attribute__((packed)) crsf_channels_11 {
+	unsigned ch0 : 11;
+	unsigned ch1 : 11;
+	unsigned ch2 : 11;
+	unsigned ch3 : 11;
+	unsigned ch4 : 11;
+	unsigned ch5 : 11;
+	unsigned ch6 : 11;
+	unsigned ch7 : 11;
+	unsigned ch8 : 11;
+	unsigned ch9 : 11;
+	unsigned ch10 : 11;
+	unsigned ch11 : 11;
+	unsigned ch12 : 11;
+	unsigned ch13 : 11;
+	unsigned ch14 : 11;
+	unsigned ch15 : 11;
+};
+
+struct __attribute__((packed)) crsf_channels_12 {
+	unsigned ch0 : 12;
+	unsigned ch1 : 12;
+	unsigned ch2 : 12;
+	unsigned ch3 : 12;
+	unsigned ch4 : 12;
+	unsigned ch5 : 12;
+	unsigned ch6 : 12;
+	unsigned ch7 : 12;
+	unsigned ch8 : 12;
+	unsigned ch9 : 12;
+	unsigned ch10 : 12;
+	unsigned ch11 : 12;
+	unsigned ch12 : 12;
+	unsigned ch13 : 12;
+	unsigned ch14 : 12;
+	unsigned ch15 : 12;
+};
+
+struct __attribute__((packed)) crsf_channels_13 {
+	unsigned ch0 : 13;
+	unsigned ch1 : 13;
+	unsigned ch2 : 13;
+	unsigned ch3 : 13;
+	unsigned ch4 : 13;
+	unsigned ch5 : 13;
+	unsigned ch6 : 13;
+	unsigned ch7 : 13;
+	unsigned ch8 : 13;
+	unsigned ch9 : 13;
+	unsigned ch10 : 13;
+	unsigned ch11 : 13;
+	unsigned ch12 : 13;
+	unsigned ch13 : 13;
+	unsigned ch14 : 13;
+	unsigned ch15 : 13;
 };
