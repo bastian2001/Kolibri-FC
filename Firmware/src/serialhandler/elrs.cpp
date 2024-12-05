@@ -45,6 +45,10 @@ void ExpressLRS::loop() {
 		packetRateCounter = 0;
 		rcPacketRateCounter = 0;
 		frequencyTimer = 0;
+		if (!pinged) {
+			// somehow ADDRESS_BROADCAST gets no device info in return so using CRSF_RECEIVER here
+			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_RECEIVER, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
+		}
 	}
 	int maxScan = elrsBuffer.itemCount();
 	if (maxScan > 250) {
@@ -331,14 +335,17 @@ void ExpressLRS::processMessage() {
 		buf[pos++] = 0; // parameter protocol version (0)
 		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, msgBuffer[4], ADDRESS_FLIGHT_CONTROLLER, buf, pos);
 	} break;
-	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY:
+	case FRAMETYPE_DEVICE_INFO: {
+		pinged = true;
+	} break;
+	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY: {
 		Serial.printf("FRAMETYPE_PARAMETER_SETTINGS_ENTRY with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
 		for (int i = 0; i < size - 6; i++) {
 			Serial.printf("%02X ", msgBuffer[5 + i]);
 		}
 		Serial.println();
-		break;
 	case FRAMETYPE_PARAMETER_READ:
+	} break;
 		Serial.printf("FRAMETYPE_PARAMETER_READ with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
 		for (int i = 0; i < size - 6; i++) {
 			Serial.printf("%02X ", msgBuffer[5 + i]);

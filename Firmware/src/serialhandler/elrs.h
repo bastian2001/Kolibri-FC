@@ -99,6 +99,9 @@ private:
 		4, 25, 50, 100, 100, 150, 200, 250, 333, 500, 250, 500, 500, 1000, 50, 200, 500, 1000, 1000, 1000};
 	static const u8 CRSF_SYNC_BYTE = 0xC8;
 	static const u8 ADDRESS_FLIGHT_CONTROLLER = 0xC8;
+	static const u8 ADDRESS_RADIO_TRANSMITTER = 0xEA;
+	static const u8 ADDRESS_CRSF_RECEIVER = 0xEC;
+	static const u8 ADDRESS_CRSF_TRANSMITTER = 0xEE;
 	static interp_config interpConfig0; // used to interpolate for smooth sticks
 	static interp_config interpConfig1; // used to interpolate for smooth sticks
 	static interp_config interpConfig2; // used to clamp smoothed values
@@ -126,6 +129,7 @@ private:
 	u8 mspRxSeq = 0;
 	u16 mspRxPos = 0;
 	u8 mspRxFlag = 0;
+	bool pinged = false;
 	bool mspRecording = false;
 	MspVersion mspVersion = MspVersion::V2_OVER_CRSF;
 	void processMessage();
