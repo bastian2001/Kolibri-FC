@@ -35,16 +35,13 @@ ExpressLRS::~ExpressLRS() {
 
 void ExpressLRS::loop() {
 	elapsedMicros taskTimer;
-	if (frequencyTimer > 1000) {
+	if (frequencyTimer >= 1000) {
 		if (rcPacketRateCounter > 20 && rcMsgCount > 300)
 			isLinkUp = true;
 		else
 			isLinkUp = false;
-		if (lastMsgCount != msgCount) {
-			isReceiverUp = true;
-			lastMsgCount = msgCount;
-		} else
-			isReceiverUp = false;
+		if (msgCount) isReceiverUp = true;
+		actualPacketRate = rcPacketRateCounter;
 		packetRateCounter = 0;
 		rcPacketRateCounter = 0;
 		frequencyTimer = 0;
@@ -308,7 +305,8 @@ void ExpressLRS::processMessage() {
 		uplinkLinkQuality = msgBuffer[5];
 		uplinkSNR = msgBuffer[6];
 		antennaSelection = msgBuffer[7];
-		packetRate = msgBuffer[8];
+		packetRateIdx = msgBuffer[8];
+		targetPacketRate = packetRates[packetRateIdx];
 		txPower = powerStates[msgBuffer[9]];
 		downlinkRssi = -msgBuffer[10];
 		downlinkLinkQuality = msgBuffer[11];

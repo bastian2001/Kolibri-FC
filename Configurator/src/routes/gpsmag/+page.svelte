@@ -104,7 +104,7 @@
 					magRight = leBytesToInt(command.data.slice(6, 8), true);
 					magRear = leBytesToInt(command.data.slice(8, 10), true);
 					magHeading = leBytesToInt(command.data.slice(10, 12), true);
-					//each canvas plots values from -1000 to 1000
+					//each canvas plots values from -500 to 500
 					const scale = 500 / 1000;
 					const xpx = magX * scale + 250;
 					const ypx = magY * scale + 250;
@@ -240,6 +240,7 @@
 <div class="gpsInfo magStatus">
 	Magnetic Heading: {roundToDecimal(magHeading, 2)}°<br />
 	Mag X: {magX}, Mag Y: {magY}, Mag Z: {magZ}<br />
+	Mag total: {roundToDecimal(Math.sqrt(magX ** 2 + magY ** 2 + magZ ** 2), 2)}<br />
 	Mag Right: {magRight}, Mag Rear: {magRear}<br />
 	Combined Altitude: {roundToDecimal(combinedAltitude, 2)}m<br />
 	Vertical Velocity: {roundToDecimal(verticalVelocity, 2)}m/s<br />

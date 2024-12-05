@@ -26,6 +26,7 @@
 #include "elapsedMillis.h"
 #include "filters.h"
 #include "fixedPointInt.h"
+#include "git_version.h"
 #include "hardware/adc.h"
 #include "hardware/dma.h"
 #include "hardware/i2c.h"

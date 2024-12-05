@@ -1,5 +1,42 @@
 #include "typedefs.h"
 
+#define MAG_HMC5883L 0
+#define MAG_QMC5883L 1
+#if MAG_HARDWARE == MAG_QMC5883L
+#define MAG_ADDRESS (0x0D)
+
+enum class MAG_REG {
+	DATA_X_L = 0x00,
+	DATA_X_H,
+	DATA_Y_L,
+	DATA_Y_H,
+	DATA_Z_L,
+	DATA_Z_H,
+	STATUS,
+	TEMP_L,
+	TEMP_H,
+	CONTROL_1,
+	CONTROL_2,
+	SET_RESET,
+	ID = 0x0D
+};
+
+#define MAG_OSR_512 (0b00 << 6) // configure mag oversampling rate, write into CONTROL_1
+#define MAG_OSR_256 (0b01 << 6) // configure mag oversampling rate, write into CONTROL_1
+#define MAG_OSR_128 (0b10 << 6) // configure mag oversampling rate, write into CONTROL_1
+#define MAG_OSR_64 (0b11 << 6) // configure mag oversampling rate, write into CONTROL_1
+#define MAG_RANGE_2 (0b00 << 4) // configure mag range, write into CONTROL_1
+#define MAG_RANGE_8 (0b01 << 4) // configure mag range, write into CONTROL_1
+#define MAG_ODR_10HZ (0b00 << 2) // configure mag output data rate, write into CONTROL_1
+#define MAG_ODR_50HZ (0b01 << 2) // configure mag output data rate, write into CONTROL_1
+#define MAG_ODR_100HZ (0b10 << 2) // configure mag output data rate, write into CONTROL_1
+#define MAG_ODR_200HZ (0b11 << 2) // configure mag output data rate, write into CONTROL_1
+#define MAG_MODE_CONTINUOUS 0b01 // configure mag for continuous or single measurement mode, write into CONTROL_1
+#define MAG_MODE_SINGLE 0b00 // configure mag for continuous or single measurement mode, write into CONTROL_1
+#define MAG_SOFT_RST (0b1 << 7) // write into CONTROL_2 to reset the sensor
+#define MAG_ROL_PNT (0b1 << 6) // write into CONTROL_2 to roll over pointer from Z to X
+#define MAG_INT_EN (0b1 << 0) // write into CONTROL_2 to enable interrupt
+#elif MAG_HARDWARE == MAG_HMC5883L
 // driver for HMC5883L magnetometer
 
 #define MAG_ADDRESS (0x1E)
@@ -47,7 +84,20 @@ enum class MAG_REG {
 #define MAG_MODE_IDLE 0b10 // configure mag for continuous or single measurement mode, write into MODE
 #define MAG_MODE_HS_I2C (0b1 << 7) // datasheet is unclear: "does not support high speed, only 400kHz", but then this bit can allegedly enable 3400kHz I2C? Even worse: 3400kHz seems to work regardless of this bit
 
-/// @brief Initializes the magnetometer (HMC5883L)
+#endif
+enum MAG_STATES {
+	MAG_NOT_INIT = 0,
+	MAG_INIT,
+	MAG_MEASURING,
+	MAG_SOON_READY,
+	MAG_CHECK_DATA_READY,
+	MAG_READ_DATA,
+	MAG_PROCESS_DATA,
+	MAG_CALIBRATE,
+	MAG_PROCESS_CALIBRATION
+};
+
+/// @brief Initializes the magnetometer
 void initMag();
 
 /**
@@ -62,15 +112,4 @@ extern i16 magOffset[3]; // offset that gets subtracted from the magnetometer va
 extern fix32 magHeading; // heading in radians
 extern i32 magData[3]; // raw magnetometer data after subtracting offset
 extern fix32 magX, magY; // magnetometer in earth's right and rearward direction
-
-enum MAG_STATES {
-	MAG_NOT_INIT = 0,
-	MAG_INIT,
-	MAG_MEASURING,
-	MAG_SOON_READY,
-	MAG_CHECK_DATA_READY,
-	MAG_READ_DATA,
-	MAG_PROCESS_DATA,
-	MAG_CALIBRATE,
-	MAG_PROCESS_CALIBRATION
-};
+extern i32 magRunCounter; // counts up for each value read, to measure the compass frequency

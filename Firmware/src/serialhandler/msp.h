@@ -58,6 +58,7 @@ enum class MspFn {
 	SET_ARMING_DISABLED = 99,
 	MSP_STATUS = 101,
 	GET_MOTOR = 104,
+	RC = 105,
 	MSP_ATTITUDE = 108,
 	BOXIDS = 119,
 	GET_MOTOR_3D_CONFIG = 124,
@@ -110,6 +111,9 @@ enum class MspFn {
 
 	// 0x417_ Task Manager
 	TASK_STATUS = 0x4170,
+
+	// 0x418_ Receiver
+	GET_RX_STATUS = 0x4180,
 
 	// 0x42__ Tuning
 	GET_PIDS = 0x4200,
