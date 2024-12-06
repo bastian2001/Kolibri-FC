@@ -45,8 +45,13 @@ void ExpressLRS::loop() {
 		packetRateCounter = 0;
 		rcPacketRateCounter = 0;
 		frequencyTimer = 0;
+		if (!pinged) {
+			// somehow ADDRESS_BROADCAST gets no device info in return so using CRSF_RECEIVER here
+			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_RECEIVER, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
+		}
 	}
-	if (elrsBuffer.itemCount() > 250) {
+	int maxScan = elrsBuffer.itemCount();
+	if (maxScan > 250) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
 		crc = 0;
@@ -57,8 +62,12 @@ void ExpressLRS::loop() {
 		errorCount++;
 		return;
 	}
-	int maxScan = elrsBuffer.itemCount();
-	if (!maxScan && telemetryTimer >= 15) {
+	if ((!maxScan && heartbeatTimer >= 300) || heartbeatTimer >= 500) {
+		// try to send every 300 ms, and force send after reaching 500ms
+		u8 buf[2] = {0, ADDRESS_FLIGHT_CONTROLLER}; // u16 address, big endian
+		this->sendPacket(FRAMETYPE_HEARTBEAT, (char *)buf, 2);
+		heartbeatTimer = 0;
+	} else if (!maxScan && telemetryTimer >= 15) {
 		// if there is no data to read and the last sensor was transmitted more than 15ms ago, send one telemetry sensor at a time
 		telemetryTimer = 0;
 		switch (currentTelemSensor++) {
@@ -82,14 +91,14 @@ void ExpressLRS::loop() {
 			telemBuffer[12] = data >> 8;
 			telemBuffer[13] = data;
 			telemBuffer[14] = gpsStatus.satCount;
-			this->sendPacket(CRSF_FRAMETYPE_GPS, (char *)telemBuffer, 15);
+			this->sendPacket(FRAMETYPE_GPS, (char *)telemBuffer, 15);
 		} break;
 		case 1: {
 			// Vario (0x07)
 			i16 data = -gpsMotion.velD / 10; // mm/s to cm/s
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			this->sendPacket(CRSF_FRAMETYPE_VARIO, (char *)telemBuffer, 2);
+			this->sendPacket(FRAMETYPE_VARIO, (char *)telemBuffer, 2);
 		} break;
 		case 2: {
 			// Battery (0x08)
@@ -103,7 +112,7 @@ void ExpressLRS::loop() {
 			telemBuffer[5] = 0;
 			telemBuffer[6] = 0;
 			telemBuffer[7] = 0;
-			this->sendPacket(CRSF_FRAMETYPE_BATTERY, (char *)telemBuffer, 8);
+			this->sendPacket(FRAMETYPE_BATTERY, (char *)telemBuffer, 8);
 		} break;
 		case 3: {
 			// Baro Altitude (0x09)
@@ -114,7 +123,7 @@ void ExpressLRS::loop() {
 			data = vVel.raw / 655; // cm/s
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
-			this->sendPacket(CRSF_FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);
+			this->sendPacket(FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);
 		} break;
 		case 4: {
 			// Attitude (0x1E)
@@ -132,19 +141,19 @@ void ExpressLRS::loop() {
 			// Flight Mode (0x21)
 			switch (flightMode) {
 			case FlightMode::ACRO:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Acro", 5);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "Acro", 5);
 				break;
 			case FlightMode::ANGLE:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Angle", 6);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "Angle", 6);
 				break;
 			case FlightMode::ALT_HOLD:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
 				break;
 			case FlightMode::GPS_VEL:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
 				break;
 			case FlightMode::GPS_POS:
-				this->sendPacket(CRSF_FRAMETYPE_FLIGHTMODE, "GPS Position", 13);
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS Position", 13);
 				break;
 			}
 			break;
@@ -210,7 +219,7 @@ void ExpressLRS::processMessage() {
 	tasks[TASK_ELRS].runCounter++;
 
 	switch (msgBuffer[2]) {
-	case RC_CHANNELS_PACKED: {
+	case FRAMETYPE_RC_CHANNELS_PACKED: {
 		if (size != 26) // 16 channels * 11 bits + 3 bytes header + 1 byte crc
 		{
 			lastError = ERROR_INVALID_LENGTH;
@@ -220,51 +229,19 @@ void ExpressLRS::processMessage() {
 			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
 			break;
 		}
-		// crsf_channels_t *crsfChannels = (crsf_channels_t *)(&msgBuffer[3]); // somehow conversion through bit-fields does not work, so manual conversion
-		u64 decoder, decoder2;
-		memcpy(&decoder, &msgBuffer[3], 8);
-		u32 pChannels[16];
-		pChannels[0] = decoder & 0x7FF; // 0...10
-		pChannels[1] = (decoder >> 11) & 0x7FF; // 11...21
-		pChannels[2] = (decoder >> 22) & 0x7FF; // 22...32
-		pChannels[3] = (decoder >> 33) & 0x7FF; // 33...43
-		pChannels[4] = (decoder >> 44) & 0x7FF; // 44...54
-		decoder >>= 55; // 55, 9 bits left
-		memcpy(&decoder2, &msgBuffer[11], 6);
-		decoder |= (decoder2 << 9); // 57 bits left
-		pChannels[5] = decoder & 0x7FF; // 55...65
-		pChannels[6] = (decoder >> 11) & 0x7FF; // 66...76
-		pChannels[7] = (decoder >> 22) & 0x7FF; // 77...87
-		pChannels[8] = (decoder >> 33) & 0x7FF; // 88...98
-		pChannels[9] = (decoder >> 44) & 0x7FF; // 99...109
-		decoder >>= 55; // 55, 2 bits left
-		memcpy(&decoder2, &msgBuffer[17], 7);
-		decoder |= (decoder2 << 2); // 58 bits left
-		pChannels[10] = decoder & 0x7FF; // 110...120
-		pChannels[11] = (decoder >> 11) & 0x7FF; // 121...131
-		pChannels[12] = (decoder >> 22) & 0x7FF; // 132...142
-		pChannels[13] = (decoder >> 33) & 0x7FF; // 143...153
-		pChannels[14] = (decoder >> 44) & 0x7FF; // 154...164
-		decoder >>= 55; // 55, 3 bits left
-		pChannels[15] = decoder | (msgBuffer[24] << 3);
+		crsf_channels_11 *chs = (crsf_channels_11 *)(&msgBuffer[3]);
+		u32 pChannels[16] = {chs->ch0, chs->ch1, chs->ch2, chs->ch3, chs->ch4, chs->ch5, chs->ch6, chs->ch7, chs->ch8, chs->ch9, chs->ch10, chs->ch11, chs->ch12, chs->ch13, chs->ch14, chs->ch15};
 		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
 		for (u8 i = 0; i < 16; i++) {
 			if (i == 2)
 				continue;
-			pChannels[i] -= 174;
-			pChannels[i] *= 1024;
-			pChannels[i] /= 1636;
-			pChannels[i] += 988;
+			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
 			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
 		// map pChannels (throttle) to 1000-2000
-		pChannels[2] -= 174;
-		pChannels[2] *= 1000;
-		pChannels[2] /= 1636;
-		pChannels[2] += 1000; // keep radio commands within 1000-2000
+		pChannels[2] = 1500 + (1000 * ((i32)pChannels[2] - 992) / 1636);
 		pChannels[2] = constrain(pChannels[2], 1000, 2000);
 
-		newPacketFlag = 0xFFFFFFFF;
 		if (pChannels[4] > 1500)
 			consecutiveArmedCycles++;
 		else
@@ -281,11 +258,154 @@ void ExpressLRS::processMessage() {
 		memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
 		sinceLastRCMessage = 0;
 		memcpy(channels, pChannels, 16 * sizeof(u32));
+		newPacketFlag = 0xFFFFFFFF;
 		rcPacketRateCounter++;
 		rcMsgCount++;
-		break;
-	}
-	case LINK_STATISTICS: {
+	} break;
+	case FRAMETYPE_SUBSET_RC_CHANNELS_PACKED: {
+		u8 cfg = msgBuffer[3];
+		u8 firstChannel = cfg & 0x1F;
+		u8 res = (cfg >> 5) & 0x03;
+		u8 channelCount = (size - 5) * 8 / res;
+		if (firstChannel + channelCount > 16) {
+			lastError = ERROR_INVALID_LENGTH;
+			errorFlag = true;
+			errorCount++;
+			tasks[TASK_ELRS].errorCount++;
+			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
+			break;
+		}
+		u32 pChannels[16] = {0};
+		switch (res) {
+		case 0b00: {
+			// 10 bits
+			crsf_channels_10 chs = {0};
+			memcpy(&chs, &msgBuffer[4], size - 5);
+			pChannels[0] = chs.ch0;
+			pChannels[1] = chs.ch1;
+			pChannels[2] = chs.ch2;
+			pChannels[3] = chs.ch3;
+			pChannels[4] = chs.ch4;
+			pChannels[5] = chs.ch5;
+			pChannels[6] = chs.ch6;
+			pChannels[7] = chs.ch7;
+			pChannels[8] = chs.ch8;
+			pChannels[9] = chs.ch9;
+			pChannels[10] = chs.ch10;
+			pChannels[11] = chs.ch11;
+			pChannels[12] = chs.ch12;
+			pChannels[13] = chs.ch13;
+			pChannels[14] = chs.ch14;
+			pChannels[15] = chs.ch15;
+		} break;
+		case 0b01: {
+			// 11 bits
+			crsf_channels_11 chs = {0};
+			memcpy(&chs, &msgBuffer[4], size - 5);
+			pChannels[0] = chs.ch0;
+			pChannels[1] = chs.ch1;
+			pChannels[2] = chs.ch2;
+			pChannels[3] = chs.ch3;
+			pChannels[4] = chs.ch4;
+			pChannels[5] = chs.ch5;
+			pChannels[6] = chs.ch6;
+			pChannels[7] = chs.ch7;
+			pChannels[8] = chs.ch8;
+			pChannels[9] = chs.ch9;
+			pChannels[10] = chs.ch10;
+			pChannels[11] = chs.ch11;
+			pChannels[12] = chs.ch12;
+			pChannels[13] = chs.ch13;
+			pChannels[14] = chs.ch14;
+			pChannels[15] = chs.ch15;
+		} break;
+		case 0b10: {
+			// 12 bits
+			crsf_channels_12 chs = {0};
+			memcpy(&chs, &msgBuffer[4], size - 5);
+			pChannels[0] = chs.ch0;
+			pChannels[1] = chs.ch1;
+			pChannels[2] = chs.ch2;
+			pChannels[3] = chs.ch3;
+			pChannels[4] = chs.ch4;
+			pChannels[5] = chs.ch5;
+			pChannels[6] = chs.ch6;
+			pChannels[7] = chs.ch7;
+			pChannels[8] = chs.ch8;
+			pChannels[9] = chs.ch9;
+			pChannels[10] = chs.ch10;
+			pChannels[11] = chs.ch11;
+			pChannels[12] = chs.ch12;
+			pChannels[13] = chs.ch13;
+			pChannels[14] = chs.ch14;
+			pChannels[15] = chs.ch15;
+		} break;
+		case 0b11: {
+			// 13 bits
+			crsf_channels_13 chs = {0};
+			memcpy(&chs, &msgBuffer[4], size - 5);
+			pChannels[0] = chs.ch0;
+			pChannels[1] = chs.ch1;
+			pChannels[2] = chs.ch2;
+			pChannels[3] = chs.ch3;
+			pChannels[4] = chs.ch4;
+			pChannels[5] = chs.ch5;
+			pChannels[6] = chs.ch6;
+			pChannels[7] = chs.ch7;
+			pChannels[8] = chs.ch8;
+			pChannels[9] = chs.ch9;
+			pChannels[10] = chs.ch10;
+			pChannels[11] = chs.ch11;
+			pChannels[12] = chs.ch12;
+			pChannels[13] = chs.ch13;
+			pChannels[14] = chs.ch14;
+			pChannels[15] = chs.ch15;
+		} break;
+		default:
+			return;
+		}
+		// shift pChannels by firstChannel
+		for (u32 i = channelCount - 1; i; i--) {
+			pChannels[i + firstChannel] = pChannels[i];
+		}
+		for (u32 i = 0; i < firstChannel; i++) {
+			pChannels[i] = this->channels[i];
+		}
+		for (u32 i = firstChannel + channelCount; i < 16; i++) {
+			pChannels[i] = this->channels[i];
+		}
+		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
+		for (u8 i = 0; i < 16; i++) {
+			if (i == 2)
+				continue;
+			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
+			pChannels[i] = constrain(pChannels[i], 988, 2012);
+		}
+		// map pChannels (throttle) to 1000-2000
+		pChannels[2] = 1500 + (1000 * ((i32)pChannels[2] - 992) / 1636);
+		pChannels[2] = constrain(pChannels[2], 1000, 2000);
+
+		if (pChannels[4] > 1500)
+			consecutiveArmedCycles++;
+		else
+			consecutiveArmedCycles = 0;
+
+		// update as fast as possible
+		fix32 smooth[4];
+		getSmoothChannels(smooth);
+		u32 smooth2[4];
+		for (int i = 0; i < 4; i++) {
+			smooth2[i] = smooth[i].geti32();
+		}
+		memcpy(lastChannels, smooth2, 4 * sizeof(u32));
+		memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
+		sinceLastRCMessage = 0;
+		memcpy(channels, pChannels, 16 * sizeof(u32));
+		newPacketFlag = 0xFFFFFFFF;
+		rcPacketRateCounter++;
+		rcMsgCount++;
+	} break;
+	case FRAMETYPE_LINK_STATISTICS: {
 		if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc
 		{
 			lastError = ERROR_INVALID_LENGTH;
@@ -306,23 +426,57 @@ void ExpressLRS::processMessage() {
 		downlinkRssi = -msgBuffer[10];
 		downlinkLinkQuality = msgBuffer[11];
 		downlinkSNR = msgBuffer[12];
-		break;
-	}
-	case DEVICE_PING:
-		// TODO: Discovery of FC to ELRS
-		break;
-	case DEVICE_INFO:
-		break;
-	case PARAMETER_SETTINGS_ENTRY:
-		break;
-	case PARAMETER_READ:
-		break;
-	case PARAMETER_WRITE:
-		break;
-	case COMMAND:
-		break;
-	case MSP_REQ:
-	case MSP_WRITE: {
+	} break;
+	case FRAMETYPE_DEVICE_PING: {
+		char buf[32] = FIRMWARE_NAME " " FIRMWARE_VERSION_STRING;
+		u8 pos = strlen(buf) + 1;
+		memcpy(&buf[pos], rp2040.getChipID(), 4);
+		pos += 4;
+		buf[pos++] = 0; // hardware version
+		buf[pos++] = 0; // hardware version
+		buf[pos++] = 0; // hardware version
+		buf[pos++] = 0; // hardware version
+		buf[pos++] = 0; // software version
+		buf[pos++] = FIRMWARE_VERSION_MAJOR;
+		buf[pos++] = FIRMWARE_VERSION_MINOR;
+		buf[pos++] = FIRMWARE_VERSION_PATCH;
+		buf[pos++] = 0; // config parameter count
+		buf[pos++] = 0; // parameter protocol version (0)
+		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, msgBuffer[4], ADDRESS_FLIGHT_CONTROLLER, buf, pos);
+	} break;
+	case FRAMETYPE_DEVICE_INFO: {
+		pinged = true;
+	} break;
+	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY: {
+		Serial.printf("FRAMETYPE_PARAMETER_SETTINGS_ENTRY with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
+		for (int i = 0; i < size - 6; i++) {
+			Serial.printf("%02X ", msgBuffer[5 + i]);
+		}
+		Serial.println();
+	} break;
+	case FRAMETYPE_PARAMETER_READ: {
+		Serial.printf("FRAMETYPE_PARAMETER_READ with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
+		for (int i = 0; i < size - 6; i++) {
+			Serial.printf("%02X ", msgBuffer[5 + i]);
+		}
+		Serial.println();
+	} break;
+	case FRAMETYPE_PARAMETER_WRITE: {
+		Serial.printf("FRAMETYPE_PARAMETER_WRITE with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
+		for (int i = 0; i < size - 6; i++) {
+			Serial.printf("%02X ", msgBuffer[5 + i]);
+		}
+		Serial.println();
+	} break;
+	case FRAMETYPE_COMMAND: {
+		Serial.printf("FRAMETYPE_COMMAND with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
+		for (int i = 0; i < size - 6; i++) {
+			Serial.printf("%02X ", msgBuffer[5 + i]);
+		}
+		Serial.println();
+	} break;
+	case FRAMETYPE_MSP_REQ:
+	case FRAMETYPE_MSP_WRITE: {
 		char *extPayload = (char *)&msgBuffer[5];
 		i8 packetSize = size - 4;
 		u8 minSize = 2;
@@ -434,9 +588,10 @@ void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 }
 
 void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
-	if (payloadLen > 60) return;
+	if (payloadLen > 60 || (payload == nullptr && payloadLen)) return;
 	u8 packet[64] = {CRSF_SYNC_BYTE, (u8)(payloadLen + 2), cmd};
-	memcpy(&packet[3], payload, payloadLen);
+	if (payloadLen)
+		memcpy(&packet[3], payload, payloadLen);
 	u32 crc = 0;
 	for (int i = 2; i < 3 + payloadLen; i++) {
 		crc ^= packet[i];
@@ -447,9 +602,10 @@ void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
 }
 
 void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
-	if (extPayloadLen > 58) return;
+	if (extPayloadLen > 58 || (extPayload == nullptr && extPayloadLen)) return;
 	u8 packet[64] = {CRSF_SYNC_BYTE, (u8)(extPayloadLen + 4), cmd, destAddr, srcAddr};
-	memcpy(&packet[5], extPayload, extPayloadLen);
+	if (extPayloadLen)
+		memcpy(&packet[5], extPayload, extPayloadLen);
 	u32 crc = 0;
 	for (int i = 2; i < 5 + extPayloadLen; i++) {
 		crc ^= packet[i];
@@ -460,6 +616,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
+	if (payload == nullptr && payloadLen) return;
 	u8 chunkCount = (payloadLen) / 57 + 1;
 	u8 firstPacket = 1;
 	for (u8 chunk = 0; chunk < chunkCount; chunk++) {
@@ -475,10 +632,11 @@ void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload,
 		stat |= (type == MspMsgType::ERROR) << 7;
 		u8 packet[60] = {this->lastExtSrcAddr, ADDRESS_FLIGHT_CONTROLLER, stat};
 		firstPacket = 0;
-		memcpy(&packet[3], &payload[chunk * 57], chunkSize);
+		if (chunkSize)
+			memcpy(&packet[3], &payload[chunk * 57], chunkSize);
 		if (type != MspMsgType::REQUEST)
-			sendPacket(MSP_RESP, (char *)packet, chunkSize + 3);
+			sendPacket(FRAMETYPE_MSP_RESP, (char *)packet, chunkSize + 3);
 		else
-			sendPacket(MSP_REQ, (char *)packet, chunkSize + 3);
+			sendPacket(FRAMETYPE_MSP_REQ, (char *)packet, chunkSize + 3);
 	}
 }
