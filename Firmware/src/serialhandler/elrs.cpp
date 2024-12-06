@@ -266,7 +266,7 @@ void ExpressLRS::processMessage() {
 		u8 cfg = msgBuffer[3];
 		u8 firstChannel = cfg & 0x1F;
 		u8 res = (cfg >> 5) & 0x03;
-		u8 channelCount = (size - 4) * 8 / res;
+		u8 channelCount = (size - 5) * 8 / res;
 		if (firstChannel + channelCount > 16) {
 			lastError = ERROR_INVALID_LENGTH;
 			errorFlag = true;
@@ -280,7 +280,7 @@ void ExpressLRS::processMessage() {
 		case 0b00: {
 			// 10 bits
 			crsf_channels_10 chs = {0};
-			memcpy(&chs, &msgBuffer[4], size - 4);
+			memcpy(&chs, &msgBuffer[4], size - 5);
 			pChannels[0] = chs.ch0;
 			pChannels[1] = chs.ch1;
 			pChannels[2] = chs.ch2;
@@ -301,7 +301,7 @@ void ExpressLRS::processMessage() {
 		case 0b01: {
 			// 11 bits
 			crsf_channels_11 chs = {0};
-			memcpy(&chs, &msgBuffer[4], size - 4);
+			memcpy(&chs, &msgBuffer[4], size - 5);
 			pChannels[0] = chs.ch0;
 			pChannels[1] = chs.ch1;
 			pChannels[2] = chs.ch2;
@@ -322,7 +322,7 @@ void ExpressLRS::processMessage() {
 		case 0b10: {
 			// 12 bits
 			crsf_channels_12 chs = {0};
-			memcpy(&chs, &msgBuffer[4], size - 4);
+			memcpy(&chs, &msgBuffer[4], size - 5);
 			pChannels[0] = chs.ch0;
 			pChannels[1] = chs.ch1;
 			pChannels[2] = chs.ch2;
@@ -343,7 +343,7 @@ void ExpressLRS::processMessage() {
 		case 0b11: {
 			// 13 bits
 			crsf_channels_13 chs = {0};
-			memcpy(&chs, &msgBuffer[4], size - 4);
+			memcpy(&chs, &msgBuffer[4], size - 5);
 			pChannels[0] = chs.ch0;
 			pChannels[1] = chs.ch1;
 			pChannels[2] = chs.ch2;
