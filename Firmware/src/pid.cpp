@@ -60,14 +60,14 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
-	pidGainsVVel[P] = 100; // additional throttle if velocity is 1m/s too low
-	pidGainsVVel[I] = .03; // increase throttle by 3200x this value, when error is 1m/s
-	pidGainsVVel[D] = 20000; // additional throttle, if accelerating by 3200m/s^2
+	pidGainsVVel[P] = 50; // additional throttle if velocity is 1m/s too low
+	pidGainsVVel[I] = .015; // increase throttle by 3200x this value, when error is 1m/s
+	pidGainsVVel[D] = 10000; // additional throttle, if accelerating by 3200m/s^2
 	pidGainsVVel[FF] = 30000;
 	pidGainsHVel[P] = 6; // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I] = 2.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 0; // tilt in degrees, if changing speed by 3200m/s /s
-	vVelMaxErrorSum = 2000 / pidGainsVVel[I].getf32();
+	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
 }
 
@@ -180,7 +180,7 @@ void pidLoop() {
 		polynomials[0][0] = (smoothChannels[0] - 1500) >> 9; //-1...+1
 		polynomials[0][1] = (smoothChannels[1] - 1500) >> 9;
 		polynomials[0][2] = (smoothChannels[3] - 1500) >> 9;
-		throttle = (smoothChannels[2] - 1000) * 2; // 0...2000
+		throttle = (smoothChannels[2] - 988); // 0...1024
 		rollSetpoint = 0;
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
@@ -234,21 +234,21 @@ void pidLoop() {
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 
 			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
-				fix32 t = throttle - 1000;
+				fix32 t = throttle - 512;
 				static PT1 vVelDFilter(15, 3200);
 				static PT1 vVelFFFilter(2, 3200);
 				static elapsedMillis setAltSetpointTimer;
 				static u32 stickWasCentered = 0;
 				// deadband in center of stick
 				if (t > 0) {
-					t -= 100;
+					t -= 50;
 					if (t < 0) t = 0;
 				} else {
-					t += 100;
+					t += 50;
 					if (t > 0) t = 0;
 				}
 				// estimate throttle
-				vVelSetpoint = t / 180; // +/- 5 m/s
+				vVelSetpoint = t / 90; // +/- 5 m/s
 				if (vVelSetpoint == 0) {
 					if (!stickWasCentered) {
 						setAltSetpointTimer = 0;
@@ -270,10 +270,10 @@ void pidLoop() {
 				vVelP = pidGainsVVel[P] * vVelError;
 				vVelI = pidGainsVVel[I] * vVelErrorSum;
 				vVelD = pidGainsVVel[D] * vVelDFilter.update(vVelLast - vVel);
-				vVelFF = pidGainsVVel[FF] * vVelFFFilter * 2;
+				vVelFF = pidGainsVVel[FF] * vVelFFFilter;
 				vVelLastSetpoint = vVelSetpoint;
 				throttle = vVelP + vVelI + vVelD + vVelFF;
-				throttle = constrain(throttle.geti32(), IDLE_PERMILLE * 2, 2000);
+				throttle = constrain(throttle, 0, 1024);
 			}
 			vVelLast = vVel;
 		} else if (flightMode == FlightMode::ACRO) {
@@ -338,6 +338,10 @@ void pidLoop() {
 		fix32 rollTerm = rollP + rollI + rollD + rollFF + rollS;
 		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 		fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
+		// scale throttle from 0...1024 to IDLE_PERMILLE*2...2000 (DShot output is 0...2000)
+		throttle = throttle >> 9; // 0...1024 => 0...2
+		throttle *= 1000 - IDLE_PERMILLE; // 0...2 => 0...2000-IDLE_PERMILLE*2
+		throttle += IDLE_PERMILLE * 2; // 0...2000-IDLE_PERMILLE*2 => IDLE_PERMILLE*2...2000
 #ifdef PROPS_OUT
 		tRR = throttle - rollTerm + pitchTerm + yawTerm;
 		tFR = throttle - rollTerm - pitchTerm - yawTerm;
@@ -349,10 +353,10 @@ void pidLoop() {
 		tRL = throttle + rollTerm + pitchTerm + yawTerm;
 		tFL = throttle + rollTerm - pitchTerm - yawTerm;
 #endif
-		throttles[(u8)MOTOR::RR] = map(tRR.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::RL] = map(tRL.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::FR] = map(tFR.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
-		throttles[(u8)MOTOR::FL] = map(tFL.geti32(), 0, 2000, IDLE_PERMILLE * 2, 2000);
+		throttles[(u8)MOTOR::RR] = tRR.geti32();
+		throttles[(u8)MOTOR::RL] = tRL.geti32();
+		throttles[(u8)MOTOR::FR] = tFR.geti32();
+		throttles[(u8)MOTOR::FL] = tFL.geti32();
 		if (throttles[(u8)MOTOR::RR] > 2000) {
 			i16 diff = throttles[(u8)MOTOR::RR] - 2000;
 			throttles[(u8)MOTOR::RR] = 2000;
@@ -431,7 +435,7 @@ void pidLoop() {
 			static elapsedMillis motorBeepTimer = 0;
 			if (motorBeepTimer > 500)
 				motorBeepTimer = 0;
-			if (motorBeepTimer < 200) {
+			if (motorBeepTimer < 50) {
 				u16 motors[4] = {DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2};
 				sendRaw11Bit(motors);
 			} else {

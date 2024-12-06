@@ -231,16 +231,11 @@ void ExpressLRS::processMessage() {
 		}
 		crsf_channels_11 *chs = (crsf_channels_11 *)(&msgBuffer[3]);
 		u32 pChannels[16] = {chs->ch0, chs->ch1, chs->ch2, chs->ch3, chs->ch4, chs->ch5, chs->ch6, chs->ch7, chs->ch8, chs->ch9, chs->ch10, chs->ch11, chs->ch12, chs->ch13, chs->ch14, chs->ch15};
-		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
+		// map pChannels to 989-2012 (?)
 		for (u8 i = 0; i < 16; i++) {
-			if (i == 2)
-				continue;
 			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
 			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
-		// map pChannels (throttle) to 1000-2000
-		pChannels[2] = 1500 + (1000 * ((i32)pChannels[2] - 992) / 1636);
-		pChannels[2] = constrain(pChannels[2], 1000, 2000);
 
 		if (pChannels[4] > 1500)
 			consecutiveArmedCycles++;
@@ -374,16 +369,11 @@ void ExpressLRS::processMessage() {
 		for (u32 i = firstChannel + channelCount; i < 16; i++) {
 			pChannels[i] = this->channels[i];
 		}
-		// map pChannels (switches) to 1000-2000 and joysticks to 988-2011
+		// map pChannels to 988-2012 (?)
 		for (u8 i = 0; i < 16; i++) {
-			if (i == 2)
-				continue;
 			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
 			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
-		// map pChannels (throttle) to 1000-2000
-		pChannels[2] = 1500 + (1000 * ((i32)pChannels[2] - 992) / 1636);
-		pChannels[2] = constrain(pChannels[2], 1000, 2000);
 
 		if (pChannels[4] > 1500)
 			consecutiveArmedCycles++;
@@ -581,10 +571,6 @@ void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 		interp1->accum[0] = interp0->peek[1];
 		smoothChannels[i].setRaw(interp1->peek[0]);
 	}
-	interp1->base[0] = 1000 << 16;
-	interp1->base[1] = 2000 << 16;
-	interp1->accum[0] = smoothChannels[2].raw;
-	smoothChannels[2].setRaw(interp1->peek[0]);
 }
 
 void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {

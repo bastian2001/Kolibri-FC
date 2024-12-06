@@ -406,10 +406,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, buf, strlen(buf));
 			break;
 		case MspFn::SET_MOTOR:
-			throttles[(u8)MOTOR::RR] = ((u16)reqPayload[0] + ((u16)reqPayload[1] << 8)) * 2 - 2000;
-			throttles[(u8)MOTOR::FR] = ((u16)reqPayload[2] + ((u16)reqPayload[3] << 8)) * 2 - 2000;
-			throttles[(u8)MOTOR::RL] = ((u16)reqPayload[4] + ((u16)reqPayload[5] << 8)) * 2 - 2000;
-			throttles[(u8)MOTOR::FL] = ((u16)reqPayload[6] + ((u16)reqPayload[7] << 8)) * 2 - 2000;
+			if (!armed) {
+				throttles[(u8)MOTOR::RR] = ((u16)reqPayload[0] + ((u16)reqPayload[1] << 8)) * 2 - 2000;
+				throttles[(u8)MOTOR::FR] = ((u16)reqPayload[2] + ((u16)reqPayload[3] << 8)) * 2 - 2000;
+				throttles[(u8)MOTOR::RL] = ((u16)reqPayload[4] + ((u16)reqPayload[5] << 8)) * 2 - 2000;
+				throttles[(u8)MOTOR::FL] = ((u16)reqPayload[6] + ((u16)reqPayload[7] << 8)) * 2 - 2000;
+			}
 			mspOverrideMotors = 0;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
