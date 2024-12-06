@@ -1937,7 +1937,7 @@
 						: getNestedProperty(sliceAndSkip[0], path, {
 								max: Math.max(trace.maxValue, trace.minValue),
 								min: Math.min(trace.minValue, trace.maxValue)
-						  })) -
+							})) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1950,7 +1950,7 @@
 							: getNestedProperty(sliceAndSkip[k], path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-							  })) -
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -2049,11 +2049,11 @@
 									trace.overrideSliceAndSkip![closestFrameSliceSkip],
 									trace.minValue,
 									trace.maxValue
-							  )
+								)
 							: getNestedProperty(frame, path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-							  })) -
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();
@@ -2614,7 +2614,7 @@
 				<div>Frame Count: {loadedLog.frameCount}</div>
 				<div>PID Frequency: {loadedLog.pidFrequency} Hz</div>
 				<div>Frames per Second: {loadedLog.framesPerSecond} Hz</div>
-				<div style="white-space: preserve">
+				<div style="white-space: pre">
 					Flags: {'\n  - ' +
 						loadedLog.flags
 							.filter(n => n.startsWith('LOG_'))

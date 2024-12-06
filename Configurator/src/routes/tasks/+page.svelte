@@ -97,7 +97,7 @@
 	</tr>
 	{#each tasks as task, i}
 		<tr>
-			<td style="white-space:preserve">{task.name}</td>
+			<td style="white-space:pre">{task.name}</td>
 			<td>{task.minDuration}</td>
 			<td>{task.maxDuration}</td>
 			<td>{task.avgDuration}</td>

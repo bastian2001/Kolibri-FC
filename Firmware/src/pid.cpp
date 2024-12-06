@@ -193,14 +193,14 @@ void pidLoop() {
 				rollSetpoint = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FlightMode::GPS_VEL) {
-				fix32 cosfhead = cosFix(magHeading * FIX_DEG_TO_RAD);
-				fix32 sinfhead = sinFix(magHeading * FIX_DEG_TO_RAD);
-				eVelSetpoint = cosfhead * (smoothChannels[0] - 1500) + sinfhead * (smoothChannels[1] - 1500);
-				nVelSetpoint = -sinfhead * (smoothChannels[0] - 1500) + cosfhead * (smoothChannels[1] - 1500);
+				fix32 coshead = cosFix(combinedHeading);
+				fix32 sinhead = sinFix(combinedHeading);
+				eVelSetpoint = coshead * (smoothChannels[0] - 1500) + sinhead * (smoothChannels[1] - 1500);
+				nVelSetpoint = -sinhead * (smoothChannels[0] - 1500) + coshead * (smoothChannels[1] - 1500);
 				eVelSetpoint = eVelSetpoint >> 9; //+-512 => +-1
 				nVelSetpoint = nVelSetpoint >> 9; //+-512 => +-1
-				eVelSetpoint *= 12; //+-12m/s
-				nVelSetpoint *= 12; //+-12m/s
+				eVelSetpoint *= 12; // +-1 => +-12m/s
+				nVelSetpoint *= 12; // +-1 => +-12m/s
 				eVelError = eVelSetpoint - eVel;
 				nVelError = nVelSetpoint - nVel;
 				eVelErrorSum = eVelErrorSum + eVelError;
@@ -209,13 +209,13 @@ void pidLoop() {
 				nVelP = pidGainsHVel[P] * nVelError;
 				eVelI = pidGainsHVel[I] * eVelErrorSum;
 				nVelI = pidGainsHVel[I] * nVelErrorSum;
-				eVelD = pidGainsHVel[D] * (eVel - eVelLast);
-				nVelD = pidGainsHVel[D] * (nVel - nVelLast);
+				eVelD = pidGainsHVel[D] * (eVelLast - eVel);
+				nVelD = pidGainsHVel[D] * (nVelLast - nVel);
 
 				fix32 eVelPID = eVelP + eVelI + eVelD;
 				fix32 nVelPID = nVelP + nVelI + nVelD;
-				fix32 targetRoll = eVelPID * cosfhead - nVelPID * sinfhead;
-				fix32 targetPitch = eVelPID * sinfhead + nVelPID * cosfhead;
+				fix32 targetRoll = eVelPID * coshead - nVelPID * sinhead;
+				fix32 targetPitch = eVelPID * sinhead + nVelPID * coshead;
 				targetRoll = constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
 				targetPitch = constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
 				dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
