@@ -39,6 +39,7 @@ u32 pidLoopCounter = 0;
 fix32 rateFactors[5][3];
 fix64 vVelMaxErrorSum, vVelMinErrorSum;
 const fix32 TO_ANGLE = fix32(MAX_ANGLE) / fix32(512);
+const fix32 THROTTLE_SCALE = fix32(2000 - IDLE_PERMILLE * 2) / fix32(1024);
 fix32 smoothChannels[4];
 u16 condensedRpm[4];
 
@@ -339,8 +340,7 @@ void pidLoop() {
 		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 		fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
 		// scale throttle from 0...1024 to IDLE_PERMILLE*2...2000 (DShot output is 0...2000)
-		throttle = throttle >> 9; // 0...1024 => 0...2
-		throttle *= 1000 - IDLE_PERMILLE; // 0...2 => 0...2000-IDLE_PERMILLE*2
+		throttle *= THROTTLE_SCALE; // 0...1024 => 0...2000-IDLE_PERMILLE*2
 		throttle += IDLE_PERMILLE * 2; // 0...2000-IDLE_PERMILLE*2 => IDLE_PERMILLE*2...2000
 #ifdef PROPS_OUT
 		tRR = throttle - rollTerm + pitchTerm + yawTerm;
