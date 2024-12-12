@@ -1,5 +1,5 @@
 #pragma once
-#include "../typedefs.h"
+#include "typedefs.h"
 #include <Arduino.h>
 
 void begin4Way();
