@@ -49,6 +49,7 @@ void initBlackbox() {
 	cfg.setCSPin(PIN_SD_CS);
 	cfg.setSPI(SPI1);
 	SDFS.setConfig(cfg);
+	SDFS.setTimeCallback(rtcGetUnixTimestamp);
 	fsReady = SDFS.begin();
 	if (!SDFS.exists("/kolibri")) {
 		SDFS.mkdir("/kolibri");
