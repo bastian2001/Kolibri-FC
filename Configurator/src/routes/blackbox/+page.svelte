@@ -1937,7 +1937,7 @@
 						: getNestedProperty(sliceAndSkip[0], path, {
 								max: Math.max(trace.maxValue, trace.minValue),
 								min: Math.min(trace.minValue, trace.maxValue)
-							})) -
+						  })) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1950,7 +1950,7 @@
 							: getNestedProperty(sliceAndSkip[k], path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-								})) -
+							  })) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -2049,11 +2049,11 @@
 									trace.overrideSliceAndSkip![closestFrameSliceSkip],
 									trace.minValue,
 									trace.maxValue
-								)
+							  )
 							: getNestedProperty(frame, path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-								})) -
+							  })) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();
@@ -2419,23 +2419,43 @@
 			.catch(console.error);
 	}
 	function openLogFromKbb() {
-		const file = prompt('Paste the KBB file or JSON Array here');
-		if (!file) return;
-		if (file.startsWith('[') && file.endsWith(']')) {
-			//JSON array
-			try {
-				binFile = JSON.parse(file);
-			} catch (e) {
-				alert('Error parsing JSON: ' + e);
-			}
-		} else {
-			//KBB file
-			binFile = file.split('').map(c => c.charCodeAt(0));
-		}
-		decodeBinFile();
-		startFrame = 0;
-		endFrame = (loadedLog?.frameCount || 1) - 1;
-		drawCanvas();
+		// const file = prompt('Paste the KBB file or JSON Array here');
+		// if (!file) return;
+		// if (file.startsWith('[') && file.endsWith(']')) {
+		// 	//JSON array
+		// 	try {
+		// 		binFile = JSON.parse(file);
+		// 	} catch (e) {
+		// 		alert('Error parsing JSON: ' + e);
+		// 	}
+		// } else {
+		// 	//KBB file
+		// 	binFile = file.split('').map(c => c.charCodeAt(0));
+		// }
+		//load file from open file dialog
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.kbb';
+		input.onchange = () => {
+			const file = input.files?.[0];
+			if (!file) return;
+			const reader = new FileReader();
+			reader.onload = () => {
+				const data = reader.result as ArrayBuffer;
+				binFile = [];
+				const view = new Uint8Array(data);
+				for (let i = 0; i < view.length; i++) {
+					binFile.push(view[i]);
+				}
+
+				decodeBinFile();
+				startFrame = 0;
+				endFrame = (loadedLog?.frameCount || 1) - 1;
+				drawCanvas();
+			};
+			reader.readAsArrayBuffer(file);
+		};
+		input.click();
 	}
 	function getLog(num: number): Promise<BBLog> {
 		binFileNumber = -1;
