@@ -1,0 +1,76 @@
+.program bidir_dshot_x1_new
+
+start:
+push block
+.wrap_target
+set pindirs, 1
+pull block
+
+; write DShot packet
+out null, 16; throw away the left 16 bits
+write_one_bit:
+set pins, 0 [14]
+out pins, 1 [14]
+set pins, 1 [8]
+jmp !osre write_one_bit
+
+; one bit takes 32 PIO cycles, so after 16 PIO cycles we begin to count it as a bit. After 32 more cycles the second bit etc.
+; That means we round the cycle count to the nearest multiple of 32 and then divide by 32 to get the bit count.
+
+; x = counter of bits remaining to be read
+; y = counter of loops remaining to be counted for the current bit
+
+; prepare reading of ERPM
+set pindirs, 0
+set x, 21
+wait_for_pin:
+jmp pin, wait_for_pin [1]; wait for the pin to go low
+
+new_zero:
+set y, 6 ; 6 + 1 loops (do while)
+; the first time takes 4 PIO cycles, then 2 per measurement
+; => 4 + 6*2 = 16 cycles
+jmp meas_zero
+
+another_zero:
+set y, 12 ; 12 + 1 loops (do while)
+; the first time takes 8 PIO cycles, then 2 per measurement
+; => 8 + 12*2 = 32 cycles
+mov osr, x [1]
+
+meas_zero:
+jmp pin new_one 
+jmp y-- meas_zero
+in null, 1
+mov x, osr
+jmp x-- another_zero
+jmp start; stop, as we have read all bits, autopush will take care of the rest
+
+new_one:
+set y, 6 [1]
+jmp meas_one
+
+another_one:
+set y, 12
+mov osr, x
+
+meas_one:
+jmp pin cont_meas_one 
+jmp new_zero
+cont_meas_one:
+jmp y-- meas_one
+set x, 1
+in x, 1; read the bit (1)
+mov x, osr
+jmp x-- another_one
+; we have read all bits, autopush will take care of the rest
+
+
+.wrap
+
+.define public CLKDIV_300_INT 22
+.define public CLKDIV_300_FRAC 0
+.define public CLKDIV_600_INT 11
+.define public CLKDIV_600_FRAC 0
+.define public CLKDIV_1200_INT 5
+.define public CLKDIV_1200_FRAC 128

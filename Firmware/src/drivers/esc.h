@@ -35,12 +35,9 @@ typedef enum {
 } ESCCommand;
 
 extern PIO escPio; // pio block used for the ESC communication
-extern volatile u32 erpmEdges[4][32]; // edge detection durations for each motor
 extern volatile u32 escRpm[4]; // decoded RPM values
 extern const u32 escDecodeLut[32]; // lookup table for GCR decoding
 extern u8 escErpmFail; // flags for failed RPM decoding
-extern u8 escDmaChannel[4]; // DMA channels for the ESC communication
-extern u8 escClearDmaChannel; // DMA channel for clearing the erpm edges, essentially memset(0) for the erpmEdges array
 extern u32 enableDShot; // set to 0 to disable DShot output, e.g. for 4Way
 extern u32 escPioOffset; // offset at which the DShot program is stored
 
