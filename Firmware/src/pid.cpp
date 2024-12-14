@@ -80,8 +80,8 @@ void decodeErpm() {
 		if (pio_sm_is_rx_fifo_empty(escPio, m)) {
 			escErpmFail |= 1 << m;
 			tasks[TASK_ESC_RPM].errorCount++;
+			tasks[TASK_ESC_RPM].lastError = 1;
 			condensedRpm[m] = 0;
-			Serial.print('x');
 			continue;
 		}
 		u32 edgeDetectedReturn = pio_sm_get_blocking(escPio, m);
@@ -99,6 +99,7 @@ void decodeErpm() {
 		if (csum != 0x0F || rpm > 0xFFFF) {
 			escErpmFail |= 1 << m;
 			tasks[TASK_ESC_RPM].errorCount++;
+			tasks[TASK_ESC_RPM].lastError = 2;
 			condensedRpm[m] = 0;
 			continue;
 		}

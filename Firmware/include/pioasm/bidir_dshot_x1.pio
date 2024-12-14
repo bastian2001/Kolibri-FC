@@ -1,13 +1,10 @@
 .program bidir_dshot_x1
 
-mov osr, null
-out null, 32
+start:
+.wrap_target
+push block
 set pindirs, 1
-set x, 1; x holds the current bit (pin value)
-mov y, ~null; y holds the amount of times the bit was seen
-
-this:
-jmp this; active stall, so that the CPU can empty the RX FIFO and fill the TX FIFO, then exec jmp out of this loop
+pull block
 
 ; write DShot packet
 out null, 16; throw away the left 16 bits
@@ -17,27 +14,56 @@ out pins, 1 [14]
 set pins, 1 [8]
 jmp !osre write_one_bit
 
+; one bit takes 32 PIO cycles, so after 16 PIO cycles we begin to count it as a bit. After 32 more cycles the second bit etc.
+; That means we round the cycle count to the nearest multiple of 32 and then divide by 32 to get the bit count.
+
 ; prepare reading of ERPM
+set x, 20
+; x = counter of bits remaining to be read
+mov osr, ~null
+; osr full of 1s (0xFFFFFFFF), so we have access to 1s each time we read a 1 (without relying on the pin still being a 1)
+; y = counter of loops remaining to be counted for the current bit
+
 set pindirs, 0
-jmp read_one_bit
+wait_for_pin:
+jmp pin, wait_for_pin [1]; wait for the pin to go low
 
-; one sample every 8 PIO cycles = 4x oversampling
-switch_and_push:
-mov x, y
-mov y, ~null
-in osr, 31; the pushed packet has the following format:
-; blllllll llllllll llllllll llllllll => b = the sampled bit, l = the duration of the bit
+new_zero:
+set y, 6 ; 6 + 1 loops (do while)
+; the first time takes 4 PIO cycles, then 2 per measurement
+; => 4 + 6*2 = 16 cycles
+jmp meas_zero
 
-read_one_bit:
-mov isr, null
-in pins, 1
-mov osr, y; osr serves as a backup register
-mov y, isr
-jmp x!=y, switch_and_push; edge detection
-mov y, osr
-jmp y-- continue; duration counter
-continue:
-jmp read_one_bit
+another_zero:
+set y, 13 [1] ; 13 + 1 loops (do while)
+; the first time takes 8 PIO cycles, then 2 per measurement
+; => 6 + 13*2 = 32 cycles
+
+meas_zero:
+jmp pin new_one
+jmp y-- meas_zero
+in null, 1
+jmp x-- another_zero
+jmp start; stop, as we have read all bits, autopush will take care of the rest
+
+new_one:
+set y, 6 [1]
+jmp meas_one
+
+another_one:
+set y, 13 [1]
+
+meas_one:
+jmp pin cont_meas_one 
+jmp new_zero
+cont_meas_one:
+jmp y-- meas_one
+in osr, 1; read the bit (always 1 because osr = 0xFFFFFFFF)
+jmp x-- another_one
+; we have read all bits, autopush will take care of the rest
+
+
+.wrap
 
 .define public CLKDIV_300_INT 22
 .define public CLKDIV_300_FRAC 0

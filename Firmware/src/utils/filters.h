@@ -1,3 +1,4 @@
+#pragma once
 #include "fixedPointInt.h"
 #include "typedefs.h"
 

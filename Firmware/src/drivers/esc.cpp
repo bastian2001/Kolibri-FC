@@ -14,13 +14,13 @@ const u32 escDecodeLut[32] = {
 
 void initESCs() {
 	escPio = pio0;
-	escPioOffset = pio_add_program(escPio, &bidir_dshot_x1_new_program);
+	escPioOffset = pio_add_program(escPio, &bidir_dshot_x1_program);
 	pio_claim_sm_mask(escPio, 0b1111);
 
 	for (i32 i = 0; i < 4; i++) {
 		pio_gpio_init(escPio, PIN_MOTORS + i);
 		gpio_set_pulls(PIN_MOTORS + i, true, false);
-		pio_sm_config c = bidir_dshot_x1_new_program_get_default_config(escPioOffset);
+		pio_sm_config c = bidir_dshot_x1_program_get_default_config(escPioOffset);
 		sm_config_set_set_pins(&c, PIN_MOTORS + i, 1);
 		sm_config_set_out_pins(&c, PIN_MOTORS + i, 1);
 		sm_config_set_in_pins(&c, PIN_MOTORS + i);
@@ -30,7 +30,7 @@ void initESCs() {
 		pio_sm_init(escPio, i, escPioOffset, &c);
 		pio_sm_set_consecutive_pindirs(escPio, i, PIN_MOTORS + i, 1, true);
 		pio_sm_set_enabled(escPio, i, true);
-		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_new_CLKDIV_300_INT, bidir_dshot_x1_new_CLKDIV_300_FRAC);
+		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
 	}
 }
 
@@ -46,6 +46,8 @@ u16 appendChecksum(u16 data) {
 void sendRaw16Bit(const u16 raw[4]) {
 	if (!enableDShot) return;
 	for (i32 i = 0; i < 4; i++) {
+		if (pio_sm_get_pc(escPio, i) != escPioOffset + 2)
+			pio_sm_exec(escPio, i, pio_encode_jmp(escPioOffset + 1));
 		pio_sm_put(escPio, i, ~(raw[i]));
 	}
 }
