@@ -77,30 +77,17 @@ void decodeErpm() {
 	tasks[TASK_ESC_RPM].runCounter++;
 	elapsedMicros taskTimer = 0;
 	for (int m = 0; m < 4; m++) {
-		dma_channel_abort(escDmaChannel[m]);
-		if (!erpmEdges[m][0]) {
+		if (pio_sm_is_rx_fifo_empty(escPio, m)) {
 			escErpmFail |= 1 << m;
 			tasks[TASK_ESC_RPM].errorCount++;
+			tasks[TASK_ESC_RPM].lastError = 1;
 			condensedRpm[m] = 0;
 			continue;
 		}
-		u32 edgeDetectedReturn = 0;
-		u32 *p = (u32 *)&erpmEdges[m][1]; // first packet is just ones before the actual packet starts
-		// packet format: blllllll llllllll llllllll llllllll => b = the sampled bit, l = the duration of the bit
-		u32 shifts = 0;
-		for (int i = 1; i < 32; i++) {
-			u32 packet = ~*p++;
-			u32 duration = (packet & 0x7FFFFFFF) + 3;
-			// PIO starts counting down from 0xFFFFFFFF, with the inversion that is 0, but it actually already counted 1. The other 2 come from rounding (with 4x oversampling, any duration >=2 is valid)
-			duration /= 4;
-			if (duration > 21) {
-				break; // this is either a transmission error, or the end of the packet (((~0) & 0x7FF...) + 3 = a lot)
-			} else {
-				shifts += duration;
-				edgeDetectedReturn = edgeDetectedReturn << duration | RIGHT_BITS(packet >> 31, duration);
-			}
+		u32 edgeDetectedReturn = pio_sm_get_blocking(escPio, m);
+		while (!pio_sm_is_rx_fifo_empty(escPio, m)) {
+			edgeDetectedReturn = pio_sm_get_blocking(escPio, m);
 		}
-		edgeDetectedReturn = edgeDetectedReturn << (21 - shifts) | 0x1FFFFF >> shifts;
 		edgeDetectedReturn = edgeDetectedReturn ^ (edgeDetectedReturn >> 1);
 		u32 rpm = escDecodeLut[edgeDetectedReturn & 0x1F];
 		rpm |= escDecodeLut[(edgeDetectedReturn >> 5) & 0x1F] << 4;
@@ -112,6 +99,7 @@ void decodeErpm() {
 		if (csum != 0x0F || rpm > 0xFFFF) {
 			escErpmFail |= 1 << m;
 			tasks[TASK_ESC_RPM].errorCount++;
+			tasks[TASK_ESC_RPM].lastError = 2;
 			condensedRpm[m] = 0;
 			continue;
 		}
@@ -130,9 +118,6 @@ void decodeErpm() {
 			escErpmFail &= ~(1 << m);
 		}
 	}
-	memset((u32 *)erpmEdges, 0, sizeof(erpmEdges));
-	dma_channel_set_trans_count(escClearDmaChannel, 128, false); // clear out all the edges (4 motors * 32 edges)
-	dma_channel_set_write_addr(escClearDmaChannel, &erpmEdges[0], true);
 	u32 duration = taskTimer;
 	tasks[TASK_ESC_RPM].totalDuration += duration;
 	if (duration > tasks[TASK_ESC_RPM].maxDuration)

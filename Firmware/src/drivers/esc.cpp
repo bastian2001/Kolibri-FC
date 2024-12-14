@@ -4,16 +4,8 @@ PIO escPio;
 u32 enableDShot = 1;
 u32 escPioOffset = 0;
 
-volatile u32 erpmEdges[4][32] = {0};
 volatile u32 escRpm[4] = {0};
-u8 escDmaChannel[4] = {0};
-dma_channel_config escDmaConfig[4];
 u8 escErpmFail = 0;
-u32 dmaChannelMask = 0;
-
-// basically a memset(0) channel to clear the erpm edges
-u8 escClearDmaChannel;
-volatile u32 zero = 0;
 
 #define iv 0xFFFFFFFF
 const u32 escDecodeLut[32] = {
@@ -33,31 +25,13 @@ void initESCs() {
 		sm_config_set_out_pins(&c, PIN_MOTORS + i, 1);
 		sm_config_set_in_pins(&c, PIN_MOTORS + i);
 		sm_config_set_jmp_pin(&c, PIN_MOTORS + i);
-		sm_config_set_out_shift(&c, false, true, 32);
-		sm_config_set_in_shift(&c, false, true, 32);
+		sm_config_set_out_shift(&c, false, false, 32);
+		sm_config_set_in_shift(&c, false, false, 32);
 		pio_sm_init(escPio, i, escPioOffset, &c);
 		pio_sm_set_consecutive_pindirs(escPio, i, PIN_MOTORS + i, 1, true);
 		pio_sm_set_enabled(escPio, i, true);
-		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
-		escDmaChannel[i] = dma_claim_unused_channel(true);
-		escDmaConfig[i] = dma_channel_get_default_config(escDmaChannel[i]);
-		channel_config_set_transfer_data_size(&escDmaConfig[i], DMA_SIZE_32);
-		channel_config_set_read_increment(&escDmaConfig[i], false);
-		channel_config_set_write_increment(&escDmaConfig[i], true);
-		channel_config_set_dreq(&escDmaConfig[i], pio_get_dreq(escPio, i, false));
-		dma_channel_set_config(escDmaChannel[i], &escDmaConfig[i], false);
-		dma_channel_set_read_addr(escDmaChannel[i], &escPio->rxf[i], false);
-		dma_channel_set_write_addr(escDmaChannel[i], &erpmEdges[i], false);
-		dma_channel_set_trans_count(escDmaChannel[i], 32, true);
-		dmaChannelMask |= 1 << escDmaChannel[i];
+		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_600_INT, bidir_dshot_x1_CLKDIV_600_FRAC);
 	}
-	escClearDmaChannel = dma_claim_unused_channel(true);
-	dma_channel_config escClearDmaConfig = dma_channel_get_default_config(escClearDmaChannel);
-	channel_config_set_transfer_data_size(&escClearDmaConfig, DMA_SIZE_32);
-	channel_config_set_read_increment(&escClearDmaConfig, false);
-	channel_config_set_write_increment(&escClearDmaConfig, true);
-	dma_channel_set_config(escClearDmaChannel, &escClearDmaConfig, false);
-	dma_channel_set_read_addr(escClearDmaChannel, &zero, false);
 }
 
 u16 appendChecksum(u16 data) {
@@ -71,18 +45,11 @@ u16 appendChecksum(u16 data) {
 
 void sendRaw16Bit(const u16 raw[4]) {
 	if (!enableDShot) return;
-	dma_channel_abort(escClearDmaChannel); // abort if not completed
 	for (i32 i = 0; i < 4; i++) {
-		pio_sm_exec(escPio, i, pio_encode_jmp(escPioOffset));
-		while (!pio_sm_is_rx_fifo_empty(escPio, i))
-			pio_sm_get(escPio, i);
-		dma_channel_set_write_addr(escDmaChannel[i], &erpmEdges[i], false);
-		dma_channel_set_trans_count(escDmaChannel[i], 32, true);
-		pio_sm_drain_tx_fifo(escPio, i);
+		if (pio_sm_get_pc(escPio, i) != escPioOffset + 2)
+			pio_sm_exec(escPio, i, pio_encode_jmp(escPioOffset + 1));
 		pio_sm_put(escPio, i, ~(raw[i]));
-		pio_sm_exec(escPio, i, pio_encode_jmp(escPioOffset + 6));
 	}
-	dma_start_channel_mask(dmaChannelMask);
 }
 
 void sendRaw11Bit(const u16 raw[4]) {

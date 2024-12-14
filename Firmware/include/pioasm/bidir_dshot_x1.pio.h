@@ -13,7 +13,7 @@
 // -------------- //
 
 #define bidir_dshot_x1_wrap_target 0
-#define bidir_dshot_x1_wrap 23
+#define bidir_dshot_x1_wrap 27
 
 #define bidir_dshot_x1_CLKDIV_300_INT 22
 #define bidir_dshot_x1_CLKDIV_300_FRAC 0
@@ -24,38 +24,42 @@
 
 static const uint16_t bidir_dshot_x1_program_instructions[] = {
 	//     .wrap_target
-	0xa0e3, //  0: mov    osr, null
-	0x6060, //  1: out    null, 32
-	0xe081, //  2: set    pindirs, 1
-	0xe021, //  3: set    x, 1
-	0xa04b, //  4: mov    y, !null
-	0x0005, //  5: jmp    5
-	0x6070, //  6: out    null, 16
-	0xee00, //  7: set    pins, 0                [14]
-	0x6e01, //  8: out    pins, 1                [14]
-	0xe801, //  9: set    pins, 1                [8]
-	0x00e7, // 10: jmp    !osre, 7
-	0xe080, // 11: set    pindirs, 0
-	0x0010, // 12: jmp    16
-	0xa022, // 13: mov    x, y
-	0xa04b, // 14: mov    y, !null
-	0x40ff, // 15: in     osr, 31
-	0xa0c3, // 16: mov    isr, null
-	0x4001, // 17: in     pins, 1
-	0xa0e2, // 18: mov    osr, y
-	0xa046, // 19: mov    y, isr
-	0x00ad, // 20: jmp    x != y, 13
-	0xa047, // 21: mov    y, osr
-	0x0097, // 22: jmp    y--, 23
-	0x0010, // 23: jmp    16
-			//     .wrap
+	0x8020, //  0: push   block
+	0xe081, //  1: set    pindirs, 1
+	0x80a0, //  2: pull   block
+	0x6070, //  3: out    null, 16
+	0xee00, //  4: set    pins, 0                [14]
+	0x6e01, //  5: out    pins, 1                [14]
+	0xe801, //  6: set    pins, 1                [8]
+	0x00e4, //  7: jmp    !osre, 4
+	0xe034, //  8: set    x, 20
+	0xa0eb, //  9: mov    osr, !null
+	0xe080, // 10: set    pindirs, 0
+	0x01cb, // 11: jmp    pin, 11                [1]
+	0xe046, // 12: set    y, 6
+	0x000f, // 13: jmp    15
+	0xe14d, // 14: set    y, 13                  [1]
+	0x00d4, // 15: jmp    pin, 20
+	0x008f, // 16: jmp    y--, 15
+	0x4061, // 17: in     null, 1
+	0x004e, // 18: jmp    x--, 14
+	0x0000, // 19: jmp    0
+	0xe146, // 20: set    y, 6                   [1]
+	0x0017, // 21: jmp    23
+	0xe14d, // 22: set    y, 13                  [1]
+	0x00d9, // 23: jmp    pin, 25
+	0x000c, // 24: jmp    12
+	0x0097, // 25: jmp    y--, 23
+	0x40e1, // 26: in     osr, 1
+	0x0056, // 27: jmp    x--, 22
+	//     .wrap
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program bidir_dshot_x1_program = {
 	.instructions = bidir_dshot_x1_program_instructions,
-	.length       = 24,
-	.origin       = -1,
+	.length = 28,
+	.origin = -1,
 };
 
 static inline pio_sm_config bidir_dshot_x1_program_get_default_config(uint offset) {

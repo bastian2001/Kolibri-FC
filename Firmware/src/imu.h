@@ -1,3 +1,4 @@
+#include "utils/filters.h"
 #include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"
 #include <Arduino.h>

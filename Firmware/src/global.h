@@ -24,8 +24,6 @@
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
 #include "elapsedMillis.h"
-#include "utils/filters.h"
-#include "utils/fixedPointInt.h"
 #include "git_version.h"
 #include "hardware/adc.h"
 #include "hardware/dma.h"
@@ -44,7 +42,6 @@
 #include "pioasm/bidir_dshot_x1.pio.h"
 #include "pioasm/dshotx4.pio.h"
 #include "pioasm/speaker8bit.pio.h"
-#include "utils/quaternion.h"
 #include "ringbuffer.h"
 #include "rtc.h"
 #include "serial.h"
@@ -54,6 +51,9 @@
 #include "serialhandler/msp.h"
 #include "taskManager.h"
 #include "unittest.h"
+#include "utils/filters.h"
+#include "utils/fixedPointInt.h"
+#include "utils/quaternion.h"
 
 #define SPI_GYRO spi0 // SPI for gyro
 #define SPI_OSD spi0 // SPI for OSD
