@@ -30,7 +30,7 @@ void initESCs() {
 		pio_sm_init(escPio, i, escPioOffset, &c);
 		pio_sm_set_consecutive_pindirs(escPio, i, PIN_MOTORS + i, 1, true);
 		pio_sm_set_enabled(escPio, i, true);
-		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
+		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_600_INT, bidir_dshot_x1_CLKDIV_600_FRAC);
 	}
 }
 
