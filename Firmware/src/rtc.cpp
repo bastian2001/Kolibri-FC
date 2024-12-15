@@ -87,6 +87,19 @@ void rtcGetDatetime(datetime_t *t) {
 	t->sec = (setup1 & RTC_SETUP_1_SEC_BITS) >> RTC_SETUP_1_SEC_LSB;
 }
 
+time_t rtcGetUnixTimestamp() {
+	datetime_t d;
+	rtcGetDatetime(&d);
+	time_t t = EPOCH_2000;
+	t += (DAYS_IN_4_YEARS * 60 * 60) * ((d.year - 2000) / 4); // complete 4 years
+	t += 24 * 60 * 60 * days[d.year % 4][d.month - 1]; // until the beginning of this month
+	t += (d.day - 1) * 24 * 60 * 60; // until the beginning of the day
+	t += (d.hour) * 60 * 60;
+	t += (d.min) * 60;
+	t += d.sec;
+	return t;
+}
+
 u32 rtcGetBlackboxTimestamp() {
 	u32 s0 = rtc_hw->setup_0;
 	u32 s1 = rtc_hw->setup_1;
