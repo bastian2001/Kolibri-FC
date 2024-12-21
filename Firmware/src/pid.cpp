@@ -94,7 +94,7 @@ void pidLoop() {
 		tasks[TASK_GYROREAD].minDuration = duration;
 	taskTimerGyro = 0;
 
-	updateAttitude();
+	imuUpdate();
 	duration = taskTimerPid;
 	if (tasks[TASK_PID_MOTORS].maxGap < duration)
 		tasks[TASK_PID_MOTORS].maxGap = duration;
