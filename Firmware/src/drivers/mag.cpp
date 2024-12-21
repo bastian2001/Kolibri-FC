@@ -149,11 +149,6 @@ void magLoop() {
 		magData[0] = magDataRaw[0] - magOffset[0];
 		magData[1] = magDataRaw[1] - magOffset[1];
 		magData[2] = magDataRaw[2] - magOffset[2];
-		startFixTrig();
-		fix32 cosRoll = cosFix(roll);
-		fix32 sinRoll = sinFix(roll);
-		fix32 cosPitch = cosFix(pitch);
-		fix32 sinPitch = sinFix(pitch);
 		// x: right, y: backward, z: down
 		// roll: left, pitch: front
 		magX = cosRoll * magData[0] + sinRoll * magData[2];
