@@ -254,11 +254,8 @@ void gpsLoop() {
 				gpsAcc.headAcc = DECODE_U4(&msgData[72]);
 				gpsAcc.pDop = DECODE_U2(&msgData[76]);
 				gpsStatus.flags3 = DECODE_U2(&msgData[78]);
-				extern fix32 eAccel, nAccel;
-				if (eAccel.abs() < 100 && nAccel.abs() < 100) {
-					eVel.update(fix32(0.001f) * gpsMotion.velE);
-					nVel.update(fix32(0.001f) * gpsMotion.velN);
-				}
+				eVel.update(fix32(0.01f) * gpsMotion.velE);
+				nVel.update(fix32(0.01f) * gpsMotion.velN);
 				u8 buf[16];
 				snprintf((char *)buf, 16, "\x89%.7f", gpsMotion.lat / 10000000.f);
 				updateElem(OSDElem::LATITUDE, (char *)buf);

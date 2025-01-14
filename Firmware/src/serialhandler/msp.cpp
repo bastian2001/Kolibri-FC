@@ -724,9 +724,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				tasks[i].maxDuration = 0;
 				tasks[i].maxGap = 0;
 			}
-			extern fix32 rAccel, fAccel, nAccel, eAccel;
-			snprintf((i8 *)buf, 128, "eVel: %.2f, nVel: %.2f, head: %d, right: %d, east: %d, fwd: %d, north: %d", fix32(eVel).getf32(), fix32(nVel).getf32(), (combinedHeading * FIX_RAD_TO_DEG).geti32(), rAccel.geti32(), eAccel.geti32(), fAccel.geti32(), nAccel.geti32());
-			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, (char *)buf, strlen((i8 *)buf));
 		} break;
 		case MspFn::GET_RX_STATUS: {
 			buf[0] = ELRS->isReceiverUp;

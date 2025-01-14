@@ -697,6 +697,26 @@
 			minValue: -180,
 			maxValue: 180,
 			unit: '°'
+		},
+		LOG_HVEL: {
+			name: 'Hor. Velocity',
+			path: 'motion.hvel',
+			minValue: -30,
+			maxValue: 30,
+			unit: 'm/s',
+			decimals: 2,
+			modifier: [
+				{
+					displayNameShort: 'North',
+					displayName: 'North',
+					path: 'n'
+				},
+				{
+					displayNameShort: 'East',
+					displayName: 'East',
+					path: 'e'
+				}
+			]
 		}
 	} as {
 		[key: string]: FlagProps;
@@ -1331,6 +1351,7 @@
 				flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
 				offsets[Object.keys(BB_ALL_FLAGS)[i + 32]] = frameSize;
 				if ([35, 36, 37].includes(i + 32)) frameSize += 6;
+				if ([42].includes(i + 32)) frameSize += 4;
 				else frameSize += 2;
 			}
 		}
@@ -1344,7 +1365,7 @@
 				gyro: {},
 				pid: { roll: {}, pitch: {}, yaw: {} },
 				motors: { out: {}, rpm: {} },
-				motion: { gps: {}, accelRaw: {}, accelFiltered: {} },
+				motion: { gps: {}, accelRaw: {}, accelFiltered: {}, hvel: {} },
 				attitude: {}
 			};
 			if (flags.includes('LOG_ROLL_ELRS_RAW'))
@@ -1690,6 +1711,14 @@
 						8192) *
 						180) /
 					Math.PI;
+			}
+			if (flags.includes('LOG_HVEL')) {
+				frame.motion.hvel.n =
+					leBytesToInt(data.slice(i + offsets['LOG_HVEL'], i + offsets['LOG_HVEL'] + 2), true) /
+					256;
+				frame.motion.hvel.e =
+					leBytesToInt(data.slice(i + offsets['LOG_HVEL'] + 2, i + offsets['LOG_HVEL'] + 4), true) /
+					256;
 			}
 			log.push(frame);
 		}

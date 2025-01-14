@@ -167,11 +167,11 @@ void updateSpeeds() {
 	nAccel = northAccel;
 	eAccel = eastAccel;
 
-	static u8 counter = 0;
-	if (++counter == 10) {
-		counter = 0;
-		Serial.printf("%d\n", eastAccel.geti32());
-	}
+	// static u8 counter = 0;
+	// if (++counter == 10) {
+	// 	counter = 0;
+	// 	Serial.printf("%d\n", eastAccel.geti32());
+	// }
 
 	eVel.add(eastAccel * RAW_TO_M_PER_SEC2 / 3200);
 	nVel.add(northAccel * RAW_TO_M_PER_SEC2 / 3200);
