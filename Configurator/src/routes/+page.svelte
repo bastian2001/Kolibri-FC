@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { port, MspFn, MspVersion } from '../portStore';
 	import { onMount, onDestroy } from 'svelte';
-	import { leBytesToInt, roundToDecimal, delay } from '../utils';
+	import { leBytesToInt, roundToDecimal, delay, prefixZeros } from '../utils';
 	import { configuratorLog } from '../logStore';
 
 	const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
@@ -40,6 +40,14 @@
 	let showHeading = false;
 	let serialNum = 1;
 	let baudRate = 115200;
+	let time = {
+		year: 0,
+		month: 1,
+		day: 1,
+		hour: 0,
+		minute: 0,
+		second: 0
+	};
 	$: if (xBox && yBox && zBox) {
 		zBox.style.transform = `rotateZ(${showHeading ? attitude.heading : attitude.yaw}deg) translateZ(10px)`;
 		yBox.style.transform = `rotateX(${attitude.pitch}deg)`;
@@ -107,6 +115,14 @@
 				case MspFn.CLEAR_CRASH_DUMP:
 					configuratorLog.push('Crash dump cleared');
 					break;
+				case MspFn.GET_RTC:
+					time.year = leBytesToInt(command.data.slice(0, 2));
+					time.month = command.data[2];
+					time.day = command.data[3];
+					time.hour = command.data[4];
+					time.minute = command.data[5];
+					time.second = command.data[6];
+					break;
 			}
 		}
 	});
@@ -125,6 +141,7 @@
 	}
 
 	let pingInterval = 0;
+	let rtcInterval = 0;
 	onMount(() => {
 		getRotationInterval = setInterval(() => {
 			port.sendCommand('request', MspFn.GET_ROTATION).catch(() => {});
@@ -132,10 +149,14 @@
 		pingInterval = setInterval(() => {
 			fcPing = port.getPingTime();
 		}, 1000);
+		rtcInterval = setInterval(() => {
+			port.sendCommand('request', MspFn.GET_RTC);
+		}, 1000);
 	});
 	onDestroy(() => {
 		clearInterval(getRotationInterval);
 		clearInterval(pingInterval);
+		clearInterval(rtcInterval);
 		unsubscribe();
 	});
 </script>
@@ -211,6 +232,10 @@
 </div>
 <div>
 	Ping: {fcPing} ms
+</div>
+<div>
+	Time: {prefixZeros(time.year, 4)}-{prefixZeros(time.month, 2)}-{prefixZeros(time.day, 2)}
+	{prefixZeros(time.hour, 2)}:{prefixZeros(time.minute, 2)}:{prefixZeros(time.second, 2)}
 </div>
 <div class="drone3DPreview">
 	<div class="droneBase droneAxes">

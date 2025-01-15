@@ -1937,7 +1937,7 @@
 						: getNestedProperty(sliceAndSkip[0], path, {
 								max: Math.max(trace.maxValue, trace.minValue),
 								min: Math.min(trace.minValue, trace.maxValue)
-							})) -
+						  })) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1950,7 +1950,7 @@
 							: getNestedProperty(sliceAndSkip[k], path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-								})) -
+							  })) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -2049,11 +2049,11 @@
 									trace.overrideSliceAndSkip![closestFrameSliceSkip],
 									trace.minValue,
 									trace.maxValue
-								)
+							  )
 							: getNestedProperty(frame, path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-								})) -
+							  })) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();
@@ -2418,24 +2418,49 @@
 			})
 			.catch(console.error);
 	}
-	function openLogFromKbb() {
-		const file = prompt('Paste the KBB file or JSON Array here');
-		if (!file) return;
-		if (file.startsWith('[') && file.endsWith(']')) {
-			//JSON array
-			try {
-				binFile = JSON.parse(file);
-			} catch (e) {
-				alert('Error parsing JSON: ' + e);
+	function openLogFromFile() {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.kbb, .json';
+		input.onchange = () => {
+			const file = input.files?.[0];
+			if (!file) return;
+			if (file.name.endsWith('.json')) {
+				const reader = new FileReader();
+				reader.onload = () => {
+					const str = reader.result as string;
+					try {
+						const data = JSON.parse(str);
+						if (data.version[0] !== 0) {
+							alert('Wrong version number: ' + data.version);
+							return;
+						}
+						loadedLog = data as BBLog;
+						startFrame = 0;
+						endFrame = data.frameCount - 1;
+						drawCanvas();
+					} catch (e) {}
+				};
+				reader.readAsText(file);
+			} else {
+				const reader = new FileReader();
+				reader.onload = () => {
+					const data = reader.result as ArrayBuffer;
+					binFile = [];
+					const view = new Uint8Array(data);
+					for (let i = 0; i < view.length; i++) {
+						binFile.push(view[i]);
+					}
+
+					decodeBinFile();
+					startFrame = 0;
+					endFrame = (loadedLog?.frameCount || 1) - 1;
+					drawCanvas();
+				};
+				reader.readAsArrayBuffer(file);
 			}
-		} else {
-			//KBB file
-			binFile = file.split('').map(c => c.charCodeAt(0));
-		}
-		decodeBinFile();
-		startFrame = 0;
-		endFrame = (loadedLog?.frameCount || 1) - 1;
-		drawCanvas();
+		};
+		input.click();
 	}
 	function getLog(num: number): Promise<BBLog> {
 		binFileNumber = -1;
@@ -2549,8 +2574,7 @@
 		<button on:click={() => downloadLog('json')} disabled={selected === -1}>Download JSON</button>
 		<button on:click={() => deleteLog()} disabled={selected === -1}>Delete</button>
 		<button on:click={() => formatBB()}>Format</button>
-		<button on:click={() => openLogFromPromptJSON()}>Open JSON</button>
-		<button on:click={() => openLogFromKbb()}>Open KBB</button>
+		<button on:click={() => openLogFromFile()}>Open from file</button>
 		<button on:click={() => (showSettings = true)}>Settings</button>
 	</div>
 	{#if showSettings}

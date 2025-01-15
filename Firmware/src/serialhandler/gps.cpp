@@ -12,17 +12,6 @@ char olcAlphabet[] = "23456789CFGHJMPQRVWX";
 u8 currentPvtMsg[92];
 u32 newPvtMessageFlag = 0;
 
-/*
- * 0-5: seconds
- * 6-11: minutes
- * 12-16: hours
- * 17-21: days
- * 22-25: months
- * 26-31: years, since 2000
- * This is valid until the end of 2063, which is enough
- */
-u32 timestamp = 0; // since unix epoch is hard to calculate, the 32 bits are distributed as described above
-
 void gpsChecksum(const u8 *buf, int len, u8 *ck_a, u8 *ck_b) {
 	*ck_a = 0;
 	*ck_b = 0;
@@ -217,6 +206,7 @@ void gpsLoop() {
 					gpsBuffer.pop();
 					return;
 				}
+				static u32 goodTimes = 0;
 				memcpy(currentPvtMsg, msgData, 92);
 				lastPvtMessage = 0;
 				newPvtMessageFlag = 0xFFFFFFFF;
@@ -226,13 +216,29 @@ void gpsLoop() {
 				gpsTime.hour = msgData[8];
 				gpsTime.min = msgData[9];
 				gpsTime.sec = msgData[10];
-				setDotwInDatetime(&gpsTime);
-				rtcSetDatetime(&gpsTime);
 				gpsStatus.timeValidityFlags = msgData[11];
 				gpsAcc.tAcc = DECODE_U4(&msgData[12]);
 				gpsStatus.fixType = msgData[20];
 				gpsStatus.flags = msgData[21];
 				gpsStatus.flags2 = msgData[22];
+				bool fullyResolved = (gpsStatus.timeValidityFlags & 0x04) == 0x04;
+				bool valid = (gpsStatus.timeValidityFlags & 0x03) == 0x03;
+				bool confirmed = (gpsStatus.flags2 & 0xC0) == 0xC0;
+				u8 thisQuality = TIME_QUALITY_NONE;
+				if (confirmed) {
+					thisQuality = TIME_QUALITY_CONFIRMED;
+				} else if (valid) {
+					thisQuality = TIME_QUALITY_VALID;
+				} else if (fullyResolved) {
+					thisQuality = TIME_QUALITY_FULLY_RESOLVED;
+				}
+				if (thisQuality >= rtcTimeQuality) {
+					// refresh the gpsTime every 2 mins, as long as the quality is not decreasing
+					if (++goodTimes == 1200 || thisQuality > rtcTimeQuality) {
+						goodTimes = (thisQuality > rtcTimeQuality) * 1100; // already update time 10s after the quality has settled
+						rtcSetDatetime(&gpsTime, thisQuality, false);
+					}
+				}
 				gpsStatus.satCount = msgData[23];
 				gpsMotion.lon = DECODE_I4(&msgData[24]);
 				gpsMotion.lat = DECODE_I4(&msgData[28]);
