@@ -3,7 +3,7 @@
 #define EPOCH_2000 946684800
 #define DAYS_IN_4_YEARS 1461
 
-u8 rtcTimeQuality = 0;
+u8 rtcTimeQuality = TIME_QUALITY_NONE;
 const u16 days[4][12] =
 	{
 		{0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335},
@@ -73,7 +73,7 @@ time_t rtcGetUnixTimestamp() {
 	datetime_t d;
 	rtcGetDatetime(&d);
 	time_t t = EPOCH_2000;
-	t += (DAYS_IN_4_YEARS * 60 * 60) * ((d.year - 2000) / 4); // complete 4 years
+	t += (DAYS_IN_4_YEARS * 24 * 60 * 60) * ((d.year - 2000) / 4); // complete 4 years
 	t += 24 * 60 * 60 * days[d.year % 4][d.month - 1]; // until the beginning of this month
 	t += (d.day - 1) * 24 * 60 * 60; // until the beginning of the day
 	t += (d.hour) * 60 * 60;
