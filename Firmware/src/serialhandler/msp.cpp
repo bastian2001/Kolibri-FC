@@ -427,7 +427,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 			datetime_t t;
 			rtcConvertToDatetime(DECODE_U4((u8 *)reqPayload), &t);
-			rtcSetDatetime(&t);
+			rtcSetDatetime(&t, TIME_QUALITY_MSP);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_RTC: {

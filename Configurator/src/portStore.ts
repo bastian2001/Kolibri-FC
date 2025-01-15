@@ -27,6 +27,7 @@ export const MspFn = {
 	SET_MOTOR: 214,
 	ENABLE_4WAY_IF: 245,
 	SET_RTC: 246,
+	GET_RTC: 247,
 	MSP_V2_FRAME: 255,
 
 	// 0x400_ Configurator related commands

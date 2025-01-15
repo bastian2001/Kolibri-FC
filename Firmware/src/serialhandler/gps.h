@@ -6,13 +6,6 @@ using std::vector;
 
 extern RingBuffer<u8> gpsBuffer; // GPS incoming serial buffer
 extern elapsedMillis lastPvtMessage; // time since the last PVT (position velocity time) message was received
-/**
- * ## current time provided by the GPS
- *
- * This is the time the GPS module thinks it is. It is updated every time a PVT message is received.
- * Format:
- */
-extern u32 timestamp;
 extern u8 currentPvtMsg[92];
 extern u32 newPvtMessageFlag;
 

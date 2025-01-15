@@ -2,6 +2,8 @@
 
 #define EPOCH_2000 946684800
 #define DAYS_IN_4_YEARS 1461
+
+u8 rtcTimeQuality = 0;
 const u16 days[4][12] =
 	{
 		{0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335},
@@ -11,25 +13,17 @@ const u16 days[4][12] =
 };
 
 void rtcInit() {
-	u32 rtcFreq = clock_get_hz(clk_rtc);
-	assert(rtcFreq != 0);
-
-	reset_block(RESETS_RESET_RTC_BITS);
-	unreset_block_wait(RESETS_RESET_RTC_BITS);
-
-	rtcFreq -= 1;
-	assert(rtcFreq <= RTC_CLKDIV_M1_BITS);
-	rtc_hw->clkdiv_m1 = rtcFreq;
-
 	datetime_t t;
 	rtcConvertToDatetime(EPOCH_2000, &t);
-	rtcSetDatetime(&t);
+	rtc_init();
+	rtcSetDatetime(&t, TIME_QUALITY_NONE);
 }
 
-void rtcSetDatetime(datetime_t *t) {
-	rtc_hw->setup_0 = (((u32)t->year) << RTC_SETUP_0_YEAR_LSB) | (((u32)t->month) << RTC_SETUP_0_MONTH_LSB) | (((u32)t->day) << RTC_SETUP_0_DAY_LSB);
-	rtc_hw->setup_1 = (((u32)t->dotw) << RTC_SETUP_1_DOTW_LSB) | (((u32)t->hour) << RTC_SETUP_1_HOUR_LSB) | (((u32)t->min) << RTC_SETUP_1_MIN_LSB) | (((u32)t->sec) << RTC_SETUP_1_SEC_LSB);
-	rtc_hw->ctrl = RTC_CTRL_LOAD_BITS;
+bool rtcSetDatetime(datetime_t *t, u8 quality, bool hasDotw) {
+	if (quality < rtcTimeQuality) return false;
+	rtcTimeQuality = quality;
+	if (!hasDotw) setDotwInDatetime(t);
+	return rtc_set_datetime(t);
 }
 
 void rtcConvertToDatetime(u32 timestamp, datetime_t *t) {
@@ -73,18 +67,6 @@ void rtcConvertToDatetime(u32 timestamp, datetime_t *t) {
 			break;
 		}
 	}
-}
-
-void rtcGetDatetime(datetime_t *t) {
-	u32 setup0 = rtc_hw->setup_0;
-	u32 setup1 = rtc_hw->setup_1;
-	t->year = (setup0 & RTC_SETUP_0_YEAR_BITS) >> RTC_SETUP_0_YEAR_LSB;
-	t->month = (setup0 & RTC_SETUP_0_MONTH_BITS) >> RTC_SETUP_0_MONTH_LSB;
-	t->day = (setup0 & RTC_SETUP_0_DAY_BITS) >> RTC_SETUP_0_DAY_LSB;
-	t->dotw = (setup1 & RTC_SETUP_1_DOTW_BITS) >> RTC_SETUP_1_DOTW_LSB;
-	t->hour = (setup1 & RTC_SETUP_1_HOUR_BITS) >> RTC_SETUP_1_HOUR_LSB;
-	t->min = (setup1 & RTC_SETUP_1_MIN_BITS) >> RTC_SETUP_1_MIN_LSB;
-	t->sec = (setup1 & RTC_SETUP_1_SEC_BITS) >> RTC_SETUP_1_SEC_LSB;
 }
 
 time_t rtcGetUnixTimestamp() {
