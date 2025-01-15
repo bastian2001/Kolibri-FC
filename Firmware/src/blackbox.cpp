@@ -178,7 +178,7 @@ void startLogging() {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 1 // magic bytes, version
 	};
 	blackboxFile.write(data, 7);
-	u32 recordTime = rtcGetBlackboxTimestamp();
+	u32 recordTime = rtcGetUnixTimestamp();
 	blackboxFile.write((u8 *)&recordTime, 4);
 	blackboxFile.write((u8)0); // 3200Hz gyro
 	blackboxFile.write((u8)bbFreqDivider);
