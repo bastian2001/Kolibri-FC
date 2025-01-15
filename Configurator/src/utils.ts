@@ -219,7 +219,7 @@ export type GenFlagProps = {
 	exact: boolean;
 };
 
-export function prefixZeros(num: number = 0, totalDigits: number, char: string = '0') {
+export function prefixZeros(num: number, totalDigits: number, char: string = '0') {
 	let str = num.toString();
 	while (str.length < totalDigits) str = char + str;
 	return str;

@@ -701,8 +701,8 @@
 		LOG_HVEL: {
 			name: 'Hor. Velocity',
 			path: 'motion.hvel',
-			minValue: -30,
-			maxValue: 30,
+			minValue: -10,
+			maxValue: 10,
 			unit: 'm/s',
 			decimals: 2,
 			modifier: [
@@ -1351,7 +1351,7 @@
 				flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
 				offsets[Object.keys(BB_ALL_FLAGS)[i + 32]] = frameSize;
 				if ([35, 36, 37].includes(i + 32)) frameSize += 6;
-				if ([42].includes(i + 32)) frameSize += 4;
+				else if ([42].includes(i + 32)) frameSize += 4;
 				else frameSize += 2;
 			}
 		}

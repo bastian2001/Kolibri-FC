@@ -23,8 +23,8 @@ fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosRoll, cosPitch, cosYaw, cosHeading, sinRoll, sinPitch, sinYaw, sinHeading;
 PT1 magHeadingCorrection(.02, 75); // 0.1Hz cutoff frequency with 75Hz update rate
 fix32 vVel, combinedAltitude, vVelHelper;
-PT1 eVel(0.01, 10);
-PT1 nVel(0.01, 10);
+PT1 eVel(.2, 10);
+PT1 nVel(.2, 10);
 fix32 vAccel;
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 
