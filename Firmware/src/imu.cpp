@@ -20,6 +20,7 @@ PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 
 fix32 roll, pitch, yaw;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
+fix32 cosRoll, cosPitch, cosYaw, cosHeading, sinRoll, sinPitch, sinYaw, sinHeading;
 PT1 magHeadingCorrection(.02, 75); // 0.1Hz cutoff frequency with 75Hz update rate
 fix32 vVel, combinedAltitude, vVelHelper;
 fix32 eVel, nVel;
@@ -119,10 +120,17 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	combinedHeading = temp;
 
 	fix32 preHelper = vVelHelper;
-	fix32 cosPitch = cosFix(pitch);
-	vAccel = cosFix(roll) * cosPitch * accelDataFiltered[2] * RAW_TO_M_PER_SEC2;
-	vAccel += sinFix(roll) * cosPitch * accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
-	vAccel -= sinFix(pitch) * accelDataFiltered[1] * RAW_TO_M_PER_SEC2;
+	cosPitch = cosFix(pitch);
+	cosRoll = cosFix(roll);
+	cosYaw = cosFix(yaw);
+	cosHeading = cosFix(combinedHeading);
+	sinPitch = sinFix(pitch);
+	sinRoll = sinFix(roll);
+	sinYaw = sinFix(yaw);
+	sinHeading = sinFix(combinedHeading);
+	vAccel = cosRoll * cosPitch * accelDataFiltered[2] * RAW_TO_M_PER_SEC2;
+	vAccel += sinRoll * cosPitch * accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
+	vAccel -= sinPitch * accelDataFiltered[1] * RAW_TO_M_PER_SEC2;
 	vVelHelper += (vAccel - fix32(9.81f)) / 3200;
 	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	vVel += vVelHelper - preHelper;

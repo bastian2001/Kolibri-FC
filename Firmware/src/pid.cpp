@@ -125,10 +125,8 @@ void pidLoop() {
 				rollSetpoint = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FlightMode::GPS_VEL) {
-				fix32 coshead = cosFix(combinedHeading);
-				fix32 sinhead = sinFix(combinedHeading);
-				eVelSetpoint = coshead * (smoothChannels[0] - 1500) + sinhead * (smoothChannels[1] - 1500);
-				nVelSetpoint = -sinhead * (smoothChannels[0] - 1500) + coshead * (smoothChannels[1] - 1500);
+				eVelSetpoint = cosHeading * (smoothChannels[0] - 1500) + sinHeading * (smoothChannels[1] - 1500);
+				nVelSetpoint = -sinHeading * (smoothChannels[0] - 1500) + cosHeading * (smoothChannels[1] - 1500);
 				eVelSetpoint = eVelSetpoint >> 9; //+-512 => +-1
 				nVelSetpoint = nVelSetpoint >> 9; //+-512 => +-1
 				eVelSetpoint *= 12; // +-1 => +-12m/s
@@ -146,8 +144,8 @@ void pidLoop() {
 
 				fix32 eVelPID = eVelP + eVelI + eVelD;
 				fix32 nVelPID = nVelP + nVelI + nVelD;
-				fix32 targetRoll = eVelPID * coshead - nVelPID * sinhead;
-				fix32 targetPitch = eVelPID * sinhead + nVelPID * coshead;
+				fix32 targetRoll = eVelPID * cosHeading - nVelPID * sinHeading;
+				fix32 targetPitch = eVelPID * sinHeading + nVelPID * cosHeading;
 				targetRoll = constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
 				targetPitch = constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
 				dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
