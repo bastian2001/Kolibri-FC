@@ -20,13 +20,12 @@ PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 
 fix32 roll, pitch, yaw;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
-fix32 cosRoll, cosPitch, cosYaw, cosHeading, sinRoll, sinPitch, sinYaw, sinHeading;
+fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection(.02, 75); // 0.1Hz cutoff frequency with 75Hz update rate
 fix32 vVel, combinedAltitude, vVelHelper;
 PT1 eVel(.2, 10);
 PT1 nVel(.2, 10);
 fix32 vAccel;
-fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 
 Quaternion q;
 
@@ -120,13 +119,6 @@ void __not_in_flash_func(updatePitchRollValues)() {
 		temp += FIX_2PI;
 	}
 	combinedHeading = temp;
-
-	cosPitch = cosFix(pitch);
-	cosRoll = cosFix(roll);
-	sinPitch = sinFix(pitch);
-	sinRoll = sinFix(roll);
-	cosHeading = cosFix(combinedHeading);
-	sinHeading = sinFix(combinedHeading);
 }
 
 fix32 rAccel, fAccel;
@@ -136,11 +128,9 @@ void updateSpeeds() {
 	fix32 preHelper = vVelHelper;
 	cosPitch = cosFix(pitch);
 	cosRoll = cosFix(roll);
-	cosYaw = cosFix(yaw);
 	cosHeading = cosFix(combinedHeading);
 	sinPitch = sinFix(pitch);
 	sinRoll = sinFix(roll);
-	sinYaw = sinFix(yaw);
 	sinHeading = sinFix(combinedHeading);
 	vAccel = cosRoll * cosPitch * accelDataFiltered[2] * RAW_TO_M_PER_SEC2;
 	vAccel += sinRoll * cosPitch * accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
