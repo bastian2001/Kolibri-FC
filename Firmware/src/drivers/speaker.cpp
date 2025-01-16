@@ -211,7 +211,6 @@ void speakerLoop() {
 					}
 					pwm_set_wrap(sliceNum, currentWrap);
 					int level = currentWrap >> 1;
-					gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_2MA);
 					switch (songToPlay.notes[noteIndex].quieter) {
 					case 1:
 						level = level >> 4;

@@ -78,8 +78,9 @@ int gyroInit() {
 
 	gpio_init(PIN_GYRO_INT1);
 	gpio_set_dir(PIN_GYRO_INT1, GPIO_IN);
-	u8 data = 0;
-	for (int i = 0; i < 50 && data != 24; i++) {
+	u8 data = 0xB6;
+	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CMD, &data, 1, 500); // soft reset
+	for (int i = 0; i < 50 && data != 0x24; i++) {
 		sleep_ms(2);
 		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
 		data = 0;
@@ -99,11 +100,16 @@ int gyroInit() {
 	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
 
 	// check initialization status
-	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INTERNAL_STATUS, &data, 1);
-	if (data & 1 != 1) {
+	data = 0;
+	for (int i = 0; i < 50 && (data & 0x6F) != 0x01; i++) {
+		sleep_ms(1); // should always be below 20ms, but we wait a bit longer to be sure
+		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INTERNAL_STATUS, &data, 1);
+	}
+	if ((data & 0x6F) != 0x01) {
+		sleep_ms(5000);
 		Serial.print("Failed to load BMI270, wrong initialization status: "); // initialization status should be 0x01
-		// return 2;
 		Serial.println(data, HEX);
+		return 2;
 	}
 
 	// enable performance mode (p. 22)
@@ -156,7 +162,7 @@ void gyroGetData(i16 *buf) {
 }
 
 // config file needs to be uploaded to the BMI270 before it can be used
-const u8 bmi270_config_file[8192] = {
+const u8 bmi270_config_file[8192] PROGMEM = {
 	0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x3d, 0xb1, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x91, 0x03, 0x80, 0x2e, 0xbc,
 	0xb0, 0x80, 0x2e, 0xa3, 0x03, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x00, 0xb0, 0x50, 0x30, 0x21, 0x2e, 0x59, 0xf5,
 	0x10, 0x30, 0x21, 0x2e, 0x6a, 0xf5, 0x80, 0x2e, 0x3b, 0x03, 0x00, 0x00, 0x00, 0x00, 0x08, 0x19, 0x01, 0x00, 0x22,
