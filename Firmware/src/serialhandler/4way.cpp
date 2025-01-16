@@ -90,18 +90,18 @@ enum class BlCmd {
 };
 
 void pioSetProgram(uint offset, pio_sm_config c) {
-	pio_sm_set_config(escPio, 0, &c);
-	pio_sm_exec(escPio, 0, pio_encode_jmp(offset));
+	pio_sm_set_config(ESC_PIO, 0, &c);
+	pio_sm_exec(ESC_PIO, 0, pio_encode_jmp(offset));
 }
 
 void pioResetESC() {
 	pioSetProgram(offsetPioTransmit, configPioTransmit);
 	sleep_ms(1);
-	pio_sm_exec_wait_blocking(escPio, 0, pio_encode_set(pio_pins, 0));
+	pio_sm_exec_wait_blocking(ESC_PIO, 0, pio_encode_set(pio_pins, 0));
 	elapsedMillis x = 0;
 	while (x < 300)
 		rp2040.wdt_reset();
-	pio_sm_exec_wait_blocking(escPio, 0, pio_encode_set(pio_pins, 1));
+	pio_sm_exec_wait_blocking(ESC_PIO, 0, pio_encode_set(pio_pins, 1));
 	pioSetProgram(offsetPioReceive, configPioReceive);
 }
 
@@ -123,16 +123,16 @@ void pioEnableTx() {
 	isTxEnabled = true;
 }
 void pioDisableTx() {
-	while (!pio_sm_is_tx_fifo_empty(escPio, 0)) {
+	while (!pio_sm_is_tx_fifo_empty(ESC_PIO, 0)) {
 	}
-	while (pio_sm_get_pc(escPio, 0) != offsetPioTransmit + 2) {
+	while (pio_sm_get_pc(ESC_PIO, 0) != offsetPioTransmit + 2) {
 	}
 	pioSetProgram(offsetPioReceive, configPioReceive);
 	isTxEnabled = false;
 }
 
 void pioWrite(uint8_t data) {
-	pio_sm_put_blocking(escPio, 0, data);
+	pio_sm_put_blocking(ESC_PIO, 0, data);
 }
 
 uint32_t pioAvailable() {
@@ -147,8 +147,8 @@ uint8_t pioRead() {
 void delayWhileRead(uint16_t ms) {
 	elapsedMillis x = 0;
 	do {
-		if (pio_sm_get_rx_fifo_level(escPio, 0)) {
-			escRxBuf.push_back(pio_sm_get(escPio, 0) >> 24);
+		if (pio_sm_get_rx_fifo_level(ESC_PIO, 0)) {
+			escRxBuf.push_back(pio_sm_get(ESC_PIO, 0) >> 24);
 		}
 		rp2040.wdt_reset();
 	} while (x < ms);
@@ -156,8 +156,8 @@ void delayWhileRead(uint16_t ms) {
 void delayMicrosWhileRead(uint16_t us) {
 	elapsedMicros x = 0;
 	do {
-		if (pio_sm_get_rx_fifo_level(escPio, 0)) {
-			escRxBuf.push_back(pio_sm_get(escPio, 0) >> 24);
+		if (pio_sm_get_rx_fifo_level(ESC_PIO, 0)) {
+			escRxBuf.push_back(pio_sm_get(ESC_PIO, 0) >> 24);
 		}
 		rp2040.wdt_reset();
 	} while (x < us);
@@ -230,14 +230,14 @@ uint16_t getEsc(uint8_t rx_buf[], uint16_t wait_ms) {
 void begin4Way() {
 	if (setup4WayDone) return;
 	enableDShot = 0;
-	pio_set_sm_mask_enabled(escPio, 0b1111, false);
-	pio_remove_program(escPio, &bidir_dshot_x1_program, escPioOffset);
-	offsetPioReceive = pio_add_program(escPio, &onewire_receive_program);
-	offsetPioTransmit = pio_add_program(escPio, &onewire_transmit_program);
+	pio_set_sm_mask_enabled(ESC_PIO, 0b1111, false);
+	pio_remove_program(ESC_PIO, &bidir_dshot_x1_program, escPioOffset);
+	offsetPioReceive = pio_add_program(ESC_PIO, &onewire_receive_program);
+	offsetPioTransmit = pio_add_program(ESC_PIO, &onewire_transmit_program);
 	for (int i = 0; i < 4; i++) {
-		pio_sm_unclaim(escPio, i);
+		pio_sm_unclaim(ESC_PIO, i);
 	}
-	pio_sm_claim(escPio, 0);
+	pio_sm_claim(ESC_PIO, 0);
 	configPioReceive = onewire_receive_program_get_default_config(offsetPioReceive);
 	sm_config_set_set_pins(&configPioReceive, PIN_MOTORS, 1);
 	sm_config_set_in_pins(&configPioReceive, PIN_MOTORS);
@@ -249,20 +249,20 @@ void begin4Way() {
 	sm_config_set_out_pins(&configPioTransmit, PIN_MOTORS, 1);
 	sm_config_set_out_shift(&configPioTransmit, true, false, 8);
 	sm_config_set_clkdiv_int_frac(&configPioTransmit, 859, 128);
-	pio_sm_init(escPio, 0, offsetPioReceive, &configPioReceive);
-	pio_sm_set_enabled(escPio, 0, true);
+	pio_sm_init(ESC_PIO, 0, offsetPioReceive, &configPioReceive);
+	pio_sm_set_enabled(ESC_PIO, 0, true);
 	serialFunctions[0] |= SERIAL_4WAY;
 	setup4WayDone = true;
 }
 
 void end4Way() {
 	if (!setup4WayDone) return;
-	pio_sm_set_enabled(escPio, 0, false);
-	pio_sm_unclaim(escPio, 0);
-	pio_remove_program(escPio, &onewire_receive_program, offsetPioReceive);
-	pio_remove_program(escPio, &onewire_transmit_program, offsetPioTransmit);
-	escPioOffset = pio_add_program(escPio, &bidir_dshot_x1_program);
-	pio_claim_sm_mask(escPio, 0b1111);
+	pio_sm_set_enabled(ESC_PIO, 0, false);
+	pio_sm_unclaim(ESC_PIO, 0);
+	pio_remove_program(ESC_PIO, &onewire_receive_program, offsetPioReceive);
+	pio_remove_program(ESC_PIO, &onewire_transmit_program, offsetPioTransmit);
+	escPioOffset = pio_add_program(ESC_PIO, &bidir_dshot_x1_program);
+	pio_claim_sm_mask(ESC_PIO, 0b1111);
 	for (i32 i = 0; i < 4; i++) {
 		pio_sm_config c = bidir_dshot_x1_program_get_default_config(escPioOffset);
 		sm_config_set_set_pins(&c, PIN_MOTORS + i, 1);
@@ -271,10 +271,10 @@ void end4Way() {
 		sm_config_set_jmp_pin(&c, PIN_MOTORS + i);
 		sm_config_set_out_shift(&c, false, true, 32);
 		sm_config_set_in_shift(&c, false, true, 32);
-		pio_sm_init(escPio, i, escPioOffset, &c);
-		pio_sm_set_consecutive_pindirs(escPio, i, PIN_MOTORS + i, 1, true);
-		pio_sm_set_enabled(escPio, i, true);
-		pio_sm_set_clkdiv_int_frac(escPio, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
+		pio_sm_init(ESC_PIO, i, escPioOffset, &c);
+		pio_sm_set_consecutive_pindirs(ESC_PIO, i, PIN_MOTORS + i, 1, true);
+		pio_sm_set_enabled(ESC_PIO, i, true);
+		pio_sm_set_clkdiv_int_frac(ESC_PIO, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
 	}
 	serialFunctions[0] &= ~SERIAL_4WAY;
 	enableDShot = 1;

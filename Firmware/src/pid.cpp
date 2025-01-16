@@ -72,60 +72,6 @@ void initPID() {
 	vVelMinErrorSum = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
 }
 
-void decodeErpm() {
-	if (!enableDShot) return;
-	tasks[TASK_ESC_RPM].runCounter++;
-	elapsedMicros taskTimer = 0;
-	for (int m = 0; m < 4; m++) {
-		if (pio_sm_is_rx_fifo_empty(escPio, m)) {
-			escErpmFail |= 1 << m;
-			tasks[TASK_ESC_RPM].errorCount++;
-			tasks[TASK_ESC_RPM].lastError = 1;
-			condensedRpm[m] = 0;
-			continue;
-		}
-		u32 edgeDetectedReturn = pio_sm_get_blocking(escPio, m);
-		while (!pio_sm_is_rx_fifo_empty(escPio, m)) {
-			edgeDetectedReturn = pio_sm_get_blocking(escPio, m);
-		}
-		edgeDetectedReturn = edgeDetectedReturn ^ (edgeDetectedReturn >> 1);
-		u32 rpm = escDecodeLut[edgeDetectedReturn & 0x1F];
-		rpm |= escDecodeLut[(edgeDetectedReturn >> 5) & 0x1F] << 4;
-		rpm |= escDecodeLut[(edgeDetectedReturn >> 10) & 0x1F] << 8;
-		rpm |= escDecodeLut[(edgeDetectedReturn >> 15) & 0x1F] << 12;
-		u32 csum = (rpm >> 8) ^ rpm;
-		csum ^= csum >> 4;
-		csum &= 0xF;
-		if (csum != 0x0F || rpm > 0xFFFF) {
-			escErpmFail |= 1 << m;
-			tasks[TASK_ESC_RPM].errorCount++;
-			tasks[TASK_ESC_RPM].lastError = 2;
-			condensedRpm[m] = 0;
-			continue;
-		}
-		rpm >>= 4;
-		condensedRpm[m] = rpm;
-		if (rpm == 0xFFF) {
-			escRpm[m] = 0;
-		} else {
-			rpm = (rpm & 0x1FF) << (rpm >> 9); // eeem mmmm mmmm
-			if (!rpm) {
-				escErpmFail |= 1 << m;
-				continue;
-			}
-			rpm = (60000000 + 50 * rpm) / rpm;
-			escRpm[m] = rpm / (MOTOR_POLES / 2);
-			escErpmFail &= ~(1 << m);
-		}
-	}
-	u32 duration = taskTimer;
-	tasks[TASK_ESC_RPM].totalDuration += duration;
-	if (duration > tasks[TASK_ESC_RPM].maxDuration)
-		tasks[TASK_ESC_RPM].maxDuration = duration;
-	if (duration < tasks[TASK_ESC_RPM].minDuration)
-		tasks[TASK_ESC_RPM].minDuration = duration;
-}
-
 u32 takeoffCounter = 0;
 elapsedMicros taskTimerGyro, taskTimerPid;
 void pidLoop() {

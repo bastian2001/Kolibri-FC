@@ -34,7 +34,7 @@ typedef enum {
 	DSHOT_CMD_MAX = 47
 } ESCCommand;
 
-extern PIO escPio; // pio block used for the ESC communication
+#define ESC_PIO pio0 // pio block used for the ESC communication
 extern volatile u32 escRpm[4]; // decoded RPM values
 extern const u32 escDecodeLut[32]; // lookup table for GCR decoding
 extern u8 escErpmFail; // flags for failed RPM decoding
@@ -68,3 +68,10 @@ void sendRaw11Bit(const u16 raw[4]);
  * @param raw Array of four raw values, including the telemetry bits and checksum
  */
 void sendRaw16Bit(const u16 raw[4]);
+
+/**
+ * @brief Decodes the RPM values from the ESCs
+ *
+ * Stores them in escRpm array and sets or clears the corresponding bit in escErpmFail depending on whether the decoded value is valid (checksum correct)
+ */
+void decodeErpm();
