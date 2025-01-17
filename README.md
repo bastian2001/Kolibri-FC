@@ -39,7 +39,7 @@ Practically speaking, is there any reason to choose this over Betaflight or iNav
 Home Page with a general preview of the quad's orientation, some status info and general controls
 ![grafik](https://github.com/user-attachments/assets/725f180a-3289-4ce4-969a-6d8dde11a078)
 
-Blackbox viewer integrated into the configurator, you can record ELRS data, setpoints, rotation, attitude, PIDs, GPS, RPM, magnetometer and much more. Size is practically unlimited (SD card logging), but 1MB is about 10 seconds when logging practically everything
+Blackbox viewer integrated into the configurator, you can record ELRS data, setpoints, rotation, attitude, PIDs, GPS, RPM, magnetometer and much more. Size is practically unlimited (SD card logging), but 1MB is about 10 seconds when logging practically everything. Integrated filtering to smooth noisy data, multiple graphs and multiple traces per graph, JSON converter for external analysis, pinch to zoom (touchscreen support). Don't mind the "Start Time" - it's wrong. The blackbox got some updates, which changed the interpretation of the timestamp.
 ![grafik](https://github.com/user-attachments/assets/bb819397-651f-4cb0-9b38-71407371d939)
 
 Tasks viewer shows the execution duration and frequency of all the tasks to check they're running fast enough and to aid optimization of code (counting of frequency, max, min and average durations are not always done the same, so the results need to be checked against the code to see how each task is counted)
