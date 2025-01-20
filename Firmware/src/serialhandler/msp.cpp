@@ -752,6 +752,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				break;
 			}
 			rtcTimezoneOffset = offset;
+			EEPROM.put((u16)EEPROM_POS::TIMEZONE_OFFSET_MINS, rtcTimezoneOffset);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_PIDS: {
