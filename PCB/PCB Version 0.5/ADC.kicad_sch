@@ -1,0 +1,50 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "a378e145-bd7e-44c0-a61d-79ea5add70b1")
+	(paper "A4")
+	(lib_symbols)
+	(bus
+		(pts
+			(xy 86.36 86.36) (xy 104.14 86.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "89045091-404b-4409-8bbf-5012d8f5ee08")
+	)
+	(label "ADC{Curr VBat}"
+		(at 86.36 86.36 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "bd453f1c-0896-4a84-ae50-a1b1fefc8226")
+	)
+	(hierarchical_label "ADC"
+		(shape output)
+		(at 104.14 86.36 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "41f07735-690f-4638-bdf8-1ff6eb5d9c9f")
+	)
+	(hierarchical_label "Curr_ESC"
+		(shape input)
+		(at 104.14 90.17 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "adfb13ee-2b75-4274-aae4-71f5f82d4982")
+	)
+)

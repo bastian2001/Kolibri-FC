@@ -1,0 +1,39 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "a31ae560-2d23-4924-a62c-de5601cdbd4b")
+	(paper "A4")
+	(lib_symbols)
+	(bus
+		(pts
+			(xy 127 93.98) (xy 152.4 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "371853de-cea8-4690-81a7-853d033891d5")
+	)
+	(label "I2C0{SDA SCL}"
+		(at 129.54 93.98 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "9adeed3e-8c91-41ec-8dfe-86e0a4ba22d0")
+	)
+	(hierarchical_label "I2C0"
+		(shape bidirectional)
+		(at 152.4 93.98 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "484a3b62-9c1e-4cdb-b8a4-56fcaa0f1f79")
+	)
+)

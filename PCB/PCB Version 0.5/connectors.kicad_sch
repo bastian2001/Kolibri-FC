@@ -1,0 +1,309 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "2fc4145c-8bb0-473b-95ff-6b9c34694a49")
+	(paper "A4")
+	(lib_symbols)
+	(bus
+		(pts
+			(xy 83.82 85.09) (xy 88.9 85.09)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0352fc9f-88fe-47b2-a19a-e62c7bc47baa")
+	)
+	(bus
+		(pts
+			(xy 83.82 97.79) (xy 88.9 97.79)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "397162e4-ea5a-452d-bbb1-0fe9260cfadb")
+	)
+	(bus
+		(pts
+			(xy 83.82 92.71) (xy 88.9 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3dcbbcb9-4c39-4497-a0e9-53dc67e11621")
+	)
+	(bus
+		(pts
+			(xy 83.82 82.55) (xy 88.9 82.55)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3f97399e-dc1c-42d8-8837-8a6535ef089e")
+	)
+	(bus
+		(pts
+			(xy 83.82 95.25) (xy 88.9 95.25)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "62bef5b0-3574-4615-a4e3-849c4a09691b")
+	)
+	(bus
+		(pts
+			(xy 83.82 90.17) (xy 88.9 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d0ab6fb-ca81-43c9-ae47-65fd03e8f2f2")
+	)
+	(bus
+		(pts
+			(xy 83.82 87.63) (xy 88.9 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7d3cc822-4d1b-4a92-b2ba-1134c2b12aa8")
+	)
+	(bus
+		(pts
+			(xy 83.82 77.47) (xy 88.9 77.47)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7da160de-7f54-4d8c-81c1-9868bcbba7ca")
+	)
+	(bus
+		(pts
+			(xy 83.82 71.12) (xy 88.9 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "faed2b66-7d10-4f19-8615-b928d241292b")
+	)
+	(label "U2{TX RX}"
+		(at 88.9 97.79 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0daf0ad5-4b94-4ba0-9355-36ad05e71d44")
+	)
+	(label "I2C0{SDA SCL}"
+		(at 88.9 85.09 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "6d4b35b6-39f2-4d96-8907-0bc3cf34e51e")
+	)
+	(label "U1{TX RX}"
+		(at 88.9 90.17 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "791260b2-c973-4593-8368-16b08885c206")
+	)
+	(label "Motor{[1..4]}"
+		(at 88.9 82.55 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8006cbd3-ca2d-4f2f-98d5-eaeb4d045886")
+	)
+	(label "Spk{+ -}"
+		(at 88.9 95.25 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a3875d90-14a7-42fe-9856-ca6efe33ffa6")
+	)
+	(label "U0{TX RX}"
+		(at 88.9 77.47 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b4e6b0f2-1b29-4af4-ab1d-887b0066361d")
+	)
+	(label "{SWDIO SWCLK}"
+		(at 88.9 92.71 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c9bcc682-cba1-4aaf-9b06-655432eb74a7")
+	)
+	(label "IO{[2..5]}"
+		(at 88.9 87.63 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d11ce0db-ea44-4e9e-9b6f-cd75ea716f89")
+	)
+	(label "Video{In Out}"
+		(at 88.9 71.12 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f231d026-630d-4a74-85e9-71a783c39578")
+	)
+	(hierarchical_label "SWD"
+		(shape bidirectional)
+		(at 83.82 92.71 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0bc48fd8-0fc6-45f4-a8e8-9cad4b9bd9c0")
+	)
+	(hierarchical_label "UART1"
+		(shape bidirectional)
+		(at 83.82 90.17 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0dc3f161-7474-4714-80a6-6731293b464f")
+	)
+	(hierarchical_label "UART0"
+		(shape bidirectional)
+		(at 83.82 77.47 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "47f39ba5-3ab0-457f-a04a-c371540b72a4")
+	)
+	(hierarchical_label "Curr_ESC"
+		(shape bidirectional)
+		(at 83.82 101.6 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "78dbb070-301f-43d3-ab1f-00d9774d1e81")
+	)
+	(hierarchical_label "UART2"
+		(shape bidirectional)
+		(at 83.82 97.79 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "85c7d47a-4ff9-4e92-89c5-d6ca9ec44d90")
+	)
+	(hierarchical_label "Motors"
+		(shape bidirectional)
+		(at 83.82 82.55 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "ac2b2314-6618-4b8f-97fd-e64135c7dfc0")
+	)
+	(hierarchical_label "I2C0"
+		(shape bidirectional)
+		(at 83.82 85.09 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "cb6e2e22-3f46-401d-bfd5-07e6b877fcfd")
+	)
+	(hierarchical_label "Video"
+		(shape bidirectional)
+		(at 83.82 71.12 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "cdca047d-de04-4dce-911f-ff3a4a60fbd8")
+	)
+	(hierarchical_label "LED"
+		(shape input)
+		(at 83.82 104.14 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d35f0d38-c517-4dd1-8006-f8a8f6d0aeb0")
+	)
+	(hierarchical_label "Speaker"
+		(shape bidirectional)
+		(at 83.82 95.25 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d3e5fd5d-bf24-41d1-b2c7-19ce9b0ffadf")
+	)
+	(hierarchical_label "GPIO"
+		(shape bidirectional)
+		(at 83.82 87.63 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e4eb9610-e99c-4910-87a2-299487371aa7")
+	)
+)

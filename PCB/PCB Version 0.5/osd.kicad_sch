@@ -1,0 +1,81 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "5621588a-bff4-4ca7-92d9-724ac09eb0cc")
+	(paper "A4")
+	(lib_symbols)
+	(bus
+		(pts
+			(xy 144.78 114.3) (xy 170.18 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a88baf28-2f9c-483d-96ec-eab14b15a410")
+	)
+	(bus
+		(pts
+			(xy 144.78 109.22) (xy 170.18 109.22)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ee121925-bcc2-4366-b915-48f4fe4f61b8")
+	)
+	(label "SPI1{MISO SCLK MOSI}"
+		(at 144.78 114.3 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "808e8be6-5d30-4db7-8493-5e27470a599a")
+	)
+	(label "Video{In Out}"
+		(at 146.05 109.22 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a4319c47-a5b8-4144-9439-bac75f6b9a84")
+	)
+	(hierarchical_label "SS"
+		(shape input)
+		(at 144.78 116.84 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "aad46e9c-0378-4626-8479-83748f4beae1")
+	)
+	(hierarchical_label "Video"
+		(shape bidirectional)
+		(at 170.18 109.22 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "c34dad8a-d66d-4b0d-ba2a-c2cdb62513d8")
+	)
+	(hierarchical_label "SPI1"
+		(shape bidirectional)
+		(at 170.18 114.3 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "dc8a27b1-3323-47a9-8411-8099009459a5")
+	)
+)

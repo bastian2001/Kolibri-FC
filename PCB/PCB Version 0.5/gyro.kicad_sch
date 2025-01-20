@@ -1,0 +1,61 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "ef45b49c-e590-4eb0-9370-bd6d39de2628")
+	(paper "A4")
+	(lib_symbols)
+	(bus
+		(pts
+			(xy 113.03 88.9) (xy 138.43 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1f6021c4-86ec-44a0-afc1-fd7b725e7bd1")
+	)
+	(label "SPI0{MISO SCLK MOSI}"
+		(at 113.03 88.9 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1699711d-ed39-4aaf-90e0-334ee7bd8976")
+	)
+	(hierarchical_label "Int"
+		(shape output)
+		(at 116.84 93.98 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "7567f2cd-08d5-4fd5-88cb-d190d9d6591a")
+	)
+	(hierarchical_label "SPI0"
+		(shape bidirectional)
+		(at 138.43 88.9 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "bc3651fe-89dc-4c75-9fb2-43ee330a0448")
+	)
+	(hierarchical_label "SS"
+		(shape input)
+		(at 113.03 91.44 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ff7c777a-58b8-4dd0-94d3-463b074d22b4")
+	)
+)

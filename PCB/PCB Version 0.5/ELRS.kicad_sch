@@ -1,0 +1,39 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "a09a863c-aad7-4e84-8c94-37b8f072e020")
+	(paper "A4")
+	(lib_symbols)
+	(bus
+		(pts
+			(xy 129.54 95.25) (xy 146.05 95.25)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "44930351-aeaf-4655-9fe0-978488b6a52e")
+	)
+	(label "U0{TX RX}"
+		(at 132.08 95.25 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a47bc7b8-ad8e-4441-8663-fa126d6c1f27")
+	)
+	(hierarchical_label "UART0"
+		(shape bidirectional)
+		(at 146.05 95.25 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "4187a9c3-08a4-4ef7-9f35-2e2fa79a2629")
+	)
+)

@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "Kolibri custom")(type "KiCad")(uri "${KIPRJMOD}/Kolibri custom.kicad_sym")(options "")(descr ""))
+)
