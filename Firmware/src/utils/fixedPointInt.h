@@ -24,14 +24,15 @@ inline void startFixTrig() {
 
 fix32 sinFix(const fix32 x);
 fix32 cosFix(const fix32 x);
-fix32 atanFix(const fix32 x);
+fix32 atanFix(fix32 x);
 fix32 atan2Fix(const fix32 y, const fix32 x);
+fix32 acosFix(fix32 x);
 
 class fix64 {
 	// 32.32 fixed point
 public:
 	i64 raw = 0;
-	inline constexpr fix64(){};
+	inline constexpr fix64() {};
 
 	// ======================== Type conversion from another type ========================
 	inline constexpr fix64(const i32 v) {
@@ -146,7 +147,7 @@ class fix32 {
 	// 16.16 fixed point
 public:
 	i32 raw = 0;
-	inline constexpr fix32(){};
+	inline constexpr fix32() {};
 
 	// ======================== Type conversion from another type ========================
 	inline constexpr fix32(const i32 v) {

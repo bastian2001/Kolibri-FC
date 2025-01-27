@@ -14,7 +14,7 @@
 const f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
 const f32 FRAME_TIME = 1. / 3200;
 const f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
-const f32 ANGLE_CHANGE_LIMIT = .00002;
+const f32 ANGLE_CHANGE_LIMIT = .0002;
 const fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
 

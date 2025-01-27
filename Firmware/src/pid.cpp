@@ -5,7 +5,7 @@ i16 *gyroDataRaw;
 i16 *accelDataRaw;
 FlightMode flightMode = FlightMode::ACRO;
 
-#define MAX_ANGLE 35 // degrees
+#define MAX_ANGLE 40 // degrees
 
 /*
  * To avoid a lot of floating point math, fixed point math is used.
@@ -203,6 +203,16 @@ void pidLoop() {
 				vVelFF = pidGainsVVel[FF] * vVelFFFilter;
 				vVelLastSetpoint = vVelSetpoint;
 				throttle = vVelP + vVelI + vVelD + vVelFF;
+				/* The cos of the thrust angle gives us the thrust "efficiency" (=cos(acos(...))),
+				aka how much of the thrust is actually used to lift the quad.
+				Dividing by this "efficiency" will give us the actual thrust needed to lift the quad.
+				This acts much quicker than the PID would ever increase the throttle when tilting the quad. */
+				fix32 throttleFactor = cosRoll * cosPitch;
+				if (throttleFactor < 0) // quad is upside down
+					throttleFactor = 1;
+				throttleFactor = constrain(throttleFactor, fix32(0.33f), 1); // we limit the throttle increase to 3x (ca. 72° tilt), and also prevent division by zero
+				throttleFactor = fix32(1) / throttleFactor; // 1/cos(acos(...)) = 1/cos(thrust angle)
+				throttle = throttle * throttleFactor;
 				throttle = constrain(throttle, 0, 1024);
 			}
 			vVelLast = vVel;
