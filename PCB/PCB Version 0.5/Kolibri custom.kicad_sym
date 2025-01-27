@@ -2,8 +2,6 @@
 	(version 20231120)
 	(generator "kicad_symbol_editor")
 	(generator_version "8.0")
-<<<<<<< Updated upstream
-=======
 	(symbol "ESP32-U4WDH"
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -1152,7 +1150,6 @@
 			)
 		)
 	)
->>>>>>> Stashed changes
 	(symbol "RP2350A"
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -3834,8 +3831,6 @@
 			)
 		)
 	)
-<<<<<<< Updated upstream
-=======
 	(symbol "Solder_Pad_octa"
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -4368,7 +4363,6 @@
 			)
 		)
 	)
->>>>>>> Stashed changes
 	(symbol "WS2182B_1615"
 		(exclude_from_sim no)
 		(in_bom yes)

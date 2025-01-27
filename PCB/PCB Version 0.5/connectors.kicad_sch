@@ -4,12 +4,6 @@
 	(generator_version "8.0")
 	(uuid "2fc4145c-8bb0-473b-95ff-6b9c34694a49")
 	(paper "A4")
-<<<<<<< Updated upstream
-	(lib_symbols)
-	(bus
-		(pts
-			(xy 83.82 85.09) (xy 88.9 85.09)
-=======
 	(title_block
 		(title "Kolibri FC - External Connections")
 	)
@@ -2249,7 +2243,6 @@
 	(bus
 		(pts
 			(xy 27.94 110.49) (xy 52.07 110.49)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -2257,27 +2250,14 @@
 		)
 		(uuid "0352fc9f-88fe-47b2-a19a-e62c7bc47baa")
 	)
-<<<<<<< Updated upstream
-	(bus
-		(pts
-			(xy 83.82 97.79) (xy 88.9 97.79)
-=======
 	(wire
 		(pts
 			(xy 45.72 43.18) (xy 71.12 43.18)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "397162e4-ea5a-452d-bbb1-0fe9260cfadb")
-	)
-	(bus
-		(pts
-			(xy 83.82 92.71) (xy 88.9 92.71)
-=======
 		(uuid "0498f365-675e-4b95-99f6-1804078d56c3")
 	)
 	(wire
@@ -2433,7 +2413,6 @@
 	(bus
 		(pts
 			(xy 123.19 144.78) (xy 139.7 144.78)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -2443,11 +2422,7 @@
 	)
 	(bus
 		(pts
-<<<<<<< Updated upstream
-			(xy 83.82 82.55) (xy 88.9 82.55)
-=======
 			(xy 27.94 33.02) (xy 43.18 33.02)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -2455,27 +2430,14 @@
 		)
 		(uuid "3f97399e-dc1c-42d8-8837-8a6535ef089e")
 	)
-<<<<<<< Updated upstream
-	(bus
-		(pts
-			(xy 83.82 95.25) (xy 88.9 95.25)
-=======
 	(wire
 		(pts
 			(xy 36.83 102.87) (xy 71.12 102.87)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "62bef5b0-3574-4615-a4e3-849c4a09691b")
-	)
-	(bus
-		(pts
-			(xy 83.82 90.17) (xy 88.9 90.17)
-=======
 		(uuid "3fd80763-95bb-4f22-bda1-cb16805239dc")
 	)
 	(wire
@@ -2681,7 +2643,6 @@
 	(bus
 		(pts
 			(xy 27.94 92.71) (xy 52.07 92.71)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -2689,27 +2650,14 @@
 		)
 		(uuid "6d0ab6fb-ca81-43c9-ae47-65fd03e8f2f2")
 	)
-<<<<<<< Updated upstream
-	(bus
-		(pts
-			(xy 83.82 87.63) (xy 88.9 87.63)
-=======
 	(wire
 		(pts
 			(xy 35.56 71.12) (xy 46.99 71.12)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "7d3cc822-4d1b-4a92-b2ba-1134c2b12aa8")
-	)
-	(bus
-		(pts
-			(xy 83.82 77.47) (xy 88.9 77.47)
-=======
 		(uuid "6ec77338-5449-43eb-b0b9-f31003cba49c")
 	)
 	(wire
@@ -2775,7 +2723,6 @@
 	(bus
 		(pts
 			(xy 123.19 54.61) (xy 140.97 54.61)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -2783,11 +2730,6 @@
 		)
 		(uuid "7da160de-7f54-4d8c-81c1-9868bcbba7ca")
 	)
-<<<<<<< Updated upstream
-	(bus
-		(pts
-			(xy 83.82 71.12) (xy 88.9 71.12)
-=======
 	(wire
 		(pts
 			(xy 243.84 44.45) (xy 245.11 44.45)
@@ -3141,7 +3083,6 @@
 	(bus
 		(pts
 			(xy 123.19 83.82) (xy 140.97 83.82)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -3149,10 +3090,6 @@
 		)
 		(uuid "faed2b66-7d10-4f19-8615-b928d241292b")
 	)
-<<<<<<< Updated upstream
-	(label "U2{TX RX}"
-		(at 88.9 97.79 0)
-=======
 	(wire
 		(pts
 			(xy 143.51 57.15) (xy 161.29 57.15)
@@ -3283,19 +3220,12 @@
 	)
 	(label "Motor.1"
 		(at 35.56 66.04 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "0daf0ad5-4b94-4ba0-9355-36ad05e71d44")
-	)
-	(label "I2C0{SDA SCL}"
-		(at 88.9 85.09 0)
-=======
 		(uuid "031b8588-0e13-4e61-b024-41f187c8d840")
 	)
 	(label "Motor.2"
@@ -3440,7 +3370,6 @@
 	)
 	(label "I2C0{SDA SCL}"
 		(at 33.02 110.49 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3449,10 +3378,6 @@
 		)
 		(uuid "6d4b35b6-39f2-4d96-8907-0bc3cf34e51e")
 	)
-<<<<<<< Updated upstream
-	(label "U1{TX RX}"
-		(at 88.9 90.17 0)
-=======
 	(label "PWM.2"
 		(at 148.59 33.02 0)
 		(effects
@@ -3465,7 +3390,6 @@
 	)
 	(label "U1{TX RX}"
 		(at 33.02 92.71 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3474,10 +3398,6 @@
 		)
 		(uuid "791260b2-c973-4593-8368-16b08885c206")
 	)
-<<<<<<< Updated upstream
-	(label "Motor{[1..4]}"
-		(at 88.9 82.55 0)
-=======
 	(label "Video.Out"
 		(at 148.59 90.17 0)
 		(effects
@@ -3490,7 +3410,6 @@
 	)
 	(label "Motor{[1..4]}"
 		(at 29.21 33.02 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3499,25 +3418,14 @@
 		)
 		(uuid "8006cbd3-ca2d-4f2f-98d5-eaeb4d045886")
 	)
-<<<<<<< Updated upstream
-	(label "Spk{+ -}"
-		(at 88.9 95.25 0)
-=======
 	(label "Motor.2"
 		(at 54.61 45.72 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "a3875d90-14a7-42fe-9856-ca6efe33ffa6")
-	)
-	(label "U0{TX RX}"
-		(at 88.9 77.47 0)
-=======
 		(uuid "85d60b53-c2d7-487f-b0bc-bd908d809e90")
 	)
 	(label "Spk{+ -}"
@@ -3592,7 +3500,6 @@
 	)
 	(label "U0{TX RX}"
 		(at 125.73 54.61 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3601,10 +3508,6 @@
 		)
 		(uuid "b4e6b0f2-1b29-4af4-ab1d-887b0066361d")
 	)
-<<<<<<< Updated upstream
-	(label "{SWDIO SWCLK}"
-		(at 88.9 92.71 0)
-=======
 	(label "PWM.4"
 		(at 148.59 38.1 0)
 		(effects
@@ -3647,7 +3550,6 @@
 	)
 	(label "{SWDIO SWCLK}"
 		(at 123.19 144.78 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3656,25 +3558,14 @@
 		)
 		(uuid "c9bcc682-cba1-4aaf-9b06-655432eb74a7")
 	)
-<<<<<<< Updated upstream
-	(label "IO{[2..5]}"
-		(at 88.9 87.63 0)
-=======
 	(label "Video.In"
 		(at 148.59 86.36 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "d11ce0db-ea44-4e9e-9b6f-cd75ea716f89")
-	)
-	(label "Video{In Out}"
-		(at 88.9 71.12 0)
-=======
 		(uuid "d7d2172e-3d7a-4b0d-a574-07aede709e4f")
 	)
 	(label "U2{TX RX}"
@@ -3729,7 +3620,6 @@
 	)
 	(label "Video{In Out}"
 		(at 125.73 83.82 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3738,11 +3628,6 @@
 		)
 		(uuid "f231d026-630d-4a74-85e9-71a783c39578")
 	)
-<<<<<<< Updated upstream
-	(hierarchical_label "SWD"
-		(shape bidirectional)
-		(at 83.82 92.71 180)
-=======
 	(label "SWDIO"
 		(at 146.05 152.4 0)
 		(effects
@@ -3766,7 +3651,6 @@
 	(hierarchical_label "SWD"
 		(shape bidirectional)
 		(at 123.19 144.78 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3777,11 +3661,7 @@
 	)
 	(hierarchical_label "UART1"
 		(shape bidirectional)
-<<<<<<< Updated upstream
-		(at 83.82 90.17 180)
-=======
 		(at 27.94 92.71 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3790,11 +3670,6 @@
 		)
 		(uuid "0dc3f161-7474-4714-80a6-6731293b464f")
 	)
-<<<<<<< Updated upstream
-	(hierarchical_label "UART0"
-		(shape bidirectional)
-		(at 83.82 77.47 180)
-=======
 	(hierarchical_label "UART2"
 		(shape bidirectional)
 		(at 27.94 154.94 180)
@@ -3809,7 +3684,6 @@
 	(hierarchical_label "UART0"
 		(shape bidirectional)
 		(at 123.19 54.61 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3819,13 +3693,8 @@
 		(uuid "47f39ba5-3ab0-457f-a04a-c371540b72a4")
 	)
 	(hierarchical_label "Curr_ESC"
-<<<<<<< Updated upstream
-		(shape bidirectional)
-		(at 83.82 101.6 180)
-=======
 		(shape output)
 		(at 50.8 55.88 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3834,34 +3703,20 @@
 		)
 		(uuid "78dbb070-301f-43d3-ab1f-00d9774d1e81")
 	)
-<<<<<<< Updated upstream
-	(hierarchical_label "UART2"
-		(shape bidirectional)
-		(at 83.82 97.79 180)
-=======
 	(hierarchical_label "PWM"
 		(shape input)
 		(at 123.19 27.94 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-<<<<<<< Updated upstream
-		(uuid "85c7d47a-4ff9-4e92-89c5-d6ca9ec44d90")
-	)
-	(hierarchical_label "Motors"
-		(shape bidirectional)
-		(at 83.82 82.55 180)
-=======
 		(uuid "9b926e87-482b-4804-987d-32b818941e90")
 	)
 	(hierarchical_label "Motors"
 		(shape bidirectional)
 		(at 27.94 33.02 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3872,11 +3727,7 @@
 	)
 	(hierarchical_label "I2C0"
 		(shape bidirectional)
-<<<<<<< Updated upstream
-		(at 83.82 85.09 180)
-=======
 		(at 27.94 110.49 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3887,11 +3738,7 @@
 	)
 	(hierarchical_label "Video"
 		(shape bidirectional)
-<<<<<<< Updated upstream
-		(at 83.82 71.12 180)
-=======
 		(at 123.19 83.82 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3902,11 +3749,7 @@
 	)
 	(hierarchical_label "LED"
 		(shape input)
-<<<<<<< Updated upstream
-		(at 83.82 104.14 180)
-=======
 		(at 161.29 109.22 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3916,13 +3759,8 @@
 		(uuid "d35f0d38-c517-4dd1-8006-f8a8f6d0aeb0")
 	)
 	(hierarchical_label "Speaker"
-<<<<<<< Updated upstream
-		(shape bidirectional)
-		(at 83.82 95.25 180)
-=======
 		(shape input)
 		(at 123.19 118.11 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3931,18 +3769,6 @@
 		)
 		(uuid "d3e5fd5d-bf24-41d1-b2c7-19ce9b0ffadf")
 	)
-<<<<<<< Updated upstream
-	(hierarchical_label "GPIO"
-		(shape bidirectional)
-		(at 83.82 87.63 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "e4eb9610-e99c-4910-87a2-299487371aa7")
-=======
 	(symbol
 		(lib_id "Kolibri custom:Solder_Pad_rounded")
 		(at 49.53 68.58 0)
@@ -7517,6 +7343,5 @@
 				)
 			)
 		)
->>>>>>> Stashed changes
 	)
 )

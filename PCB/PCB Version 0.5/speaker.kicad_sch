@@ -3,13 +3,6 @@
 	(generator "eeschema")
 	(generator_version "8.0")
 	(uuid "1c1d7f8a-8f35-4c9c-8639-eed04d259c12")
-<<<<<<< Updated upstream
-	(paper "A4")
-	(lib_symbols)
-	(bus
-		(pts
-			(xy 78.74 87.63) (xy 88.9 87.63)
-=======
 	(paper "A5")
 	(title_block
 		(title "Kolibri FC - Speaker Driver")
@@ -1234,19 +1227,11 @@
 	(wire
 		(pts
 			(xy 107.95 63.5) (xy 144.78 63.5)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "3ade757a-2e61-4950-a6ff-cc232b1dda47")
-	)
-	(text "LM2904B?"
-		(exclude_from_sim no)
-		(at 130.81 97.282 0)
-=======
 		(uuid "095c83b9-3cb6-4139-b2a9-5012620ecac7")
 	)
 	(wire
@@ -1454,18 +1439,10 @@
 		(fill
 			(type none)
 		)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-		)
-		(uuid "32885fa8-b3b6-4fe5-839d-db47c9bb0cb4")
-	)
-	(label "Spk{+ -}"
-		(at 78.74 87.63 0)
-=======
 			(justify left top)
 		)
 		(uuid "d2644063-f99e-43a3-8fe8-caf6e9432976")
@@ -1484,20 +1461,12 @@
 	)
 	(label "Spk.+"
 		(at 130.81 63.5 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "bd960b51-4ad0-4191-8f9d-d1a976f2c8b1")
-	)
-	(hierarchical_label "Out"
-		(shape output)
-		(at 88.9 87.63 0)
-=======
 		(uuid "5939c267-4cb1-4db5-8537-11a094fa9769")
 	)
 	(label "Spk{+ -}"
@@ -1523,7 +1492,6 @@
 	(hierarchical_label "Speaker"
 		(shape output)
 		(at 160.02 66.04 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1534,21 +1502,11 @@
 	)
 	(hierarchical_label "In"
 		(shape input)
-<<<<<<< Updated upstream
-		(at 88.9 91.44 0)
-=======
 		(at 93.98 85.09 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-			(justify left)
-		)
-		(uuid "cc5b7f32-d467-4083-ac9b-58491dd0b198")
-	)
-=======
 			(justify right)
 		)
 		(uuid "cc5b7f32-d467-4083-ac9b-58491dd0b198")
@@ -2052,5 +2010,4 @@
 			)
 		)
 	)
->>>>>>> Stashed changes
 )

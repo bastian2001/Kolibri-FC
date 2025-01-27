@@ -3,13 +3,6 @@
 	(generator "eeschema")
 	(generator_version "8.0")
 	(uuid "a09a863c-aad7-4e84-8c94-37b8f072e020")
-<<<<<<< Updated upstream
-	(paper "A4")
-	(lib_symbols)
-	(bus
-		(pts
-			(xy 129.54 95.25) (xy 146.05 95.25)
-=======
 	(paper "A2")
 	(title_block
 		(title "Kolibri FC - ELRS Receiver")
@@ -4287,18 +4280,11 @@
 	(wire
 		(pts
 			(xy 387.35 100.33) (xy 408.94 100.33)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "44930351-aeaf-4655-9fe0-978488b6a52e")
-	)
-	(label "U0{TX RX}"
-		(at 132.08 95.25 0)
-=======
 		(uuid "0045da08-852b-4120-a000-14e6d3634b49")
 	)
 	(wire
@@ -8745,7 +8731,6 @@
 	)
 	(label "U0{TX RX}"
 		(at 204.47 152.4 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8754,11 +8739,6 @@
 		)
 		(uuid "a47bc7b8-ad8e-4441-8663-fa126d6c1f27")
 	)
-<<<<<<< Updated upstream
-	(hierarchical_label "UART0"
-		(shape bidirectional)
-		(at 146.05 95.25 0)
-=======
 	(label "RADIO_RST"
 		(at 179.07 194.31 180)
 		(effects
@@ -8932,16 +8912,12 @@
 	(hierarchical_label "PWM"
 		(shape output)
 		(at 217.17 194.31 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-<<<<<<< Updated upstream
-		(uuid "4187a9c3-08a4-4ef7-9f35-2e2fa79a2629")
-=======
 		(uuid "d70dfa5d-2c5f-4817-84ca-0e2f26da4126")
 	)
 	(hierarchical_label "UART0"
@@ -17647,6 +17623,5 @@
 				)
 			)
 		)
->>>>>>> Stashed changes
 	)
 )

@@ -4,12 +4,9 @@
 	(generator_version "8.0")
 	(uuid "58843c00-47a9-4603-8f84-9b252c03806c")
 	(paper "A3")
-<<<<<<< Updated upstream
-=======
 	(title_block
 		(title "Kolibri FC - RP2350 Schematics")
 	)
->>>>>>> Stashed changes
 	(lib_symbols
 		(symbol "Device:C"
 			(pin_numbers hide)
@@ -2447,21 +2444,13 @@
 		(uuid "439566d9-b52c-4c4c-a9bb-e7fe63766e6e")
 	)
 	(bus_entry
-<<<<<<< Updated upstream
-		(at 255.27 130.81)
-=======
 		(at 255.27 125.73)
->>>>>>> Stashed changes
 		(size 2.54 2.54)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "4471ae4c-d9b7-4d7f-850c-72c9b58c9531")
-=======
 		(uuid "53ea84c7-e565-4dbf-9bc8-3a49732faccb")
->>>>>>> Stashed changes
 	)
 	(bus_entry
 		(at 255.27 163.83)
@@ -2482,18 +2471,6 @@
 		(uuid "6d2ab8b6-01de-4554-addf-84aef3014197")
 	)
 	(bus_entry
-<<<<<<< Updated upstream
-		(at 255.27 128.27)
-		(size 2.54 2.54)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "747f0ea3-0a78-45c8-9026-0ca8c434937b")
-	)
-	(bus_entry
-=======
->>>>>>> Stashed changes
 		(at 255.27 194.31)
 		(size 2.54 2.54)
 		(stroke
@@ -2503,8 +2480,6 @@
 		(uuid "842385a0-f953-4bd1-9ecd-036d0e4aa45f")
 	)
 	(bus_entry
-<<<<<<< Updated upstream
-=======
 		(at 255.27 130.81)
 		(size 2.54 2.54)
 		(stroke
@@ -2514,7 +2489,6 @@
 		(uuid "8b0c5a51-acc7-4c12-891c-7024df03f433")
 	)
 	(bus_entry
->>>>>>> Stashed changes
 		(at 255.27 181.61)
 		(size 2.54 2.54)
 		(stroke
@@ -2551,19 +2525,12 @@
 		(uuid "98044376-4b53-4ddd-bb15-5b94d26fb278")
 	)
 	(bus_entry
-<<<<<<< Updated upstream
-		(at 255.27 133.35)
-=======
 		(at 255.27 138.43)
->>>>>>> Stashed changes
 		(size 2.54 2.54)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "9b467e72-8653-430f-bdf4-553ff9613c51")
-=======
 		(uuid "9a57faa2-1a0c-4716-a4e5-9b9df4ee1bb4")
 	)
 	(bus_entry
@@ -2574,7 +2541,6 @@
 			(type default)
 		)
 		(uuid "a56a18b8-2043-42b7-b871-abbfa3a217af")
->>>>>>> Stashed changes
 	)
 	(bus_entry
 		(at 255.27 153.67)
@@ -2586,18 +2552,6 @@
 		(uuid "b623fef4-1866-4df2-8680-803261ad6c54")
 	)
 	(bus_entry
-<<<<<<< Updated upstream
-		(at 255.27 125.73)
-		(size 2.54 2.54)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c039aa53-19e9-476a-beab-736fe0dfd269")
-	)
-	(bus_entry
-=======
->>>>>>> Stashed changes
 		(at 163.83 189.23)
 		(size 2.54 -2.54)
 		(stroke
@@ -2625,21 +2579,13 @@
 		(uuid "dac9f8e4-e066-4519-83cc-defdc1ab067a")
 	)
 	(bus_entry
-<<<<<<< Updated upstream
-		(at 255.27 123.19)
-=======
 		(at 255.27 128.27)
->>>>>>> Stashed changes
 		(size 2.54 2.54)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "e28eefb0-e230-4ec8-be33-a8999d5d242b")
-=======
 		(uuid "e2af7623-e9c9-4804-a38d-c8beb0146d67")
->>>>>>> Stashed changes
 	)
 	(bus_entry
 		(at 255.27 118.11)
@@ -2651,21 +2597,13 @@
 		(uuid "e3348da9-e132-4d05-b306-f92a3ae10ed7")
 	)
 	(bus_entry
-<<<<<<< Updated upstream
-		(at 255.27 135.89)
-=======
 		(at 255.27 140.97)
->>>>>>> Stashed changes
 		(size 2.54 2.54)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "f02caf0c-a5a8-42f9-8d4c-4c349c10d70e")
-=======
 		(uuid "e3350a4c-8eb4-428c-9803-6e3a0435d27a")
->>>>>>> Stashed changes
 	)
 	(wire
 		(pts
@@ -2709,8 +2647,6 @@
 	)
 	(wire
 		(pts
-<<<<<<< Updated upstream
-=======
 			(xy 240.03 234.95) (xy 240.03 246.38)
 		)
 		(stroke
@@ -2721,7 +2657,6 @@
 	)
 	(wire
 		(pts
->>>>>>> Stashed changes
 			(xy 238.76 120.65) (xy 255.27 120.65)
 		)
 		(stroke
@@ -3112,29 +3047,6 @@
 	)
 	(bus
 		(pts
-<<<<<<< Updated upstream
-			(xy 257.81 125.73) (xy 257.81 128.27)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4af87f42-fc8b-4c67-bf60-4762798086c9")
-	)
-	(bus
-		(pts
-			(xy 257.81 133.35) (xy 257.81 135.89)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4c5c577c-3252-4106-a037-89756c398690")
-	)
-	(bus
-		(pts
-=======
->>>>>>> Stashed changes
 			(xy 257.81 166.37) (xy 257.81 168.91)
 		)
 		(stroke
@@ -3201,11 +3113,7 @@
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "5746effb-6d36-4946-9828-7b0e09a02793")
-=======
 		(uuid "577bc5f0-b902-41bd-ac26-8ddc7506138e")
->>>>>>> Stashed changes
 	)
 	(wire
 		(pts
@@ -3217,8 +3125,6 @@
 		)
 		(uuid "5ab4ccaf-ed3b-4b22-af1d-93d7d3ad10e9")
 	)
-<<<<<<< Updated upstream
-=======
 	(bus
 		(pts
 			(xy 257.81 125.73) (xy 257.81 128.27)
@@ -3229,7 +3135,6 @@
 		)
 		(uuid "5bae2b6c-991b-49ea-8630-5e3d5bec5b3b")
 	)
->>>>>>> Stashed changes
 	(wire
 		(pts
 			(xy 238.76 176.53) (xy 255.27 176.53)
@@ -3300,8 +3205,6 @@
 		)
 		(uuid "70e53e9b-7b9d-4767-8594-03fd42762caf")
 	)
-<<<<<<< Updated upstream
-=======
 	(bus
 		(pts
 			(xy 257.81 140.97) (xy 257.81 143.51)
@@ -3312,7 +3215,6 @@
 		)
 		(uuid "73ad3424-44ba-4f33-94c6-63921b53a68b")
 	)
->>>>>>> Stashed changes
 	(wire
 		(pts
 			(xy 113.03 102.87) (xy 124.46 102.87)
@@ -3363,19 +3265,6 @@
 		)
 		(uuid "7fa27eb7-cbad-4611-87ce-3b2e2b5bf952")
 	)
-<<<<<<< Updated upstream
-	(bus
-		(pts
-			(xy 257.81 135.89) (xy 257.81 138.43)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8055d17f-08a0-4caa-8f32-9b141b95f45c")
-	)
-=======
->>>>>>> Stashed changes
 	(wire
 		(pts
 			(xy 238.76 151.13) (xy 255.27 151.13)
@@ -3486,19 +3375,6 @@
 		)
 		(uuid "8d784128-b97c-4678-bb9c-c0d0c00ae95c")
 	)
-<<<<<<< Updated upstream
-	(bus
-		(pts
-			(xy 257.81 128.27) (xy 290.83 128.27)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8ddf863f-98cd-493c-a874-6801e1e13d7b")
-	)
-=======
->>>>>>> Stashed changes
 	(wire
 		(pts
 			(xy 113.03 120.65) (xy 182.88 120.65)
@@ -3669,19 +3545,6 @@
 		)
 		(uuid "b9943170-6060-4e9f-ada5-d3f09e146936")
 	)
-<<<<<<< Updated upstream
-	(bus
-		(pts
-			(xy 257.81 138.43) (xy 290.83 138.43)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bc253138-f68c-444d-8198-1c0b7e6b2607")
-	)
-=======
->>>>>>> Stashed changes
 	(wire
 		(pts
 			(xy 218.44 82.55) (xy 218.44 97.79)
@@ -3692,8 +3555,6 @@
 		)
 		(uuid "bedc00c8-656c-4455-8e88-9d90d3dbcba7")
 	)
-<<<<<<< Updated upstream
-=======
 	(bus
 		(pts
 			(xy 257.81 133.35) (xy 290.83 133.35)
@@ -3704,7 +3565,6 @@
 		)
 		(uuid "c14456b0-90c0-430a-91d5-0a2aa278b9a9")
 	)
->>>>>>> Stashed changes
 	(wire
 		(pts
 			(xy 238.76 148.59) (xy 255.27 148.59)
@@ -3767,8 +3627,6 @@
 	)
 	(wire
 		(pts
-<<<<<<< Updated upstream
-=======
 			(xy 250.19 234.95) (xy 250.19 246.38)
 		)
 		(stroke
@@ -3779,7 +3637,6 @@
 	)
 	(wire
 		(pts
->>>>>>> Stashed changes
 			(xy 330.2 140.97) (xy 345.44 140.97)
 		)
 		(stroke
@@ -3888,8 +3745,6 @@
 		)
 		(uuid "dfe9e046-11f0-4d02-bea4-d6f3c54233c6")
 	)
-<<<<<<< Updated upstream
-=======
 	(bus
 		(pts
 			(xy 257.81 128.27) (xy 257.81 130.81)
@@ -3900,7 +3755,6 @@
 		)
 		(uuid "e0fd9b98-3062-405e-a1d4-d9e89fa4e947")
 	)
->>>>>>> Stashed changes
 	(wire
 		(pts
 			(xy 166.37 186.69) (xy 182.88 186.69)
@@ -4041,8 +3895,6 @@
 		)
 		(uuid "fc130cc4-06ea-4b2a-9d38-485dd2a6abdc")
 	)
-<<<<<<< Updated upstream
-=======
 	(bus
 		(pts
 			(xy 257.81 143.51) (xy 290.83 143.51)
@@ -4053,7 +3905,6 @@
 		)
 		(uuid "fd4fa73f-5786-4c2d-ab78-7be29c99dc51")
 	)
->>>>>>> Stashed changes
 	(wire
 		(pts
 			(xy 100.33 120.65) (xy 113.03 120.65)
@@ -4124,8 +3975,6 @@
 		)
 		(uuid "1a569b81-52e2-4937-bdf1-8754364e448c")
 	)
-<<<<<<< Updated upstream
-=======
 	(label "I2C0.SCL"
 		(at 250.19 246.38 90)
 		(effects
@@ -4136,7 +3985,6 @@
 		)
 		(uuid "1d8df37f-9b2d-4901-aa9a-122a0a48f703")
 	)
->>>>>>> Stashed changes
 	(label "USB{D+ D-}"
 		(at 274.32 113.03 0)
 		(effects
@@ -4147,29 +3995,6 @@
 		)
 		(uuid "2a46af33-28fe-42fa-b6c8-a0fd30d9be91")
 	)
-<<<<<<< Updated upstream
-	(label "SD_SCLK"
-		(at 255.27 140.97 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "2c895a92-e617-4a80-b29a-8907bbe25f76")
-	)
-	(label "SD_DAT.0"
-		(at 255.27 128.27 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "32907b21-e64e-4e87-be32-f05161e026f6")
-	)
-=======
->>>>>>> Stashed changes
 	(label "OSD_SS"
 		(at 255.27 151.13 180)
 		(effects
@@ -4190,11 +4015,7 @@
 		)
 		(uuid "3734a2bb-7995-4425-8a11-7a1dfd9f0ef6")
 	)
-<<<<<<< Updated upstream
-	(label "SD_DAT.2"
-=======
 	(label "SD_CMD"
->>>>>>> Stashed changes
 		(at 255.27 133.35 180)
 		(effects
 			(font
@@ -4202,11 +4023,7 @@
 			)
 			(justify right bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "386413af-ad52-4438-a203-6c40cda674ce")
-=======
 		(uuid "3834f615-d0e8-4b8f-970e-cf7404a026b0")
->>>>>>> Stashed changes
 	)
 	(label "OSD_SS"
 		(at 330.2 151.13 0)
@@ -4248,19 +4065,6 @@
 		)
 		(uuid "4847013a-1281-4697-a6f6-2e8a95ab96b1")
 	)
-<<<<<<< Updated upstream
-	(label "U2.RX"
-		(at 255.27 125.73 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "54f49c06-2a36-4697-b398-063548f830c1")
-	)
-=======
->>>>>>> Stashed changes
 	(label "LED"
 		(at 255.27 189.23 180)
 		(effects
@@ -4321,19 +4125,6 @@
 		)
 		(uuid "7ee7a250-bcda-454d-accb-3aed828c8bdb")
 	)
-<<<<<<< Updated upstream
-	(label "U2.TX"
-		(at 255.27 123.19 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "8328a9b8-ca1d-4e43-9e72-26075a5b41cd")
-	)
-=======
->>>>>>> Stashed changes
 	(label "Motor.2"
 		(at 255.27 171.45 180)
 		(effects
@@ -4344,8 +4135,6 @@
 		)
 		(uuid "8432c934-86ed-4721-a5a6-454db8575a63")
 	)
-<<<<<<< Updated upstream
-=======
 	(label "U1{TX RX}"
 		(at 264.16 143.51 0)
 		(effects
@@ -4366,7 +4155,6 @@
 		)
 		(uuid "8ffdfb28-a073-4246-a679-0d477aa44397")
 	)
->>>>>>> Stashed changes
 	(label "Motor.4"
 		(at 255.27 176.53 180)
 		(effects
@@ -4397,8 +4185,6 @@
 		)
 		(uuid "951cf82d-8eae-4844-98b0-9352ce3fffe8")
 	)
-<<<<<<< Updated upstream
-=======
 	(label "SD_DAT.0"
 		(at 255.27 123.19 180)
 		(effects
@@ -4419,7 +4205,6 @@
 		)
 		(uuid "98051b6f-1cc0-479b-bd81-36a81cd0f44d")
 	)
->>>>>>> Stashed changes
 	(label "SPI1.MISO"
 		(at 255.27 148.59 180)
 		(effects
@@ -4460,11 +4245,7 @@
 		)
 		(uuid "a4688eba-eca3-4727-a42c-60a07cded0e3")
 	)
-<<<<<<< Updated upstream
-	(label "U1.RX"
-=======
 	(label "U2.RX"
->>>>>>> Stashed changes
 		(at 255.27 146.05 180)
 		(effects
 			(font
@@ -4474,8 +4255,6 @@
 		)
 		(uuid "a48b2484-9d0e-4d9b-922a-f51c82dc0a37")
 	)
-<<<<<<< Updated upstream
-=======
 	(label "SD_DAT.3"
 		(at 255.27 130.81 180)
 		(effects
@@ -4486,7 +4265,6 @@
 		)
 		(uuid "a78e2700-a0e5-41c6-bbd0-69954391e5fd")
 	)
->>>>>>> Stashed changes
 	(label "USB.D+"
 		(at 259.08 107.95 0)
 		(effects
@@ -4517,8 +4295,6 @@
 		)
 		(uuid "bc040efb-46cb-4697-8705-f3b31f3f8c56")
 	)
-<<<<<<< Updated upstream
-=======
 	(label "SD_DAT.2"
 		(at 255.27 128.27 180)
 		(effects
@@ -4529,7 +4305,6 @@
 		)
 		(uuid "bde61312-f9eb-4e85-944e-a7f2943fe597")
 	)
->>>>>>> Stashed changes
 	(label "SWDIO"
 		(at 168.91 189.23 0)
 		(effects
@@ -4540,9 +4315,6 @@
 		)
 		(uuid "bf4aa4f5-bcef-4633-af4e-136c2b5f1027")
 	)
-<<<<<<< Updated upstream
-	(label "U1.TX"
-=======
 	(label "SD_DAT{[0..3]}"
 		(at 264.16 133.35 0)
 		(effects
@@ -4554,7 +4326,6 @@
 		(uuid "c15b7fc9-222d-4387-b2c8-be91720a429f")
 	)
 	(label "U2.TX"
->>>>>>> Stashed changes
 		(at 255.27 143.51 180)
 		(effects
 			(font
@@ -4574,24 +4345,15 @@
 		)
 		(uuid "c78ac807-8230-45b4-adc5-9a32be410724")
 	)
-<<<<<<< Updated upstream
-	(label "SD_CMD"
-		(at 255.27 138.43 180)
-=======
 	(label "SD_SCLK"
 		(at 255.27 135.89 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "cf32c40a-30bb-496c-b42f-dd48eb807cb9")
-=======
 		(uuid "ccda322a-8168-4616-997e-11c56029ce6b")
->>>>>>> Stashed changes
 	)
 	(label "Motor.3"
 		(at 255.27 173.99 180)
@@ -4603,26 +4365,15 @@
 		)
 		(uuid "d482cede-56cc-44fc-b738-4e290fc22e83")
 	)
-<<<<<<< Updated upstream
-	(label "U2{TX RX}"
-		(at 264.16 128.27 0)
-=======
 	(label "U1.RX"
 		(at 255.27 140.97 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-			(justify left bottom)
-		)
-		(uuid "d7c48dc6-409d-40e2-8f0d-65b1e1e1720a")
-=======
 			(justify right bottom)
 		)
 		(uuid "da452669-1553-49ce-b775-cb7f4d52373b")
->>>>>>> Stashed changes
 	)
 	(label "I2C0.SDA"
 		(at 255.27 179.07 180)
@@ -4644,11 +4395,7 @@
 		)
 		(uuid "e5af6657-adf8-44ae-9d0f-59bdc267396e")
 	)
-<<<<<<< Updated upstream
-	(label "U1{TX RX}"
-=======
 	(label "U2{TX RX}"
->>>>>>> Stashed changes
 		(at 264.16 148.59 0)
 		(effects
 			(font
@@ -4668,44 +4415,15 @@
 		)
 		(uuid "eafcf38c-a284-4103-b8b6-414c7a67576b")
 	)
-<<<<<<< Updated upstream
-	(label "SD_DAT.1"
-		(at 255.27 130.81 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "ebac3c28-bda2-4523-b2c3-a9f9e464776e")
-	)
-	(label "SD_DAT{[0..3]}"
-		(at 264.16 138.43 0)
-=======
 	(label "I2C0.SDA"
 		(at 240.03 246.38 90)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "edec53fe-ada4-44d9-ac1c-5ac86e3bbce7")
-	)
-	(label "SD_DAT.3"
-		(at 255.27 135.89 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "f66993c6-2e12-4eda-b053-3b557d950ddb")
-=======
 		(uuid "ec535c4a-ef21-496e-a0bd-8f93f83277fa")
->>>>>>> Stashed changes
 	)
 	(label "SWCLK"
 		(at 168.91 186.69 0)
@@ -4748,8 +4466,6 @@
 		)
 		(uuid "1d322e09-1939-4338-b827-d5f0054a749f")
 	)
-<<<<<<< Updated upstream
-=======
 	(hierarchical_label "SD_DAT"
 		(shape bidirectional)
 		(at 290.83 133.35 0)
@@ -4761,7 +4477,6 @@
 		)
 		(uuid "328e41ea-ef4a-4438-b42b-cec3a9952fde")
 	)
->>>>>>> Stashed changes
 	(hierarchical_label "UART0"
 		(shape bidirectional)
 		(at 290.83 123.19 0)
@@ -4795,31 +4510,6 @@
 		)
 		(uuid "669bdc18-fa6a-4d4f-861d-56bf1e140f71")
 	)
-<<<<<<< Updated upstream
-	(hierarchical_label "UART2"
-		(shape bidirectional)
-		(at 290.83 128.27 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "77a98987-5131-4a94-b31c-ba366a1610e4")
-	)
-	(hierarchical_label "SD_DAT"
-		(shape bidirectional)
-		(at 290.83 138.43 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "87f654bf-3d11-431b-888a-ce031d40a21e")
-	)
-=======
->>>>>>> Stashed changes
 	(hierarchical_label "SD_SCLK"
 		(shape output)
 		(at 345.44 140.97 0)
@@ -4876,11 +4566,7 @@
 		(uuid "ada6951c-31b5-4426-b7af-269edf9ede87")
 	)
 	(hierarchical_label "ADC"
-<<<<<<< Updated upstream
-		(shape bidirectional)
-=======
 		(shape input)
->>>>>>> Stashed changes
 		(at 290.83 196.85 0)
 		(effects
 			(font
@@ -4901,11 +4587,7 @@
 		)
 		(uuid "ce905179-1d2e-41c5-a57f-f9965115ce75")
 	)
-<<<<<<< Updated upstream
-	(hierarchical_label "UART1"
-=======
 	(hierarchical_label "UART2"
->>>>>>> Stashed changes
 		(shape bidirectional)
 		(at 290.83 148.59 0)
 		(effects
@@ -4927,8 +4609,6 @@
 		)
 		(uuid "d197e25d-283f-4b0c-b206-bd6a097f0107")
 	)
-<<<<<<< Updated upstream
-=======
 	(hierarchical_label "UART1"
 		(shape bidirectional)
 		(at 290.83 143.51 0)
@@ -4940,7 +4620,6 @@
 		)
 		(uuid "def557fc-f23b-4cb4-9039-0a3ff04fb20a")
 	)
->>>>>>> Stashed changes
 	(hierarchical_label "LED"
 		(shape output)
 		(at 345.44 189.23 0)
@@ -5448,8 +5127,6 @@
 		)
 	)
 	(symbol
-<<<<<<< Updated upstream
-=======
 		(lib_id "power:+3V3")
 		(at 240.03 227.33 0)
 		(unit 1)
@@ -5516,7 +5193,6 @@
 		)
 	)
 	(symbol
->>>>>>> Stashed changes
 		(lib_id "power:GND")
 		(at 146.05 100.33 0)
 		(unit 1)
@@ -7125,8 +6801,6 @@
 		)
 	)
 	(symbol
-<<<<<<< Updated upstream
-=======
 		(lib_id "Device:R")
 		(at 240.03 231.14 0)
 		(unit 1)
@@ -7197,7 +6871,6 @@
 		)
 	)
 	(symbol
->>>>>>> Stashed changes
 		(lib_id "power:GND")
 		(at 115.57 167.64 0)
 		(unit 1)
@@ -7264,8 +6937,6 @@
 		)
 	)
 	(symbol
-<<<<<<< Updated upstream
-=======
 		(lib_id "Device:R")
 		(at 250.19 231.14 0)
 		(unit 1)
@@ -7336,7 +7007,6 @@
 		)
 	)
 	(symbol
->>>>>>> Stashed changes
 		(lib_id "Device:Crystal_GND24")
 		(at 149.86 163.83 270)
 		(unit 1)
@@ -7410,8 +7080,6 @@
 		)
 	)
 	(symbol
-<<<<<<< Updated upstream
-=======
 		(lib_id "power:+3V3")
 		(at 250.19 227.33 0)
 		(unit 1)
@@ -7478,7 +7146,6 @@
 		)
 	)
 	(symbol
->>>>>>> Stashed changes
 		(lib_id "power:GND")
 		(at 210.82 204.47 0)
 		(unit 1)

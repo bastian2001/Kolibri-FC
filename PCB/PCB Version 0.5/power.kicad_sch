@@ -4,9 +4,6 @@
 	(generator_version "8.0")
 	(uuid "fb897a20-4c1a-49a2-8747-d298a18038ab")
 	(paper "A4")
-<<<<<<< Updated upstream
-	(lib_symbols)
-=======
 	(title_block
 		(title "Kolibri FC - DCDC + LDO")
 	)
@@ -5810,5 +5807,4 @@
 			)
 		)
 	)
->>>>>>> Stashed changes
 )

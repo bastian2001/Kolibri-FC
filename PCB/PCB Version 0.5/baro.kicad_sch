@@ -3,13 +3,6 @@
 	(generator "eeschema")
 	(generator_version "8.0")
 	(uuid "a31ae560-2d23-4924-a62c-de5601cdbd4b")
-<<<<<<< Updated upstream
-	(paper "A4")
-	(lib_symbols)
-	(bus
-		(pts
-			(xy 127 93.98) (xy 152.4 93.98)
-=======
 	(paper "A5")
 	(title_block
 		(title "Kolibri FC - Barometer")
@@ -620,18 +613,11 @@
 	(wire
 		(pts
 			(xy 114.3 66.04) (xy 114.3 68.58)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "371853de-cea8-4690-81a7-853d033891d5")
-	)
-	(label "I2C0{SDA SCL}"
-		(at 129.54 93.98 0)
-=======
 		(uuid "1a67d415-0f02-4fbc-8a15-dbddbb876389")
 	)
 	(wire
@@ -786,7 +772,6 @@
 	)
 	(label "I2C0{SDA SCL}"
 		(at 49.53 71.12 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -797,21 +782,11 @@
 	)
 	(hierarchical_label "I2C0"
 		(shape bidirectional)
-<<<<<<< Updated upstream
-		(at 152.4 93.98 0)
-=======
 		(at 46.99 71.12 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-			(justify left)
-		)
-		(uuid "484a3b62-9c1e-4cdb-b8a4-56fcaa0f1f79")
-	)
-=======
 			(justify right)
 		)
 		(uuid "484a3b62-9c1e-4cdb-b8a4-56fcaa0f1f79")
@@ -1373,5 +1348,4 @@
 			)
 		)
 	)
->>>>>>> Stashed changes
 )

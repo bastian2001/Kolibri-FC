@@ -3,13 +3,6 @@
 	(generator "eeschema")
 	(generator_version "8.0")
 	(uuid "ef45b49c-e590-4eb0-9370-bd6d39de2628")
-<<<<<<< Updated upstream
-	(paper "A4")
-	(lib_symbols)
-	(bus
-		(pts
-			(xy 113.03 88.9) (xy 138.43 88.9)
-=======
 	(paper "A5")
 	(title_block
 		(title "Kolibri FC - Gyro")
@@ -770,18 +763,11 @@
 	(wire
 		(pts
 			(xy 102.87 82.55) (xy 104.14 82.55)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "1f6021c4-86ec-44a0-afc1-fd7b725e7bd1")
-	)
-	(label "SPI0{MISO SCLK MOSI}"
-		(at 113.03 88.9 0)
-=======
 		(uuid "0078fe20-6839-4e08-bb00-ba06df25eddd")
 	)
 	(wire
@@ -985,20 +971,12 @@
 	)
 	(label "SPI0{SCLK SDX}"
 		(at 58.42 57.15 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "1699711d-ed39-4aaf-90e0-334ee7bd8976")
-	)
-	(hierarchical_label "Int"
-		(shape output)
-		(at 116.84 93.98 180)
-=======
 		(uuid "97b53379-99d3-4993-9567-4005c97a4c99")
 	)
 	(label "SPI0.SDX"
@@ -1024,7 +1002,6 @@
 	(hierarchical_label "Int"
 		(shape output)
 		(at 55.88 71.12 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1035,40 +1012,22 @@
 	)
 	(hierarchical_label "SPI0"
 		(shape bidirectional)
-<<<<<<< Updated upstream
-		(at 138.43 88.9 0)
-=======
 		(at 55.88 57.15 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-			(justify left)
-=======
 			(justify right)
->>>>>>> Stashed changes
 		)
 		(uuid "bc3651fe-89dc-4c75-9fb2-43ee330a0448")
 	)
 	(hierarchical_label "SS"
 		(shape input)
-<<<<<<< Updated upstream
-		(at 113.03 91.44 0)
-=======
 		(at 55.88 68.58 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-			(justify left)
-		)
-		(uuid "ff7c777a-58b8-4dd0-94d3-463b074d22b4")
-	)
-=======
 			(justify right)
 		)
 		(uuid "ff7c777a-58b8-4dd0-94d3-463b074d22b4")
@@ -1583,5 +1542,4 @@
 			)
 		)
 	)
->>>>>>> Stashed changes
 )

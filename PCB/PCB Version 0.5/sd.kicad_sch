@@ -4,12 +4,6 @@
 	(generator_version "8.0")
 	(uuid "e98f4a8f-4a2b-4876-95f3-7892e58afeb2")
 	(paper "A4")
-<<<<<<< Updated upstream
-	(lib_symbols)
-	(bus
-		(pts
-			(xy 111.76 110.49) (xy 137.16 110.49)
-=======
 	(title_block
 		(title "Kolibri FC - Blackbox Micro SD")
 	)
@@ -886,7 +880,6 @@
 	(bus
 		(pts
 			(xy 119.38 71.12) (xy 151.13 71.12)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -894,10 +887,6 @@
 		)
 		(uuid "a1a4011d-6ec6-4a1f-9f98-b38f4d8d5ead")
 	)
-<<<<<<< Updated upstream
-	(label "SD_DAT{[0..3]}"
-		(at 114.3 110.49 0)
-=======
 	(wire
 		(pts
 			(xy 168.91 88.9) (xy 168.91 99.06)
@@ -970,7 +959,6 @@
 	)
 	(label "SD_DAT{[0..3]}"
 		(at 121.92 71.12 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -979,38 +967,12 @@
 		)
 		(uuid "89c6f35f-f3f1-440e-a4ff-b27a244bfa50")
 	)
-<<<<<<< Updated upstream
-	(hierarchical_label "SD_SCLK"
-		(shape input)
-		(at 111.76 115.57 0)
-=======
 	(label "SD_DAT.3"
 		(at 156.21 93.98 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-			(justify left)
-		)
-		(uuid "282d7167-4df2-4a6b-822c-0530922ad6db")
-	)
-	(hierarchical_label "SD_DAT"
-		(shape bidirectional)
-		(at 137.16 110.49 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "794fcbd5-1f57-4bca-9940-a4ed53d56e8f")
-	)
-	(hierarchical_label "SD_CMD"
-		(shape input)
-		(at 111.76 113.03 0)
-=======
 			(justify left bottom)
 		)
 		(uuid "8db04904-bea8-436f-b20b-0f79d17d423b")
@@ -1049,17 +1011,10 @@
 	(hierarchical_label "SD_CMD"
 		(shape input)
 		(at 119.38 81.28 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-			(justify left)
-		)
-		(uuid "90e7a1af-42e1-4f82-b219-1100b5869dc7")
-	)
-=======
 			(justify right)
 		)
 		(uuid "90e7a1af-42e1-4f82-b219-1100b5869dc7")
@@ -1637,5 +1592,4 @@
 			)
 		)
 	)
->>>>>>> Stashed changes
 )

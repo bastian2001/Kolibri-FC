@@ -3,13 +3,6 @@
 	(generator "eeschema")
 	(generator_version "8.0")
 	(uuid "29b8b6d9-05dd-4f54-8248-e1f81e4d8b90")
-<<<<<<< Updated upstream
-	(paper "A4")
-	(lib_symbols)
-	(bus
-		(pts
-			(xy 101.6 99.06) (xy 105.41 99.06)
-=======
 	(paper "A5")
 	(title_block
 		(title "Kolibri FC - USB Plug")
@@ -1326,18 +1319,11 @@
 	(wire
 		(pts
 			(xy 125.73 68.58) (xy 139.7 68.58)
->>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-<<<<<<< Updated upstream
-		(uuid "42d2c286-d144-40d2-ac72-f307af3db278")
-	)
-	(label "USB{D+ D-}"
-		(at 105.41 99.06 0)
-=======
 		(uuid "0aab726f-8633-47c9-82aa-2674cc3a471b")
 	)
 	(wire
@@ -1492,35 +1478,20 @@
 	)
 	(label "USB.D+"
 		(at 71.12 59.69 0)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-<<<<<<< Updated upstream
-		(uuid "29b2fa13-2a9b-4bc8-9792-f505cc5aa1a0")
-	)
-	(hierarchical_label "USB"
-		(shape bidirectional)
-		(at 101.6 99.06 180)
-=======
 		(uuid "11e9c15d-7237-4c0e-ac6d-ed1006becf30")
 	)
 	(label "USB{D+ D-}"
 		(at 119.38 54.61 180)
->>>>>>> Stashed changes
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-<<<<<<< Updated upstream
-			(justify right)
-		)
-		(uuid "c5a757ad-740b-498d-8492-35b0bf48bbce")
-	)
-=======
 			(justify right bottom)
 		)
 		(uuid "29b2fa13-2a9b-4bc8-9792-f505cc5aa1a0")
@@ -2356,5 +2327,4 @@
 			)
 		)
 	)
->>>>>>> Stashed changes
 )
