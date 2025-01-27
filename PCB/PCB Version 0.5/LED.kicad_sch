@@ -4,6 +4,12 @@
 	(generator_version "8.0")
 	(uuid "54ebb543-1830-4e5d-89e0-f09d80a9acf3")
 	(paper "A4")
+<<<<<<< Updated upstream
+=======
+	(title_block
+		(title "Kolibri FC - Status + Illumination LEDs")
+	)
+>>>>>>> Stashed changes
 	(lib_symbols
 		(symbol "Device:C"
 			(pin_numbers hide)
@@ -141,6 +147,7 @@
 				)
 			)
 		)
+<<<<<<< Updated upstream
 		(symbol "Diode:1N4148WS"
 			(pin_numbers hide)
 			(pin_names hide)
@@ -303,6 +310,8 @@
 				)
 			)
 		)
+=======
+>>>>>>> Stashed changes
 		(symbol "Kolibri custom:WS2182B_1615"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -532,6 +541,129 @@
 				)
 			)
 		)
+<<<<<<< Updated upstream
+=======
+		(symbol "power:+4V"
+			(power)
+			(pin_numbers hide)
+			(pin_names
+				(offset 0) hide)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Value" "+4V"
+				(at 0 3.556 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+4V\""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "+4V_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+4V_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
+>>>>>>> Stashed changes
 		(symbol "power:+5V"
 			(power)
 			(pin_numbers hide)
@@ -810,12 +942,15 @@
 		(uuid "836437d6-a9fd-49f5-80c0-69233add170d")
 	)
 	(junction
+<<<<<<< Updated upstream
 		(at 118.11 76.2)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "8927b4c3-6835-43e2-be9c-de34a73390a7")
 	)
 	(junction
+=======
+>>>>>>> Stashed changes
 		(at 163.83 121.92)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -852,6 +987,15 @@
 		(uuid "b942aa48-72b0-479c-802d-484f48077aaf")
 	)
 	(junction
+<<<<<<< Updated upstream
+=======
+		(at 102.87 76.2)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "bf3ae849-8688-4f44-aaa7-773319cffcbb")
+	)
+	(junction
+>>>>>>> Stashed changes
 		(at 148.59 91.44)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -870,12 +1014,15 @@
 		(uuid "db2d3c19-4009-4522-a738-3468a6bce9a1")
 	)
 	(junction
+<<<<<<< Updated upstream
 		(at 102.87 73.66)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "e09120eb-9350-4cbe-870f-0e5de73941e1")
 	)
 	(junction
+=======
+>>>>>>> Stashed changes
 		(at 170.18 114.3)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -913,6 +1060,7 @@
 	)
 	(wire
 		(pts
+<<<<<<< Updated upstream
 			(xy 118.11 73.66) (xy 118.11 76.2)
 		)
 		(stroke
@@ -923,6 +1071,8 @@
 	)
 	(wire
 		(pts
+=======
+>>>>>>> Stashed changes
 			(xy 170.18 121.92) (xy 177.0781 121.92)
 		)
 		(stroke
@@ -943,6 +1093,7 @@
 	)
 	(wire
 		(pts
+<<<<<<< Updated upstream
 			(xy 114.3 73.66) (xy 118.11 73.66)
 		)
 		(stroke
@@ -953,6 +1104,8 @@
 	)
 	(wire
 		(pts
+=======
+>>>>>>> Stashed changes
 			(xy 177.0781 114.3) (xy 190.5 114.3)
 		)
 		(stroke
@@ -1003,6 +1156,7 @@
 	)
 	(wire
 		(pts
+<<<<<<< Updated upstream
 			(xy 102.87 73.66) (xy 102.87 76.2)
 		)
 		(stroke
@@ -1013,6 +1167,8 @@
 	)
 	(wire
 		(pts
+=======
+>>>>>>> Stashed changes
 			(xy 163.83 114.3) (xy 170.18 114.3)
 		)
 		(stroke
@@ -1043,7 +1199,11 @@
 	)
 	(wire
 		(pts
+<<<<<<< Updated upstream
 			(xy 81.28 73.66) (xy 102.87 73.66)
+=======
+			(xy 81.28 76.2) (xy 102.87 76.2)
+>>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -1073,6 +1233,7 @@
 	)
 	(wire
 		(pts
+<<<<<<< Updated upstream
 			(xy 106.68 73.66) (xy 102.87 73.66)
 		)
 		(stroke
@@ -1083,6 +1244,8 @@
 	)
 	(wire
 		(pts
+=======
+>>>>>>> Stashed changes
 			(xy 170.18 114.3) (xy 177.0781 114.3)
 		)
 		(stroke
@@ -1153,7 +1316,11 @@
 	)
 	(wire
 		(pts
+<<<<<<< Updated upstream
 			(xy 81.28 80.01) (xy 81.28 73.66)
+=======
+			(xy 81.28 80.01) (xy 81.28 76.2)
+>>>>>>> Stashed changes
 		)
 		(stroke
 			(width 0)
@@ -1496,6 +1663,7 @@
 			)
 		)
 		(pin "3"
+<<<<<<< Updated upstream
 			(uuid "87ac2c74-8346-4306-a88c-6aeb3d19747d")
 		)
 		(pin "2"
@@ -1506,6 +1674,18 @@
 		)
 		(pin "4"
 			(uuid "8d285ce1-3764-47ae-8ec2-3511bacc4680")
+=======
+			(uuid "87ac2c74-8346-4306-a88c-6aeb3d19747e")
+		)
+		(pin "2"
+			(uuid "6e433a32-f316-4022-ab51-b62dd03882d9")
+		)
+		(pin "1"
+			(uuid "5cfd4ab9-6cc0-429d-9c0a-9f97641234a1")
+		)
+		(pin "4"
+			(uuid "8d285ce1-3764-47ae-8ec2-3511bacc4681")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project ""
@@ -1644,6 +1824,7 @@
 			)
 		)
 		(pin "4"
+<<<<<<< Updated upstream
 			(uuid "c12b43a7-372e-450f-934c-72c37e49aed6")
 		)
 		(pin "3"
@@ -1654,6 +1835,18 @@
 		)
 		(pin "1"
 			(uuid "b16b3995-1568-49d4-8b0a-3fb038ba293f")
+=======
+			(uuid "c12b43a7-372e-450f-934c-72c37e49aed7")
+		)
+		(pin "3"
+			(uuid "26972205-ba7f-4541-99cd-e1649462005b")
+		)
+		(pin "2"
+			(uuid "2bc72287-a9c8-4b6f-988c-8a43d34e9cd8")
+		)
+		(pin "1"
+			(uuid "b16b3995-1568-49d4-8b0a-3fb038ba2940")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project ""
@@ -1665,6 +1858,7 @@
 		)
 	)
 	(symbol
+<<<<<<< Updated upstream
 		(lib_id "Diode:1N4148WS")
 		(at 110.49 73.66 0)
 		(unit 1)
@@ -1751,6 +1945,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> Stashed changes
 		(lib_id "Device:C")
 		(at 177.0781 118.11 0)
 		(unit 1)
@@ -1876,10 +2072,17 @@
 			)
 		)
 		(pin "1"
+<<<<<<< Updated upstream
 			(uuid "4bb1ce6c-abf3-433c-afe7-32f04d0c41d3")
 		)
 		(pin "2"
 			(uuid "359e17f4-63b7-4e42-8af2-f680daf2d58f")
+=======
+			(uuid "4bb1ce6c-abf3-433c-afe7-32f04d0c41d4")
+		)
+		(pin "2"
+			(uuid "359e17f4-63b7-4e42-8af2-f680daf2d590")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -1891,6 +2094,75 @@
 		)
 	)
 	(symbol
+<<<<<<< Updated upstream
+=======
+		(lib_id "power:+4V")
+		(at 102.87 76.2 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "450b237e-0bbc-40da-b8ea-debf810722d9")
+		(property "Reference" "#PWR048"
+			(at 102.87 80.01 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+4V5"
+			(at 102.87 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 102.87 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 102.87 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+4V\""
+			(at 102.87 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "784bf131-61a4-406c-8d3e-172b0192f02c")
+		)
+		(instances
+			(project ""
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/4653396a-0d6d-4102-8248-87740ee110b7"
+					(reference "#PWR048")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+>>>>>>> Stashed changes
 		(lib_id "Kolibri custom:WS2182B_1615")
 		(at 102.87 83.82 0)
 		(unit 1)
@@ -1944,6 +2216,7 @@
 			)
 		)
 		(pin "4"
+<<<<<<< Updated upstream
 			(uuid "c12b43a7-372e-450f-934c-72c37e49aed6")
 		)
 		(pin "3"
@@ -1954,6 +2227,18 @@
 		)
 		(pin "1"
 			(uuid "b16b3995-1568-49d4-8b0a-3fb038ba293f")
+=======
+			(uuid "c12b43a7-372e-450f-934c-72c37e49aed8")
+		)
+		(pin "3"
+			(uuid "26972205-ba7f-4541-99cd-e1649462005c")
+		)
+		(pin "2"
+			(uuid "2bc72287-a9c8-4b6f-988c-8a43d34e9cd9")
+		)
+		(pin "1"
+			(uuid "b16b3995-1568-49d4-8b0a-3fb038ba2941")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project ""
@@ -2086,10 +2371,17 @@
 			)
 		)
 		(pin "1"
+<<<<<<< Updated upstream
 			(uuid "4bb1ce6c-abf3-433c-afe7-32f04d0c41d3")
 		)
 		(pin "2"
 			(uuid "359e17f4-63b7-4e42-8af2-f680daf2d58f")
+=======
+			(uuid "4bb1ce6c-abf3-433c-afe7-32f04d0c41d5")
+		)
+		(pin "2"
+			(uuid "359e17f4-63b7-4e42-8af2-f680daf2d591")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -2220,6 +2512,7 @@
 			)
 		)
 		(pin "4"
+<<<<<<< Updated upstream
 			(uuid "c12b43a7-372e-450f-934c-72c37e49aed6")
 		)
 		(pin "3"
@@ -2230,6 +2523,18 @@
 		)
 		(pin "1"
 			(uuid "b16b3995-1568-49d4-8b0a-3fb038ba293f")
+=======
+			(uuid "c12b43a7-372e-450f-934c-72c37e49aed9")
+		)
+		(pin "3"
+			(uuid "26972205-ba7f-4541-99cd-e1649462005d")
+		)
+		(pin "2"
+			(uuid "2bc72287-a9c8-4b6f-988c-8a43d34e9cda")
+		)
+		(pin "1"
+			(uuid "b16b3995-1568-49d4-8b0a-3fb038ba2942")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project ""
@@ -2294,6 +2599,7 @@
 			)
 		)
 		(pin "3"
+<<<<<<< Updated upstream
 			(uuid "87ac2c74-8346-4306-a88c-6aeb3d19747d")
 		)
 		(pin "2"
@@ -2304,6 +2610,18 @@
 		)
 		(pin "4"
 			(uuid "8d285ce1-3764-47ae-8ec2-3511bacc4680")
+=======
+			(uuid "87ac2c74-8346-4306-a88c-6aeb3d19747f")
+		)
+		(pin "2"
+			(uuid "6e433a32-f316-4022-ab51-b62dd03882da")
+		)
+		(pin "1"
+			(uuid "5cfd4ab9-6cc0-429d-9c0a-9f97641234a2")
+		)
+		(pin "4"
+			(uuid "8d285ce1-3764-47ae-8ec2-3511bacc4682")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project ""
@@ -2434,6 +2752,7 @@
 			)
 		)
 		(pin "3"
+<<<<<<< Updated upstream
 			(uuid "87ac2c74-8346-4306-a88c-6aeb3d19747d")
 		)
 		(pin "2"
@@ -2444,6 +2763,18 @@
 		)
 		(pin "4"
 			(uuid "8d285ce1-3764-47ae-8ec2-3511bacc4680")
+=======
+			(uuid "87ac2c74-8346-4306-a88c-6aeb3d197480")
+		)
+		(pin "2"
+			(uuid "6e433a32-f316-4022-ab51-b62dd03882db")
+		)
+		(pin "1"
+			(uuid "5cfd4ab9-6cc0-429d-9c0a-9f97641234a3")
+		)
+		(pin "4"
+			(uuid "8d285ce1-3764-47ae-8ec2-3511bacc4683")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project ""
@@ -2578,6 +2909,7 @@
 			)
 		)
 		(pin "4"
+<<<<<<< Updated upstream
 			(uuid "c12b43a7-372e-450f-934c-72c37e49aed6")
 		)
 		(pin "3"
@@ -2588,6 +2920,18 @@
 		)
 		(pin "1"
 			(uuid "b16b3995-1568-49d4-8b0a-3fb038ba293f")
+=======
+			(uuid "c12b43a7-372e-450f-934c-72c37e49aeda")
+		)
+		(pin "3"
+			(uuid "26972205-ba7f-4541-99cd-e1649462005e")
+		)
+		(pin "2"
+			(uuid "2bc72287-a9c8-4b6f-988c-8a43d34e9cdb")
+		)
+		(pin "1"
+			(uuid "b16b3995-1568-49d4-8b0a-3fb038ba2943")
+>>>>>>> Stashed changes
 		)
 		(instances
 			(project ""

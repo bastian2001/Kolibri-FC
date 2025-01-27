@@ -4,6 +4,12 @@
 	(generator_version "8.0")
 	(uuid "5621588a-bff4-4ca7-92d9-724ac09eb0cc")
 	(paper "A4")
+<<<<<<< Updated upstream
+=======
+	(title_block
+		(title "Kolibri FC - OSD")
+	)
+>>>>>>> Stashed changes
 	(lib_symbols)
 	(bus
 		(pts
