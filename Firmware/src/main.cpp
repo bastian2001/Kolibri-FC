@@ -1,5 +1,6 @@
 #include "global.h"
 #include "hardware/structs/xip_ctrl.h"
+#include "hardware/vreg.h"
 
 volatile u8 setupDone = 0b00;
 
@@ -7,6 +8,8 @@ void setup() {
 	Serial.begin(115200);
 
 	runUnitTests();
+
+	vreg_set_voltage(VREG_VOLTAGE_1_30);
 
 	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
 		bootReason = rebootReason;

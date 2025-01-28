@@ -25,7 +25,7 @@ inline void startFixTrig() {
 fix32 sinFix(const fix32 x);
 fix32 cosFix(const fix32 x);
 fix32 atanFix(fix32 x);
-fix32 atan2Fix(const fix32 y, const fix32 x);
+fix32 atan2Fix(const fix32 x, const fix32 y);
 fix32 acosFix(fix32 x);
 
 class fix64 {

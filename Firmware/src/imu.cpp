@@ -73,7 +73,7 @@ void __not_in_flash_func(updateFromAccel)() {
 
 	f32 accelVectorNorm = sqrtf((i32)accelDataRaw[1] * (i32)accelDataRaw[1] + (i32)accelDataRaw[0] * (i32)accelDataRaw[0] + (i32)accelDataRaw[2] * (i32)accelDataRaw[2]);
 	f32 accelVector[3];
-	if (accelVectorNorm > 0.01f) {
+	if (accelVectorNorm > 100) { // prevent division by zero, assume at least some acceleration
 		f32 invAccelVectorNorm = 1 / accelVectorNorm;
 		accelVector[0] = invAccelVectorNorm * accelDataRaw[1];
 		accelVector[1] = invAccelVectorNorm * accelDataRaw[0];
@@ -109,9 +109,9 @@ void __not_in_flash_func(updateFromAccel)() {
 
 void __not_in_flash_func(updatePitchRollValues)() {
 	startFixTrig();
-	roll = atan2Fix(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
+	roll = atan2Fix(1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]), 2 * (q.w * q.v[0] - q.v[1] * q.v[2]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
-	yaw = atan2Fix(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
+	yaw = atan2Fix(1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]), 2 * (q.v[0] * q.v[1] - q.w * q.v[2]));
 	fix32 temp = (fix32)magHeadingCorrection + yaw;
 	if (temp >= FIX_PI) {
 		temp -= FIX_2PI;

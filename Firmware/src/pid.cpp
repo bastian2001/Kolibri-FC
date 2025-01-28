@@ -5,7 +5,10 @@ i16 *gyroDataRaw;
 i16 *accelDataRaw;
 FlightMode flightMode = FlightMode::ACRO;
 
-#define MAX_ANGLE 40 // degrees
+#define MAX_ANGLE 40 // degrees, applied in angle mode and GPS mode
+#define MAX_ANGLE_BURST 60 // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
+#define BURST_DURATION 3000 // ms
+#define BURST_COOLDOWN 5000 // ms
 
 /*
  * To avoid a lot of floating point math, fixed point math is used.
@@ -42,6 +45,8 @@ const fix32 TO_ANGLE = fix32(MAX_ANGLE) / fix32(512);
 const fix32 THROTTLE_SCALE = fix32(2000 - IDLE_PERMILLE * 2) / fix32(1024);
 fix32 smoothChannels[4];
 u16 condensedRpm[4];
+elapsedMillis burstTimer;
+elapsedMillis burstCooldown;
 
 #define RIGHT_BITS(x, n) ((u32)(-(x)) >> (32 - n))
 
@@ -146,8 +151,23 @@ void pidLoop() {
 				fix32 nVelPID = nVelP + nVelI + nVelD;
 				fix32 targetRoll = eVelPID * cosHeading - nVelPID * sinHeading;
 				fix32 targetPitch = eVelPID * sinHeading + nVelPID * cosHeading;
-				targetRoll = constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
-				targetPitch = constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
+				if (targetRoll.abs() > MAX_ANGLE || targetPitch.abs() > MAX_ANGLE) {
+					// limit the tilt to MAX_ANGLE
+					if (burstCooldown > BURST_COOLDOWN) {
+						// restart burst timer
+						burstTimer = 0;
+					}
+					if (burstTimer < BURST_DURATION) {
+						// allowed to tilt more for a short time
+						targetRoll = constrain(targetRoll, -MAX_ANGLE_BURST, MAX_ANGLE_BURST);
+						targetPitch = constrain(targetPitch, -MAX_ANGLE_BURST, MAX_ANGLE_BURST);
+						burstCooldown = 0;
+					} else {
+						// limit the tilt to MAX_ANGLE
+						targetRoll = constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
+						targetPitch = constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
+					}
+				}
 				dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
 				dPitch = targetPitch - (FIX_RAD_TO_DEG * pitch);
 				rollSetpoint = dRoll * velocityModeP;
