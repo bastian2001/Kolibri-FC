@@ -5,7 +5,7 @@
 
 u8 rtcTimeQuality = TIME_QUALITY_NONE;
 i16 rtcTimezoneOffset = 0;
-const u16 days[4][12] =
+constexpr u16 days[4][12] =
 	{
 		{0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335},
 		{366, 397, 425, 456, 486, 517, 547, 578, 609, 639, 670, 700},

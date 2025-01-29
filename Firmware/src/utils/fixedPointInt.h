@@ -6,12 +6,6 @@
 class fix32;
 extern interp_config sinInterpConfig0, sinInterpConfig1;
 
-extern const fix32 FIX_PI;
-extern const fix32 FIX_2PI;
-extern const fix32 FIX_PI_2;
-extern const fix32 FIX_RAD_TO_DEG;
-extern const fix32 FIX_DEG_TO_RAD;
-
 void initFixTrig();
 /**
  * @brief prepares the interpolator for blend mode
@@ -506,3 +500,7 @@ inline constexpr fix64 fix64::operator/(const fix32 other) const {
 inline constexpr fix64 fix64::operator/(const f32 other) const {
 	return *this / fix32(other);
 };
+
+inline constexpr fix32 FIX_PI = PI;
+inline constexpr fix32 FIX_RAD_TO_DEG = 180 / PI;
+inline constexpr fix32 FIX_DEG_TO_RAD = PI / 180;

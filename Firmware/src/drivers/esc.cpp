@@ -7,7 +7,7 @@ volatile u32 escRpm[4] = {0};
 u8 escErpmFail = 0;
 
 #define iv 0xFFFFFFFF
-const u32 escDecodeLut[32] = {
+constexpr u32 escDecodeLut[32] = {
 	iv, iv, iv, iv, iv, iv, iv, iv, iv, 9, 10, 11, iv, 13, 14, 15,
 	iv, iv, 2, 3, iv, 5, 6, 7, iv, 0, 8, 1, iv, 4, 12, iv};
 
