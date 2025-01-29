@@ -96,9 +96,14 @@ void modesLoop() {
 				break;
 			}
 			if (flightMode <= FlightMode::ANGLE && newFlightMode > FlightMode::ANGLE) {
-				// just switched to GPS mode, make sure the quad doesn't just fall at the beginning
+				// just switched to an altitude hold mode, make sure the quad doesn't just fall at the beginning
 				vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
 				altSetpoint = combinedAltitude;
+			}
+			if (flightMode <= FlightMode::ALT_HOLD && newFlightMode > FlightMode::ALT_HOLD) {
+				// just switched to a GPS mode, prevent suddenly flying away to the old position lock
+				targetLat = gpsLatitudeFiltered;
+				targetLon = gpsLongitudeFiltered;
 			}
 			flightMode = newFlightMode;
 		}

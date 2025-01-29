@@ -10,6 +10,9 @@ FlightMode flightMode = FlightMode::ACRO;
 #define BURST_DURATION 3000 // ms
 #define BURST_COOLDOWN 5000 // ms
 
+#define HVEL_STICK_DEADBAND 30
+#define MAX_TARGET_HVEL 12
+
 /*
  * To avoid a lot of floating point math, fixed point math is used.
  * The gyro data is 16 bit, with a range of +/- 2000 degrees per second.
@@ -25,7 +28,7 @@ fix32 gyroData[3];
 
 fix32 pidGains[3][7];
 fix32 pidGainsVVel[4], pidGainsHVel[4];
-fix32 angleModeP = 10, velocityModeP = 3;
+fix32 angleModeP = 10, velocityModeP = 10;
 
 fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast, vVelLastSetpoint;
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
@@ -33,6 +36,7 @@ fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pit
 fix32 altSetpoint;
 fix32 tRR, tRL, tFR, tFL;
 fix32 throttle;
+fix64 targetLat, targetLon;
 PT1 dFilterRoll(100, 3200), dFilterPitch(100, 3200), dFilterYaw(100, 3200);
 
 fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8];
@@ -133,16 +137,64 @@ void pidLoop() {
 			} else if (flightMode == FlightMode::GPS_VEL) {
 				static PT1 ffFilterNVel(2, 3200);
 				static PT1 ffFilterEVel(2, 3200);
+				static PT1 pushNorth(4, 3200);
+				static PT1 pushEast(4, 3200);
 				static fix32 lastNVelSetpoint = 0;
 				static fix32 lastEVelSetpoint = 0;
-				eVelSetpoint = cosHeading * (smoothChannels[0] - 1500) + sinHeading * (smoothChannels[1] - 1500);
-				nVelSetpoint = -sinHeading * (smoothChannels[0] - 1500) + cosHeading * (smoothChannels[1] - 1500);
-				eVelSetpoint = eVelSetpoint >> 9; // +-512 => +-1
-				nVelSetpoint = nVelSetpoint >> 9; // +-512 => +-1
-				eVelSetpoint *= 12; // +-1 => +-12m/s
-				nVelSetpoint *= 12; // +-1 => +-12m/s
-				eVelError = eVelSetpoint - eVel;
-				nVelError = nVelSetpoint - nVel;
+				static elapsedMillis locationSetpointTimer = 0;
+				fix32 rightCommand = smoothChannels[0] - 1500;
+				fix32 fwdCommand = smoothChannels[1] - 1500;
+				fix32 pushEastVel = 0;
+				fix32 pushNorthVel = 0;
+				if (fwdCommand.abs() < HVEL_STICK_DEADBAND)
+					fwdCommand = 0;
+				else if (fwdCommand > 0)
+					fwdCommand -= HVEL_STICK_DEADBAND;
+				else
+					fwdCommand += HVEL_STICK_DEADBAND;
+				if (rightCommand.abs() < HVEL_STICK_DEADBAND)
+					rightCommand = 0;
+				else if (rightCommand > 0)
+					rightCommand -= HVEL_STICK_DEADBAND;
+				else
+					rightCommand += HVEL_STICK_DEADBAND;
+				if (rightCommand || fwdCommand) {
+					eVelSetpoint = cosHeading * rightCommand + sinHeading * fwdCommand;
+					nVelSetpoint = -sinHeading * rightCommand + cosHeading * fwdCommand;
+					eVelSetpoint = eVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
+					nVelSetpoint = nVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
+					eVelSetpoint *= MAX_TARGET_HVEL; // +-1 => +-12m/s
+					nVelSetpoint *= MAX_TARGET_HVEL; // +-1 => +-12m/s
+					pushNorth.set(0);
+					pushEast.set(0);
+					locationSetpointTimer = 0;
+				} else if (locationSetpointTimer < 2000) {
+					eVelSetpoint = 0;
+					nVelSetpoint = 0;
+					targetLat = gpsLatitudeFiltered;
+					targetLon = gpsLongitudeFiltered;
+				} else {
+					fix64 latDiff = targetLat - fix64(gpsMotion.lat) / 10000000;
+					fix64 lonDiff = targetLon - fix64(gpsMotion.lon) / 10000000;
+					if (lonDiff > 180)
+						lonDiff = lonDiff - 360;
+					else if (lonDiff < -180)
+						lonDiff = lonDiff + 360;
+					fix32 tooFarSouth = latDiff * (40075000 / 360); // in m
+					fix32 tooFarWest = lonDiff * (40075000 / 360); // in m
+					initFixTrig();
+					tooFarWest *= cosFix(targetLat);
+					pushNorth.update(tooFarSouth);
+					pushEast.update(tooFarWest);
+					eVelSetpoint = 0;
+					nVelSetpoint = 0;
+					pushEastVel = fix32(pushEast) / 4;
+					pushEastVel = constrain(pushEastVel, -MAX_TARGET_HVEL, MAX_TARGET_HVEL);
+					pushNorthVel = fix32(pushNorth) / 4;
+					pushNorthVel = constrain(pushNorthVel, -MAX_TARGET_HVEL, MAX_TARGET_HVEL);
+				}
+				eVelError = (eVelSetpoint + pushEastVel) - eVel;
+				nVelError = (nVelSetpoint + pushNorthVel) - nVel;
 				eVelErrorSum = eVelErrorSum + eVelError;
 				nVelErrorSum = nVelErrorSum + nVelError;
 				// shift to get more resolution in the filter

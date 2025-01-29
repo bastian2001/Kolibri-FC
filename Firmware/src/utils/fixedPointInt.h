@@ -457,6 +457,9 @@ public:
 	inline constexpr fix32 operator-() const {
 		return fix32().setRaw(-this->raw);
 	};
+	inline constexpr explicit operator bool() const {
+		return this->raw != 0;
+	};
 	inline constexpr i32 sign() const {
 		return (this->raw >> 31) * 2 + 1;
 	};

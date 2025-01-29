@@ -57,6 +57,7 @@ public:
 	 * @param alpha The new alpha value
 	 */
 	void updateAlpha(fix32 alpha);
+	void set(fix32 value);
 	void add(fix32 value) {
 		y += value;
 	}
@@ -66,6 +67,60 @@ public:
 private:
 	fix32 alpha; // close to 0, higher = less filtering
 	fix32 y = 0;
+	u32 sampleFreq;
+	fix32 lowerBound = 0;
+	fix32 upperBound = 0;
+	fix32 boundDiff = 0;
+};
+
+class PT2 {
+public:
+	PT2(fix32 cutoffFreq, u32 sampleFreq);
+	PT2(fix32 alpha);
+	inline fix32 update(fix32 value) {
+		y1 = y1 + alpha * (value - y1);
+		y = y + alpha * (y1 - y);
+		return y;
+	}
+	fix32 rollover();
+	void setRolloverParams(fix32 lowerBound, fix32 upperBound);
+	void updateCutoffFreq(fix32 cutoffFreq);
+	void updateAlpha(fix32 alpha);
+	void set(fix32 value);
+	inline operator fix32() const { return y; }
+
+private:
+	fix32 alpha;
+	fix32 y = 0;
+	fix32 y1 = 0;
+	u32 sampleFreq;
+	fix32 lowerBound = 0;
+	fix32 upperBound = 0;
+	fix32 boundDiff = 0;
+};
+
+class PT3 {
+public:
+	PT3(fix32 cutoffFreq, u32 sampleFreq);
+	PT3(fix32 alpha);
+	inline fix32 update(fix32 value) {
+		y2 = y2 + alpha * (value - y2);
+		y1 = y1 + alpha * (y2 - y1);
+		y = y + alpha * (y1 - y);
+		return y;
+	}
+	fix32 rollover();
+	void setRolloverParams(fix32 lowerBound, fix32 upperBound);
+	void updateCutoffFreq(fix32 cutoffFreq);
+	void updateAlpha(fix32 alpha);
+	void set(fix32 value);
+	inline operator fix32() const { return y; };
+
+private:
+	fix32 alpha;
+	fix32 y = 0;
+	fix32 y1 = 0;
+	fix32 y2 = 0;
 	u32 sampleFreq;
 	fix32 lowerBound = 0;
 	fix32 upperBound = 0;

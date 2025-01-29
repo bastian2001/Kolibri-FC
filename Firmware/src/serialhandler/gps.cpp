@@ -7,6 +7,7 @@ GpsAccuracy gpsAcc;
 datetime_t gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
+fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
 char olcString[14] = "AABBCCDD+EEFG";
 char olcAlphabet[] = "23456789CFGHJMPQRVWX";
 u8 currentPvtMsg[92];
@@ -256,6 +257,10 @@ void gpsLoop() {
 				gpsStatus.flags3 = DECODE_U2(&msgData[78]);
 				eVel.update(fix32(0.001f) * gpsMotion.velE);
 				nVel.update(fix32(0.001f) * gpsMotion.velN);
+				static fix64 lastLat = fix64(gpsMotion.lat) / 10000000;
+				static fix64 lastLon = fix64(gpsMotion.lon) / 10000000;
+				gpsLatitudeFiltered = (gpsLatitudeFiltered * 3 + fix64(gpsMotion.lat) / 10000000) / 4;
+				gpsLongitudeFiltered = (gpsLongitudeFiltered * 3 + fix64(gpsMotion.lon) / 10000000) / 4;
 				u8 buf[16];
 				snprintf((char *)buf, 16, "\x89%.7f", gpsMotion.lat / 10000000.f);
 				updateElem(OSDElem::LATITUDE, (char *)buf);

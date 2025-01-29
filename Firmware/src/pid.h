@@ -42,6 +42,7 @@ extern fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000is
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
 extern u16 condensedRpm[4]; // condensed ERPM periods for the motors (eeem mmmm mmmm)
+extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL mode => (position lock)
 enum class FlightMode {
 	ACRO,
 	ANGLE,
