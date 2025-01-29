@@ -24,12 +24,12 @@ i16 throttles[4];
 fix32 gyroData[3];
 
 fix32 pidGains[3][7];
-fix32 pidGainsVVel[4], pidGainsHVel[3];
+fix32 pidGainsVVel[4], pidGainsHVel[4];
 fix32 angleModeP = 10, velocityModeP = 3;
 
 fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast, vVelLastSetpoint;
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
-fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, vVelFF, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
+fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, vVelFF, eVelP, eVelI, eVelD, eVelFF, nVelP, nVelI, nVelD, nVelFF;
 fix32 altSetpoint;
 fix32 tRR, tRL, tFR, tFL;
 fix32 throttle;
@@ -73,6 +73,7 @@ void initPID() {
 	pidGainsHVel[P] = 12; // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I] = 1.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 0; // tilt in degrees, if changing speed by 3200m/s /s
+	pidGainsHVel[FF] = 3200.f * 6.f; // tilt in degrees for target acceleration of 3200m/s^2
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
 }
@@ -130,25 +131,34 @@ void pidLoop() {
 				rollSetpoint = dRoll * angleModeP;
 				pitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FlightMode::GPS_VEL) {
+				static PT1 ffFilterNVel(2, 3200);
+				static PT1 ffFilterEVel(2, 3200);
+				static fix32 lastNVelSetpoint = 0;
+				static fix32 lastEVelSetpoint = 0;
 				eVelSetpoint = cosHeading * (smoothChannels[0] - 1500) + sinHeading * (smoothChannels[1] - 1500);
 				nVelSetpoint = -sinHeading * (smoothChannels[0] - 1500) + cosHeading * (smoothChannels[1] - 1500);
-				eVelSetpoint = eVelSetpoint >> 9; //+-512 => +-1
-				nVelSetpoint = nVelSetpoint >> 9; //+-512 => +-1
+				eVelSetpoint = eVelSetpoint >> 9; // +-512 => +-1
+				nVelSetpoint = nVelSetpoint >> 9; // +-512 => +-1
 				eVelSetpoint *= 12; // +-1 => +-12m/s
 				nVelSetpoint *= 12; // +-1 => +-12m/s
 				eVelError = eVelSetpoint - eVel;
 				nVelError = nVelSetpoint - nVel;
 				eVelErrorSum = eVelErrorSum + eVelError;
 				nVelErrorSum = nVelErrorSum + nVelError;
+				// shift to get more resolution in the filter
+				ffFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 8);
+				ffFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 8);
 				eVelP = pidGainsHVel[P] * eVelError;
 				nVelP = pidGainsHVel[P] * nVelError;
 				eVelI = pidGainsHVel[I] * eVelErrorSum;
 				nVelI = pidGainsHVel[I] * nVelErrorSum;
 				eVelD = pidGainsHVel[D] * (eVelLast - eVel);
 				nVelD = pidGainsHVel[D] * (nVelLast - nVel);
+				eVelFF = (pidGainsHVel[FF] >> 8) * ffFilterEVel;
+				nVelFF = (pidGainsHVel[FF] >> 8) * ffFilterNVel;
 
-				fix32 eVelPID = eVelP + eVelI + eVelD;
-				fix32 nVelPID = nVelP + nVelI + nVelD;
+				fix32 eVelPID = eVelP + eVelI + eVelD + eVelFF;
+				fix32 nVelPID = nVelP + nVelI + nVelD + nVelFF;
 				fix32 targetRoll = eVelPID * cosHeading - nVelPID * sinHeading;
 				fix32 targetPitch = eVelPID * sinHeading + nVelPID * cosHeading;
 				if (targetRoll.abs() > MAX_ANGLE || targetPitch.abs() > MAX_ANGLE) {
@@ -172,6 +182,10 @@ void pidLoop() {
 				dPitch = targetPitch - (FIX_RAD_TO_DEG * pitch);
 				rollSetpoint = dRoll * velocityModeP;
 				pitchSetpoint = dPitch * velocityModeP;
+				lastNVelSetpoint = nVelSetpoint;
+				lastEVelSetpoint = eVelSetpoint;
+				nVelLast = nVel;
+				eVelLast = eVel;
 			}
 			for (int i = 1; i < 5; i++) {
 				polynomials[i][2] = polynomials[i - 1][2] * polynomials[0][2];

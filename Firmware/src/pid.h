@@ -27,7 +27,7 @@ enum {
 };
 extern fix32 pidGains[3][7]; // PID gains for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 extern fix32 pidGainsVVel[4]; // PID gains for the vertical velocity PID controller
-extern fix32 pidGainsHVel[3]; // PID gains for the horizontal velocity PID controller
+extern fix32 pidGainsHVel[4]; // PID gains for the horizontal velocity PID controller
 extern fix32 rollSetpoint, pitchSetpoint, yawSetpoint; // acro setpoint (deg/s)
 extern fix32 rollError, pitchError, yawError; // acro rate error (deg/s)
 extern fix32 rollLast, pitchLast, yawLast; // acro rate of last PID cycle (deg/s)

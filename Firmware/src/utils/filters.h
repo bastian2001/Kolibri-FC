@@ -29,7 +29,7 @@ public:
 	 * @return fix32 The filtered value
 	 */
 	inline fix32 update(fix32 value) {
-		y = y + alpha * (value - y);
+		y = alpha * value + (fix32(1) - alpha) * y;
 		return y;
 	}
 	/**
