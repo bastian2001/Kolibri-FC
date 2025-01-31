@@ -3917,6 +3917,7 @@
 	)
 	(label "U0{TX RX}"
 		(at 264.16 123.19 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3927,6 +3928,7 @@
 	)
 	(label "I2C0.SCL"
 		(at 255.27 181.61 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3937,6 +3939,7 @@
 	)
 	(label "SPI0{SCLK SDX}"
 		(at 264.16 168.91 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3947,6 +3950,7 @@
 	)
 	(label "I2C0{SDA SCL}"
 		(at 264.16 184.15 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3957,6 +3961,7 @@
 	)
 	(label "Motor{[1..4]}"
 		(at 264.16 179.07 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3967,6 +3972,7 @@
 	)
 	(label "USB.D-"
 		(at 259.08 110.49 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3977,6 +3983,7 @@
 	)
 	(label "I2C0.SCL"
 		(at 250.19 246.38 90)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3987,6 +3994,7 @@
 	)
 	(label "USB{D+ D-}"
 		(at 274.32 113.03 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3997,6 +4005,7 @@
 	)
 	(label "OSD_SS"
 		(at 255.27 151.13 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4007,6 +4016,7 @@
 	)
 	(label "ADC.Curr"
 		(at 255.27 191.77 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4017,6 +4027,7 @@
 	)
 	(label "SD_CMD"
 		(at 255.27 133.35 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4027,6 +4038,7 @@
 	)
 	(label "OSD_SS"
 		(at 330.2 151.13 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4037,6 +4049,7 @@
 	)
 	(label "Gyro_SS"
 		(at 255.27 161.29 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4047,6 +4060,7 @@
 	)
 	(label "U0.TX"
 		(at 255.27 118.11 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4057,6 +4071,7 @@
 	)
 	(label "ADC.VBat"
 		(at 255.27 194.31 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4067,6 +4082,7 @@
 	)
 	(label "LED"
 		(at 255.27 189.23 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4077,6 +4093,7 @@
 	)
 	(label "SPI1.SCLK"
 		(at 255.27 153.67 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4087,6 +4104,7 @@
 	)
 	(label "LED"
 		(at 330.2 189.23 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4097,6 +4115,7 @@
 	)
 	(label "SPI1{MISO SCLK MOSI}"
 		(at 264.16 158.75 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4107,6 +4126,7 @@
 	)
 	(label "Gyro_SS"
 		(at 330.2 161.29 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4117,6 +4137,7 @@
 	)
 	(label "Gyro_Int"
 		(at 330.2 158.75 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4127,6 +4148,7 @@
 	)
 	(label "Motor.2"
 		(at 255.27 171.45 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4137,6 +4159,7 @@
 	)
 	(label "U1{TX RX}"
 		(at 264.16 143.51 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4147,6 +4170,7 @@
 	)
 	(label "SD_DAT.1"
 		(at 255.27 125.73 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4157,6 +4181,7 @@
 	)
 	(label "Motor.4"
 		(at 255.27 176.53 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4167,6 +4192,7 @@
 	)
 	(label "SPI0.SCLK"
 		(at 255.27 163.83 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4177,6 +4203,7 @@
 	)
 	(label "U0.RX"
 		(at 255.27 120.65 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4187,6 +4214,7 @@
 	)
 	(label "SD_DAT.0"
 		(at 255.27 123.19 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4197,6 +4225,7 @@
 	)
 	(label "U1.TX"
 		(at 255.27 138.43 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4207,6 +4236,7 @@
 	)
 	(label "SPI1.MISO"
 		(at 255.27 148.59 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4217,6 +4247,7 @@
 	)
 	(label "Speaker"
 		(at 255.27 186.69 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4227,6 +4258,7 @@
 	)
 	(label "SD_CMD"
 		(at 330.2 138.43 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4237,6 +4269,7 @@
 	)
 	(label "{SWDIO SWCLK}"
 		(at 161.29 191.77 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4247,6 +4280,7 @@
 	)
 	(label "U2.RX"
 		(at 255.27 146.05 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4257,6 +4291,7 @@
 	)
 	(label "SD_DAT.3"
 		(at 255.27 130.81 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4267,6 +4302,7 @@
 	)
 	(label "USB.D+"
 		(at 259.08 107.95 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4277,6 +4313,7 @@
 	)
 	(label "Motor.1"
 		(at 255.27 168.91 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4287,6 +4324,7 @@
 	)
 	(label "Speaker"
 		(at 330.2 186.69 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4297,6 +4335,7 @@
 	)
 	(label "SD_DAT.2"
 		(at 255.27 128.27 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4307,6 +4346,7 @@
 	)
 	(label "SWDIO"
 		(at 168.91 189.23 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4317,6 +4357,7 @@
 	)
 	(label "SD_DAT{[0..3]}"
 		(at 264.16 133.35 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4327,6 +4368,7 @@
 	)
 	(label "U2.TX"
 		(at 255.27 143.51 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4337,6 +4379,7 @@
 	)
 	(label "ADC{Curr VBat}"
 		(at 264.16 196.85 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4347,6 +4390,7 @@
 	)
 	(label "SD_SCLK"
 		(at 255.27 135.89 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4357,6 +4401,7 @@
 	)
 	(label "Motor.3"
 		(at 255.27 173.99 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4367,6 +4412,7 @@
 	)
 	(label "U1.RX"
 		(at 255.27 140.97 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4377,6 +4423,7 @@
 	)
 	(label "I2C0.SDA"
 		(at 255.27 179.07 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4387,6 +4434,7 @@
 	)
 	(label "Gyro_Int"
 		(at 255.27 158.75 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4397,6 +4445,7 @@
 	)
 	(label "U2{TX RX}"
 		(at 264.16 148.59 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4407,6 +4456,7 @@
 	)
 	(label "SPI0.MOSI"
 		(at 255.27 166.37 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4417,6 +4467,7 @@
 	)
 	(label "I2C0.SDA"
 		(at 240.03 246.38 90)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4427,6 +4478,7 @@
 	)
 	(label "SWCLK"
 		(at 168.91 186.69 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4437,6 +4489,7 @@
 	)
 	(label "SPI1.MOSI"
 		(at 255.27 156.21 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4447,6 +4500,7 @@
 	)
 	(label "SD_SCLK"
 		(at 330.2 140.97 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4458,6 +4512,7 @@
 	(hierarchical_label "Gyro_Int"
 		(shape input)
 		(at 345.44 158.75 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4469,6 +4524,7 @@
 	(hierarchical_label "SD_DAT"
 		(shape bidirectional)
 		(at 290.83 133.35 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4480,6 +4536,7 @@
 	(hierarchical_label "UART0"
 		(shape bidirectional)
 		(at 290.83 123.19 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4491,6 +4548,7 @@
 	(hierarchical_label "SPI0"
 		(shape bidirectional)
 		(at 290.83 168.91 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4502,6 +4560,7 @@
 	(hierarchical_label "I2C0"
 		(shape bidirectional)
 		(at 290.83 184.15 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4513,6 +4572,7 @@
 	(hierarchical_label "SD_SCLK"
 		(shape output)
 		(at 345.44 140.97 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4524,6 +4584,7 @@
 	(hierarchical_label "Gyro_SS"
 		(shape output)
 		(at 345.44 161.29 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4535,6 +4596,7 @@
 	(hierarchical_label "SD_CMD"
 		(shape output)
 		(at 345.44 138.43 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4546,6 +4608,7 @@
 	(hierarchical_label "SWD"
 		(shape bidirectional)
 		(at 144.78 191.77 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4557,6 +4620,7 @@
 	(hierarchical_label "Motors"
 		(shape bidirectional)
 		(at 290.83 179.07 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4568,6 +4632,7 @@
 	(hierarchical_label "ADC"
 		(shape input)
 		(at 290.83 196.85 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4579,6 +4644,7 @@
 	(hierarchical_label "SPI1"
 		(shape bidirectional)
 		(at 290.83 158.75 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4590,6 +4656,7 @@
 	(hierarchical_label "UART2"
 		(shape bidirectional)
 		(at 290.83 148.59 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4601,6 +4668,7 @@
 	(hierarchical_label "Speaker"
 		(shape output)
 		(at 345.44 186.69 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4612,6 +4680,7 @@
 	(hierarchical_label "UART1"
 		(shape bidirectional)
 		(at 290.83 143.51 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4623,6 +4692,7 @@
 	(hierarchical_label "LED"
 		(shape output)
 		(at 345.44 189.23 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4634,6 +4704,7 @@
 	(hierarchical_label "USB"
 		(shape bidirectional)
 		(at 290.83 113.03 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4645,6 +4716,7 @@
 	(hierarchical_label "OSD_SS"
 		(shape output)
 		(at 345.44 151.13 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)

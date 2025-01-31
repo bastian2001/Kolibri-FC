@@ -1478,6 +1478,7 @@
 	)
 	(label "USB.D+"
 		(at 71.12 59.69 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1488,6 +1489,7 @@
 	)
 	(label "USB{D+ D-}"
 		(at 119.38 54.61 180)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1498,6 +1500,7 @@
 	)
 	(label "USB.D+"
 		(at 125.73 76.2 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1508,6 +1511,7 @@
 	)
 	(label "USB.D-"
 		(at 125.73 73.66 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1518,6 +1522,7 @@
 	)
 	(label "USB.D-"
 		(at 71.12 57.15 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1529,6 +1534,7 @@
 	(hierarchical_label "USB"
 		(shape bidirectional)
 		(at 124.46 54.61 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)

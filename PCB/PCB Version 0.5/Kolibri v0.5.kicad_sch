@@ -379,6 +379,7 @@
 	)
 	(label "Motor{[1..4]}"
 		(at 109.22 71.12 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -389,6 +390,7 @@
 	)
 	(label "I2C0{SDA SCL}"
 		(at 109.22 81.28 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -399,6 +401,7 @@
 	)
 	(label "SPI0{SCLK SDX}"
 		(at 161.29 130.81 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -409,6 +412,7 @@
 	)
 	(label "USB{D+ D-}"
 		(at 162.56 153.67 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -419,6 +423,7 @@
 	)
 	(label "U0{TX RX}"
 		(at 109.22 68.58 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -429,6 +434,7 @@
 	)
 	(label "Video{In Out}"
 		(at 153.67 40.64 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -439,6 +445,7 @@
 	)
 	(label "SPI1{MISO SCLK MOSI}"
 		(at 161.29 80.01 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -449,6 +456,7 @@
 	)
 	(label "PWM{[1..4]}"
 		(at 109.22 50.8 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -459,6 +467,7 @@
 	)
 	(label "U2{TX RX}"
 		(at 109.22 78.74 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -469,6 +478,7 @@
 	)
 	(label "SD_DAT{[0..3]}"
 		(at 161.29 106.68 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -479,6 +489,7 @@
 	)
 	(label "ADC{Curr VBat}"
 		(at 111.76 138.43 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -489,6 +500,7 @@
 	)
 	(label "U1{TX RX}"
 		(at 109.22 73.66 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -499,6 +511,7 @@
 	)
 	(label "Spk{+ -}"
 		(at 73.66 111.76 90)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -509,6 +522,7 @@
 	)
 	(label "{SWDIO SWCLK}"
 		(at 109.22 76.2 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)

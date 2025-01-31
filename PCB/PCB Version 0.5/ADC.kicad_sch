@@ -20,6 +20,7 @@
 	)
 	(label "ADC{Curr VBat}"
 		(at 86.36 86.36 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -31,6 +32,7 @@
 	(hierarchical_label "ADC"
 		(shape output)
 		(at 104.14 86.36 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -42,6 +44,7 @@
 	(hierarchical_label "Curr_ESC"
 		(shape input)
 		(at 104.14 90.17 0)
+		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
