@@ -261,7 +261,7 @@ void ExpressLRS::processMessage() {
 		u8 cfg = msgBuffer[3];
 		u8 firstChannel = cfg & 0x1F;
 		u8 res = (cfg >> 5) & 0x03;
-		u8 channelCount = (size - 5) * 8 / res;
+		u8 channelCount = (size - 5) * 8 / (res + 10);
 		if (firstChannel + channelCount > 16) {
 			lastError = ERROR_INVALID_LENGTH;
 			errorFlag = true;

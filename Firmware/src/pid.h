@@ -27,7 +27,7 @@ enum {
 };
 extern fix32 pidGains[3][7]; // PID gains for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 extern fix32 pidGainsVVel[4]; // PID gains for the vertical velocity PID controller
-extern fix32 pidGainsHVel[3]; // PID gains for the horizontal velocity PID controller
+extern fix32 pidGainsHVel[4]; // PID gains for the horizontal velocity PID controller
 extern fix32 rollSetpoint, pitchSetpoint, yawSetpoint; // acro setpoint (deg/s)
 extern fix32 rollError, pitchError, yawError; // acro rate error (deg/s)
 extern fix32 rollLast, pitchLast, yawLast; // acro rate of last PID cycle (deg/s)
@@ -42,6 +42,7 @@ extern fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000is
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
 extern u16 condensedRpm[4]; // condensed ERPM periods for the motors (eeem mmmm mmmm)
+extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL mode => (position lock)
 enum class FlightMode {
 	ACRO,
 	ANGLE,

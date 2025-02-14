@@ -20,6 +20,9 @@
 #pragma once
 #include "fixedPointInt.h"
 
+inline constexpr f32 QUATERNION_EPS = 1e-5;
+inline constexpr f32 ONE_MINUS_EPS = 1 - QUATERNION_EPS;
+
 /**
  * Data structure to hold a quaternion.
  */
@@ -108,6 +111,4 @@ void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *out
  */
 void Quaternion_conjugate(Quaternion *q, Quaternion *output);
 
-extern const f32 QUATERNION_EPS;
-extern const f32 ONE_MINUS_EPS;
 void Vector_cross(const f32 v1[3], const f32 v2[3], f32 output[3]);

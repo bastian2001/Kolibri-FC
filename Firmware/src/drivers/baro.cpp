@@ -19,7 +19,7 @@ f32 baroUpVel = 0;
 u8 baroTemp = 0;
 i32 baroCalibration[9];
 fix32 gpsBaroAlt;
-const i32 baroScaleFactor = 7864320;
+constexpr i32 baroScaleFactor = 7864320;
 
 void getRawPressureTemperature(volatile i32 *pressure, volatile i32 *temperature) {
 	u8 data[6];

@@ -6,12 +6,6 @@
 class fix32;
 extern interp_config sinInterpConfig0, sinInterpConfig1;
 
-extern const fix32 FIX_PI;
-extern const fix32 FIX_2PI;
-extern const fix32 FIX_PI_2;
-extern const fix32 FIX_RAD_TO_DEG;
-extern const fix32 FIX_DEG_TO_RAD;
-
 void initFixTrig();
 /**
  * @brief prepares the interpolator for blend mode
@@ -24,14 +18,15 @@ inline void startFixTrig() {
 
 fix32 sinFix(const fix32 x);
 fix32 cosFix(const fix32 x);
-fix32 atanFix(const fix32 x);
-fix32 atan2Fix(const fix32 y, const fix32 x);
+fix32 atanFix(fix32 x);
+fix32 atan2Fix(const fix32 x, const fix32 y);
+fix32 acosFix(fix32 x);
 
 class fix64 {
 	// 32.32 fixed point
 public:
 	i64 raw = 0;
-	inline constexpr fix64(){};
+	inline constexpr fix64() {};
 
 	// ======================== Type conversion from another type ========================
 	inline constexpr fix64(const i32 v) {
@@ -146,7 +141,7 @@ class fix32 {
 	// 16.16 fixed point
 public:
 	i32 raw = 0;
-	inline constexpr fix32(){};
+	inline constexpr fix32() {};
 
 	// ======================== Type conversion from another type ========================
 	inline constexpr fix32(const i32 v) {
@@ -462,6 +457,9 @@ public:
 	inline constexpr fix32 operator-() const {
 		return fix32().setRaw(-this->raw);
 	};
+	inline constexpr explicit operator bool() const {
+		return this->raw != 0;
+	};
 	inline constexpr i32 sign() const {
 		return (this->raw >> 31) * 2 + 1;
 	};
@@ -505,3 +503,7 @@ inline constexpr fix64 fix64::operator/(const fix32 other) const {
 inline constexpr fix64 fix64::operator/(const f32 other) const {
 	return *this / fix32(other);
 };
+
+inline constexpr fix32 FIX_PI = PI;
+inline constexpr fix32 FIX_RAD_TO_DEG = 180 / PI;
+inline constexpr fix32 FIX_DEG_TO_RAD = PI / 180;
