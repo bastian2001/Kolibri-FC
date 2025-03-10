@@ -1933,7 +1933,6 @@
 	)
 	(label "SPI1{MISO SCLK MOSI}"
 		(at 53.34 59.69 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1954,7 +1953,6 @@
 	)
 	(label "Video{In Out}"
 		(at 162.56 43.18 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1966,7 +1964,6 @@
 	(hierarchical_label "SS"
 		(shape input)
 		(at 74.93 59.69 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1978,7 +1975,6 @@
 	(hierarchical_label "Video"
 		(shape bidirectional)
 		(at 177.8 43.18 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1990,7 +1986,6 @@
 	(hierarchical_label "SPI1"
 		(shape bidirectional)
 		(at 27.94 59.69 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2600,10 +2595,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "2e2c1d4b-2d49-4793-b069-c87cb5eb5ce5")
+			(uuid "2e2c1d4b-2d49-4793-b069-c87cb5eb5ce6")
 		)
 		(pin "2"
-			(uuid "1d448feb-750c-4dec-8a6d-14eb0b3491be")
+			(uuid "1d448feb-750c-4dec-8a6d-14eb0b3491bf")
 		)
 		(instances
 			(project ""
@@ -2870,7 +2865,7 @@
 			)
 		)
 		(pin "1"
-			(uuid "1c0cdce7-95f1-414a-8393-28b9863f81c3")
+			(uuid "1c0cdce7-95f1-414a-8393-28b9863f81c4")
 		)
 		(instances
 			(project ""

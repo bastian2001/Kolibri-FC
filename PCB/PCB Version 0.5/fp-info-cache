@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-24522933554915768
-=======
-24550736190200701
->>>>>>> Stashed changes
+24552516261327064
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -64390,8 +64386,6 @@ solder jumper open
 5
 3
 Kolibri custom
-<<<<<<< Updated upstream
-=======
 Goertek SPL06-001
 
 
@@ -64413,7 +64407,6 @@ QFN-48_EP_5x5_Pitch0.35mm
 65
 49
 Kolibri custom
->>>>>>> Stashed changes
 QFN-60_EP_7x7_Pitch0.4mm
 
 
@@ -64428,8 +64421,6 @@ QFN-80_EP_10x10_Pitch0.4mm
 97
 81
 Kolibri custom
-<<<<<<< Updated upstream
-=======
 Solder_Pad_octa
 
 
@@ -64472,6 +64463,13 @@ Solder_Pad_rounded_dual
 2
 2
 Kolibri custom
+Texas_X2QFN_RUG_10pin_1.5x2mm
+
+
+0
+0
+0
+Kolibri custom
 USB-C 2xTHT
 
 
@@ -64486,18 +64484,12 @@ USB-C SMD+THT
 20
 17
 Kolibri custom
->>>>>>> Stashed changes
 WS2812B_1615
 
 
 0
-<<<<<<< Updated upstream
-0
-0
-=======
 4
 4
->>>>>>> Stashed changes
 LED_SMD
 LED-APA102-2020
 http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf
@@ -90965,8 +90957,6 @@ rotary encoder illuminated switch vertical
 0
 9
 8
-<<<<<<< Updated upstream
-=======
 SamacSys_Parts
 2450FM07D0034T
 2450FM07D0034T-3
@@ -91002,7 +90992,6 @@ Integrated Circuit
 0
 13
 13
->>>>>>> Stashed changes
 Sensor
 ASAIR_AM2302_P2.54mm_Lead2.75mm_TabDown
 Temperature and humidity module, http://akizukidenshi.com/download/ds/aosong/AM2302.pdf

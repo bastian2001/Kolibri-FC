@@ -8,142 +8,6 @@
 		(title "Kolibri FC - Speaker Driver")
 	)
 	(lib_symbols
-		(symbol "Device:C"
-			(pin_numbers hide)
-			(pin_names
-				(offset 0.254)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(property "Reference" "C"
-				(at 0.635 2.54 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Value" "C"
-				(at 0.635 -2.54 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Footprint" ""
-				(at 0.9652 -3.81 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Datasheet" "~"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Description" "Unpolarized capacitor"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_keywords" "cap capacitor"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_fp_filters" "C_*"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(symbol "C_0_1"
-				(polyline
-					(pts
-						(xy -2.032 -0.762) (xy 2.032 -0.762)
-					)
-					(stroke
-						(width 0.508)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -2.032 0.762) (xy 2.032 0.762)
-					)
-					(stroke
-						(width 0.508)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "C_1_1"
-				(pin passive line
-					(at 0 3.81 270)
-					(length 2.794)
-					(name "~"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 0 -3.81 90)
-					(length 2.794)
-					(name "~"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-		)
 		(symbol "Diode:1N4148WS"
 			(pin_numbers hide)
 			(pin_names hide)
@@ -1306,7 +1170,7 @@
 	)
 	(wire
 		(pts
-			(xy 107.95 80.01) (xy 116.84 80.01)
+			(xy 107.95 80.01) (xy 144.78 80.01)
 		)
 		(stroke
 			(width 0)
@@ -1353,16 +1217,6 @@
 			(type default)
 		)
 		(uuid "e0806fdf-3533-4218-a97f-0e0632ad5e45")
-	)
-	(wire
-		(pts
-			(xy 124.46 80.01) (xy 144.78 80.01)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "eabac73c-2219-410e-b072-d89939f89e1f")
 	)
 	(rectangle
 		(start 173.736 71.12)
@@ -1428,10 +1282,10 @@
 		)
 		(uuid d978a291-dff9-476e-bf94-c79d972add85)
 	)
-	(text_box "Q1 acts as a pulldown, D12 is the pullup. Q1's gate is PWMed, so that at the drain of Q1, we get an average of VCC/2. This is then shifted up to VBat due to the coupling capacitor, to remove this DC offset. By adjusting the duty cycle of the PWM, we can either pull Spk.- lower (higher duty cycle) or higher (lower duty cycle), to write our sound samples to Spk.-. Since we are just PWMing the voltage, the inductor smoothes out the current ripple to a triangle wave, and because the PWM is so fast, this triangle wave has an amplitude close enough to 0. This way, we get a DAC without proper DAC hardware. "
+	(text_box "Q1 acts as a pulldown, D12 is the flyback. Q1's gate is PWMed at 44.1kHz. By adjusting the duty cycle of the PWM, we can either pull Spk.- lower (higher duty cycle) or higher (lower duty cycle), to write our sound samples to Spk.-. This way, we get a DAC without proper DAC hardware. Alternatively, we can PWM at lower frequencies to write a raw rectangle wave. "
 		(exclude_from_sim no)
 		(at 22.86 60.96 0)
-		(size 59.69 24.13)
+		(size 59.69 16.51)
 		(stroke
 			(width 0)
 			(type default)
@@ -1461,7 +1315,6 @@
 	)
 	(label "Spk.+"
 		(at 130.81 63.5 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1472,7 +1325,6 @@
 	)
 	(label "Spk{+ -}"
 		(at 148.59 66.04 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1483,7 +1335,6 @@
 	)
 	(label "Spk.-"
 		(at 130.81 80.01 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1495,7 +1346,6 @@
 	(hierarchical_label "Speaker"
 		(shape output)
 		(at 160.02 66.04 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1507,7 +1357,6 @@
 	(hierarchical_label "In"
 		(shape input)
 		(at 93.98 85.09 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -1599,73 +1448,6 @@
 			(project "Kolibri v0.5"
 				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/b926c428-9140-4272-8a94-263799bff176"
 					(reference "D12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C")
-		(at 120.65 80.01 90)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "26616920-d566-4d28-9839-6d29cc87dc07")
-		(property "Reference" "C73"
-			(at 118.618 76.2 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "10u"
-			(at 123.698 76.2 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 124.46 79.0448 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 120.65 80.01 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Unpolarized capacitor"
-			(at 120.65 80.01 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "2"
-			(uuid "32caf5ba-01d3-4c5c-b790-17951fe54a37")
-		)
-		(pin "1"
-			(uuid "344cee82-3790-47c0-99db-43127995e9fb")
-		)
-		(instances
-			(project ""
-				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/b926c428-9140-4272-8a94-263799bff176"
-					(reference "C73")
 					(unit 1)
 				)
 			)

@@ -3220,7 +3220,6 @@
 	)
 	(label "Motor.1"
 		(at 35.56 66.04 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3231,7 +3230,6 @@
 	)
 	(label "Motor.2"
 		(at 35.56 68.58 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3242,7 +3240,6 @@
 	)
 	(label "Curr_ESC"
 		(at 54.61 55.88 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3253,7 +3250,6 @@
 	)
 	(label "PWM{[1..4]}"
 		(at 125.73 27.94 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3264,7 +3260,6 @@
 	)
 	(label "Motor.1"
 		(at 54.61 43.18 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3275,7 +3270,6 @@
 	)
 	(label "PWM.1"
 		(at 148.59 30.48 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3286,7 +3280,6 @@
 	)
 	(label "PWM.3"
 		(at 148.59 35.56 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3297,7 +3290,6 @@
 	)
 	(label "U1.RX"
 		(at 59.69 97.79 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3308,7 +3300,6 @@
 	)
 	(label "Spk.+"
 		(at 148.59 120.65 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3319,7 +3310,6 @@
 	)
 	(label "Curr_ESC"
 		(at 35.56 76.2 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3330,7 +3320,6 @@
 	)
 	(label "U2.RX"
 		(at 58.42 160.02 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3341,7 +3330,6 @@
 	)
 	(label "U0.RX"
 		(at 148.59 59.69 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3352,7 +3340,6 @@
 	)
 	(label "U2.RX"
 		(at 36.83 172.72 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3363,7 +3350,6 @@
 	)
 	(label "I2C0.SCL"
 		(at 36.83 127 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3374,7 +3360,6 @@
 	)
 	(label "I2C0.SDA"
 		(at 36.83 124.46 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3385,7 +3370,6 @@
 	)
 	(label "I2C0{SDA SCL}"
 		(at 33.02 110.49 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3396,7 +3380,6 @@
 	)
 	(label "PWM.2"
 		(at 148.59 33.02 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3407,7 +3390,6 @@
 	)
 	(label "U1{TX RX}"
 		(at 33.02 92.71 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3418,7 +3400,6 @@
 	)
 	(label "Video.Out"
 		(at 148.59 90.17 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3429,7 +3410,6 @@
 	)
 	(label "Motor{[1..4]}"
 		(at 29.21 33.02 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3440,7 +3420,6 @@
 	)
 	(label "Motor.2"
 		(at 54.61 45.72 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3451,7 +3430,6 @@
 	)
 	(label "Spk{+ -}"
 		(at 125.73 118.11 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3462,7 +3440,6 @@
 	)
 	(label "Motor.4"
 		(at 54.61 50.8 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3473,7 +3450,6 @@
 	)
 	(label "U1.TX"
 		(at 59.69 95.25 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3484,7 +3460,6 @@
 	)
 	(label "U1.TX"
 		(at 36.83 119.38 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3495,7 +3470,6 @@
 	)
 	(label "U0.TX"
 		(at 148.59 57.15 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3506,7 +3480,6 @@
 	)
 	(label "U2.TX"
 		(at 36.83 170.18 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3517,7 +3490,6 @@
 	)
 	(label "Motor.4"
 		(at 35.56 73.66 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3528,7 +3500,6 @@
 	)
 	(label "U0{TX RX}"
 		(at 125.73 54.61 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3539,7 +3510,6 @@
 	)
 	(label "PWM.4"
 		(at 148.59 38.1 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3550,7 +3520,6 @@
 	)
 	(label "U1.RX"
 		(at 36.83 121.92 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3561,7 +3530,6 @@
 	)
 	(label "Spk.-"
 		(at 148.59 124.46 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3572,7 +3540,6 @@
 	)
 	(label "U2.TX"
 		(at 58.42 157.48 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3583,7 +3550,6 @@
 	)
 	(label "{SWDIO SWCLK}"
 		(at 123.19 144.78 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3594,7 +3560,6 @@
 	)
 	(label "Video.In"
 		(at 148.59 86.36 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3605,7 +3570,6 @@
 	)
 	(label "U2{TX RX}"
 		(at 33.02 154.94 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3616,7 +3580,6 @@
 	)
 	(label "I2C0.SDA"
 		(at 58.42 105.41 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3627,7 +3590,6 @@
 	)
 	(label "Motor.3"
 		(at 54.61 48.26 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3638,7 +3600,6 @@
 	)
 	(label "I2C0.SCL"
 		(at 58.42 107.95 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3649,7 +3610,6 @@
 	)
 	(label "Motor.3"
 		(at 35.56 71.12 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3660,7 +3620,6 @@
 	)
 	(label "Video{In Out}"
 		(at 125.73 83.82 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3671,7 +3630,6 @@
 	)
 	(label "SWDIO"
 		(at 146.05 152.4 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3682,7 +3640,6 @@
 	)
 	(label "SWCLK"
 		(at 146.05 147.32 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3694,7 +3651,6 @@
 	(hierarchical_label "SWD"
 		(shape bidirectional)
 		(at 123.19 144.78 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3706,7 +3662,6 @@
 	(hierarchical_label "UART1"
 		(shape bidirectional)
 		(at 27.94 92.71 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3718,7 +3673,6 @@
 	(hierarchical_label "UART2"
 		(shape bidirectional)
 		(at 27.94 154.94 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3730,7 +3684,6 @@
 	(hierarchical_label "UART0"
 		(shape bidirectional)
 		(at 123.19 54.61 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3742,7 +3695,6 @@
 	(hierarchical_label "Curr_ESC"
 		(shape output)
 		(at 50.8 55.88 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3754,7 +3706,6 @@
 	(hierarchical_label "PWM"
 		(shape input)
 		(at 123.19 27.94 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3766,7 +3717,6 @@
 	(hierarchical_label "Motors"
 		(shape bidirectional)
 		(at 27.94 33.02 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3778,7 +3728,6 @@
 	(hierarchical_label "I2C0"
 		(shape bidirectional)
 		(at 27.94 110.49 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3790,7 +3739,6 @@
 	(hierarchical_label "Video"
 		(shape bidirectional)
 		(at 123.19 83.82 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3802,7 +3750,6 @@
 	(hierarchical_label "LED"
 		(shape input)
 		(at 161.29 109.22 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3814,7 +3761,6 @@
 	(hierarchical_label "Speaker"
 		(shape input)
 		(at 123.19 118.11 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)

@@ -17,6 +17,12 @@
 		(color 0 0 0 0)
 		(uuid "a7a88ceb-0907-4377-8056-b2169078ae40")
 	)
+	(junction
+		(at 68.58 138.43)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "f25e6647-c623-48cc-b8e9-65b2b1f4e2f9")
+	)
 	(bus
 		(pts
 			(xy 105.41 138.43) (xy 130.81 138.43)
@@ -36,6 +42,16 @@
 			(type default)
 		)
 		(uuid "06c65fdc-1be8-427b-8ac7-9e6bd1382096")
+	)
+	(wire
+		(pts
+			(xy 68.58 138.43) (xy 68.58 175.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0b8d1914-5f27-4035-8378-ad52a72b3553")
 	)
 	(wire
 		(pts
@@ -77,6 +93,16 @@
 		)
 		(uuid "2d6bac1b-f8eb-4ae1-839b-4028032c03a1")
 	)
+	(wire
+		(pts
+			(xy 165.1 158.75) (xy 185.42 158.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2ed3b12e-7448-4de3-9c17-b60f979438d9")
+	)
 	(bus
 		(pts
 			(xy 105.41 107.95) (xy 127 107.95)
@@ -86,6 +112,16 @@
 			(type default)
 		)
 		(uuid "30f94adb-33fe-43f2-abcc-389661e074f5")
+	)
+	(wire
+		(pts
+			(xy 162.56 172.72) (xy 162.56 156.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4e2e194c-0f24-4f82-b666-cd7646c03985")
 	)
 	(bus
 		(pts
@@ -177,6 +213,16 @@
 		)
 		(uuid "79f2a505-3d72-4a25-9619-617bb2329548")
 	)
+	(wire
+		(pts
+			(xy 68.58 175.26) (xy 165.1 175.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "81471a74-c758-4e15-aecd-0d9633f08551")
+	)
 	(bus
 		(pts
 			(xy 81.28 120.65) (xy 73.66 120.65)
@@ -187,6 +233,16 @@
 		)
 		(uuid "8414b6ba-eaeb-44b2-b19b-9bb24a74d944")
 	)
+	(wire
+		(pts
+			(xy 165.1 175.26) (xy 165.1 158.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8fe54535-be4b-4e27-a23f-7ff8a3d51efe")
+	)
 	(bus
 		(pts
 			(xy 127 68.58) (xy 130.81 68.58)
@@ -196,6 +252,16 @@
 			(type default)
 		)
 		(uuid "92ae0e85-34d7-452a-b908-e0563399682a")
+	)
+	(wire
+		(pts
+			(xy 71.12 140.97) (xy 81.28 140.97)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9be22847-721d-4746-b33b-5ea60e6d966f")
 	)
 	(bus
 		(pts
@@ -226,6 +292,16 @@
 			(type default)
 		)
 		(uuid "a72017fd-c554-44d0-b665-72ae5f491cd8")
+	)
+	(wire
+		(pts
+			(xy 162.56 156.21) (xy 185.42 156.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a9ea5570-f2fc-487d-b178-f95903dd5f9a")
 	)
 	(bus
 		(pts
@@ -317,6 +393,16 @@
 		)
 		(uuid "dd2635ee-19fa-41fa-8ddd-d11feb6e0c2c")
 	)
+	(wire
+		(pts
+			(xy 71.12 172.72) (xy 162.56 172.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e2db5dbd-fc18-468c-a8f1-0ff5b8d733d3")
+	)
 	(bus
 		(pts
 			(xy 105.41 71.12) (xy 130.81 71.12)
@@ -326,6 +412,16 @@
 			(type default)
 		)
 		(uuid "e6227557-45e1-45cc-be5f-26781a82b944")
+	)
+	(wire
+		(pts
+			(xy 71.12 140.97) (xy 71.12 172.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e7e0dbf3-a2aa-4aa4-bf9a-e1d20e0ba94b")
 	)
 	(wire
 		(pts
@@ -377,9 +473,18 @@
 		)
 		(uuid "fef6a1a5-dc78-46f9-930a-4f0065f68f0e")
 	)
+	(text "Overvoltage Protection with TVS-Diodes in USB sheet"
+		(exclude_from_sim no)
+		(at 116.332 174.244 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "743cc027-45af-4ceb-a2c1-c98f3928a706")
+	)
 	(label "Motor{[1..4]}"
 		(at 109.22 71.12 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -390,7 +495,6 @@
 	)
 	(label "I2C0{SDA SCL}"
 		(at 109.22 81.28 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -401,7 +505,6 @@
 	)
 	(label "SPI0{SCLK SDX}"
 		(at 161.29 130.81 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -412,7 +515,6 @@
 	)
 	(label "USB{D+ D-}"
 		(at 162.56 153.67 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -423,7 +525,6 @@
 	)
 	(label "U0{TX RX}"
 		(at 109.22 68.58 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -434,7 +535,6 @@
 	)
 	(label "Video{In Out}"
 		(at 153.67 40.64 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -445,7 +545,6 @@
 	)
 	(label "SPI1{MISO SCLK MOSI}"
 		(at 161.29 80.01 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -456,7 +555,6 @@
 	)
 	(label "PWM{[1..4]}"
 		(at 109.22 50.8 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -467,7 +565,6 @@
 	)
 	(label "U2{TX RX}"
 		(at 109.22 78.74 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -478,7 +575,6 @@
 	)
 	(label "SD_DAT{[0..3]}"
 		(at 161.29 106.68 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -489,7 +585,6 @@
 	)
 	(label "ADC{Curr VBat}"
 		(at 111.76 138.43 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -500,7 +595,6 @@
 	)
 	(label "U1{TX RX}"
 		(at 109.22 73.66 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -511,7 +605,6 @@
 	)
 	(label "Spk{+ -}"
 		(at 73.66 111.76 90)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -522,7 +615,6 @@
 	)
 	(label "{SWDIO SWCLK}"
 		(at 109.22 76.2 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -533,7 +625,7 @@
 	)
 	(sheet
 		(at 81.28 135.89)
-		(size 24.13 5.08)
+		(size 24.13 7.62)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -553,7 +645,7 @@
 			)
 		)
 		(property "Sheetfile" "ADC.kicad_sch"
-			(at 81.28 141.5546 0)
+			(at 81.28 144.0946 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -581,6 +673,16 @@
 			)
 			(uuid "61226054-ebee-4f49-8a18-6c3a6941fd60")
 		)
+		(pin "VBat_HI" output
+			(at 81.28 140.97 180)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+			(uuid "768a3677-3a86-454e-8929-3e59e9ec00e8")
+		)
 		(instances
 			(project "Kolibri v0.5"
 				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a"
@@ -591,7 +693,7 @@
 	)
 	(sheet
 		(at 185.42 151.13)
-		(size 22.86 5.08)
+		(size 22.86 10.16)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -611,7 +713,7 @@
 			)
 		)
 		(property "Sheetfile" "usb.kicad_sch"
-			(at 185.42 156.7946 0)
+			(at 185.42 161.8746 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -628,6 +730,26 @@
 				(justify left)
 			)
 			(uuid "94725411-5a81-4b8d-99bb-e425f211d3ad")
+		)
+		(pin "VBat_HI" input
+			(at 185.42 156.21 180)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+			(uuid "2f028176-3933-41b3-bad4-c8dd57e74dee")
+		)
+		(pin "Curr_ESC" input
+			(at 185.42 158.75 180)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+			(uuid "a461bccc-0cb2-4278-9c6e-0dc0fda2d3cb")
 		)
 		(instances
 			(project "Kolibri v0.5"
