@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
 	interface Props {
 		throttlePct?: number;
 	}
@@ -40,9 +38,7 @@
 		}
 		cp = `polygon(${points.join(', ')})`;
 	}
-	run(() => {
-		throttlePct, updateClipPath();
-	});
+	$effect(updateClipPath);
 </script>
 
 <div class="motor" style:clip-path={cp}></div>

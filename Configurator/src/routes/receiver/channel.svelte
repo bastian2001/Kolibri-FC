@@ -4,16 +4,7 @@
 		value?: number;
 	}
 
-	let { value = 1000 + 1000 * Math.random() }: Props = $props();
-
-	// let valDiv: HTMLDivElement;
-
-	// $: updateVal();
-	// function updateVal() {
-	// 	const width = map(value, 800, 2200, 0, 100) + '%';
-	// 	if (!valDiv) return;
-	// 	valDiv.style.width = width;
-	// }
+	let { value = 1500 }: Props = $props();
 </script>
 
 <div class="channelOuter">

@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
 	import { port, MspFn, MspVersion } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import Motor from './motor.svelte';
@@ -9,19 +7,16 @@
 	const motorMapping = [3, 1, 2, 0];
 	let int = -1;
 	let throttles = $state([0, 0, 0, 0]);
-	let throttlesU8 = $state([0, 0, 0, 0, 0, 0, 0, 0]);
-	run(() => {
-		throttlesU8 = [
-			throttles[0] & 0xff,
-			throttles[0] >> 8,
-			throttles[1] & 0xff,
-			throttles[1] >> 8,
-			throttles[2] & 0xff,
-			throttles[2] >> 8,
-			throttles[3] & 0xff,
-			throttles[3] >> 8
-		];
-	});
+	let throttlesU8 = $derived([
+		throttles[0] & 0xff,
+		throttles[0] >> 8,
+		throttles[1] & 0xff,
+		throttles[1] >> 8,
+		throttles[2] & 0xff,
+		throttles[2] >> 8,
+		throttles[3] & 0xff,
+		throttles[3] >> 8
+	]);
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {

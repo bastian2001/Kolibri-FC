@@ -270,26 +270,10 @@
 			maxValue: 2000,
 			unit: '',
 			modifier: [
-				{
-					displayNameShort: 'RR',
-					displayName: 'Rear Right',
-					path: 'rr'
-				},
-				{
-					displayNameShort: 'FR',
-					displayName: 'Front Right',
-					path: 'fr'
-				},
-				{
-					displayNameShort: 'FL',
-					displayName: 'Front Left',
-					path: 'fl'
-				},
-				{
-					displayNameShort: 'RL',
-					displayName: 'Rear Left',
-					path: 'rl'
-				}
+				{ displayNameShort: 'RR', displayName: 'Rear Right', path: 'rr' },
+				{ displayNameShort: 'FR', displayName: 'Front Right', path: 'fr' },
+				{ displayNameShort: 'FL', displayName: 'Front Left', path: 'fl' },
+				{ displayNameShort: 'RL', displayName: 'Rear Left', path: 'rl' }
 			]
 		},
 		LOG_FRAMETIME: {
@@ -329,13 +313,7 @@
 			maxValue: 100,
 			unit: '',
 			modifier: [
-				{
-					displayNameShort: 'Year',
-					displayName: 'Year',
-					min: 2020,
-					max: 2030,
-					path: 'year'
-				},
+				{ displayNameShort: 'Year', displayName: 'Year', min: 2020, max: 2030, path: 'year' },
 				{
 					displayNameShort: 'Month',
 					displayName: 'Month',
@@ -358,34 +336,10 @@
 						'December'
 					]
 				},
-				{
-					displayNameShort: 'Day',
-					displayName: 'Day',
-					min: 1,
-					max: 31,
-					path: 'day'
-				},
-				{
-					displayNameShort: 'Hour',
-					displayName: 'Hour',
-					min: 0,
-					max: 23,
-					path: 'hour'
-				},
-				{
-					displayNameShort: 'Minute',
-					displayName: 'Minute',
-					min: 0,
-					max: 59,
-					path: 'minute'
-				},
-				{
-					displayNameShort: 'Second',
-					displayName: 'Second',
-					min: 0,
-					max: 59,
-					path: 'second'
-				},
+				{ displayNameShort: 'Day', displayName: 'Day', min: 1, max: 31, path: 'day' },
+				{ displayNameShort: 'Hour', displayName: 'Hour', min: 0, max: 23, path: 'hour' },
+				{ displayNameShort: 'Minute', displayName: 'Minute', min: 0, max: 59, path: 'minute' },
+				{ displayNameShort: 'Second', displayName: 'Second', min: 0, max: 59, path: 'second' },
 				{
 					displayNameShort: 'Valid',
 					displayName: 'Validity Flags',
@@ -424,20 +378,8 @@
 						'Time only fix'
 					]
 				},
-				{
-					displayNameShort: 'Flags',
-					displayName: 'Flags',
-					min: 0,
-					max: 255,
-					path: 'flags'
-				},
-				{
-					displayNameShort: 'Flags2',
-					displayName: 'Flags2',
-					min: 0,
-					max: 255,
-					path: 'flags2'
-				},
+				{ displayNameShort: 'Flags', displayName: 'Flags', min: 0, max: 255, path: 'flags' },
+				{ displayNameShort: 'Flags2', displayName: 'Flags2', min: 0, max: 255, path: 'flags2' },
 				{
 					displayNameShort: 'Sats',
 					displayName: 'Satellite Count',
@@ -559,13 +501,7 @@
 					path: 'p_dop',
 					decimals: 2
 				},
-				{
-					displayNameShort: 'Flags3',
-					displayName: 'Flags3',
-					min: 0,
-					max: 31,
-					path: 'flags3'
-				}
+				{ displayNameShort: 'Flags3', displayName: 'Flags3', min: 0, max: 31, path: 'flags3' }
 			]
 		},
 		LOG_ATT_ROLL: {
@@ -596,26 +532,10 @@
 			maxValue: 50000,
 			unit: 'rpm',
 			modifier: [
-				{
-					displayNameShort: 'RR',
-					displayName: 'Rear Right',
-					path: 'rr'
-				},
-				{
-					displayNameShort: 'FR',
-					displayName: 'Front Right',
-					path: 'fr'
-				},
-				{
-					displayNameShort: 'FL',
-					displayName: 'Front Left',
-					path: 'fl'
-				},
-				{
-					displayNameShort: 'RL',
-					displayName: 'Rear Left',
-					path: 'rl'
-				}
+				{ displayNameShort: 'RR', displayName: 'Rear Right', path: 'rr' },
+				{ displayNameShort: 'FR', displayName: 'Front Right', path: 'fr' },
+				{ displayNameShort: 'FL', displayName: 'Front Left', path: 'fl' },
+				{ displayNameShort: 'RL', displayName: 'Rear Left', path: 'rl' }
 			]
 		},
 		LOG_ACCEL_RAW: {
@@ -626,21 +546,9 @@
 			unit: 'm/s²',
 			decimals: 3,
 			modifier: [
-				{
-					displayNameShort: 'X',
-					displayName: 'X',
-					path: 'x'
-				},
-				{
-					displayNameShort: 'Y',
-					displayName: 'Y',
-					path: 'y'
-				},
-				{
-					displayNameShort: 'Z',
-					displayName: 'Z',
-					path: 'z'
-				}
+				{ displayNameShort: 'X', displayName: 'X', path: 'x' },
+				{ displayNameShort: 'Y', displayName: 'Y', path: 'y' },
+				{ displayNameShort: 'Z', displayName: 'Z', path: 'z' }
 			]
 		},
 		LOG_ACCEL_FILTERED: {
@@ -651,21 +559,9 @@
 			unit: 'm/s²',
 			decimals: 3,
 			modifier: [
-				{
-					displayNameShort: 'X',
-					displayName: 'X',
-					path: 'x'
-				},
-				{
-					displayNameShort: 'Y',
-					displayName: 'Y',
-					path: 'y'
-				},
-				{
-					displayNameShort: 'Z',
-					displayName: 'Z',
-					path: 'z'
-				}
+				{ displayNameShort: 'X', displayName: 'X', path: 'x' },
+				{ displayNameShort: 'Y', displayName: 'Y', path: 'y' },
+				{ displayNameShort: 'Z', displayName: 'Z', path: 'z' }
 			]
 		},
 		LOG_VERTICAL_ACCEL: {
@@ -698,9 +594,7 @@
 			maxValue: 180,
 			unit: '°'
 		}
-	} as {
-		[key: string]: FlagProps;
-	};
+	} as { [key: string]: FlagProps };
 
 	const BB_GEN_FLAGS = {
 		GEN_ROLL_SETPOINT: {
@@ -867,9 +761,7 @@
 			unit: 'm/s',
 			exact: false
 		}
-	} as {
-		[key: string]: GenFlagProps;
-	};
+	} as { [key: string]: GenFlagProps };
 
 	function fillLogWithGenFlags(log: BBLog) {
 		log.isExact = true;
@@ -2577,7 +2469,12 @@
 		<button on:click={() => (showSettings = true)}>Settings</button>
 	</div>
 	{#if showSettings}
-		<Settings flags={BB_ALL_FLAGS} on:close={() => (showSettings = false)} />
+		<Settings
+			flags={BB_ALL_FLAGS}
+			close={() => {
+				showSettings = false;
+			}}
+		/>
 	{/if}
 	<div class="dataViewerWrapper">
 		<canvas
@@ -2605,10 +2502,10 @@
 						log={logButItsThere()}
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
-						on:update={event => {
-							updateTrace(event, graphIndex, traceIndex, trace.id);
+						update={t => {
+							updateTrace(t, graphIndex, traceIndex, trace.id);
 						}}
-						on:delete={() => {
+						delete={() => {
 							deleteTrace(graphIndex, traceIndex);
 						}}
 					/>
@@ -2716,9 +2613,9 @@
 			genFlagProps={BB_GEN_FLAGS}
 			{startFrame}
 			{endFrame}
-			on:update={event => {
-				startFrame = Math.min(event.detail.startFrame, event.detail.endFrame);
-				endFrame = Math.max(event.detail.startFrame, event.detail.endFrame);
+			update={(s, e) => {
+				startFrame = Math.min(s, e);
+				endFrame = Math.max(s, e);
 			}}
 		/>
 	</div>

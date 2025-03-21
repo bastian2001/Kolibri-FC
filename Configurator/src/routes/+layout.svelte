@@ -21,45 +21,17 @@
 
 	let logDiv: any = $state(null);
 
-	type NavigatorElement = {
-		name: string;
-		path: string;
-		img?: string;
-	};
+	type NavigatorElement = { name: string; path: string; img?: string };
 
 	const navElements: NavigatorElement[] = [
-		{
-			name: 'Home',
-			path: '/'
-		},
-		{
-			name: 'Blackbox',
-			path: '/blackbox'
-		},
-		{
-			name: 'Tasks',
-			path: '/tasks'
-		},
-		{
-			name: 'OSD',
-			path: '/osd'
-		},
-		{
-			name: 'Motors',
-			path: '/motors'
-		},
-		{
-			name: 'Receiver',
-			path: '/receiver'
-		},
-		{
-			name: 'Tuning',
-			path: '/tuning'
-		},
-		{
-			name: 'GPS & Mag',
-			path: '/gpsmag'
-		}
+		{ name: 'Home', path: '/' },
+		{ name: 'Blackbox', path: '/blackbox' },
+		{ name: 'Tasks', path: '/tasks' },
+		{ name: 'OSD', path: '/osd' },
+		{ name: 'Motors', path: '/motors' },
+		{ name: 'Receiver', path: '/receiver' },
+		{ name: 'Tuning', path: '/tuning' },
+		{ name: 'GPS & Mag', path: '/gpsmag' }
 	];
 
 	const unsubscribeLog = configuratorLog.subscribe(() => {

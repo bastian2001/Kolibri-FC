@@ -3,9 +3,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { leBytesToInt, roundToDecimal } from '../../utils';
 	import { configuratorLog } from '../../logStore';
-	let canvasxy: HTMLCanvasElement = $state();
-	let canvasyz: HTMLCanvasElement = $state();
-	let canvaszx: HTMLCanvasElement = $state();
+	let canvasxy = $state(new HTMLCanvasElement());
+	let canvasyz = $state(new HTMLCanvasElement());
+	let canvaszx = $state(new HTMLCanvasElement());
 	let magPointInterval: number;
 	let magX = $state(0),
 		magY = $state(0),
@@ -92,7 +92,6 @@
 		if (command.cmdType === 'response') {
 			switch (command.command) {
 				case MspFn.GET_MAG_DATA:
-					if (!canvasxy || !canvasyz || !canvaszx) return;
 					const ctxxy = canvasxy.getContext('2d');
 					const ctxyz = canvasyz.getContext('2d');
 					const ctxzx = canvaszx.getContext('2d');

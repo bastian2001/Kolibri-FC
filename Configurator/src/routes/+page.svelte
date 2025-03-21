@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
 	import { port, MspFn, MspVersion } from '../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import { leBytesToInt, roundToDecimal, delay, prefixZeros } from '../utils';
@@ -16,13 +14,7 @@
 		'Not Acro or Angle',
 		'Gyro not calibrated'
 	];
-	const REBOOT_MODES = {
-		FIRMWARE: 0,
-		BOOTLOADER_ROM: 1,
-		MSC: 2,
-		MSC_UTC: 3,
-		BOOTLOADER_FLASH: 4
-	};
+	const REBOOT_MODES = { FIRMWARE: 0, BOOTLOADER_ROM: 1, MSC: 2, MSC_UTC: 3, BOOTLOADER_FLASH: 4 };
 	let flightMode = $state(0);
 	let armingDisableFlags = $state(0);
 	let armed = $state(false);
@@ -33,24 +25,13 @@
 	let xBox: any = $state(null);
 	let yBox: any = $state(null);
 	let zBox: any = $state(null);
-	let attitude = $state({
-		roll: 0,
-		pitch: 0,
-		yaw: 0,
-		heading: 0
-	});
+	let attitude = $state({ roll: 0, pitch: 0, yaw: 0, heading: 0 });
 	let showHeading = $state(false);
 	let serialNum = $state(1);
 	let baudRate = $state(115200);
-	let time = $state({
-		year: 0,
-		month: 1,
-		day: 1,
-		hour: 0,
-		minute: 0,
-		second: 0
-	});
-	run(() => {
+
+	let time = $state({ year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0 });
+	$effect(() => {
 		if (xBox && yBox && zBox) {
 			zBox.style.transform = `rotateZ(${showHeading ? attitude.heading : attitude.yaw}deg) translateZ(10px)`;
 			yBox.style.transform = `rotateX(${attitude.pitch}deg)`;
@@ -88,12 +69,7 @@
 					let heading = leBytesToInt(command.data.slice(6, 8), true);
 					heading /= 8192.0;
 					heading *= 180.0 / Math.PI;
-					attitude = {
-						roll,
-						pitch,
-						yaw,
-						heading
-					};
+					attitude = { roll, pitch, yaw, heading };
 					break;
 				case MspFn.SERIAL_PASSTHROUGH:
 					const sPort = command.data[0];

@@ -1,34 +1,32 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
 	import { type BBLog, getNestedProperty } from '../../utils';
-	import { onMount, createEventDispatcher } from 'svelte';
-	const dispatch = createEventDispatcher();
+	import { onMount } from 'svelte';
 
 	interface Props {
 		loadedLog: BBLog | undefined;
 		startFrame: number;
 		endFrame: number;
 		genFlagProps: {
-		[key: string]: {
-			name: string;
-			replaces: string;
-			requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
-			unit: string;
-			exact: boolean;
+			[key: string]: {
+				name: string;
+				replaces: string;
+				requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
+				unit: string;
+				exact: boolean;
+			};
 		};
-	};
 		flagProps: {
-		[key: string]: {
-			name: string;
-			path: string;
-			minValue?: number;
-			maxValue?: number;
-			rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
-			unit: string;
-			usesModifier?: boolean;
+			[key: string]: {
+				name: string;
+				path: string;
+				minValue?: number;
+				maxValue?: number;
+				rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
+				unit: string;
+				usesModifier?: boolean;
+			};
 		};
-	};
+		update: (startFrame: number, endFrame: number) => void; // function to call when the selection changes
 	}
 
 	let {
@@ -36,13 +34,13 @@
 		startFrame = $bindable(),
 		endFrame = $bindable(),
 		genFlagProps,
-		flagProps
+		flagProps,
+		update
 	}: Props = $props();
 	let canvas: HTMLCanvasElement;
 	let wrapper: HTMLDivElement;
 	const osCanvas = document.createElement('canvas');
 	const selCanvas = document.createElement('canvas');
-
 
 	function onResize() {
 		canvas.width = wrapper.clientWidth;
@@ -75,7 +73,7 @@
 		ctx2.clearRect(0, 0, canvas.width, canvas.height);
 		ctx2.drawImage(osCanvas, 0, 0);
 		ctx2.drawImage(selCanvas, 0, 0);
-		dispatch('update', { startFrame, endFrame });
+		update(startFrame, endFrame);
 	}
 	function drawTrace(traceName: string, min: number, max: number) {
 		if (!loadedLog) return;
@@ -193,14 +191,17 @@
 		onResize();
 		window.addEventListener('resize', onResize);
 	});
-	run(() => {
-		loadedLog, fullDraw();
+	$effect(() => {
+		loadedLog;
+		fullDraw();
 	});
-	run(() => {
-		startFrame, drawSelection();
+	$effect(() => {
+		startFrame;
+		drawSelection();
 	});
-	run(() => {
-		endFrame, drawSelection();
+	$effect(() => {
+		endFrame;
+		drawSelection();
 	});
 </script>
 

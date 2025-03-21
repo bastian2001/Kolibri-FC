@@ -1,7 +1,5 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import {
 		type BBLog,
 		type TraceInGraph,
@@ -9,15 +7,17 @@
 		type FlagProps,
 		type GenFlagProps
 	} from '../../utils';
+	import { updated } from '$app/stores';
 
-	const dispatch = createEventDispatcher();
 	interface Props {
 		flagProps: { [key: string]: FlagProps };
 		genFlagProps: { [key: string]: GenFlagProps };
 		log: BBLog;
+		update: (trace: TraceInGraph) => void;
+		delete: () => void;
 	}
 
-	let { flagProps, genFlagProps, log }: Props = $props();
+	let { flagProps, genFlagProps, log, update, delete: del }: Props = $props();
 
 	let autoRangeOn = $state(true);
 	let flagName = $state('');
@@ -60,7 +60,7 @@
 		decimals: 0,
 		overrideData: []
 	});
-	run(() => {
+	$effect(() => {
 		const flag = flagProps[flagName];
 		const mod = flagProps[flagName]?.modifier?.find(m => m.path === modifier);
 		if (flag) {
@@ -77,7 +77,7 @@
 			}
 		}
 	});
-	run(() => {
+	$effect(() => {
 		if (flagName) {
 			trace.color = color;
 			trace.minValue = autoRangeOn ? autoMin || 0 : minValue;
@@ -99,7 +99,7 @@
 			if (trace.displayName) trace.displayName = flagProps[flagName].name + ' ' + trace.displayName;
 			else trace.displayName = flagProps[flagName].name;
 			trace.modifier = modifier;
-			dispatch('update', trace);
+			update(trace);
 		}
 	});
 
@@ -203,20 +203,25 @@
 					break;
 			}
 		} else if (trace.overrideData) delete trace.overrideData;
-		dispatch('update', trace);
+		update(trace);
 	}
 
-	run(() => {
-		filteringOn, flagName, filterType, filterValue1, filterValue2, applyFilter();
+	$effect(() => {
+		filteringOn;
+		flagName;
+		filterType;
+		filterValue1;
+		filterValue2;
+		applyFilter();
 	});
-	run(() => {
-		flagName, (modifier = '');
+	$effect(() => {
+		flagName;
+		modifier = '';
+		filteringOn = false;
 	});
-	run(() => {
-		flagName, (filteringOn = false);
-	});
-	run(() => {
-		modifier, (filteringOn = false);
+	$effect(() => {
+		modifier;
+		filteringOn = false;
 	});
 
 	onMount(() => {
@@ -250,8 +255,9 @@
 	{/if}
 	<button
 		class="delete"
+		aria-label="delete trace"
 		onclick={() => {
-			dispatch('delete');
+			del();
 		}}><i class="fa-solid fa-delete-left"></i></button
 	>
 	<br />

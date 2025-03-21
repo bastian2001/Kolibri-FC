@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { port, MspFn, MspVersion } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
-	import { onMount, createEventDispatcher, onDestroy } from 'svelte';
-	const dispatch = createEventDispatcher();
+	import { onMount, onDestroy } from 'svelte';
 
 	let divider = $state(0);
 
@@ -25,19 +24,18 @@
 					port.sendCommand('request', MspFn.SAVE_SETTINGS);
 					break;
 				case MspFn.SAVE_SETTINGS:
-					dispatch('close');
+					close();
 					break;
 			}
 		}
 	});
 
 	interface Props {
-		flags: {
-		[key: string]: { name: string };
-	};
+		flags: { [key: string]: { name: string } };
+		close: () => void;
 	}
 
-	let { flags }: Props = $props();
+	let { flags, close }: Props = $props();
 	let flagNames = [] as string[];
 
 	let selected = $state([] as string[]);
@@ -72,9 +70,6 @@
 
 		port.sendCommand('request', MspFn.SET_BB_SETTINGS, MspVersion.V2, [divider, ...bytes]);
 	}
-	function cancel() {
-		dispatch('close');
-	}
 </script>
 
 <div class="background">
@@ -99,7 +94,7 @@
 		<div class="apply">
 			<button class="saveBtn" onclick={saveSettings}>Save settings</button><button
 				class="cancelBtn"
-				onclick={cancel}>Cancel</button
+				onclick={close}>Cancel</button
 			>
 		</div>
 	</div>
