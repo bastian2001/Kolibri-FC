@@ -1,5 +1,4 @@
 #include "global.h"
-#include "pioasm/bidir_dshot_x1.pio.h"
 #include "pioasm/onewire_receive.pio.h"
 #include "pioasm/onewire_transmit.pio.h"
 
@@ -229,14 +228,12 @@ uint16_t getEsc(uint8_t rx_buf[], uint16_t wait_ms) {
 
 void begin4Way() {
 	if (setup4WayDone) return;
-	enableDShot = 0;
-	pio_set_sm_mask_enabled(ESC_PIO, 0b1111, false);
-	pio_remove_program(ESC_PIO, &bidir_dshot_x1_program, escPioOffset);
+	deinitESCs();
+	for (int i = 0; i < 4; i++) {
+		pio_gpio_init(ESC_PIO, PIN_MOTORS + i);
+	}
 	offsetPioReceive = pio_add_program(ESC_PIO, &onewire_receive_program);
 	offsetPioTransmit = pio_add_program(ESC_PIO, &onewire_transmit_program);
-	for (int i = 0; i < 4; i++) {
-		pio_sm_unclaim(ESC_PIO, i);
-	}
 	pio_sm_claim(ESC_PIO, 0);
 	configPioReceive = onewire_receive_program_get_default_config(offsetPioReceive);
 	sm_config_set_set_pins(&configPioReceive, PIN_MOTORS, 1);
@@ -261,23 +258,11 @@ void end4Way() {
 	pio_sm_unclaim(ESC_PIO, 0);
 	pio_remove_program(ESC_PIO, &onewire_receive_program, offsetPioReceive);
 	pio_remove_program(ESC_PIO, &onewire_transmit_program, offsetPioTransmit);
-	escPioOffset = pio_add_program(ESC_PIO, &bidir_dshot_x1_program);
-	pio_claim_sm_mask(ESC_PIO, 0b1111);
 	for (i32 i = 0; i < 4; i++) {
-		pio_sm_config c = bidir_dshot_x1_program_get_default_config(escPioOffset);
-		sm_config_set_set_pins(&c, PIN_MOTORS + i, 1);
-		sm_config_set_out_pins(&c, PIN_MOTORS + i, 1);
-		sm_config_set_in_pins(&c, PIN_MOTORS + i);
-		sm_config_set_jmp_pin(&c, PIN_MOTORS + i);
-		sm_config_set_out_shift(&c, false, true, 32);
-		sm_config_set_in_shift(&c, false, true, 32);
-		pio_sm_init(ESC_PIO, i, escPioOffset, &c);
-		pio_sm_set_consecutive_pindirs(ESC_PIO, i, PIN_MOTORS + i, 1, true);
-		pio_sm_set_enabled(ESC_PIO, i, true);
-		pio_sm_set_clkdiv_int_frac(ESC_PIO, i, bidir_dshot_x1_CLKDIV_300_INT, bidir_dshot_x1_CLKDIV_300_FRAC);
+		gpio_set_function(PIN_MOTORS + i, GPIO_FUNC_NULL);
 	}
+	initESCs();
 	serialFunctions[0] &= ~SERIAL_4WAY;
-	enableDShot = 1;
 	setup4WayDone = false;
 }
 

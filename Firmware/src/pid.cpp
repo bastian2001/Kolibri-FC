@@ -41,7 +41,6 @@ fix64 vVelMaxErrorSum, vVelMinErrorSum;
 const fix32 TO_ANGLE = fix32(MAX_ANGLE) / fix32(512);
 const fix32 THROTTLE_SCALE = fix32(2000 - IDLE_PERMILLE * 2) / fix32(1024);
 fix32 smoothChannels[4];
-u16 condensedRpm[4];
 
 #define RIGHT_BITS(x, n) ((u32)(-(x)) >> (32 - n))
 

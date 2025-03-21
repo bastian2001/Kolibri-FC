@@ -405,7 +405,7 @@ void __not_in_flash_func(writeSingleFrame)() {
 		bbBuffer[bufferPos++] = y >> 8;
 	}
 	if (currentBBFlags & LOG_MOTOR_RPM) {
-		u64 rpmPacket = condensedRpm[(u8)MOTOR::RR] | condensedRpm[(u8)MOTOR::FR] << 12 | (u64)condensedRpm[(u8)MOTOR::RL] << 24 | (u64)condensedRpm[(u8)MOTOR::FL] << 36;
+		u64 rpmPacket = 0;
 		bbBuffer[bufferPos++] = rpmPacket;
 		bbBuffer[bufferPos++] = rpmPacket >> 8;
 		bbBuffer[bufferPos++] = rpmPacket >> 16;
