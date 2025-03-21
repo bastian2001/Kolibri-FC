@@ -1,12 +1,15 @@
 <script lang="ts">
+	import { run } from 'svelte/legacy';
+
 	import { type BBLog, getNestedProperty } from '../../utils';
 	import { onMount, createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
 
-	export let loadedLog: BBLog | undefined;
-	export let startFrame: number;
-	export let endFrame: number;
-	export let genFlagProps: {
+	interface Props {
+		loadedLog: BBLog | undefined;
+		startFrame: number;
+		endFrame: number;
+		genFlagProps: {
 		[key: string]: {
 			name: string;
 			replaces: string;
@@ -15,7 +18,7 @@
 			exact: boolean;
 		};
 	};
-	export let flagProps: {
+		flagProps: {
 		[key: string]: {
 			name: string;
 			path: string;
@@ -26,14 +29,20 @@
 			usesModifier?: boolean;
 		};
 	};
+	}
+
+	let {
+		loadedLog,
+		startFrame = $bindable(),
+		endFrame = $bindable(),
+		genFlagProps,
+		flagProps
+	}: Props = $props();
 	let canvas: HTMLCanvasElement;
 	let wrapper: HTMLDivElement;
 	const osCanvas = document.createElement('canvas');
 	const selCanvas = document.createElement('canvas');
 
-	$: loadedLog, fullDraw();
-	$: startFrame, drawSelection();
-	$: endFrame, drawSelection();
 
 	function onResize() {
 		canvas.width = wrapper.clientWidth;
@@ -125,7 +134,7 @@
 		drawSelection();
 	}
 
-	let currentlyTracking: 'start' | 'end' | 'move' | undefined = undefined;
+	let currentlyTracking: 'start' | 'end' | 'move' | undefined = $state(undefined);
 	let downAtFrame = 0;
 	let startFrameOnDown = 0;
 	let endFrameOnDown = 0;
@@ -184,12 +193,21 @@
 		onResize();
 		window.addEventListener('resize', onResize);
 	});
+	run(() => {
+		loadedLog, fullDraw();
+	});
+	run(() => {
+		startFrame, drawSelection();
+	});
+	run(() => {
+		endFrame, drawSelection();
+	});
 </script>
 
-<div class="wrapper" id="bbTimelineWrapper" on:mousemove={mouseMove} role="banner">
-	<canvas height="32" id="bbTimeline" on:mousedown={mouseDown} on:mouseup={mouseUp} />
+<div class="wrapper" id="bbTimelineWrapper" onmousemove={mouseMove} role="banner">
+	<canvas height="32" id="bbTimeline" onmousedown={mouseDown} onmouseup={mouseUp}></canvas>
 	{#if currentlyTracking}
-		<div class="selector" />
+		<div class="selector"></div>
 	{/if}
 </div>
 

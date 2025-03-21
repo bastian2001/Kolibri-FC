@@ -1,9 +1,9 @@
 <script lang="ts">
 	// import { invoke } from '@tauri-apps/api';
 	// import { onMount, onDestroy } from 'svelte';
-	let cmah = 0;
-	let file = '';
-	const chars = [] as number[][];
+	let cmah = $state(0);
+	let file = $state('');
+	const chars = $state([] as number[][]);
 
 	function decode() {
 		const lines = file.split('\n');
@@ -62,11 +62,11 @@
 
 <div class="wrapper">
 	OSD upload does not work currently
-	<textarea name="font" id="fontInput" cols="30" rows="10" bind:value={file} />
-	<button on:click={() => decode()}>Decode</button>
-	<button on:click={() => upload()}>Upload</button>
-	<button on:click={() => nextChar()}>Next Char</button>
-	<button on:click={() => nextCharAndUpload()}>Upload and next char</button>
+	<textarea name="font" id="fontInput" cols="30" rows="10" bind:value={file}></textarea>
+	<button onclick={() => decode()}>Decode</button>
+	<button onclick={() => upload()}>Upload</button>
+	<button onclick={() => nextChar()}>Next Char</button>
+	<button onclick={() => nextCharAndUpload()}>Upload and next char</button>
 	<p>{cmah}</p>
 	<p>{JSON.stringify(chars[cmah])}</p>
 </div>

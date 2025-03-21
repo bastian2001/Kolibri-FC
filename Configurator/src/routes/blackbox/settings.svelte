@@ -4,7 +4,7 @@
 	import { onMount, createEventDispatcher, onDestroy } from 'svelte';
 	const dispatch = createEventDispatcher();
 
-	let divider = 0;
+	let divider = $state(0);
 
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
@@ -31,14 +31,18 @@
 		}
 	});
 
-	export let flags: {
+	interface Props {
+		flags: {
 		[key: string]: { name: string };
 	};
+	}
+
+	let { flags }: Props = $props();
 	let flagNames = [] as string[];
 
-	let selected = [] as string[];
+	let selected = $state([] as string[]);
 
-	let groups = [] as string[][];
+	let groups = $state([] as string[][]);
 
 	const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 10];
 
@@ -93,9 +97,9 @@
 		{/each}
 		<div class="dividerSetting"><input type="number" bind:value={divider} /></div>
 		<div class="apply">
-			<button class="saveBtn" on:click={saveSettings}>Save settings</button><button
+			<button class="saveBtn" onclick={saveSettings}>Save settings</button><button
 				class="cancelBtn"
-				on:click={cancel}>Cancel</button
+				onclick={cancel}>Cancel</button
 			>
 		</div>
 	</div>

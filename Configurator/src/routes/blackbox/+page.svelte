@@ -901,8 +901,7 @@
 								if (polynomials[0] < 0) polynomials[i] = -polynomials[i];
 							}
 							f.setpoint.roll = 0;
-							for (let i = 0; i < 5; i++)
-								f.setpoint.roll! += polynomials[i] * log.rateFactors[i][0];
+							for (let i = 0; i < 5; i++) f.setpoint.roll += polynomials[i] * log.rateFactors[i][0];
 						});
 						break;
 					case 'GEN_PITCH_SETPOINT':
@@ -914,7 +913,7 @@
 							}
 							f.setpoint.pitch = 0;
 							for (let i = 0; i < 5; i++)
-								f.setpoint.pitch! += polynomials[i] * log.rateFactors[i][1];
+								f.setpoint.pitch += polynomials[i] * log.rateFactors[i][1];
 						});
 						break;
 					case 'GEN_THROTTLE_SETPOINT':
@@ -930,7 +929,7 @@
 								if (polynomials[0] < 0) polynomials[i] = -polynomials[i];
 							}
 							f.setpoint.yaw = 0;
-							for (let i = 0; i < 5; i++) f.setpoint.yaw! += polynomials[i] * log.rateFactors[i][2];
+							for (let i = 0; i < 5; i++) f.setpoint.yaw += polynomials[i] * log.rateFactors[i][2];
 						});
 						break;
 					case 'GEN_ROLL_PID_P':
@@ -1937,7 +1936,7 @@
 						: getNestedProperty(sliceAndSkip[0], path, {
 								max: Math.max(trace.maxValue, trace.minValue),
 								min: Math.min(trace.minValue, trace.maxValue)
-						  })) -
+							})) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1950,7 +1949,7 @@
 							: getNestedProperty(sliceAndSkip[k], path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-							  })) -
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -2049,11 +2048,11 @@
 									trace.overrideSliceAndSkip![closestFrameSliceSkip],
 									trace.minValue,
 									trace.maxValue
-							  )
+								)
 							: getNestedProperty(frame, path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-							  })) -
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();
@@ -2596,7 +2595,7 @@
 				endFrame = (loadedLog?.frameCount || 1) - 1;
 				drawCanvas();
 			}}
-		/>
+		></canvas>
 	</div>
 	<div class="flagSelector">
 		{#each graphs as graph, graphIndex}

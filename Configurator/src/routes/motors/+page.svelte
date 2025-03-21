@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { run } from 'svelte/legacy';
+
 	import { port, MspFn, MspVersion } from '../../portStore';
 	import { onMount, onDestroy } from 'svelte';
 	import Motor from './motor.svelte';
@@ -6,18 +8,20 @@
 	import { configuratorLog } from '../../logStore';
 	const motorMapping = [3, 1, 2, 0];
 	let int = -1;
-	let throttles = [0, 0, 0, 0];
-	let throttlesU8 = [0, 0, 0, 0, 0, 0, 0, 0];
-	$: throttlesU8 = [
-		throttles[0] & 0xff,
-		throttles[0] >> 8,
-		throttles[1] & 0xff,
-		throttles[1] >> 8,
-		throttles[2] & 0xff,
-		throttles[2] >> 8,
-		throttles[3] & 0xff,
-		throttles[3] >> 8
-	];
+	let throttles = $state([0, 0, 0, 0]);
+	let throttlesU8 = $state([0, 0, 0, 0, 0, 0, 0, 0]);
+	run(() => {
+		throttlesU8 = [
+			throttles[0] & 0xff,
+			throttles[0] >> 8,
+			throttles[1] & 0xff,
+			throttles[1] >> 8,
+			throttles[2] & 0xff,
+			throttles[2] >> 8,
+			throttles[3] & 0xff,
+			throttles[3] >> 8
+		];
+	});
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
 			switch (command.command) {
@@ -33,7 +37,7 @@
 			}
 		}
 	});
-	let motors = [0, 0, 0, 0];
+	let motors = $state([0, 0, 0, 0]);
 	let getMotorsInterval = 0;
 	function startMotors() {
 		clearInterval(int);
@@ -67,12 +71,12 @@
 </script>
 
 <div>
-	<button on:click={() => spinMotor(0)}>Spin RR</button>
-	<button on:click={() => spinMotor(1)}>Spin FR</button>
-	<button on:click={() => spinMotor(2)}>Spin RL</button>
-	<button on:click={() => spinMotor(3)}>Spin FL</button>
-	<button on:click={() => stopMotors()}>Stop</button>
-	<button on:click={() => startMotors()}>Start</button>
+	<button onclick={() => spinMotor(0)}>Spin RR</button>
+	<button onclick={() => spinMotor(1)}>Spin FR</button>
+	<button onclick={() => spinMotor(2)}>Spin RL</button>
+	<button onclick={() => spinMotor(3)}>Spin FL</button>
+	<button onclick={() => stopMotors()}>Stop</button>
+	<button onclick={() => startMotors()}>Start</button>
 	<div class="quadPreview">
 		{#each motors.map((m, i) => motors[motorMapping[i]]) as motor}
 			<Motor throttlePct={(motor - 1000) / 10} />

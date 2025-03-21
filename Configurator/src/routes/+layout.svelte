@@ -4,17 +4,22 @@
 	import { port, MspFn, MspVersion } from '../portStore';
 	import { configuratorLog } from '../logStore';
 	import { leBytesToInt, delay } from '../utils';
+	interface Props {
+		children?: import('svelte').Snippet;
+	}
 
-	let devices: any = [];
+	let { children }: Props = $props();
+
+	let devices: any = $state([]);
 
 	let listInterval: number;
 
-	let battery = '';
+	let battery = $state('');
 
-	let device: any;
-	let connected = false;
+	let device: any = $state();
+	let connected = $state(false);
 
-	let logDiv: any = null;
+	let logDiv: any = $state(null);
 
 	type NavigatorElement = {
 		name: string;
@@ -189,7 +194,7 @@
 			alt="Svelte logo"
 			class="kolibriLogo"
 		/>
-		<div class="space" />
+		<div class="space"></div>
 		<div class="connector">
 			<select bind:value={device}>
 				{#each devices as d}
@@ -197,9 +202,9 @@
 				{/each}
 			</select>&nbsp;&nbsp;
 			{#if connected}
-				<button on:click={() => disconnect()} class="connectButton">Disconnect</button>
+				<button onclick={() => disconnect()} class="connectButton">Disconnect</button>
 			{:else if devices.length > 0}
-				<button on:click={() => connect()} class="connectButton">Connect</button>
+				<button onclick={() => connect()} class="connectButton">Connect</button>
 			{:else}
 				<span style="color: #888">No devices found</span>
 			{/if}&nbsp;&nbsp;
@@ -215,10 +220,10 @@
 	</div>
 
 	<div class="pageContent">
-		<slot />
+		{@render children?.()}
 	</div>
 	<div class="navigator">
-		<div class="navElement grow" />
+		<div class="navElement grow"></div>
 		{#each navElements as el}
 			<a href={el.path} class="navElement" class:currentPage={$page.route.id === el.path}>
 				{#if el.img}
@@ -227,7 +232,7 @@
 				<p class="pageName">{el.name}</p>
 			</a>
 		{/each}
-		<div class="navElement grow" />
+		<div class="navElement grow"></div>
 	</div>
 </div>
 

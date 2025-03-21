@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { run } from 'svelte/legacy';
+
 	import { createEventDispatcher, onMount } from 'svelte';
 	import {
 		type BBLog,
@@ -9,22 +11,26 @@
 	} from '../../utils';
 
 	const dispatch = createEventDispatcher();
-	export let flagProps: { [key: string]: FlagProps };
-	export let genFlagProps: { [key: string]: GenFlagProps };
-	export let log: BBLog;
+	interface Props {
+		flagProps: { [key: string]: FlagProps };
+		genFlagProps: { [key: string]: GenFlagProps };
+		log: BBLog;
+	}
 
-	let autoRangeOn = true;
-	let flagName = '';
-	let minValue = 0;
-	let maxValue = 1;
-	let modifier = '';
-	let color = '#000000';
-	let autoMin = 0;
-	let autoMax = 1;
-	let filteringOn = false;
-	let filterType: 'pt1' | 'pt2' | 'pt3' | 'sma' | 'binomial' = 'pt1';
-	let filterValue1 = 0;
-	let filterValue2 = false;
+	let { flagProps, genFlagProps, log }: Props = $props();
+
+	let autoRangeOn = $state(true);
+	let flagName = $state('');
+	let minValue = $state(0);
+	let maxValue = $state(1);
+	let modifier = $state('');
+	let color = $state('#000000');
+	let autoMin = $state(0);
+	let autoMax = $state(1);
+	let filteringOn = $state(false);
+	let filterType: 'pt1' | 'pt2' | 'pt3' | 'sma' | 'binomial' = $state('pt1');
+	let filterValue1 = $state(0);
+	let filterValue2 = $state(false);
 
 	function getBinomialCoeff(n: number, k: number) {
 		let result = 1;
@@ -40,7 +46,7 @@
 		return result;
 	}
 
-	let trace: TraceInGraph = {
+	let trace: TraceInGraph = $state({
 		color: 'transparent',
 		minValue: 0,
 		maxValue: 10,
@@ -53,8 +59,8 @@
 		displayName: '',
 		decimals: 0,
 		overrideData: []
-	};
-	$: {
+	});
+	run(() => {
 		const flag = flagProps[flagName];
 		const mod = flagProps[flagName]?.modifier?.find(m => m.path === modifier);
 		if (flag) {
@@ -70,8 +76,8 @@
 				autoMax = range.max;
 			}
 		}
-	}
-	$: {
+	});
+	run(() => {
 		if (flagName) {
 			trace.color = color;
 			trace.minValue = autoRangeOn ? autoMin || 0 : minValue;
@@ -95,7 +101,7 @@
 			trace.modifier = modifier;
 			dispatch('update', trace);
 		}
-	}
+	});
 
 	function applyFilter() {
 		if (filteringOn && flagName) {
@@ -200,10 +206,18 @@
 		dispatch('update', trace);
 	}
 
-	$: filteringOn, flagName, filterType, filterValue1, filterValue2, applyFilter();
-	$: flagName, (modifier = '');
-	$: flagName, (filteringOn = false);
-	$: modifier, (filteringOn = false);
+	run(() => {
+		filteringOn, flagName, filterType, filterValue1, filterValue2, applyFilter();
+	});
+	run(() => {
+		flagName, (modifier = '');
+	});
+	run(() => {
+		flagName, (filteringOn = false);
+	});
+	run(() => {
+		modifier, (filteringOn = false);
+	});
 
 	onMount(() => {
 		const h = Math.random() * 360;
@@ -236,7 +250,7 @@
 	{/if}
 	<button
 		class="delete"
-		on:click={() => {
+		onclick={() => {
 			dispatch('delete');
 		}}><i class="fa-solid fa-delete-left"></i></button
 	>

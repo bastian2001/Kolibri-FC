@@ -84,30 +84,34 @@
 </script>
 
 <table>
-	<tr>
-		<th>Task</th>
-		<th>Min Duration</th>
-		<th>Max Duration</th>
-		<th>Avg Duration</th>
-		<th>Frequency</th>
-		<th>Error Count</th>
-		<th>Last Error</th>
-		<th>Debug Info</th>
-		<th>Max Gap</th>
-	</tr>
-	{#each tasks as task, i}
+	<thead>
 		<tr>
-			<td style="white-space:pre">{task.name}</td>
-			<td>{task.minDuration}</td>
-			<td>{task.maxDuration}</td>
-			<td>{task.avgDuration}</td>
-			<td>{task.frequency}</td>
-			<td>{task.errorCount}</td>
-			<td>{task.lastError}</td>
-			<td>{task.debugInfo}</td>
-			<td>{task.maxGap}</td>
+			<th>Task</th>
+			<th>Min Duration</th>
+			<th>Max Duration</th>
+			<th>Avg Duration</th>
+			<th>Frequency</th>
+			<th>Error Count</th>
+			<th>Last Error</th>
+			<th>Debug Info</th>
+			<th>Max Gap</th>
 		</tr>
-	{/each}
+	</thead>
+	<tbody>
+		{#each tasks as task, i}
+			<tr>
+				<td style="white-space:pre">{task.name}</td>
+				<td>{task.minDuration}</td>
+				<td>{task.maxDuration}</td>
+				<td>{task.avgDuration}</td>
+				<td>{task.frequency}</td>
+				<td>{task.errorCount}</td>
+				<td>{task.lastError}</td>
+				<td>{task.debugInfo}</td>
+				<td>{task.maxGap}</td>
+			</tr>
+		{/each}
+	</tbody>
 </table>
 
 <style>
