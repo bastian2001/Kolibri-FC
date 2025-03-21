@@ -60,6 +60,10 @@
 		}
 	});
 
+	onMount(() => {
+		port.sendCommand('request', MspFn.SCAN_CRSF_DEVICES).catch(() => {});
+	});
+
 	onDestroy(() => {
 		clearInterval(channelInterval);
 		clearInterval(statusInterval);

@@ -435,6 +435,9 @@ void ExpressLRS::processMessage() {
 		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, msgBuffer[4], ADDRESS_FLIGHT_CONTROLLER, buf, pos);
 	} break;
 	case FRAMETYPE_DEVICE_INFO: {
+		char buf[32] = {0};
+		u8 len = snprintf(buf, 32, "info from %02X", msgBuffer[4]);
+		sendMsp(0, MspMsgType::REQUEST, MspFn::IND_MESSAGE, MspVersion::V2, buf, len);
 		pinged = true;
 	} break;
 	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY: {

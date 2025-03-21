@@ -72,6 +72,7 @@ export const MspFn = {
 
 	// 0x418_ Receiver
 	GET_RX_STATUS: 0x4180,
+	SCAN_CRSF_DEVICES: 0x4181,
 
 	// 0x42__ Tuning
 	GET_PIDS: 0x4200,
