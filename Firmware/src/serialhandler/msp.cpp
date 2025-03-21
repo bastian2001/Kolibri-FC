@@ -741,7 +741,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 18);
 		} break;
 		case MspFn::SCAN_CRSF_DEVICES: {
-			ELRS->sendExtPacket(ExpressLRS::FRAMETYPE_DEVICE_PING, ExpressLRS::ADDRESS_BROADCAST, ExpressLRS::ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
+			ELRS->sendExtPacket(ExpressLRS::FRAMETYPE_DEVICE_PING, ExpressLRS::ADDRESS_CRSF_RECEIVER, ExpressLRS::ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
 		} break;
 		case MspFn::GET_PIDS: {
 			u16 pids[3][7];
