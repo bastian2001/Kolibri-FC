@@ -14,6 +14,7 @@
 #endif
 #include "EEPROM.h"
 #include "EEPROMImpl.h"
+#include "PIO_DShot.h"
 #include "adc.h"
 #include "blackbox.h"
 #include "drivers/baro.h"
@@ -39,8 +40,6 @@
 #include "pico/stdlib.h"
 #include "pid.h"
 #include "pins.h"
-#include "pioasm/bidir_dshot_x1.pio.h"
-#include "pioasm/dshotx4.pio.h"
 #include "pioasm/speaker8bit.pio.h"
 #include "ringbuffer.h"
 #include "rtc.h"
