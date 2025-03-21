@@ -4,9 +4,12 @@
 #define MOTOR_POLES 14
 
 #define ESC_PIO pio0 // pio block used for the ESC communication
-extern u32 escRpm[4]; // decoded RPM values
+extern u32 escRawTelemetry[4]; // raw telemetry values from the ESCs
+extern u32 escRpm[4]; // current ESC RPM
+extern u32 escTemp[4]; // last reported temperature from the ESCs
+extern fix32 escVoltage[4]; // last reported voltage from the ESCs
+extern u32 escCurrent[4]; // last reported current from the ESCs
 extern u8 escErpmFail; // flags for failed RPM decoding
-extern u32 enableDShot; // set to 0 to disable DShot output, e.g. for 4Way
 
 /// @brief Initializes the ESC communication
 void initESCs();

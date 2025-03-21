@@ -28,7 +28,6 @@ fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError,
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
 fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, vVelFF, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD;
 fix32 altSetpoint;
-fix32 tRR, tRL, tFR, tFL;
 fix32 throttle;
 PT1 dFilterRoll(100, 3200), dFilterPitch(100, 3200), dFilterYaw(100, 3200);
 
@@ -270,6 +269,7 @@ void pidLoop() {
 		// scale throttle from 0...1024 to IDLE_PERMILLE*2...2000 (DShot output is 0...2000)
 		throttle *= THROTTLE_SCALE; // 0...1024 => 0...2000-IDLE_PERMILLE*2
 		throttle += IDLE_PERMILLE * 2; // 0...2000-IDLE_PERMILLE*2 => IDLE_PERMILLE*2...2000
+		fix32 tRR, tRL, tFR, tFL;
 #ifdef PROPS_OUT
 		tRR = throttle - rollTerm + pitchTerm + yawTerm;
 		tFR = throttle - rollTerm - pitchTerm - yawTerm;

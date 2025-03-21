@@ -2,6 +2,7 @@
 
 u32 enableDShot = 0;
 
+u32 escRawTelemetry[4] = {0};
 u32 escRpm[4] = {0};
 u32 escTemp[4] = {0};
 fix32 escVoltage[4] = {0};
@@ -45,8 +46,8 @@ void decodeErpm() {
 	tasks[TASK_ESC_RPM].runCounter++;
 	elapsedMicros taskTimer = 0;
 	for (int m = 0; m < 4; m++) {
-		u32 telemVal;
-		BidirDshotTelemetryType telemType = escs[m]->getTelemetryPacket((uint32_t *)&telemVal);
+		BidirDshotTelemetryType telemType = escs[m]->getTelemetryRaw((uint32_t *)&escRawTelemetry[m]);
+		u32 telemVal = BidirDShotX1::convertFromRaw(escRawTelemetry[m], telemType);
 		switch (telemType) {
 		case BidirDshotTelemetryType::ERPM:
 			escRpm[m] = telemVal;
@@ -63,15 +64,18 @@ void decodeErpm() {
 		case BidirDshotTelemetryType::NO_PACKET:
 			tasks[TASK_ESC_RPM].errorCount++;
 			tasks[TASK_ESC_RPM].lastError = 1;
+			escRawTelemetry[m] = 0;
 			break;
 		case BidirDshotTelemetryType::CHECKSUM_ERROR:
 			tasks[TASK_ESC_RPM].errorCount++;
 			tasks[TASK_ESC_RPM].lastError = 2;
+			escRawTelemetry[m] = 0;
 			break;
 		case BidirDshotTelemetryType::STATUS:
 		case BidirDshotTelemetryType::STRESS:
 		case BidirDshotTelemetryType::DEBUG_FRAME_1:
 		case BidirDshotTelemetryType::DEBUG_FRAME_2:
+			escRawTelemetry[m] = 0;
 		default:
 			break;
 		}
