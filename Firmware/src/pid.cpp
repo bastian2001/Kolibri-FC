@@ -182,7 +182,7 @@ void pidLoop() {
 						lonDiff = lonDiff + 360;
 					fix32 tooFarSouth = latDiff * (40075000 / 360); // in m
 					fix32 tooFarWest = lonDiff * (40075000 / 360); // in m
-					initFixTrig();
+					startFixTrig();
 					tooFarWest *= cosFix(targetLat);
 					pushNorth.update(tooFarSouth);
 					pushEast.update(tooFarWest);
