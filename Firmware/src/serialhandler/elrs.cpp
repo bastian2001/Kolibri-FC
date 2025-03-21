@@ -435,6 +435,15 @@ void ExpressLRS::processMessage() {
 		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, msgBuffer[4], ADDRESS_FLIGHT_CONTROLLER, buf, pos);
 	} break;
 	case FRAMETYPE_DEVICE_INFO: {
+		char hex[256] = "in: ";
+		u8 len = 4;
+		for (int i = 0; i < size; i++) {
+			snprintf(&hex[len], 256 - len, "%02X ", msgBuffer[i]);
+			len += 3;
+		}
+		hex[len] = 0;
+		len = strlen(hex);
+		sendMsp(0, MspMsgType::REQUEST, MspFn::IND_MESSAGE, MspVersion::V2, hex, len);
 		pinged = true;
 	} break;
 	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY: {
@@ -599,6 +608,15 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 	}
 	packet[5 + extPayloadLen] = crc;
 	elrsSerial.write(packet, 6 + extPayloadLen);
+	char buf[256] = "out: ";
+	u8 len = 5;
+	for (int i = 0; i < 6 + extPayloadLen; i++) {
+		snprintf(&buf[len], 256 - len, "%02X ", packet[i]);
+		len += 3;
+	}
+	buf[len] = 0;
+	len = strlen(buf);
+	sendMsp(0, MspMsgType::REQUEST, MspFn::IND_MESSAGE, MspVersion::V2, buf, len);
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
