@@ -1683,7 +1683,6 @@
 		domCtx.drawImage(canvas, 0, 0);
 	}
 	function drawCanvas(allowShortening = true) {
-		console.trace();
 		if (!mounted || !loadedLog) return;
 		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 		canvas.width = domCanvas.width;
