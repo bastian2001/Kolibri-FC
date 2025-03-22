@@ -1681,6 +1681,9 @@
 	let sliceAndSkip = [] as LogFrame[];
 	let skipValue = 0;
 	const durationBarRaster = [
+		'100us',
+		'200us',
+		'500us',
 		'1ms',
 		'2ms',
 		'5ms',
@@ -1698,12 +1701,18 @@
 		'30s',
 		'1min',
 		'2min',
-		'5min'
+		'5min',
+		'10min',
+		'20min',
+		'30min',
+		'1h'
 	];
 	function decodeDuration(duration: string): number {
 		let seconds = parseFloat(duration.replaceAll(/[a-zA-Z]/g, ''));
-		if (duration.endsWith('min')) seconds *= 60;
+		if (duration.endsWith('h')) seconds *= 3600;
+		else if (duration.endsWith('min')) seconds *= 60;
 		else if (duration.endsWith('ms')) seconds *= 0.001;
+		else if (duration.endsWith('us')) seconds *= 0.000001;
 		return seconds;
 	}
 	function drawCanvas(allowShortening = true) {
@@ -2548,59 +2557,59 @@
 				<div>
 					PID Gains:
 					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;P:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][0], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][0], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][0], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;P:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][0], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][0], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][0], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;I:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][1], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][1], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][1], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;I:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][1], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][1], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][1], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;D:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][2], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][2], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;D:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][2], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][2], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;FF:&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][3], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][3], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][3], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;FF:&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][3], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][3], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][3], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;S:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][4], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][4], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][4], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;S:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][4], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][4], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][4], 5, ' ')}
 					</div>
 				</div>
 				<div class="rateFactors">
 					Rate Factors:
 					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^1:&nbsp;{prefixZeros(loadedLog.rateFactors[0][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[0][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[0][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^1:&nbsp;{prefixZeros(loadedLog.rateFactors[0][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[0][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[0][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^2:&nbsp;{prefixZeros(loadedLog.rateFactors[1][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[1][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[1][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^2:&nbsp;{prefixZeros(loadedLog.rateFactors[1][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[1][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[1][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^3:&nbsp;{prefixZeros(loadedLog.rateFactors[2][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[2][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[2][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^3:&nbsp;{prefixZeros(loadedLog.rateFactors[2][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[2][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[2][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^4:&nbsp;{prefixZeros(loadedLog.rateFactors[3][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[3][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[3][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^4:&nbsp;{prefixZeros(loadedLog.rateFactors[3][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[3][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[3][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^5:&nbsp;{prefixZeros(loadedLog.rateFactors[4][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[4][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[4][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^5:&nbsp;{prefixZeros(loadedLog.rateFactors[4][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[4][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[4][2], 5, ' ')}
 					</div>
 				</div>
 			</div>
