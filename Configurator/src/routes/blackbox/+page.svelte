@@ -601,121 +601,101 @@
 
 	const BB_GEN_FLAGS = {
 		GEN_ROLL_SETPOINT: {
-			name: 'Roll Setpoint',
 			replaces: 'LOG_ROLL_SETPOINT',
 			requires: ['LOG_ROLL_ELRS_RAW'],
 			exact: false
 		},
 		GEN_PITCH_SETPOINT: {
-			name: 'Pitch Setpoint',
 			replaces: 'LOG_PITCH_SETPOINT',
 			requires: ['LOG_PITCH_ELRS_RAW'],
 			exact: false
 		},
 		GEN_THROTTLE_SETPOINT: {
-			name: 'Throttle Setpoint',
 			replaces: 'LOG_THROTTLE_SETPOINT',
 			requires: ['LOG_THROTTLE_ELRS_RAW'],
 			exact: false
 		},
 		GEN_YAW_SETPOINT: {
-			name: 'Yaw Setpoint',
 			replaces: 'LOG_YAW_SETPOINT',
 			requires: ['LOG_YAW_ELRS_RAW'],
 			exact: false
 		},
 		GEN_ROLL_PID_P: {
-			name: 'Roll PID P',
 			replaces: 'LOG_ROLL_PID_P',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT'], 'LOG_ROLL_GYRO_RAW'],
 			exact: true
 		},
 		GEN_ROLL_PID_I: {
-			name: 'Roll PID I',
 			replaces: 'LOG_ROLL_PID_I',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT'], 'LOG_ROLL_GYRO_RAW'],
 			exact: false
 		},
 		GEN_ROLL_PID_D: {
-			name: 'Roll PID D',
 			replaces: 'LOG_ROLL_PID_D',
 			requires: ['LOG_ROLL_GYRO_RAW'],
 			exact: false
 		},
 		GEN_ROLL_PID_FF: {
-			name: 'Roll PID FF',
 			replaces: 'LOG_ROLL_PID_FF',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT']],
 			exact: false
 		},
 		GEN_ROLL_PID_S: {
-			name: 'Roll PID S',
 			replaces: 'LOG_ROLL_PID_S',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT']],
 			exact: true
 		},
 		GEN_PITCH_PID_P: {
-			name: 'Pitch PID P',
 			replaces: 'LOG_PITCH_PID_P',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT'], 'LOG_PITCH_GYRO_RAW'],
 			exact: true
 		},
 		GEN_PITCH_PID_I: {
-			name: 'Pitch PID I',
 			replaces: 'LOG_PITCH_PID_I',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT'], 'LOG_PITCH_GYRO_RAW'],
 			exact: false
 		},
 		GEN_PITCH_PID_D: {
-			name: 'Pitch PID D',
 			replaces: 'LOG_PITCH_PID_D',
 			requires: ['LOG_PITCH_GYRO_RAW'],
 			exact: false
 		},
 		GEN_PITCH_PID_FF: {
-			name: 'Pitch PID FF',
 			replaces: 'LOG_PITCH_PID_FF',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT']],
 			exact: false
 		},
 		GEN_PITCH_PID_S: {
-			name: 'Pitch PID S',
 			replaces: 'LOG_PITCH_PID_S',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT']],
 			exact: true
 		},
 		GEN_YAW_PID_P: {
-			name: 'Yaw PID P',
 			replaces: 'LOG_YAW_PID_P',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT'], 'LOG_YAW_GYRO_RAW'],
 			exact: true
 		},
 		GEN_YAW_PID_I: {
-			name: 'Yaw PID I',
 			replaces: 'LOG_YAW_PID_I',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT'], 'LOG_YAW_GYRO_RAW'],
 			exact: false
 		},
 		GEN_YAW_PID_D: {
-			name: 'Yaw PID D',
 			replaces: 'LOG_YAW_PID_D',
 			requires: ['LOG_YAW_GYRO_RAW'],
 			exact: false
 		},
 		GEN_YAW_PID_FF: {
-			name: 'Yaw PID FF',
 			replaces: 'LOG_YAW_PID_FF',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT']],
 			exact: false
 		},
 		GEN_YAW_PID_S: {
-			name: 'Yaw PID S',
 			replaces: 'LOG_YAW_PID_S',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT']],
 			exact: true
 		},
 		GEN_MOTOR_OUTPUTS: {
-			name: 'Motor Outputs',
 			replaces: 'LOG_MOTOR_OUTPUTS',
 			requires: [
 				['GEN_THROTTLE_SETPOINT', 'LOG_THROTTLE_SETPOINT'],
@@ -738,7 +718,6 @@
 			exact: true
 		},
 		GEN_VVEL_SETPOINT: {
-			name: 'vVel Setpoint',
 			replaces: 'LOG_VVEL_SETPOINT',
 			requires: ['LOG_THROTTLE_ELRS_RAW'],
 			exact: false

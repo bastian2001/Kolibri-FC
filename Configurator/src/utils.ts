@@ -207,7 +207,6 @@ export type FlagProps = {
 };
 
 export type GenFlagProps = {
-	name: string;
 	replaces: string;
 	requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
 	exact: boolean;

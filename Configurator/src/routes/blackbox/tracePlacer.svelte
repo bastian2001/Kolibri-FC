@@ -270,7 +270,7 @@
 			<option value={flag}>{flagProps[flag].name}</option>
 		{/each}
 		{#each availableGenFlagNames as flag}
-			<option value={flag}>{genFlagProps[flag].name} (Gen.)</option>
+			<option value={flag}>{flagProps[genFlagProps[flag].replaces].name} (Gen.)</option>
 		{/each}
 	</select>
 	{#if currentNormalizedFlag?.modifier}
