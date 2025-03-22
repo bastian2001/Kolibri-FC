@@ -22,7 +22,7 @@
 			switch (command.command) {
 				case MspFn.GET_MOTOR:
 					{
-						const m = [] as number[];
+						const m: number[] = [];
 						for (let i = 0; i < 4; i++) {
 							m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
 						}

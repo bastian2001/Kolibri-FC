@@ -36,18 +36,18 @@
 	}
 
 	let { flags, close }: Props = $props();
-	let flagNames = [] as string[];
+	let flagNames: string[] = [];
 
-	let selected = $state([] as string[]);
+	let selected: string[] = $state([]);
 
-	let groups = $state([] as string[][]);
+	let groups: string[][] = $state([]);
 
 	const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 10];
 
 	onMount(() => {
 		flagNames = Object.keys(flags);
 		let i = 0;
-		const g = [] as string[][];
+		const g: string[][] = [];
 		for (const size of groupSizes) {
 			g.push(flagNames.slice(i, i + size));
 			i += size;

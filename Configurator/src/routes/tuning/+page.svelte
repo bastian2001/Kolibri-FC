@@ -4,8 +4,8 @@
 	import { leBytesToInt } from '../../utils';
 	import { error } from '@sveltejs/kit';
 
-	let pids = [[], [], []] as number[][];
-	let rateFactors = [[], [], []] as number[][];
+	let pids: number[][] = [[], [], []];
+	let rateFactors: number[][] = [[], [], []];
 
 	let saveTimeout = 0;
 

@@ -28,7 +28,7 @@
 		'    - Baro Read'
 	];
 
-	let tasks = [] as {
+	let tasks: {
 		name: string;
 		maxDuration: number;
 		minDuration: number;
@@ -38,7 +38,7 @@
 		lastError: number;
 		debugInfo: number;
 		maxGap: number;
-	}[];
+	}[] = [];
 	for (let i = 0; i < TASK_NAMES.length; i++) {
 		tasks.push({
 			name: TASK_NAMES[i],

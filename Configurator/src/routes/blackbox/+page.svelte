@@ -89,7 +89,7 @@
 		return { max, min };
 	};
 
-	const BB_ALL_FLAGS = {
+	const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		LOG_ROLL_ELRS_RAW: {
 			name: 'Roll ELRS Raw',
 			path: 'elrs.roll',
@@ -597,9 +597,9 @@
 			maxValue: 180,
 			unit: '°'
 		}
-	} as { [key: string]: FlagProps };
+	};
 
-	const BB_GEN_FLAGS = {
+	const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 		GEN_ROLL_SETPOINT: {
 			replaces: 'LOG_ROLL_SETPOINT',
 			requires: ['LOG_ROLL_ELRS_RAW'],
@@ -722,7 +722,7 @@
 			requires: ['LOG_THROTTLE_ELRS_RAW'],
 			exact: false
 		}
-	} as { [key: string]: GenFlagProps };
+	};
 
 	function fillLogWithGenFlags(log: BBLog) {
 		log.isExact = true;
@@ -1382,7 +1382,7 @@
 						)
 					) === 21590 // 'V' * 256 + 'T'
 				) {
-					const gpsData = [] as number[];
+					const gpsData: number[] = [];
 					//copy 92 bytes of GPS data from the next 46 frames (after the 3 frames for GPSPVT)
 					for (let j = 0; j < 46; j++) {
 						const gpsBytes = data.slice(
@@ -1570,7 +1570,7 @@
 	let logInfoInterval: number = -1;
 	let selected = $state(-1);
 	function getLogInfo() {
-		const infoNums = [] as number[];
+		const infoNums: number[] = [];
 		for (let i = 0; i < 10; i++) {
 			if (logInfoPosition >= logNums.length) {
 				clearInterval(logInfoInterval);
@@ -1639,7 +1639,7 @@
 	}
 
 	const canvas = document.createElement('canvas');
-	let sliceAndSkip = [] as LogFrame[];
+	let sliceAndSkip: LogFrame[] = [];
 	let skipValue = 0;
 	const durationBarRaster = [
 		'100us',
@@ -1916,7 +1916,7 @@
 			//write down frame number, time in s after start and values next to the cursor at the top
 			const timeText =
 				(closestFrameNum / loadedLog!.framesPerSecond).toFixed(3) + 's, Frame ' + closestFrameNum;
-			const valueTexts = [] as string[];
+			const valueTexts: string[] = [];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
 				const numTraces = graph.length;
