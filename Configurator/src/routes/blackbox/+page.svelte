@@ -2110,7 +2110,6 @@
 		}
 	}
 	let touchStartX = 0,
-		touchEndX = 0,
 		frame0 = 0,
 		frame1 = 0; //0 and 1 are the touch identifiers, and frames are the frames they are clamped to
 	let touchMode: 'none' | 'move' | 'zoom' = 'none';
@@ -2354,6 +2353,10 @@
 		port.addOnConnectHandler(getFileList);
 		dataViewer = document.getElementsByClassName('dataViewerWrapper')[0] as HTMLDivElement;
 		window.addEventListener('resize', onResize);
+		const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		canvas.addEventListener('touchstart', onTouchDown, { passive: false });
+		canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+		canvas.addEventListener('touchend', onTouchUp, { passive: false });
 		onResize();
 	});
 	onDestroy(() => {
@@ -2395,9 +2398,6 @@
 			onmousemove={onMouseMove}
 			onmouseleave={onMouseLeave}
 			onwheel={onMouseWheel}
-			ontouchstart={onTouchDown}
-			ontouchmove={onTouchMove}
-			ontouchend={onTouchUp}
 			ondblclick={() => {
 				startFrame = 0;
 				endFrame = (loadedLog?.frameCount || 1) - 1;
