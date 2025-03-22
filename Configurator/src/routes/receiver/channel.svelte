@@ -1,22 +1,17 @@
 <script lang="ts">
 	import { constrain, map } from '../../utils';
-	export let value: number = 1000 + 1000 * Math.random();
+	interface Props {
+		value?: number;
+	}
 
-	// let valDiv: HTMLDivElement;
-
-	// $: updateVal();
-	// function updateVal() {
-	// 	const width = map(value, 800, 2200, 0, 100) + '%';
-	// 	if (!valDiv) return;
-	// 	valDiv.style.width = width;
-	// }
+	let { value = 1500 }: Props = $props();
 </script>
 
 <div class="channelOuter">
 	<div
 		class="channelProgress"
 		style:width={map(constrain(value, 800, 2200), 800, 2200, 0, 100) + '%'}
-	/>
+	></div>
 	<div class="channelValue">
 		{Math.round(value)}
 	</div>

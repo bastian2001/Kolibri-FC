@@ -4,19 +4,19 @@
 	import { port, MspFn } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
 
-	let channels = new Array(16).fill(1500);
+	let channels = $state(new Array(16).fill(1500));
 
-	let isReceiverUp = false;
-	let isLinkUp = false;
-	let uplinkRssi = [0, 0];
-	let uplinkLinkQuality = 0;
-	let uplinkSnr = 0;
-	let antennaSelection = 0;
-	let packetRateIdx = 0;
-	let targetPacketRate = 0;
-	let actualPacketRate = 0;
-	let txPower = 0;
-	let rcMsgCount = 0;
+	let isReceiverUp = $state(false);
+	let isLinkUp = $state(false);
+	let uplinkRssi = $state([0, 0]);
+	let uplinkLinkQuality = $state(0);
+	let uplinkSnr = $state(0);
+	let antennaSelection = $state(0);
+	let packetRateIdx = $state(0);
+	let targetPacketRate = $state(0);
+	let actualPacketRate = $state(0);
+	let txPower = $state(0);
+	let rcMsgCount = $state(0);
 
 	const channelInterval = setInterval(() => {
 		port.sendCommand('request', MspFn.RC).catch(() => {});

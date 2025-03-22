@@ -1,39 +1,32 @@
 <script lang="ts">
-	import { type BBLog, getNestedProperty } from '../../utils';
-	import { onMount, createEventDispatcher } from 'svelte';
-	const dispatch = createEventDispatcher();
+	import { type BBLog, type FlagProps, type GenFlagProps, getNestedProperty } from '../../utils';
+	import { onMount } from 'svelte';
 
-	export let loadedLog: BBLog | undefined;
-	export let startFrame: number;
-	export let endFrame: number;
-	export let genFlagProps: {
-		[key: string]: {
-			name: string;
-			replaces: string;
-			requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
-			unit: string;
-			exact: boolean;
+	interface Props {
+		loadedLog: BBLog | undefined;
+		startFrame: number;
+		endFrame: number;
+		genFlagProps: {
+			[key: string]: GenFlagProps;
 		};
-	};
-	export let flagProps: {
-		[key: string]: {
-			name: string;
-			path: string;
-			minValue?: number;
-			maxValue?: number;
-			rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
-			unit: string;
-			usesModifier?: boolean;
+		flagProps: {
+			[key: string]: FlagProps;
 		};
-	};
+		update: (startFrame: number, endFrame: number) => void; // function to call when the selection changes
+	}
+
+	let {
+		loadedLog,
+		startFrame = $bindable(),
+		endFrame = $bindable(),
+		genFlagProps,
+		flagProps,
+		update
+	}: Props = $props();
 	let canvas: HTMLCanvasElement;
 	let wrapper: HTMLDivElement;
 	const osCanvas = document.createElement('canvas');
 	const selCanvas = document.createElement('canvas');
-
-	$: loadedLog, fullDraw();
-	$: startFrame, drawSelection();
-	$: endFrame, drawSelection();
 
 	function onResize() {
 		canvas.width = wrapper.clientWidth;
@@ -66,7 +59,7 @@
 		ctx2.clearRect(0, 0, canvas.width, canvas.height);
 		ctx2.drawImage(osCanvas, 0, 0);
 		ctx2.drawImage(selCanvas, 0, 0);
-		dispatch('update', { startFrame, endFrame });
+		update(startFrame, endFrame);
 	}
 	function drawTrace(traceName: string, min: number, max: number) {
 		if (!loadedLog) return;
@@ -125,7 +118,7 @@
 		drawSelection();
 	}
 
-	let currentlyTracking: 'start' | 'end' | 'move' | undefined = undefined;
+	let currentlyTracking: 'start' | 'end' | 'move' | undefined = $state(undefined);
 	let downAtFrame = 0;
 	let startFrameOnDown = 0;
 	let endFrameOnDown = 0;
@@ -184,12 +177,24 @@
 		onResize();
 		window.addEventListener('resize', onResize);
 	});
+	$effect(() => {
+		loadedLog;
+		fullDraw();
+	});
+	$effect(() => {
+		startFrame;
+		drawSelection();
+	});
+	$effect(() => {
+		endFrame;
+		drawSelection();
+	});
 </script>
 
-<div class="wrapper" id="bbTimelineWrapper" on:mousemove={mouseMove} role="banner">
-	<canvas height="32" id="bbTimeline" on:mousedown={mouseDown} on:mouseup={mouseUp} />
+<div class="wrapper" id="bbTimelineWrapper" onmousemove={mouseMove} role="banner">
+	<canvas height="32" id="bbTimeline" onmousedown={mouseDown} onmouseup={mouseUp}></canvas>
 	{#if currentlyTracking}
-		<div class="selector" />
+		<div class="selector"></div>
 	{/if}
 </div>
 

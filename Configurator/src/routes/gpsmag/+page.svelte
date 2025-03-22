@@ -3,16 +3,16 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { leBytesToInt, roundToDecimal } from '../../utils';
 	import { configuratorLog } from '../../logStore';
-	let canvasxy: HTMLCanvasElement;
-	let canvasyz: HTMLCanvasElement;
-	let canvaszx: HTMLCanvasElement;
+	let canvasxy: HTMLCanvasElement | undefined = $state();
+	let canvasyz: HTMLCanvasElement | undefined = $state();
+	let canvaszx: HTMLCanvasElement | undefined = $state();
 	let magPointInterval: number;
-	let magX = 0,
-		magY = 0,
-		magZ = 0,
-		magRight = 0,
-		magRear = 0,
-		magHeading = 0;
+	let magX = $state(0),
+		magY = $state(0),
+		magZ = $state(0),
+		magRight = $state(0),
+		magRear = $state(0),
+		magHeading = $state(0);
 	let gpsAcc: {
 		tAcc: number;
 		hAcc: number;
@@ -20,14 +20,14 @@
 		headAcc: number;
 		sAcc: number;
 		pDop: number;
-	} = {
+	} = $state({
 		tAcc: 1000,
 		hAcc: 1000,
 		vAcc: 1000,
 		headAcc: 1000,
 		sAcc: 1000,
 		pDop: 1000
-	};
+	});
 	let gpsStatus: {
 		gpsInited: boolean;
 		initStep: number;
@@ -37,7 +37,7 @@
 		flags2: number;
 		flags3: number;
 		satCount: number;
-	} = {
+	} = $state({
 		gpsInited: false,
 		initStep: 0,
 		fix: 0,
@@ -46,7 +46,7 @@
 		flags2: 0,
 		flags3: 0,
 		satCount: 0
-	};
+	});
 	let gpsMotion: {
 		lat: number;
 		lon: number;
@@ -56,7 +56,7 @@
 		velD: number;
 		gSpeed: number;
 		headMot: number;
-	} = {
+	} = $state({
 		velN: 0,
 		velE: 0,
 		velD: 0,
@@ -65,7 +65,7 @@
 		lat: 0,
 		lon: 0,
 		alt: 0
-	};
+	});
 	let gpsTime: {
 		year: number;
 		month: number;
@@ -73,16 +73,16 @@
 		hour: number;
 		minute: number;
 		second: number;
-	} = {
+	} = $state({
 		year: 0,
 		month: 0,
 		day: 0,
 		hour: 0,
 		minute: 0,
 		second: 0
-	};
-	let combinedAltitude = 0,
-		verticalVelocity = 0;
+	});
+	let combinedAltitude = $state(0),
+		verticalVelocity = $state(0);
 
 	let getGpsData = 0,
 		gpsDataSlow = 0;
@@ -221,20 +221,20 @@
 	height="500"
 	bind:this={canvasxy}
 	style="display:inline-block; border: 1px solid white;"
-/>
+></canvas>
 <canvas
 	width="500"
 	height="500"
 	bind:this={canvasyz}
 	style="display:inline-block; border: 1px solid white;"
-/>
+></canvas>
 <canvas
 	width="500"
 	height="500"
 	bind:this={canvaszx}
 	style="display:inline-block; border: 1px solid white;"
-/><br />
-<button on:click={() => port.sendCommand('request', MspFn.MAG_CALIBRATION)}
+></canvas><br />
+<button onclick={() => port.sendCommand('request', MspFn.MAG_CALIBRATION)}
 	>Calibrate Magnetometer</button
 ><br />
 <div class="gpsInfo magStatus">
