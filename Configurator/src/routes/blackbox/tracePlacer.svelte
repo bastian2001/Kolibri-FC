@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import {
 		type BBLog,
 		type TraceInGraph,
@@ -7,30 +7,25 @@
 		type FlagProps,
 		type GenFlagProps
 	} from '../../utils';
-	import { updated } from '$app/stores';
 
 	interface Props {
 		flagProps: { [key: string]: FlagProps };
 		genFlagProps: { [key: string]: GenFlagProps };
 		log: BBLog;
-		update: (trace: TraceInGraph) => void;
+		update: () => void;
 		delete: () => void;
+		trace: TraceInGraph;
 	}
 
-	let { flagProps, genFlagProps, log, update, delete: del }: Props = $props();
+	let { flagProps, genFlagProps, log, update, delete: del, trace = $bindable() }: Props = $props();
 
 	let autoRangeOn = $state(true);
-	let flagName = $state('');
-	let minValue = $state(0);
-	let maxValue = $state(1);
-	let modifier = $state('');
-	let color = $state('#000000');
-	let autoMin = $state(0);
-	let autoMax = $state(1);
+	let currentModifierName = $state('');
 	let filteringOn = $state(false);
 	let filterType: 'pt1' | 'pt2' | 'pt3' | 'sma' | 'binomial' = $state('pt1');
 	let filterValue1 = $state(0);
 	let filterValue2 = $state(false);
+	let flagName = $state('');
 
 	function getBinomialCoeff(n: number, k: number) {
 		let result = 1;
@@ -46,66 +41,98 @@
 		return result;
 	}
 
-	let trace: TraceInGraph = $state({
-		color: 'transparent',
-		minValue: 0,
-		maxValue: 10,
-		flagName: '',
-		modifier: '',
-		strokeWidth: 1,
-		id: 0,
-		unit: '',
-		states: [],
-		displayName: '',
-		decimals: 0,
-		overrideData: []
+	let availableFlagNames = $derived(
+		log.flags.filter(f => {
+			return f.startsWith('LOG_');
+		})
+	);
+	let availableGenFlagNames = $derived(
+		log.flags.filter(f => {
+			return f.startsWith('GEN_');
+		})
+	);
+
+	let currentFlag = $derived.by(() => {
+		if (flagName.startsWith('LOG_')) {
+			return flagProps[flagName];
+		} else if (flagName.startsWith('GEN_')) {
+			return genFlagProps[flagName];
+		}
+		return undefined;
 	});
-	$effect(() => {
-		const flag = flagProps[flagName];
-		const mod = flagProps[flagName]?.modifier?.find(m => m.path === modifier);
-		if (flag) {
-			autoMin = mod?.min || flag.minValue || 0;
-			autoMax = mod?.max || flag.maxValue || 1;
-			if (mod?.rangeFn) {
-				const range = mod.rangeFn(log);
-				autoMin = range.min;
-				autoMax = range.max;
-			} else if (flag.rangeFn) {
-				const range = flag.rangeFn(log);
-				autoMin = range.min;
-				autoMax = range.max;
+	let currentNormalizedFlag = $derived.by(() => {
+		if (flagName.startsWith('LOG_')) {
+			return flagProps[flagName];
+		} else if (flagName.startsWith('GEN_')) {
+			return flagProps[genFlagProps[flagName].replaces];
+		}
+		return undefined;
+	});
+	let currentModifier = $derived(
+		currentNormalizedFlag?.modifier?.find(m => m.path === currentModifierName)
+	);
+
+	let autoRange = $derived.by(() => {
+		let range = { min: 0, max: 1 };
+		if (currentNormalizedFlag) {
+			range.min = currentModifier?.min || currentNormalizedFlag.minValue || 0;
+			range.max = currentModifier?.max || currentNormalizedFlag.maxValue || 1;
+			if (currentModifier?.rangeFn) {
+				range = currentModifier.rangeFn(log);
+			} else if (currentNormalizedFlag.rangeFn) {
+				range = currentNormalizedFlag.rangeFn(log);
 			}
 		}
+		return range;
 	});
+	let minValue = $derived(autoRange.min); // auto derived, but overridable by the user
+	let maxValue = $derived(autoRange.max); // auto derived, but overridable by the user
+
+	let lastMin = -1;
+	let lastMax = -1;
+	let path = '';
 	$effect(() => {
-		if (flagName) {
-			trace.color = color;
-			trace.minValue = autoRangeOn ? autoMin || 0 : minValue;
-			trace.maxValue = autoRangeOn ? autoMax || 1 : maxValue;
-			minValue = trace.minValue;
-			maxValue = trace.maxValue;
-			trace.flagName = flagName;
-			trace.decimals =
-				flagProps[flagName].modifier?.find(m => m.path === modifier)?.decimals ||
-				flagProps[flagName].decimals ||
-				0;
-			trace.unit =
-				flagProps[flagName].modifier?.find(m => m.path === modifier)?.unit ||
-				flagProps[flagName].unit ||
-				'';
-			trace.states = flagProps[flagName].modifier?.find(m => m.path === modifier)?.states;
-			trace.displayName =
-				flagProps[flagName].modifier?.find(m => m.path === modifier)?.displayName || '';
-			if (trace.displayName) trace.displayName = flagProps[flagName].name + ' ' + trace.displayName;
-			else trace.displayName = flagProps[flagName].name;
-			trace.modifier = modifier;
-			update(trace);
+		// update trace => draw canvas
+		// any changes to any of the following will trigger a redraw
+		// values are cached to prevent loops
+
+		// update range
+		if (lastMin !== minValue || lastMax !== maxValue) {
+			lastMin = minValue;
+			lastMax = maxValue;
+			trace.minValue = minValue;
+			trace.maxValue = maxValue;
 		}
+
+		// update path and other fixed properties
+		let newPath = '';
+		if (currentNormalizedFlag?.path) {
+			if (currentModifierName) {
+				newPath = currentNormalizedFlag.path + '.' + currentModifierName.toLowerCase();
+			} else {
+				newPath = currentNormalizedFlag.path;
+			}
+		} else {
+			newPath = '';
+		}
+		if (path !== newPath) {
+			// i.e. if modifier or flag changed, update unit etc.
+			path = newPath;
+			trace.path = newPath;
+			trace.decimals = currentModifier?.decimals || currentNormalizedFlag?.decimals || 0;
+			trace.unit = currentModifier?.unit || currentNormalizedFlag?.unit || '';
+			trace.states = currentModifier?.states || currentNormalizedFlag?.states;
+			trace.displayName = currentModifier?.displayName || '';
+			if (trace.displayName)
+				trace.displayName = currentNormalizedFlag?.name + ' ' + trace.displayName;
+			else trace.displayName = currentNormalizedFlag?.name || '';
+		}
+
+		update();
 	});
 
 	function applyFilter() {
 		if (filteringOn && flagName) {
-			const path = flagProps[flagName].path + (modifier ? '.' + modifier : '');
 			switch (filterType) {
 				case 'pt1':
 					{
@@ -203,24 +230,25 @@
 					break;
 			}
 		} else if (trace.overrideData) delete trace.overrideData;
-		update(trace);
+		update();
 	}
 
 	$effect(() => {
 		filteringOn;
-		flagName;
 		filterType;
 		filterValue1;
 		filterValue2;
-		applyFilter();
+		// tick to remove looping reactivity, the values above act as triggers
+		tick().then(() => {
+			applyFilter();
+		});
 	});
 	$effect(() => {
 		flagName;
-		modifier = '';
-		filteringOn = false;
+		currentModifierName = '';
 	});
 	$effect(() => {
-		modifier;
+		currentModifierName;
 		filteringOn = false;
 	});
 
@@ -228,50 +256,37 @@
 		const h = Math.random() * 360;
 		const s = Math.random() * 0.5 + 0.5;
 		const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
-		color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
+		trace.color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
 	});
 </script>
 
 <div class="wrapper">
-	<span class="colorMark" style:background-color={color}>&nbsp;</span>
+	<span class="colorMark" style:background-color={trace.color}>&nbsp;</span>
 	<select name="flag" id="flagSelector" bind:value={flagName}>
-		{#each log.flags.filter(f => {
-			return f.startsWith('LOG_');
-		}) as flag}
+		{#each availableFlagNames as flag}
 			<option value={flag}>{flagProps[flag].name}</option>
 		{/each}
-		{#each log.flags.filter(f => {
-			return f.startsWith('GEN_');
-		}) as flag}
+		{#each availableGenFlagNames as flag}
 			<option value={flag}>{genFlagProps[flag].name} (Gen.)</option>
 		{/each}
 	</select>
-	{#if flagProps[flagName]?.modifier}
-		<select name="graphNum" id="graphNum" bind:value={modifier} style="width: auto">
-			{#each flagProps[flagName].modifier || [] as m}
+	{#if currentNormalizedFlag?.modifier}
+		<select name="graphNum" id="graphNum" bind:value={currentModifierName} style="width: auto">
+			{#each currentNormalizedFlag.modifier || [] as m}
 				<option value={m.path}>{m.displayNameShort}</option>
 			{/each}
 		</select>
 	{/if}
-	<button
-		class="delete"
-		aria-label="delete trace"
-		onclick={() => {
-			del();
-		}}><i class="fa-solid fa-delete-left"></i></button
-	>
+	<button class="delete" aria-label="delete trace" onclick={del}>
+		<i class="fa-solid fa-delete-left"></i>
+	</button>
 	<br />
 	<label><input type="checkbox" bind:checked={autoRangeOn} /> Auto </label>&nbsp;
-	<input
-		type="number"
-		name="minValue"
-		id="minValue"
-		bind:value={minValue}
-		disabled={autoRangeOn}
-	/>&nbsp;-
+	<input type="number" name="minValue" id="minValue" bind:value={minValue} disabled={autoRangeOn} />
+	&nbsp;-
 	<input type="number" name="maxValue" id="maxValue" bind:value={maxValue} disabled={autoRangeOn} />
 	&nbsp;
-	<p class="unit">{flagProps[flagName]?.unit || genFlagProps[flagName]?.unit || ''}</p>
+	<p class="unit">{currentNormalizedFlag?.unit || ''}</p>
 	<br />
 	<label><input type="checkbox" bind:checked={filteringOn} /> Filter </label>
 	{#if filteringOn}

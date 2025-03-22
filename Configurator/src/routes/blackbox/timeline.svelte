@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { type BBLog, getNestedProperty } from '../../utils';
+	import { type BBLog, type FlagProps, type GenFlagProps, getNestedProperty } from '../../utils';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -7,24 +7,10 @@
 		startFrame: number;
 		endFrame: number;
 		genFlagProps: {
-			[key: string]: {
-				name: string;
-				replaces: string;
-				requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
-				unit: string;
-				exact: boolean;
-			};
+			[key: string]: GenFlagProps;
 		};
 		flagProps: {
-			[key: string]: {
-				name: string;
-				path: string;
-				minValue?: number;
-				maxValue?: number;
-				rangeFn?: (file: BBLog | undefined) => { max: number; min: number };
-				unit: string;
-				usesModifier?: boolean;
-			};
+			[key: string]: FlagProps;
 		};
 		update: (startFrame: number, endFrame: number) => void; // function to call when the selection changes
 	}

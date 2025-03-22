@@ -146,12 +146,11 @@ export type BBLog = {
 };
 
 export type TraceInGraph = {
-	flagName: string;
+	path: string;
 	color: string;
 	strokeWidth: number;
 	minValue: number;
 	maxValue: number;
-	modifier: string;
 	id: number;
 	unit: string;
 	states?: string[];
@@ -211,7 +210,6 @@ export type GenFlagProps = {
 	name: string;
 	replaces: string;
 	requires: (string | string[])[]; // if its a string, that has to be in there. If its an array, one of the mentioned ones has to be in there
-	unit: string;
 	exact: boolean;
 };
 

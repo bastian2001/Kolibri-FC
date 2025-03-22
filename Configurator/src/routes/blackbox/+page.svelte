@@ -18,6 +18,7 @@
 		prefixZeros,
 		map
 	} from '../../utils';
+	import { draw } from 'svelte/transition';
 
 	let graphs: TraceInGraph[][] = [[]];
 
@@ -601,133 +602,114 @@
 			name: 'Roll Setpoint',
 			replaces: 'LOG_ROLL_SETPOINT',
 			requires: ['LOG_ROLL_ELRS_RAW'],
-			unit: '°/sec',
 			exact: false
 		},
 		GEN_PITCH_SETPOINT: {
 			name: 'Pitch Setpoint',
 			replaces: 'LOG_PITCH_SETPOINT',
 			requires: ['LOG_PITCH_ELRS_RAW'],
-			unit: '°/sec',
 			exact: false
 		},
 		GEN_THROTTLE_SETPOINT: {
 			name: 'Throttle Setpoint',
 			replaces: 'LOG_THROTTLE_SETPOINT',
 			requires: ['LOG_THROTTLE_ELRS_RAW'],
-			unit: '°/sec',
 			exact: false
 		},
 		GEN_YAW_SETPOINT: {
 			name: 'Yaw Setpoint',
 			replaces: 'LOG_YAW_SETPOINT',
 			requires: ['LOG_YAW_ELRS_RAW'],
-			unit: '°/sec',
 			exact: false
 		},
 		GEN_ROLL_PID_P: {
 			name: 'Roll PID P',
 			replaces: 'LOG_ROLL_PID_P',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT'], 'LOG_ROLL_GYRO_RAW'],
-			unit: '',
 			exact: true
 		},
 		GEN_ROLL_PID_I: {
 			name: 'Roll PID I',
 			replaces: 'LOG_ROLL_PID_I',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT'], 'LOG_ROLL_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_ROLL_PID_D: {
 			name: 'Roll PID D',
 			replaces: 'LOG_ROLL_PID_D',
 			requires: ['LOG_ROLL_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_ROLL_PID_FF: {
 			name: 'Roll PID FF',
 			replaces: 'LOG_ROLL_PID_FF',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT']],
-			unit: '',
 			exact: false
 		},
 		GEN_ROLL_PID_S: {
 			name: 'Roll PID S',
 			replaces: 'LOG_ROLL_PID_S',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT']],
-			unit: '',
 			exact: true
 		},
 		GEN_PITCH_PID_P: {
 			name: 'Pitch PID P',
 			replaces: 'LOG_PITCH_PID_P',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT'], 'LOG_PITCH_GYRO_RAW'],
-			unit: '',
 			exact: true
 		},
 		GEN_PITCH_PID_I: {
 			name: 'Pitch PID I',
 			replaces: 'LOG_PITCH_PID_I',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT'], 'LOG_PITCH_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_PITCH_PID_D: {
 			name: 'Pitch PID D',
 			replaces: 'LOG_PITCH_PID_D',
 			requires: ['LOG_PITCH_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_PITCH_PID_FF: {
 			name: 'Pitch PID FF',
 			replaces: 'LOG_PITCH_PID_FF',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT']],
-			unit: '',
 			exact: false
 		},
 		GEN_PITCH_PID_S: {
 			name: 'Pitch PID S',
 			replaces: 'LOG_PITCH_PID_S',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT']],
-			unit: '',
 			exact: true
 		},
 		GEN_YAW_PID_P: {
 			name: 'Yaw PID P',
 			replaces: 'LOG_YAW_PID_P',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT'], 'LOG_YAW_GYRO_RAW'],
-			unit: '',
 			exact: true
 		},
 		GEN_YAW_PID_I: {
 			name: 'Yaw PID I',
 			replaces: 'LOG_YAW_PID_I',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT'], 'LOG_YAW_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_YAW_PID_D: {
 			name: 'Yaw PID D',
 			replaces: 'LOG_YAW_PID_D',
 			requires: ['LOG_YAW_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_YAW_PID_FF: {
 			name: 'Yaw PID FF',
 			replaces: 'LOG_YAW_PID_FF',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT']],
-			unit: '',
 			exact: false
 		},
 		GEN_YAW_PID_S: {
 			name: 'Yaw PID S',
 			replaces: 'LOG_YAW_PID_S',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT']],
-			unit: '',
 			exact: true
 		},
 		GEN_MOTOR_OUTPUTS: {
@@ -751,14 +733,12 @@
 				['LOG_YAW_PID_FF', 'GEN_YAW_PID_FF'],
 				['LOG_YAW_PID_S', 'GEN_YAW_PID_S']
 			],
-			unit: '',
 			exact: true
 		},
 		GEN_VVEL_SETPOINT: {
 			name: 'vVel Setpoint',
 			replaces: 'LOG_VVEL_SETPOINT',
 			requires: ['LOG_THROTTLE_ELRS_RAW'],
-			unit: 'm/s',
 			exact: false
 		}
 	} as { [key: string]: GenFlagProps };
@@ -1734,17 +1714,18 @@
 		 */
 		const height = dataViewer.clientHeight * 0.98; //1% free space top and bottom
 		const width = dataViewer.clientWidth;
-		sliceAndSkip = dataSlice;
-		if (!sliceAndSkip.length) return;
+		if (!dataSlice.length) return;
+		sliceAndSkip = [];
 		skipValue = 1;
-		const everyNth = Math.floor(sliceAndSkip.length / width);
+		const everyNth = Math.floor(dataSlice.length / width);
 		if (everyNth > 2 && allowShortening) {
 			skipValue = everyNth;
-			const len = sliceAndSkip.length;
-			sliceAndSkip = [] as LogFrame[];
+			const len = dataSlice.length;
 			for (let i = 0; i < len; i += everyNth) {
 				sliceAndSkip.push(dataSlice[i]);
 			}
+		} else {
+			sliceAndSkip = dataSlice;
 		}
 		const pixelsPerSec =
 			(dataViewer.clientWidth * loadedLog!.framesPerSecond) / (dataSlice.length - 1);
@@ -1820,21 +1801,13 @@
 						}
 					} else trace.overrideSliceAndSkip = overrideSlice;
 				}
-				let bbFlag = BB_ALL_FLAGS[trace.flagName];
-				if (trace.flagName.startsWith('GEN_'))
-					bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
-				let path = bbFlag?.path || '';
-				if (bbFlag?.modifier) {
-					if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
-					else continue;
-				}
 				ctx.beginPath();
 				let pointY =
 					heightOffset +
 					heightPerGraph -
 					((trace.overrideData
 						? constrain(trace.overrideSliceAndSkip[0], trace.minValue, trace.maxValue)
-						: getNestedProperty(sliceAndSkip[0], path, {
+						: getNestedProperty(sliceAndSkip[0], trace.path, {
 								max: Math.max(trace.maxValue, trace.minValue),
 								min: Math.min(trace.minValue, trace.maxValue)
 							})) -
@@ -1847,7 +1820,7 @@
 						heightPerGraph -
 						((trace.overrideData
 							? constrain(trace.overrideSliceAndSkip[k], trace.minValue, trace.maxValue)
-							: getNestedProperty(sliceAndSkip[k], path, {
+							: getNestedProperty(sliceAndSkip[k], trace.path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
 								})) -
@@ -1933,14 +1906,6 @@
 					const scale = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth * 2;
-					let bbFlag = BB_ALL_FLAGS[trace.flagName];
-					if (trace.flagName.startsWith('GEN_'))
-						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
-					let path = bbFlag?.path || '';
-					if (bbFlag?.modifier) {
-						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
-						else continue;
-					}
 					const pointY =
 						heightOffset +
 						heightPerGraph -
@@ -1950,7 +1915,7 @@
 									trace.minValue,
 									trace.maxValue
 								)
-							: getNestedProperty(frame, path, {
+							: getNestedProperty(frame, trace.path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
 								})) -
@@ -1971,20 +1936,11 @@
 				const numTraces = graph.length;
 				for (let j = 0; j < numTraces; j++) {
 					const trace = graph[j];
-					if (!trace.flagName) continue;
-					let bbFlag = BB_ALL_FLAGS[trace.flagName];
-					if (trace.flagName.startsWith('GEN_'))
-						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
-					let path = bbFlag?.path || '';
-					if (bbFlag?.modifier) {
-						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
-						else continue;
-					}
+					if (!trace.path) continue;
 					let value = trace.overrideData
 						? trace.overrideSliceAndSkip![closestFrameSliceSkip]
-						: getNestedProperty(frame, path);
+						: getNestedProperty(frame, trace.path);
 					value = roundToDecimal(value, trace.decimals);
-					if (bbFlag.states) value = bbFlag.states[value] || value;
 					if (trace.states) value = trace.states[value] || value;
 					valueTexts.push(trace.displayName + ': ' + value + ' ' + trace.unit);
 				}
@@ -2056,7 +2012,7 @@
 			let pointY = textY + textPadding + textHeight + 6;
 			for (let i = 0; i < graphs.length; i++) {
 				for (let j = 0; j < graphs[i].length; j++) {
-					if (!graphs[i][j].flagName) continue;
+					if (!graphs[i][j].path) continue;
 					ctx.fillStyle = graphs[i][j].color;
 					ctx.beginPath();
 					ctx.arc(textX + textPadding + 8, pointY, 5, 0, Math.PI * 2);
@@ -2399,7 +2355,7 @@
 			maxValue: 10,
 			minValue: 0,
 			strokeWidth: 1,
-			flagName: '',
+			path: '',
 			modifier: '',
 			decimals: 0,
 			unit: '',
@@ -2413,20 +2369,16 @@
 		graphs = [...graphs, []];
 		drawCanvas();
 	}
-	function updateTrace(event: any, graphIndex: number, traceIndex: number, id: number) {
-		const tr: TraceInGraph = event.detail;
-		tr.id = id;
-		graphs[graphIndex][traceIndex] = tr;
-		drawCanvas();
-	}
+	// function updateTrace(tr: TraceInGraph, graphIndex: number, traceIndex: number) {
+	// 	graphs[graphIndex][traceIndex] = tr;
+	// 	drawCanvas();
+	// }
 	function deleteGraph(g: number) {
 		graphs = graphs.filter((_, i) => i !== g);
-		graphs = [...graphs];
 		drawCanvas();
 	}
 	function deleteTrace(g: number, t: number) {
 		graphs[g] = graphs[g].filter((_, i) => i !== t);
-		graphs = [...graphs];
 		drawCanvas();
 	}
 
@@ -2456,10 +2408,6 @@
 		window.removeEventListener('resize', onResize);
 		unsubscribe();
 	});
-	// use with caution, only exists because svelte does not allow typescript in the template
-	function logButItsThere() {
-		return loadedLog!;
-	}
 </script>
 
 <div class="blackbox">
@@ -2508,12 +2456,11 @@
 			<div class="graphSelector">
 				{#each graph as trace, traceIndex (trace.id)}
 					<TracePlacer
-						log={logButItsThere()}
+						log={loadedLog!}
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
-						update={t => {
-							updateTrace(t, graphIndex, traceIndex, trace.id);
-						}}
+						bind:trace
+						update={drawCanvas}
 						delete={() => {
 							deleteTrace(graphIndex, traceIndex);
 						}}
