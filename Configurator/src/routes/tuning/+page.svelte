@@ -2,7 +2,6 @@
 	import { port, MspFn, MspVersion } from '../../portStore';
 	import { onDestroy, onMount } from 'svelte';
 	import { leBytesToInt } from '../../utils';
-	import { error } from '@sveltejs/kit';
 
 	let pids: number[][] = [[], [], []];
 	let rateFactors: number[][] = [[], [], []];
