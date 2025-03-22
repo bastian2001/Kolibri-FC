@@ -95,6 +95,7 @@
 		// update trace => draw canvas
 		// any changes to any of the following will trigger a redraw
 		// values are cached to prevent loops
+		let runUpdate = false;
 
 		// update range
 		if (lastMin !== minValue || lastMax !== maxValue) {
@@ -102,6 +103,7 @@
 			lastMax = maxValue;
 			trace.minValue = minValue;
 			trace.maxValue = maxValue;
+			runUpdate = true;
 		}
 
 		// update path and other fixed properties
@@ -126,9 +128,10 @@
 			if (trace.displayName)
 				trace.displayName = currentNormalizedFlag?.name + ' ' + trace.displayName;
 			else trace.displayName = currentNormalizedFlag?.name || '';
+			runUpdate = true;
 		}
 
-		update();
+		if (runUpdate) update();
 	});
 
 	function applyFilter() {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { port, MspFn, MspVersion } from '../../portStore';
 	import { configuratorLog } from '../../logStore';
 	import TracePlacer from './tracePlacer.svelte';
@@ -18,25 +18,29 @@
 		prefixZeros,
 		map
 	} from '../../utils';
-	import { draw } from 'svelte/transition';
 
-	let graphs: TraceInGraph[][] = [[]];
+	let graphs: TraceInGraph[][] = $state([[]]);
 
 	const ACC_RANGES = [2, 4, 8, 16];
 	const GYRO_RANGES = [2000, 1000, 500, 250, 125];
 
 	let dataViewer: HTMLDivElement;
+	let startFrame = $state(0);
+	let endFrame = $state(0);
+	let loadedLog: BBLog | undefined = $state();
 
-	let dataSlice: LogFrame[] = [];
+	let dataSlice: LogFrame[] = $derived(loadedLog?.frames.slice(startFrame, endFrame + 1) || []);
+	$effect(() => {
+		dataSlice;
+		graphs;
+		tick().then(() => {
+			drawCanvas();
+		});
+	});
 
 	let drawFullCanvasTimeout = -1;
 
-	$: dataSlice = loadedLog?.frames.slice(startFrame, endFrame + 1) || [];
-	$: dataSlice, drawCanvas();
-
-	let logNums: { text: string; num: number }[] = [];
-
-	let loadedLog: BBLog | undefined;
+	let logNums: { text: string; num: number }[] = $state([]);
 
 	let binFile: number[] = [];
 	let binFileNumber = -1;
@@ -44,11 +48,9 @@
 	let totalChunks = -1;
 	let resolveWhenReady = (log: BBLog) => {};
 	let rejectWrongFile = (_: string) => {};
-	let startFrame = 0;
-	let endFrame = 0;
 	let mounted = false;
 
-	let showSettings = false;
+	let showSettings = $state(false);
 
 	const getGyroBBRange = (file: BBLog | undefined) => {
 		if (!file) return { max: -2000, min: 2000 };
@@ -1587,7 +1589,7 @@
 
 	let logInfoPosition = 0;
 	let logInfoInterval: number = -1;
-	let selected = -1;
+	let selected = $state(-1);
 	function getLogInfo() {
 		const infoNums = [] as number[];
 		for (let i = 0; i < 10; i++) {
@@ -1695,12 +1697,15 @@
 		else if (duration.endsWith('us')) seconds *= 0.000001;
 		return seconds;
 	}
+	function redrawSameCanvas() {
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
+		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+		domCtx.drawImage(canvas, 0, 0);
+	}
 	function drawCanvas(allowShortening = true) {
+		console.trace();
 		if (!mounted || !loadedLog) return;
-		if (allowShortening) {
-			clearTimeout(drawFullCanvasTimeout);
-			drawFullCanvasTimeout = setTimeout(() => drawCanvas(false), 250);
-		}
 		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 		canvas.width = domCanvas.width;
 		canvas.height = domCanvas.height;
@@ -1724,6 +1729,8 @@
 			for (let i = 0; i < len; i += everyNth) {
 				sliceAndSkip.push(dataSlice[i]);
 			}
+			clearTimeout(drawFullCanvasTimeout);
+			drawFullCanvasTimeout = setTimeout(() => drawCanvas(false), 250);
 		} else {
 			sliceAndSkip = dataSlice;
 		}
@@ -1835,7 +1842,7 @@
 		domCanvas.getContext('2d')?.clearRect(0, 0, dataViewer.clientWidth, dataViewer.clientHeight);
 		domCanvas.getContext('2d')?.drawImage(canvas, 0, 0);
 	}
-	let trackingStartX = -1;
+	let trackingStartX = -1; // -1 = idle, -2 = move window, 0+ = selection
 	let trackingEndX = 0;
 	let firstX = 0;
 	let startStartFrame = 0;
@@ -2060,7 +2067,7 @@
 		}
 		if (Math.abs(trackingStartX - trackingEndX) < 2) {
 			trackingStartX = -1;
-			drawCanvas(false);
+			redrawSameCanvas();
 			return;
 		}
 		if (trackingStartX > trackingEndX) {
@@ -2120,10 +2127,7 @@
 	}
 	function onMouseLeave(e: MouseEvent) {
 		if (e.buttons !== 1) {
-			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
-			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
-			domCtx.drawImage(canvas, 0, 0);
+			redrawSameCanvas();
 		}
 	}
 	let touchStartX = 0,
@@ -2250,7 +2254,6 @@
 			.then(data => {
 				startFrame = 0;
 				endFrame = data.frameCount - 1;
-				drawCanvas();
 			})
 			.catch(console.error);
 	}
@@ -2294,7 +2297,6 @@
 						loadedLog = data as BBLog;
 						startFrame = 0;
 						endFrame = data.frameCount - 1;
-						drawCanvas();
 					} catch (e) {}
 				};
 				reader.readAsText(file);
@@ -2311,7 +2313,6 @@
 					decodeBinFile();
 					startFrame = 0;
 					endFrame = (loadedLog?.frameCount || 1) - 1;
-					drawCanvas();
 				};
 				reader.readAsArrayBuffer(file);
 			}
@@ -2326,24 +2327,6 @@
 			resolveWhenReady = resolve;
 			rejectWrongFile = reject;
 		});
-	}
-	function openLogFromPromptJSON() {
-		//use a js alert prompt to get the json file
-		const json = prompt('Paste the JSON file here');
-		if (!json) return;
-		try {
-			const data = JSON.parse(json);
-			if (data.version[0] !== 0) {
-				alert('Wrong version number: ' + data.version);
-				return;
-			}
-			loadedLog = data as BBLog;
-			startFrame = 0;
-			endFrame = data.frameCount - 1;
-			drawCanvas();
-		} catch (e) {
-			alert('Error parsing JSON: ' + e);
-		}
 	}
 	function formatBB() {
 		port.sendCommand('request', MspFn.BB_FORMAT);
@@ -2363,23 +2346,15 @@
 			id: Math.random()
 		};
 		graphs[graphIndex] = [...graphs[graphIndex], defaultTrace];
-		drawCanvas();
 	}
 	function addGraph() {
 		graphs = [...graphs, []];
-		drawCanvas();
 	}
-	// function updateTrace(tr: TraceInGraph, graphIndex: number, traceIndex: number) {
-	// 	graphs[graphIndex][traceIndex] = tr;
-	// 	drawCanvas();
-	// }
 	function deleteGraph(g: number) {
 		graphs = graphs.filter((_, i) => i !== g);
-		drawCanvas();
 	}
 	function deleteTrace(g: number, t: number) {
 		graphs[g] = graphs[g].filter((_, i) => i !== t);
-		drawCanvas();
 	}
 
 	function onResize() {
@@ -2417,13 +2392,13 @@
 				<option value={log?.num}>{log?.text || log?.num}</option>
 			{/each}
 		</select>
-		<button on:click={() => openLog()} disabled={selected === -1}>Open</button>
-		<button on:click={() => downloadLog()} disabled={selected === -1}>Download KBB</button>
-		<button on:click={() => downloadLog('json')} disabled={selected === -1}>Download JSON</button>
-		<button on:click={() => deleteLog()} disabled={selected === -1}>Delete</button>
-		<button on:click={() => formatBB()}>Format</button>
-		<button on:click={() => openLogFromFile()}>Open from file</button>
-		<button on:click={() => (showSettings = true)}>Settings</button>
+		<button onclick={() => openLog()} disabled={selected === -1}>Open</button>
+		<button onclick={() => downloadLog()} disabled={selected === -1}>Download KBB</button>
+		<button onclick={() => downloadLog('json')} disabled={selected === -1}>Download JSON</button>
+		<button onclick={() => deleteLog()} disabled={selected === -1}>Delete</button>
+		<button onclick={() => formatBB()}>Format</button>
+		<button onclick={() => openLogFromFile()}>Open from file</button>
+		<button onclick={() => (showSettings = true)}>Settings</button>
 	</div>
 	{#if showSettings}
 		<Settings
@@ -2436,18 +2411,17 @@
 	<div class="dataViewerWrapper">
 		<canvas
 			id="bbDataViewer"
-			on:mousedown={onMouseDown}
-			on:mouseup={onMouseUp}
-			on:mousemove={onMouseMove}
-			on:mouseleave={onMouseLeave}
-			on:wheel={onMouseWheel}
-			on:touchstart={onTouchDown}
-			on:touchmove={onTouchMove}
-			on:touchend={onTouchUp}
-			on:dblclick={() => {
+			onmousedown={onMouseDown}
+			onmouseup={onMouseUp}
+			onmousemove={onMouseMove}
+			onmouseleave={onMouseLeave}
+			onwheel={onMouseWheel}
+			ontouchstart={onTouchDown}
+			ontouchmove={onTouchMove}
+			ontouchend={onTouchUp}
+			ondblclick={() => {
 				startFrame = 0;
 				endFrame = (loadedLog?.frameCount || 1) - 1;
-				drawCanvas();
 			}}
 		></canvas>
 	</div>
@@ -2459,7 +2433,7 @@
 						log={loadedLog!}
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
-						bind:trace
+						bind:trace={graphs[graphIndex][traceIndex]}
 						update={drawCanvas}
 						delete={() => {
 							deleteTrace(graphIndex, traceIndex);
@@ -2469,20 +2443,20 @@
 				<button
 					class="addTraceButton"
 					disabled={!loadedLog?.flags?.length}
-					on:click={() => {
+					onclick={() => {
 						addTrace(graphIndex);
 					}}>Add Trace</button
 				>
 				<button
 					class="deleteGraph"
 					disabled={!loadedLog?.flags?.length || graphs.length == 1}
-					on:click={() => {
+					onclick={() => {
 						deleteGraph(graphIndex);
 					}}>Del Graph</button
 				>
 			</div>
 		{/each}
-		<button class="addGraphButton" disabled={!loadedLog} on:click={addGraph}>Add Graph</button>
+		<button class="addGraphButton" disabled={!loadedLog} onclick={addGraph}>Add Graph</button>
 		{#if loadedLog}
 			<div class="fileInfo" style="margin-top: .8rem">
 				<div>Blackbox Version: {loadedLog.version.join('.')}</div>
