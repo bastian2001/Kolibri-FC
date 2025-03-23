@@ -11,12 +11,12 @@ import Tuning from "@views/Tuning.vue"
 export const routes = [
 	{ path: "/", component: Home, name: "Home" },
 	{ path: "/blackbox", component: Blackbox, name: "Blackbox" },
-	{ path: "/gpsmag", component: GpsMag, name: "GPS & Mag" },
-	{ path: "/motors", component: Motors, name: "Motors" },
-	{ path: "/osd", component: Osd, name: "OSD" },
-	{ path: "/receiver", component: Receiver, name: "Receiver" },
 	{ path: "/tasks", component: Tasks, name: "Tasks" },
+	{ path: "/osd", component: Osd, name: "OSD" },
+	{ path: "/motors", component: Motors, name: "Motors" },
+	{ path: "/receiver", component: Receiver, name: "Receiver" },
 	{ path: "/tuning", component: Tuning, name: "Tuning" },
+	{ path: "/gpsmag", component: GpsMag, name: "GPS & Mag" },
 ]
 
 const router = createRouter({
