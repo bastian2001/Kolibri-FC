@@ -14,45 +14,30 @@
 		'Not Acro or Angle',
 		'Gyro not calibrated'
 	];
-	const REBOOT_MODES = {
-		FIRMWARE: 0,
-		BOOTLOADER_ROM: 1,
-		MSC: 2,
-		MSC_UTC: 3,
-		BOOTLOADER_FLASH: 4
-	};
-	let flightMode = 0;
-	let armingDisableFlags = 0;
-	let armed = false;
-	let configuratorConnected = false;
-	let fcPing = -1;
+	const REBOOT_MODES = { FIRMWARE: 0, BOOTLOADER_ROM: 1, MSC: 2, MSC_UTC: 3, BOOTLOADER_FLASH: 4 };
+	let flightMode = $state(0);
+	let armingDisableFlags = $state(0);
+	let armed = $state(false);
+	let configuratorConnected = $state(false);
+	let fcPing = $state(-1);
 
 	let getRotationInterval = 0;
-	let xBox: any = null;
-	let yBox: any = null;
-	let zBox: any = null;
-	let attitude = {
-		roll: 0,
-		pitch: 0,
-		yaw: 0,
-		heading: 0
-	};
-	let showHeading = false;
-	let serialNum = 1;
-	let baudRate = 115200;
-	let time = {
-		year: 0,
-		month: 1,
-		day: 1,
-		hour: 0,
-		minute: 0,
-		second: 0
-	};
-	$: if (xBox && yBox && zBox) {
-		zBox.style.transform = `rotateZ(${showHeading ? attitude.heading : attitude.yaw}deg) translateZ(10px)`;
-		yBox.style.transform = `rotateX(${attitude.pitch}deg)`;
-		xBox.style.transform = `rotateY(${-attitude.roll}deg)`;
-	}
+	let xBox: any = $state(null);
+	let yBox: any = $state(null);
+	let zBox: any = $state(null);
+	let attitude = $state({ roll: 0, pitch: 0, yaw: 0, heading: 0 });
+	let showHeading = $state(false);
+	let serialNum = $state(1);
+	let baudRate = $state(115200);
+
+	let time = $state({ year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0 });
+	$effect(() => {
+		if (xBox && yBox && zBox) {
+			zBox.style.transform = `rotateZ(${showHeading ? attitude.heading : attitude.yaw}deg) translateZ(10px)`;
+			yBox.style.transform = `rotateX(${attitude.pitch}deg)`;
+			xBox.style.transform = `rotateY(${-attitude.roll}deg)`;
+		}
+	});
 
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
@@ -84,12 +69,7 @@
 					let heading = leBytesToInt(command.data.slice(6, 8), true);
 					heading /= 8192.0;
 					heading *= 180.0 / Math.PI;
-					attitude = {
-						roll,
-						pitch,
-						yaw,
-						heading
-					};
+					attitude = { roll, pitch, yaw, heading };
 					break;
 				case MspFn.SERIAL_PASSTHROUGH:
 					const sPort = command.data[0];
@@ -162,10 +142,10 @@
 </script>
 
 <div>
-	<button on:click={() => ledOn()}>LED On</button>
-	<button on:click={() => ledOff()}>LED Off</button>
-	<button on:click={() => calibrateAccel()}>Calibrate Accelerometer</button>
-	<button on:click={() => playSound()}>Play Sound</button>
+	<button onclick={() => ledOn()}>LED On</button>
+	<button onclick={() => ledOff()}>LED Off</button>
+	<button onclick={() => calibrateAccel()}>Calibrate Accelerometer</button>
+	<button onclick={() => playSound()}>Play Sound</button>
 	<input
 		type="number"
 		name="serial"
@@ -185,7 +165,7 @@
 		bind:value={baudRate}
 	/>
 	<button
-		on:click={() => {
+		onclick={() => {
 			port.sendCommand('request', MspFn.SERIAL_PASSTHROUGH, MspVersion.V2, [
 				serialNum,
 				baudRate & 0xff,
@@ -196,7 +176,7 @@
 		}}>Start Serial Passthrough</button
 	>
 	<button
-		on:click={() => {
+		onclick={() => {
 			port.enableCommands(false);
 			port
 				.sendRaw([], '+++')
@@ -206,17 +186,17 @@
 				.then(() => port.enableCommands(true));
 		}}>Stop Serial Passthrough</button
 	>
-	<button on:click={() => port.sendCommand('request', MspFn.GET_CRASH_DUMP)}>Get Crash Dump</button>
-	<button on:click={() => port.sendCommand('request', MspFn.CLEAR_CRASH_DUMP)}
+	<button onclick={() => port.sendCommand('request', MspFn.GET_CRASH_DUMP)}>Get Crash Dump</button>
+	<button onclick={() => port.sendCommand('request', MspFn.CLEAR_CRASH_DUMP)}
 		>Clear Crash Dump</button
 	>
 	<button
-		on:click={() =>
+		onclick={() =>
 			port.sendCommand('request', MspFn.REBOOT, MspVersion.V2, [REBOOT_MODES.FIRMWARE])}
 		>Reboot</button
 	>
 	<button
-		on:click={() =>
+		onclick={() =>
 			port.sendCommand('request', MspFn.REBOOT, MspVersion.V2, [REBOOT_MODES.BOOTLOADER_FLASH])}
 		>Bootloader</button
 	>
@@ -243,15 +223,15 @@
 			<div class="yBox droneAxes" bind:this={yBox}>
 				<div class="xBox droneAxes" bind:this={xBox}>
 					<div class="droneFrame">
-						<div class="flrrBar" />
-						<div class="rlfrBar" />
+						<div class="flrrBar"></div>
+						<div class="rlfrBar"></div>
 					</div>
-					<div class="arrowForward" />
+					<div class="arrowForward"></div>
 					<div class="props">
-						<div class="dronePropellerRR" />
-						<div class="dronePropellerFR" />
-						<div class="dronePropellerRL" />
-						<div class="dronePropellerFL" />
+						<div class="dronePropellerRR"></div>
+						<div class="dronePropellerFR"></div>
+						<div class="dronePropellerRL"></div>
+						<div class="dronePropellerFL"></div>
 					</div>
 				</div>
 			</div>

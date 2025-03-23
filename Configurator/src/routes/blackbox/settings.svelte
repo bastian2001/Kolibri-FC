@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { port, MspFn, MspVersion } from '../../portStore';
 	import { leBytesToInt } from '../../utils';
-	import { onMount, createEventDispatcher, onDestroy } from 'svelte';
-	const dispatch = createEventDispatcher();
+	import { onMount, onDestroy } from 'svelte';
 
-	let divider = 0;
+	let divider = $state(0);
 
 	const unsubscribe = port.subscribe(command => {
 		if (command.cmdType === 'response') {
@@ -25,27 +24,30 @@
 					port.sendCommand('request', MspFn.SAVE_SETTINGS);
 					break;
 				case MspFn.SAVE_SETTINGS:
-					dispatch('close');
+					close();
 					break;
 			}
 		}
 	});
 
-	export let flags: {
-		[key: string]: { name: string };
-	};
-	let flagNames = [] as string[];
+	interface Props {
+		flags: { [key: string]: { name: string } };
+		close: () => void;
+	}
 
-	let selected = [] as string[];
+	let { flags, close }: Props = $props();
+	let flagNames: string[] = [];
 
-	let groups = [] as string[][];
+	let selected: string[] = $state([]);
+
+	let groups: string[][] = $state([]);
 
 	const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 10];
 
 	onMount(() => {
 		flagNames = Object.keys(flags);
 		let i = 0;
-		const g = [] as string[][];
+		const g: string[][] = [];
 		for (const size of groupSizes) {
 			g.push(flagNames.slice(i, i + size));
 			i += size;
@@ -67,9 +69,6 @@
 		}
 
 		port.sendCommand('request', MspFn.SET_BB_SETTINGS, MspVersion.V2, [divider, ...bytes]);
-	}
-	function cancel() {
-		dispatch('close');
 	}
 </script>
 
@@ -93,9 +92,9 @@
 		{/each}
 		<div class="dividerSetting"><input type="number" bind:value={divider} /></div>
 		<div class="apply">
-			<button class="saveBtn" on:click={saveSettings}>Save settings</button><button
+			<button class="saveBtn" onclick={saveSettings}>Save settings</button><button
 				class="cancelBtn"
-				on:click={cancel}>Cancel</button
+				onclick={close}>Cancel</button
 			>
 		</div>
 	</div>

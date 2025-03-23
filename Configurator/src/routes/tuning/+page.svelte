@@ -2,10 +2,9 @@
 	import { port, MspFn, MspVersion } from '../../portStore';
 	import { onDestroy, onMount } from 'svelte';
 	import { leBytesToInt } from '../../utils';
-	import { error } from '@sveltejs/kit';
 
-	let pids = [[], [], []] as number[][];
-	let rateFactors = [[], [], []] as number[][];
+	let pids: number[][] = [[], [], []];
+	let rateFactors: number[][] = [[], [], []];
 
 	let saveTimeout = 0;
 
@@ -105,60 +104,68 @@
 	<div class="pids">
 		<h3>PID Gains</h3>
 		<table>
-			<tr>
-				<th>&nbsp;</th>
-				<th>P</th>
-				<th>I</th>
-				<th>D</th>
-				<th>FF</th>
-				<th>S</th>
-				<th>iFall</th>
-			</tr>
-			{#each pids as ax, i}
+			<thead>
 				<tr>
-					<td>{['Roll', 'Pitch', 'Yaw'][i]}</td>
-					{#each ax as val, j}
-						<td
-							><input
-								type="number"
-								bind:value={pids[i][j]}
-								on:wheel={e => {
-									scrollInputPID(e, i, j);
-								}}
-							/></td
-						>
-					{/each}
+					<th>&nbsp;</th>
+					<th>P</th>
+					<th>I</th>
+					<th>D</th>
+					<th>FF</th>
+					<th>S</th>
+					<th>iFall</th>
 				</tr>
-			{/each}
+			</thead>
+			<tbody>
+				{#each pids as ax, i}
+					<tr>
+						<td>{['Roll', 'Pitch', 'Yaw'][i]}</td>
+						{#each ax as val, j}
+							<td
+								><input
+									type="number"
+									bind:value={pids[i][j]}
+									on:wheel={e => {
+										scrollInputPID(e, i, j);
+									}}
+								/></td
+							>
+						{/each}
+					</tr>
+				{/each}
+			</tbody>
 		</table>
 	</div>
 	<div class="rates">
 		<h3>Rate Factors</h3>
 		<table>
-			<tr>
-				<th>&nbsp;</th>
-				<th>x^1</th>
-				<th>x^2</th>
-				<th>x^3</th>
-				<th>x^4</th>
-				<th>x^5</th>
-			</tr>
-			{#each rateFactors as ax, i}
+			<thead>
 				<tr>
-					<td>{['Roll', 'Pitch', 'Yaw'][i]}</td>
-					{#each ax as val, j}
-						<td
-							><input
-								type="number"
-								bind:value={rateFactors[i][j]}
-								on:wheel={e => {
-									scrollInputRate(e, i, j);
-								}}
-							/></td
-						>
-					{/each}
+					<th>&nbsp;</th>
+					<th>x^1</th>
+					<th>x^2</th>
+					<th>x^3</th>
+					<th>x^4</th>
+					<th>x^5</th>
 				</tr>
-			{/each}
+			</thead>
+			<tbody>
+				{#each rateFactors as ax, i}
+					<tr>
+						<td>{['Roll', 'Pitch', 'Yaw'][i]}</td>
+						{#each ax as val, j}
+							<td
+								><input
+									type="number"
+									bind:value={rateFactors[i][j]}
+									on:wheel={e => {
+										scrollInputRate(e, i, j);
+									}}
+								/></td
+							>
+						{/each}
+					</tr>
+				{/each}
+			</tbody>
 		</table>
 	</div>
 </div>

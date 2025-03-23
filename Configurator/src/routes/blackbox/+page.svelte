@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { port, MspFn, MspVersion } from '../../portStore';
 	import { configuratorLog } from '../../logStore';
 	import TracePlacer from './tracePlacer.svelte';
@@ -19,23 +19,28 @@
 		map
 	} from '../../utils';
 
-	let graphs: TraceInGraph[][] = [[]];
+	let graphs: TraceInGraph[][] = $state([[]]);
 
 	const ACC_RANGES = [2, 4, 8, 16];
 	const GYRO_RANGES = [2000, 1000, 500, 250, 125];
 
 	let dataViewer: HTMLDivElement;
+	let startFrame = $state(0);
+	let endFrame = $state(0);
+	let loadedLog: BBLog | undefined = $state();
 
-	let dataSlice: LogFrame[] = [];
+	let dataSlice: LogFrame[] = $derived(loadedLog?.frames.slice(startFrame, endFrame + 1) || []);
+	$effect(() => {
+		dataSlice;
+		graphs;
+		tick().then(() => {
+			drawCanvas();
+		});
+	});
 
 	let drawFullCanvasTimeout = -1;
 
-	$: dataSlice = loadedLog?.frames.slice(startFrame, endFrame + 1) || [];
-	$: dataSlice, drawCanvas();
-
-	let logNums: { text: string; num: number }[] = [];
-
-	let loadedLog: BBLog | undefined;
+	let logNums: { text: string; num: number }[] = $state([]);
 
 	let binFile: number[] = [];
 	let binFileNumber = -1;
@@ -43,11 +48,9 @@
 	let totalChunks = -1;
 	let resolveWhenReady = (log: BBLog) => {};
 	let rejectWrongFile = (_: string) => {};
-	let startFrame = 0;
-	let endFrame = 0;
 	let mounted = false;
 
-	let showSettings = false;
+	let showSettings = $state(false);
 
 	const getGyroBBRange = (file: BBLog | undefined) => {
 		if (!file) return { max: -2000, min: 2000 };
@@ -86,7 +89,7 @@
 		return { max, min };
 	};
 
-	const BB_ALL_FLAGS = {
+	const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		LOG_ROLL_ELRS_RAW: {
 			name: 'Roll ELRS Raw',
 			path: 'elrs.roll',
@@ -270,26 +273,10 @@
 			maxValue: 2000,
 			unit: '',
 			modifier: [
-				{
-					displayNameShort: 'RR',
-					displayName: 'Rear Right',
-					path: 'rr'
-				},
-				{
-					displayNameShort: 'FR',
-					displayName: 'Front Right',
-					path: 'fr'
-				},
-				{
-					displayNameShort: 'FL',
-					displayName: 'Front Left',
-					path: 'fl'
-				},
-				{
-					displayNameShort: 'RL',
-					displayName: 'Rear Left',
-					path: 'rl'
-				}
+				{ displayNameShort: 'RR', displayName: 'Rear Right', path: 'rr' },
+				{ displayNameShort: 'FR', displayName: 'Front Right', path: 'fr' },
+				{ displayNameShort: 'FL', displayName: 'Front Left', path: 'fl' },
+				{ displayNameShort: 'RL', displayName: 'Rear Left', path: 'rl' }
 			]
 		},
 		LOG_FRAMETIME: {
@@ -329,13 +316,7 @@
 			maxValue: 100,
 			unit: '',
 			modifier: [
-				{
-					displayNameShort: 'Year',
-					displayName: 'Year',
-					min: 2020,
-					max: 2030,
-					path: 'year'
-				},
+				{ displayNameShort: 'Year', displayName: 'Year', min: 2020, max: 2030, path: 'year' },
 				{
 					displayNameShort: 'Month',
 					displayName: 'Month',
@@ -358,34 +339,10 @@
 						'December'
 					]
 				},
-				{
-					displayNameShort: 'Day',
-					displayName: 'Day',
-					min: 1,
-					max: 31,
-					path: 'day'
-				},
-				{
-					displayNameShort: 'Hour',
-					displayName: 'Hour',
-					min: 0,
-					max: 23,
-					path: 'hour'
-				},
-				{
-					displayNameShort: 'Minute',
-					displayName: 'Minute',
-					min: 0,
-					max: 59,
-					path: 'minute'
-				},
-				{
-					displayNameShort: 'Second',
-					displayName: 'Second',
-					min: 0,
-					max: 59,
-					path: 'second'
-				},
+				{ displayNameShort: 'Day', displayName: 'Day', min: 1, max: 31, path: 'day' },
+				{ displayNameShort: 'Hour', displayName: 'Hour', min: 0, max: 23, path: 'hour' },
+				{ displayNameShort: 'Minute', displayName: 'Minute', min: 0, max: 59, path: 'minute' },
+				{ displayNameShort: 'Second', displayName: 'Second', min: 0, max: 59, path: 'second' },
 				{
 					displayNameShort: 'Valid',
 					displayName: 'Validity Flags',
@@ -424,20 +381,8 @@
 						'Time only fix'
 					]
 				},
-				{
-					displayNameShort: 'Flags',
-					displayName: 'Flags',
-					min: 0,
-					max: 255,
-					path: 'flags'
-				},
-				{
-					displayNameShort: 'Flags2',
-					displayName: 'Flags2',
-					min: 0,
-					max: 255,
-					path: 'flags2'
-				},
+				{ displayNameShort: 'Flags', displayName: 'Flags', min: 0, max: 255, path: 'flags' },
+				{ displayNameShort: 'Flags2', displayName: 'Flags2', min: 0, max: 255, path: 'flags2' },
 				{
 					displayNameShort: 'Sats',
 					displayName: 'Satellite Count',
@@ -559,13 +504,7 @@
 					path: 'p_dop',
 					decimals: 2
 				},
-				{
-					displayNameShort: 'Flags3',
-					displayName: 'Flags3',
-					min: 0,
-					max: 31,
-					path: 'flags3'
-				}
+				{ displayNameShort: 'Flags3', displayName: 'Flags3', min: 0, max: 31, path: 'flags3' }
 			]
 		},
 		LOG_ATT_ROLL: {
@@ -596,26 +535,10 @@
 			maxValue: 50000,
 			unit: 'rpm',
 			modifier: [
-				{
-					displayNameShort: 'RR',
-					displayName: 'Rear Right',
-					path: 'rr'
-				},
-				{
-					displayNameShort: 'FR',
-					displayName: 'Front Right',
-					path: 'fr'
-				},
-				{
-					displayNameShort: 'FL',
-					displayName: 'Front Left',
-					path: 'fl'
-				},
-				{
-					displayNameShort: 'RL',
-					displayName: 'Rear Left',
-					path: 'rl'
-				}
+				{ displayNameShort: 'RR', displayName: 'Rear Right', path: 'rr' },
+				{ displayNameShort: 'FR', displayName: 'Front Right', path: 'fr' },
+				{ displayNameShort: 'FL', displayName: 'Front Left', path: 'fl' },
+				{ displayNameShort: 'RL', displayName: 'Rear Left', path: 'rl' }
 			]
 		},
 		LOG_ACCEL_RAW: {
@@ -626,21 +549,9 @@
 			unit: 'm/s²',
 			decimals: 3,
 			modifier: [
-				{
-					displayNameShort: 'X',
-					displayName: 'X',
-					path: 'x'
-				},
-				{
-					displayNameShort: 'Y',
-					displayName: 'Y',
-					path: 'y'
-				},
-				{
-					displayNameShort: 'Z',
-					displayName: 'Z',
-					path: 'z'
-				}
+				{ displayNameShort: 'X', displayName: 'X', path: 'x' },
+				{ displayNameShort: 'Y', displayName: 'Y', path: 'y' },
+				{ displayNameShort: 'Z', displayName: 'Z', path: 'z' }
 			]
 		},
 		LOG_ACCEL_FILTERED: {
@@ -651,21 +562,9 @@
 			unit: 'm/s²',
 			decimals: 3,
 			modifier: [
-				{
-					displayNameShort: 'X',
-					displayName: 'X',
-					path: 'x'
-				},
-				{
-					displayNameShort: 'Y',
-					displayName: 'Y',
-					path: 'y'
-				},
-				{
-					displayNameShort: 'Z',
-					displayName: 'Z',
-					path: 'z'
-				}
+				{ displayNameShort: 'X', displayName: 'X', path: 'x' },
+				{ displayNameShort: 'Y', displayName: 'Y', path: 'y' },
+				{ displayNameShort: 'Z', displayName: 'Z', path: 'z' }
 			]
 		},
 		LOG_VERTICAL_ACCEL: {
@@ -698,146 +597,105 @@
 			maxValue: 180,
 			unit: '°'
 		}
-	} as {
-		[key: string]: FlagProps;
 	};
 
-	const BB_GEN_FLAGS = {
+	const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 		GEN_ROLL_SETPOINT: {
-			name: 'Roll Setpoint',
 			replaces: 'LOG_ROLL_SETPOINT',
 			requires: ['LOG_ROLL_ELRS_RAW'],
-			unit: '°/sec',
 			exact: false
 		},
 		GEN_PITCH_SETPOINT: {
-			name: 'Pitch Setpoint',
 			replaces: 'LOG_PITCH_SETPOINT',
 			requires: ['LOG_PITCH_ELRS_RAW'],
-			unit: '°/sec',
 			exact: false
 		},
 		GEN_THROTTLE_SETPOINT: {
-			name: 'Throttle Setpoint',
 			replaces: 'LOG_THROTTLE_SETPOINT',
 			requires: ['LOG_THROTTLE_ELRS_RAW'],
-			unit: '°/sec',
 			exact: false
 		},
 		GEN_YAW_SETPOINT: {
-			name: 'Yaw Setpoint',
 			replaces: 'LOG_YAW_SETPOINT',
 			requires: ['LOG_YAW_ELRS_RAW'],
-			unit: '°/sec',
 			exact: false
 		},
 		GEN_ROLL_PID_P: {
-			name: 'Roll PID P',
 			replaces: 'LOG_ROLL_PID_P',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT'], 'LOG_ROLL_GYRO_RAW'],
-			unit: '',
 			exact: true
 		},
 		GEN_ROLL_PID_I: {
-			name: 'Roll PID I',
 			replaces: 'LOG_ROLL_PID_I',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT'], 'LOG_ROLL_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_ROLL_PID_D: {
-			name: 'Roll PID D',
 			replaces: 'LOG_ROLL_PID_D',
 			requires: ['LOG_ROLL_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_ROLL_PID_FF: {
-			name: 'Roll PID FF',
 			replaces: 'LOG_ROLL_PID_FF',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT']],
-			unit: '',
 			exact: false
 		},
 		GEN_ROLL_PID_S: {
-			name: 'Roll PID S',
 			replaces: 'LOG_ROLL_PID_S',
 			requires: [['LOG_ROLL_SETPOINT', 'GEN_ROLL_SETPOINT']],
-			unit: '',
 			exact: true
 		},
 		GEN_PITCH_PID_P: {
-			name: 'Pitch PID P',
 			replaces: 'LOG_PITCH_PID_P',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT'], 'LOG_PITCH_GYRO_RAW'],
-			unit: '',
 			exact: true
 		},
 		GEN_PITCH_PID_I: {
-			name: 'Pitch PID I',
 			replaces: 'LOG_PITCH_PID_I',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT'], 'LOG_PITCH_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_PITCH_PID_D: {
-			name: 'Pitch PID D',
 			replaces: 'LOG_PITCH_PID_D',
 			requires: ['LOG_PITCH_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_PITCH_PID_FF: {
-			name: 'Pitch PID FF',
 			replaces: 'LOG_PITCH_PID_FF',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT']],
-			unit: '',
 			exact: false
 		},
 		GEN_PITCH_PID_S: {
-			name: 'Pitch PID S',
 			replaces: 'LOG_PITCH_PID_S',
 			requires: [['LOG_PITCH_SETPOINT', 'GEN_PITCH_SETPOINT']],
-			unit: '',
 			exact: true
 		},
 		GEN_YAW_PID_P: {
-			name: 'Yaw PID P',
 			replaces: 'LOG_YAW_PID_P',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT'], 'LOG_YAW_GYRO_RAW'],
-			unit: '',
 			exact: true
 		},
 		GEN_YAW_PID_I: {
-			name: 'Yaw PID I',
 			replaces: 'LOG_YAW_PID_I',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT'], 'LOG_YAW_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_YAW_PID_D: {
-			name: 'Yaw PID D',
 			replaces: 'LOG_YAW_PID_D',
 			requires: ['LOG_YAW_GYRO_RAW'],
-			unit: '',
 			exact: false
 		},
 		GEN_YAW_PID_FF: {
-			name: 'Yaw PID FF',
 			replaces: 'LOG_YAW_PID_FF',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT']],
-			unit: '',
 			exact: false
 		},
 		GEN_YAW_PID_S: {
-			name: 'Yaw PID S',
 			replaces: 'LOG_YAW_PID_S',
 			requires: [['LOG_YAW_SETPOINT', 'GEN_YAW_SETPOINT']],
-			unit: '',
 			exact: true
 		},
 		GEN_MOTOR_OUTPUTS: {
-			name: 'Motor Outputs',
 			replaces: 'LOG_MOTOR_OUTPUTS',
 			requires: [
 				['GEN_THROTTLE_SETPOINT', 'LOG_THROTTLE_SETPOINT'],
@@ -857,18 +715,13 @@
 				['LOG_YAW_PID_FF', 'GEN_YAW_PID_FF'],
 				['LOG_YAW_PID_S', 'GEN_YAW_PID_S']
 			],
-			unit: '',
 			exact: true
 		},
 		GEN_VVEL_SETPOINT: {
-			name: 'vVel Setpoint',
 			replaces: 'LOG_VVEL_SETPOINT',
 			requires: ['LOG_THROTTLE_ELRS_RAW'],
-			unit: 'm/s',
 			exact: false
 		}
-	} as {
-		[key: string]: GenFlagProps;
 	};
 
 	function fillLogWithGenFlags(log: BBLog) {
@@ -901,8 +754,7 @@
 								if (polynomials[0] < 0) polynomials[i] = -polynomials[i];
 							}
 							f.setpoint.roll = 0;
-							for (let i = 0; i < 5; i++)
-								f.setpoint.roll! += polynomials[i] * log.rateFactors[i][0];
+							for (let i = 0; i < 5; i++) f.setpoint.roll += polynomials[i] * log.rateFactors[i][0];
 						});
 						break;
 					case 'GEN_PITCH_SETPOINT':
@@ -914,7 +766,7 @@
 							}
 							f.setpoint.pitch = 0;
 							for (let i = 0; i < 5; i++)
-								f.setpoint.pitch! += polynomials[i] * log.rateFactors[i][1];
+								f.setpoint.pitch += polynomials[i] * log.rateFactors[i][1];
 						});
 						break;
 					case 'GEN_THROTTLE_SETPOINT':
@@ -930,7 +782,7 @@
 								if (polynomials[0] < 0) polynomials[i] = -polynomials[i];
 							}
 							f.setpoint.yaw = 0;
-							for (let i = 0; i < 5; i++) f.setpoint.yaw! += polynomials[i] * log.rateFactors[i][2];
+							for (let i = 0; i < 5; i++) f.setpoint.yaw += polynomials[i] * log.rateFactors[i][2];
 						});
 						break;
 					case 'GEN_ROLL_PID_P':
@@ -1530,7 +1382,7 @@
 						)
 					) === 21590 // 'V' * 256 + 'T'
 				) {
-					const gpsData = [] as number[];
+					const gpsData: number[] = [];
 					//copy 92 bytes of GPS data from the next 46 frames (after the 3 frames for GPSPVT)
 					for (let j = 0; j < 46; j++) {
 						const gpsBytes = data.slice(
@@ -1716,9 +1568,9 @@
 
 	let logInfoPosition = 0;
 	let logInfoInterval: number = -1;
-	let selected = -1;
+	let selected = $state(-1);
 	function getLogInfo() {
-		const infoNums = [] as number[];
+		const infoNums: number[] = [];
 		for (let i = 0; i < 10; i++) {
 			if (logInfoPosition >= logNums.length) {
 				clearInterval(logInfoInterval);
@@ -1787,9 +1639,12 @@
 	}
 
 	const canvas = document.createElement('canvas');
-	let sliceAndSkip = [] as LogFrame[];
+	let sliceAndSkip: LogFrame[] = [];
 	let skipValue = 0;
 	const durationBarRaster = [
+		'100us',
+		'200us',
+		'500us',
 		'1ms',
 		'2ms',
 		'5ms',
@@ -1807,20 +1662,28 @@
 		'30s',
 		'1min',
 		'2min',
-		'5min'
+		'5min',
+		'10min',
+		'20min',
+		'30min',
+		'1h'
 	];
 	function decodeDuration(duration: string): number {
 		let seconds = parseFloat(duration.replaceAll(/[a-zA-Z]/g, ''));
-		if (duration.endsWith('min')) seconds *= 60;
+		if (duration.endsWith('h')) seconds *= 3600;
+		else if (duration.endsWith('min')) seconds *= 60;
 		else if (duration.endsWith('ms')) seconds *= 0.001;
+		else if (duration.endsWith('us')) seconds *= 0.000001;
 		return seconds;
+	}
+	function redrawSameCanvas() {
+		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
+		domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+		domCtx.drawImage(canvas, 0, 0);
 	}
 	function drawCanvas(allowShortening = true) {
 		if (!mounted || !loadedLog) return;
-		if (allowShortening) {
-			clearTimeout(drawFullCanvasTimeout);
-			drawFullCanvasTimeout = setTimeout(() => drawCanvas(false), 250);
-		}
 		const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 		canvas.width = domCanvas.width;
 		canvas.height = domCanvas.height;
@@ -1834,17 +1697,20 @@
 		 */
 		const height = dataViewer.clientHeight * 0.98; //1% free space top and bottom
 		const width = dataViewer.clientWidth;
-		sliceAndSkip = dataSlice;
-		if (!sliceAndSkip.length) return;
+		if (!dataSlice.length) return;
+		sliceAndSkip = [];
 		skipValue = 1;
-		const everyNth = Math.floor(sliceAndSkip.length / width);
+		const everyNth = Math.floor(dataSlice.length / width);
 		if (everyNth > 2 && allowShortening) {
 			skipValue = everyNth;
-			const len = sliceAndSkip.length;
-			sliceAndSkip = [] as LogFrame[];
+			const len = dataSlice.length;
 			for (let i = 0; i < len; i += everyNth) {
 				sliceAndSkip.push(dataSlice[i]);
 			}
+			clearTimeout(drawFullCanvasTimeout);
+			drawFullCanvasTimeout = setTimeout(() => drawCanvas(false), 250);
+		} else {
+			sliceAndSkip = dataSlice;
 		}
 		const pixelsPerSec =
 			(dataViewer.clientWidth * loadedLog!.framesPerSecond) / (dataSlice.length - 1);
@@ -1920,24 +1786,16 @@
 						}
 					} else trace.overrideSliceAndSkip = overrideSlice;
 				}
-				let bbFlag = BB_ALL_FLAGS[trace.flagName];
-				if (trace.flagName.startsWith('GEN_'))
-					bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
-				let path = bbFlag?.path || '';
-				if (bbFlag?.modifier) {
-					if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
-					else continue;
-				}
 				ctx.beginPath();
 				let pointY =
 					heightOffset +
 					heightPerGraph -
 					((trace.overrideData
 						? constrain(trace.overrideSliceAndSkip[0], trace.minValue, trace.maxValue)
-						: getNestedProperty(sliceAndSkip[0], path, {
+						: getNestedProperty(sliceAndSkip[0], trace.path, {
 								max: Math.max(trace.maxValue, trace.minValue),
 								min: Math.min(trace.minValue, trace.maxValue)
-						  })) -
+							})) -
 						trace.minValue) *
 						scale;
 				ctx.moveTo(0, pointY);
@@ -1947,10 +1805,10 @@
 						heightPerGraph -
 						((trace.overrideData
 							? constrain(trace.overrideSliceAndSkip[k], trace.minValue, trace.maxValue)
-							: getNestedProperty(sliceAndSkip[k], path, {
+							: getNestedProperty(sliceAndSkip[k], trace.path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-							  })) -
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.lineTo(k * frameWidth, pointY);
@@ -1962,7 +1820,7 @@
 		domCanvas.getContext('2d')?.clearRect(0, 0, dataViewer.clientWidth, dataViewer.clientHeight);
 		domCanvas.getContext('2d')?.drawImage(canvas, 0, 0);
 	}
-	let trackingStartX = -1;
+	let trackingStartX = -1; // -1 = idle, -2 = move window, 0+ = selection
 	let trackingEndX = 0;
 	let firstX = 0;
 	let startStartFrame = 0;
@@ -2033,14 +1891,6 @@
 					const scale = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth * 2;
-					let bbFlag = BB_ALL_FLAGS[trace.flagName];
-					if (trace.flagName.startsWith('GEN_'))
-						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
-					let path = bbFlag?.path || '';
-					if (bbFlag?.modifier) {
-						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
-						else continue;
-					}
 					const pointY =
 						heightOffset +
 						heightPerGraph -
@@ -2049,11 +1899,11 @@
 									trace.overrideSliceAndSkip![closestFrameSliceSkip],
 									trace.minValue,
 									trace.maxValue
-							  )
-							: getNestedProperty(frame, path, {
+								)
+							: getNestedProperty(frame, trace.path, {
 									max: Math.max(trace.maxValue, trace.minValue),
 									min: Math.min(trace.minValue, trace.maxValue)
-							  })) -
+								})) -
 							trace.minValue) *
 							scale;
 					ctx.beginPath();
@@ -2065,26 +1915,17 @@
 			//write down frame number, time in s after start and values next to the cursor at the top
 			const timeText =
 				(closestFrameNum / loadedLog!.framesPerSecond).toFixed(3) + 's, Frame ' + closestFrameNum;
-			const valueTexts = [] as string[];
+			const valueTexts: string[] = [];
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = graphs[i];
 				const numTraces = graph.length;
 				for (let j = 0; j < numTraces; j++) {
 					const trace = graph[j];
-					if (!trace.flagName) continue;
-					let bbFlag = BB_ALL_FLAGS[trace.flagName];
-					if (trace.flagName.startsWith('GEN_'))
-						bbFlag = BB_ALL_FLAGS[BB_GEN_FLAGS[trace.flagName].replaces];
-					let path = bbFlag?.path || '';
-					if (bbFlag?.modifier) {
-						if (trace.modifier) path += '.' + trace.modifier.toLowerCase();
-						else continue;
-					}
+					if (!trace.path) continue;
 					let value = trace.overrideData
 						? trace.overrideSliceAndSkip![closestFrameSliceSkip]
-						: getNestedProperty(frame, path);
+						: getNestedProperty(frame, trace.path);
 					value = roundToDecimal(value, trace.decimals);
-					if (bbFlag.states) value = bbFlag.states[value] || value;
 					if (trace.states) value = trace.states[value] || value;
 					valueTexts.push(trace.displayName + ': ' + value + ' ' + trace.unit);
 				}
@@ -2156,7 +1997,7 @@
 			let pointY = textY + textPadding + textHeight + 6;
 			for (let i = 0; i < graphs.length; i++) {
 				for (let j = 0; j < graphs[i].length; j++) {
-					if (!graphs[i][j].flagName) continue;
+					if (!graphs[i][j].path) continue;
 					ctx.fillStyle = graphs[i][j].color;
 					ctx.beginPath();
 					ctx.arc(textX + textPadding + 8, pointY, 5, 0, Math.PI * 2);
@@ -2204,7 +2045,7 @@
 		}
 		if (Math.abs(trackingStartX - trackingEndX) < 2) {
 			trackingStartX = -1;
-			drawCanvas(false);
+			redrawSameCanvas();
 			return;
 		}
 		if (trackingStartX > trackingEndX) {
@@ -2264,14 +2105,10 @@
 	}
 	function onMouseLeave(e: MouseEvent) {
 		if (e.buttons !== 1) {
-			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
-			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
-			domCtx.drawImage(canvas, 0, 0);
+			redrawSameCanvas();
 		}
 	}
 	let touchStartX = 0,
-		touchEndX = 0,
 		frame0 = 0,
 		frame1 = 0; //0 and 1 are the touch identifiers, and frames are the frames they are clamped to
 	let touchMode: 'none' | 'move' | 'zoom' = 'none';
@@ -2394,7 +2231,6 @@
 			.then(data => {
 				startFrame = 0;
 				endFrame = data.frameCount - 1;
-				drawCanvas();
 			})
 			.catch(console.error);
 	}
@@ -2438,7 +2274,6 @@
 						loadedLog = data as BBLog;
 						startFrame = 0;
 						endFrame = data.frameCount - 1;
-						drawCanvas();
 					} catch (e) {}
 				};
 				reader.readAsText(file);
@@ -2455,7 +2290,6 @@
 					decodeBinFile();
 					startFrame = 0;
 					endFrame = (loadedLog?.frameCount || 1) - 1;
-					drawCanvas();
 				};
 				reader.readAsArrayBuffer(file);
 			}
@@ -2471,24 +2305,6 @@
 			rejectWrongFile = reject;
 		});
 	}
-	function openLogFromPromptJSON() {
-		//use a js alert prompt to get the json file
-		const json = prompt('Paste the JSON file here');
-		if (!json) return;
-		try {
-			const data = JSON.parse(json);
-			if (data.version[0] !== 0) {
-				alert('Wrong version number: ' + data.version);
-				return;
-			}
-			loadedLog = data as BBLog;
-			startFrame = 0;
-			endFrame = data.frameCount - 1;
-			drawCanvas();
-		} catch (e) {
-			alert('Error parsing JSON: ' + e);
-		}
-	}
 	function formatBB() {
 		port.sendCommand('request', MspFn.BB_FORMAT);
 	}
@@ -2499,7 +2315,7 @@
 			maxValue: 10,
 			minValue: 0,
 			strokeWidth: 1,
-			flagName: '',
+			path: '',
 			modifier: '',
 			decimals: 0,
 			unit: '',
@@ -2507,27 +2323,15 @@
 			id: Math.random()
 		};
 		graphs[graphIndex] = [...graphs[graphIndex], defaultTrace];
-		drawCanvas();
 	}
 	function addGraph() {
 		graphs = [...graphs, []];
-		drawCanvas();
-	}
-	function updateTrace(event: any, graphIndex: number, traceIndex: number, id: number) {
-		const tr: TraceInGraph = event.detail;
-		tr.id = id;
-		graphs[graphIndex][traceIndex] = tr;
-		drawCanvas();
 	}
 	function deleteGraph(g: number) {
 		graphs = graphs.filter((_, i) => i !== g);
-		graphs = [...graphs];
-		drawCanvas();
 	}
 	function deleteTrace(g: number, t: number) {
 		graphs[g] = graphs[g].filter((_, i) => i !== t);
-		graphs = [...graphs];
-		drawCanvas();
 	}
 
 	function onResize() {
@@ -2548,6 +2352,10 @@
 		port.addOnConnectHandler(getFileList);
 		dataViewer = document.getElementsByClassName('dataViewerWrapper')[0] as HTMLDivElement;
 		window.addEventListener('resize', onResize);
+		const canvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+		canvas.addEventListener('touchstart', onTouchDown, { passive: false });
+		canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+		canvas.addEventListener('touchend', onTouchUp, { passive: false });
 		onResize();
 	});
 	onDestroy(() => {
@@ -2556,10 +2364,6 @@
 		window.removeEventListener('resize', onResize);
 		unsubscribe();
 	});
-	// use with caution, only exists because svelte does not allow typescript in the template
-	function logButItsThere() {
-		return loadedLog!;
-	}
 </script>
 
 <div class="blackbox">
@@ -2569,47 +2373,47 @@
 				<option value={log?.num}>{log?.text || log?.num}</option>
 			{/each}
 		</select>
-		<button on:click={() => openLog()} disabled={selected === -1}>Open</button>
-		<button on:click={() => downloadLog()} disabled={selected === -1}>Download KBB</button>
-		<button on:click={() => downloadLog('json')} disabled={selected === -1}>Download JSON</button>
-		<button on:click={() => deleteLog()} disabled={selected === -1}>Delete</button>
-		<button on:click={() => formatBB()}>Format</button>
-		<button on:click={() => openLogFromFile()}>Open from file</button>
-		<button on:click={() => (showSettings = true)}>Settings</button>
+		<button onclick={() => openLog()} disabled={selected === -1}>Open</button>
+		<button onclick={() => downloadLog()} disabled={selected === -1}>Download KBB</button>
+		<button onclick={() => downloadLog('json')} disabled={selected === -1}>Download JSON</button>
+		<button onclick={() => deleteLog()} disabled={selected === -1}>Delete</button>
+		<button onclick={() => formatBB()}>Format</button>
+		<button onclick={() => openLogFromFile()}>Open from file</button>
+		<button onclick={() => (showSettings = true)}>Settings</button>
 	</div>
 	{#if showSettings}
-		<Settings flags={BB_ALL_FLAGS} on:close={() => (showSettings = false)} />
+		<Settings
+			flags={BB_ALL_FLAGS}
+			close={() => {
+				showSettings = false;
+			}}
+		/>
 	{/if}
 	<div class="dataViewerWrapper">
 		<canvas
 			id="bbDataViewer"
-			on:mousedown={onMouseDown}
-			on:mouseup={onMouseUp}
-			on:mousemove={onMouseMove}
-			on:mouseleave={onMouseLeave}
-			on:wheel={onMouseWheel}
-			on:touchstart={onTouchDown}
-			on:touchmove={onTouchMove}
-			on:touchend={onTouchUp}
-			on:dblclick={() => {
+			onmousedown={onMouseDown}
+			onmouseup={onMouseUp}
+			onmousemove={onMouseMove}
+			onmouseleave={onMouseLeave}
+			onwheel={onMouseWheel}
+			ondblclick={() => {
 				startFrame = 0;
 				endFrame = (loadedLog?.frameCount || 1) - 1;
-				drawCanvas();
 			}}
-		/>
+		></canvas>
 	</div>
 	<div class="flagSelector">
 		{#each graphs as graph, graphIndex}
 			<div class="graphSelector">
 				{#each graph as trace, traceIndex (trace.id)}
 					<TracePlacer
-						log={logButItsThere()}
+						log={loadedLog!}
 						flagProps={BB_ALL_FLAGS}
 						genFlagProps={BB_GEN_FLAGS}
-						on:update={event => {
-							updateTrace(event, graphIndex, traceIndex, trace.id);
-						}}
-						on:delete={() => {
+						bind:trace={graphs[graphIndex][traceIndex]}
+						update={drawCanvas}
+						delete={() => {
 							deleteTrace(graphIndex, traceIndex);
 						}}
 					/>
@@ -2617,20 +2421,20 @@
 				<button
 					class="addTraceButton"
 					disabled={!loadedLog?.flags?.length}
-					on:click={() => {
+					onclick={() => {
 						addTrace(graphIndex);
 					}}>Add Trace</button
 				>
 				<button
 					class="deleteGraph"
 					disabled={!loadedLog?.flags?.length || graphs.length == 1}
-					on:click={() => {
+					onclick={() => {
 						deleteGraph(graphIndex);
 					}}>Del Graph</button
 				>
 			</div>
 		{/each}
-		<button class="addGraphButton" disabled={!loadedLog} on:click={addGraph}>Add Graph</button>
+		<button class="addGraphButton" disabled={!loadedLog} onclick={addGraph}>Add Graph</button>
 		{#if loadedLog}
 			<div class="fileInfo" style="margin-top: .8rem">
 				<div>Blackbox Version: {loadedLog.version.join('.')}</div>
@@ -2652,59 +2456,59 @@
 				<div>
 					PID Gains:
 					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;P:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][0], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][0], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][0], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;P:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][0], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][0], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][0], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;I:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][1], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][1], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][1], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;I:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][1], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][1], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][1], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;D:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][2], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][2], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;D:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][2], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][2], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;FF:&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][3], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][3], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][3], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;FF:&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][3], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][3], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][3], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;S:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][4], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[1][4], 5, ' ')}
-						{prefixZeros(loadedLog.pidConstantsNice[2][4], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;S:&nbsp;&nbsp;{prefixZeros(loadedLog.pidConstantsNice[0][4], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[1][4], 5, ' ')}
+						{prefixZeros(loadedLog.pidConstantsNice[2][4], 5, ' ')}
 					</div>
 				</div>
 				<div class="rateFactors">
 					Rate Factors:
 					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^1:&nbsp;{prefixZeros(loadedLog.rateFactors[0][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[0][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[0][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^1:&nbsp;{prefixZeros(loadedLog.rateFactors[0][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[0][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[0][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^2:&nbsp;{prefixZeros(loadedLog.rateFactors[1][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[1][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[1][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^2:&nbsp;{prefixZeros(loadedLog.rateFactors[1][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[1][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[1][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^3:&nbsp;{prefixZeros(loadedLog.rateFactors[2][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[2][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[2][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^3:&nbsp;{prefixZeros(loadedLog.rateFactors[2][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[2][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[2][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^4:&nbsp;{prefixZeros(loadedLog.rateFactors[3][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[3][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[3][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^4:&nbsp;{prefixZeros(loadedLog.rateFactors[3][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[3][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[3][2], 5, ' ')}
 					</div>
-					<div style="white-space:pre-wrap">
-						&nbsp;&nbsp;x^5:&nbsp;{prefixZeros(loadedLog.rateFactors[4][0], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[4][1], 5, ' ')}
-						{prefixZeros(loadedLog.rateFactors[4][2], 5, ' ')}
+					<div>
+						&nbsp;&nbsp;x^5:&nbsp;{prefixZeros(loadedLog.rateFactors[4][0], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[4][1], 5, ' ')}
+						{prefixZeros(loadedLog.rateFactors[4][2], 5, ' ')}
 					</div>
 				</div>
 			</div>
@@ -2717,9 +2521,9 @@
 			genFlagProps={BB_GEN_FLAGS}
 			{startFrame}
 			{endFrame}
-			on:update={event => {
-				startFrame = Math.min(event.detail.startFrame, event.detail.endFrame);
-				endFrame = Math.max(event.detail.startFrame, event.detail.endFrame);
+			update={(s, e) => {
+				startFrame = Math.min(s, e);
+				endFrame = Math.max(s, e);
 			}}
 		/>
 	</div>

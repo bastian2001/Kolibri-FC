@@ -1,6 +1,10 @@
 <script lang="ts">
-	export let throttlePct = 0;
-	let cp = '';
+	interface Props {
+		throttlePct?: number;
+	}
+
+	let { throttlePct = 0 }: Props = $props();
+	let cp = $state('');
 	function updateClipPath() {
 		const points = ['50% 50%', '50% 0%'];
 		if (throttlePct < 12.5 || throttlePct >= 87.5) {
@@ -34,10 +38,10 @@
 		}
 		cp = `polygon(${points.join(', ')})`;
 	}
-	$: throttlePct, updateClipPath();
+	$effect(updateClipPath);
 </script>
 
-<div class="motor" style:clip-path={cp} />
+<div class="motor" style:clip-path={cp}></div>
 
 <style>
 	.motor {
