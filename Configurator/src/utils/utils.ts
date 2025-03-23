@@ -48,3 +48,5 @@ export function delay(ms: number) {
 		setTimeout(resolve, ms)
 	})
 }
+
+export const runAsync = () => Promise.resolve()

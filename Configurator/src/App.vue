@@ -1,20 +1,22 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "./utils/msp";
-import { leBytesToInt, delay } from "./utils/utils";
+import { MspFn, MspVersion } from "@utils/msp";
+import { leBytesToInt, delay } from "@utils/utils";
 import { routes } from "./router";
-import { usePortStore } from "./stores/portStore";
-import { useLogStore } from "./stores/logStore";
+import { connect, disconnect, sendCommand, getDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./communication/serial";
+import { useLogStore } from "@stores/logStore";
+import { Command } from "./utils/types";
 
 export default defineComponent({
 	name: "App",
 	mounted() {
 		this.listInterval = setInterval(this.listDevices, 1000);
 		delay(150).then(this.listDevices);
-		this.port.disconnect();
+		disconnect();
 
-		this.port.addOnConnectHandler(this.och);
-		this.port.addOnDisconnectHandler(this.odh);
+		addOnConnectHandler(this.och);
+		addOnDisconnectHandler(this.odh);
+		addOnCommandHandler(this.onCommand)
 
 		this.configuratorLog.$subscribe(() => {
 			this.$nextTick().then(() => {
@@ -23,8 +25,27 @@ export default defineComponent({
 				logDiv.scrollTop = logDiv.scrollHeight;
 			})
 		})
-
-		this.port.$subscribe((_mut, { command }) => {
+	},
+	unmounted() {
+		clearInterval(this.listInterval);
+		this.disconnect();
+		removeOnConnectHandler(this.och);
+		removeOnDisconnectHandler(this.odh);
+		removeOnCommandHandler(this.onCommand);
+	},
+	data() {
+		return {
+			configuratorLog: useLogStore(),
+			devices: [] as string[],
+			listInterval: -1,
+			battery: '',
+			device: undefined,
+			connected: false,
+			routes
+		};
+	},
+	methods: {
+		onCommand(command: Command) {
 			if (command.cmdType === 'request') {
 				switch (command.command) {
 					case MspFn.IND_MESSAGE:
@@ -80,40 +101,20 @@ export default defineComponent({
 						this.configuratorLog.push('EEPROM saved');
 				}
 			}
-		})
-	},
-	unmounted() {
-		clearInterval(this.listInterval);
-		this.disconnect();
-		this.port.removeOnConnectHandler(this.och);
-		this.port.removeOnDisconnectHandler(this.odh);
-	},
-	data() {
-		return {
-			port: usePortStore(),
-			configuratorLog: useLogStore(),
-			devices: [] as string[],
-			listInterval: -1,
-			battery: '',
-			device: undefined,
-			connected: false,
-			routes
-		};
-	},
-	methods: {
+		},
 		connect() {
 			console.log(this.device);
-			this.port.connect(this.device).catch(() => {
+			connect(this.device).catch(() => {
 				this.connected = false;
 			});
 		},
 		disconnect() {
-			this.port.disconnect().catch(() => {
+			disconnect().catch(() => {
 				this.connected = false;
 			});
 		},
 		listDevices() {
-			this.devices = this.port.getDevices();
+			this.devices = getDevices();
 		},
 		odh() {
 			this.connected = false;
@@ -121,22 +122,21 @@ export default defineComponent({
 		och() {
 			this.connected = true;
 			this.configuratorLog.clearEntries();
-			this.port
-				.sendCommand('request', MspFn.API_VERSION)
-				.then(() => this.port.sendCommand('request', MspFn.FIRMWARE_VARIANT))
+			sendCommand('request', MspFn.API_VERSION)
+				.then(() => sendCommand('request', MspFn.FIRMWARE_VARIANT))
 				.then(() => delay(5))
-				.then(() => this.port.sendCommand('request', MspFn.FIRMWARE_VERSION))
+				.then(() => sendCommand('request', MspFn.FIRMWARE_VERSION))
 				.then(() => delay(5))
-				.then(() => this.port.sendCommand('request', MspFn.BOARD_INFO))
+				.then(() => sendCommand('request', MspFn.BOARD_INFO))
 				.then(() => delay(5))
-				.then(() => this.port.sendCommand('request', MspFn.BUILD_INFO))
+				.then(() => sendCommand('request', MspFn.BUILD_INFO))
 				.then(() => delay(5))
-				.then(() => this.port.sendCommand('request', MspFn.GET_NAME))
+				.then(() => sendCommand('request', MspFn.GET_NAME))
 				.then(() => delay(5))
-				.then(() => this.port.sendCommand('request', MspFn.STATUS))
+				.then(() => sendCommand('request', MspFn.STATUS))
 				.then(() => {
 					const now = Date.now() / 1000;
-					this.port.sendCommand('request', MspFn.SET_RTC, MspVersion.V2, [
+					sendCommand('request', MspFn.SET_RTC, MspVersion.V2, [
 						now & 0xff,
 						(now >> 8) & 0xff,
 						(now >> 16) & 0xff,
