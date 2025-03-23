@@ -7,6 +7,7 @@ import { constrain, getNestedProperty, leBytesToInt, map, prefixZeros, roundToDe
 import { MspFn, MspVersion } from "@/utils/msp";
 import { useLogStore } from "@/stores/logStore";
 import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/communication/serial";
+import TracePlacer from "@/components/blackbox/TracePlacer.vue";
 
 const DURATION_BAR_RASTER = [
 	'100us',
@@ -713,7 +714,8 @@ export default defineComponent({
 	name: "Blackbox",
 	components: {
 		Timeline,
-		Settings
+		Settings,
+		TracePlacer
 	},
 	data() {
 		return {
@@ -768,7 +770,12 @@ export default defineComponent({
 			handler() {
 				this.drawCanvas();
 			}
-		}
+		},
+		graphs: {
+			handler() {
+				this.drawCanvas();
+			}
+		},
 	},
 	methods: {
 		onCommand(command: Command) {
@@ -2381,7 +2388,14 @@ export default defineComponent({
 			</canvas>
 		</div>
 		<div class="flagSelector">
-			<div v-for="(_graph, graphIndex) in graphs" class="graphSelector">
+			<div v-for="(graph, graphIndex) in graphs" class="graphSelector">
+				<TracePlacer v-for="(trace, traceIndex) in graph" :key="trace.id" :ll="loadedLog!" :fp="BB_ALL_FLAGS"
+					:gfp="BB_GEN_FLAGS" :t="trace" v-model="graphs[graphIndex][traceIndex]" @update="(t: TraceInGraph) => {
+						graphs[graphIndex][traceIndex] = t;
+						drawCanvas()
+					}" @delete="() => {
+						deleteTrace(graphIndex, traceIndex);
+					}" />
 				<button class="addTraceButton" :disabled="!loadedLog?.flags?.length" @click="() => {
 					addTrace(graphIndex);
 				}">Add Trace</button>
