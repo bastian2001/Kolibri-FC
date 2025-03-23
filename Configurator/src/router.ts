@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, createMemoryHistory } from "vue-router"
+import { createRouter, createWebHistory } from "vue-router"
 import Home from "@views/Home.vue"
 import Blackbox from "@views/Blackbox.vue"
 import GpsMag from "@views/GpsMag.vue"
@@ -20,7 +20,7 @@ export const routes = [
 ]
 
 const router = createRouter({
-	history: createMemoryHistory(),
+	history: createWebHistory(),
 	routes,
 })
 

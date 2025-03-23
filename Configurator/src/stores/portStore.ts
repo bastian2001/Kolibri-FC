@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { MspFn, MspVersion } from "../utils/msp"
 import { type Command } from "../utils/types"
 import { ref } from "vue"
+import { useLogStore } from "./logStore"
 
 const MspState = {
 	IDLE: 0, // waiting for $
@@ -44,24 +45,26 @@ export const usePortStore = defineStore("port", () => {
 		version: MspVersion.V2,
 	})
 
+	const configuratorLog = useLogStore()
+
 	function setCommand(c: Command) {
 		command.value = { ...c }
-		// if (c.cmdType === 'error') {
-		// 	console.error(structuredClone(c));
-		// 	configuratorLog.push('Error, see console for details.');
-		// }
-		// if (c.cmdType === 'response') {
-		// 	switch (c.command) {
-		// 		case MspFn.CONFIGURATOR_PING:
-		// 			// pong response from FC received
-		// 			fcPing = Date.now() - pingStarted;
-		// 			break;
-		// 	}
-		// }
-		// if (!Object.values(MspFn).includes(c.command) && !Number.isNaN(c.command)) {
-		// 	console.log(structuredClone(c));
-		// 	configuratorLog.push('Unsupported command, see console for details.');
-		// }
+		if (c.cmdType === "error") {
+			console.error(structuredClone(c))
+			configuratorLog.push("Error, see console for details.")
+		}
+		if (c.cmdType === "response") {
+			switch (c.command) {
+				case MspFn.CONFIGURATOR_PING:
+					// pong response from FC received
+					fcPing = Date.now() - pingStarted
+					break
+			}
+		}
+		if (!Object.values(MspFn).includes(c.command) && !Number.isNaN(c.command)) {
+			console.log(structuredClone(c))
+			configuratorLog.push("Unsupported command, see console for details.")
+		}
 	}
 
 	function strToArray(str: string) {
@@ -420,12 +423,9 @@ export const usePortStore = defineStore("port", () => {
 		})
 	}
 
-	let counter = 0
 	function listDevices() {
 		invoke("serial_list").then((d: unknown) => {
 			devices = d as string[]
-			newCommand.command = counter++
-			setCommand(newCommand)
 		})
 	}
 	listDevices()

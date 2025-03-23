@@ -1,10 +1,10 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { RouterView } from "vue-router";
 import { MspFn, MspVersion } from "./utils/msp";
 import { leBytesToInt, delay } from "./utils/utils";
 import { routes } from "./router";
 import { usePortStore } from "./stores/portStore";
+import { useLogStore } from "./stores/logStore";
 
 export default defineComponent({
 	name: "App",
@@ -16,60 +16,68 @@ export default defineComponent({
 		this.port.addOnConnectHandler(this.och);
 		this.port.addOnDisconnectHandler(this.odh);
 
+		this.configuratorLog.$subscribe(() => {
+			this.$nextTick().then(() => {
+				//wait for DOM to update
+				const logDiv = this.$refs.logDiv as HTMLDivElement;
+				logDiv.scrollTop = logDiv.scrollHeight;
+			})
+		})
+
 		this.port.$subscribe((_mut, { command }) => {
 			if (command.cmdType === 'request') {
 				switch (command.command) {
 					case MspFn.IND_MESSAGE:
-						// configuratorLog.push(command.dataStr);
+						this.configuratorLog.push(command.dataStr);
 						break;
 				}
 			} else if (command.cmdType === 'response') {
 				switch (command.command) {
 					case MspFn.API_VERSION:
-						// configuratorLog.push(
-						// 	`Protocol: ${command.data[0]}, API: ${command.data[1]}.${command.data[2]}`
-						// );
+						this.configuratorLog.push(
+							`Protocol: ${command.data[0]}, API: ${command.data[1]}.${command.data[2]}`
+						);
 						break;
 					case MspFn.FIRMWARE_VARIANT:
-						// configuratorLog.push(`Firmware: ${command.dataStr}`);
+						this.configuratorLog.push(`Firmware: ${command.dataStr}`);
 						if (command.dataStr !== 'KOLI') {
-							// configuratorLog.push(
-							// 	`This configurator is only compatible with Kolibri firmware, disconnecting...`
-							// );
+							this.configuratorLog.push(
+								`This configurator is only compatible with Kolibri firmware, disconnecting...`
+							);
 							this.disconnect();
 						}
 						break;
 					case MspFn.FIRMWARE_VERSION:
-						// configuratorLog.push(`Version: ${command.data[0]}.${command.data[1]}.${command.data[2]}`);
+						this.configuratorLog.push(`Version: ${command.data[0]}.${command.data[1]}.${command.data[2]}`);
 						break;
 					case MspFn.BOARD_INFO:
-						// configuratorLog.push(
-						// `Board: ${command.dataStr.substring(0, 4)} => ${command.dataStr.substring(
-						// 	9,
-						// 	9 + command.data[8]
-						// )}`
-						// );
+						this.configuratorLog.push(
+							`Board: ${command.dataStr.substring(0, 4)} => ${command.dataStr.substring(
+								9,
+								9 + command.data[8]
+							)}`
+						);
 						break;
 					case MspFn.BUILD_INFO:
 						const date = command.dataStr.substring(0, 11);
 						const time = command.dataStr.substring(11, 19);
 						const githash = command.dataStr.substring(19);
-						// configuratorLog.push(`Firmware released: ${date} ${time} (Git: #${githash})`);
+						this.configuratorLog.push(`Firmware released: ${date} ${time} (Git: #${githash})`);
 						break;
 					case MspFn.GET_NAME:
-						// configuratorLog.push(`Name: ${command.dataStr}`);
+						this.configuratorLog.push(`Name: ${command.dataStr}`);
 						break;
 					case MspFn.STATUS:
 						this.battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
 						break;
 					case MspFn.SET_RTC:
-						// configuratorLog.push('RTC updated');
+						this.configuratorLog.push('RTC updated');
 						break;
 					case MspFn.PLAY_SOUND:
 						console.log(command.data);
 						break;
 					case MspFn.SAVE_SETTINGS:
-					// configuratorLog.push('EEPROM saved');
+						this.configuratorLog.push('EEPROM saved');
 				}
 			}
 		})
@@ -83,12 +91,12 @@ export default defineComponent({
 	data() {
 		return {
 			port: usePortStore(),
+			configuratorLog: useLogStore(),
 			devices: [] as string[],
 			listInterval: -1,
 			battery: '',
 			device: undefined,
 			connected: false,
-			logDiv: undefined,
 			routes
 		};
 	},
@@ -112,7 +120,7 @@ export default defineComponent({
 		},
 		och() {
 			this.connected = true;
-			// this.configuratorLog.clearEntries();
+			this.configuratorLog.clearEntries();
 			this.port
 				.sendCommand('request', MspFn.API_VERSION)
 				.then(() => this.port.sendCommand('request', MspFn.FIRMWARE_VARIANT))
@@ -157,8 +165,8 @@ export default defineComponent({
 			<div v-if="connected" class="battery">
 				<p>Battery: {{ battery }}</p>
 			</div>
-			<div class="log" :this="logDiv">
-				<p v-for="l in ['']">{{ l }} configuratorLog</p>
+			<div class="log" ref="logDiv">
+				<p v-for="l in configuratorLog.getEntries()">{{ l }}</p>
 			</div>
 		</div>
 
