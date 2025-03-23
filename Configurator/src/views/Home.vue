@@ -210,10 +210,13 @@ export default defineComponent({
 		<div class="droneStatus">Flight Mode: {{ FLIGHT_MODES[flightMode] }}, Armed: {{ armed ? 'Yes' : 'No' }},
 			Configurator Connected: {{ configuratorConnected ? 'Yes' : 'No' }}<br />
 			Arming Disabled Flags:<br />
-			{{ARMING_DISABLE_FLAGS.map((flag, i) => {
-				if (armingDisableFlags & (1 << i)) return flag + ', '
-			}).join('')}} <!--comment to prevent _some_ of the
-				stupid auto-formatting-->
+			{{
+				ARMING_DISABLE_FLAGS
+					.map((flag, i) => {
+						if (armingDisableFlags & (1 << i)) return flag
+					}).filter(el => el)
+					.join(', ')
+			}}
 		</div>
 		<div>Ping: {{ fcPing }} ms</div>
 		<div>
