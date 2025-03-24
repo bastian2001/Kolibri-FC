@@ -1,7 +1,7 @@
 <script lang="ts">
-import { BBLog, FlagProps, GenFlagProps, TraceInGraph } from '@/utils/types';
-import { getNestedProperty } from '@/utils/utils';
-import { defineComponent } from 'vue';
+import { BBLog, FlagProps, GenFlagProps, TraceInGraph } from '@utils/types';
+import { getNestedProperty } from '@utils/utils';
+import { defineComponent, type PropType } from 'vue';
 
 function getBinomialCoeff(n: number, k: number) {
 	let result = 1;
@@ -20,20 +20,20 @@ function getBinomialCoeff(n: number, k: number) {
 export default defineComponent({
 	name: 'TracePlacer',
 	props: {
-		fp: { // flagProps
-			type: Object,
+		flagProps: {
+			type: Object as PropType<{ [key: string]: FlagProps }>,
 			required: true,
 		},
-		gfp: { // genFlagProps
-			type: Object,
+		genFlagProps: {
+			type: Object as PropType<{ [key: string]: GenFlagProps }>,
 			required: true,
 		},
-		ll: { // loadedLog
-			type: Object,
+		loadedLog: {
+			type: Object as PropType<BBLog>,
 			required: true,
 		},
-		t: { // trace
-			type: Object,
+		trace: {
+			type: Object as PropType<TraceInGraph>,
 			required: true,
 		},
 	},
@@ -52,16 +52,6 @@ export default defineComponent({
 		};
 	},
 	computed: {
-		// computed properties
-		flagProps(): { [key: string]: FlagProps } {
-			return this.fp;
-		},
-		genFlagProps(): { [key: string]: GenFlagProps } {
-			return this.gfp;
-		},
-		loadedLog(): BBLog {
-			return this.ll as BBLog;
-		},
 		availableFlagNames(): string[] {
 			return this.loadedLog.flags.filter(f => {
 				return f.startsWith('LOG_');
@@ -134,7 +124,6 @@ export default defineComponent({
 		const h = Math.random() * 360;
 		const s = Math.random() * 0.5 + 0.5;
 		const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
-		this.trace = this.t as TraceInGraph
 		this.trace.color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
 	},
 	methods: {
@@ -240,11 +229,6 @@ export default defineComponent({
 		}
 	},
 	watch: {
-		// t: {
-		// 	handler(newVal: TraceInGraph) {
-		// 		// this.trace = newVal;
-		// 	}
-		// },
 		autoRange: {
 			handler(newRange) {
 				if (this.autoRangeOn) {

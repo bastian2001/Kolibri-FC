@@ -2,7 +2,7 @@
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/communication/serial';
 import { MspFn, MspVersion } from '@utils/msp';
 import { Command, FlagProps } from '@utils/types';
-import { defineComponent } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 import { leBytesToInt } from '@utils/utils';
 
 export default defineComponent({
@@ -16,15 +16,10 @@ export default defineComponent({
 		};
 	},
 	props: {
-		f: { // flags
-			type: Object,
+		flags: {
+			type: Object as PropType<{ [key: string]: FlagProps }>,
 			required: true,
 		},
-	},
-	computed: {
-		flags(): { [key: string]: FlagProps } {
-			return this.f as { [key: string]: FlagProps }
-		}
 	},
 	mounted() {
 		this.flagNames = Object.keys(this.flags);

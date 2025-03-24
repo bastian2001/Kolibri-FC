@@ -1,10 +1,10 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/communication/serial";
-import { MspFn } from "@/utils/msp";
-import { leBytesToInt, roundToDecimal } from "@/utils/utils";
-import { useLogStore } from "@/stores/logStore";
-import { type Command } from "@/utils/types";
+import { MspFn } from "@utils/msp";
+import { leBytesToInt, roundToDecimal } from "@utils/utils";
+import { useLogStore } from "@stores/logStore";
+import { type Command } from "@utils/types";
 
 export default defineComponent({
 	name: "GpsMag",

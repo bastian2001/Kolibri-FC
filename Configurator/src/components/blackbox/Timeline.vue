@@ -1,20 +1,20 @@
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, type PropType } from "vue";
 import { type GenFlagProps, type FlagProps, type BBLog } from "@utils/types";
 import { getNestedProperty } from "@utils/utils";
 
 export default defineComponent({
 	name: "BlackboxTimeline",
 	props: {
-		ll: { // loadedLog
-			type: Object,
+		loadedLog: {
+			type: Object as PropType<BBLog | undefined>,
 		},
-		gfp: { //genFlagProps
-			type: Object,
+		genFlagProps: {
+			type: Object as PropType<{ [key: string]: GenFlagProps }>,
 			required: true
 		},
-		fp: { // flagProps
-			type: Object,
+		flagProps: {
+			type: Object as PropType<{ [key: string]: FlagProps }>,
 			required: true
 		},
 		startFrame: {
@@ -38,15 +38,6 @@ export default defineComponent({
 	},
 	emits: ["update"],
 	computed: {
-		flagProps(): { [key: string]: FlagProps } {
-			return this.fp
-		},
-		genFlagProps(): { [key: string]: GenFlagProps } {
-			return this.gfp
-		},
-		loadedLog(): BBLog | undefined {
-			return this.ll as BBLog | undefined;
-		},
 		canvas() {
 			return this.$refs.timelineCanvas as HTMLCanvasElement;
 		},

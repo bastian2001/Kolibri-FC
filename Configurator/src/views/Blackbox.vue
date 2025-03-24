@@ -2,12 +2,12 @@
 import { defineComponent } from "vue";
 import Timeline from "@components/blackbox/Timeline.vue";
 import Settings from "@components/blackbox/Settings.vue";
-import { BBLog, LogFrame, TraceInGraph, FlagProps, GenFlagProps, Command } from "@/utils/types";
-import { constrain, getNestedProperty, leBytesToInt, map, prefixZeros, roundToDecimal } from "@/utils/utils";
-import { MspFn, MspVersion } from "@/utils/msp";
-import { useLogStore } from "@/stores/logStore";
+import { BBLog, LogFrame, TraceInGraph, FlagProps, GenFlagProps, Command } from "@utils/types";
+import { constrain, getNestedProperty, leBytesToInt, map, prefixZeros, roundToDecimal } from "@utils/utils";
+import { MspFn, MspVersion } from "@utils/msp";
+import { useLogStore } from "@stores/logStore";
 import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/communication/serial";
-import TracePlacer from "@/components/blackbox/TracePlacer.vue";
+import TracePlacer from "@components/blackbox/TracePlacer.vue";
 
 const DURATION_BAR_RASTER = [
 	'100us',
@@ -976,9 +976,9 @@ export default defineComponent({
 			} else {
 				this.touchMode = 'zoom';
 				this.frame0 =
-					this.startFrame + Math.round((this.endFrame - this.startFrame) * (touches[0].clientX / domCanvas.width));
+					this.startFrame + Math.round((this.endFrame - this.startFrame) * (touches[0].clientX / this.domCanvas.width));
 				this.frame1 =
-					this.startFrame + Math.round((this.endFrame - this.startFrame) * (touches[1].clientX / domCanvas.width));
+					this.startFrame + Math.round((this.endFrame - this.startFrame) * (touches[1].clientX / this.domCanvas.width));
 				if (this.frame1 === this.frame0) {
 					this.frame1++;
 					if (this.frame1 > this.loadedLog.frameCount - 1) {
@@ -2372,7 +2372,7 @@ export default defineComponent({
 			<button @click="openLogFromFile">Open from file</button>
 			<button @click="() => { showSettings = true }">Settings</button>
 		</div>
-		<Settings v-if="showSettings" :f="BB_ALL_FLAGS" @close="() => { showSettings = false; }" />
+		<Settings v-if="showSettings" :flags="BB_ALL_FLAGS" @close="() => { showSettings = false; }" />
 		<div class="dataViewerWrapper" ref="dataViewerWrapper">
 			<canvas id="bbDataViewer" ref="bbDataViewer" @mousedown="onMouseDown" @mouseup="onMouseUp"
 				@mousemove="onMouseMove" @mouseleave="onMouseLeave" @wheel="onMouseWheel" @dblclick="() => {
@@ -2382,9 +2382,10 @@ export default defineComponent({
 			</canvas>
 		</div>
 		<div class="flagSelector">
-			<div v-for="(graph, graphIndex) in graphs" class="graphSelector">
-				<TracePlacer v-for="(trace, traceIndex) in graph" :key="trace.id" :ll="loadedLog!" :fp="BB_ALL_FLAGS"
-					:gfp="BB_GEN_FLAGS" :t="trace" v-model="graphs[graphIndex][traceIndex]" @update="(t: TraceInGraph) => {
+			<div v-for="(graph, graphIndex) in graphs" v-if="loadedLog" class="graphSelector">
+				<TracePlacer v-for="(trace, traceIndex) in graph" :key="trace.id" :loadedLog="loadedLog"
+					:flagProps="BB_ALL_FLAGS" :genFlagProps="BB_GEN_FLAGS" :trace="trace"
+					v-model="graphs[graphIndex][traceIndex]" @update="(t: TraceInGraph) => {
 						graphs[graphIndex][traceIndex] = t;
 						drawCanvas()
 					}" @delete="() => {
@@ -2476,8 +2477,8 @@ export default defineComponent({
 			</div>
 		</div>
 		<div class="timelineWrapper">
-			<Timeline :ll="loadedLog" :fp="BB_ALL_FLAGS" :gfp="BB_GEN_FLAGS" :startFrame="startFrame"
-				:endFrame="endFrame"
+			<Timeline :loadedLog="loadedLog" :flagProps="BB_ALL_FLAGS" :genFlagProps="BB_GEN_FLAGS"
+				:startFrame="startFrame" :endFrame="endFrame"
 				@update="(sf, ef) => { startFrame = Math.min(sf, ef); endFrame = Math.max(sf, ef) }" />
 		</div>
 	</div>

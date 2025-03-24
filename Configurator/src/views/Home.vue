@@ -2,10 +2,10 @@
 import { defineComponent } from 'vue';
 import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/communication/serial';
 import { useLogStore } from '@stores/logStore';
-import { leBytesToInt, delay } from '@/utils/utils';
-import { MspFn, MspVersion } from '@/utils/msp';
-import { type Command } from '@/utils/types';
-import { roundToDecimal, prefixZeros } from '@/utils/utils';
+import { leBytesToInt, delay } from '@utils/utils';
+import { MspFn, MspVersion } from '@utils/msp';
+import { type Command } from '@utils/types';
+import { roundToDecimal, prefixZeros } from '@utils/utils';
 
 const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
 const ARMING_DISABLE_FLAGS = [

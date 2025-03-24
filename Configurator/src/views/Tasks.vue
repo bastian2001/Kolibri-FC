@@ -2,8 +2,8 @@
 import { defineComponent } from "vue";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/communication/serial";
 import { MspFn } from "@utils/msp";
-import { Command } from "@/utils/types";
-import { leBytesToInt } from "@/utils/utils";
+import { Command } from "@utils/types";
+import { leBytesToInt } from "@utils/utils";
 
 const TASK_NAMES = [
 	'Loop 0',

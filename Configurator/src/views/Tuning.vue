@@ -1,8 +1,8 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import { MspFn, MspVersion } from "@utils/msp";
-import { Command } from "@/utils/types";
-import { leBytesToInt } from "@/utils/utils";
+import { Command } from "@utils/types";
+import { leBytesToInt } from "@utils/utils";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/communication/serial";
 
 export default defineComponent({
