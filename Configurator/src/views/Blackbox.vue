@@ -946,7 +946,6 @@ export default defineComponent({
 		onTouchDown(e: TouchEvent) {
 			e.preventDefault();
 			if (!this.loadedLog) return;
-			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 			const touches = [];
 			const changedTouches = [];
 			for (let i = 0; i < e.touches.length; i++)
@@ -963,9 +962,9 @@ export default defineComponent({
 				} else {
 					this.touchMode = 'zoom';
 					this.frame0 =
-						this.startFrame + Math.round((this.endFrame - this.startFrame) * (touches[0].clientX / domCanvas.width));
+						this.startFrame + Math.round((this.endFrame - this.startFrame) * (touches[0].clientX / this.domCanvas.width));
 					this.frame1 =
-						this.startFrame + Math.round((this.endFrame - this.startFrame) * (touches[1].clientX / domCanvas.width));
+						this.startFrame + Math.round((this.endFrame - this.startFrame) * (touches[1].clientX / this.domCanvas.width));
 					if (this.frame1 === this.frame0) {
 						this.frame1++;
 						if (this.frame1 > this.loadedLog.frameCount - 1) {
@@ -992,13 +991,12 @@ export default defineComponent({
 		onTouchMove(e: TouchEvent) {
 			e.preventDefault();
 			if (!this.loadedLog) return;
-			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 			const touches = [];
 			for (let i = 0; i < e.touches.length; i++)
 				if (e.touches[i].identifier < 2) touches.push(e.touches[i]);
 			if (this.touchMode === 'move') {
 				const diff = touches[0].clientX - this.touchStartX;
-				const ratio = (this.startStartFrame - this.startEndFrame) / domCanvas.width;
+				const ratio = (this.startStartFrame - this.startEndFrame) / this.domCanvas.width;
 				let deltaFrames = Math.floor(diff * ratio);
 				if (this.startEndFrame + deltaFrames > this.loadedLog!.frameCount - 1)
 					deltaFrames = this.loadedLog!.frameCount - 1 - this.startEndFrame;
@@ -1008,7 +1006,7 @@ export default defineComponent({
 			}
 			if (this.touchMode === 'zoom') {
 				let span = Math.round(
-					((this.frame1 - this.frame0) * domCanvas.width) / (e.touches[1].clientX - e.touches[0].clientX)
+					((this.frame1 - this.frame0) * this.domCanvas.width) / (e.touches[1].clientX - e.touches[0].clientX)
 				);
 				if (span < 0) span = this.loadedLog.frameCount - 1;
 				if (span >= this.loadedLog.frameCount - 1) {
@@ -1018,8 +1016,8 @@ export default defineComponent({
 				}
 				const frameCenter = Math.round((this.frame0 + this.frame1) / 2);
 				const centerPos = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-				this.startFrame = frameCenter - Math.round(span * (centerPos / domCanvas.width));
-				this.endFrame = frameCenter + Math.round(span * (1 - centerPos / domCanvas.width));
+				this.startFrame = frameCenter - Math.round(span * (centerPos / this.domCanvas.width));
+				this.endFrame = frameCenter + Math.round(span * (1 - centerPos / this.domCanvas.width));
 				if (this.startFrame < 0) {
 					this.endFrame -= this.startFrame;
 					this.startFrame = 0;
@@ -1069,9 +1067,8 @@ export default defineComponent({
 			ctx.moveTo(endX, 0);
 			ctx.lineTo(endX, this.selectionCanvas.height);
 			ctx.stroke();
-			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-			const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
-			domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
+			const domCtx = this.domCanvas.getContext('2d') as CanvasRenderingContext2D;
+			domCtx.clearRect(0, 0, this.domCanvas.width, this.domCanvas.height);
 			domCtx.drawImage(this.canvas, 0, 0);
 			domCtx.drawImage(this.selectionCanvas, 0, 0);
 		},
@@ -1080,7 +1077,7 @@ export default defineComponent({
 			if (e.buttons !== 1) {
 				this.onMouseUp();
 				// highlight all points on the current frame
-				const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
+				const domCanvas = this.domCanvas;
 				const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
 				domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
 				domCtx.drawImage(this.canvas, 0, 0);
@@ -1237,8 +1234,7 @@ export default defineComponent({
 			}
 			if (this.trackingStartX === -1) return;
 			if (this.trackingStartX === -2) {
-				const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-				const ratio = (this.startStartFrame - this.startEndFrame) / domCanvas.width;
+				const ratio = (this.startStartFrame - this.startEndFrame) / this.domCanvas.width;
 				const diff = e.offsetX - this.firstX;
 				let deltaFrames = Math.floor(diff * ratio);
 				if (this.startEndFrame + deltaFrames > this.loadedLog!.frameCount - 1)
@@ -1280,11 +1276,10 @@ export default defineComponent({
 				this.trackingStartX = this.trackingEndX;
 				this.trackingEndX = p;
 			}
-			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
 			const nStart =
-				this.startFrame + Math.floor((this.endFrame - this.startFrame) * (this.trackingStartX / domCanvas.width));
+				this.startFrame + Math.floor((this.endFrame - this.startFrame) * (this.trackingStartX / this.domCanvas.width));
 			const nEnd =
-				this.startFrame + Math.floor((this.endFrame - this.startFrame) * (this.trackingEndX / domCanvas.width));
+				this.startFrame + Math.floor((this.endFrame - this.startFrame) * (this.trackingEndX / this.domCanvas.width));
 			this.startFrame = Math.min(nStart, nEnd);
 			this.endFrame = Math.max(nStart, nEnd);
 			this.trackingStartX = -1;
@@ -1337,9 +1332,8 @@ export default defineComponent({
 		},
 		drawCanvas(allowShortening = true) {
 			if (!this.loadedLog) return;
-			const domCanvas = document.getElementById('bbDataViewer') as HTMLCanvasElement;
-			this.canvas.width = domCanvas.width;
-			this.canvas.height = domCanvas.height;
+			this.canvas.width = this.domCanvas.width;
+			this.canvas.height = this.domCanvas.height;
 			const ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
 			/**
 			 * the drawing canvas has several graphs in it (in one column)
@@ -1470,8 +1464,8 @@ export default defineComponent({
 				}
 				heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
 			}
-			domCanvas.getContext('2d')?.clearRect(0, 0, this.dataViewerWrapper.clientWidth, this.dataViewerWrapper.clientHeight);
-			domCanvas.getContext('2d')?.drawImage(this.canvas, 0, 0);
+			this.domCanvas.getContext('2d')?.clearRect(0, 0, this.dataViewerWrapper.clientWidth, this.dataViewerWrapper.clientHeight);
+			this.domCanvas.getContext('2d')?.drawImage(this.canvas, 0, 0);
 		},
 		decodeDuration(duration: string): number {
 			let seconds = parseFloat(duration.replace(/[a-zA-Z]/g, ''));

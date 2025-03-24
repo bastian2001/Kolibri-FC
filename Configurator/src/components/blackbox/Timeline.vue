@@ -48,10 +48,10 @@ export default defineComponent({
 			return this.ll as BBLog | undefined;
 		},
 		canvas() {
-			return this.$refs.canvas as HTMLCanvasElement;
+			return this.$refs.timelineCanvas as HTMLCanvasElement;
 		},
 		wrapper() {
-			return this.$refs.wrapper as HTMLDivElement;
+			return this.$refs.timelineWrapper as HTMLDivElement;
 		},
 	},
 	methods: {
@@ -161,7 +161,6 @@ export default defineComponent({
 			ctx2.clearRect(0, 0, this.canvas.width, this.canvas.height);
 			ctx2.drawImage(this.osCanvas, 0, 0);
 			ctx2.drawImage(this.selCanvas, 0, 0);
-			// this.$emit('update', startFrame.value, endFrame.value);
 		},
 		drawTrace(traceName: string, min: number, max: number) {
 			if (!this.loadedLog) return;
@@ -199,6 +198,9 @@ export default defineComponent({
 		this.onResize();
 		window.addEventListener('resize', this.onResize);
 	},
+	beforeUnmount() {
+		window.removeEventListener('resize', this.onResize);
+	},
 	watch: {
 		loadedLog: {
 			handler() {
@@ -220,8 +222,8 @@ export default defineComponent({
 </script>
 
 <template>
-	<div class="wrapper" id="bbTimelineWrapper" @mousemove="mouseMove" role="banner" ref="wrapper">
-		<canvas height="32" id="bbTimeline" @mousedown="mouseDown" @mouseup="mouseUp" ref="canvas"></canvas>
+	<div class="wrapper" id="bbTimelineWrapper" @mousemove="mouseMove" role="banner" ref="timelineWrapper">
+		<canvas height="32" id="bbTimeline" @mousedown="mouseDown" @mouseup="mouseUp" ref="timelineCanvas"></canvas>
 		<div v-if="currentlyTracking" class="selector"></div>
 	</div>
 </template>
