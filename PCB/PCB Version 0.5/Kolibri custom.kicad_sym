@@ -2694,7 +2694,7 @@
 				)
 			)
 			(pin bidirectional line
-				(at -27.94 2.54 0)
+				(at -27.94 15.24 0)
 				(length 2.54)
 				(name "QSPI_SCLK"
 					(effects
@@ -2784,7 +2784,7 @@
 				)
 			)
 			(pin bidirectional line
-				(at -27.94 15.24 0)
+				(at -27.94 17.78 0)
 				(length 2.54)
 				(name "QSPI_SS"
 					(effects

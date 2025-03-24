@@ -1654,7 +1654,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at -27.94 2.54 0)
+					(at -27.94 15.24 0)
 					(length 2.54)
 					(name "QSPI_SCLK"
 						(effects
@@ -1744,7 +1744,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at -27.94 15.24 0)
+					(at -27.94 17.78 0)
 					(length 2.54)
 					(name "QSPI_SS"
 						(effects
@@ -2440,12 +2440,6 @@
 		(uuid "4c414717-20c2-4be0-ba48-a13a506963e1")
 	)
 	(junction
-		(at 100.33 92.71)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "4d092431-05b0-4a31-9680-94114cb8a7b7")
-	)
-	(junction
 		(at 278.13 82.55)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2468,6 +2462,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "63a035bb-be96-4e08-8c71-c37171e8c082")
+	)
+	(junction
+		(at 100.33 92.71)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "6c8daf33-2f7c-4509-a015-64ad965809ac")
 	)
 	(junction
 		(at 100.33 96.52)
@@ -2886,16 +2886,6 @@
 	)
 	(wire
 		(pts
-			(xy 100.33 96.52) (xy 100.33 92.71)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "06eb4f7a-0350-4036-9f40-7e22582b3df3")
-	)
-	(wire
-		(pts
 			(xy 240.03 234.95) (xy 240.03 246.38)
 		)
 		(stroke
@@ -2973,16 +2963,6 @@
 			(type default)
 		)
 		(uuid "124c1d65-44f2-4c8f-861e-067e6e99eeb0")
-	)
-	(wire
-		(pts
-			(xy 168.91 135.89) (xy 168.91 148.59)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1310754a-fbd9-4a97-872d-ad18a2388d7c")
 	)
 	(wire
 		(pts
@@ -3296,16 +3276,6 @@
 	)
 	(wire
 		(pts
-			(xy 100.33 88.9) (xy 100.33 92.71)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "45cf03cf-2955-4307-8c7b-bafa56906aae")
-	)
-	(wire
-		(pts
 			(xy 238.76 171.45) (xy 255.27 171.45)
 		)
 		(stroke
@@ -3333,6 +3303,16 @@
 			(type default)
 		)
 		(uuid "4e8a75fc-3a9f-48d6-aa2d-05e559de9cbd")
+	)
+	(wire
+		(pts
+			(xy 100.33 88.9) (xy 100.33 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5123aef0-a611-4419-845b-909523c12935")
 	)
 	(bus
 		(pts
@@ -3433,16 +3413,6 @@
 			(type default)
 		)
 		(uuid "5d14b9dd-6900-467b-add5-95e47c67edbb")
-	)
-	(wire
-		(pts
-			(xy 168.91 148.59) (xy 182.88 148.59)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5e1c67b8-a7e9-430c-85ee-79e7761ac9d1")
 	)
 	(wire
 		(pts
@@ -3836,7 +3806,7 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 135.89) (xy 168.91 135.89)
+			(xy 88.9 135.89) (xy 182.88 135.89)
 		)
 		(stroke
 			(width 0)
@@ -3886,7 +3856,17 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 133.35) (xy 171.45 133.35)
+			(xy 100.33 92.71) (xy 100.33 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ac7a52d5-e30a-44d8-abcd-aeef412f845f")
+	)
+	(wire
+		(pts
+			(xy 88.9 133.35) (xy 182.88 133.35)
 		)
 		(stroke
 			(width 0)
@@ -4186,16 +4166,6 @@
 	)
 	(wire
 		(pts
-			(xy 171.45 133.35) (xy 171.45 135.89)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e788137d-5c9d-4530-815a-12b2ab1623bd")
-	)
-	(wire
-		(pts
 			(xy 48.26 153.67) (xy 60.96 153.67)
 		)
 		(stroke
@@ -4213,16 +4183,6 @@
 			(type default)
 		)
 		(uuid "ed1b9930-28c8-4e64-a93e-e1195c2946aa")
-	)
-	(wire
-		(pts
-			(xy 171.45 135.89) (xy 182.88 135.89)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "eefa544f-738f-42ad-bbf3-a616fd7cd4dc")
 	)
 	(wire
 		(pts
@@ -6460,7 +6420,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
 			(at 147.0152 100.33 0)
 			(effects
 				(font
@@ -6894,7 +6854,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
 			(at 113.9952 114.3 0)
 			(effects
 				(font
@@ -7962,7 +7922,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
 			(at 101.2952 114.3 0)
 			(effects
 				(font
