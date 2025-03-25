@@ -811,24 +811,6 @@
 						)
 					)
 				)
-				(pin input line
-					(at 19.05 0 180)
-					(length 2.54)
-					(name "VIN"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "20"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
 				(pin power_in line
 					(at 0 25.4 270)
 					(length 2.54)
@@ -840,6 +822,24 @@
 						)
 					)
 					(number "21"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 19.05 0 180)
+					(length 2.54)
+					(name "VIN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "22"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -948,6 +948,42 @@
 						)
 					)
 					(number "27"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 6.35 -25.4 90)
+					(length 2.54) hide
+					(name "NC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "28"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -7.62 -25.4 90)
+					(length 2.54)
+					(name "EP"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "29"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1337,10 +1373,22 @@
 		(uuid "af64356c-d150-46ed-80d2-21da417f9834")
 	)
 	(junction
+		(at 93.98 88.9)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "b2e3a267-6a3c-4cab-ab9a-dbb122c18e68")
+	)
+	(junction
 		(at 44.45 31.75)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "b5ce41e7-d2ed-4a3d-8df6-309cf0c463a2")
+	)
+	(junction
+		(at 92.71 88.9)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d04fa594-c493-4ab9-b132-0f8b0722f027")
 	)
 	(junction
 		(at 97.79 38.1)
@@ -1430,6 +1478,16 @@
 			(type default)
 		)
 		(uuid "01d3ad6c-a196-40c1-94f5-8b65363f79b6")
+	)
+	(wire
+		(pts
+			(xy 93.98 88.9) (xy 95.25 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0b0a51e7-3afa-4123-9e76-3a7ff30a57c2")
 	)
 	(wire
 		(pts
@@ -1813,7 +1871,17 @@
 	)
 	(wire
 		(pts
-			(xy 92.71 88.9) (xy 95.25 88.9)
+			(xy 90.17 88.9) (xy 92.71 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c44d09bd-703f-40fd-a69c-0cf0873070ea")
+	)
+	(wire
+		(pts
+			(xy 92.71 88.9) (xy 93.98 88.9)
 		)
 		(stroke
 			(width 0)
@@ -2341,7 +2409,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 95.25 88.9 0)
+		(at 93.98 88.9 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -2350,7 +2418,7 @@
 		(fields_autoplaced yes)
 		(uuid "57bda6ff-6625-40b9-970c-c9de174a62bc")
 		(property "Reference" "#PWR0137"
-			(at 95.25 95.25 0)
+			(at 93.98 95.25 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -2359,7 +2427,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 95.25 93.98 0)
+			(at 93.98 93.98 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -2367,7 +2435,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 95.25 88.9 0)
+			(at 93.98 88.9 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -2376,7 +2444,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 95.25 88.9 0)
+			(at 93.98 88.9 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -2385,7 +2453,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 95.25 88.9 0)
+			(at 93.98 88.9 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3228,7 +3296,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "~"
+		(property "Value" "AT7456E"
 			(at 102.5241 39.37 0)
 			(effects
 				(font
@@ -3312,7 +3380,7 @@
 		(pin "12"
 			(uuid "445ad0a3-32a4-42cb-976e-37b8209e3d52")
 		)
-		(pin "20"
+		(pin "22"
 			(uuid "180909f1-b299-40a9-bec4-5437c6b1175f")
 		)
 		(pin "14"
@@ -3347,6 +3415,12 @@
 		)
 		(pin "9"
 			(uuid "32ecf602-41c8-40f7-a725-a1adbb89415e")
+		)
+		(pin "29"
+			(uuid "546f106f-5bad-4572-a4bb-f5ccaa859ca9")
+		)
+		(pin "28"
+			(uuid "59f08715-ab8b-48f6-92b8-2efc5bfc7815")
 		)
 		(instances
 			(project ""

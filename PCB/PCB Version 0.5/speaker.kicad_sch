@@ -170,7 +170,7 @@
 				)
 			)
 		)
-		(symbol "Jumper:SolderJumper_3_Bridged12"
+		(symbol "Jumper:SolderJumper_3_Open"
 			(pin_names
 				(offset 0) hide)
 			(exclude_from_sim yes)
@@ -184,7 +184,7 @@
 					)
 				)
 			)
-			(property "Value" "SolderJumper_3_Bridged12"
+			(property "Value" "SolderJumper_3_Open"
 				(at 0 2.794 0)
 				(effects
 					(font
@@ -210,7 +210,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "3-pole Solder Jumper, pins 1+2 closed/bridged"
+			(property "Description" "Solder Jumper, 3-pole, open"
 				(at 0 0 0)
 				(effects
 					(font
@@ -228,7 +228,7 @@
 					(hide yes)
 				)
 			)
-			(property "ki_fp_filters" "SolderJumper*Bridged12*"
+			(property "ki_fp_filters" "SolderJumper*Open*"
 				(at 0 0 0)
 				(effects
 					(font
@@ -237,18 +237,7 @@
 					(hide yes)
 				)
 			)
-			(symbol "SolderJumper_3_Bridged12_0_1"
-				(rectangle
-					(start -1.016 0.508)
-					(end -0.508 -0.508)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
+			(symbol "SolderJumper_3_Open_0_1"
 				(arc
 					(start -1.016 1.016)
 					(mid -2.0276 0)
@@ -369,7 +358,7 @@
 					)
 				)
 			)
-			(symbol "SolderJumper_3_Bridged12_1_1"
+			(symbol "SolderJumper_3_Open_1_1"
 				(pin passive line
 					(at -5.08 0 0)
 					(length 2.54)
@@ -1586,31 +1575,31 @@
 		)
 	)
 	(symbol
-		(lib_id "Jumper:SolderJumper_3_Bridged12")
+		(lib_id "Jumper:SolderJumper_3_Open")
 		(at 107.95 53.34 0)
 		(unit 1)
 		(exclude_from_sim yes)
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "aff2398c-e306-4b1e-8b3b-cbb6ff178778")
+		(uuid "dd2f454b-a084-44f2-859a-90edfa688cb0")
 		(property "Reference" "JP1"
-			(at 107.95 41.402 0)
+			(at 107.95 42.926 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
 		)
-		(property "Value" "SolderJumper_3_Bridged12"
-			(at 107.95 43.942 0)
+		(property "Value" "SolderJumper_3_Open"
+			(at 107.95 44.958 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
 		)
-		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm"
+		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
 			(at 107.95 53.34 0)
 			(effects
 				(font
@@ -1628,7 +1617,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "3-pole Solder Jumper, pins 1+2 closed/bridged"
+		(property "Description" "Solder Jumper, 3-pole, open"
 			(at 107.95 53.34 0)
 			(effects
 				(font
@@ -1638,13 +1627,13 @@
 			)
 		)
 		(pin "2"
-			(uuid "2b0ea1f5-6640-408c-9a26-ba46916d97b3")
+			(uuid "fd512220-5d78-44f9-91ae-21c04f554223")
 		)
 		(pin "3"
-			(uuid "29069755-4d36-4368-8b3f-8399d9d43e8d")
+			(uuid "674eaaf1-d723-47a3-b2ef-b1ef3e77eb5c")
 		)
 		(pin "1"
-			(uuid "b6aeb7e6-a376-4287-ab77-3fe218024825")
+			(uuid "6576754a-54be-4c39-b939-5b12932d6358")
 		)
 		(instances
 			(project ""

@@ -1,4 +1,4 @@
-24552516261327064
+24556043725370939
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -64386,6 +64386,20 @@ solder jumper open
 5
 3
 Kolibri custom
+Abracon AOTA 0806
+
+
+0
+2
+2
+Kolibri custom
+Button C530669
+
+
+0
+4
+4
+Kolibri custom
 Goertek SPL06-001
 
 
@@ -64467,8 +64481,8 @@ Texas_X2QFN_RUG_10pin_1.5x2mm
 
 
 0
-0
-0
+10
+10
 Kolibri custom
 USB-C 2xTHT
 
