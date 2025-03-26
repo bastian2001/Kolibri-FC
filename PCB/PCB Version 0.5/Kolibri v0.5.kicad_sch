@@ -1,10 +1,20 @@
 (kicad_sch
-	(version 20231120)
+	(version 20250114)
 	(generator "eeschema")
-	(generator_version "8.0")
+	(generator_version "9.0")
 	(uuid "1651f454-30c0-48ea-9fcf-6c96a661786a")
 	(paper "A4")
 	(lib_symbols)
+	(text "Overvoltage Protection with TVS-Diodes in USB sheet"
+		(exclude_from_sim no)
+		(at 116.332 174.244 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "743cc027-45af-4ceb-a2c1-c98f3928a706")
+	)
 	(junction
 		(at 127 81.28)
 		(diameter 0)
@@ -473,16 +483,6 @@
 		)
 		(uuid "fef6a1a5-dc78-46f9-930a-4f0065f68f0e")
 	)
-	(text "Overvoltage Protection with TVS-Diodes in USB sheet"
-		(exclude_from_sim no)
-		(at 116.332 174.244 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "743cc027-45af-4ceb-a2c1-c98f3928a706")
-	)
 	(label "Motor{[1..4]}"
 		(at 109.22 71.12 0)
 		(effects
@@ -626,6 +626,10 @@
 	(sheet
 		(at 81.28 135.89)
 		(size 24.13 7.62)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -655,33 +659,33 @@
 		)
 		(pin "ADC" output
 			(at 105.41 138.43 0)
+			(uuid "e44c8aa9-9af7-4868-a84e-58392ce1a656")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "e44c8aa9-9af7-4868-a84e-58392ce1a656")
 		)
 		(pin "Curr_ESC" input
 			(at 81.28 138.43 180)
+			(uuid "61226054-ebee-4f49-8a18-6c3a6941fd60")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "61226054-ebee-4f49-8a18-6c3a6941fd60")
 		)
 		(pin "VBat_HI" output
 			(at 81.28 140.97 180)
+			(uuid "768a3677-3a86-454e-8929-3e59e9ec00e8")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "768a3677-3a86-454e-8929-3e59e9ec00e8")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -694,6 +698,10 @@
 	(sheet
 		(at 185.42 151.13)
 		(size 22.86 10.16)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -723,33 +731,33 @@
 		)
 		(pin "USB" bidirectional
 			(at 185.42 153.67 180)
+			(uuid "94725411-5a81-4b8d-99bb-e425f211d3ad")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "94725411-5a81-4b8d-99bb-e425f211d3ad")
 		)
 		(pin "VBat_HI" input
 			(at 185.42 156.21 180)
+			(uuid "2f028176-3933-41b3-bad4-c8dd57e74dee")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "2f028176-3933-41b3-bad4-c8dd57e74dee")
 		)
 		(pin "Curr_ESC" input
 			(at 185.42 158.75 180)
+			(uuid "a461bccc-0cb2-4278-9c6e-0dc0fda2d3cb")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "a461bccc-0cb2-4278-9c6e-0dc0fda2d3cb")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -762,6 +770,10 @@
 	(sheet
 		(at 81.28 151.13)
 		(size 24.13 5.08)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -791,23 +803,23 @@
 		)
 		(pin "In" input
 			(at 105.41 153.67 0)
+			(uuid "87e8e74c-6bc1-4a5a-af14-ebb6a1b19031")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "87e8e74c-6bc1-4a5a-af14-ebb6a1b19031")
 		)
 		(pin "Out" output
 			(at 81.28 153.67 180)
+			(uuid "23f2da36-89c3-4214-b39a-e29a7e6a07e7")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "23f2da36-89c3-4214-b39a-e29a7e6a07e7")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -820,6 +832,10 @@
 	(sheet
 		(at 185.42 104.14)
 		(size 22.86 10.16)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -849,33 +865,33 @@
 		)
 		(pin "SD_DAT" bidirectional
 			(at 185.42 106.68 180)
+			(uuid "aebac0fa-6c1e-4b3c-9640-3c30b80ce690")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "aebac0fa-6c1e-4b3c-9640-3c30b80ce690")
 		)
 		(pin "SD_CMD" input
 			(at 185.42 111.76 180)
+			(uuid "adb4ea02-5058-4dc1-befe-3ed10c27fbed")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "adb4ea02-5058-4dc1-befe-3ed10c27fbed")
 		)
 		(pin "SD_SCLK" input
 			(at 185.42 109.22 180)
+			(uuid "1665dbd0-5481-4782-9e0f-9f0a01cf9d9c")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "1665dbd0-5481-4782-9e0f-9f0a01cf9d9c")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -888,6 +904,10 @@
 	(sheet
 		(at 130.81 63.5)
 		(size 26.67 101.6)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -917,183 +937,183 @@
 		)
 		(pin "Motors" bidirectional
 			(at 130.81 71.12 180)
+			(uuid "b3432de5-b2e6-4dc2-ab67-428fe05d2727")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "b3432de5-b2e6-4dc2-ab67-428fe05d2727")
 		)
 		(pin "I2C0" bidirectional
 			(at 130.81 81.28 180)
+			(uuid "d1be2783-bf42-467b-9809-187957afc639")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "d1be2783-bf42-467b-9809-187957afc639")
 		)
 		(pin "UART0" bidirectional
 			(at 130.81 68.58 180)
+			(uuid "a6972c23-55b2-452f-8252-9cee6c2c9e92")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "a6972c23-55b2-452f-8252-9cee6c2c9e92")
 		)
 		(pin "UART1" bidirectional
 			(at 130.81 73.66 180)
+			(uuid "40b5a33f-f0d2-4d64-86a7-cbde3eace322")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "40b5a33f-f0d2-4d64-86a7-cbde3eace322")
 		)
 		(pin "SPI1" bidirectional
 			(at 157.48 80.01 0)
+			(uuid "161e9279-5041-4376-96b5-214190bb0185")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "161e9279-5041-4376-96b5-214190bb0185")
 		)
 		(pin "LED" output
 			(at 130.81 153.67 180)
+			(uuid "6c73320f-1daf-4f99-a593-2da024463b68")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "6c73320f-1daf-4f99-a593-2da024463b68")
 		)
 		(pin "Speaker" output
 			(at 130.81 120.65 180)
+			(uuid "9e20b127-1129-4b5b-add6-da8be36be42c")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "9e20b127-1129-4b5b-add6-da8be36be42c")
 		)
 		(pin "OSD_SS" output
 			(at 157.48 82.55 0)
+			(uuid "ab53a712-96f4-4e0a-980d-644a2374afd6")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "ab53a712-96f4-4e0a-980d-644a2374afd6")
 		)
 		(pin "Gyro_SS" output
 			(at 157.48 133.35 0)
+			(uuid "fbecc943-67bf-4f6c-807c-96b2f6da2737")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "fbecc943-67bf-4f6c-807c-96b2f6da2737")
 		)
 		(pin "Gyro_Int" input
 			(at 157.48 135.89 0)
+			(uuid "39e20782-b1f6-4799-88f1-2382e0731e6a")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "39e20782-b1f6-4799-88f1-2382e0731e6a")
 		)
 		(pin "SWD" bidirectional
 			(at 130.81 76.2 180)
+			(uuid "56a20140-6b87-4365-87ca-42b785e090be")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "56a20140-6b87-4365-87ca-42b785e090be")
 		)
 		(pin "USB" bidirectional
 			(at 157.48 153.67 0)
+			(uuid "ffebc171-8f39-4398-b0a1-78d8ab810c19")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "ffebc171-8f39-4398-b0a1-78d8ab810c19")
 		)
 		(pin "SPI0" bidirectional
 			(at 157.48 130.81 0)
+			(uuid "370aa0a3-c250-4d23-9339-c06337b6d8d9")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "370aa0a3-c250-4d23-9339-c06337b6d8d9")
 		)
 		(pin "UART2" bidirectional
 			(at 130.81 78.74 180)
+			(uuid "2468cd63-0a2e-4efc-b6af-e26c233cd2ea")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "2468cd63-0a2e-4efc-b6af-e26c233cd2ea")
 		)
 		(pin "SD_DAT" bidirectional
 			(at 157.48 106.68 0)
+			(uuid "f3af8f03-19a7-41aa-91c7-3e0e577f0de8")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "f3af8f03-19a7-41aa-91c7-3e0e577f0de8")
 		)
 		(pin "SD_SCLK" output
 			(at 157.48 109.22 0)
+			(uuid "87f3eae8-099b-4a70-acc7-a77c1b749357")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "87f3eae8-099b-4a70-acc7-a77c1b749357")
 		)
 		(pin "SD_CMD" output
 			(at 157.48 111.76 0)
+			(uuid "0f41e176-1e2b-4b08-af86-bea2f9c02d57")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "0f41e176-1e2b-4b08-af86-bea2f9c02d57")
 		)
 		(pin "ADC" input
 			(at 130.81 138.43 180)
+			(uuid "e2cde47f-b61c-43ee-8808-1782adb9e3ba")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "e2cde47f-b61c-43ee-8808-1782adb9e3ba")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -1106,6 +1126,10 @@
 	(sheet
 		(at 185.42 76.2)
 		(size 22.86 10.16)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -1135,33 +1159,33 @@
 		)
 		(pin "SPI1" bidirectional
 			(at 185.42 80.01 180)
+			(uuid "e9948aa9-a39a-49cd-814f-9365d8b9a36c")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "e9948aa9-a39a-49cd-814f-9365d8b9a36c")
 		)
 		(pin "Video" bidirectional
 			(at 199.39 76.2 90)
+			(uuid "6df4f4b9-4ef1-491f-b9f4-6f4fb097a311")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "6df4f4b9-4ef1-491f-b9f4-6f4fb097a311")
 		)
 		(pin "SS" input
 			(at 185.42 82.55 180)
+			(uuid "a2bafde4-e79c-48ee-891e-d5c896b97e9b")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "a2bafde4-e79c-48ee-891e-d5c896b97e9b")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -1174,6 +1198,10 @@
 	(sheet
 		(at 185.42 128.27)
 		(size 22.86 10.16)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -1203,33 +1231,33 @@
 		)
 		(pin "SS" input
 			(at 185.42 133.35 180)
+			(uuid "45eb401c-4b9d-4ebd-980e-9f5beeaf56e5")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "45eb401c-4b9d-4ebd-980e-9f5beeaf56e5")
 		)
 		(pin "SPI0" bidirectional
 			(at 185.42 130.81 180)
+			(uuid "7bb12721-e728-4505-85f6-0940071bbd26")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "7bb12721-e728-4505-85f6-0940071bbd26")
 		)
 		(pin "Int" output
 			(at 185.42 135.89 180)
+			(uuid "5b74fa91-007c-4b7c-89bb-811afa77a800")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "5b74fa91-007c-4b7c-89bb-811afa77a800")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -1242,6 +1270,10 @@
 	(sheet
 		(at 81.28 118.11)
 		(size 24.13 5.08)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -1271,23 +1303,23 @@
 		)
 		(pin "In" input
 			(at 105.41 120.65 0)
+			(uuid "9de29816-c9c9-4969-bca9-7ef475859eb9")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "9de29816-c9c9-4969-bca9-7ef475859eb9")
 		)
 		(pin "Speaker" output
 			(at 81.28 120.65 180)
+			(uuid "725cac07-d201-4705-86a5-42234d392f15")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "725cac07-d201-4705-86a5-42234d392f15")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -1300,6 +1332,10 @@
 	(sheet
 		(at 81.28 34.29)
 		(size 24.13 62.23)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(stroke
 			(width 0.1524)
 			(type solid)
@@ -1328,113 +1364,113 @@
 		)
 		(pin "Video" bidirectional
 			(at 105.41 40.64 0)
+			(uuid "d785a7fe-f893-4a1e-b1cd-64d9baa6cb9a")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "d785a7fe-f893-4a1e-b1cd-64d9baa6cb9a")
 		)
 		(pin "UART0" bidirectional
 			(at 105.41 68.58 0)
+			(uuid "e38dc35c-afb8-4972-ae66-f7bf1cf2e790")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "e38dc35c-afb8-4972-ae66-f7bf1cf2e790")
 		)
 		(pin "Motors" bidirectional
 			(at 105.41 71.12 0)
+			(uuid "ad22b48f-74a1-4dd0-9802-617dde23a87b")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "ad22b48f-74a1-4dd0-9802-617dde23a87b")
 		)
 		(pin "I2C0" bidirectional
 			(at 105.41 81.28 0)
+			(uuid "cf3e9fc1-b9be-4bda-99fd-614d42f636b4")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "cf3e9fc1-b9be-4bda-99fd-614d42f636b4")
 		)
 		(pin "UART1" bidirectional
 			(at 105.41 73.66 0)
+			(uuid "8b6ae4ec-ae27-4ea9-ac67-e2dec6106c53")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "8b6ae4ec-ae27-4ea9-ac67-e2dec6106c53")
 		)
 		(pin "SWD" bidirectional
 			(at 105.41 76.2 0)
+			(uuid "872fc48d-6d63-40ed-8f2a-acd74ac3d0ca")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "872fc48d-6d63-40ed-8f2a-acd74ac3d0ca")
 		)
 		(pin "LED" input
 			(at 81.28 80.01 180)
+			(uuid "6179459f-d840-4a6e-a89d-f44da57c7b9d")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "6179459f-d840-4a6e-a89d-f44da57c7b9d")
 		)
 		(pin "UART2" bidirectional
 			(at 105.41 78.74 0)
+			(uuid "3319c0b6-dfff-4e6f-a48a-a06f13282bfd")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "3319c0b6-dfff-4e6f-a48a-a06f13282bfd")
 		)
 		(pin "Speaker" input
 			(at 81.28 92.71 180)
+			(uuid "279d8e0c-2faa-4995-b46d-2138e597e0b3")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "279d8e0c-2faa-4995-b46d-2138e597e0b3")
 		)
 		(pin "PWM" input
 			(at 105.41 50.8 0)
+			(uuid "6d208952-838a-436b-8bd3-7c10c2016af2")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "6d208952-838a-436b-8bd3-7c10c2016af2")
 		)
 		(pin "Curr_ESC" output
 			(at 81.28 87.63 180)
+			(uuid "7ac90e17-9632-4608-96e1-4c42660f02d7")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "7ac90e17-9632-4608-96e1-4c42660f02d7")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -1447,6 +1483,10 @@
 	(sheet
 		(at 222.25 90.17)
 		(size 25.4 16.51)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -1485,6 +1525,10 @@
 	(sheet
 		(at 81.28 105.41)
 		(size 24.13 5.08)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(stroke
 			(width 0.1524)
@@ -1514,13 +1558,13 @@
 		)
 		(pin "I2C0" bidirectional
 			(at 105.41 107.95 0)
+			(uuid "5414ebfe-4983-495a-9e5e-a867ba84e455")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify right)
 			)
-			(uuid "5414ebfe-4983-495a-9e5e-a867ba84e455")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -1533,6 +1577,10 @@
 	(sheet
 		(at 130.81 48.26)
 		(size 26.67 7.62)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
 		(stroke
 			(width 0.1524)
 			(type solid)
@@ -1561,23 +1609,23 @@
 		)
 		(pin "PWM" output
 			(at 130.81 50.8 180)
+			(uuid "972d585d-8f75-4d2a-aed4-bb73c96e71bb")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "972d585d-8f75-4d2a-aed4-bb73c96e71bb")
 		)
 		(pin "UART0" bidirectional
 			(at 130.81 53.34 180)
+			(uuid "26c4ff06-f136-4f2d-b5db-070d4c64eb97")
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "26c4ff06-f136-4f2d-b5db-070d4c64eb97")
 		)
 		(instances
 			(project "Kolibri v0.5"
@@ -1592,4 +1640,5 @@
 			(page "1")
 		)
 	)
+	(embedded_fonts no)
 )
