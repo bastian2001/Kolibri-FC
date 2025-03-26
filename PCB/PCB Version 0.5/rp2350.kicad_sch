@@ -2801,12 +2801,6 @@
 		(uuid "97d36f17-cd5b-4744-bdcd-0d470e073773")
 	)
 	(junction
-		(at 97.79 133.35)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "ac31917d-2c37-47ae-82e7-1b42347f7151")
-	)
-	(junction
 		(at 278.13 90.17)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2859,6 +2853,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "e63ca966-ca9d-4b0e-98d1-138b321aad67")
+	)
+	(junction
+		(at 97.79 133.35)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e8443878-fc57-4029-b0dc-5079153569b7")
 	)
 	(junction
 		(at 252.73 90.17)
@@ -3264,6 +3264,16 @@
 			(type default)
 		)
 		(uuid "1c13c3f8-bcbd-491c-b577-65de06a7707c")
+	)
+	(wire
+		(pts
+			(xy 97.79 133.35) (xy 182.88 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1fef3ac6-fd2f-42c2-8abe-e3c1013d411d")
 	)
 	(wire
 		(pts
@@ -3697,6 +3707,16 @@
 	)
 	(wire
 		(pts
+			(xy 97.79 133.35) (xy 97.79 160.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6b680418-3f3e-4e53-b8e6-4398016cc787")
+	)
+	(wire
+		(pts
 			(xy 123.19 160.02) (xy 115.57 160.02)
 		)
 		(stroke
@@ -4067,16 +4087,6 @@
 	)
 	(wire
 		(pts
-			(xy 97.79 133.35) (xy 182.88 133.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9c08f349-0474-48df-8e75-de6c619588db")
-	)
-	(wire
-		(pts
 			(xy 238.76 130.81) (xy 255.27 130.81)
 		)
 		(stroke
@@ -4224,16 +4234,6 @@
 			(type default)
 		)
 		(uuid "c60e9572-f784-468b-82fb-28f96687db3a")
-	)
-	(wire
-		(pts
-			(xy 97.79 133.35) (xy 97.79 167.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c65c87dd-2ed6-455b-8f58-9df8c1c4e132")
 	)
 	(bus
 		(pts
@@ -4795,7 +4795,7 @@
 		)
 		(uuid "7ee7a250-bcda-454d-accb-3aed828c8bdb")
 	)
-	(label "Motor.2"
+	(label "Motor.3"
 		(at 255.27 171.45 180)
 		(effects
 			(font
@@ -4825,7 +4825,7 @@
 		)
 		(uuid "8ffdfb28-a073-4246-a679-0d477aa44397")
 	)
-	(label "Motor.4"
+	(label "Motor.1"
 		(at 255.27 176.53 180)
 		(effects
 			(font
@@ -4945,7 +4945,7 @@
 		)
 		(uuid "aa184bbc-3ee1-4655-b0b6-cba0205ab30a")
 	)
-	(label "Motor.1"
+	(label "Motor.4"
 		(at 255.27 168.91 180)
 		(effects
 			(font
@@ -5025,7 +5025,7 @@
 		)
 		(uuid "ccda322a-8168-4616-997e-11c56029ce6b")
 	)
-	(label "Motor.3"
+	(label "Motor.2"
 		(at 255.27 173.99 180)
 		(effects
 			(font
@@ -5075,7 +5075,7 @@
 		)
 		(uuid "e6bc620e-d708-450b-b92a-655651a36dd2")
 	)
-	(label "SPI0.MOSI"
+	(label "SPI0.SDX"
 		(at 255.27 166.37 180)
 		(effects
 			(font
@@ -5590,6 +5590,76 @@
 			(project ""
 				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
 					(reference "#PWR155")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 97.79 163.83 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "16621fdd-6042-4cf9-a2f7-e83036eebce7")
+		(property "Reference" "R33"
+			(at 100.33 162.5599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1k"
+			(at 100.33 165.0999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
+			(at 96.012 163.83 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 97.79 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 97.79 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "74e31c2a-b424-4b6c-a584-9a8bcb029211")
+		)
+		(pin "1"
+			(uuid "214084bb-3555-469d-944c-18fba092c882")
+		)
+		(instances
+			(project ""
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "R33")
 					(unit 1)
 				)
 			)

@@ -2350,14 +2350,14 @@
 		(uuid "11e9c15d-7237-4c0e-ac6d-ed1006becf30")
 	)
 	(label "USB.D-"
-		(at 138.43 38.1 0)
+		(at 138.43 35.56 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-		(uuid "129b7a51-bd2d-431b-a253-4f66c2c8ac31")
+		(uuid "208b9b2c-19fa-4919-a9d2-c082c9bd60bb")
 	)
 	(label "USB{D+ D-}"
 		(at 119.38 54.61 180)
@@ -2379,6 +2379,16 @@
 		)
 		(uuid "4625a28b-2186-4b23-b51e-3b3d274ce8f4")
 	)
+	(label "USB.D+"
+		(at 138.43 38.1 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4e7239f8-bdd7-4ca2-bb1a-f973e036b663")
+	)
 	(label "USB.D-"
 		(at 125.73 73.66 0)
 		(effects
@@ -2398,16 +2408,6 @@
 			(justify left bottom)
 		)
 		(uuid "95967bbb-2506-482a-a128-3db77423bb41")
-	)
-	(label "USB.D+"
-		(at 138.43 35.56 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "b9c5e235-d842-4926-b43d-0182698e5127")
 	)
 	(hierarchical_label "VBat_HI"
 		(shape input)

@@ -1,7 +1,7 @@
 (footprint "Solder_Pad_rounded"
-	(version 20240108)
+	(version 20241229)
 	(generator "pcbnew")
-	(generator_version "8.0")
+	(generator_version "9.0")
 	(layer "F.Cu")
 	(property "Reference" "REF**"
 		(at 0 -0.5 0)
@@ -22,19 +22,6 @@
 		(layer "F.Fab")
 		(hide yes)
 		(uuid "eeefd0b6-ffe6-48b0-965f-49e509f95210")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
-	(property "Footprint" ""
-		(at 0 0 0)
-		(unlocked yes)
-		(layer "F.Fab")
-		(hide yes)
-		(uuid "a103a72a-34aa-46bb-af31-f9de2d1125bf")
 		(effects
 			(font
 				(size 1 1)
@@ -84,9 +71,10 @@
 	(pad "1" smd roundrect
 		(at 0 0)
 		(size 1.5 1.5)
-		(layers "F.Cu" "F.Paste" "F.Mask")
+		(layers "F.Cu" "F.Mask")
 		(roundrect_rratio 0.25)
 		(thermal_bridge_angle 45)
 		(uuid "7713ce3a-d436-434b-b5c6-6fa32c7129c8")
 	)
+	(embedded_fonts no)
 )

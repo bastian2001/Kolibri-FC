@@ -981,7 +981,7 @@
 		)
 		(uuid "89c6f35f-f3f1-440e-a4ff-b27a244bfa50")
 	)
-	(label "SD_DAT.3"
+	(label "SD_DAT.1"
 		(at 156.21 93.98 0)
 		(effects
 			(font
