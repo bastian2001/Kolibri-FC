@@ -1,7 +1,7 @@
 (footprint "WS2812B_1615"
-	(version 20240108)
+	(version 20241229)
 	(generator "pcbnew")
-	(generator_version "8.0")
+	(generator_version "9.0")
 	(layer "F.Cu")
 	(property "Reference" "REF**"
 		(at -0.8 -5.2 0)
@@ -21,19 +21,6 @@
 		(layer "F.Fab")
 		(hide yes)
 		(uuid "c5a157ba-206d-44ff-9703-e113c4bc1233")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
-	(property "Footprint" ""
-		(at 0 0 0)
-		(unlocked yes)
-		(layer "F.Fab")
-		(hide yes)
-		(uuid "7bef3389-f07f-4d24-86aa-35e705fdfdfd")
 		(effects
 			(font
 				(size 1 1)
@@ -96,7 +83,7 @@
 			(width 0.1)
 			(type solid)
 		)
-		(fill solid)
+		(fill yes)
 		(layer "F.SilkS")
 		(uuid "3292745e-f633-4dbe-8427-05f73c92dce3")
 	)
@@ -107,7 +94,7 @@
 			(width 0.05)
 			(type default)
 		)
-		(fill none)
+		(fill no)
 		(layer "F.CrtYd")
 		(uuid "14d03b61-b2fa-4b34-a221-9a9ff38d2c70")
 	)
@@ -126,7 +113,7 @@
 	(pad "1" smd roundrect
 		(at -0.75 -0.475)
 		(size 0.8 0.65)
-		(layers "F.Cu" "F.Paste" "F.Mask")
+		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.15)
 		(thermal_bridge_angle 45)
 		(uuid "c07d19f5-acbc-4d22-a507-673677e48aaa")
@@ -134,7 +121,7 @@
 	(pad "2" smd roundrect
 		(at 0.75 -0.475)
 		(size 0.8 0.65)
-		(layers "F.Cu" "F.Paste" "F.Mask")
+		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.15)
 		(thermal_bridge_angle 45)
 		(uuid "a58590e9-2b40-4008-9699-3a9d93f11b02")
@@ -142,7 +129,7 @@
 	(pad "3" smd roundrect
 		(at -0.75 0.475)
 		(size 0.8 0.65)
-		(layers "F.Cu" "F.Paste" "F.Mask")
+		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.15)
 		(thermal_bridge_angle 45)
 		(uuid "0a692deb-5aa5-4e43-8ef0-35ed943b683d")
@@ -150,9 +137,21 @@
 	(pad "4" smd roundrect
 		(at 0.75 0.475)
 		(size 0.8 0.65)
-		(layers "F.Cu" "F.Paste" "F.Mask")
+		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.15)
 		(thermal_bridge_angle 45)
 		(uuid "a392b4c3-2944-4994-9aa7-c40609980549")
+	)
+	(embedded_fonts no)
+	(model "${KICAD8_3DMODEL_DIR}/Crystal.3dshapes/Crystal_SMD_1210-4Pin_1.2x1.0mm.wrl"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1.33 1.5 1.5)
+		)
+		(rotate
+			(xyz -0 -0 -90)
+		)
 	)
 )
