@@ -20,3 +20,4 @@ Firmware/include/git_version.h
 
 #KiCad files
 *-backups/
+fp-info-cache
