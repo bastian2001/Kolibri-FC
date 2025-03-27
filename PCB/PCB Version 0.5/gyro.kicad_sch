@@ -147,6 +147,130 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Device:R"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "R"
+				(at 2.032 0 90)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "R"
+				(at 0 0 90)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at -1.778 0 90)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Resistor"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "R res resistor"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "R_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "R_0_1"
+				(rectangle
+					(start -1.016 -2.54)
+					(end 1.016 2.54)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "R_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 1.27)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 1.27)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Sensor_Motion:BMI160"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -728,6 +852,26 @@
 		)
 		(uuid "4f90cfce-0b68-40e6-8d06-d14a6b8e40a7")
 	)
+	(text_box "Int can be connected to SDO to use 4 wire SPI, while sacrificing the interrupt"
+		(exclude_from_sim no)
+		(at 80.01 21.59 0)
+		(size 17.78 13.97)
+		(margins 0.9525 0.9525 0.9525 0.9525)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "8deaa57a-339f-4d29-b896-66887333422d")
+	)
 	(junction
 		(at 142.24 71.12)
 		(diameter 0)
@@ -759,10 +903,6 @@
 	(no_connect
 		(at 114.3 63.5)
 		(uuid "78d8b4f5-5902-443f-98ed-904873ab6ec8")
-	)
-	(no_connect
-		(at 91.44 60.96)
-		(uuid "81eca460-2ec4-4ae9-b06e-d8696e785e31")
 	)
 	(no_connect
 		(at 114.3 68.58)
@@ -826,6 +966,16 @@
 	)
 	(wire
 		(pts
+			(xy 88.9 60.96) (xy 91.44 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1138d823-ef21-47fa-ac32-ae422900e614")
+	)
+	(wire
+		(pts
 			(xy 77.47 66.04) (xy 91.44 66.04)
 		)
 		(stroke
@@ -886,6 +1036,16 @@
 	)
 	(wire
 		(pts
+			(xy 88.9 54.61) (xy 88.9 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "66719b81-f179-4570-a4d9-d2f6f7e8d0eb")
+	)
+	(wire
+		(pts
 			(xy 135.89 71.12) (xy 142.24 71.12)
 		)
 		(stroke
@@ -893,6 +1053,16 @@
 			(type default)
 		)
 		(uuid "6b74109c-7669-4da8-97f5-25d5ddb09343")
+	)
+	(wire
+		(pts
+			(xy 88.9 39.37) (xy 88.9 46.99)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7db2e914-6348-4cde-8c02-ec78fdea413c")
 	)
 	(wire
 		(pts
@@ -1004,6 +1174,16 @@
 		)
 		(uuid "98fcbbea-fa32-460b-b4a9-2f891cdea3f3")
 	)
+	(label "Int"
+		(at 88.9 39.37 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c4f45efa-ce32-42e0-9e67-c0b2892e8493")
+	)
 	(label "SPI0.SCLK"
 		(at 77.47 66.04 0)
 		(effects
@@ -1013,6 +1193,16 @@
 			(justify left bottom)
 		)
 		(uuid "d1679e63-d111-4887-bc56-02087dfb43b2")
+	)
+	(label "Int"
+		(at 63.5 71.12 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e1e00df3-9f57-4c31-a547-1d6209f08c45")
 	)
 	(hierarchical_label "Int"
 		(shape output)
@@ -1214,6 +1404,76 @@
 			(project "Kolibri v0.5"
 				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/b8512ca5-36ed-4aec-9643-fc888220e565"
 					(reference "#PWR020")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 88.9 50.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7303dc3e-1220-4023-b447-f23bd616e0d8")
+		(property "Reference" "R38"
+			(at 91.44 49.5299 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "DNF"
+			(at 91.44 52.0699 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 87.122 50.8 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 88.9 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 88.9 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "a7e18ccb-4f1d-4ec7-be85-71a240af0db7")
+		)
+		(pin "1"
+			(uuid "f4fb7388-20d2-4db1-a722-160159abe52d")
+		)
+		(instances
+			(project ""
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/b8512ca5-36ed-4aec-9643-fc888220e565"
+					(reference "R38")
 					(unit 1)
 				)
 			)
