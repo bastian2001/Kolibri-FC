@@ -4115,6 +4115,16 @@
 		)
 		(uuid "a627d833-a283-44db-8b52-0c75bb085358")
 	)
+	(wire
+		(pts
+			(xy 314.96 234.95) (xy 314.96 246.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a91db674-7e65-4468-85fc-9ebba339fd34")
+	)
 	(bus
 		(pts
 			(xy 271.78 113.03) (xy 290.83 113.03)
@@ -4174,6 +4184,16 @@
 			(type default)
 		)
 		(uuid "b9943170-6060-4e9f-ada5-d3f09e146936")
+	)
+	(wire
+		(pts
+			(xy 303.53 234.95) (xy 303.53 246.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b9d4c8b8-bf7b-47c8-82a7-d9cbe6d17663")
 	)
 	(wire
 		(pts
@@ -4307,6 +4327,16 @@
 	)
 	(wire
 		(pts
+			(xy 280.67 234.95) (xy 280.67 246.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d2f88c82-f29e-49d2-9799-ec068b3e652e")
+	)
+	(wire
+		(pts
 			(xy 154.94 92.71) (xy 154.94 110.49)
 		)
 		(stroke
@@ -4424,6 +4454,16 @@
 			(type default)
 		)
 		(uuid "e54f86d2-6d04-47d1-9cb4-589001302586")
+	)
+	(wire
+		(pts
+			(xy 292.1 234.95) (xy 292.1 246.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e67d88f0-18c2-4ff8-9862-ab21d2c41d8c")
 	)
 	(wire
 		(pts
@@ -4595,6 +4635,16 @@
 		)
 		(uuid "09f260cd-24b8-49fc-aba9-740c95930091")
 	)
+	(label "Motor.1"
+		(at 280.67 246.38 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0e71439f-4bb1-4f76-aadb-d75086f852cd")
+	)
 	(label "I2C0.SCL"
 		(at 255.27 181.61 180)
 		(effects
@@ -4695,6 +4745,16 @@
 		)
 		(uuid "3834f615-d0e8-4b8f-970e-cf7404a026b0")
 	)
+	(label "Motor.3"
+		(at 303.53 246.38 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3ebc3afa-de1f-4bc7-b3fc-af9ea8d061ad")
+	)
 	(label "OSD_SS"
 		(at 330.2 151.13 0)
 		(effects
@@ -4734,6 +4794,16 @@
 			(justify right bottom)
 		)
 		(uuid "4847013a-1281-4697-a6f6-2e8a95ab96b1")
+	)
+	(label "Motor.2"
+		(at 292.1 246.38 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4ab5a895-4be1-45b7-a8e7-f5264c5891b8")
 	)
 	(label "LED"
 		(at 255.27 189.23 180)
@@ -4824,6 +4894,16 @@
 			(justify right bottom)
 		)
 		(uuid "8ffdfb28-a073-4246-a679-0d477aa44397")
+	)
+	(label "Motor.4"
+		(at 314.96 246.38 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "908db74a-5f76-41b9-9815-49d77380f381")
 	)
 	(label "Motor.1"
 		(at 255.27 176.53 180)
@@ -5732,6 +5812,72 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 314.96 227.33 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2a229fde-4259-4409-b8dd-1e33e83d41ae")
+		(property "Reference" "#PWR0176"
+			(at 314.96 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 314.96 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 314.96 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 314.96 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 314.96 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "fd7ad231-757c-470e-abee-bee8e598dbfd")
+		)
+		(instances
+			(project "Kolibri v0.5"
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "#PWR0176")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C")
 		(at 127 167.64 90)
 		(unit 1)
@@ -6063,6 +6209,76 @@
 			(project ""
 				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
 					(reference "C85")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 292.1 231.14 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "40fb00e8-4fa1-4686-a78e-47f63b927b10")
+		(property "Reference" "R35"
+			(at 294.64 229.8699 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "6.8k"
+			(at 294.64 232.4099 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
+			(at 290.322 231.14 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 292.1 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 292.1 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "a8133416-6cdb-437d-8f2c-d01307f8e77a")
+		)
+		(pin "1"
+			(uuid "21b528d4-d010-4f5e-924e-b494c6b6b909")
+		)
+		(instances
+			(project "Kolibri v0.5"
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "R35")
 					(unit 1)
 				)
 			)
@@ -7178,6 +7394,76 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R")
+		(at 314.96 231.14 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "852ccf94-3a9b-4ddf-9aa0-8325a8e12d0c")
+		(property "Reference" "R37"
+			(at 317.5 229.8699 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "6.8k"
+			(at 317.5 232.4099 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
+			(at 313.182 231.14 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 314.96 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 314.96 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "010356b5-542a-4ef7-96ae-81e8e2874411")
+		)
+		(pin "1"
+			(uuid "6dcdcd8f-9729-4526-b6e2-1e65a0f9a1af")
+		)
+		(instances
+			(project "Kolibri v0.5"
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "R37")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C")
 		(at 172.72 86.36 0)
 		(unit 1)
@@ -7446,6 +7732,72 @@
 			(project ""
 				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
 					(reference "C14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 303.53 227.33 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a5cd9005-c4f1-48f8-ae3c-9705346c668d")
+		(property "Reference" "#PWR0175"
+			(at 303.53 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 303.53 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 303.53 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 303.53 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 303.53 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "6474a26d-03b1-4d0e-8f33-8aa7a5e8ec88")
+		)
+		(instances
+			(project "Kolibri v0.5"
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "#PWR0175")
 					(unit 1)
 				)
 			)
@@ -8040,6 +8392,212 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R")
+		(at 303.53 231.14 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c3507f75-3b1b-4193-8b8e-eda9655c047b")
+		(property "Reference" "R36"
+			(at 306.07 229.8699 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "6.8k"
+			(at 306.07 232.4099 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
+			(at 301.752 231.14 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 303.53 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 303.53 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "c5af63f8-c7e7-4dd2-acd8-1f0069cc6d12")
+		)
+		(pin "1"
+			(uuid "a010ad61-d43e-47e8-afef-329e279c579c")
+		)
+		(instances
+			(project "Kolibri v0.5"
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "R36")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 292.1 227.33 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c468b259-e1e4-4594-85f7-c65d19520b9a")
+		(property "Reference" "#PWR0174"
+			(at 292.1 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 292.1 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 292.1 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 292.1 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 292.1 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "102bd970-1f59-4d84-941f-7d04e46ea7f7")
+		)
+		(instances
+			(project "Kolibri v0.5"
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "#PWR0174")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 280.67 231.14 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d5a8bf02-0743-4a51-97c7-50a939b1e6ab")
+		(property "Reference" "R34"
+			(at 283.21 229.8699 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "6.8k"
+			(at 283.21 232.4099 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
+			(at 278.892 231.14 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 280.67 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 280.67 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "e85b5fad-8d27-435e-bbdf-124a0557c565")
+		)
+		(pin "1"
+			(uuid "32a12103-72dd-4270-af4a-0cf29cc30a6c")
+		)
+		(instances
+			(project "Kolibri v0.5"
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "R34")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:Crystal_GND24")
 		(at 149.86 163.83 270)
 		(unit 1)
@@ -8442,6 +9000,72 @@
 			(project ""
 				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
 					(reference "#PWR010")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 280.67 227.33 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f073c58d-a028-4616-8891-6da1369d957c")
+		(property "Reference" "#PWR0173"
+			(at 280.67 231.14 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 280.67 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 280.67 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 280.67 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 280.67 227.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "24b35b2d-b3d4-4dce-98f2-ba4b5fc9d94d")
+		)
+		(instances
+			(project "Kolibri v0.5"
+				(path "/1651f454-30c0-48ea-9fcf-6c96a661786a/68026f5c-72f7-45ff-bcb6-f836a66689ee"
+					(reference "#PWR0173")
 					(unit 1)
 				)
 			)
