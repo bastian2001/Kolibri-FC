@@ -1,0 +1,241 @@
+(footprint "Goertek SPL06-001"
+	(version 20240108)
+	(generator "pcbnew")
+	(generator_version "8.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at -0.2 -2 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "b55548aa-0a0b-4fc4-8200-0735084332a7")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "Goertek SPL06-001"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "0483d21f-dde5-4147-a39f-0aa1c61a69a8")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Footprint" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "c0cb545b-f59c-4b4c-9cb9-89399088dc3b")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "92600afd-be83-4cd5-94ce-77fcd95888de")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "2fbe348a-3f29-4465-b13c-f13fdf60873b")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(fp_line
+		(start -1.2 -1.4)
+		(end 0.4 -1.4)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "2643c2ff-3efe-4f7c-a948-bdcc71643374")
+	)
+	(fp_line
+		(start -1.2 1.4)
+		(end -1.2 -1.4)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "e437345b-306c-4830-b569-3b798ed80839")
+	)
+	(fp_line
+		(start 0 -0.95)
+		(end 0.3 -0.95)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "994e23b9-a2fb-4c31-8b48-1664f82247a7")
+	)
+	(fp_line
+		(start 0.15 -1.1)
+		(end 0.15 -0.8)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "606bcd31-bf1e-40a5-b631-5f1e6e5c0342")
+	)
+	(fp_line
+		(start 1.2 -1.4)
+		(end 1.2 1.4)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "700edde1-68ec-4647-aec1-81f61d81ad1a")
+	)
+	(fp_line
+		(start 1.2 1.4)
+		(end -1.2 1.4)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "7571be87-3eaf-4cde-b7c3-04b9c13178e6")
+	)
+	(fp_poly
+		(pts
+			(xy 0.5 -1.6) (xy 0.8 -1.3) (xy 1.1 -1.6)
+		)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill solid)
+		(layer "F.SilkS")
+		(uuid "c414842b-d8c6-4fda-84fe-e86609f9ae39")
+	)
+	(fp_rect
+		(start -1.2 -1.4)
+		(end 1.2 1.4)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(fill none)
+		(layer "F.CrtYd")
+		(uuid "e338356a-9923-464d-b54e-cc9a3860edc7")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "bbccf0a2-872f-4194-9cca-c1cc48e45331")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd roundrect
+		(at 0.8 -0.975)
+		(size 0.6 0.35)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+		(thermal_bridge_angle 45)
+		(uuid "c28220d4-e9c4-49dc-904c-7e0168f36a03")
+	)
+	(pad "2" smd roundrect
+		(at 0.8 -0.325)
+		(size 0.6 0.35)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+		(thermal_bridge_angle 45)
+		(uuid "e8d584e2-b3aa-4687-93e6-9f2f48aa9c44")
+	)
+	(pad "3" smd roundrect
+		(at 0.8 0.325)
+		(size 0.6 0.35)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+		(thermal_bridge_angle 45)
+		(uuid "05a02a82-4c8f-4ab5-bbb4-019824350b2c")
+	)
+	(pad "4" smd roundrect
+		(at 0.8 0.975)
+		(size 0.6 0.35)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+		(thermal_bridge_angle 45)
+		(uuid "250c14cd-5b44-4f50-983e-767e559ca871")
+	)
+	(pad "5" smd roundrect
+		(at -0.8 0.975)
+		(size 0.6 0.35)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+		(thermal_bridge_angle 45)
+		(uuid "2d4700b2-b257-4e05-97c3-64a7a27b101d")
+	)
+	(pad "6" smd roundrect
+		(at -0.8 0.325)
+		(size 0.6 0.35)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+		(thermal_bridge_angle 45)
+		(uuid "84a91c0c-5dfc-42bb-8afa-9487206f2f09")
+	)
+	(pad "7" smd roundrect
+		(at -0.8 -0.325)
+		(size 0.6 0.35)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+		(thermal_bridge_angle 45)
+		(uuid "75c932dd-b56d-4809-8493-ce5cb099402e")
+	)
+	(pad "8" smd roundrect
+		(at -0.8 -0.975)
+		(size 0.6 0.35)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+		(thermal_bridge_angle 45)
+		(uuid "ddcf54a1-4ccc-4c18-8658-9ccd617c37ea")
+	)
+	(model "${KIPRJMOD}/Kolibri custom.pretty/Goertek SPL06-001.stp"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 -90)
+		)
+	)
+)

@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "Kolibri custom")(type "KiCad")(uri "${KIPRJMOD}/Kolibri custom.pretty")(options "")(descr ""))
+)
