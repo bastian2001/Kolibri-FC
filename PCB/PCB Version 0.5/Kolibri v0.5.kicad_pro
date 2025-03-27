@@ -60,6 +60,10 @@
       ],
       "drc_exclusions": [
         [
+          "lib_footprint_mismatch|85700000|104300000|91c72417-4bfd-4517-989a-3c7ded5a8b42|00000000-0000-0000-0000-000000000000",
+          ""
+        ],
+        [
           "track_dangling|87100000|83910000|5a08efd4-dee4-46d0-975e-6d48ac3e97b4|00000000-0000-0000-0000-000000000000",
           ""
         ]
@@ -112,8 +116,8 @@
         "skew_out_of_range": "error",
         "solder_mask_bridge": "error",
         "starved_thermal": "error",
-        "text_height": "warning",
-        "text_thickness": "warning",
+        "text_height": "ignore",
+        "text_thickness": "ignore",
         "through_hole_pad_without_hole": "error",
         "too_many_vias": "error",
         "track_angle": "error",
