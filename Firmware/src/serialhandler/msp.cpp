@@ -7,8 +7,8 @@ u8 accelCalDone = 0;
 
 elapsedMillis mspOverrideMotors = 1001;
 
-static const char targetIdentifier[] = "KD04";
-static const char targetFullName[] = "Kolibri Dev v0.4";
+static constexpr char targetIdentifier[] = "KD04";
+static constexpr char targetFullName[] = "Kolibri Dev v0.4";
 
 elapsedMillis lastConfigPingRx = 0;
 bool configuratorConnected = false;
@@ -739,6 +739,21 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[12], &ELRS->actualPacketRate, 2);
 			memcpy(&buf[14], &ELRS->rcMsgCount, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 18);
+		} break;
+		case MspFn::GET_TZ_OFFSET: {
+			buf[0] = rtcTimezoneOffset;
+			buf[1] = rtcTimezoneOffset >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 2);
+		} break;
+		case MspFn::SET_TZ_OFFSET: {
+			i16 offset = DECODE_I2((u8 *)reqPayload);
+			if (offset > 14 * 60 || offset < -12 * 60) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			rtcTimezoneOffset = offset;
+			EEPROM.put((u16)EEPROM_POS::TIMEZONE_OFFSET_MINS, rtcTimezoneOffset);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_PIDS: {
 			u16 pids[3][7];

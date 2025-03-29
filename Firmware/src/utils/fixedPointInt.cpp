@@ -3,17 +3,14 @@
 
 fix32 sinLut[257];
 fix32 atanLut[257];
+fix32 acosLut[257];
 interp_config sinInterpConfig0, sinInterpConfig1;
-const fix32 FIX_PI = PI;
-const fix32 FIX_2PI = 2 * PI;
-const fix32 FIX_PI_2 = PI / 2;
-const fix32 FIX_RAD_TO_DEG = 180 / PI;
-const fix32 FIX_DEG_TO_RAD = PI / 180;
 
 void initFixTrig() {
 	for (int i = 0; i <= 256; i++) {
 		sinLut[i] = sin(i * PI / 256);
 		atanLut[i] = atan((f64)i / 256);
+		acosLut[i] = FIX_PI / 2 - acos((f64)i / 256);
 	}
 	sinInterpConfig0 = interp_default_config();
 	sinInterpConfig1 = interp_default_config();
@@ -43,7 +40,7 @@ fix32 sinFix(const fix32 x) {
  * @param x radians
  * @return fix32 radians
  */
-fix32 cosFix(const fix32 x) { return sinFix(x + FIX_PI_2); }
+fix32 cosFix(const fix32 x) { return sinFix(x + FIX_PI / 2); }
 
 /**
  * @brief calculates the atan of a fixed point number, about as fast as atanf
@@ -58,10 +55,10 @@ fix32 atanFix(fix32 x) {
 	x *= sign;
 	if (x > fix32(1)) {
 		x = fix32(1) / x;
-		offset = FIX_PI_2.raw * sign;
+		offset = (FIX_PI >> 1).raw * sign;
 		sign = -sign;
 	} else if (x == 1) {
-		return fix32().setRaw((FIX_PI_2.raw >> 1) * sign);
+		return fix32().setRaw((FIX_PI / 4).raw * sign);
 	}
 	i32 &xRaw = x.raw;
 	u32 high = xRaw >> 8;
@@ -70,8 +67,19 @@ fix32 atanFix(fix32 x) {
 	interp0->base[1] = atanLut[high + 1].raw;
 	return fix32().setRaw((i32)interp0->peek[1] * sign + offset);
 }
-fix32 atan2Fix(const fix32 y, const fix32 x) {
+fix32 atan2Fix(const fix32 x, const fix32 y) {
 	if (x != 0)
 		return atanFix(y / x) + FIX_PI * (x.raw < 0) * y.sign();
-	return FIX_PI_2 * y.sign();
+	return FIX_PI / 2 * y.sign();
+}
+
+fix32 acosFix(fix32 x) {
+	i32 sign = x.sign();
+	x *= sign;
+	if (x >= fix32(1)) return FIX_PI / 2 - FIX_PI / 2 * sign; // if abs >= 1, assume the value was +-1
+	u32 high = x.raw >> 8;
+	interp0->accum[1] = x.raw & 0xFF;
+	interp0->base[0] = acosLut[high].raw;
+	interp0->base[1] = acosLut[high + 1].raw;
+	return FIX_PI / 2 - fix32().setRaw((i32)interp0->peek[1] * sign);
 }

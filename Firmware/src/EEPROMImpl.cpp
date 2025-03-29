@@ -22,6 +22,7 @@ void readEEPROM() {
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD, (i16)0);
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, (i16)0);
 		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, (i16)0);
+		EEPROM.put((u16)EEPROM_POS::TIMEZONE_OFFSET_MINS, (i16)0);
 		rp2040.wdt_reset();
 		EEPROM.commit();
 	}
@@ -50,4 +51,5 @@ void readEEPROM() {
 	magOffset[1] = data;
 	EEPROM.get((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, data);
 	magOffset[2] = data;
+	EEPROM.get((u16)EEPROM_POS::TIMEZONE_OFFSET_MINS, rtcTimezoneOffset);
 }

@@ -8,6 +8,7 @@ extern RingBuffer<u8> gpsBuffer; // GPS incoming serial buffer
 extern elapsedMillis lastPvtMessage; // time since the last PVT (position velocity time) message was received
 extern u8 currentPvtMsg[92];
 extern u32 newPvtMessageFlag;
+extern fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
 
 /**
  * @brief initialize GPS driver
