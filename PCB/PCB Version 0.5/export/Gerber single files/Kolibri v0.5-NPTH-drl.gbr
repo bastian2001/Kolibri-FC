@@ -1,0 +1,29 @@
+%TF.GenerationSoftware,KiCad,Pcbnew,9.0.0-9.0.0-2~ubuntu24.04.1*%
+%TF.CreationDate,2025-03-27T18:59:43+01:00*%
+%TF.ProjectId,Kolibri v0.5,4b6f6c69-6272-4692-9076-302e352e6b69,rev?*%
+%TF.SameCoordinates,Original*%
+%TF.FileFunction,NonPlated,1,8,NPTH,Drill*%
+%TF.FilePolarity,Positive*%
+%FSLAX46Y46*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by KiCad (PCBNEW 9.0.0-9.0.0-2~ubuntu24.04.1) date 2025-03-27 18:59:43*
+%MOMM*%
+%LPD*%
+G01*
+G04 APERTURE LIST*
+%TA.AperFunction,ComponentDrill*%
+%ADD10C,0.650000*%
+%TD*%
+%TA.AperFunction,ComponentDrill*%
+%ADD11C,1.000000*%
+%TD*%
+G04 APERTURE END LIST*
+D10*
+%TO.C,J1*%
+X92710000Y-113087500D03*
+X98490000Y-113087500D03*
+D11*
+%TO.C,J9*%
+X93250000Y-114350000D03*
+X101230000Y-114350000D03*
+M02*

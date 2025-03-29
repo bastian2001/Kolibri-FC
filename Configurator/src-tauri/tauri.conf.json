@@ -1,69 +1,35 @@
 {
-	"$schema": "../node_modules/@tauri-apps/cli/schema.json",
-	"build": {
-		"beforeBuildCommand": "npm run build",
-		"beforeDevCommand": "npm run dev",
-		"devPath": "http://localhost:5173",
-		"distDir": "../build"
-	},
-	"package": {
-		"productName": "Kolibri Configurator",
-		"version": "0.1.0"
-	},
-	"tauri": {
-		"allowlist": {
-			"all": false,
-			"dialog": {
-				"all": true
-			}
-		},
-		"bundle": {
-			"active": true,
-			"category": "DeveloperTool",
-			"copyright": "",
-			"deb": {
-				"depends": []
-			},
-			"externalBin": [],
-			"icon": [
-				"icons/32x32.png",
-				"icons/128x128.png",
-				"icons/128x128@2x.png",
-				"icons/icon.icns",
-				"icons/icon.ico"
-			],
-			"identifier": "eu.kolibri.configurator",
-			"longDescription": "",
-			"macOS": {
-				"entitlements": null,
-				"exceptionDomain": "",
-				"frameworks": [],
-				"providerShortName": null,
-				"signingIdentity": null
-			},
-			"resources": [],
-			"shortDescription": "",
-			"targets": "all",
-			"windows": {
-				"certificateThumbprint": null,
-				"digestAlgorithm": "sha256",
-				"timestampUrl": ""
-			}
-		},
-		"security": {
-			"csp": null
-		},
-		"updater": {
-			"active": false
-		},
-		"windows": [
-			{
-				"fullscreen": false,
-				"resizable": true,
-				"title": "Kolibri Configurator",
-				"minWidth": 800,
-				"minHeight": 600
-			}
-		]
-	}
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "kolibri-configurator",
+  "version": "0.1.0",
+  "identifier": "de.kolibri.configurator",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "kolibri-configurator",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
 }

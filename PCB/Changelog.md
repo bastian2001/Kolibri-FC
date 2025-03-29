@@ -60,3 +60,16 @@
     -   A pair of 4.7kOhm pullups for I2C
     -   OSD crystal -> back to V0.2 design, except with more possibilities of testing, like selectable voltage and selectable whether a crystal or oscillator is used
     -   slightly more spacing for 100nF caps on the bottom layer
+
+### V0.5
+
+-   Switch to RP2350
+-   some changes to the ELRS receiver, maybe it'll work this time?
+-   First version designed in KiCad
+-   Bus layout changed:
+    -   Dedicated 3-wire SPI for gyro (PIO) => DMA polling should be possible now
+    -   baro has one I2C with external devices like compass
+    -   SDIO for SD card (PIO)
+    -   Dedicated SPI for OSD
+-   WS2812 LEDs for the swag
+-   better speaker driver

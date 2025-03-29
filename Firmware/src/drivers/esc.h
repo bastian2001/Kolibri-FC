@@ -3,46 +3,19 @@
 
 #define MOTOR_POLES 14
 
-typedef enum {
-	DSHOT_CMD_MOTOR_STOP = 0,
-	DSHOT_CMD_BEACON1,
-	DSHOT_CMD_BEACON2,
-	DSHOT_CMD_BEACON3,
-	DSHOT_CMD_BEACON4,
-	DSHOT_CMD_BEACON5,
-	DSHOT_CMD_ESC_INFO, // V2 includes settings
-	DSHOT_CMD_SPIN_DIRECTION_1,
-	DSHOT_CMD_SPIN_DIRECTION_2,
-	DSHOT_CMD_3D_MODE_OFF,
-	DSHOT_CMD_3D_MODE_ON,
-	DSHOT_CMD_SETTINGS_REQUEST, // Currently not implemented
-	DSHOT_CMD_SAVE_SETTINGS,
-	DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE,
-	DSHOT_CMD_EXTENDED_TELEMETRY_DISABLE,
-	DSHOT_CMD_SPIN_DIRECTION_NORMAL = 20,
-	DSHOT_CMD_SPIN_DIRECTION_REVERSED = 21,
-	DSHOT_CMD_LED0_ON, // BLHeli32 only
-	DSHOT_CMD_LED1_ON, // BLHeli32 only
-	DSHOT_CMD_LED2_ON, // BLHeli32 only
-	DSHOT_CMD_LED3_ON, // BLHeli32 only
-	DSHOT_CMD_LED0_OFF, // BLHeli32 only
-	DSHOT_CMD_LED1_OFF, // BLHeli32 only
-	DSHOT_CMD_LED2_OFF, // BLHeli32 only
-	DSHOT_CMD_LED3_OFF, // BLHeli32 only
-	DSHOT_CMD_AUDIO_STREAM_MODE_ON_OFF = 30, // KISS audio Stream mode on/Off
-	DSHOT_CMD_SILENT_MODE_ON_OFF = 31, // KISS silent Mode on/Off
-	DSHOT_CMD_MAX = 47
-} ESCCommand;
-
 #define ESC_PIO pio0 // pio block used for the ESC communication
-extern volatile u32 escRpm[4]; // decoded RPM values
-extern const u32 escDecodeLut[32]; // lookup table for GCR decoding
+extern u32 escRawTelemetry[4]; // raw telemetry values from the ESCs
+extern u32 escRpm[4]; // current ESC RPM
+extern u32 escTemp[4]; // last reported temperature from the ESCs
+extern fix32 escVoltage[4]; // last reported voltage from the ESCs
+extern u32 escCurrent[4]; // last reported current from the ESCs
 extern u8 escErpmFail; // flags for failed RPM decoding
-extern u32 enableDShot; // set to 0 to disable DShot output, e.g. for 4Way
-extern u32 escPioOffset; // offset at which the DShot program is stored
 
 /// @brief Initializes the ESC communication
 void initESCs();
+
+/// @brief Deinitializes the ESC communication, frees all resources
+void deinitESCs();
 
 /**
  * @brief Sends throttles to all four ESCs

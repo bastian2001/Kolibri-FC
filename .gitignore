@@ -17,3 +17,7 @@ __Previews
 *.htm
 Firmware/.last_git_hash
 Firmware/include/git_version.h
+
+#KiCad files
+*-backups/
+fp-info-cache
