@@ -94,6 +94,9 @@ export default defineComponent({
 					case MspFn.SET_RTC:
 						this.configuratorLog.push('RTC updated');
 						break;
+					case MspFn.SET_TZ_OFFSET:
+						this.configuratorLog.push('Timezone offset updated');
+						break;
 					case MspFn.PLAY_SOUND:
 						console.log(command.data);
 						break;
@@ -141,6 +144,14 @@ export default defineComponent({
 						(now >> 8) & 0xff,
 						(now >> 16) & 0xff,
 						(now >> 24) & 0xff
+					]);
+				})
+				.then(() => delay(5))
+				.then(() => {
+					const offset = -new Date().getTimezoneOffset();
+					sendCommand('request', MspFn.SET_TZ_OFFSET, MspVersion.V2, [
+						offset & 0xff,
+						(offset >> 8) & 0xff
 					]);
 				});
 		}

@@ -24,6 +24,7 @@ const TASK_NAMES = [
 	'        - IMU Gyro',
 	'        - IMU Accel',
 	'        - IMU Angle',
+	'        - IMU Speeds',
 	'    - PID, Motors',
 	'        - ESC RPM',
 	'    - OSD',

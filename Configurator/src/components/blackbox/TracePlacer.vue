@@ -47,8 +47,7 @@ export default defineComponent({
 			filterValue2: false,
 			flagName: '',
 			minValue: 0,
-			maxValue: 1,
-			trace: { color: 'transparent', maxValue: 10, minValue: 0, strokeWidth: 1, path: '', modifier: '', decimals: 0, unit: '', displayName: '', id: Math.random() } as TraceInGraph,
+			maxValue: 1
 		};
 	},
 	computed: {
@@ -247,6 +246,7 @@ export default defineComponent({
 			handler() {
 				this.currentModifierName = ''
 				this.filteringOn = false;
+				console.log(this.flagName);
 			}
 		},
 		watchForRedraw: {
@@ -327,11 +327,15 @@ export default defineComponent({
 
 select {
 	width: 8rem;
+	appearance: none !important;
 	background-color: transparent;
+	background: transparent url('data:image/gif;base64,R0lGODlhBgAGAKEDAFVVVX9/f9TU1CgmNyH5BAEKAAMALAAAAAAGAAYAAAIODA4hCDKWxlhNvmCnGwUAOw==') right center no-repeat !important;
+	background-position: calc(100% - 5px) center !important;
 	border: 1px solid var(--border-color);
 	border-radius: 4px;
 	padding: 3px 6px;
-	color: var(--text-color);
+	color: var(--text-color) !important;
+	color: black;
 	outline: none;
 	text-transform: capitalize;
 }
