@@ -124,7 +124,7 @@ void __not_in_flash_func(updatePitchRollValues)() {
 fix32 rAccel, fAccel;
 fix32 nAccel, eAccel;
 
-void updateSpeeds() {
+void __not_in_flash_func(updateSpeeds)() {
 	fix32 preHelper = vVelHelper;
 	cosPitch = cosFix(pitch);
 	cosRoll = cosFix(roll);
@@ -161,7 +161,7 @@ void updateSpeeds() {
 	nVel.add(northAccel * RAW_TO_M_PER_SEC2 / 3200);
 }
 
-void imuUpdate() {
+void __not_in_flash_func(imuUpdate)() {
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_IMU].runCounter++;
 	u32 t0, t1, t2, t3;

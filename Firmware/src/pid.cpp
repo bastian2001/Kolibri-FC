@@ -82,7 +82,7 @@ void initPID() {
 
 u32 takeoffCounter = 0;
 elapsedMicros taskTimerGyro, taskTimerPid;
-void pidLoop() {
+void __not_in_flash_func(pidLoop)() {
 	u32 duration = taskTimerGyro;
 	if (tasks[TASK_GYROREAD].maxGap < duration)
 		tasks[TASK_GYROREAD].maxGap = duration;

@@ -3,7 +3,7 @@
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
 u32 gyroLastState = 0;
-elapsedMicros lastPIDLoop = 0;
+elapsedMicros lastPidLoop = 0;
 
 u32 gyroCalibratedCycles = 0;
 i32 gyroCalibrationOffset[3] = {0};
@@ -18,10 +18,10 @@ void gyroLoop() {
 	u8 gpioState = gpio_get(PIN_GYRO_INT1);
 	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
 	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
-	if (gpioState != gyroLastState || lastPIDLoop > 400) {
+	if (gpioState != gyroLastState || lastPidLoop > 400) {
 		gyroLastState = gpioState;
-		if (gpioState == 1 || lastPIDLoop > 400) {
-			lastPIDLoop = 0;
+		if (gpioState == 1 || lastPidLoop > 400) {
+			lastPidLoop = 0;
 			pidLoop();
 			if (armingDisableFlags & 0x40) {
 				if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE && (gyroDataRaw[0] != -1 || gyroDataRaw[1] != -1 || gyroDataRaw[2] != -1)) {
