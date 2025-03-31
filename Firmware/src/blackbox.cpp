@@ -214,7 +214,6 @@ void endLogging() {
 }
 
 void __not_in_flash_func(writeSingleFrame)() {
-	u8 *bbBuffer = (u8 *)malloc(128);
 	size_t bufferPos = 1;
 	if (!fsReady || !bbLogging) {
 		return;
@@ -225,6 +224,7 @@ void __not_in_flash_func(writeSingleFrame)() {
 		return;
 	}
 #endif
+	u8 *bbBuffer = (u8 *)malloc(128);
 	if (currentBBFlags & LOG_ROLL_ELRS_RAW) {
 		bbBuffer[bufferPos++] = ELRS->channels[0];
 		bbBuffer[bufferPos++] = ELRS->channels[0] >> 8;
