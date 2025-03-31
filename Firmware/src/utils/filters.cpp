@@ -34,6 +34,13 @@ void PT1::set(fix32 value) {
 	y = value;
 }
 
+DualPT1::DualPT1(float cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
+	firstRatio = sqrtf(sampleFreq / cutoffFreq);
+	pt1a = PT1(sampleFreq / firstRatio, sampleFreq);
+	pt1b = PT1(cutoffFreq, sampleFreq / firstRatio);
+	pt1c = PT1(sampleFreq / firstRatio / 8, sampleFreq);
+}
+
 PT2::PT2(fix32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
 	fix32 omega = FIX_PI * 2 * cutoffFreq * fix32(1.5537) / sampleFreq;
 	alpha = omega / (omega + 1);

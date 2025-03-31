@@ -135,6 +135,8 @@ void __not_in_flash_func(pidLoop)() {
 			} else if (flightMode == FlightMode::GPS_VEL) {
 				static PT1 ffFilterNVel(2, 3200);
 				static PT1 ffFilterEVel(2, 3200);
+				static DualPT1 iRelaxFilterNVel(0.5, 3200);
+				static DualPT1 iRelaxFilterEVel(0.5, 3200);
 				static PT1 pushNorth(4, 3200);
 				static PT1 pushEast(4, 3200);
 				static fix32 lastNVelSetpoint = 0;
@@ -193,11 +195,32 @@ void __not_in_flash_func(pidLoop)() {
 				}
 				eVelError = (eVelSetpoint + pushEastVel) - eVel;
 				nVelError = (nVelSetpoint + pushNorthVel) - nVel;
-				eVelErrorSum = eVelErrorSum + eVelError;
-				nVelErrorSum = nVelErrorSum + nVelError;
+
 				// shift to get more resolution in the filter
+				// after shifting, we get a value of 0.08 for 1m/s² commanded acceleration
+				// (1m/s / 1s / 3200f/s * 256 = 0.08)
+				// assuming full 12m/s in 50ms, this gives us a value of 19.2 (0.08 * 12 * 20)
 				ffFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 8);
 				ffFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 8);
+				// same here, just more shifting
+				iRelaxFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 12);
+				iRelaxFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 12);
+				fix32 iRelaxTotal = sqrtf(((fix32)iRelaxFilterNVel * (fix32)iRelaxFilterNVel + (fix32)iRelaxFilterEVel * (fix32)iRelaxFilterEVel).getf32());
+				if (iRelaxTotal < 1) {
+					// low commanded acceleration: normal I gain
+					eVelErrorSum = eVelErrorSum + eVelError;
+					nVelErrorSum = nVelErrorSum + nVelError;
+				} else if (iRelaxTotal > 2) {
+					// high commanded acceleration: low I gain
+					eVelErrorSum = eVelErrorSum + eVelError / 6;
+					nVelErrorSum = nVelErrorSum + nVelError / 6;
+				} else {
+					// medium commanded acceleration: interpolate I gain
+					fix32 iRelaxFactor = (iRelaxTotal - 1) / 1;
+					fix32 divider = iRelaxFactor * 5 + 1;
+					eVelErrorSum = eVelErrorSum + eVelError / divider;
+					nVelErrorSum = nVelErrorSum + nVelError / divider;
+				}
 				eVelP = pidGainsHVel[P] * eVelError;
 				nVelP = pidGainsHVel[P] * nVelError;
 				eVelI = pidGainsHVel[I] * eVelErrorSum;
