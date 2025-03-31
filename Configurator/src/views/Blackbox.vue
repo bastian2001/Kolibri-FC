@@ -933,25 +933,24 @@ export default defineComponent({
 			};
 			input.click();
 		},
-		downloadLog(type: 'kbb' | 'json' = 'kbb') {
-			this.getLog(this.selected)
-				.then(data => {
-					const file = data.rawFile;
-					const blob = new Blob([new Uint8Array(file)], { type: 'application/octet-stream' });
-					const blobJSON = new Blob([JSON.stringify(data)], { type: 'application/json' });
-					const url = URL.createObjectURL(type === 'json' ? blobJSON : blob);
-					//download file
-					const a = document.createElement('a');
-					a.href = url;
-					a.download = `bb${prefixZeros(this.selected, 2)} ${data.startTime
-						.toISOString()
-						.replace('T', ' ')
-						.replace('.000Z', '')
-						.replace(/_/g, '-')}.${type}`;
-					a.click();
-					URL.revokeObjectURL(url);
-				})
-				.catch(console.error);
+		exportLog(type: 'kbb' | 'json' = 'kbb') {
+			if (!this.loadedLog) return;
+			let blob: Blob;
+			if (type === 'kbb')
+				blob = new Blob([new Uint8Array(this.loadedLog.rawFile)], { type: 'application/octet-stream' });
+			else
+				blob = new Blob([JSON.stringify(this.loadedLog)], { type: 'application/json' });
+			const url = URL.createObjectURL(blob);
+			//download file
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `bb${prefixZeros(this.selected, 2)} ${this.loadedLog.startTime
+				.toISOString()
+				.replace('T', ' ')
+				.replace('.000Z', '')
+				.replace(/_/g, '-')}.${type}`;
+			a.click();
+			URL.revokeObjectURL(url);
 		},
 		openLog() {
 			this.getLog(this.selected)
@@ -2402,11 +2401,11 @@ export default defineComponent({
 				<option v-for="log in logNums" :value="log.num">{{ log.text || log.num }}</option>
 			</select>
 			<button @click="openLog" :disabled="selected === -1">Open</button>
-			<button @click="() => { downloadLog() }" :disabled="selected === -1">Download KBB</button>
-			<button @click="() => { downloadLog('json') }" :disabled="selected === -1">Download JSON</button>
 			<button @click="deleteLog" :disabled="selected === -1">Delete</button>
 			<button @click="formatBB">Format</button>
 			<button @click="openLogFromFile">Open from file</button>
+			<button @click="() => { exportLog() }" :disabled="!loadedLog">Export KBB</button>
+			<button @click="() => { exportLog('json') }" :disabled="!loadedLog">Export JSON</button>
 			<button @click="() => { showSettings = true }">Settings</button>
 		</div>
 		<Settings v-if="showSettings" :flags="BB_ALL_FLAGS" @close="() => { showSettings = false; }" />
