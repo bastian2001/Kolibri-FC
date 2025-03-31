@@ -794,7 +794,8 @@ export default defineComponent({
 		graphs: {
 			handler() {
 				this.drawCanvas();
-			}
+			},
+			deep: 1
 		},
 	},
 	methods: {
@@ -855,7 +856,7 @@ export default defineComponent({
 			this.drawCanvas();
 		},
 		addGraph() {
-			this.graphs = [...this.graphs, []];
+			this.graphs.push([]);
 		},
 		deleteGraph(g: number) {
 			this.graphs = this.graphs.filter((_, i) => i !== g);
@@ -876,7 +877,7 @@ export default defineComponent({
 				displayName: '',
 				id: Math.random()
 			};
-			this.graphs[graphIndex] = [...this.graphs[graphIndex], defaultTrace];
+			this.graphs[graphIndex].push(defaultTrace)
 		},
 		formatBB() {
 			sendCommand('request', MspFn.BB_FORMAT);

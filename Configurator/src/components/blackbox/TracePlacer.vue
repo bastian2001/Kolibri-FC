@@ -228,6 +228,14 @@ export default defineComponent({
 		}
 	},
 	watch: {
+		autoRangeOn: {
+			handler(newValue) {
+				if (newValue) {
+					this.minValue = this.autoRange.min;
+					this.maxValue = this.autoRange.max;
+				}
+			},
+		},
 		autoRange: {
 			handler(newRange) {
 				if (this.autoRangeOn) {
@@ -246,7 +254,6 @@ export default defineComponent({
 			handler() {
 				this.currentModifierName = ''
 				this.filteringOn = false;
-				console.log(this.flagName);
 			}
 		},
 		watchForRedraw: {
