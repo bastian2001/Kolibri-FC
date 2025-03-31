@@ -165,11 +165,11 @@ void gpsLoop() {
 	}
 	if (gpsBuffer.itemCount() >= 8) {
 		elapsedMicros taskTimer = 0;
-		int len = gpsBuffer[4] + gpsBuffer[5] * 256;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
 			gpsBuffer.pop();
 			return;
 		}
+		int len = gpsBuffer[4] | (gpsBuffer[5] << 8);
 		if (len > GPS_BUF_LEN - 8) {
 			gpsBuffer.pop();
 			return;
@@ -178,17 +178,18 @@ void gpsLoop() {
 			return;
 		}
 		tasks[TASK_GPS].runCounter++;
+		u8 msg[len + 8];
+		gpsBuffer.copyToArray(msg, 2, len + 6);
 		u8 ck_a, ck_b;
-		gpsChecksum(&(gpsBuffer[2]), len + 4, &ck_a, &ck_b);
-		if (ck_a != gpsBuffer[len + 6] || ck_b != gpsBuffer[len + 7]) {
+		gpsChecksum(msg, len + 4, &ck_a, &ck_b);
+		if (ck_a != msg[len + 4] || ck_b != msg[len + 5]) {
 			gpsBuffer.pop();
 			return;
 		}
+		u8 *msgData = &msg[4];
 		// ensured that the packet is valid
-		u32 id = gpsBuffer[3], classId = gpsBuffer[2];
+		u32 id = msg[1], classId = msg[0];
 
-		u8 msgData[len];
-		gpsBuffer.copyToArray(msgData, 6, len);
 		switch (classId) {
 		case UBX_CLASS_ACK: {
 			switch (id) {
@@ -234,7 +235,7 @@ void gpsLoop() {
 					thisQuality = TIME_QUALITY_FULLY_RESOLVED;
 				}
 				if (thisQuality >= rtcTimeQuality) {
-					// refresh the gpsTime every 2 mins, as long as the quality is not decreasing
+					// refresh from gpsTime every 2 mins, as long as the quality is not decreasing
 					if (++goodTimes == 1200 || thisQuality > rtcTimeQuality) {
 						goodTimes = (thisQuality > rtcTimeQuality) * 1100; // already update time 10s after the quality has settled
 						rtcSetDatetime(&gpsTime, thisQuality, false);
