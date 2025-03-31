@@ -580,6 +580,26 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		minValue: -180,
 		maxValue: 180,
 		unit: '°'
+	},
+	LOG_HVEL: {
+		name: 'Hor. Velocity',
+		path: 'motion.hvel',
+		minValue: -30,
+		maxValue: 30,
+		unit: 'm/s',
+		decimals: 2,
+		modifier: [
+			{
+				displayNameShort: 'North',
+				displayName: 'North',
+				path: 'n'
+			},
+			{
+				displayNameShort: 'East',
+				displayName: 'East',
+				path: 'e'
+			}
+		]
 	}
 };
 const ACC_RANGES = [2, 4, 8, 16];
@@ -1538,14 +1558,8 @@ export default defineComponent({
 				return;
 			}
 			const version = header.slice(4, 7);
-			const sTime = leBytesToInt(header.slice(7, 11));
-			const year = sTime >> 26;
-			const month = (sTime >> 22) & 0b1111;
-			const day = (sTime >> 17) & 0b11111;
-			const hour = (sTime >> 12) & 0b11111;
-			const minute = (sTime >> 6) & 0b111111;
-			const second = sTime & 0b111111;
-			const startTime = new Date(year + 2000, month - 1, day, hour, minute, second);
+			const sTime = leBytesToInt(header.slice(7, 11)); // unix timestamp in seconds (UTC)
+			const startTime = new Date(sTime * 1000);
 			const pidFreq = 3200 / (1 + header[11]);
 			const freqDiv = header[12];
 			const rangeByte = header[13];
@@ -1592,18 +1606,38 @@ export default defineComponent({
 				if (flagIsSet) {
 					flags.push(Object.keys(BB_ALL_FLAGS)[i]);
 					offsets[Object.keys(BB_ALL_FLAGS)[i]] = frameSize;
-					if (i == 26) frameSize += 6;
-					else if (i == 28) frameSize++;
-					else frameSize += 2;
+					switch (i) {
+						case 26:
+							frameSize += 6;
+							break;
+						case 28:
+							frameSize += 1;
+							break;
+						default:
+							frameSize += 2;
+							break;
+					}
 				}
 			}
 			for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i + 32; i++) {
 				const flagIsSet = flagsHigh & (1 << i);
+				const realI = i + 32;
 				if (flagIsSet) {
-					flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
-					offsets[Object.keys(BB_ALL_FLAGS)[i + 32]] = frameSize;
-					if ([35, 36, 37].includes(i + 32)) frameSize += 6;
-					else frameSize += 2;
+					flags.push(Object.keys(BB_ALL_FLAGS)[realI]);
+					offsets[Object.keys(BB_ALL_FLAGS)[realI]] = frameSize;
+					switch (realI) {
+						case 35:
+						case 36:
+						case 37:
+							frameSize += 6;
+							break;
+						case 42:
+							frameSize += 4;
+							break;
+						default:
+							frameSize += 2;
+							break;
+					}
 				}
 			}
 			const framesPerSecond = pidFreq / freqDiv;
@@ -1616,7 +1650,7 @@ export default defineComponent({
 					gyro: {},
 					pid: { roll: {}, pitch: {}, yaw: {} },
 					motors: { out: {}, rpm: {} },
-					motion: { gps: {}, accelRaw: {}, accelFiltered: {} },
+					motion: { gps: {}, accelRaw: {}, accelFiltered: {}, hvel: {} },
 					attitude: {}
 				};
 				if (flags.includes('LOG_ROLL_ELRS_RAW'))
@@ -1963,6 +1997,14 @@ export default defineComponent({
 							180) /
 						Math.PI;
 				}
+				if (flags.includes('LOG_HVEL')) {
+					frame.motion.hvel.n =
+						leBytesToInt(data.slice(i + offsets['LOG_HVEL'], i + offsets['LOG_HVEL'] + 2), true) /
+						256;
+					frame.motion.hvel.e =
+						leBytesToInt(data.slice(i + offsets['LOG_HVEL'] + 2, i + offsets['LOG_HVEL'] + 4), true) /
+						256;
+				}
 				log.push(frame);
 			}
 			this.loadedLog = {
@@ -2016,14 +2058,8 @@ export default defineComponent({
 				const fileSize =
 					data[i + 1] + data[i + 2] * 256 + data[i + 3] * 256 * 256 + data[i + 4] * 256 * 256 * 256;
 				const bbVersion = data[i + 5] * 256 * 256 + data[i + 6] * 256 + data[i + 7];
-				const sTime = leBytesToInt(data.slice(i + 8, i + 12));
-				const year = sTime >> 26;
-				const month = (sTime >> 22) & 0b1111;
-				const day = (sTime >> 17) & 0b11111;
-				const hour = (sTime >> 12) & 0b11111;
-				const minute = (sTime >> 6) & 0b111111;
-				const second = sTime & 0b111111;
-				const startTime = new Date(year + 2000, month - 1, day, hour, minute, second);
+				const sTime = leBytesToInt(data.slice(i + 8, i + 12), false); // unix timestamp in seconds (UTC)
+				const startTime = new Date(sTime * 1000);
 				const pidFreq = 3200 / (data[i + 12] + 1);
 				const freqDiv = data[i + 13];
 				const flags = data.slice(i + 14, i + 22);

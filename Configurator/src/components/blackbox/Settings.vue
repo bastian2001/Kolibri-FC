@@ -24,7 +24,7 @@ export default defineComponent({
 	mounted() {
 		this.flagNames = Object.keys(this.flags);
 		let i = 0;
-		const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 10];
+		const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 3, 1, 7];
 		const g: string[][] = [];
 		for (const size of groupSizes) {
 			g.push(this.flagNames.slice(i, i + size));
@@ -32,6 +32,7 @@ export default defineComponent({
 		}
 		this.groups = g;
 		sendCommand('request', MspFn.GET_BB_SETTINGS)
+		console.log('Requesting blackbox settings');
 
 		addOnCommandHandler(this.onCommand);
 	},
@@ -84,7 +85,7 @@ export default defineComponent({
 		<div class="settingsWindow">
 			<div v-for="group in groups" class="group">
 				<label v-for="name in group" :for="`check-${name}`">
-					<input :id="`check-${name}`" type="checkbox" :group="selected" name="selected" :value="name" />
+					<input :id="`check-${name}`" type="checkbox" v-model="selected" name="selected" :value="name" />
 					{{ flags[name].name }}
 				</label>
 			</div>

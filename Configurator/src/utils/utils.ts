@@ -37,7 +37,7 @@ export function constrain(num: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, num))
 }
 
-export function prefixZeros(num: number = 0, totalDigits: number, char: string = "0") {
+export function prefixZeros(num: number, totalDigits: number, char: string = "0") {
 	let str = num.toString()
 	while (str.length < totalDigits) str = char + str
 	return str
