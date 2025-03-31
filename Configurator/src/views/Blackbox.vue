@@ -72,6 +72,36 @@ const getAltitudeRange = (file: BBLog | undefined) => {
 	min = 10 * Math.floor(min / 10);
 	return { max, min };
 };
+const getLatLonRange = (file: BBLog) => {
+	const latRange = { min: 90, max: -90 };
+	const lonRange = { min: 180, max: -180 };
+	file.frames.forEach(f => {
+		if (f.motion.gps.lat! > latRange.max) latRange.max = f.motion.gps.lat!;
+		if (f.motion.gps.lat! < latRange.min) latRange.min = f.motion.gps.lat!;
+		if (f.motion.gps.lon! > lonRange.max) lonRange.max = f.motion.gps.lon!;
+		if (f.motion.gps.lon! < lonRange.min) lonRange.min = f.motion.gps.lon!;
+	});
+	const latRangeDiff = Math.abs(latRange.max - latRange.min);
+	let lonRangeDiff = Math.abs(lonRange.max - lonRange.min);
+	const latAvg = (latRange.max + latRange.min) / 2;
+	const lonAvg = (lonRange.max + lonRange.min) / 2;
+	const lonScale = Math.cos((latAvg * Math.PI) / 180) || 1;
+	lonRangeDiff *= lonScale; // effective diff, where 1deg = 111km
+	const maxDiff = Math.max(latRangeDiff, lonRangeDiff);
+	latRange.min = latAvg - maxDiff / 2;
+	latRange.max = latAvg + maxDiff / 2;
+	lonRange.min = lonAvg - maxDiff / lonScale / 2;
+	lonRange.max = lonAvg + maxDiff / lonScale / 2;
+	return { latRange, lonRange };
+};
+const getLongitudeRange = (file: BBLog | undefined) => {
+	if (!file) return { max: 180, min: -180 };
+	return getLatLonRange(file).lonRange;
+};
+const getLatitudeRange = (file: BBLog | undefined) => {
+	if (!file) return { max: 90, min: -90 };
+	return getLatLonRange(file).latRange;
+};
 
 const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ROLL_ELRS_RAW: {
@@ -377,8 +407,7 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			{
 				displayNameShort: 'Lon',
 				displayName: 'Longitude',
-				min: -180,
-				max: 180,
+				rangeFn: getLongitudeRange,
 				path: 'lon',
 				unit: '°',
 				decimals: 7
@@ -386,8 +415,7 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			{
 				displayNameShort: 'Lat',
 				displayName: 'Latitude',
-				min: -90,
-				max: 90,
+				rangeFn: getLatitudeRange,
 				path: 'lat',
 				unit: '°',
 				decimals: 7
