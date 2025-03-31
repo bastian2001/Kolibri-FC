@@ -75,7 +75,7 @@ void initPID() {
 	pidGainsHVel[P] = 12; // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I] = 1.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 0; // tilt in degrees, if changing speed by 3200m/s /s
-	pidGainsHVel[FF] = 3200.f * 6.f; // tilt in degrees for target acceleration of 3200m/s^2
+	pidGainsHVel[FF] = 3200.f * .1f; // tilt in degrees for target acceleration of 3200m/s^2
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
 }
