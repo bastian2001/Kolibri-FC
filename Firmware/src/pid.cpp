@@ -36,7 +36,7 @@ fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pit
 fix32 altSetpoint;
 fix32 throttle;
 fix64 targetLat, targetLon;
-PT1 dFilterRoll(100, 3200), dFilterPitch(100, 3200), dFilterYaw(100, 3200);
+PT2 dFilterRoll(70, 3200), dFilterPitch(70, 3200), dFilterYaw(70, 3200);
 
 fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8];
 
@@ -356,9 +356,21 @@ void __not_in_flash_func(pidLoop)() {
 			yawErrorSum = yawErrorSum * pidGains[2][iFalloff];
 		}
 
-		rollErrorSum = rollErrorSum + rollError;
-		pitchErrorSum = pitchErrorSum + pitchError;
-		yawErrorSum = yawErrorSum + yawError;
+		fix32 diffRoll = rollSetpoint - rollSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
+		fix32 diffPitch = pitchSetpoint - pitchSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
+		fix32 diffYaw = yawSetpoint - yawSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
+
+		fix32 totalDiff = diffRoll.abs() + diffPitch.abs() + diffYaw.abs();
+		fix32 iRelaxMultiplier = 1;
+		if (totalDiff > 15) {
+			iRelaxMultiplier = fix32(0.125f);
+		} else if (totalDiff > 5) {
+			iRelaxMultiplier = fix32(1) - (totalDiff - 5) / 10 * 7 / 8;
+		}
+
+		rollErrorSum = rollErrorSum + rollError * iRelaxMultiplier;
+		pitchErrorSum = pitchErrorSum + pitchError * iRelaxMultiplier;
+		yawErrorSum = yawErrorSum + yawError * iRelaxMultiplier;
 
 		rollP = pidGains[0][P] * rollError;
 		pitchP = pidGains[1][P] * pitchError;
@@ -369,9 +381,9 @@ void __not_in_flash_func(pidLoop)() {
 		rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroData[AXIS_ROLL]);
 		pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroData[AXIS_PITCH]);
 		yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroData[AXIS_YAW]);
-		rollFF = pidGains[0][FF] * (rollSetpoint - rollSetpoints[ffBufPos]);
-		pitchFF = pidGains[1][FF] * (pitchSetpoint - pitchSetpoints[ffBufPos]);
-		yawFF = pidGains[2][FF] * (yawSetpoint - yawSetpoints[ffBufPos]);
+		rollFF = pidGains[0][FF] * diffRoll;
+		pitchFF = pidGains[1][FF] * diffPitch;
+		yawFF = pidGains[2][FF] * diffYaw;
 		rollS = pidGains[0][S] * rollSetpoint;
 		pitchS = pidGains[1][S] * pitchSetpoint;
 		yawS = pidGains[2][S] * yawSetpoint;
