@@ -113,6 +113,7 @@ export default defineComponent({
 		watchForRedraw() {
 			return [
 				this.trace.overrideData,
+				this.trace.color,
 				this.minValue,
 				this.maxValue,
 				this.path,
@@ -225,6 +226,22 @@ export default defineComponent({
 						break;
 				}
 			} else if (this.trace.overrideData) delete this.trace.overrideData;
+		},
+		selectColor() {
+			// open color selector from browser
+			const picker = document.createElement('input');
+			picker.type = 'color';
+			picker.value = this.trace.color;
+			let timeout = -1
+			let color = this.trace.color;
+			picker.addEventListener('input', (event) => {
+				color = (event.target as HTMLInputElement).value;
+				if (timeout !== -1) clearTimeout(timeout);
+				timeout = setTimeout(() => {
+					this.trace.color = color;
+				}, 1000);
+			});
+			picker.click();
 		}
 	},
 	watch: {
@@ -278,7 +295,7 @@ export default defineComponent({
 
 <template>
 	<div class="wrapper">
-		<span class="colorMark" :style="`background-color: ${trace.color}`">&nbsp;</span>
+		<span class="colorMark" :style="`background-color: ${trace.color}`" @click="selectColor">&nbsp;</span>
 		<select name="flag" id="flagSelector" v-model="flagName">
 			<option v-for="flag in availableFlagNames" :value="flag">{{ flagProps[flag].name }}</option>
 			<option v-for="flag in availableGenFlagNames" :value="flag">{{ flagProps[genFlagProps[flag].replaces].name
