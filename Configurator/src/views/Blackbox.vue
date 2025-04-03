@@ -449,8 +449,8 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			{
 				displayNameShort: 'Vel N',
 				displayName: 'Velocity North',
-				min: -10,
-				max: 10,
+				min: -15,
+				max: 15,
 				path: 'vel_n',
 				unit: 'm/s',
 				decimals: 2
@@ -458,8 +458,8 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			{
 				displayNameShort: 'Vel E',
 				displayName: 'Velocity East',
-				min: -10,
-				max: 10,
+				min: -15,
+				max: 15,
 				path: 'vel_e',
 				unit: 'm/s',
 				decimals: 2
@@ -612,8 +612,8 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_HVEL: {
 		name: 'Hor. Velocity',
 		path: 'motion.hvel',
-		minValue: -30,
-		maxValue: 30,
+		minValue: -15,
+		maxValue: 15,
 		unit: 'm/s',
 		decimals: 2,
 		modifier: [
@@ -1623,49 +1623,34 @@ export default defineComponent({
 					pidConstants[i][j] =
 						leBytesToInt(pcBytes.slice(i * 28 + j * 4, i * 28 + j * 4 + 4)) / 65536;
 			}
-			const flagsLow = leBytesToInt(header.slice(158, 162));
-			const flagsHigh = leBytesToInt(header.slice(162, 166));
 			const motorPoles = header[166];
 			const flags: string[] = [];
+			const flagSlice = header.slice(158, 166)
 			let frameSize = 0;
 			const offsets: { [key: string]: number } = {};
-			for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i; i++) {
-				const flagIsSet = flagsLow & (1 << i);
-				if (flagIsSet) {
-					flags.push(Object.keys(BB_ALL_FLAGS)[i]);
-					offsets[Object.keys(BB_ALL_FLAGS)[i]] = frameSize;
-					switch (i) {
-						case 26:
-							frameSize += 6;
-							break;
-						case 28:
-							frameSize += 1;
-							break;
-						default:
-							frameSize += 2;
-							break;
-					}
-				}
-			}
-			for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i + 32; i++) {
-				const flagIsSet = flagsHigh & (1 << i);
-				const realI = i + 32;
-				if (flagIsSet) {
-					flags.push(Object.keys(BB_ALL_FLAGS)[realI]);
-					offsets[Object.keys(BB_ALL_FLAGS)[realI]] = frameSize;
-					switch (realI) {
-						case 35:
-						case 36:
-						case 37:
-							frameSize += 6;
-							break;
-						case 42:
-							frameSize += 4;
-							break;
-						default:
-							frameSize += 2;
-							break;
-					}
+			for (let j = 0; j < 64; j++) {
+				const byteNum = Math.floor(j / 8);
+				const bitNum = j % 8;
+				const flagIsSet = flagSlice[byteNum] & (1 << bitNum);
+				if (!flagIsSet) continue;
+				flags.push(Object.keys(BB_ALL_FLAGS)[j]);
+				offsets[Object.keys(BB_ALL_FLAGS)[j]] = frameSize;
+				switch (j) {
+					case 26:
+					case 35:
+					case 36:
+					case 37:
+						frameSize += 6;
+						break;
+					case 28:
+						frameSize += 1;
+						break;
+					case 42:
+						frameSize += 4;
+						break;
+					default:
+						frameSize += 2;
+						break;
 				}
 			}
 			const framesPerSecond = pidFreq / freqDiv;
@@ -1856,7 +1841,7 @@ export default defineComponent({
 						leBytesToInt(data.slice(i + offsets['LOG_GPS'], i + offsets['LOG_GPS'] + 2)) === 20551 && // 'G' * 256 + 'P'
 						leBytesToInt(
 							data.slice(i + offsets['LOG_GPS'] + frameSize, i + offsets['LOG_GPS'] + 2 + frameSize)
-						) === 20563 && // 'G' * 256 + 'P'
+						) === 20563 && // 'S' * 256 + 'P'
 						leBytesToInt(
 							data.slice(
 								i + offsets['LOG_GPS'] + frameSize * 2,
@@ -2103,9 +2088,23 @@ export default defineComponent({
 					const bitNum = j % 8;
 					const flagIsSet = flags[byteNum] & (1 << bitNum);
 					if (!flagIsSet) continue;
-					if (j == 26 || [35, 36, 37].includes(j)) frameSize += 6;
-					else if (j == 28) frameSize++;
-					else frameSize += 2;
+					switch (j) {
+						case 26:
+						case 35:
+						case 36:
+						case 37:
+							frameSize += 6;
+							break;
+						case 28:
+							frameSize += 1;
+							break;
+						case 42:
+							frameSize += 4;
+							break;
+						default:
+							frameSize += 2;
+							break;
+					}
 				}
 				const frames = dataBytes / frameSize;
 				//append duration of log file to logNums
