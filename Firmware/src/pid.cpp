@@ -127,11 +127,12 @@ void __not_in_flash_func(pidLoop)() {
 		if (flightMode == FlightMode::ANGLE || flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 			fix32 dRoll;
 			fix32 dPitch;
+			fix32 newRollSetpoint, newPitchSetpoint, newYawSetpoint;
 			if (flightMode < FlightMode::GPS_VEL) {
 				dRoll = (smoothChannels[0] - 1500) * TO_ANGLE + (FIX_RAD_TO_DEG * roll);
 				dPitch = (smoothChannels[1] - 1500) * TO_ANGLE - (FIX_RAD_TO_DEG * pitch);
-				rollSetpoint = dRoll * angleModeP;
-				pitchSetpoint = dPitch * angleModeP;
+				newRollSetpoint = dRoll * angleModeP;
+				newPitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FlightMode::GPS_VEL) {
 				static PT1 ffFilterNVel(2, 3200);
 				static PT1 ffFilterEVel(2, 3200);
@@ -253,8 +254,8 @@ void __not_in_flash_func(pidLoop)() {
 				}
 				dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
 				dPitch = targetPitch - (FIX_RAD_TO_DEG * pitch);
-				rollSetpoint = dRoll * velocityModeP;
-				pitchSetpoint = dPitch * velocityModeP;
+				newRollSetpoint = dRoll * velocityModeP;
+				newPitchSetpoint = dPitch * velocityModeP;
 				lastNVelSetpoint = nVelSetpoint;
 				lastEVelSetpoint = eVelSetpoint;
 				nVelLast = nVel;
@@ -266,9 +267,14 @@ void __not_in_flash_func(pidLoop)() {
 					polynomials[i][2] = -polynomials[i][2];
 			}
 
-			yawSetpoint = 0;
+			newYawSetpoint = 0;
 			for (int i = 0; i < 5; i++)
-				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
+				newYawSetpoint += rateFactors[i][2] * polynomials[i][2];
+
+			// convert (new...) global roll, pitch and yaw to local roll, pitch and yaw
+			rollSetpoint = newRollSetpoint * cosPitch - newYawSetpoint * sinPitch;
+			pitchSetpoint = newPitchSetpoint * cosRoll + newYawSetpoint * cosPitch * sinRoll;
+			yawSetpoint = -newPitchSetpoint * sinRoll + newYawSetpoint * cosPitch * cosRoll;
 
 			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 				fix32 t = throttle - 512;

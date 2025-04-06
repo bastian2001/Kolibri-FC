@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 extern fix32 roll, pitch, yaw; // Euler angles of the drone
+extern fix32 gravityRoll, gravityPitch; // roll and pitch, angles from the gravity vector (not Euler angles)
 extern fix32 combinedHeading; // heading of the drone (in rad) by combining the magnetometer and the gyro
 extern fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading; // trigonometric values of the Euler angles
 extern PT1 magHeadingCorrection; // PT1 filter for the magnetometer heading correction (updated on every compass read)
