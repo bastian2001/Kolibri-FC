@@ -12,11 +12,12 @@ constexpr u16 days[4][12] =
 		{731, 762, 790, 821, 851, 882, 912, 943, 974, 1004, 1035, 1065},
 		{1096, 1127, 1155, 1186, 1216, 1247, 1277, 1308, 1339, 1369, 1400, 1430},
 };
+datetime_t currentDateTime;
 
 void rtcInit() {
 	datetime_t t;
 	rtcConvertToDatetime(EPOCH_2000, &t);
-	rtc_init();
+	// rtc_init();
 	rtcSetDatetime(&t, TIME_QUALITY_NONE);
 }
 
@@ -24,7 +25,9 @@ bool rtcSetDatetime(datetime_t *t, u8 quality, bool hasDotw) {
 	if (quality < rtcTimeQuality) return false;
 	rtcTimeQuality = quality;
 	if (!hasDotw) setDotwInDatetime(t);
-	return rtc_set_datetime(t);
+	// return rtc_set_datetime(t);
+	currentDateTime = *t;
+	return true;
 }
 
 void rtcConvertToDatetime(u32 timestamp, datetime_t *t) {
@@ -89,4 +92,10 @@ void setDotwInDatetime(datetime_t *t) {
 	daysSince2000 += (years / 4) * 1461;
 	daysSince2000 += days[years % 4][t->month - 1] + t->day - 1;
 	t->dotw = daysSince2000 % 7;
+}
+
+bool rtcGetDatetime(datetime_t *t) {
+	// return rtc_get_datetime(t);
+	*t = currentDateTime;
+	return true;
 }

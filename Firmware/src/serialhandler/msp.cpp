@@ -813,7 +813,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::SET_DEBUG_LED:
-			gpio_put(PIN_LED_DEBUG, reqPayload[0]);
+			// gpio_put(PIN_LED_DEBUG, reqPayload[0]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::PLAY_SOUND: {

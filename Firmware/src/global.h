@@ -14,6 +14,7 @@
 #endif
 #include "EEPROM.h"
 #include "EEPROMImpl.h"
+#include "NeoPixelConnect.h"
 #include "PIO_DShot.h"
 #include "adc.h"
 #include "blackbox.h"
@@ -32,7 +33,6 @@
 #include "hardware/pio.h"
 #include "hardware/pwm.h"
 #include "hardware/resets.h"
-#include "hardware/rtc.h"
 #include "hardware/spi.h"
 #include "hardware/watchdog.h"
 #include "imu.h"
@@ -40,6 +40,7 @@
 #include "pico/stdlib.h"
 #include "pid.h"
 #include "pins.h"
+#include "pioasm/halfduplex_spi.pio.h"
 #include "pioasm/speaker8bit.pio.h"
 #include "ringbuffer.h"
 #include "rtc.h"
@@ -54,15 +55,18 @@
 #include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"
 
-#define SPI_GYRO spi0 // SPI for gyro
 #define SPI_OSD spi0 // SPI for OSD
 #define SPI_BARO spi0 // SPI for baro
 #define SPI_SD spi1 // SPI for SD card
 #define I2C_MAG i2c0 // I2C for magnetometer
-#define PROPS_OUT
 
-#define DEBUG_ON gpio_put(PIN_LED_DEBUG, 1);
-#define DEBUG_OFF gpio_put(PIN_LED_DEBUG, 0);
+#define PIO_SPEAKER pio2
+#define PIO_ESC pio1
+#define PIO_GYRO_SPI pio2
+#define PIO_SDIO pio0
+#define PIO_LED pio2
+
+#define PROPS_OUT
 
 #define ARRAYLEN(arr) (sizeof(arr) / sizeof(arr[0])) // Get the length of an array
 
@@ -102,3 +106,10 @@ extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0x
 #define xstr(a) str(a)
 #define str(a) #a
 #define FIRMWARE_VERSION_STRING xstr(FIRMWARE_VERSION_MAJOR) "." xstr(FIRMWARE_VERSION_MINOR) "." xstr(FIRMWARE_VERSION_PATCH) RELEASE_SUFFIX
+
+enum class MOTOR : u8 {
+	RR = 0,
+	FR,
+	RL,
+	FL,
+};

@@ -42,12 +42,7 @@ void initBlackbox() {
 	fsReady = LittleFS.begin();
 	fsReady = fsReady && LittleFS.info(fsInfo);
 #elif BLACKBOX_STORAGE == SD_BB
-	SPI1.setRX(PIN_SD_MISO);
-	SPI1.setTX(PIN_SD_MOSI);
-	SPI1.setSCK(PIN_SD_SCK);
-	SDFSConfig cfg;
-	cfg.setCSPin(PIN_SD_CS);
-	cfg.setSPI(SPI1);
+	SDFSConfig cfg(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
 	SDFS.setConfig(cfg);
 	SDFS.setTimeCallback(rtcGetUnixTimestamp);
 	fsReady = SDFS.begin();
@@ -110,7 +105,7 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	size_t bytesRead = 1;
 	while (bytesRead > 0) {
 		rp2040.wdt_reset();
-		gpio_put(PIN_LED_ACTIVITY, chunkNum & 1);
+		// gpio_put(PIN_LED_ACTIVITY, chunkNum & 1);
 		bytesRead = logFile.read(buffer + 3, 1024);
 		buffer[1] = chunkNum & 0xFF;
 		buffer[2] = chunkNum >> 8;

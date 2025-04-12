@@ -13,7 +13,7 @@ BidirDShotX1 *escs[4];
 
 void initESCs() {
 	for (int i = 0; i < 4; i++) {
-		escs[i] = new BidirDShotX1(PIN_MOTORS + i, 600, ESC_PIO);
+		escs[i] = new BidirDShotX1(PIN_MOTORS + i, 600, PIO_ESC);
 	}
 	enableDShot = 1;
 }

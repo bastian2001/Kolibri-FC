@@ -19,5 +19,15 @@
 	"editor.indentSize": "tabSize",
 	"editor.formatOnSave": true,
 	"editor.insertSpaces": false,
-	"editor.detectIndentation": false
+	"editor.detectIndentation": false,
+	"files.associations": {
+		"*.tcc": "cpp",
+		"algorithm": "cpp",
+		"random": "cpp",
+		"fstream": "cpp",
+		"istream": "cpp",
+		"ostream": "cpp",
+		"regex": "cpp",
+		"utility": "cpp"
+	}
 }

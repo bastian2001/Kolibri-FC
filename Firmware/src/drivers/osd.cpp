@@ -12,6 +12,17 @@ u8 elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown
 
 void osdInit() {
 	osdTimer = 0;
+
+	spi_init(SPI_OSD, 8000000);
+
+	spi_set_format(SPI_OSD, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+	gpio_set_function(PIN_OSD_MOSI, GPIO_FUNC_SPI);
+	gpio_set_function(PIN_OSD_MISO, GPIO_FUNC_SPI);
+	gpio_set_function(PIN_OSD_SCLK, GPIO_FUNC_SPI);
+	gpio_init(PIN_OSD_CS);
+	gpio_set_dir(PIN_OSD_CS, GPIO_OUT);
+	gpio_put(PIN_OSD_CS, 1);
+	sleep_ms(2);
 }
 
 void disableOSD() {

@@ -236,8 +236,8 @@ void gpsLoop() {
 				}
 				if (thisQuality >= rtcTimeQuality) {
 					// refresh from gpsTime every 2 mins, as long as the quality is not decreasing
-					if (++goodTimes == 1200 || thisQuality > rtcTimeQuality) {
-						goodTimes = (thisQuality > rtcTimeQuality) * 1100; // already update time 10s after the quality has settled
+					if (++goodTimes == 100 || thisQuality > rtcTimeQuality) {
+						// goodTimes = (thisQuality > rtcTimeQuality) * 1100; // already update time 10s after the quality has settled
 						rtcSetDatetime(&gpsTime, thisQuality, false);
 					}
 				}

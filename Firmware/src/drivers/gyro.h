@@ -48,6 +48,7 @@ enum class GyroReg : u8 {
 	INIT_CTRL = 0x59,
 	INIT_DATA = 0x5E,
 	NVM_CONF = 0x6A,
+	IF_CONF = 0x6B,
 	DRV = 0x6C,
 	ACC_SELF_TEST = 0x6D,
 	GYR_SELF_TEST_AXES = 0x6E,

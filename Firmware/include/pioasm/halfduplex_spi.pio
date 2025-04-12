@@ -1,0 +1,15 @@
+.program halfduplex_spi_11
+.side_set 1 opt
+
+; using some delay here, to minimize the effect of loading the bytes
+; set osr level to 9 in the code
+
+.wrap_target
+pull block
+out pindirs, 1 ; a 1 indicates write, 0 indicates read
+write_or_read:
+out pins, 1 side 0 [3] ; we always try to write
+in pins, 1 side 1 [2] ; and we always read
+jmp !osre write_or_read
+push block
+.wrap

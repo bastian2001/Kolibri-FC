@@ -1,8 +1,8 @@
 #include "global.h"
-#include "hardware/structs/xip_ctrl.h"
 #include "hardware/vreg.h"
 
 volatile u8 setupDone = 0b00;
+NeoPixelConnect p(PIN_LEDS, 9, PIO_LED, 2);
 
 void setup() {
 	Serial.begin(115200);
@@ -34,7 +34,6 @@ void setup() {
 		crashInfo[i] = 0;
 	}
 	rtcInit();
-	initDefaultSpi();
 	gyroInit();
 	imuInit();
 	osdInit();
@@ -49,10 +48,9 @@ void setup() {
 	ELRS = new ExpressLRS(Serial1, 420000, PIN_TX0, PIN_RX0);
 
 	// init LEDs
-	gpio_init(PIN_LED_ACTIVITY);
-	gpio_set_dir(PIN_LED_ACTIVITY, GPIO_OUT);
-	gpio_init(PIN_LED_DEBUG);
-	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
+	sleep_ms(10);
+	p.recalculateClock();
+	p.neoPixelFill(255, 0, 0, true);
 
 	initBlackbox();
 	initSpeaker();
@@ -65,7 +63,6 @@ void setup() {
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
-	xip_ctrl_hw->flush = 1;
 }
 
 elapsedMillis activityTimer;
@@ -91,7 +88,14 @@ void loop() {
 	taskManagerLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500) {
-		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
+		static bool on = false;
+		if (on) {
+			p.neoPixelFill(0, 0, 0, true);
+			on = false;
+		} else {
+			p.neoPixelFill(255, 255, 255, true);
+			on = true;
+		}
 		activityTimer = 0;
 	}
 	duration0 = taskTimer0;

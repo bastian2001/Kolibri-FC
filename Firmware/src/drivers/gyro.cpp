@@ -12,6 +12,8 @@ i16 gyroCalibrationOffsetTemp[3] = {0};
 i32 accelCalibrationOffsetTemp[3] = {0};
 u16 accelCalibrationCycles = 0;
 
+u8 spiSm = 0;
+
 extern const u8 bmi270_config_file[8192];
 
 void gyroLoop() {
@@ -78,32 +80,60 @@ int gyroInit() {
 
 	gpio_init(PIN_GYRO_INT1);
 	gpio_set_dir(PIN_GYRO_INT1, GPIO_IN);
+	gpio_init(PIN_GYRO_CS);
+	gpio_set_dir(PIN_GYRO_CS, GPIO_OUT);
+	gpio_put(PIN_GYRO_CS, 1);
+	gpio_init(PIN_GYRO_SCLK);
+	gpio_set_dir(PIN_GYRO_SCLK, GPIO_OUT);
+	gpio_init(PIN_GYRO_SDX);
+	gpio_set_dir(PIN_GYRO_SDX, GPIO_IN);
+
+	u8 offset = pio_add_program(PIO_GYRO_SPI, &halfduplex_spi_11_program);
+	spiSm = pio_claim_unused_sm(PIO_GYRO_SPI, true);
+	pio_sm_config c = halfduplex_spi_11_program_get_default_config(offset);
+	pio_gpio_init(PIO_GYRO_SPI, PIN_GYRO_SCLK);
+	pio_gpio_init(PIO_GYRO_SPI, PIN_GYRO_SDX);
+	sm_config_set_in_pins(&c, PIN_GYRO_SDX);
+	sm_config_set_sideset(&c, 2, true, false);
+	sm_config_set_sideset_pins(&c, PIN_GYRO_SCLK);
+	sm_config_set_out_pins(&c, PIN_GYRO_SDX, 1);
+	pio_sm_set_consecutive_pindirs(PIO_GYRO_SPI, spiSm, PIN_GYRO_SCLK, 1, true);
+	sm_config_set_out_shift(&c, false, false, 9);
+	sm_config_set_in_shift(&c, false, false, 8);
+	pio_sm_init(PIO_GYRO_SPI, spiSm, offset, &c);
+	pio_sm_set_enabled(PIO_GYRO_SPI, spiSm, true);
+	pio_sm_put(PIO_GYRO_SPI, spiSm, 0); // dummy write to set clock polarity (mode 11)
+	pio_sm_set_clkdiv_int_frac8(PIO_GYRO_SPI, spiSm, 3, 128); // set clock divider to 3.5 => (264 / 3.5 / 8 (ticks per bit)) = 9.4MHz (max 10MHz)
+
 	u8 data = 0xB6;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CMD, &data, 1, 500); // soft reset
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::CMD, &data, 1, 500); // soft reset
 	for (int i = 0; i < 50 && data != 0x24; i++) {
 		sleep_ms(2);
-		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
+		data = 1;
+		regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::IF_CONF, &data, 1, 500); // set SPI mode to 3 wire
+		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::IF_CONF, &data, 1, 2); // read IF_CONF
 		data = 0;
-		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
+		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
 	}
 	if (data != 0x24) {
 		Serial.print("Failed to load BMI270, wrong Chip ID: "); // chip id should be 0x24
 		Serial.println(data, HEX);
 		return 1;
 	}
+	Serial.println("BMI270 loaded");
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // prepare config load
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // prepare config load
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
 	data = 1;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
 
 	// check initialization status
 	data = 0;
 	for (int i = 0; i < 50 && (data & 0x6F) != 0x01; i++) {
 		sleep_ms(1); // should always be below 20ms, but we wait a bit longer to be sure
-		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INTERNAL_STATUS, &data, 1);
+		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INTERNAL_STATUS, &data, 1);
 	}
 	if ((data & 0x6F) != 0x01) {
 		sleep_ms(5000);
@@ -115,34 +145,34 @@ int gyroInit() {
 	// enable performance mode (p. 22)
 	// PWR_CTRL: temp_en (3) | acc_en (2) | gyr_en (1) | aux_en (0)
 	data = 0b1110; // temp, accel and gyro enabled
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CTRL, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CTRL, &data, 1, 500);
 	// ACC_CONF: acc_filter_perf (7) | acc_bwp (6...4) | acc_odr (3...0)
 	data = 1 << 7 | 0x02 << 4 | 0x0C; // performance optimized, no averaging, 1600Hz
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_CONF, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::ACC_CONF, &data, 1, 500);
 	// ACC_RANGE: acc_range (1...0)
 	data = 0x03; // +/- 16g
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_RANGE, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::ACC_RANGE, &data, 1, 500);
 	// GYR_CONF: gyr_filter_perf (7) | gyr_noise_perf (6) | gyr_bwp (5...4) | gyr_odr (3...0)
 	data = 1 << 7 | 1 << 6 | 0x00 << 4 | 0x0D; // performance optimized, 3200Hz
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::GYR_CONF, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::GYR_CONF, &data, 1, 500);
 	// GYR_RANGE: ois_range (3) | gyr_range (2...0)
 	data = 0x00; // +/- 2000dps
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::GYR_RANGE, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::GYR_RANGE, &data, 1, 500);
 	data = 0x02;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500);
 
 	// INT_MAP_DATA: err_int2, drdy_int2, fwm_int2, ffull_int2, err_int1, drdy_int1, fwm_int1, ffull_int1
 	data = 0b10000100;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT_MAP_DATA, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT_MAP_DATA, &data, 1, 500);
 	// INT1_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT1_IO_CTRL, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT1_IO_CTRL, &data, 1, 500);
 	// INT2_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT2_IO_CTRL, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT2_IO_CTRL, &data, 1, 500);
 	// INT_LATCH: int_latch(0)
 	data = 0x00;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT_LATCH, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT_LATCH, &data, 1, 500);
 	armingDisableFlags |= 0x00000040;
 
 	return 0;
@@ -151,7 +181,7 @@ int gyroInit() {
 u32 gyroUpdateFlag = 0;
 // read all 6 axes of the BMI270
 void gyroGetData(i16 *buf) {
-	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_X_LSB, (u8 *)buf, 12);
+	regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::ACC_X_LSB, (u8 *)buf, 12);
 	buf[0] -= accelCalibrationOffset[0];
 	buf[1] -= accelCalibrationOffset[1];
 	buf[2] -= accelCalibrationOffset[2];
