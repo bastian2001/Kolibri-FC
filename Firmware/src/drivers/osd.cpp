@@ -127,12 +127,12 @@ void osdLoop() {
 		}
 		if (!osdReady) return;
 		if (data & 1) {
-			data = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
-			regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data);
+			u8 data2 = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
+			regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data2);
 		} else {
-			data = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
-			regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data);
+			u8 data2 = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
+			regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data2);
 		}
-		osdReady = data & 0b00000011 ? 1 : 2;
+		osdReady = (data & 0b00000011) ? 1 : 2;
 	}
 }

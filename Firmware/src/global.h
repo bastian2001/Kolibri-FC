@@ -55,7 +55,7 @@
 #include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"
 
-#define SPI_OSD spi0 // SPI for OSD
+#define SPI_OSD spi1 // SPI for OSD
 
 #ifdef BARO_SPL06
 #define SPI_BARO spi0 // SPI for baro
