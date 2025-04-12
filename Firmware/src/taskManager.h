@@ -19,6 +19,7 @@ enum Tasks {
 	TASK_LOOP0,
 	TASK_SPEAKER,
 	TASK_BAROEVAL,
+	TASK_BAROREAD,
 	TASK_BLACKBOX,
 	TASK_ELRS,
 	TASK_MODES,
@@ -38,7 +39,6 @@ enum Tasks {
 	TASK_PID_MOTORS,
 	TASK_ESC_RPM,
 	TASK_OSD,
-	TASK_BAROREAD
 };
 
 /// @brief resets all task stats

@@ -28,6 +28,10 @@
 		"istream": "cpp",
 		"ostream": "cpp",
 		"regex": "cpp",
-		"utility": "cpp"
+		"utility": "cpp",
+		"array": "cpp",
+		"string": "cpp",
+		"string_view": "cpp",
+		"span": "cpp"
 	}
 }

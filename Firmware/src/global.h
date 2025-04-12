@@ -56,8 +56,14 @@
 #include "utils/quaternion.h"
 
 #define SPI_OSD spi0 // SPI for OSD
+
+#ifdef BARO_SPL06
 #define SPI_BARO spi0 // SPI for baro
-#define SPI_SD spi1 // SPI for SD card
+#endif
+
+#ifdef BARO_LPS22
+#define I2C_BARO i2c0 // I2C for baro
+#endif
 #define I2C_MAG i2c0 // I2C for magnetometer
 
 #define PIO_SPEAKER pio2

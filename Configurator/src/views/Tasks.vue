@@ -9,6 +9,7 @@ const TASK_NAMES = [
 	'Loop 0',
 	'    - Speaker',
 	'    - Baro Eval',
+	'    - Baro Read',
 	'    - Blackbox',
 	'    - ELRS',
 	'    - Modes',
@@ -28,7 +29,6 @@ const TASK_NAMES = [
 	'    - PID, Motors',
 	'        - ESC RPM',
 	'    - OSD',
-	'    - Baro Read'
 ];
 
 export default defineComponent({

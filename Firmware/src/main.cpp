@@ -37,11 +37,11 @@ void setup() {
 	gyroInit();
 	imuInit();
 	osdInit();
+	initMag();
 	initBaro();
 	initGPS();
 	initADC();
 	modesInit();
-	initMag();
 	initSerial();
 
 	// init ELRS on pins 0 and 1 using Serial1 (UART0)
@@ -50,7 +50,7 @@ void setup() {
 	// init LEDs
 	sleep_ms(10);
 	p.recalculateClock();
-	p.neoPixelFill(255, 0, 0, true);
+	p.neoPixelFill(0, 0, 255, true);
 
 	initBlackbox();
 	initSpeaker();
@@ -77,6 +77,7 @@ void loop() {
 	taskTimer0 = 0;
 	speakerLoop();
 	evalBaroLoop();
+	readBaroLoop(); // read after eval to prevent long execution times
 	blackboxLoop();
 	ELRS->loop();
 	modesLoop();
@@ -90,10 +91,10 @@ void loop() {
 	if (activityTimer >= 500) {
 		static bool on = false;
 		if (on) {
-			p.neoPixelFill(0, 0, 0, true);
+			p.neoPixelSetValue(0, 0, 0, 0, true);
 			on = false;
 		} else {
-			p.neoPixelFill(255, 255, 255, true);
+			p.neoPixelSetValue(0, 255, 255, 255, true);
 			on = true;
 		}
 		activityTimer = 0;
@@ -137,7 +138,6 @@ void loop1() {
 			osdLoop(); // slow, but both need to be on this core, due to SPI collision
 			break;
 		case 1:
-			readBaroLoop();
 			break;
 		}
 		if (taskState == 2) taskState = 0;

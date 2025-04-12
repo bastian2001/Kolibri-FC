@@ -84,7 +84,7 @@ private:
  */
 class DualPT1 {
 public:
-	DualPT1(float cutoffFreq, u32 sampleFreq);
+	DualPT1(f32 cutoffFreq, u32 sampleFreq);
 
 	inline fix32 update(fix32 value) {
 		pt1a.update(value);
