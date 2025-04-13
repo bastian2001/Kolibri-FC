@@ -104,6 +104,8 @@ extern BootReason bootReason; // Reason for booting
 extern BootReason rebootReason; // Reason for rebooting (can be set right before an intentional reboot, WATCHDOG otherwise)
 extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0xdeadbeefdeadbeef)
 
+extern NeoPixelConnect p;
+
 #define FIRMWARE_NAME "Kolibri"
 #define FIRMWARE_VERSION_MAJOR 0
 #define FIRMWARE_VERSION_MINOR 1

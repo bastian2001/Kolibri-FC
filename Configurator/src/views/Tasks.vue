@@ -18,6 +18,7 @@ const TASK_NAMES = [
 	'    - Configurator',
 	'    - GPS',
 	'    - Magnetometer',
+	'    - OSD',
 	'    - Task Manager',
 	'Loop 1',
 	'    - Gyro Read',
@@ -28,7 +29,6 @@ const TASK_NAMES = [
 	'        - IMU Speeds',
 	'    - PID, Motors',
 	'        - ESC RPM',
-	'    - OSD',
 ];
 
 export default defineComponent({

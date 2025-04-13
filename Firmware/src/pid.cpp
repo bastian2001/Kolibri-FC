@@ -69,7 +69,7 @@ void initPID() {
 		rateFactors[4][i] = 800;
 	}
 	pidGainsVVel[P] = 50; // additional throttle if velocity is 1m/s too low
-	pidGainsVVel[I] = .015; // increase throttle by 3200x this value, when error is 1m/s
+	pidGainsVVel[I] = .03; // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D] = 10000; // additional throttle, if accelerating by 3200m/s^2
 	pidGainsVVel[FF] = 30000;
 	pidGainsHVel[P] = 12; // immediate target tilt in degree @ 1m/s too slow/fast

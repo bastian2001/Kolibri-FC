@@ -2,7 +2,6 @@
 #include "hardware/vreg.h"
 
 volatile u8 setupDone = 0b00;
-NeoPixelConnect p(PIN_LEDS, 9, PIO_LED, 2);
 
 void setup() {
 	Serial.begin(115200);
@@ -86,6 +85,7 @@ void loop() {
 	configuratorLoop();
 	gpsLoop();
 	magLoop();
+	osdLoop();
 	taskManagerLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500) {
@@ -120,7 +120,6 @@ void setup1() {
 	}
 }
 elapsedMicros taskTimer = 0;
-u32 taskState = 0;
 
 extern PIO speakerPio;
 extern u8 speakerSm;
@@ -132,17 +131,6 @@ void loop1() {
 	}
 	taskTimer = 0;
 	gyroLoop();
-	if (gyroUpdateFlag & 1) {
-		switch (taskState++) {
-		case 0:
-			osdLoop(); // slow, but both need to be on this core, due to SPI collision
-			break;
-		case 1:
-			break;
-		}
-		if (taskState == 2) taskState = 0;
-		gyroUpdateFlag &= ~1;
-	}
 	duration = taskTimer;
 	tasks[TASK_LOOP1].totalDuration += duration;
 	if (duration > tasks[TASK_LOOP1].maxDuration) {

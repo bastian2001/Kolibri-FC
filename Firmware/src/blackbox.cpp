@@ -106,6 +106,8 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	while (bytesRead > 0) {
 		rp2040.wdt_reset();
 		// gpio_put(PIN_LED_ACTIVITY, chunkNum & 1);
+		if (chunkNum % 100 == 0)
+			p.neoPixelSetValue(0, chunkNum & 0xFF, true);
 		bytesRead = logFile.read(buffer + 3, 1024);
 		buffer[1] = chunkNum & 0xFF;
 		buffer[2] = chunkNum >> 8;

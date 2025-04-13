@@ -5,7 +5,7 @@
 // a total of 2000 good samples are required, the first 1000 are ignored
 #define CALIBRATION_SAMPLES 1000
 #define QUIET_SAMPLES 1000
-#define CALIBRATION_TOLERANCE 64 // (4deg/s)
+#define CALIBRATION_TOLERANCE 128 // (4deg/s)
 
 enum class GyroReg : u8 {
 	CHIP_ID = 0x00,

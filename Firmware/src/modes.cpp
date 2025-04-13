@@ -44,6 +44,7 @@ void modesLoop() {
 			if (!armingDisableFlags) {
 				startLogging();
 				armed = true;
+				p.neoPixelSetValue(1, 255, 255, 255, true);
 				startPointLat = gpsMotion.lat;
 				startPointLon = gpsMotion.lon;
 			} else if (ELRS->consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
@@ -66,6 +67,7 @@ void modesLoop() {
 			}
 		} else if (ELRS->channels[4] < 1500) {
 			armed = false;
+			p.neoPixelSetValue(1, 0, 0, 0, true);
 			// just disarmed, stop logging
 			if (ELRS->lastChannels[4] > 1500)
 				endLogging();

@@ -28,6 +28,7 @@ enum Tasks {
 	TASK_CONFIGURATOR,
 	TASK_GPS,
 	TASK_MAGNETOMETER,
+	TASK_OSD,
 	TASK_TASKMANAGER,
 	TASK_LOOP1,
 	TASK_GYROREAD,
@@ -38,7 +39,6 @@ enum Tasks {
 	TASK_IMU_SPEEDS,
 	TASK_PID_MOTORS,
 	TASK_ESC_RPM,
-	TASK_OSD,
 };
 
 /// @brief resets all task stats
