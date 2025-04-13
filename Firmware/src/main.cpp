@@ -33,7 +33,6 @@ void setup() {
 		crashInfo[i] = 0;
 	}
 	rtcInit();
-	gyroInit();
 	imuInit();
 	osdInit();
 	initMag();
@@ -115,6 +114,7 @@ void setup1() {
 	while (!(setupDone & 0b01)) {
 	}
 	initESCs();
+	gyroInit();
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {
 	}
@@ -131,6 +131,14 @@ void loop1() {
 	}
 	taskTimer = 0;
 	gyroLoop();
+
+	if (gyroUpdateFlag & 0x01) {
+		gyroUpdateFlag &= ~0x01;
+		imuUpdate();
+		decodeErpm();
+		pidLoop();
+	}
+
 	duration = taskTimer;
 	tasks[TASK_LOOP1].totalDuration += duration;
 	if (duration > tasks[TASK_LOOP1].maxDuration) {

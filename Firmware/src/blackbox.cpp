@@ -210,7 +210,7 @@ void endLogging() {
 	bbLogging = false;
 }
 
-void __not_in_flash_func(writeSingleFrame)() {
+void writeSingleFrame() {
 	size_t bufferPos = 1;
 	if (!fsReady || !bbLogging) {
 		return;

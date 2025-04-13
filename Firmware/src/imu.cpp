@@ -44,7 +44,7 @@ void imuInit() {
 	magHeadingCorrection.setRolloverParams(-PI, PI);
 }
 
-void __not_in_flash_func(updateFromGyro)() {
+void updateFromGyro() {
 	// quaternion of all 3 axis rotations combined
 
 	f32 all[] = {-gyroDataRaw[1] * RAW_TO_HALF_ANGLE, -gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
@@ -58,7 +58,7 @@ void __not_in_flash_func(updateFromGyro)() {
 }
 
 f32 orientation_vector[3];
-void __not_in_flash_func(updateFromAccel)() {
+void updateFromAccel() {
 	// filter accel data
 	accelDataFiltered[0].update(accelDataRaw[0]);
 	accelDataFiltered[1].update(accelDataRaw[1]);
@@ -110,7 +110,7 @@ void __not_in_flash_func(updateFromAccel)() {
 	Quaternion_normalize(&q, &q);
 }
 
-void __not_in_flash_func(updatePitchRollValues)() {
+void updatePitchRollValues() {
 	startFixTrig();
 	roll = atan2Fix(1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]), 2 * (q.w * q.v[0] - q.v[1] * q.v[2]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
@@ -137,7 +137,7 @@ void __not_in_flash_func(updatePitchRollValues)() {
 fix32 rAccel, fAccel;
 fix32 nAccel, eAccel;
 
-void __not_in_flash_func(updateSpeeds)() {
+void updateSpeeds() {
 	fix32 preHelper = vVelHelper;
 	cosPitch = cosFix(pitch);
 	cosRoll = cosFix(roll);
@@ -148,7 +148,8 @@ void __not_in_flash_func(updateSpeeds)() {
 	vAccel = cosRoll * cosPitch * accelDataFiltered[2] * RAW_TO_M_PER_SEC2;
 	vAccel += sinRoll * cosPitch * accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
 	vAccel -= sinPitch * accelDataFiltered[1] * RAW_TO_M_PER_SEC2;
-	vVelHelper += (vAccel - fix32(9.81f)) / 3200;
+	vAccel -= fix32(9.81f); // remove gravity
+	vVelHelper += vAccel / 3200;
 	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
 	vVel += vVelHelper - preHelper;
 	f32 measVel;
@@ -174,7 +175,7 @@ void __not_in_flash_func(updateSpeeds)() {
 	nVel.add(northAccel * RAW_TO_M_PER_SEC2 / 3200);
 }
 
-void __not_in_flash_func(imuUpdate)() {
+void imuUpdate() {
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_IMU].runCounter++;
 	u32 t0, t1, t2, t3;

@@ -81,35 +81,13 @@ void initPID() {
 }
 
 u32 takeoffCounter = 0;
-elapsedMicros taskTimerGyro, taskTimerPid;
-void __not_in_flash_func(pidLoop)() {
-	u32 duration = taskTimerGyro;
-	if (tasks[TASK_GYROREAD].maxGap < duration)
-		tasks[TASK_GYROREAD].maxGap = duration;
-	taskTimerGyro = 0;
-	tasks[TASK_GYROREAD].runCounter++;
-	gyroGetData(bmiDataRaw);
-	for (int i = 0; i < 3; i++) {
-		gyroData[i].setRaw((i32)gyroDataRaw[i] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math,gyro data in range of -2000 ... +2000 (degrees per second)
-	}
-	gyroData[AXIS_PITCH] = -gyroData[AXIS_PITCH];
-	gyroData[AXIS_YAW] = -gyroData[AXIS_YAW];
-	duration = taskTimerGyro;
-	tasks[TASK_GYROREAD].totalDuration += duration;
-	if (duration > tasks[TASK_GYROREAD].maxDuration)
-		tasks[TASK_GYROREAD].maxDuration = duration;
-	if (duration < tasks[TASK_GYROREAD].minDuration)
-		tasks[TASK_GYROREAD].minDuration = duration;
-	taskTimerGyro = 0;
-
-	imuUpdate();
-	duration = taskTimerPid;
-	if (tasks[TASK_PID_MOTORS].maxGap < duration)
-		tasks[TASK_PID_MOTORS].maxGap = duration;
+elapsedMicros taskTimerPid;
+void pidLoop() {
+	u32 duration = taskTimerPid;
+	if (tasks[TASK_PID].maxGap < duration)
+		tasks[TASK_PID].maxGap = duration;
 	taskTimerPid = 0;
-	tasks[TASK_PID_MOTORS].runCounter++;
-
-	decodeErpm();
+	tasks[TASK_PID].runCounter++;
 
 	if (armed) {
 		// Quad armed
@@ -517,12 +495,12 @@ void __not_in_flash_func(pidLoop)() {
 		takeoffCounter = 0;
 	}
 	duration = taskTimerPid;
-	tasks[TASK_PID_MOTORS].totalDuration += duration;
-	if (duration < tasks[TASK_PID_MOTORS].minDuration) {
-		tasks[TASK_PID_MOTORS].minDuration = duration;
+	tasks[TASK_PID].totalDuration += duration;
+	if (duration < tasks[TASK_PID].minDuration) {
+		tasks[TASK_PID].minDuration = duration;
 	}
-	if (duration > tasks[TASK_PID_MOTORS].maxDuration) {
-		tasks[TASK_PID_MOTORS].maxDuration = duration;
+	if (duration > tasks[TASK_PID].maxDuration) {
+		tasks[TASK_PID].maxDuration = duration;
 	}
 	taskTimerPid = 0;
 }

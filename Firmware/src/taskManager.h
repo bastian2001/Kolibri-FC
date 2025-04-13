@@ -37,8 +37,8 @@ enum Tasks {
 	TASK_IMU_ACCEL,
 	TASK_IMU_ANGLE,
 	TASK_IMU_SPEEDS,
-	TASK_PID_MOTORS,
 	TASK_ESC_RPM,
+	TASK_PID,
 };
 
 /// @brief resets all task stats

@@ -10,7 +10,7 @@ const TASK_NAMES = [
 	'    - Speaker',
 	'    - Baro Eval',
 	'    - Baro Read',
-	'    - Blackbox',
+	'    - Blackbox save',
 	'    - ELRS',
 	'    - Modes',
 	'    - ADC',
@@ -27,8 +27,8 @@ const TASK_NAMES = [
 	'        - IMU Accel',
 	'        - IMU Angle',
 	'        - IMU Speeds',
-	'    - PID, Motors',
-	'        - ESC RPM',
+	'    - ESC RPM',
+	'    - PID, Blackbox compute',
 ];
 
 export default defineComponent({
