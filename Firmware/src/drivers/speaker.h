@@ -4,7 +4,7 @@
 
 #define MAX_RTTTL_NOTES 256
 #define MAX_RTTTL_TEXT_LENGTH 1024
-#define SPEAKER_SIZE_POWER 10
+#define SPEAKER_SIZE_POWER 10 // 2^x samples, thus the buffer is 2^x * 2 bytes
 
 /// @brief Initializes the speaker
 void initSpeaker();
