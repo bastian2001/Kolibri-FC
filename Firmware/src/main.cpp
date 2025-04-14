@@ -1,5 +1,5 @@
 #include "global.h"
-#include "hardware/structs/xip_ctrl.h"
+#include "hardware/vreg.h"
 
 volatile u8 setupDone = 0b00;
 
@@ -7,6 +7,8 @@ void setup() {
 	Serial.begin(115200);
 
 	runUnitTests();
+
+	vreg_set_voltage(VREG_VOLTAGE_1_30);
 
 	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
 		bootReason = rebootReason;
@@ -31,25 +33,22 @@ void setup() {
 		crashInfo[i] = 0;
 	}
 	rtcInit();
-	initDefaultSpi();
-	gyroInit();
 	imuInit();
 	osdInit();
+	initMag();
 	initBaro();
 	initGPS();
 	initADC();
 	modesInit();
-	initMag();
 	initSerial();
 
 	// init ELRS on pins 0 and 1 using Serial1 (UART0)
 	ELRS = new ExpressLRS(Serial1, 420000, PIN_TX0, PIN_RX0);
 
 	// init LEDs
-	gpio_init(PIN_LED_ACTIVITY);
-	gpio_set_dir(PIN_LED_ACTIVITY, GPIO_OUT);
-	gpio_init(PIN_LED_DEBUG);
-	gpio_set_dir(PIN_LED_DEBUG, GPIO_OUT);
+	sleep_ms(10);
+	p.recalculateClock();
+	p.neoPixelFill(0, 0, 255, true);
 
 	initBlackbox();
 	initSpeaker();
@@ -62,7 +61,6 @@ void setup() {
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
-	xip_ctrl_hw->flush = 1;
 }
 
 elapsedMillis activityTimer;
@@ -77,6 +75,7 @@ void loop() {
 	taskTimer0 = 0;
 	speakerLoop();
 	evalBaroLoop();
+	readBaroLoop(); // read after eval to prevent long execution times
 	blackboxLoop();
 	ELRS->loop();
 	modesLoop();
@@ -85,10 +84,18 @@ void loop() {
 	configuratorLoop();
 	gpsLoop();
 	magLoop();
+	osdLoop();
 	taskManagerLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500) {
-		gpio_put(PIN_LED_ACTIVITY, !gpio_get(PIN_LED_ACTIVITY));
+		static bool on = false;
+		if (on) {
+			p.neoPixelSetValue(0, 0, 0, 0, true);
+			on = false;
+		} else {
+			p.neoPixelSetValue(0, 255, 255, 255, true);
+			on = true;
+		}
 		activityTimer = 0;
 	}
 	duration0 = taskTimer0;
@@ -107,12 +114,12 @@ void setup1() {
 	while (!(setupDone & 0b01)) {
 	}
 	initESCs();
+	gyroInit();
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {
 	}
 }
 elapsedMicros taskTimer = 0;
-u32 taskState = 0;
 
 extern PIO speakerPio;
 extern u8 speakerSm;
@@ -124,18 +131,14 @@ void loop1() {
 	}
 	taskTimer = 0;
 	gyroLoop();
-	if (gyroUpdateFlag & 1) {
-		switch (taskState++) {
-		case 0:
-			osdLoop(); // slow, but both need to be on this core, due to SPI collision
-			break;
-		case 1:
-			readBaroLoop();
-			break;
-		}
-		if (taskState == 2) taskState = 0;
-		gyroUpdateFlag &= ~1;
+
+	if (gyroUpdateFlag & 0x01) {
+		gyroUpdateFlag &= ~0x01;
+		imuUpdate();
+		decodeErpm();
+		pidLoop();
 	}
+
 	duration = taskTimer;
 	tasks[TASK_LOOP1].totalDuration += duration;
 	if (duration > tasks[TASK_LOOP1].maxDuration) {

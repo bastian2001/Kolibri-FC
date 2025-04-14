@@ -72,6 +72,36 @@ const getAltitudeRange = (file: BBLog | undefined) => {
 	min = 10 * Math.floor(min / 10);
 	return { max, min };
 };
+const getLatLonRange = (file: BBLog) => {
+	const latRange = { min: 90, max: -90 };
+	const lonRange = { min: 180, max: -180 };
+	file.frames.forEach(f => {
+		if (f.motion.gps.lat! > latRange.max) latRange.max = f.motion.gps.lat!;
+		if (f.motion.gps.lat! < latRange.min) latRange.min = f.motion.gps.lat!;
+		if (f.motion.gps.lon! > lonRange.max) lonRange.max = f.motion.gps.lon!;
+		if (f.motion.gps.lon! < lonRange.min) lonRange.min = f.motion.gps.lon!;
+	});
+	const latRangeDiff = Math.abs(latRange.max - latRange.min);
+	let lonRangeDiff = Math.abs(lonRange.max - lonRange.min);
+	const latAvg = (latRange.max + latRange.min) / 2;
+	const lonAvg = (lonRange.max + lonRange.min) / 2;
+	const lonScale = Math.cos((latAvg * Math.PI) / 180) || 1;
+	lonRangeDiff *= lonScale; // effective diff, where 1deg = 111km
+	const maxDiff = Math.max(latRangeDiff, lonRangeDiff);
+	latRange.min = latAvg - maxDiff / 2;
+	latRange.max = latAvg + maxDiff / 2;
+	lonRange.min = lonAvg - maxDiff / lonScale / 2;
+	lonRange.max = lonAvg + maxDiff / lonScale / 2;
+	return { latRange, lonRange };
+};
+const getLongitudeRange = (file: BBLog | undefined) => {
+	if (!file) return { max: 180, min: -180 };
+	return getLatLonRange(file).lonRange;
+};
+const getLatitudeRange = (file: BBLog | undefined) => {
+	if (!file) return { max: 90, min: -90 };
+	return getLatLonRange(file).latRange;
+};
 
 const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ROLL_ELRS_RAW: {
@@ -377,8 +407,7 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			{
 				displayNameShort: 'Lon',
 				displayName: 'Longitude',
-				min: -180,
-				max: 180,
+				rangeFn: getLongitudeRange,
 				path: 'lon',
 				unit: '°',
 				decimals: 7
@@ -386,8 +415,7 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			{
 				displayNameShort: 'Lat',
 				displayName: 'Latitude',
-				min: -90,
-				max: 90,
+				rangeFn: getLatitudeRange,
 				path: 'lat',
 				unit: '°',
 				decimals: 7
@@ -421,8 +449,8 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			{
 				displayNameShort: 'Vel N',
 				displayName: 'Velocity North',
-				min: -10,
-				max: 10,
+				min: -15,
+				max: 15,
 				path: 'vel_n',
 				unit: 'm/s',
 				decimals: 2
@@ -430,8 +458,8 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			{
 				displayNameShort: 'Vel E',
 				displayName: 'Velocity East',
-				min: -10,
-				max: 10,
+				min: -15,
+				max: 15,
 				path: 'vel_e',
 				unit: 'm/s',
 				decimals: 2
@@ -580,6 +608,26 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		minValue: -180,
 		maxValue: 180,
 		unit: '°'
+	},
+	LOG_HVEL: {
+		name: 'Hor. Velocity',
+		path: 'motion.hvel',
+		minValue: -15,
+		maxValue: 15,
+		unit: 'm/s',
+		decimals: 2,
+		modifier: [
+			{
+				displayNameShort: 'North',
+				displayName: 'North',
+				path: 'n'
+			},
+			{
+				displayNameShort: 'East',
+				displayName: 'East',
+				path: 'e'
+			}
+		]
 	}
 };
 const ACC_RANGES = [2, 4, 8, 16];
@@ -774,7 +822,8 @@ export default defineComponent({
 		graphs: {
 			handler() {
 				this.drawCanvas();
-			}
+			},
+			deep: 1
 		},
 	},
 	methods: {
@@ -835,7 +884,7 @@ export default defineComponent({
 			this.drawCanvas();
 		},
 		addGraph() {
-			this.graphs = [...this.graphs, []];
+			this.graphs.push([]);
 		},
 		deleteGraph(g: number) {
 			this.graphs = this.graphs.filter((_, i) => i !== g);
@@ -856,7 +905,7 @@ export default defineComponent({
 				displayName: '',
 				id: Math.random()
 			};
-			this.graphs[graphIndex] = [...this.graphs[graphIndex], defaultTrace];
+			this.graphs[graphIndex].push(defaultTrace)
 		},
 		formatBB() {
 			sendCommand('request', MspFn.BB_FORMAT);
@@ -912,25 +961,24 @@ export default defineComponent({
 			};
 			input.click();
 		},
-		downloadLog(type: 'kbb' | 'json' = 'kbb') {
-			this.getLog(this.selected)
-				.then(data => {
-					const file = data.rawFile;
-					const blob = new Blob([new Uint8Array(file)], { type: 'application/octet-stream' });
-					const blobJSON = new Blob([JSON.stringify(data)], { type: 'application/json' });
-					const url = URL.createObjectURL(type === 'json' ? blobJSON : blob);
-					//download file
-					const a = document.createElement('a');
-					a.href = url;
-					a.download = `bb${prefixZeros(this.selected, 2)} ${data.startTime
-						.toISOString()
-						.replace('T', ' ')
-						.replace('.000Z', '')
-						.replace(/_/g, '-')}.${type}`;
-					a.click();
-					URL.revokeObjectURL(url);
-				})
-				.catch(console.error);
+		exportLog(type: 'kbb' | 'json' = 'kbb') {
+			if (!this.loadedLog) return;
+			let blob: Blob;
+			if (type === 'kbb')
+				blob = new Blob([new Uint8Array(this.loadedLog.rawFile)], { type: 'application/octet-stream' });
+			else
+				blob = new Blob([JSON.stringify(this.loadedLog)], { type: 'application/json' });
+			const url = URL.createObjectURL(blob);
+			//download file
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `bb${prefixZeros(this.selected, 2)} ${this.loadedLog.startTime
+				.toISOString()
+				.replace('T', ' ')
+				.replace('.000Z', '')
+				.replace(/_/g, '-')}.${type}`;
+			a.click();
+			URL.revokeObjectURL(url);
 		},
 		openLog() {
 			this.getLog(this.selected)
@@ -1538,14 +1586,8 @@ export default defineComponent({
 				return;
 			}
 			const version = header.slice(4, 7);
-			const sTime = leBytesToInt(header.slice(7, 11));
-			const year = sTime >> 26;
-			const month = (sTime >> 22) & 0b1111;
-			const day = (sTime >> 17) & 0b11111;
-			const hour = (sTime >> 12) & 0b11111;
-			const minute = (sTime >> 6) & 0b111111;
-			const second = sTime & 0b111111;
-			const startTime = new Date(year + 2000, month - 1, day, hour, minute, second);
+			const sTime = leBytesToInt(header.slice(7, 11)); // unix timestamp in seconds (UTC)
+			const startTime = new Date(sTime * 1000);
 			const pidFreq = 3200 / (1 + header[11]);
 			const freqDiv = header[12];
 			const rangeByte = header[13];
@@ -1581,29 +1623,34 @@ export default defineComponent({
 					pidConstants[i][j] =
 						leBytesToInt(pcBytes.slice(i * 28 + j * 4, i * 28 + j * 4 + 4)) / 65536;
 			}
-			const flagsLow = leBytesToInt(header.slice(158, 162));
-			const flagsHigh = leBytesToInt(header.slice(162, 166));
 			const motorPoles = header[166];
 			const flags: string[] = [];
+			const flagSlice = header.slice(158, 166)
 			let frameSize = 0;
 			const offsets: { [key: string]: number } = {};
-			for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i; i++) {
-				const flagIsSet = flagsLow & (1 << i);
-				if (flagIsSet) {
-					flags.push(Object.keys(BB_ALL_FLAGS)[i]);
-					offsets[Object.keys(BB_ALL_FLAGS)[i]] = frameSize;
-					if (i == 26) frameSize += 6;
-					else if (i == 28) frameSize++;
-					else frameSize += 2;
-				}
-			}
-			for (let i = 0; i < 32 && Object.keys(BB_ALL_FLAGS).length > i + 32; i++) {
-				const flagIsSet = flagsHigh & (1 << i);
-				if (flagIsSet) {
-					flags.push(Object.keys(BB_ALL_FLAGS)[i + 32]);
-					offsets[Object.keys(BB_ALL_FLAGS)[i + 32]] = frameSize;
-					if ([35, 36, 37].includes(i + 32)) frameSize += 6;
-					else frameSize += 2;
+			for (let j = 0; j < 64; j++) {
+				const byteNum = Math.floor(j / 8);
+				const bitNum = j % 8;
+				const flagIsSet = flagSlice[byteNum] & (1 << bitNum);
+				if (!flagIsSet) continue;
+				flags.push(Object.keys(BB_ALL_FLAGS)[j]);
+				offsets[Object.keys(BB_ALL_FLAGS)[j]] = frameSize;
+				switch (j) {
+					case 26:
+					case 35:
+					case 36:
+					case 37:
+						frameSize += 6;
+						break;
+					case 28:
+						frameSize += 1;
+						break;
+					case 42:
+						frameSize += 4;
+						break;
+					default:
+						frameSize += 2;
+						break;
 				}
 			}
 			const framesPerSecond = pidFreq / freqDiv;
@@ -1616,7 +1663,7 @@ export default defineComponent({
 					gyro: {},
 					pid: { roll: {}, pitch: {}, yaw: {} },
 					motors: { out: {}, rpm: {} },
-					motion: { gps: {}, accelRaw: {}, accelFiltered: {} },
+					motion: { gps: {}, accelRaw: {}, accelFiltered: {}, hvel: {} },
 					attitude: {}
 				};
 				if (flags.includes('LOG_ROLL_ELRS_RAW'))
@@ -1794,7 +1841,7 @@ export default defineComponent({
 						leBytesToInt(data.slice(i + offsets['LOG_GPS'], i + offsets['LOG_GPS'] + 2)) === 20551 && // 'G' * 256 + 'P'
 						leBytesToInt(
 							data.slice(i + offsets['LOG_GPS'] + frameSize, i + offsets['LOG_GPS'] + 2 + frameSize)
-						) === 20563 && // 'G' * 256 + 'P'
+						) === 20563 && // 'S' * 256 + 'P'
 						leBytesToInt(
 							data.slice(
 								i + offsets['LOG_GPS'] + frameSize * 2,
@@ -1963,6 +2010,14 @@ export default defineComponent({
 							180) /
 						Math.PI;
 				}
+				if (flags.includes('LOG_HVEL')) {
+					frame.motion.hvel.n =
+						leBytesToInt(data.slice(i + offsets['LOG_HVEL'], i + offsets['LOG_HVEL'] + 2), true) /
+						256;
+					frame.motion.hvel.e =
+						leBytesToInt(data.slice(i + offsets['LOG_HVEL'] + 2, i + offsets['LOG_HVEL'] + 4), true) /
+						256;
+				}
 				log.push(frame);
 			}
 			this.loadedLog = {
@@ -2016,14 +2071,8 @@ export default defineComponent({
 				const fileSize =
 					data[i + 1] + data[i + 2] * 256 + data[i + 3] * 256 * 256 + data[i + 4] * 256 * 256 * 256;
 				const bbVersion = data[i + 5] * 256 * 256 + data[i + 6] * 256 + data[i + 7];
-				const sTime = leBytesToInt(data.slice(i + 8, i + 12));
-				const year = sTime >> 26;
-				const month = (sTime >> 22) & 0b1111;
-				const day = (sTime >> 17) & 0b11111;
-				const hour = (sTime >> 12) & 0b11111;
-				const minute = (sTime >> 6) & 0b111111;
-				const second = sTime & 0b111111;
-				const startTime = new Date(year + 2000, month - 1, day, hour, minute, second);
+				const sTime = leBytesToInt(data.slice(i + 8, i + 12), false); // unix timestamp in seconds (UTC)
+				const startTime = new Date(sTime * 1000);
 				const pidFreq = 3200 / (data[i + 12] + 1);
 				const freqDiv = data[i + 13];
 				const flags = data.slice(i + 14, i + 22);
@@ -2039,9 +2088,23 @@ export default defineComponent({
 					const bitNum = j % 8;
 					const flagIsSet = flags[byteNum] & (1 << bitNum);
 					if (!flagIsSet) continue;
-					if (j == 26 || [35, 36, 37].includes(j)) frameSize += 6;
-					else if (j == 28) frameSize++;
-					else frameSize += 2;
+					switch (j) {
+						case 26:
+						case 35:
+						case 36:
+						case 37:
+							frameSize += 6;
+							break;
+						case 28:
+							frameSize += 1;
+							break;
+						case 42:
+							frameSize += 4;
+							break;
+						default:
+							frameSize += 2;
+							break;
+					}
 				}
 				const frames = dataBytes / frameSize;
 				//append duration of log file to logNums
@@ -2365,11 +2428,11 @@ export default defineComponent({
 				<option v-for="log in logNums" :value="log.num">{{ log.text || log.num }}</option>
 			</select>
 			<button @click="openLog" :disabled="selected === -1">Open</button>
-			<button @click="() => { downloadLog() }" :disabled="selected === -1">Download KBB</button>
-			<button @click="() => { downloadLog('json') }" :disabled="selected === -1">Download JSON</button>
 			<button @click="deleteLog" :disabled="selected === -1">Delete</button>
 			<button @click="formatBB">Format</button>
 			<button @click="openLogFromFile">Open from file</button>
+			<button @click="() => { exportLog() }" :disabled="!loadedLog">Export KBB</button>
+			<button @click="() => { exportLog('json') }" :disabled="!loadedLog">Export JSON</button>
 			<button @click="() => { showSettings = true }">Settings</button>
 		</div>
 		<Settings v-if="showSettings" :flags="BB_ALL_FLAGS" @close="() => { showSettings = false; }" />

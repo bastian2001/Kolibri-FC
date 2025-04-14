@@ -4,18 +4,20 @@
 #define DAYS_IN_4_YEARS 1461
 
 u8 rtcTimeQuality = TIME_QUALITY_NONE;
-const u16 days[4][12] =
+i16 rtcTimezoneOffset = 0;
+constexpr u16 days[4][12] =
 	{
 		{0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335},
 		{366, 397, 425, 456, 486, 517, 547, 578, 609, 639, 670, 700},
 		{731, 762, 790, 821, 851, 882, 912, 943, 974, 1004, 1035, 1065},
 		{1096, 1127, 1155, 1186, 1216, 1247, 1277, 1308, 1339, 1369, 1400, 1430},
 };
+datetime_t currentDateTime;
 
 void rtcInit() {
 	datetime_t t;
 	rtcConvertToDatetime(EPOCH_2000, &t);
-	rtc_init();
+	// rtc_init();
 	rtcSetDatetime(&t, TIME_QUALITY_NONE);
 }
 
@@ -23,7 +25,9 @@ bool rtcSetDatetime(datetime_t *t, u8 quality, bool hasDotw) {
 	if (quality < rtcTimeQuality) return false;
 	rtcTimeQuality = quality;
 	if (!hasDotw) setDotwInDatetime(t);
-	return rtc_set_datetime(t);
+	// return rtc_set_datetime(t);
+	currentDateTime = *t;
+	return true;
 }
 
 void rtcConvertToDatetime(u32 timestamp, datetime_t *t) {
@@ -82,16 +86,16 @@ time_t rtcGetUnixTimestamp() {
 	return t;
 }
 
-u32 rtcGetBlackboxTimestamp() {
-	u32 s0 = rtc_hw->setup_0;
-	u32 s1 = rtc_hw->setup_1;
-	return (s1 & RTC_SETUP_1_SEC_BITS) | (s1 & RTC_SETUP_1_MIN_BITS) >> 2 | (s1 & RTC_SETUP_1_HOUR_BITS) >> 4 | (s0 & RTC_SETUP_0_DAY_BITS) << 17 | (s0 & RTC_SETUP_0_MONTH_BITS) << 14 | ((s0 & RTC_SETUP_0_YEAR_BITS) - (2000 << RTC_SETUP_0_YEAR_LSB)) << 14;
-}
-
 void setDotwInDatetime(datetime_t *t) {
 	u32 daysSince2000 = 5;
 	u16 years = t->year - 2000;
 	daysSince2000 += (years / 4) * 1461;
 	daysSince2000 += days[years % 4][t->month - 1] + t->day - 1;
 	t->dotw = daysSince2000 % 7;
+}
+
+bool rtcGetDatetime(datetime_t *t) {
+	// return rtc_get_datetime(t);
+	*t = currentDateTime;
+	return true;
 }

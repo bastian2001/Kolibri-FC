@@ -3,7 +3,6 @@
 
 #define MOTOR_POLES 14
 
-#define ESC_PIO pio0 // pio block used for the ESC communication
 extern u32 escRawTelemetry[4]; // raw telemetry values from the ESCs
 extern u32 escRpm[4]; // current ESC RPM
 extern u32 escTemp[4]; // last reported temperature from the ESCs

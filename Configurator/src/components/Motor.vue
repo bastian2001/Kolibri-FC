@@ -11,8 +11,11 @@ export default defineComponent({
 			cp: ''
 		};
 	},
-	watch: {
-		throttlePct(pct) {
+	mounted() {
+		this.onThrottleChange(this.throttlePct || 0);
+	},
+	methods: {
+		onThrottleChange(pct: number) {
 			const points = ['50% 50%', '50% 0%'];
 			if (pct < 12.5 || pct >= 87.5) {
 				const y = '0%';
@@ -44,6 +47,14 @@ export default defineComponent({
 				points.push(`${x} ${y}`);
 			}
 			this.cp = `polygon(${points.join(', ')})`;
+		}
+	},
+	watch: {
+		throttlePct: {
+			immediate: true,
+			handler(newVal) {
+				this.onThrottleChange(newVal);
+			}
 		}
 	},
 });

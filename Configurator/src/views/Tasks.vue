@@ -9,7 +9,8 @@ const TASK_NAMES = [
 	'Loop 0',
 	'    - Speaker',
 	'    - Baro Eval',
-	'    - Blackbox',
+	'    - Baro Read',
+	'    - Blackbox save',
 	'    - ELRS',
 	'    - Modes',
 	'    - ADC',
@@ -17,6 +18,7 @@ const TASK_NAMES = [
 	'    - Configurator',
 	'    - GPS',
 	'    - Magnetometer',
+	'    - OSD',
 	'    - Task Manager',
 	'Loop 1',
 	'    - Gyro Read',
@@ -24,10 +26,9 @@ const TASK_NAMES = [
 	'        - IMU Gyro',
 	'        - IMU Accel',
 	'        - IMU Angle',
-	'    - PID, Motors',
-	'        - ESC RPM',
-	'    - OSD',
-	'    - Baro Read'
+	'        - IMU Speeds',
+	'    - ESC RPM',
+	'    - PID, Blackbox compute',
 ];
 
 export default defineComponent({

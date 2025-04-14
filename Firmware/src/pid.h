@@ -12,9 +12,6 @@
 #define FF_SHIFT 13
 #define S_SHIFT 8 // setpoint follow
 
-extern i16 bmiDataRaw[6]; // raw data from the BMI160 after calibration
-extern i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of bmiDataRaw
-extern i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of bmiDataRaw
 extern fix32 gyroData[3]; // gyro data in deg/s
 extern fix32 rateFactors[5][3]; // rate factors for the PID controller, 0 = x^1, 1 = x^2... (x normalized to +-1 at full deflection)
 enum {
@@ -27,7 +24,7 @@ enum {
 };
 extern fix32 pidGains[3][7]; // PID gains for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 extern fix32 pidGainsVVel[4]; // PID gains for the vertical velocity PID controller
-extern fix32 pidGainsHVel[3]; // PID gains for the horizontal velocity PID controller
+extern fix32 pidGainsHVel[4]; // PID gains for the horizontal velocity PID controller
 extern fix32 rollSetpoint, pitchSetpoint, yawSetpoint; // acro setpoint (deg/s)
 extern fix32 rollError, pitchError, yawError; // acro rate error (deg/s)
 extern fix32 rollLast, pitchLast, yawLast; // acro rate of last PID cycle (deg/s)
@@ -41,6 +38,7 @@ extern fix32 throttle; // current throttle setpoint (IDLE_PERMILLE*2 to 2000)
 extern fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000ish)
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
+extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL mode => (position lock)
 enum class FlightMode {
 	ACRO,
 	ANGLE,

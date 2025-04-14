@@ -160,9 +160,6 @@ void Vector_cross(const f32 v1[3], const f32 v2[3], f32 output[3]) {
 	output[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
-const f32 QUATERNION_EPS = 1e-5;
-const f32 ONE_MINUS_EPS = 1 - QUATERNION_EPS;
-
 void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *output) {
 	f32 dot;
 	Vector_dot(v0, v1, &dot);

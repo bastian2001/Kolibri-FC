@@ -2,8 +2,8 @@
 template <typename T>
 class RingBuffer {
 private:
-	size_t size;
-	size_t pSize; // physical size
+	size_t size; // logical size (in items)
+	size_t pSize; // physical size (in items)
 	size_t wrPtr;
 	size_t rdPtr;
 	T *buffer;
@@ -116,11 +116,11 @@ public:
 		if (start >= itemCount()) return;
 		if (start + arraySize > itemCount()) arraySize = itemCount() - start;
 		// use memcpy for speed
-		if (wrPtr > rdPtr || rdPtr + start + arraySize < pSize) {
+		if (rdPtr + start + arraySize < pSize) { // no wrap
 			memcpy(array, buffer + rdPtr + start, arraySize * sizeof(T));
-		} else if (rdPtr + start >= pSize) {
-			memcpy(array, buffer + rdPtr + start - size, arraySize * sizeof(T));
-		} else {
+		} else if (rdPtr + start >= pSize) { // fully wrapped
+			memcpy(array, buffer + rdPtr + start - pSize, arraySize * sizeof(T));
+		} else { // partially wrapped
 			size_t itemsInFirstPart = pSize - rdPtr - start;
 			memcpy(array, buffer + rdPtr + start, itemsInFirstPart * sizeof(T));
 			memcpy(array + itemsInFirstPart, buffer, (arraySize - itemsInFirstPart) * sizeof(T));

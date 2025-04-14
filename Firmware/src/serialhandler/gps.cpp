@@ -7,6 +7,7 @@ GpsAccuracy gpsAcc;
 datetime_t gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
+fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
 char olcString[14] = "AABBCCDD+EEFG";
 char olcAlphabet[] = "23456789CFGHJMPQRVWX";
 u8 currentPvtMsg[92];
@@ -164,11 +165,11 @@ void gpsLoop() {
 	}
 	if (gpsBuffer.itemCount() >= 8) {
 		elapsedMicros taskTimer = 0;
-		int len = gpsBuffer[4] + gpsBuffer[5] * 256;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
 			gpsBuffer.pop();
 			return;
 		}
+		int len = gpsBuffer[4] | (gpsBuffer[5] << 8);
 		if (len > GPS_BUF_LEN - 8) {
 			gpsBuffer.pop();
 			return;
@@ -177,17 +178,18 @@ void gpsLoop() {
 			return;
 		}
 		tasks[TASK_GPS].runCounter++;
+		u8 msg[len + 8];
+		gpsBuffer.copyToArray(msg, 2, len + 6);
 		u8 ck_a, ck_b;
-		gpsChecksum(&(gpsBuffer[2]), len + 4, &ck_a, &ck_b);
-		if (ck_a != gpsBuffer[len + 6] || ck_b != gpsBuffer[len + 7]) {
+		gpsChecksum(msg, len + 4, &ck_a, &ck_b);
+		if (ck_a != msg[len + 4] || ck_b != msg[len + 5]) {
 			gpsBuffer.pop();
 			return;
 		}
+		u8 *msgData = &msg[4];
 		// ensured that the packet is valid
-		u32 id = gpsBuffer[3], classId = gpsBuffer[2];
+		u32 id = msg[1], classId = msg[0];
 
-		u8 msgData[len];
-		gpsBuffer.copyToArray(msgData, 6, len);
 		switch (classId) {
 		case UBX_CLASS_ACK: {
 			switch (id) {
@@ -233,9 +235,9 @@ void gpsLoop() {
 					thisQuality = TIME_QUALITY_FULLY_RESOLVED;
 				}
 				if (thisQuality >= rtcTimeQuality) {
-					// refresh the gpsTime every 2 mins, as long as the quality is not decreasing
-					if (++goodTimes == 1200 || thisQuality > rtcTimeQuality) {
-						goodTimes = (thisQuality > rtcTimeQuality) * 1100; // already update time 10s after the quality has settled
+					// refresh from gpsTime every 2 mins, as long as the quality is not decreasing
+					if (++goodTimes == 100 || thisQuality > rtcTimeQuality) {
+						// goodTimes = (thisQuality > rtcTimeQuality) * 1100; // already update time 10s after the quality has settled
 						rtcSetDatetime(&gpsTime, thisQuality, false);
 					}
 				}
@@ -254,8 +256,12 @@ void gpsLoop() {
 				gpsAcc.headAcc = DECODE_U4(&msgData[72]);
 				gpsAcc.pDop = DECODE_U2(&msgData[76]);
 				gpsStatus.flags3 = DECODE_U2(&msgData[78]);
-				eVel = fix32(0.8f) * eVel + fix32(0.0002f) * (int)gpsMotion.velE;
-				nVel = fix32(0.8f) * nVel + fix32(0.0002f) * (int)gpsMotion.velN;
+				eVel.update(fix32(0.001f) * gpsMotion.velE);
+				nVel.update(fix32(0.001f) * gpsMotion.velN);
+				static fix64 lastLat = fix64(gpsMotion.lat) / 10000000;
+				static fix64 lastLon = fix64(gpsMotion.lon) / 10000000;
+				gpsLatitudeFiltered = (gpsLatitudeFiltered * 3 + fix64(gpsMotion.lat) / 10000000) / 4;
+				gpsLongitudeFiltered = (gpsLongitudeFiltered * 3 + fix64(gpsMotion.lon) / 10000000) / 4;
 				u8 buf[16];
 				snprintf((char *)buf, 16, "\x89%.7f", gpsMotion.lat / 10000000.f);
 				updateElem(OSDElem::LATITUDE, (char *)buf);

@@ -5,7 +5,7 @@
 // a total of 2000 good samples are required, the first 1000 are ignored
 #define CALIBRATION_SAMPLES 1000
 #define QUIET_SAMPLES 1000
-#define CALIBRATION_TOLERANCE 64 // (4deg/s)
+#define CALIBRATION_TOLERANCE 128 // (4deg/s)
 
 enum class GyroReg : u8 {
 	CHIP_ID = 0x00,
@@ -48,6 +48,7 @@ enum class GyroReg : u8 {
 	INIT_CTRL = 0x59,
 	INIT_DATA = 0x5E,
 	NVM_CONF = 0x6A,
+	IF_CONF = 0x6B,
 	DRV = 0x6C,
 	ACC_SELF_TEST = 0x6D,
 	GYR_SELF_TEST_AXES = 0x6E,
@@ -72,6 +73,8 @@ enum class GyroReg : u8 {
 extern u32 gyroUpdateFlag;
 extern u16 accelCalibrationCycles; /// counts down the cycles for the accelerometer calibration, calibration is done if the value is 0
 extern i32 accelCalibrationOffset[3]; /// offset that gets subtracted from the accelerometer values
+extern i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of bmiDataRaw
+extern i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of bmiDataRaw
 
 /// @brief Initializes the gyro (Bosch BMI270)
 /// @return 0 on success, 1 on failure

@@ -1,5 +1,8 @@
 #include "global.h"
 
+#define READ_BASE 0x000 // used to indicate to the PIO that this byte is a read
+#define WRITE_BASE 0x100 // used to indicate to the PIO that this byte is a write
+
 // adapted from https://www.digikey.de/de/maker/projects/raspberry-pi-pico-rp2040-spi-example-with-micropython-and-cc/9706ea0cf3784ee98e35ff49188ee045
 int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nbytes, const u16 delay, u8 dummy) {
 	// Construct message (set ~W bit high)
@@ -18,6 +21,36 @@ int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nby
 	return num_bytes_read;
 }
 
+int regRead(PIO pio, u8 sm, const uint cs, const u8 reg, u8 *buf, const u16 nbytes, const u16 delay, u8 dummy) {
+	// Read from register
+	gpio_put(cs, 0);
+	pio_sm_clear_fifos(pio, sm);
+	pio_sm_put_blocking(pio, sm, (WRITE_BASE | 0x80 | reg) << 23);
+	pio_sm_get_blocking(pio, sm);
+
+	if (dummy) {
+		pio_sm_put_blocking(pio, sm, READ_BASE << 23);
+		pio_sm_get_blocking(pio, sm); // drop dummy byte
+	}
+
+	int written = 0;
+	int read = 0;
+	while (read < nbytes) {
+		if (!pio_sm_is_tx_fifo_full(pio, sm) && written < nbytes) {
+			pio_sm_put_blocking(pio, sm, READ_BASE << 23);
+			written++;
+		}
+		if (!pio_sm_is_rx_fifo_empty(pio, sm)) {
+			buf[read++] = pio_sm_get_blocking(pio, sm);
+		}
+	}
+	gpio_put(cs, 1);
+
+	if (delay > 0)
+		sleep_us(delay);
+	return nbytes;
+}
+
 int regWrite(spi_inst_t *spi, const uint cs, const u8 reg, const u8 *buf, const u16 nbytes, const u16 delay) {
 	// Write to register
 	gpio_put(cs, 0);
@@ -29,21 +62,27 @@ int regWrite(spi_inst_t *spi, const uint cs, const u8 reg, const u8 *buf, const 
 	return bytes_written;
 }
 
-void initDefaultSpi() {
-	spi_init(SPI_GYRO, 8000000);
+int regWrite(PIO pio, u8 sm, const uint cs, const u8 reg, const u8 *buf, const u16 nbytes, const u16 delay) {
+	// Write to register
+	gpio_put(cs, 0);
+	pio_sm_clear_fifos(pio, sm);
+	pio_sm_put_blocking(pio, sm, (WRITE_BASE | reg) << 23);
+	pio_sm_get_blocking(pio, sm);
 
-	spi_set_format(SPI_GYRO, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-	gpio_set_function(PIN_DEFAULT_MOSI, GPIO_FUNC_SPI);
-	gpio_set_function(PIN_DEFAULT_MISO, GPIO_FUNC_SPI);
-	gpio_set_function(PIN_DEFAULT_SCK, GPIO_FUNC_SPI);
-	gpio_init(PIN_GYRO_CS);
-	gpio_set_dir(PIN_GYRO_CS, GPIO_OUT);
-	gpio_put(PIN_GYRO_CS, 1);
-	gpio_init(PIN_OSD_CS);
-	gpio_set_dir(PIN_OSD_CS, GPIO_OUT);
-	gpio_put(PIN_OSD_CS, 1);
-	gpio_init(PIN_BARO_CS);
-	gpio_set_dir(PIN_BARO_CS, GPIO_OUT);
-	gpio_put(PIN_BARO_CS, 1);
-	sleep_ms(2);
+	int written = 0;
+	int read = 0;
+	while (read < nbytes) {
+		if (!pio_sm_is_tx_fifo_full(pio, sm) && written < nbytes) {
+			pio_sm_put_blocking(pio, sm, (WRITE_BASE | buf[written++]) << 23);
+		}
+		if (!pio_sm_is_rx_fifo_empty(pio, sm)) {
+			pio_sm_get_blocking(pio, sm);
+			read++;
+		}
+	}
+
+	gpio_put(cs, 1);
+	if (delay > 0)
+		sleep_us(delay);
+	return nbytes;
 }

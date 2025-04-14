@@ -42,12 +42,7 @@ void initBlackbox() {
 	fsReady = LittleFS.begin();
 	fsReady = fsReady && LittleFS.info(fsInfo);
 #elif BLACKBOX_STORAGE == SD_BB
-	SPI1.setRX(PIN_SD_MISO);
-	SPI1.setTX(PIN_SD_MOSI);
-	SPI1.setSCK(PIN_SD_SCK);
-	SDFSConfig cfg;
-	cfg.setCSPin(PIN_SD_CS);
-	cfg.setSPI(SPI1);
+	SDFSConfig cfg(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
 	SDFS.setConfig(cfg);
 	SDFS.setTimeCallback(rtcGetUnixTimestamp);
 	fsReady = SDFS.begin();
@@ -110,7 +105,9 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	size_t bytesRead = 1;
 	while (bytesRead > 0) {
 		rp2040.wdt_reset();
-		gpio_put(PIN_LED_ACTIVITY, chunkNum & 1);
+		// gpio_put(PIN_LED_ACTIVITY, chunkNum & 1);
+		if (chunkNum % 100 == 0)
+			p.neoPixelSetValue(0, chunkNum & 0xFF, true);
 		bytesRead = logFile.read(buffer + 3, 1024);
 		buffer[1] = chunkNum & 0xFF;
 		buffer[2] = chunkNum >> 8;
@@ -178,7 +175,7 @@ void startLogging() {
 		0x20, 0x27, 0xA1, 0x99, 0, 0, 1 // magic bytes, version
 	};
 	blackboxFile.write(data, 7);
-	u32 recordTime = rtcGetBlackboxTimestamp();
+	u32 recordTime = rtcGetUnixTimestamp();
 	blackboxFile.write((u8 *)&recordTime, 4);
 	blackboxFile.write((u8)0); // 3200Hz gyro
 	blackboxFile.write((u8)bbFreqDivider);
@@ -213,8 +210,7 @@ void endLogging() {
 	bbLogging = false;
 }
 
-void __not_in_flash_func(writeSingleFrame)() {
-	u8 *bbBuffer = (u8 *)malloc(128);
+void writeSingleFrame() {
 	size_t bufferPos = 1;
 	if (!fsReady || !bbLogging) {
 		return;
@@ -225,6 +221,7 @@ void __not_in_flash_func(writeSingleFrame)() {
 		return;
 	}
 #endif
+	u8 *bbBuffer = (u8 *)malloc(128);
 	if (currentBBFlags & LOG_ROLL_ELRS_RAW) {
 		bbBuffer[bufferPos++] = ELRS->channels[0];
 		bbBuffer[bufferPos++] = ELRS->channels[0] >> 8;
@@ -447,6 +444,16 @@ void __not_in_flash_func(writeSingleFrame)() {
 		int h = combinedHeading.raw >> 3;
 		bbBuffer[bufferPos++] = h;
 		bbBuffer[bufferPos++] = h >> 8;
+	}
+	if (currentBBFlags & LOG_HVEL) {
+		// same as vvel: 8.8 fixed point in m/s, +-128m/s max, 4mm/s resolution
+		// first nVel (north positive), then eVel (east positive)
+		i32 v = fix32(nVel).raw >> 8;
+		bbBuffer[bufferPos++] = v;
+		bbBuffer[bufferPos++] = v >> 8;
+		v = fix32(eVel).raw >> 8;
+		bbBuffer[bufferPos++] = v;
+		bbBuffer[bufferPos++] = v >> 8;
 	}
 #if BLACKBOX_STORAGE == LITTLEFS
 	blackboxFile.write(bbBuffer, bufferPos);

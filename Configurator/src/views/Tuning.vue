@@ -109,7 +109,7 @@ export default defineComponent({
 
 	<div class="wrapper">
 		<div class="header">
-			<button class="saveBtn" @click="saveSettings">Save Settings</button>
+			<button class="saveBtn" @click="() => { saveSettings() }">Save Settings</button>
 		</div>
 		<div class="pids">
 			<h3>PID Gains</h3>

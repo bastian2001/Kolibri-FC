@@ -63,6 +63,10 @@ export type LogFrame = {
 	motion: {
 		altitude?: number
 		vvel?: number
+		hvel: {
+			n?: number
+			e?: number
+		}
 		magHeading?: number
 		combinedHeading?: number
 		accelRaw: {

@@ -44,7 +44,7 @@ void modesLoop() {
 			if (!armingDisableFlags) {
 				startLogging();
 				armed = true;
-				gpio_put(PIN_LED_DEBUG, 1);
+				p.neoPixelSetValue(1, 255, 255, 255, true);
 				startPointLat = gpsMotion.lat;
 				startPointLon = gpsMotion.lon;
 			} else if (ELRS->consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
@@ -67,7 +67,7 @@ void modesLoop() {
 			}
 		} else if (ELRS->channels[4] < 1500) {
 			armed = false;
-			gpio_put(PIN_LED_DEBUG, 0);
+			p.neoPixelSetValue(1, 0, 0, 0, true);
 			// just disarmed, stop logging
 			if (ELRS->lastChannels[4] > 1500)
 				endLogging();
@@ -96,9 +96,14 @@ void modesLoop() {
 				break;
 			}
 			if (flightMode <= FlightMode::ANGLE && newFlightMode > FlightMode::ANGLE) {
-				// just switched to GPS mode, make sure the quad doesn't just fall at the beginning
+				// just switched to an altitude hold mode, make sure the quad doesn't just fall at the beginning
 				vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
 				altSetpoint = combinedAltitude;
+			}
+			if (flightMode <= FlightMode::ALT_HOLD && newFlightMode > FlightMode::ALT_HOLD) {
+				// just switched to a GPS mode, prevent suddenly flying away to the old position lock
+				targetLat = gpsLatitudeFiltered;
+				targetLon = gpsLongitudeFiltered;
 			}
 			flightMode = newFlightMode;
 		}

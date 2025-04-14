@@ -3,7 +3,6 @@
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
 u32 gyroLastState = 0;
-elapsedMicros lastPIDLoop = 0;
 
 u32 gyroCalibratedCycles = 0;
 i32 gyroCalibrationOffset[3] = {0};
@@ -12,62 +11,122 @@ i16 gyroCalibrationOffsetTemp[3] = {0};
 i32 accelCalibrationOffsetTemp[3] = {0};
 u16 accelCalibrationCycles = 0;
 
+i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
+i16 *gyroDataRaw;
+i16 *accelDataRaw;
+
+u8 spiSm = 0;
+u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
+u32 gyroDmaRxData[14] = {0};
+u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg::ACC_X_LSB) << 23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+u32 gyroUpdateFlag = 0;
+u8 gyroInterrupts = 0;
+elapsedMicros taskTimerGyro = 0;
+
 extern const u8 bmi270_config_file[8192];
 
 void gyroLoop() {
-	u8 gpioState = gpio_get(PIN_GYRO_INT1);
-	// actual interrupts might interrupt the code at a bad time, so we just poll the pin
-	// latched interrupts have the disadvantage of having to read multiple registers, thus taking longer
-	if (gpioState != gyroLastState || lastPIDLoop > 400) {
-		gyroLastState = gpioState;
-		if (gpioState == 1 || lastPIDLoop > 400) {
-			lastPIDLoop = 0;
-			pidLoop();
-			if (armingDisableFlags & 0x40) {
-				if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE && (gyroDataRaw[0] != -1 || gyroDataRaw[1] != -1 || gyroDataRaw[2] != -1)) {
-					// ignore -1 (0xFFFF), as this speaks for a communication error
-					gyroCalibratedCycles++;
-					if (gyroCalibratedCycles >= QUIET_SAMPLES) {
-						gyroCalibrationOffsetTemp[0] += gyroDataRaw[0];
-						gyroCalibrationOffsetTemp[1] += gyroDataRaw[1];
-						gyroCalibrationOffsetTemp[2] += gyroDataRaw[2];
-					}
-					if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
-						armingDisableFlags &= 0xFFFFFFBF;
-						gyroCalibrationOffset[0] = (gyroCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-						gyroCalibrationOffset[1] = (gyroCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-						gyroCalibrationOffset[2] = (gyroCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-					}
-				} else {
-					gyroCalibrationOffsetTemp[0] = 0;
-					gyroCalibrationOffsetTemp[1] = 0;
-					gyroCalibrationOffsetTemp[2] = 0;
-					gyroCalibratedCycles = 0;
-				}
-				if (accelCalibrationCycles) {
-					if (accelCalibrationCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
-						accelCalibrationOffset[0] = 0;
-						accelCalibrationOffset[1] = 0;
-						accelCalibrationOffset[2] = 0;
-						accelCalibrationOffsetTemp[0] = 0;
-						accelCalibrationOffsetTemp[1] = 0;
-						accelCalibrationOffsetTemp[2] = 0;
-					}
-					accelCalibrationCycles--;
-					if (accelCalibrationCycles < CALIBRATION_SAMPLES) {
-						accelCalibrationOffsetTemp[0] += accelDataRaw[0];
-						accelCalibrationOffsetTemp[1] += accelDataRaw[1];
-						accelCalibrationOffsetTemp[2] += accelDataRaw[2] - 2048;
-						if (accelCalibrationCycles == 0) {
-							accelCalibrationOffset[0] = (accelCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-							accelCalibrationOffset[1] = (accelCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-							accelCalibrationOffset[2] = (accelCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-							accelCalDone = 1;
-						}
-					}
+	if (gyroInterrupts) {
+		u32 duration = taskTimerGyro;
+		if (tasks[TASK_GYROREAD].maxGap < duration)
+			tasks[TASK_GYROREAD].maxGap = duration;
+		taskTimerGyro = 0;
+		tasks[TASK_GYROREAD].runCounter++;
+
+		gyroInterrupts--;
+		if (gyroInterrupts > 3) {
+			gyroInterrupts = 3;
+		}
+
+		bmiDataRaw[0] -= accelCalibrationOffset[0];
+		bmiDataRaw[1] -= accelCalibrationOffset[1];
+		bmiDataRaw[2] -= accelCalibrationOffset[2];
+		bmiDataRaw[3] -= gyroCalibrationOffset[0];
+		bmiDataRaw[4] -= gyroCalibrationOffset[1];
+		bmiDataRaw[5] -= gyroCalibrationOffset[2];
+		gyroUpdateFlag = 0xFFFFFFFF;
+		for (int i = 0; i < 3; i++) {
+			gyroData[i].setRaw((i32)gyroDataRaw[i] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math,gyro data in range of -2000 ... +2000 (degrees per second)
+		}
+
+		gyroData[AXIS_PITCH] = -gyroData[AXIS_PITCH];
+		gyroData[AXIS_YAW] = -gyroData[AXIS_YAW];
+		duration = taskTimerGyro;
+		tasks[TASK_GYROREAD].totalDuration += duration;
+		if (duration > tasks[TASK_GYROREAD].maxDuration)
+			tasks[TASK_GYROREAD].maxDuration = duration;
+		if (duration < tasks[TASK_GYROREAD].minDuration)
+			tasks[TASK_GYROREAD].minDuration = duration;
+		taskTimerGyro = 0;
+	}
+
+	// run gyro (and potentially accel) calibration
+	if (armingDisableFlags & 0x40) {
+		if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE && (gyroDataRaw[0] != -1 || gyroDataRaw[1] != -1 || gyroDataRaw[2] != -1)) {
+			// ignore -1 (0xFFFF), as this speaks for a communication error
+			gyroCalibratedCycles++;
+			if (gyroCalibratedCycles >= QUIET_SAMPLES) {
+				gyroCalibrationOffsetTemp[0] += gyroDataRaw[0];
+				gyroCalibrationOffsetTemp[1] += gyroDataRaw[1];
+				gyroCalibrationOffsetTemp[2] += gyroDataRaw[2];
+			}
+			if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
+				armingDisableFlags &= 0xFFFFFFBF;
+				gyroCalibrationOffset[0] = (gyroCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+				gyroCalibrationOffset[1] = (gyroCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+				gyroCalibrationOffset[2] = (gyroCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+			}
+		} else {
+			gyroCalibrationOffsetTemp[0] = 0;
+			gyroCalibrationOffsetTemp[1] = 0;
+			gyroCalibrationOffsetTemp[2] = 0;
+			gyroCalibratedCycles = 0;
+		}
+		if (accelCalibrationCycles) {
+			if (accelCalibrationCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
+				accelCalibrationOffset[0] = 0;
+				accelCalibrationOffset[1] = 0;
+				accelCalibrationOffset[2] = 0;
+				accelCalibrationOffsetTemp[0] = 0;
+				accelCalibrationOffsetTemp[1] = 0;
+				accelCalibrationOffsetTemp[2] = 0;
+			}
+			accelCalibrationCycles--;
+			if (accelCalibrationCycles < CALIBRATION_SAMPLES) {
+				accelCalibrationOffsetTemp[0] += accelDataRaw[0];
+				accelCalibrationOffsetTemp[1] += accelDataRaw[1];
+				accelCalibrationOffsetTemp[2] += accelDataRaw[2] - 2048;
+				if (accelCalibrationCycles == 0) {
+					accelCalibrationOffset[0] = (accelCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+					accelCalibrationOffset[1] = (accelCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+					accelCalibrationOffset[2] = (accelCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
+					accelCalDone = 1;
 				}
 			}
 		}
+	}
+}
+
+void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
+	dma_channel_abort(gyroDmaRxChannel);
+	dma_channel_abort(gyroDmaTxChannel);
+	gpio_put(PIN_GYRO_CS, 0);
+	dma_channel_set_trans_count(gyroDmaRxChannel, 14, false);
+	dma_channel_set_write_addr(gyroDmaRxChannel, gyroDmaRxData, true);
+	dma_channel_set_trans_count(gyroDmaTxChannel, 14, false);
+	dma_channel_set_read_addr(gyroDmaTxChannel, gyroDmaTxData, true);
+}
+
+void gyroDmaInterrupt() {
+	u32 interrupts = dma_hw->intr;
+	if (interrupts & (1u << gyroDmaRxChannel)) {
+		gpio_put(PIN_GYRO_CS, 1);
+		dma_hw->ints1 = 1u << gyroDmaRxChannel;
+		u8 *data = (u8 *)bmiDataRaw;
+		for (int i = 0; i < 12; i++) {
+			data[i] = (u8)(gyroDmaRxData[i + 2] & 0xFF);
+		}
+		gyroInterrupts++;
 	}
 }
 
@@ -76,34 +135,66 @@ int gyroInit() {
 	gyroDataRaw = bmiDataRaw + 3;
 	accelDataRaw = bmiDataRaw;
 
+	armingDisableFlags |= 0x00000040;
+
+	// set up pins
 	gpio_init(PIN_GYRO_INT1);
 	gpio_set_dir(PIN_GYRO_INT1, GPIO_IN);
+	gpio_init(PIN_GYRO_CS);
+	gpio_set_dir(PIN_GYRO_CS, GPIO_OUT);
+	gpio_put(PIN_GYRO_CS, 1);
+	gpio_init(PIN_GYRO_SCLK);
+	gpio_set_dir(PIN_GYRO_SCLK, GPIO_OUT);
+	gpio_init(PIN_GYRO_SDX);
+	gpio_set_dir(PIN_GYRO_SDX, GPIO_IN);
+
+	// set up pio (half duplex SPI)
+	u8 offset = pio_add_program(PIO_GYRO_SPI, &halfduplex_spi_11_program);
+	spiSm = pio_claim_unused_sm(PIO_GYRO_SPI, true);
+	pio_sm_config c = halfduplex_spi_11_program_get_default_config(offset);
+	pio_gpio_init(PIO_GYRO_SPI, PIN_GYRO_SCLK);
+	pio_gpio_init(PIO_GYRO_SPI, PIN_GYRO_SDX);
+	sm_config_set_in_pins(&c, PIN_GYRO_SDX);
+	sm_config_set_sideset(&c, 2, true, false);
+	sm_config_set_sideset_pins(&c, PIN_GYRO_SCLK);
+	sm_config_set_out_pins(&c, PIN_GYRO_SDX, 1);
+	pio_sm_set_consecutive_pindirs(PIO_GYRO_SPI, spiSm, PIN_GYRO_SCLK, 1, true);
+	sm_config_set_out_shift(&c, false, false, 9);
+	sm_config_set_in_shift(&c, false, false, 8);
+	pio_sm_init(PIO_GYRO_SPI, spiSm, offset, &c);
+	pio_sm_set_enabled(PIO_GYRO_SPI, spiSm, true);
+	pio_sm_put(PIO_GYRO_SPI, spiSm, 0); // dummy write to set clock polarity (mode 11)
+	pio_sm_set_clkdiv_int_frac8(PIO_GYRO_SPI, spiSm, 3, 128); // set clock divider to 3.5 => (264 / 3.5 / 8 (ticks per bit)) = 9.4MHz (max 10MHz)
+
 	u8 data = 0xB6;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CMD, &data, 1, 500); // soft reset
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::CMD, &data, 1, 500); // soft reset
 	for (int i = 0; i < 50 && data != 0x24; i++) {
 		sleep_ms(2);
-		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 500); // enable SPI interface through dummy read
+		data = 1;
+		regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::IF_CONF, &data, 1, 500); // set SPI mode to 3 wire
+		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::IF_CONF, &data, 1, 2); // read IF_CONF
 		data = 0;
-		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
+		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
 	}
 	if (data != 0x24) {
 		Serial.print("Failed to load BMI270, wrong Chip ID: "); // chip id should be 0x24
 		Serial.println(data, HEX);
 		return 1;
 	}
+	Serial.println("BMI270 loaded");
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // prepare config load
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // prepare config load
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
 	data = 1;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
 
 	// check initialization status
 	data = 0;
 	for (int i = 0; i < 50 && (data & 0x6F) != 0x01; i++) {
 		sleep_ms(1); // should always be below 20ms, but we wait a bit longer to be sure
-		regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INTERNAL_STATUS, &data, 1);
+		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INTERNAL_STATUS, &data, 1);
 	}
 	if ((data & 0x6F) != 0x01) {
 		sleep_ms(5000);
@@ -115,54 +206,63 @@ int gyroInit() {
 	// enable performance mode (p. 22)
 	// PWR_CTRL: temp_en (3) | acc_en (2) | gyr_en (1) | aux_en (0)
 	data = 0b1110; // temp, accel and gyro enabled
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CTRL, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CTRL, &data, 1, 500);
 	// ACC_CONF: acc_filter_perf (7) | acc_bwp (6...4) | acc_odr (3...0)
 	data = 1 << 7 | 0x02 << 4 | 0x0C; // performance optimized, no averaging, 1600Hz
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_CONF, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::ACC_CONF, &data, 1, 500);
 	// ACC_RANGE: acc_range (1...0)
 	data = 0x03; // +/- 16g
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_RANGE, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::ACC_RANGE, &data, 1, 500);
 	// GYR_CONF: gyr_filter_perf (7) | gyr_noise_perf (6) | gyr_bwp (5...4) | gyr_odr (3...0)
 	data = 1 << 7 | 1 << 6 | 0x00 << 4 | 0x0D; // performance optimized, 3200Hz
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::GYR_CONF, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::GYR_CONF, &data, 1, 500);
 	// GYR_RANGE: ois_range (3) | gyr_range (2...0)
 	data = 0x00; // +/- 2000dps
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::GYR_RANGE, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::GYR_RANGE, &data, 1, 500);
 	data = 0x02;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500);
 
 	// INT_MAP_DATA: err_int2, drdy_int2, fwm_int2, ffull_int2, err_int1, drdy_int1, fwm_int1, ffull_int1
 	data = 0b10000100;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT_MAP_DATA, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT_MAP_DATA, &data, 1, 500);
 	// INT1_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT1_IO_CTRL, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT1_IO_CTRL, &data, 1, 500);
 	// INT2_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT2_IO_CTRL, &data, 1, 500);
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT2_IO_CTRL, &data, 1, 500);
 	// INT_LATCH: int_latch(0)
 	data = 0x00;
-	regWrite(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::INT_LATCH, &data, 1, 500);
-	armingDisableFlags |= 0x00000040;
+	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT_LATCH, &data, 1, 500);
+
+	// set up DMA channel
+	gyroDmaTxChannel = dma_claim_unused_channel(true);
+	gyroDmaRxChannel = dma_claim_unused_channel(true);
+	dma_channel_config gyroDmaTxConfig = dma_channel_get_default_config(gyroDmaTxChannel);
+	dma_channel_config gyroDmaRxConfig = dma_channel_get_default_config(gyroDmaRxChannel);
+	channel_config_set_read_increment(&gyroDmaTxConfig, true);
+	channel_config_set_write_increment(&gyroDmaTxConfig, false);
+	channel_config_set_read_increment(&gyroDmaRxConfig, false);
+	channel_config_set_write_increment(&gyroDmaRxConfig, true);
+	channel_config_set_dreq(&gyroDmaTxConfig, pio_get_dreq(PIO_GYRO_SPI, spiSm, true));
+	channel_config_set_dreq(&gyroDmaRxConfig, pio_get_dreq(PIO_GYRO_SPI, spiSm, false));
+	channel_config_set_transfer_data_size(&gyroDmaTxConfig, DMA_SIZE_32);
+	channel_config_set_transfer_data_size(&gyroDmaRxConfig, DMA_SIZE_32);
+	dma_channel_set_config(gyroDmaTxChannel, &gyroDmaTxConfig, false);
+	dma_channel_set_config(gyroDmaRxChannel, &gyroDmaRxConfig, false);
+	dma_channel_set_irq1_enabled(gyroDmaRxChannel, true); // enable interrupt once transfer is done
+	dma_channel_set_write_addr(gyroDmaTxChannel, &PIO_GYRO_SPI->txf[spiSm], false);
+	dma_channel_set_read_addr(gyroDmaRxChannel, &PIO_GYRO_SPI->rxf[spiSm], false);
+	irq_set_exclusive_handler(DMA_IRQ_1, &gyroDmaInterrupt);
+	irq_set_enabled(DMA_IRQ_1, true);
+
+	gpio_set_irq_enabled_with_callback(PIN_GYRO_INT1, GPIO_IRQ_EDGE_RISE, true, &gyroGpioInterrupt);
 
 	return 0;
 }
 
-u32 gyroUpdateFlag = 0;
-// read all 6 axes of the BMI270
-void gyroGetData(i16 *buf) {
-	regRead(SPI_GYRO, PIN_GYRO_CS, (u8)GyroReg::ACC_X_LSB, (u8 *)buf, 12);
-	buf[0] -= accelCalibrationOffset[0];
-	buf[1] -= accelCalibrationOffset[1];
-	buf[2] -= accelCalibrationOffset[2];
-	buf[3] -= gyroCalibrationOffset[0];
-	buf[4] -= gyroCalibrationOffset[1];
-	buf[5] -= gyroCalibrationOffset[2];
-	gyroUpdateFlag = 0xFFFFFFFF;
-}
-
 // config file needs to be uploaded to the BMI270 before it can be used
-const u8 bmi270_config_file[8192] PROGMEM = {
+constexpr u8 bmi270_config_file[8192] PROGMEM = {
 	0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x3d, 0xb1, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x91, 0x03, 0x80, 0x2e, 0xbc,
 	0xb0, 0x80, 0x2e, 0xa3, 0x03, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x00, 0xb0, 0x50, 0x30, 0x21, 0x2e, 0x59, 0xf5,
 	0x10, 0x30, 0x21, 0x2e, 0x6a, 0xf5, 0x80, 0x2e, 0x3b, 0x03, 0x00, 0x00, 0x00, 0x00, 0x08, 0x19, 0x01, 0x00, 0x22,

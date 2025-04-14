@@ -89,18 +89,18 @@ enum class BlCmd {
 };
 
 void pioSetProgram(uint offset, pio_sm_config c) {
-	pio_sm_set_config(ESC_PIO, 0, &c);
-	pio_sm_exec(ESC_PIO, 0, pio_encode_jmp(offset));
+	pio_sm_set_config(PIO_ESC, 0, &c);
+	pio_sm_exec(PIO_ESC, 0, pio_encode_jmp(offset));
 }
 
 void pioResetESC() {
 	pioSetProgram(offsetPioTransmit, configPioTransmit);
 	sleep_ms(1);
-	pio_sm_exec_wait_blocking(ESC_PIO, 0, pio_encode_set(pio_pins, 0));
+	pio_sm_exec_wait_blocking(PIO_ESC, 0, pio_encode_set(pio_pins, 0));
 	elapsedMillis x = 0;
 	while (x < 300)
 		rp2040.wdt_reset();
-	pio_sm_exec_wait_blocking(ESC_PIO, 0, pio_encode_set(pio_pins, 1));
+	pio_sm_exec_wait_blocking(PIO_ESC, 0, pio_encode_set(pio_pins, 1));
 	pioSetProgram(offsetPioReceive, configPioReceive);
 }
 
@@ -122,16 +122,16 @@ void pioEnableTx() {
 	isTxEnabled = true;
 }
 void pioDisableTx() {
-	while (!pio_sm_is_tx_fifo_empty(ESC_PIO, 0)) {
+	while (!pio_sm_is_tx_fifo_empty(PIO_ESC, 0)) {
 	}
-	while (pio_sm_get_pc(ESC_PIO, 0) != offsetPioTransmit + 2) {
+	while (pio_sm_get_pc(PIO_ESC, 0) != offsetPioTransmit + 2) {
 	}
 	pioSetProgram(offsetPioReceive, configPioReceive);
 	isTxEnabled = false;
 }
 
 void pioWrite(uint8_t data) {
-	pio_sm_put_blocking(ESC_PIO, 0, data);
+	pio_sm_put_blocking(PIO_ESC, 0, data);
 }
 
 uint32_t pioAvailable() {
@@ -146,8 +146,8 @@ uint8_t pioRead() {
 void delayWhileRead(uint16_t ms) {
 	elapsedMillis x = 0;
 	do {
-		if (pio_sm_get_rx_fifo_level(ESC_PIO, 0)) {
-			escRxBuf.push_back(pio_sm_get(ESC_PIO, 0) >> 24);
+		if (pio_sm_get_rx_fifo_level(PIO_ESC, 0)) {
+			escRxBuf.push_back(pio_sm_get(PIO_ESC, 0) >> 24);
 		}
 		rp2040.wdt_reset();
 	} while (x < ms);
@@ -155,8 +155,8 @@ void delayWhileRead(uint16_t ms) {
 void delayMicrosWhileRead(uint16_t us) {
 	elapsedMicros x = 0;
 	do {
-		if (pio_sm_get_rx_fifo_level(ESC_PIO, 0)) {
-			escRxBuf.push_back(pio_sm_get(ESC_PIO, 0) >> 24);
+		if (pio_sm_get_rx_fifo_level(PIO_ESC, 0)) {
+			escRxBuf.push_back(pio_sm_get(PIO_ESC, 0) >> 24);
 		}
 		rp2040.wdt_reset();
 	} while (x < us);
@@ -230,11 +230,11 @@ void begin4Way() {
 	if (setup4WayDone) return;
 	deinitESCs();
 	for (int i = 0; i < 4; i++) {
-		pio_gpio_init(ESC_PIO, PIN_MOTORS + i);
+		pio_gpio_init(PIO_ESC, PIN_MOTORS + i);
 	}
-	offsetPioReceive = pio_add_program(ESC_PIO, &onewire_receive_program);
-	offsetPioTransmit = pio_add_program(ESC_PIO, &onewire_transmit_program);
-	pio_sm_claim(ESC_PIO, 0);
+	offsetPioReceive = pio_add_program(PIO_ESC, &onewire_receive_program);
+	offsetPioTransmit = pio_add_program(PIO_ESC, &onewire_transmit_program);
+	pio_sm_claim(PIO_ESC, 0);
 	configPioReceive = onewire_receive_program_get_default_config(offsetPioReceive);
 	sm_config_set_set_pins(&configPioReceive, PIN_MOTORS, 1);
 	sm_config_set_in_pins(&configPioReceive, PIN_MOTORS);
@@ -246,18 +246,18 @@ void begin4Way() {
 	sm_config_set_out_pins(&configPioTransmit, PIN_MOTORS, 1);
 	sm_config_set_out_shift(&configPioTransmit, true, false, 8);
 	sm_config_set_clkdiv_int_frac(&configPioTransmit, 859, 128);
-	pio_sm_init(ESC_PIO, 0, offsetPioReceive, &configPioReceive);
-	pio_sm_set_enabled(ESC_PIO, 0, true);
+	pio_sm_init(PIO_ESC, 0, offsetPioReceive, &configPioReceive);
+	pio_sm_set_enabled(PIO_ESC, 0, true);
 	serialFunctions[0] |= SERIAL_4WAY;
 	setup4WayDone = true;
 }
 
 void end4Way() {
 	if (!setup4WayDone) return;
-	pio_sm_set_enabled(ESC_PIO, 0, false);
-	pio_sm_unclaim(ESC_PIO, 0);
-	pio_remove_program(ESC_PIO, &onewire_receive_program, offsetPioReceive);
-	pio_remove_program(ESC_PIO, &onewire_transmit_program, offsetPioTransmit);
+	pio_sm_set_enabled(PIO_ESC, 0, false);
+	pio_sm_unclaim(PIO_ESC, 0);
+	pio_remove_program(PIO_ESC, &onewire_receive_program, offsetPioReceive);
+	pio_remove_program(PIO_ESC, &onewire_transmit_program, offsetPioTransmit);
 	for (i32 i = 0; i < 4; i++) {
 		gpio_set_function(PIN_MOTORS + i, GPIO_FUNC_NULL);
 	}

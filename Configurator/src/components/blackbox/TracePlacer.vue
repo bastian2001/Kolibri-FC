@@ -47,8 +47,7 @@ export default defineComponent({
 			filterValue2: false,
 			flagName: '',
 			minValue: 0,
-			maxValue: 1,
-			trace: { color: 'transparent', maxValue: 10, minValue: 0, strokeWidth: 1, path: '', modifier: '', decimals: 0, unit: '', displayName: '', id: Math.random() } as TraceInGraph,
+			maxValue: 1
 		};
 	},
 	computed: {
@@ -114,6 +113,7 @@ export default defineComponent({
 		watchForRedraw() {
 			return [
 				this.trace.overrideData,
+				this.trace.color,
 				this.minValue,
 				this.maxValue,
 				this.path,
@@ -226,9 +226,33 @@ export default defineComponent({
 						break;
 				}
 			} else if (this.trace.overrideData) delete this.trace.overrideData;
+		},
+		selectColor() {
+			// open color selector from browser
+			const picker = document.createElement('input');
+			picker.type = 'color';
+			picker.value = this.trace.color;
+			let timeout = -1
+			let color = this.trace.color;
+			picker.addEventListener('input', (event) => {
+				color = (event.target as HTMLInputElement).value;
+				if (timeout !== -1) clearTimeout(timeout);
+				timeout = setTimeout(() => {
+					this.trace.color = color;
+				}, 1000);
+			});
+			picker.click();
 		}
 	},
 	watch: {
+		autoRangeOn: {
+			handler(newValue) {
+				if (newValue) {
+					this.minValue = this.autoRange.min;
+					this.maxValue = this.autoRange.max;
+				}
+			},
+		},
 		autoRange: {
 			handler(newRange) {
 				if (this.autoRangeOn) {
@@ -271,7 +295,7 @@ export default defineComponent({
 
 <template>
 	<div class="wrapper">
-		<span class="colorMark" :style="`background-color: ${trace.color}`">&nbsp;</span>
+		<span class="colorMark" :style="`background-color: ${trace.color}`" @click="selectColor">&nbsp;</span>
 		<select name="flag" id="flagSelector" v-model="flagName">
 			<option v-for="flag in availableFlagNames" :value="flag">{{ flagProps[flag].name }}</option>
 			<option v-for="flag in availableGenFlagNames" :value="flag">{{ flagProps[genFlagProps[flag].replaces].name
@@ -327,11 +351,15 @@ export default defineComponent({
 
 select {
 	width: 8rem;
+	appearance: none !important;
 	background-color: transparent;
+	background: transparent url('data:image/gif;base64,R0lGODlhBgAGAKEDAFVVVX9/f9TU1CgmNyH5BAEKAAMALAAAAAAGAAYAAAIODA4hCDKWxlhNvmCnGwUAOw==') right center no-repeat !important;
+	background-position: calc(100% - 5px) center !important;
 	border: 1px solid var(--border-color);
 	border-radius: 4px;
 	padding: 3px 6px;
-	color: var(--text-color);
+	color: var(--text-color) !important;
+	color: black;
 	outline: none;
 	text-transform: capitalize;
 }

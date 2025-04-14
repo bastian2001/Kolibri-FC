@@ -39,7 +39,6 @@ RTTTLSong songToPlay;
 
 #define FREQ_TO_WRAP(freq) (2000000 / freq)
 
-PIO speakerPio = pio1;
 u8 speakerSm, sliceNum;
 File speakerFile;
 u32 speakerDataSize = 0;
@@ -64,46 +63,46 @@ void dmaIrqHandler() {
 }
 
 void initSpeaker() {
-	uint offset = pio_add_program(speakerPio, &speaker8bit_program);
-	speakerSm = pio_claim_unused_sm(speakerPio, true);
+	uint offset = pio_add_program(PIO_SPEAKER, &speaker8bit_program);
+	speakerSm = pio_claim_unused_sm(PIO_SPEAKER, true);
 	pio_sm_config c = speaker8bit_program_get_default_config(offset);
-	pio_gpio_init(speakerPio, PIN_SPEAKER);
+	pio_gpio_init(PIO_SPEAKER, PIN_SPEAKER);
 	sm_config_set_set_pins(&c, PIN_SPEAKER, 1);
 	sm_config_set_out_pins(&c, PIN_SPEAKER, 1);
 	sm_config_set_in_pins(&c, PIN_SPEAKER);
 	sm_config_set_jmp_pin(&c, PIN_SPEAKER);
 	sm_config_set_out_shift(&c, false, false, 32);
 	sm_config_set_in_shift(&c, false, false, 32);
-	pio_sm_set_consecutive_pindirs(speakerPio, speakerSm, PIN_SPEAKER, 1, true);
+	pio_sm_set_consecutive_pindirs(PIO_SPEAKER, speakerSm, PIN_SPEAKER, 1, true);
 	gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_12MA);
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
-	pio_sm_init(speakerPio, speakerSm, offset, &c);
-	pio_sm_set_enabled(speakerPio, speakerSm, true);
-	pio_sm_put(speakerPio, speakerSm, 0);
-	pio_sm_set_clkdiv_int_frac(speakerPio, speakerSm, 11, 148); // 44.1kHz * 4
+	pio_sm_init(PIO_SPEAKER, speakerSm, offset, &c);
+	pio_sm_set_enabled(PIO_SPEAKER, speakerSm, true);
+	pio_sm_put(PIO_SPEAKER, speakerSm, 0);
+	pio_sm_set_clkdiv_int_frac(PIO_SPEAKER, speakerSm, 11, 148); // 44.1kHz * 4
 	speakerDmaAChan = dma_claim_unused_channel(true);
 	speakerDmaAConfig = dma_channel_get_default_config(speakerDmaAChan);
 	speakerDmaBChan = dma_claim_unused_channel(true);
 	speakerDmaBConfig = dma_channel_get_default_config(speakerDmaBChan);
 	channel_config_set_read_increment(&speakerDmaAConfig, true);
 	channel_config_set_write_increment(&speakerDmaAConfig, false);
-	channel_config_set_dreq(&speakerDmaAConfig, pio_get_dreq(speakerPio, speakerSm, true));
+	channel_config_set_dreq(&speakerDmaAConfig, pio_get_dreq(PIO_SPEAKER, speakerSm, true));
 	channel_config_set_transfer_data_size(&speakerDmaAConfig, DMA_SIZE_32);
 	channel_config_set_chain_to(&speakerDmaAConfig, speakerDmaBChan);
 	channel_config_set_ring(&speakerDmaAConfig, false, SPEAKER_SIZE_POWER);
 	dma_channel_set_irq0_enabled(speakerDmaAChan, true);
 	dma_channel_set_read_addr(speakerDmaAChan, speakerChanAData, false);
-	dma_channel_set_write_addr(speakerDmaAChan, &speakerPio->txf[speakerSm], false);
+	dma_channel_set_write_addr(speakerDmaAChan, &PIO_SPEAKER->txf[speakerSm], false);
 	// identical setup to a, just different buffer
 	channel_config_set_read_increment(&speakerDmaBConfig, true);
 	channel_config_set_write_increment(&speakerDmaBConfig, false);
-	channel_config_set_dreq(&speakerDmaBConfig, pio_get_dreq(speakerPio, speakerSm, true));
+	channel_config_set_dreq(&speakerDmaBConfig, pio_get_dreq(PIO_SPEAKER, speakerSm, true));
 	channel_config_set_transfer_data_size(&speakerDmaBConfig, DMA_SIZE_32);
 	channel_config_set_chain_to(&speakerDmaBConfig, speakerDmaAChan);
 	channel_config_set_ring(&speakerDmaBConfig, false, SPEAKER_SIZE_POWER);
 	dma_channel_set_irq0_enabled(speakerDmaBChan, true);
 	dma_channel_set_read_addr(speakerDmaBChan, speakerChanBData, false);
-	dma_channel_set_write_addr(speakerDmaBChan, &speakerPio->txf[speakerSm], false);
+	dma_channel_set_write_addr(speakerDmaBChan, &PIO_SPEAKER->txf[speakerSm], false);
 	if (playWav("start.wav")) {
 		soundState = 0b110;
 	} else {

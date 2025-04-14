@@ -1,6 +1,7 @@
 #include "global.h"
 #include <math.h>
 
+#ifdef BARO_SPL006
 enum BARO_COEFFS {
 	c0,
 	c1,
@@ -12,16 +13,20 @@ enum BARO_COEFFS {
 	c21,
 	c30,
 };
+constexpr i32 baroScaleFactor = 7864320;
+#elifdef BARO_LPS22
+#endif
 
-f32 baroASL = 0; // above sea level, above takeoff
+f32 baroASL = 0; // above sea level
 f32 baroPres = 0;
 f32 baroUpVel = 0;
 u8 baroTemp = 0;
 i32 baroCalibration[9];
 fix32 gpsBaroAlt;
-const i32 baroScaleFactor = 7864320;
+u8 baroBuffer[2] = {0};
 
 void getRawPressureTemperature(volatile i32 *pressure, volatile i32 *temperature) {
+#ifdef BARO_SPL006
 	u8 data[6];
 	regRead(SPI_BARO, PIN_BARO_CS, 0x00, data, 6, 0, false);
 	// preserve the sign bit
@@ -29,9 +34,34 @@ void getRawPressureTemperature(volatile i32 *pressure, volatile i32 *temperature
 	*temperature = ((i32)data[3]) << 24 | ((i32)data[4]) << 16 | data[5] << 8;
 	*pressure >>= 8;
 	*temperature >>= 8;
+#elifdef BARO_LPS22
+	baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_XL;
+	i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	*pressure = (i32)baroBuffer[0] << 8;
+	baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_L;
+	i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	*pressure |= ((i32)baroBuffer[0]) << 16;
+	baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_H;
+	i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	*pressure |= ((i32)baroBuffer[0]) << 24;
+	// baroBuffer[0] = (u8)BaroRegs::TEMP_OUT_L;
+	// i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	// i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	// *temperature = (i32)baroBuffer[0] << 16;
+	// baroBuffer[0] = (u8)BaroRegs::TEMP_OUT_H;
+	// i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	// i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+	// *temperature |= ((i32)baroBuffer[0]) << 24;
+	*pressure >>= 8;
+	// *temperature >>= 16
+#endif
 }
 
 void initBaro() {
+#ifdef BARO_SPL006
 	gpio_put(PIN_BARO_CS, 0); // enable SPI by pulling CS low (datasheet page 10)
 	sleep_us(10);
 	gpio_put(PIN_BARO_CS, 1);
@@ -66,6 +96,26 @@ void initBaro() {
 	regWrite(SPI_BARO, PIN_BARO_CS, 0x07, data, 1, 0); // set TMP_CFG register
 	data[0] = 0b00000111; // enable pressure and temperature measurement
 	regWrite(SPI_BARO, PIN_BARO_CS, 0x08, data, 1, 0); // set MEAS_CFG register
+#elifdef BARO_LPS22
+	for (u32 tries = 0; tries < 10; tries++) {
+		baroBuffer[0] = (u8)BaroRegs::WHO_AM_I;
+		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
+		if (baroBuffer[0] == 0xB1)
+			break;
+		if (tries == 9) {
+			Serial.println("Baro not found");
+			return;
+		}
+		sleep_ms(2);
+	}
+	baroBuffer[0] = (u8)BaroRegs::CTRL_REG1;
+	baroBuffer[1] = 0b01001010; // 50Hz, Low-pass, block data update (from now on, only single byte reads allowed)
+	i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 2, false);
+	baroBuffer[0] = (u8)BaroRegs::CTRL_REG2;
+	baroBuffer[1] = 0b00000000; // clear register increment (needs to be unset when using block data update)
+	i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 2, false);
+#endif
 }
 
 elapsedMillis baroTimer = 0;
@@ -90,16 +140,19 @@ void readBaroLoop() {
 }
 
 f32 lastBaroASL = 0, gpsBaroOffset = 0;
-elapsedMillis baroEvalTimer = 0;
 void evalBaroLoop() {
 	if (!newBaroData) return;
 	newBaroData = false;
 	tasks[TASK_BAROEVAL].runCounter++;
 	elapsedMicros taskTimer = 0;
+#ifdef BARO_SPL006
 	baroTemp = 201 * .5f - baroTemperature / 7864320.f * 260;
 	f32 pressureScaled = pressure / 7864320.f;
 	f32 temperatureScaled = baroTemperature / 7864320.f;
 	baroPres = baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
+#elifdef BARO_LPS22
+	baroPres = pressure / 40.96f;
+#endif
 	lastBaroASL = baroASL;
 	baroASL = 44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f));
 	if (gpsStatus.fixType != FIX_3D || gpsStatus.satCount < 6)
@@ -107,7 +160,6 @@ void evalBaroLoop() {
 	else
 		gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
 	baroUpVel = (baroASL - lastBaroASL) * 50;
-	baroEvalTimer = 0;
 	u32 duration = taskTimer;
 	tasks[TASK_BAROEVAL].totalDuration += duration;
 	if (duration < tasks[TASK_BAROEVAL].minDuration) {
