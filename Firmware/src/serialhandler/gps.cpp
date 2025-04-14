@@ -267,11 +267,11 @@ void gpsLoop() {
 				updateElem(OSDElem::LATITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "\x98%.7f", gpsMotion.lon / 10000000.f);
 				updateElem(OSDElem::LONGITUDE, (char *)buf);
-				// snprintf((char *)buf, 16, "\x7F%d\x0C ", gpsMotion.alt / 1000);
-				// updateElem(OSDElem::ALTITUDE, (char *)buf);
+				snprintf((char *)buf, 16, "\x7F%d\x0C ", gpsMotion.alt / 1000);
+				updateElem(OSDElem::ALTITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "%d\x9E ", gpsMotion.gSpeed / 278);
 				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
-				snprintf((char *)buf, 16, "%dD ", combinedHeading * FIX_RAD_TO_DEG);
+				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());
 				updateElem(OSDElem::HEADING, (char *)buf);
 				f32 toRadians = 1.745329251e-9f;
 				f32 sin1 = sinf((gpsMotion.lat - startPointLat) * (toRadians / 2));

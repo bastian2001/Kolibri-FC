@@ -12,8 +12,8 @@ void initADC() {
 	adc_init();
 	enableElem(OSDElem::TOT_VOLTAGE);
 	placeElem(OSDElem::TOT_VOLTAGE, 1, 1);
-	enableElem(OSDElem::CURRENT);
-	placeElem(OSDElem::CURRENT, 1, 2);
+	// enableElem(OSDElem::CURRENT);
+	// placeElem(OSDElem::CURRENT, 1, 2);
 	EEPROM.get((u16)EEPROM_POS::BATTERY_EMPTY_THRESHOLD, emptyVoltage);
 	if (!emptyVoltage) {
 		emptyVoltage = 1400;
