@@ -74,7 +74,22 @@
         -   Dedicated SPI for OSD
     -   WS2812 LEDs for the swag
     -   better speaker driver
--   What works: Seemingly everything :tada: (except maybe speaker driver)
--   Known issues
-    -   Maybe speaker driver: not enough testing yet, but at least without code changes, the wav playback seems to no longer work. Only PWM driving works currently. Probably a software issues though.
-    -   Misordered 6 pin for GPS/compass: Not immediately compatible with Walksnail M10 (RX/TX and SDA/SCL need to be swapped)
+-   What works: Seemingly everything :tada:
+-   Idea dump for future:
+    -   Reorder 6 pin for GPS/compass: Currently not immediately compatible with Walksnail M10 (RX/TX and SDA/SCL need to be swapped)
+    -   RP235xB: more pins for
+        -   normal LEDs again
+        -   full duplex spi to gyro
+        -   separate external I2C for compass
+        -   baro via SPI instead of I2C (together with OSD)
+        -   more UARTs via PIO (once SPI is separated, pio2 is completely free)
+        -   PWM outputs
+    -   Speaker driver with optional 5V input for bench testing or in general
+    -   more capacitance on 10V rail
+    -   separate gyro LDO, or LPF on its supply
+    -   custom pixel OSD using PIO/HSTX :thinking:
+    -   possible space savings
+        -   smaller crystals
+        -   2354 instead of 2350 (no separate flash required)
+        -   replace USB on SH plug with solder pads [optionally under the USB port]
+        -   (pixel OSD instead of AT7456E)

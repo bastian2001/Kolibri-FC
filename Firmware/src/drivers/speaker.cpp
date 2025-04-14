@@ -8,6 +8,17 @@ u16 sweepEndFrequency = 0;
 u16 onTime = 0;
 u16 offTime = 0;
 u16 currentWrap = 400;
+bool stopWavFlag = false;
+u8 startNewPwmSound = 0; // 1 = start new static sound, 2 = start new sweep sound
+struct newPwmSound {
+	u16 startFrequency;
+	u16 endFrequency;
+	u16 duration;
+	u16 tOnMs;
+	u16 tOffMs;
+};
+newPwmSound newPwmSoundData = {0, 0, 0, 0, 0};
+
 fix32 noteFrequencies[13] =
 	{
 		16.35, // C0
@@ -43,12 +54,14 @@ u8 speakerSm, sliceNum;
 File speakerFile;
 u32 speakerDataSize = 0;
 u32 speakerCounter = 0;
+const f32 WAV_SPEAKER_CLKDIV = (float)F_CPU / (256 * 44100 * 4);
+const f32 RECT_SPEAKER_CLKDIV = 132;
 dma_channel_config speakerDmaAConfig, speakerDmaBConfig;
 u8 speakerDmaAChan, speakerDmaBChan;
 volatile u8 soundState = 1; // 1: playing PWM, 2: a needs to be filled, 4: b needs to be filled
 // 1KiB buffer each, thus worst case the speaker has a buffer of 1024 samples / 44.1kHz = 23ms
-u8 speakerChanAData[1 << SPEAKER_SIZE_POWER] __attribute__((aligned(1 << SPEAKER_SIZE_POWER))) = {0};
-u8 speakerChanBData[1 << SPEAKER_SIZE_POWER] __attribute__((aligned(1 << SPEAKER_SIZE_POWER))) = {0};
+u16 speakerChanAData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
+u16 speakerChanBData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
 
 void dmaIrqHandler() {
 	u32 interrupts = dma_hw->intr;
@@ -63,46 +76,40 @@ void dmaIrqHandler() {
 }
 
 void initSpeaker() {
-	uint offset = pio_add_program(PIO_SPEAKER, &speaker8bit_program);
-	speakerSm = pio_claim_unused_sm(PIO_SPEAKER, true);
-	pio_sm_config c = speaker8bit_program_get_default_config(offset);
-	pio_gpio_init(PIO_SPEAKER, PIN_SPEAKER);
-	sm_config_set_set_pins(&c, PIN_SPEAKER, 1);
-	sm_config_set_out_pins(&c, PIN_SPEAKER, 1);
-	sm_config_set_in_pins(&c, PIN_SPEAKER);
-	sm_config_set_jmp_pin(&c, PIN_SPEAKER);
-	sm_config_set_out_shift(&c, false, false, 32);
-	sm_config_set_in_shift(&c, false, false, 32);
-	pio_sm_set_consecutive_pindirs(PIO_SPEAKER, speakerSm, PIN_SPEAKER, 1, true);
-	gpio_set_drive_strength(PIN_SPEAKER, GPIO_DRIVE_STRENGTH_12MA);
-	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
-	pio_sm_init(PIO_SPEAKER, speakerSm, offset, &c);
-	pio_sm_set_enabled(PIO_SPEAKER, speakerSm, true);
-	pio_sm_put(PIO_SPEAKER, speakerSm, 0);
-	pio_sm_set_clkdiv_int_frac(PIO_SPEAKER, speakerSm, 11, 148); // 44.1kHz * 4
+	gpio_init(PIN_SPEAKER);
+	gpio_set_dir(PIN_SPEAKER, GPIO_OUT);
+	gpio_put(PIN_SPEAKER, 0);
+	gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PWM);
+
+	sliceNum = pwm_gpio_to_slice_num(PIN_SPEAKER);
+	pwm_set_clkdiv(sliceNum, RECT_SPEAKER_CLKDIV);
+	pwm_set_wrap(sliceNum, 256);
+	pwm_set_gpio_level(PIN_SPEAKER, 0);
+	pwm_set_enabled(sliceNum, true);
+
 	speakerDmaAChan = dma_claim_unused_channel(true);
 	speakerDmaAConfig = dma_channel_get_default_config(speakerDmaAChan);
 	speakerDmaBChan = dma_claim_unused_channel(true);
 	speakerDmaBConfig = dma_channel_get_default_config(speakerDmaBChan);
 	channel_config_set_read_increment(&speakerDmaAConfig, true);
 	channel_config_set_write_increment(&speakerDmaAConfig, false);
-	channel_config_set_dreq(&speakerDmaAConfig, pio_get_dreq(PIO_SPEAKER, speakerSm, true));
-	channel_config_set_transfer_data_size(&speakerDmaAConfig, DMA_SIZE_32);
+	channel_config_set_dreq(&speakerDmaAConfig, pwm_get_dreq(sliceNum));
+	channel_config_set_transfer_data_size(&speakerDmaAConfig, DMA_SIZE_16);
 	channel_config_set_chain_to(&speakerDmaAConfig, speakerDmaBChan);
-	channel_config_set_ring(&speakerDmaAConfig, false, SPEAKER_SIZE_POWER);
+	channel_config_set_ring(&speakerDmaAConfig, false, SPEAKER_SIZE_POWER + 1 + 2);
 	dma_channel_set_irq0_enabled(speakerDmaAChan, true);
 	dma_channel_set_read_addr(speakerDmaAChan, speakerChanAData, false);
-	dma_channel_set_write_addr(speakerDmaAChan, &PIO_SPEAKER->txf[speakerSm], false);
+	dma_channel_set_write_addr(speakerDmaAChan, &pwm_hw->slice[sliceNum].cc, false);
 	// identical setup to a, just different buffer
 	channel_config_set_read_increment(&speakerDmaBConfig, true);
 	channel_config_set_write_increment(&speakerDmaBConfig, false);
-	channel_config_set_dreq(&speakerDmaBConfig, pio_get_dreq(PIO_SPEAKER, speakerSm, true));
-	channel_config_set_transfer_data_size(&speakerDmaBConfig, DMA_SIZE_32);
+	channel_config_set_dreq(&speakerDmaBConfig, pwm_get_dreq(sliceNum));
+	channel_config_set_transfer_data_size(&speakerDmaBConfig, DMA_SIZE_16);
 	channel_config_set_chain_to(&speakerDmaBConfig, speakerDmaAChan);
-	channel_config_set_ring(&speakerDmaBConfig, false, SPEAKER_SIZE_POWER);
+	channel_config_set_ring(&speakerDmaBConfig, false, SPEAKER_SIZE_POWER + 1 + 2);
 	dma_channel_set_irq0_enabled(speakerDmaBChan, true);
 	dma_channel_set_read_addr(speakerDmaBChan, speakerChanBData, false);
-	dma_channel_set_write_addr(speakerDmaBChan, &PIO_SPEAKER->txf[speakerSm], false);
+	dma_channel_set_write_addr(speakerDmaBChan, &pwm_hw->slice[sliceNum].cc, false);
 	if (playWav("start.wav")) {
 		soundState = 0b110;
 	} else {
@@ -111,13 +118,6 @@ void initSpeaker() {
 	}
 	irq_set_exclusive_handler(DMA_IRQ_0, dmaIrqHandler);
 	irq_set_enabled(DMA_IRQ_0, true);
-	soundState = 0b110;
-
-	sliceNum = pwm_gpio_to_slice_num(PIN_SPEAKER);
-	pwm_set_clkdiv_int_frac(sliceNum, 132, 0);
-	pwm_set_wrap(sliceNum, FREQ_TO_WRAP(1000));
-	pwm_set_gpio_level(PIN_SPEAKER, 0);
-	pwm_set_enabled(sliceNum, true);
 }
 
 u8 beeperOn = 0;
@@ -126,17 +126,53 @@ u8 finishedChannels = 0b00;
 u8 startSpeakerFile = true;
 void speakerLoop() {
 	if (soundState & 0b110) {
+		if (stopWavFlag) {
+			stopWavFlag = false;
+			if (speakerFile) {
+				speakerFile.close();
+			}
+			channel_config_set_enable(&speakerDmaAConfig, false);
+			dma_channel_set_config(speakerDmaAChan, &speakerDmaAConfig, false);
+			channel_config_set_enable(&speakerDmaBConfig, false);
+			dma_channel_set_config(speakerDmaBChan, &speakerDmaBConfig, false);
+
+			pwm_set_clkdiv(sliceNum, RECT_SPEAKER_CLKDIV);
+			pwm_set_gpio_level(PIN_SPEAKER, 0);
+			soundState = 1; // done playing, switch to PWM
+
+			if (startNewPwmSound == 1) {
+				startNewPwmSound = 0;
+				makeSound(newPwmSoundData.startFrequency, newPwmSoundData.duration, newPwmSoundData.tOnMs, newPwmSoundData.tOffMs);
+			} else if (startNewPwmSound == 2) {
+				startNewPwmSound = 0;
+				makeSweepSound(newPwmSoundData.startFrequency, newPwmSoundData.endFrequency, newPwmSoundData.duration, newPwmSoundData.tOnMs, newPwmSoundData.tOffMs);
+			}
+			return;
+		}
 		u32 bytesRead = 0;
+		u8 inBuf[1 << SPEAKER_SIZE_POWER];
 		u8 pState = soundState;
 		if (soundState & 0b10) {
 			soundState &= 0b1101;
-			bytesRead = speakerFile.read(speakerChanAData, 1 << SPEAKER_SIZE_POWER);
-			dma_channel_set_trans_count(speakerDmaAChan, bytesRead / 4, false);
+			bytesRead = speakerFile.read(inBuf, 1 << SPEAKER_SIZE_POWER);
+			for (int i = 0; i < bytesRead; i++) {
+				speakerChanAData[i * 4] = inBuf[i];
+				speakerChanAData[i * 4 + 1] = inBuf[i];
+				speakerChanAData[i * 4 + 2] = inBuf[i];
+				speakerChanAData[i * 4 + 3] = inBuf[i];
+			}
+			dma_channel_set_trans_count(speakerDmaAChan, bytesRead * 4, false);
 		}
 		if (soundState & 0b100) {
 			soundState &= 0b1011;
-			bytesRead = speakerFile.read(speakerChanBData, 1 << SPEAKER_SIZE_POWER);
-			dma_channel_set_trans_count(speakerDmaBChan, bytesRead / 4, false);
+			bytesRead = speakerFile.read(inBuf, 1 << SPEAKER_SIZE_POWER);
+			for (int i = 0; i < bytesRead; i++) {
+				speakerChanBData[i * 4] = inBuf[i];
+				speakerChanBData[i * 4 + 1] = inBuf[i];
+				speakerChanBData[i * 4 + 2] = inBuf[i];
+				speakerChanBData[i * 4 + 3] = inBuf[i];
+			}
+			dma_channel_set_trans_count(speakerDmaBChan, bytesRead * 4, false);
 		}
 		if (bytesRead <= 0) {
 			if (pState & 0b10) {
@@ -151,12 +187,15 @@ void speakerLoop() {
 			}
 			if (finishedChannels == 0b11) {
 				speakerFile.close();
-				gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PWM);
+				pwm_set_clkdiv(sliceNum, RECT_SPEAKER_CLKDIV);
+				pwm_set_gpio_level(PIN_SPEAKER, 0);
 				soundState = 1; // done playing, switch to PWM
 				return;
 			}
 		}
 		if (startSpeakerFile) {
+			pwm_set_clkdiv(sliceNum, WAV_SPEAKER_CLKDIV);
+			pwm_set_wrap(sliceNum, 256);
 			dma_channel_start(speakerDmaAChan);
 			finishedChannels = 0b00;
 			startSpeakerFile = false;
@@ -249,32 +288,46 @@ bool playWav(const char *filename) {
 	if (soundState != 1) {
 		return false;
 	}
-	if (fsReady && (speakerFile = SDFS.open(filename, "r")) && speakerFile.size() > 1002) {
-		while (speakerFile.position() < 1000) { // skip wav header
-			if (speakerFile.read() == 'd' && speakerFile.read() == 'a' && speakerFile.read() == 't' && speakerFile.read() == 'a') {
-				speakerCounter = speakerFile.position() + 4;
-				break;
+	if (fsReady) {
+		speakerFile = SDFS.open(filename, "r");
+		if (speakerFile && speakerFile.size() > 1002) {
+			while (speakerFile.position() < 1000) { // skip wav header
+				if (speakerFile.read() == 'd' && speakerFile.read() == 'a' && speakerFile.read() == 't' && speakerFile.read() == 'a') {
+					speakerCounter = speakerFile.position() + 4;
+					break;
+				}
 			}
+			speakerDataSize = speakerFile.size() - speakerCounter;
+			if (speakerDataSize) {
+				channel_config_set_enable(&speakerDmaAConfig, true);
+				dma_channel_set_config(speakerDmaAChan, &speakerDmaAConfig, false);
+				channel_config_set_enable(&speakerDmaBConfig, true);
+				dma_channel_set_config(speakerDmaBChan, &speakerDmaBConfig, false);
+				soundState = 0b110;
+				startSpeakerFile = true;
+				return true;
+			}
+			speakerFile.close();
+		} else if (speakerFile) {
+			speakerFile.close();
 		}
-		speakerDataSize = speakerFile.size() - speakerCounter;
-		if (speakerDataSize) {
-			channel_config_set_enable(&speakerDmaAConfig, true);
-			dma_channel_set_config(speakerDmaAChan, &speakerDmaAConfig, false);
-			channel_config_set_enable(&speakerDmaBConfig, true);
-			dma_channel_set_config(speakerDmaBChan, &speakerDmaBConfig, false);
-			soundState = 0b110;
-			gpio_set_function(PIN_SPEAKER, GPIO_FUNC_PIO1);
-			startSpeakerFile = true;
-			return true;
-		}
-		speakerFile.close();
 		return false;
-	} else
+	} else {
 		return false;
+	}
 }
 
 void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs) {
 	if (!tOnMs) return;
+	if (soundState != 1) {
+		stopWavFlag = true;
+		newPwmSoundData.startFrequency = frequency;
+		newPwmSoundData.duration = duration;
+		newPwmSoundData.tOnMs = tOnMs;
+		newPwmSoundData.tOffMs = tOffMs;
+		startNewPwmSound = 1;
+		return;
+	}
 	soundType = 0;
 	currentWrap = FREQ_TO_WRAP(frequency);
 	pwm_set_wrap(sliceNum, currentWrap);
@@ -292,6 +345,16 @@ void stopSound() {
 // sweep from startFrequency to endFrequency over tOnMs, then stop for tOffMs, repeat for duration
 void makeSweepSound(u16 startFrequency, u16 endFrequency, u16 duration, u16 tOnMs, u16 tOffMs) {
 	if (!tOnMs) return;
+	if (soundState != 1) {
+		stopWavFlag = true;
+		newPwmSoundData.startFrequency = startFrequency;
+		newPwmSoundData.endFrequency = endFrequency;
+		newPwmSoundData.duration = duration;
+		newPwmSoundData.tOnMs = tOnMs;
+		newPwmSoundData.tOffMs = tOffMs;
+		startNewPwmSound = 2;
+		return;
+	}
 	soundType = 1;
 	sweepStartFrequency = startFrequency;
 	sweepEndFrequency = endFrequency;

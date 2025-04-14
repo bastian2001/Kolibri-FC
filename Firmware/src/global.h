@@ -66,7 +66,6 @@
 #endif
 #define I2C_MAG i2c0 // I2C for magnetometer
 
-#define PIO_SPEAKER pio2
 #define PIO_ESC pio1
 #define PIO_GYRO_SPI pio2
 #define PIO_SDIO pio0
