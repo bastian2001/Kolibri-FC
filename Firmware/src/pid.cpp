@@ -1,8 +1,5 @@
 #include "global.h"
 
-i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
-i16 *gyroDataRaw;
-i16 *accelDataRaw;
 FlightMode flightMode = FlightMode::ACRO;
 
 #define MAX_ANGLE 40 // degrees, applied in angle mode and GPS mode

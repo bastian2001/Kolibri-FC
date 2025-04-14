@@ -12,9 +12,6 @@
 #define FF_SHIFT 13
 #define S_SHIFT 8 // setpoint follow
 
-extern i16 bmiDataRaw[6]; // raw data from the BMI160 after calibration
-extern i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of bmiDataRaw
-extern i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of bmiDataRaw
 extern fix32 gyroData[3]; // gyro data in deg/s
 extern fix32 rateFactors[5][3]; // rate factors for the PID controller, 0 = x^1, 1 = x^2... (x normalized to +-1 at full deflection)
 enum {

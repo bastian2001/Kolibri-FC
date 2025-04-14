@@ -11,6 +11,10 @@ i16 gyroCalibrationOffsetTemp[3] = {0};
 i32 accelCalibrationOffsetTemp[3] = {0};
 u16 accelCalibrationCycles = 0;
 
+i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
+i16 *gyroDataRaw;
+i16 *accelDataRaw;
+
 u8 spiSm = 0;
 u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
 u32 gyroDmaRxData[14] = {0};
