@@ -9,7 +9,7 @@ export default defineComponent({
 	data() {
 		return {
 			cmah: 0,
-			file: fonts.vision,
+			file: fonts.clarity,
 			chars: [] as number[][],
 			fonts
 		};

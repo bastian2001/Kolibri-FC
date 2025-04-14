@@ -63,13 +63,18 @@
 
 ### V0.5
 
--   Switch to RP2350
--   some changes to the ELRS receiver, maybe it'll work this time?
--   First version designed in KiCad
--   Bus layout changed:
-    -   Dedicated 3-wire SPI for gyro (PIO) => DMA polling should be possible now
-    -   baro has one I2C with external devices like compass
-    -   SDIO for SD card (PIO)
-    -   Dedicated SPI for OSD
--   WS2812 LEDs for the swag
--   better speaker driver
+-   Changes
+    -   Switch to RP2350
+    -   some changes to the ELRS receiver, maybe it'll work this time?
+    -   First version designed in KiCad
+    -   Bus layout changed:
+        -   Dedicated 3-wire SPI for gyro (PIO) => DMA polling should be possible now
+        -   baro has one I2C with external devices like compass
+        -   SDIO for SD card (PIO)
+        -   Dedicated SPI for OSD
+    -   WS2812 LEDs for the swag
+    -   better speaker driver
+-   What works: Seemingly everything :tada: (except maybe speaker driver)
+-   Known issues
+    -   Maybe speaker driver: not enough testing yet, but at least without code changes, the wav playback seems to no longer work. Only PWM driving works currently. Probably a software issues though.
+    -   Misordered 6 pin for GPS/compass: Not immediately compatible with Walksnail M10 (RX/TX and SDA/SCL need to be swapped)
