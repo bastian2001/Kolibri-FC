@@ -1,6 +1,6 @@
-# RP2040 Flight Controller for FPV
+# RP2350 Flight Controller for FPV
 
-I wanted to have some fun designing my own flight controller in both hardware and software. [This project of mine](https://github.com/bastian2001/Hardware-DShot-on-RP2040) served as a proof of concept (and mostly minimal example) that the RP2040 is capable of driving DShot through the PIO (Programmable IO) hardware.
+I wanted to have some fun designing my own flight controller in both hardware and software. [This project of mine](https://github.com/bastian2001/Hardware-DShot-on-RP2040) ([superseded](https://github.com/bastian2001/pico-bidir-dshot/)) served as a proof of concept (and mostly minimal example) that the RP2040 is capable of driving DShot through the PIO (Programmable IO) hardware.
 
 The PCB is in its fifth testing revision, which includes (hardware features):
 
@@ -12,7 +12,7 @@ The PCB is in its fifth testing revision, which includes (hardware features):
 -   SD card slot for blackbox, now with SDIO
 -   Barometer (STM LPS22HB)
 -   Gemini 2.4GHz ELRS receiver with 4 additional PWM outputs
--   Speaker driver
+-   Speaker driver up to VBat
 
 Main software features:
 
