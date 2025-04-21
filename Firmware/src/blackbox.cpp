@@ -14,7 +14,6 @@ RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 File blackboxFile;
 
-i32 maxFileSize = 0;
 u32 bbFrameNum = 0, newestPvtStartedAt = 0;
 elapsedMicros frametime;
 void blackboxLoop() {
@@ -38,10 +37,7 @@ void blackboxLoop() {
 }
 
 void initBlackbox() {
-#if BLACKBOX_STORAGE == LITTLEFS
-	fsReady = LittleFS.begin();
-	fsReady = fsReady && LittleFS.info(fsInfo);
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 	SDFSConfig cfg(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
 	SDFS.setConfig(cfg);
 	SDFS.setTimeCallback(rtcGetUnixTimestamp);
@@ -56,10 +52,7 @@ void initBlackbox() {
 bool clearBlackbox() {
 	if (!fsReady || bbLogging)
 		return false;
-#if BLACKBOX_STORAGE == LITTLEFS
-	LittleFS.format();
-	return true;
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 	for (int i = 0; i < 100; i++) {
 		char path[32];
 		snprintf(path, 32, "/kolibri/%01d.kbb", i);
@@ -84,10 +77,7 @@ void setDivider(u8 divider) {
 
 void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	char path[32];
-#if BLACKBOX_STORAGE == LITTLEFS
-	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
-	File logFile = LittleFS.open(path, "r");
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
 	File logFile = SDFS.open(path, "r");
 #endif
@@ -135,24 +125,10 @@ void startLogging() {
 	if (!bbFlags || !fsReady || bbLogging || !bbFreqDivider)
 		return;
 	currentBBFlags = bbFlags;
-#if BLACKBOX_STORAGE == LITTLEFS
-	if (!(LittleFS.info(fsInfo)))
-		return;
-	maxFileSize = fsInfo.totalBytes - fsInfo.usedBytes - 50000;
-	if (maxFileSize < 20000) {
-		return;
-	}
-#endif
 	char path[32];
 	for (int i = 0; i < 100; i++) {
 		rp2040.wdt_reset();
-#if BLACKBOX_STORAGE == LITTLEFS
-		snprintf(path, 32, "/logs%01d/%01d.kbb", ((i + currentLogNum) % 100) / 10, (i + currentLogNum) % 10);
-		if (!LittleFS.exists(path)) {
-			currentLogNum += i + 1;
-			break;
-		}
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 		snprintf(path, 32, "/kolibri/%01d.kbb", (i + currentLogNum) % 100);
 		if (!SDFS.exists(path)) {
 			currentLogNum += i + 1;
@@ -164,9 +140,7 @@ void startLogging() {
 			return;
 		}
 	}
-#if BLACKBOX_STORAGE == LITTLEFS
-	blackboxFile = LittleFS.open(path, "a");
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 	blackboxFile = SDFS.open(path, "a");
 #endif
 	if (!blackboxFile)
@@ -215,12 +189,6 @@ void writeSingleFrame() {
 	if (!fsReady || !bbLogging) {
 		return;
 	}
-#if BLACKBOX_STORAGE == LITTLEFS
-	if (blackboxFile.size() > maxFileSize) {
-		endLogging();
-		return;
-	}
-#endif
 	u8 *bbBuffer = (u8 *)malloc(128);
 	if (currentBBFlags & LOG_ROLL_ELRS_RAW) {
 		bbBuffer[bufferPos++] = ELRS->channels[0];
@@ -455,9 +423,6 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = v;
 		bbBuffer[bufferPos++] = v >> 8;
 	}
-#if BLACKBOX_STORAGE == LITTLEFS
-	blackboxFile.write(bbBuffer, bufferPos);
-#elif BLACKBOX_STORAGE == SD_BB
 	bbBuffer[0] = bufferPos - 1;
 	bbFrameNum++;
 	if (bbFramePtrBuffer.isEmpty()) {
@@ -493,5 +458,4 @@ void writeSingleFrame() {
 			// Both FIFOs are full, we can't keep up with the logging, dropping oldest frame
 		}
 	}
-#endif
 }

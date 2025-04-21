@@ -1,15 +1,12 @@
-#define LITTLEFS_BB 0
-#define SD_BB 1
-#define BLACKBOX_STORAGE SD_BB
+#define SD_BB 0
+#define FLASH_BB 1 // not implemented yet
 #include "typedefs.h"
 #ifdef USE_TINYUSB
 #include <Adafruit_TinyUSB.h>
 #endif
 #include <Arduino.h>
 
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-#include "LittleFS.h"
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 #include "SDFS.h"
 #endif
 #include "EEPROM.h"

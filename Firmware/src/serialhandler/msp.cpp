@@ -550,12 +550,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			char shortbuf[16] = {0};
 			for (int i = 0; i < 100; i++) {
 				rp2040.wdt_reset();
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-				snprintf(shortbuf, 16, "/logs%01d/%01d.kbb", i / 10, i % 10);
-				if (LittleFS.exists(shortbuf)) {
-					buf[index++] = i;
-				}
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 				snprintf(shortbuf, 16, "/kolibri/%01d.kbb", i);
 				if (SDFS.exists(shortbuf)) {
 					buf[index++] = i;
@@ -586,10 +581,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				rp2040.wdt_reset();
 				char path[32];
 				u8 fileNum = fileNums[i];
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-				snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
-				File logFile = LittleFS.open(path, "r");
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 				snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
 				File logFile = SDFS.open(path, "r");
 #endif
@@ -624,10 +616,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			// data just includes one byte of file number
 			u8 fileNum = reqPayload[0];
 			char path[32];
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-			snprintf(path, 32, "/logs%01d/%01d.kbb", fileNum / 10, fileNum % 10);
-			if (LittleFS.remove(path))
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 			snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
 			if (SDFS.remove(path))
 #endif
