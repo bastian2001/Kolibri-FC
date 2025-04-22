@@ -504,6 +504,10 @@ inline constexpr fix64 fix64::operator/(const f32 other) const {
 	return *this / fix32(other);
 };
 
-inline constexpr fix32 FIX_PI = PI;
-inline constexpr fix32 FIX_RAD_TO_DEG = 180 / PI;
-inline constexpr fix32 FIX_DEG_TO_RAD = PI / 180;
+const fix32 FIX_PI = PI;
+const fix32 FIX_RAD_TO_DEG = 180 / PI;
+const fix32 FIX_DEG_TO_RAD = PI / 180;
+const fix32 FIX32_MIN = fix32().setRaw(0x80000000);
+const fix32 FIX32_MAX = fix32().setRaw(0x7FFFFFFF);
+const fix64 FIX64_MIN = fix64().setRaw(0x8000000000000000LL);
+const fix64 FIX64_MAX = fix64().setRaw(0x7FFFFFFFFFFFFFFFLL);

@@ -9,8 +9,6 @@
 #if BLACKBOX_STORAGE == SD_BB
 #include "SDFS.h"
 #endif
-#include "EEPROM.h"
-#include "EEPROMImpl.h"
 #include "NeoPixelConnect.h"
 #include "PIO_DShot.h"
 #include "adc.h"
@@ -24,17 +22,8 @@
 #include "drivers/spi.h"
 #include "elapsedMillis.h"
 #include "git_version.h"
-#include "hardware/adc.h"
-#include "hardware/dma.h"
-#include "hardware/i2c.h"
-#include "hardware/pio.h"
-#include "hardware/pwm.h"
-#include "hardware/resets.h"
-#include "hardware/spi.h"
-#include "hardware/watchdog.h"
 #include "imu.h"
 #include "modes.h"
-#include "pico/stdlib.h"
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
@@ -46,11 +35,26 @@
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
+#include "settings/EEPROMImpl.h"
+#include "settings/littleFs.h"
+#include "settings/setting.h"
 #include "taskManager.h"
 #include "unittest.h"
 #include "utils/filters.h"
 #include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"
+#include <EEPROM.h>
+#include <LittleFS.h>
+#include <hardware/adc.h>
+#include <hardware/dma.h>
+#include <hardware/i2c.h>
+#include <hardware/pio.h>
+#include <hardware/pwm.h>
+#include <hardware/resets.h>
+#include <hardware/spi.h>
+#include <hardware/watchdog.h>
+#include <pico/stdlib.h>
+#include <string>
 
 #define SPI_OSD spi1 // SPI for OSD
 
