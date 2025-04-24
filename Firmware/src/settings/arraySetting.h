@@ -65,7 +65,7 @@ ArraySetting<T>::ArraySetting(const char *id, T *dataArray, size_t itemCount, vo
 template <typename T>
 bool ArraySetting<T>::setDataFromString(string s) {
 	try {
-		if constexpr (std::is_integral_v<T>) {
+		if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
 			for (u32 i = 0; i < itemCount; i++) {
 				// parse the string and set the data
 				size_t pos = s.find(',');
@@ -78,11 +78,22 @@ bool ArraySetting<T>::setDataFromString(string s) {
 					s.erase(0, pos + 1); // remove the parsed value from the string
 				}
 			}
+		} else if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>) {
+			for (u32 i = 0; i < itemCount; i++) {
+				size_t pos = s.find(',');
+				if (pos == string::npos) {
+					this->data[i] = std::stoull(s);
+					break;
+				} else {
+					this->data[i] = std::stoull(s.substr(0, pos));
+					s.erase(0, pos + 1);
+				}
+			}
 		} else if constexpr (std::is_floating_point_v<T>) {
 			for (u32 i = 0; i < itemCount; i++) {
 				size_t pos = s.find(',');
 				if (pos == string::npos) {
-					this->data[i] = std::stold(s);
+					this->data[i] = std::stod(s);
 					break;
 				} else {
 					this->data[i] = std::stold(s.substr(0, pos));

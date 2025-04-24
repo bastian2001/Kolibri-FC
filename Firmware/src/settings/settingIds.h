@@ -23,6 +23,8 @@
 
 // flight performance settings
 #define SETTING_PID_GAINS "pid_gains"
+#define SETTING_IDLE_PERMILLE "motor_idle_per_mille"
+#define SETTING_MAX_ANGLE "angle_max_angle"
 #define SETTING_RATE_FACTORS "rates_factors"
 #define SETTING_DFILTER_CUTOFF "filter_d_cutoff"
 #define SETTING_PID_VVEL "althold_pid"
@@ -33,6 +35,10 @@
 #define SETTING_HVEL_FF_FILTER_CUTOFF "poshold_hvel_ff_filter_cutoff"
 #define SETTING_HVEL_I_RELAX_FILTER_CUTOFF "poshold_hvel_irelax_filter_cutoff"
 #define SETTING_HVEL_PUSH_FILTER_CUTOFF "poshold_hvel_push_filter_cutoff"
+#define SETTING_MAX_ANGLE_BURST "poshold_max_angle_burst"
+#define SETTING_ANGLE_BURST_TIME "poshold_angle_burst_time"
+#define SETTING_ANGLE_BURST_COOLDOWN "poshold_angle_cooldown_time"
+#define SETTING_HVEL_STICK_DEADBAND "poshold_hvel_stick_deadband"
 
 // general settings
 #define SETTING_UAV_NAME "uav_name"

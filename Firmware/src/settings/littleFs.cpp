@@ -67,6 +67,8 @@ void initSettings() {
 
 	addArraySetting(SETTING_PID_GAINS, pidGains, &initPidGains);
 	addArraySetting(SETTING_RATE_FACTORS, rateFactors, &initRateFactors);
+	addSetting(SETTING_IDLE_PERMILLE, &idlePermille, 25);
+	addSetting(SETTING_MAX_ANGLE, &maxAngle, 40);
 	addSetting(SETTING_DFILTER_CUTOFF, &dFilterCutoff, 70);
 	addSetting(SETTING_MAX_TARGET_HVEL, &maxTargetHvel, 12);
 	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
@@ -76,6 +78,10 @@ void initSettings() {
 	addSetting(SETTING_HVEL_FF_FILTER_CUTOFF, &hvelFfFilterCutoff, 2);
 	addSetting(SETTING_HVEL_I_RELAX_FILTER_CUTOFF, &hvelIRelaxFilterCutoff, 0.5f);
 	addSetting(SETTING_HVEL_PUSH_FILTER_CUTOFF, &hvelPushFilterCutoff, 4);
+	addSetting(SETTING_MAX_ANGLE_BURST, &maxAngleBurst, 60);
+	addSetting(SETTING_ANGLE_BURST_TIME, &angleBurstTime, 3000);
+	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
+	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
 
 	addSetting(SETTING_TIMEZONE_OFFSET, &rtcTimezoneOffset, 0);
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");

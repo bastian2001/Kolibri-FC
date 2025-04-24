@@ -1,5 +1,6 @@
 #pragma once
 #include "settings/settingBase.h"
+#include <stdexcept>
 
 template <typename T>
 class Setting : public SettingBase {
@@ -107,7 +108,7 @@ bool Setting<T>::setDataFromString(string s) {
 			*this->data = std::stoull(s);
 			return true;
 		} else if constexpr (std::is_floating_point_v<T>) {
-			*this->data = std::stold(s);
+			*this->data = std::stod(s);
 			return true;
 		} else if constexpr (std::is_same_v<T, fix32>) {
 			*this->data = fix32().setRaw(std::stol(s));
@@ -116,17 +117,17 @@ bool Setting<T>::setDataFromString(string s) {
 			*this->data = fix64().setRaw(std::stoll(s));
 			return true;
 		} else if constexpr (std::is_same_v<T, bool>) {
-			*this->data = stringToBool(s); // convert string to boolean
+			*this->data = stringToBool(s);
 			return true;
 		} else if constexpr (std::is_same_v<T, string>) {
-			replaceEscapeSequences(s); // replace escape sequences in the string
+			replaceEscapeSequences(s);
 			*this->data = s;
 			return true;
 		} else {
 			static_assert(false, "Unsupported type for setDataFromString()");
-			return false; // unsupported type
+			return false;
 		}
-	} catch (...) {
+	} catch (std::invalid_argument const &ex) {
 		return false;
 	}
 }

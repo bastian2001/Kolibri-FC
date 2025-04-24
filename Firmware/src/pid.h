@@ -1,7 +1,6 @@
 #pragma once
 #include "utils/fixedPointInt.h"
 #include <Arduino.h>
-#define IDLE_PERMILLE 25
 #define AXIS_ROLL 1
 #define AXIS_PITCH 0
 #define AXIS_YAW 2
@@ -34,18 +33,24 @@ extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, roll
 extern fix32 vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD; // velocity PID summands
 extern fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum; // I term sum for the PID controller
 extern fix32 altSetpoint; // altitude setpoint (m ASL)
-extern fix32 throttle; // current throttle setpoint (IDLE_PERMILLE*2 to 2000)
+extern fix32 throttle; // current throttle setpoint (idlePermille*2 to 2000)
 extern fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000ish)
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
 extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL mode => (position lock)
 extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
+extern u32 idlePermille; // idle throttle in permille (0-1000)
+extern u8 maxAngle; // degrees, applied in angle mode and GPS mode
+extern u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
+extern u16 angleBurstTime; // milliseconds, time for which the maxAngleBurst is allowed
+extern u16 angleBurstCooldownTime; // milliseconds, time for which the maxAngleBurst is not allowed after the burst time
 extern fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
 extern fix32 hvelFfFilterCutoff; // cutoff frequency for the horizontal velocity feedforward filter (Hz)
 extern fix32 hvelIRelaxFilterCutoff; // cutoff frequency for the horizontal velocity I term relax filter (Hz)
 extern fix32 hvelPushFilterCutoff; // cutoff frequency for the horizontal velocity push filter (Hz)
 extern fix32 vvelDFilterCutoff; // cutoff frequency for the vertical velocity D filter (Hz)
 extern fix32 vvelFFFilterCutoff; // cutoff frequency for the vertical velocity feedforward filter (Hz)
+extern u16 hvelStickDeadband; // deadband for the horizontal velocity stick input (total stick is -512 to 512)
 
 enum class FlightMode {
 	ACRO,

@@ -272,8 +272,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 6; // motorPwmProtocol, 6 = DShot 300
 			buf[len++] = 3200 & 0xFF;
 			buf[len++] = 3200 >> 8;
-			buf[len++] = (IDLE_PERMILLE * 10) & 0xFF;
-			buf[len++] = (IDLE_PERMILLE * 10) >> 8;
+			buf[len++] = (idlePermille * 10) & 0xFF;
+			buf[len++] = (idlePermille * 10) >> 8;
 			buf[len++] = 0; // gyro_use_32kHz
 			buf[len++] = 0; // motorPwmInversion
 			buf[len++] = 0; // gyro_to_use
@@ -371,8 +371,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
 		case MspFn::GET_MOTOR_CONFIG:
-			buf[len++] = (1000 + IDLE_PERMILLE) & 0xFF; // min throttle
-			buf[len++] = (1000 + IDLE_PERMILLE) >> 8;
+			buf[len++] = (1000 + idlePermille) & 0xFF; // min throttle
+			buf[len++] = (1000 + idlePermille) >> 8;
 			buf[len++] = 2000 & 0xFF; // max throttle
 			buf[len++] = 2000 >> 8;
 			buf[len++] = 1000 & 0xFF; // min command
