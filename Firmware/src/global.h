@@ -35,7 +35,7 @@
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
-#include "settings/EEPROMImpl.h"
+#include "settings/arraySetting.h"
 #include "settings/littleFs.h"
 #include "settings/setting.h"
 #include "taskManager.h"
@@ -105,6 +105,7 @@ extern BootReason rebootReason; // Reason for rebooting (can be set right before
 extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0xdeadbeefdeadbeef)
 
 extern NeoPixelConnect p;
+extern std::string uavName;
 
 #define FIRMWARE_NAME "Kolibri"
 #define FIRMWARE_VERSION_MAJOR 0

@@ -1,10 +1,8 @@
-#include "typedefs.h"
-#include <string>
-
-using std::string;
+#pragma once
+#include "settings/settingBase.h"
 
 template <typename T>
-class Setting {
+class Setting : public SettingBase {
 public:
 	Setting() = delete;
 	Setting(const Setting &) = delete;
@@ -23,62 +21,173 @@ public:
 	 */
 	Setting(const char *id, T *data, T defaultValue);
 
-	const char *id;
-
-	/// @brief Resets the setting to the default value.
-	void resetToDefault();
-
-	/**
-	 * @brief Get the value of a setting as a string (from the settingsFile).
-	 *
-	 * Only supports single line strings, not arrays or multi-line strings.
-	 *
-	 * @param s buffer to store the string
-	 * @param id setting id
-	 * @return true if the value was successfully found
-	 * @return false if the setting is not found
-	 */
-	static bool getValueString(string &s, const char *id);
+	void resetToDefault() override;
+	string toString() override;
+	bool setDataFromString(string s) override;
+	bool checkValidity() override;
 
 	/**
-	 * @brief Convert the setting to a string for saving to a file.
+	 * @brief Set minimum and maximum allowed values for this setting
 	 *
-	 * @return string string representation of the setting
+	 * @param minValue Minimum allowed value
+	 * @param maxValue Maximum allowed value
 	 */
-	string toString();
-
-	/**
-	 * @brief Set the data from a string.
-	 *
-	 * @return true if successful
-	 * @return false if failed (e.g. parser error)
-	 */
-	bool setDataFromString(string);
-
-	/**
-	 * @brief Check if the setting is valid.
-	 *
-	 * @return true if valid
-	 * @return false if invalid
-	 */
-	bool checkValidity();
-
-	/**
-	 * @brief Update the setting in the settings file.
-	 *
-	 * @return true if successful
-	 * @return false if failed
-	 */
-	bool updateSettingInFile();
-
 	void setMinMax(T minValue, T maxValue);
-
-	static void setSettingsFile(File *file);
 
 private:
 	T *data;
-	T defaultValue;
-	static File *settingsFile;
+	const T defaultValue;
 	T minValue;
 	T maxValue;
 };
+
+template <typename T>
+Setting<T>::Setting(const char *id, T *data, T defaultValue)
+	: SettingBase(id),
+	  data(data),
+	  defaultValue(defaultValue) {
+	string s;
+	bool success = getValueString(s, id);
+	if (success) {
+		if (!setDataFromString(s)) {
+			// parser error
+			*this->data = defaultValue;
+			this->updateSettingInFile();
+		}
+	} else {
+		// setting not found, set to default value
+		*this->data = defaultValue;
+		this->updateSettingInFile();
+	}
+
+	// set min/max
+	if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+		this->minValue = std::numeric_limits<T>::min();
+		this->maxValue = std::numeric_limits<T>::max();
+	} else if constexpr (std::is_same_v<T, fix32>) {
+		this->minValue = FIX32_MIN;
+		this->maxValue = FIX32_MAX;
+	} else if constexpr (std::is_same_v<T, fix64>) {
+		this->minValue = FIX64_MIN;
+		this->maxValue = FIX64_MAX;
+	} else if constexpr (std::is_array_v<T>) {
+		if constexpr (std::is_integral_v<std::remove_all_extents_t<T>>) {
+			this->minValue = std::numeric_limits<std::remove_all_extents_t<T>>::min();
+			this->maxValue = std::numeric_limits<std::remove_all_extents_t<T>>::max();
+		} else if constexpr (std::is_floating_point_v<std::remove_all_extents_t<T>>) {
+			this->minValue = std::numeric_limits<std::remove_all_extents_t<T>>::min();
+			this->maxValue = std::numeric_limits<std::remove_all_extents_t<T>>::max();
+		} else if constexpr (std::is_same_v<std::remove_all_extents_t<T>, fix32>) {
+			this->minValue = FIX32_MIN;
+			this->maxValue = FIX32_MAX;
+		} else if constexpr (std::is_same_v<std::remove_all_extents_t<T>, fix64>) {
+			this->minValue = FIX64_MIN;
+			this->maxValue = FIX64_MAX;
+		} else if constexpr (std::is_same_v<std::remove_all_extents_t<T>, bool>) {
+			this->minValue = false;
+			this->maxValue = true;
+		} else {
+			static_assert(false, "Unsupported array type for Setting constructor");
+		}
+	} else if constexpr (std::is_same_v<T, bool>) {
+	} else if constexpr (std::is_same_v<T, string>) {
+	} else {
+		static_assert(false, "Unsupported type for Setting constructor");
+	}
+}
+
+template <typename T>
+bool Setting<T>::setDataFromString(string s) {
+	try {
+		if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+			*this->data = std::stoll(s);
+			return true;
+		} else if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>) {
+			*this->data = std::stoull(s);
+			return true;
+		} else if constexpr (std::is_floating_point_v<T>) {
+			*this->data = std::stold(s);
+			return true;
+		} else if constexpr (std::is_same_v<T, fix32>) {
+			*this->data = fix32().setRaw(std::stol(s));
+			return true;
+		} else if constexpr (std::is_same_v<T, fix64>) {
+			*this->data = fix64().setRaw(std::stoll(s));
+			return true;
+		} else if constexpr (std::is_same_v<T, bool>) {
+			if (s == "true" || s == "1") {
+				*this->data = true;
+			} else if (s == "false" || s == "0") {
+				*this->data = false;
+			} else {
+				return false; // invalid value
+			}
+			return true;
+		} else if constexpr (std::is_same_v<T, string>) {
+			replaceEscapeSequences(s); // replace escape sequences in the string
+			*this->data = s;
+			return true;
+		} else {
+			static_assert(false, "Unsupported type for setDataFromString()");
+			return false; // unsupported type
+		}
+	} catch (const std::exception &e) {
+		return false;
+	}
+}
+
+template <typename T>
+void Setting<T>::resetToDefault() {
+	*this->data = defaultValue;
+}
+
+template <typename T>
+bool Setting<T>::checkValidity() {
+	if constexpr (std::is_integral_v<T> ||
+				  std::is_floating_point_v<T> ||
+				  std::is_same_v<T, fix32> ||
+				  std::is_same_v<T, fix64>) {
+		return (*data >= minValue && *data <= maxValue); // Check if the value is within the range
+	}
+	return true;
+}
+
+template <typename T>
+string Setting<T>::toString() {
+	string s;
+	if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+		s = std::to_string(*data);
+	} else if constexpr (std::is_same_v<T, fix32> || std::is_same_v<T, fix64>) {
+		s = std::to_string(data->raw);
+	} else if constexpr (std::is_same_v<T, bool>) {
+		s = (*data) ? "1" : "0";
+	} else if constexpr (std::is_same_v<T, string>) {
+		s = *data;
+		// Escape special characters in the string
+		for (size_t i = 0; i < s.length(); ++i) {
+			if (s[i] == '\n') {
+				s.replace(i, 1, "\\n");
+				i += 1; // Skip the next character since we just added an escape sequence
+			} else if (s[i] == '\\') {
+				s.replace(i, 1, "\\\\");
+				i += 1; // Skip the next character since we just added an escape sequence
+			}
+		}
+	} else {
+		static_assert(false, "Unsupported type for toString()");
+	}
+	return s;
+}
+
+template <typename T>
+void Setting<T>::setMinMax(T minValue, T maxValue) {
+	this->minValue = minValue;
+	this->maxValue = maxValue;
+}
+
+template <typename T, typename U>
+Setting<T> *addSetting(const char *id, T *data, U defaultValue) {
+	Setting<T> *setting = new Setting<T>(id, data, static_cast<T>(defaultValue));
+	settingsList.push_back(setting);
+	return setting;
+}

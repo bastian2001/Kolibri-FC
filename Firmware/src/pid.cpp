@@ -49,7 +49,7 @@ elapsedMillis burstCooldown;
 
 #define RIGHT_BITS(x, n) ((u32)(-(x)) >> (32 - n))
 
-void initPID() {
+void initPidGains() {
 	for (int i = 0; i < 3; i++) {
 		pidGains[i][P].setRaw(40 << P_SHIFT);
 		pidGains[i][I].setRaw(20 << I_SHIFT);
@@ -58,6 +58,9 @@ void initPID() {
 		pidGains[i][S].setRaw(0 << S_SHIFT);
 		pidGains[i][iFalloff] = .998;
 	}
+}
+
+void initRateFactors() {
 	for (int i = 0; i < 3; i++) {
 		rateFactors[0][i] = 100; // first order, center rate
 		rateFactors[1][i] = 0;
@@ -65,6 +68,9 @@ void initPID() {
 		rateFactors[3][i] = 0;
 		rateFactors[4][i] = 800;
 	}
+}
+
+void initPID() {
 	pidGainsVVel[P] = 50; // additional throttle if velocity is 1m/s too low
 	pidGainsVVel[I] = .03; // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D] = 10000; // additional throttle, if accelerating by 3200m/s^2

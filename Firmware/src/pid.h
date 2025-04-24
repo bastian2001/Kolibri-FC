@@ -58,3 +58,6 @@ void pidLoop();
 
 /// @brief intialize PID terms and gains
 void initPID();
+
+void initPidGains();
+void initRateFactors();

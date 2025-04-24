@@ -23,10 +23,10 @@ void configuratorLoop() {
 		accelCalDone = 0;
 		char data = 1;
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::ACC_CALIBRATION, lastMspVersion, &data, 1);
-		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION, (i16)accelCalibrationOffset[0]);
-		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 2, (i16)accelCalibrationOffset[1]);
-		EEPROM.put((u16)EEPROM_POS::ACCEL_CALIBRATION + 4, (i16)accelCalibrationOffset[2]);
-		EEPROM.commit();
+		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, "ACC_CALIBRATION_DONE", 21);
+		openSettingsFile();
+		getSetting("acc_cal")->updateSettingInFile();
+		closeSettingsFile();
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS, lastMspVersion);
 	}
 }
@@ -223,17 +223,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
 		case MspFn::GET_NAME: {
-			char name[20] = {0};
-			for (int i = 0; i < 20; i++)
-				name[i] = EEPROM.read((u16)EEPROM_POS::UAV_NAME + i);
-			name[19] = '\0';
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, name, strlen(name));
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, uavName.c_str(), strlen(uavName.c_str()));
 		} break;
 		case MspFn::SET_NAME: {
-			u8 len = reqLen;
-			if (len > 20) len = 20;
-			for (int i = 0; i < len; i++)
-				EEPROM.write((u16)EEPROM_POS::UAV_NAME + i, reqPayload[i]);
+			openSettingsFile();
+			uavName = string(reqPayload, reqLen);
+			getSetting("uav_name")->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_FEATURE_CONFIG: {
@@ -518,8 +513,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 		} break;
 		case MspFn::SAVE_SETTINGS:
-			rp2040.wdt_reset();
-			EEPROM.commit();
+			closeSettingsFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::WRITE_OSD_FONT_CHARACTER:
@@ -542,8 +536,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			bbFreqDivider = bbSettings[0];
 			memcpy(&bbFlags, &bbSettings[1], 8);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
-			EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
+			openSettingsFile();
+			getSetting("bb_freq_divider")->updateSettingInFile();
+			getSetting("bb_flags")->updateSettingInFile();
 		} break;
 		case MspFn::BB_FILE_LIST: {
 			int index = 0;
@@ -741,7 +736,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				break;
 			}
 			rtcTimezoneOffset = offset;
-			EEPROM.put((u16)EEPROM_POS::TIMEZONE_OFFSET_MINS, rtcTimezoneOffset);
+			openSettingsFile();
+			getSetting("rtc_timezone_offset")->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_PIDS: {
@@ -768,7 +764,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
 				pidGains[i][5].setRaw(pids[i][5]);
 			}
-			EEPROM.put((u16)EEPROM_POS::PID_GAINS, pidGains);
+			openSettingsFile();
+			getSetting("pid_gains")->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_RATES: {
@@ -785,7 +782,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				for (int j = 0; j < 5; j++)
 					rateFactors[j][i] = rates[i][j];
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			EEPROM.put((u16)EEPROM_POS::RATE_FACTORS, rateFactors);
+			openSettingsFile();
+			getSetting("rate_factors")->updateSettingInFile();
 		} break;
 		case MspFn::GET_CRASH_DUMP:
 			for (int i = 0; i < 256; i++) {

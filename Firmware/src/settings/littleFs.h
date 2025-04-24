@@ -10,3 +10,5 @@ void initLittleFs();
 void openSettingsFile();
 
 void closeSettingsFile();
+
+void initSettings();

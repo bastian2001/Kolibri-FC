@@ -65,16 +65,6 @@ bool clearBlackbox() {
 #endif
 }
 
-void setFlags(u64 flags) {
-	bbFlags = flags;
-	EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
-}
-void setDivider(u8 divider) {
-	if (divider > 0)
-		bbFreqDivider = divider;
-	EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
-}
-
 void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB

@@ -181,7 +181,6 @@ int gyroInit() {
 		Serial.println(data, HEX);
 		return 1;
 	}
-	Serial.println("BMI270 loaded");
 	data = 0;
 	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;

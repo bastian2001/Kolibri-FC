@@ -229,10 +229,9 @@ void magLoop() {
 		magOffset[0] = calibration[0] / 2;
 		magOffset[1] = calibration[1] / 2;
 		magOffset[2] = calibration[2] / 2;
-		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD, magOffset[0]);
-		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 2, magOffset[1]);
-		EEPROM.put((u16)EEPROM_POS::MAG_CALIBRATION_HARD + 4, magOffset[2]);
-		EEPROM.commit();
+		openSettingsFile();
+		getSetting("mag_cal_hard")->updateSettingInFile();
+		closeSettingsFile();
 		magState = MAG_MEASURING;
 		char data = 1;
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::MAG_CALIBRATION, lastMspVersion, &data, 1);

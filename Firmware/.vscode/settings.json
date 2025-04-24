@@ -34,5 +34,6 @@
 		"string_view": "cpp",
 		"span": "cpp",
 		"type_traits": "cpp"
-	}
+	},
+	"files.insertFinalNewline": true
 }
