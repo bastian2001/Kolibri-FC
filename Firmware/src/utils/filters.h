@@ -9,6 +9,7 @@
  */
 class PT1 {
 public:
+	PT1() = default;
 	/**
 	 * @brief Construct a new PT1 object
 	 *
@@ -65,9 +66,9 @@ public:
 	inline operator fix32() const { return y; }
 
 private:
-	fix32 alpha; // close to 0, higher = less filtering
+	fix32 alpha = 1; // close to 0, higher = less filtering
 	fix32 y = 0;
-	u32 sampleFreq;
+	u32 sampleFreq = 100;
 	fix32 lowerBound = 0;
 	fix32 upperBound = 0;
 	fix32 boundDiff = 0;
@@ -84,7 +85,8 @@ private:
  */
 class DualPT1 {
 public:
-	DualPT1(f32 cutoffFreq, u32 sampleFreq);
+	DualPT1() = default;
+	DualPT1(fix32 cutoffFreq, u32 sampleFreq);
 
 	inline fix32 update(fix32 value) {
 		pt1a.update(value);
@@ -113,13 +115,14 @@ private:
 	PT1 pt1a = PT1(1, 2);
 	PT1 pt1b = PT1(1, 2);
 	PT1 pt1c = PT1(1, 2);
-	u32 sampleFreq;
-	u32 firstRatio;
+	u32 sampleFreq = 100;
+	u32 firstRatio = 1;
 	u32 counter = 0;
 };
 
 class PT2 {
 public:
+	PT2() = default;
 	PT2(fix32 cutoffFreq, u32 sampleFreq);
 	PT2(fix32 alpha);
 	inline fix32 update(fix32 value) {
@@ -135,10 +138,10 @@ public:
 	inline operator fix32() const { return y; }
 
 private:
-	fix32 alpha;
+	fix32 alpha = 1;
 	fix32 y = 0;
 	fix32 y1 = 0;
-	u32 sampleFreq;
+	u32 sampleFreq = 100;
 	fix32 lowerBound = 0;
 	fix32 upperBound = 0;
 	fix32 boundDiff = 0;
@@ -146,6 +149,7 @@ private:
 
 class PT3 {
 public:
+	PT3() = default;
 	PT3(fix32 cutoffFreq, u32 sampleFreq);
 	PT3(fix32 alpha);
 	inline fix32 update(fix32 value) {
@@ -162,11 +166,11 @@ public:
 	inline operator fix32() const { return y; };
 
 private:
-	fix32 alpha;
+	fix32 alpha = 1;
 	fix32 y = 0;
 	fix32 y1 = 0;
 	fix32 y2 = 0;
-	u32 sampleFreq;
+	u32 sampleFreq = 100;
 	fix32 lowerBound = 0;
 	fix32 upperBound = 0;
 	fix32 boundDiff = 0;

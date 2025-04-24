@@ -230,7 +230,7 @@ void magLoop() {
 		magOffset[1] = calibration[1] / 2;
 		magOffset[2] = calibration[2] / 2;
 		openSettingsFile();
-		getSetting("mag_cal_hard")->updateSettingInFile();
+		getSetting(SETTING_MAG_CAL_HARD)->updateSettingInFile();
 		closeSettingsFile();
 		magState = MAG_MEASURING;
 		char data = 1;

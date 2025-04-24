@@ -8,7 +8,6 @@ FlightMode flightMode = FlightMode::ACRO;
 #define BURST_COOLDOWN 5000 // ms
 
 #define HVEL_STICK_DEADBAND 30
-#define MAX_TARGET_HVEL 12
 
 /*
  * To avoid a lot of floating point math, fixed point math is used.
@@ -33,7 +32,8 @@ fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pit
 fix32 altSetpoint;
 fix32 throttle;
 fix64 targetLat, targetLon;
-PT2 dFilterRoll(70, 3200), dFilterPitch(70, 3200), dFilterYaw(70, 3200);
+u16 dFilterCutoff;
+PT2 dFilterRoll, dFilterPitch, dFilterYaw;
 
 fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8];
 
@@ -43,11 +43,25 @@ fix32 rateFactors[5][3];
 fix64 vVelMaxErrorSum, vVelMinErrorSum;
 constexpr fix32 TO_ANGLE = fix32(MAX_ANGLE) / fix32(512);
 constexpr fix32 THROTTLE_SCALE = fix32(2000 - IDLE_PERMILLE * 2) / fix32(1024);
+fix32 maxTargetHvel;
 fix32 smoothChannels[4];
 elapsedMillis burstTimer;
 elapsedMillis burstCooldown;
 
-#define RIGHT_BITS(x, n) ((u32)(-(x)) >> (32 - n))
+fix32 vvelDFilterCutoff;
+fix32 vvelFFFilterCutoff;
+PT1 vVelDFilter;
+PT1 vVelFFFilter;
+
+fix32 hvelFfFilterCutoff;
+fix32 hvelIRelaxFilterCutoff;
+fix32 hvelPushFilterCutoff;
+PT1 ffFilterNVel;
+PT1 ffFilterEVel;
+DualPT1 iRelaxFilterNVel;
+DualPT1 iRelaxFilterEVel;
+PT1 pushNorth;
+PT1 pushEast;
 
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {
@@ -70,17 +84,37 @@ void initRateFactors() {
 	}
 }
 
-void initPID() {
+void initPidVVel() {
 	pidGainsVVel[P] = 50; // additional throttle if velocity is 1m/s too low
 	pidGainsVVel[I] = .03; // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D] = 10000; // additional throttle, if accelerating by 3200m/s^2
 	pidGainsVVel[FF] = 30000;
+}
+
+void initPidHVel() {
 	pidGainsHVel[P] = 12; // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I] = 1.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 0; // tilt in degrees, if changing speed by 3200m/s /s
 	pidGainsHVel[FF] = 3200.f * .1f; // tilt in degrees for target acceleration of 3200m/s^2
+}
+
+void initPid() {
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
+
+	dFilterRoll = PT2(dFilterCutoff, 3200);
+	dFilterPitch = PT2(dFilterCutoff, 3200);
+	dFilterYaw = PT2(dFilterCutoff, 3200);
+
+	vVelDFilter = PT1(vvelDFilterCutoff, 3200);
+	vVelFFFilter = PT1(vvelFFFilterCutoff, 3200);
+
+	ffFilterNVel = PT1(hvelFfFilterCutoff, 3200);
+	ffFilterEVel = PT1(hvelFfFilterCutoff, 3200);
+	iRelaxFilterNVel = DualPT1(hvelIRelaxFilterCutoff, 3200);
+	iRelaxFilterEVel = DualPT1(hvelIRelaxFilterCutoff, 3200);
+	pushNorth = PT1(hvelPushFilterCutoff, 3200);
+	pushEast = PT1(hvelPushFilterCutoff, 3200);
 }
 
 u32 takeoffCounter = 0;
@@ -115,12 +149,6 @@ void pidLoop() {
 				newRollSetpoint = dRoll * angleModeP;
 				newPitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FlightMode::GPS_VEL) {
-				static PT1 ffFilterNVel(2, 3200);
-				static PT1 ffFilterEVel(2, 3200);
-				static DualPT1 iRelaxFilterNVel(0.5, 3200);
-				static DualPT1 iRelaxFilterEVel(0.5, 3200);
-				static PT1 pushNorth(4, 3200);
-				static PT1 pushEast(4, 3200);
 				static fix32 lastNVelSetpoint = 0;
 				static fix32 lastEVelSetpoint = 0;
 				static elapsedMillis locationSetpointTimer = 0;
@@ -145,8 +173,8 @@ void pidLoop() {
 					nVelSetpoint = -sinHeading * rightCommand + cosHeading * fwdCommand;
 					eVelSetpoint = eVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
 					nVelSetpoint = nVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
-					eVelSetpoint *= MAX_TARGET_HVEL; // +-1 => +-12m/s
-					nVelSetpoint *= MAX_TARGET_HVEL; // +-1 => +-12m/s
+					eVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
+					nVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
 					pushNorth.set(0);
 					pushEast.set(0);
 					locationSetpointTimer = 0;
@@ -171,9 +199,9 @@ void pidLoop() {
 					eVelSetpoint = 0;
 					nVelSetpoint = 0;
 					pushEastVel = fix32(pushEast) / 4;
-					pushEastVel = constrain(pushEastVel, -MAX_TARGET_HVEL, MAX_TARGET_HVEL);
+					pushEastVel = constrain(pushEastVel, -maxTargetHvel, maxTargetHvel);
 					pushNorthVel = fix32(pushNorth) / 4;
-					pushNorthVel = constrain(pushNorthVel, -MAX_TARGET_HVEL, MAX_TARGET_HVEL);
+					pushNorthVel = constrain(pushNorthVel, -maxTargetHvel, maxTargetHvel);
 				}
 				eVelError = (eVelSetpoint + pushEastVel) - eVel;
 				nVelError = (nVelSetpoint + pushNorthVel) - nVel;
@@ -259,8 +287,6 @@ void pidLoop() {
 
 			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 				fix32 t = throttle - 512;
-				static PT1 vVelDFilter(15, 3200);
-				static PT1 vVelFFFilter(2, 3200);
 				static elapsedMillis setAltSetpointTimer;
 				static u32 stickWasCentered = 0;
 				// deadband in center of stick
@@ -482,7 +508,8 @@ void pidLoop() {
 			if (motorBeepTimer > 500)
 				motorBeepTimer = 0;
 			if (motorBeepTimer < 50) {
-				u16 motors[4] = {DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2};
+				u16 cmd = DSHOT_BEEP_CMD(dshotBeepTone);
+				u16 motors[4] = {cmd, cmd, cmd, cmd};
 				sendRaw11Bit(motors);
 			} else {
 				u16 motors[4] = {0, 0, 0, 0};

@@ -6,6 +6,9 @@
 #define MAX_RTTTL_TEXT_LENGTH 1024
 #define SPEAKER_SIZE_POWER 10 // 2^x samples, thus the buffer is 2^x * 2 bytes
 
+extern std::string startSoundFile; // name of the file to play
+extern std::string fallbackRtttl; // fallback RTTTL string if the file is not found
+
 /// @brief Initializes the speaker
 void initSpeaker();
 

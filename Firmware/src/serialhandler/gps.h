@@ -9,6 +9,8 @@ extern elapsedMillis lastPvtMessage; // time since the last PVT (position veloci
 extern u8 currentPvtMsg[92];
 extern u32 newPvtMessageFlag;
 extern fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
+extern u32 gpsUpdateRate;
+extern fix32 gpsVelocityFilterCutoff;
 
 /**
  * @brief initialize GPS driver
@@ -84,6 +86,11 @@ enum ubx_class : u8 {
 	UBX_CLASS_TP5 = 0x31,
 };
 
+enum nmea_class : u8 {
+	NMEA_CLASS_STANDARD = 0xF0,
+	NMEA_CLASS_PUBX = 0xF1,
+};
+
 enum ubx_msg_id : u8 {
 	UBX_ID_ACK_ACK = 0x01,
 	UBX_ID_ACK_NAK = 0x00,
@@ -149,4 +156,32 @@ enum ubx_msg_id : u8 {
 	UBX_ID_NAV_DOP = 0x04,
 	UBX_ID_NAV_PVT = 0x07,
 	UBX_ID_NAV_SAT = 0x35,
+};
+
+enum nmea_msg_id : u8 {
+	NMEA_ID_DTM = 0x0A,
+	NMEA_ID_GBQ = 0x44,
+	NMEA_ID_GBS = 0x09,
+	NMEA_ID_GGA = 0x00,
+	NMEA_ID_GLL = 0x01,
+	NMEA_ID_GLQ = 0x43,
+	NMEA_ID_GNQ = 0x42,
+	NMEA_ID_GNS = 0x0D,
+	NMEA_ID_GPQ = 0x40,
+	NMEA_ID_GRS = 0x06,
+	NMEA_ID_GSA = 0x02,
+	NMEA_ID_GST = 0x07,
+	NMEA_ID_GSV = 0x03,
+	NMEA_ID_RMC = 0x04,
+	NMEA_ID_THS = 0x0E,
+	NMEA_ID_TXT = 0x41,
+	NMEA_ID_VLW = 0x0F,
+	NMEA_ID_VTG = 0x05,
+	NMEA_ID_ZDA = 0x08,
+
+	NMEA_ID_CONFIG = 0x41,
+	NMEA_ID_POSITION = 0x00,
+	NMEA_ID_RATE = 0x40,
+	NMEA_ID_SVSTATUS = 0x03,
+	NMEA_ID_TIME = 0x04,
 };

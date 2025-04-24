@@ -39,6 +39,14 @@ extern fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000is
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
 extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL mode => (position lock)
+extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
+extern fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
+extern fix32 hvelFfFilterCutoff; // cutoff frequency for the horizontal velocity feedforward filter (Hz)
+extern fix32 hvelIRelaxFilterCutoff; // cutoff frequency for the horizontal velocity I term relax filter (Hz)
+extern fix32 hvelPushFilterCutoff; // cutoff frequency for the horizontal velocity push filter (Hz)
+extern fix32 vvelDFilterCutoff; // cutoff frequency for the vertical velocity D filter (Hz)
+extern fix32 vvelFFFilterCutoff; // cutoff frequency for the vertical velocity feedforward filter (Hz)
+
 enum class FlightMode {
 	ACRO,
 	ANGLE,
@@ -57,7 +65,9 @@ extern FlightMode flightMode; // currently selected flight mode (NOT whether the
 void pidLoop();
 
 /// @brief intialize PID terms and gains
-void initPID();
+void initPid();
 
 void initPidGains();
 void initRateFactors();
+void initPidVVel();
+void initPidHVel();

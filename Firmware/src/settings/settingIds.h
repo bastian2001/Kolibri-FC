@@ -1,0 +1,41 @@
+// accelerometer settings
+#define SETTING_ACC_CAL "accel_calibration"
+#define SETTING_ACC_FILTER_CUTOFF "accel_filter_cutoff"
+
+// blackbox settings
+#define SETTING_BB_FLAGS "blackbox_flags"
+#define SETTING_BB_DIV "blackbox_freq_divider"
+
+// GPS settings
+#define SETTING_GPS_UPDATE_RATE "gps_update_rate"
+#define SETTING_GPS_VEL_FILTER_CUTOFF "gps_velocity_filter_cutoff"
+
+// magnetometer settings
+#define SETTING_MAG_CAL_HARD "compass_calibration_hard"
+#define SETTING_MAG_UPDATE_RATE "compass_update_rate"
+#define SETTING_MAG_FILTER_CUTOFF "compass_filter_cutoff"
+
+// motor and ESC settings
+#define SETTING_BEEP_TONE "dshot_beep_tone"
+
+// battery settings
+#define SETTING_EMPTY_VOLTAGE "bat_empty_voltage"
+
+// flight performance settings
+#define SETTING_PID_GAINS "pid_gains"
+#define SETTING_RATE_FACTORS "rates_factors"
+#define SETTING_DFILTER_CUTOFF "filter_d_cutoff"
+#define SETTING_PID_VVEL "althold_pid"
+#define SETTING_VVEL_FF_FILTER_CUTOFF "althold_vvel_ff_filter_cutoff"
+#define SETTING_VVEL_D_FILTER_CUTOFF "althold_vvel_d_filter_cutoff"
+#define SETTING_MAX_TARGET_HVEL "poshold_max_target_hvel"
+#define SETTING_PID_HVEL "poshold_pid"
+#define SETTING_HVEL_FF_FILTER_CUTOFF "poshold_hvel_ff_filter_cutoff"
+#define SETTING_HVEL_I_RELAX_FILTER_CUTOFF "poshold_hvel_irelax_filter_cutoff"
+#define SETTING_HVEL_PUSH_FILTER_CUTOFF "poshold_hvel_push_filter_cutoff"
+
+// general settings
+#define SETTING_UAV_NAME "uav_name"
+#define SETTING_TIMEZONE_OFFSET "timezone_offset_mins"
+#define SETTING_START_SOUND "start_wav"
+#define SETTING_START_FALLBACK_RTTTL "start_sound_fallback"

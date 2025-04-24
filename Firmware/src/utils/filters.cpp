@@ -34,8 +34,8 @@ void PT1::set(fix32 value) {
 	y = value;
 }
 
-DualPT1::DualPT1(f32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
-	firstRatio = sqrtf(sampleFreq / cutoffFreq);
+DualPT1::DualPT1(fix32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
+	firstRatio = sqrtf(sampleFreq / cutoffFreq.getf32());
 	pt1a = PT1(sampleFreq / firstRatio, sampleFreq);
 	pt1b = PT1(cutoffFreq, sampleFreq / firstRatio);
 	pt1c = PT1(sampleFreq / firstRatio / 8, sampleFreq);

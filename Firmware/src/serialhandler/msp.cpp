@@ -25,7 +25,7 @@ void configuratorLoop() {
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::ACC_CALIBRATION, lastMspVersion, &data, 1);
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, "ACC_CALIBRATION_DONE", 21);
 		openSettingsFile();
-		getSetting("acc_cal")->updateSettingInFile();
+		getSetting(SETTING_ACC_CAL)->updateSettingInFile();
 		closeSettingsFile();
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS, lastMspVersion);
 	}
@@ -228,7 +228,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::SET_NAME: {
 			openSettingsFile();
 			uavName = string(reqPayload, reqLen);
-			getSetting("uav_name")->updateSettingInFile();
+			getSetting(SETTING_UAV_NAME)->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_FEATURE_CONFIG: {
@@ -537,8 +537,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&bbFlags, &bbSettings[1], 8);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
-			getSetting("bb_freq_divider")->updateSettingInFile();
-			getSetting("bb_flags")->updateSettingInFile();
+			getSetting(SETTING_BB_DIV)->updateSettingInFile();
+			getSetting(SETTING_BB_FLAGS)->updateSettingInFile();
 		} break;
 		case MspFn::BB_FILE_LIST: {
 			int index = 0;
@@ -737,7 +737,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 			rtcTimezoneOffset = offset;
 			openSettingsFile();
-			getSetting("rtc_timezone_offset")->updateSettingInFile();
+			getSetting(SETTING_TIMEZONE_OFFSET)->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_PIDS: {
@@ -765,7 +765,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				pidGains[i][5].setRaw(pids[i][5]);
 			}
 			openSettingsFile();
-			getSetting("pid_gains")->updateSettingInFile();
+			getSetting(SETTING_PID_GAINS)->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_RATES: {
@@ -783,7 +783,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 					rateFactors[j][i] = rates[i][j];
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
-			getSetting("rate_factors")->updateSettingInFile();
+			getSetting(SETTING_RATE_FACTORS)->updateSettingInFile();
 		} break;
 		case MspFn::GET_CRASH_DUMP:
 			for (int i = 0; i < 256; i++) {

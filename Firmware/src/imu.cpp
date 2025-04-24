@@ -16,16 +16,18 @@ constexpr f32 FRAME_TIME = 1. / 3200;
 constexpr f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 constexpr f32 ANGLE_CHANGE_LIMIT = .0002;
 constexpr fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
-PT1 accelDataFiltered[3] = {PT1(100, 3200), PT1(100, 3200), PT1(100, 3200)};
-
+fix32 accelFilterCutoff;
+PT1 accelDataFiltered[3];
 fix32 roll, pitch, yaw;
 fix32 gravityRoll, gravityPitch;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
-PT1 magHeadingCorrection(.02, 75); // 0.1Hz cutoff frequency with 75Hz update rate
+PT1 magHeadingCorrection;
+u32 magUpdateRate;
+fix32 magFilterCutoff;
 fix32 vVel, combinedAltitude, vVelHelper;
-PT1 eVel(.2, 10);
-PT1 nVel(.2, 10);
+PT1 eVel;
+PT1 nVel;
 fix32 vAccel;
 
 Quaternion q;
@@ -41,6 +43,12 @@ void imuInit() {
 	q.v[1] = 0;
 	q.v[2] = 0;
 	initFixTrig();
+	accelDataFiltered[0] = PT1(accelFilterCutoff, 3200);
+	accelDataFiltered[1] = PT1(accelFilterCutoff, 3200);
+	accelDataFiltered[2] = PT1(accelFilterCutoff, 3200);
+	eVel = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
+	nVel = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
+	magHeadingCorrection = PT1(magFilterCutoff, magUpdateRate);
 	magHeadingCorrection.setRolloverParams(-PI, PI);
 }
 

@@ -38,6 +38,7 @@
 #include "settings/arraySetting.h"
 #include "settings/littleFs.h"
 #include "settings/setting.h"
+#include "settings/settingIds.h"
 #include "taskManager.h"
 #include "unittest.h"
 #include "utils/filters.h"

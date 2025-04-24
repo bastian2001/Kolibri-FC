@@ -9,8 +9,8 @@ export default defineComponent({
 	name: "Tuning",
 	data() {
 		return {
-			pids: [[], [], []] as number[][],
-			rateFactors: [[], [], []] as number[][],
+			pids: [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]],
+			rateFactors: [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
 			saveTimeout: -1
 		};
 	},

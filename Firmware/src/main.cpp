@@ -17,7 +17,7 @@ void setup() {
 	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
 	rebootReason = BootReason::WATCHDOG;
 
-	initPID();
+	initPid();
 	Serial.println("Setup started");
 	initLittleFs();
 	initSettings();
