@@ -512,6 +512,25 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				break;
 			}
 		} break;
+		case MspFn::CLI_INIT: {
+			// send start info
+			// const char *startInfo = "\n" FIRMWARE_VERSION_STRING "\n" targetIdentifier "" ">> ";
+			char startInfo[256] = {0};
+			snprintf(startInfo, 256, "\n" FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands\n>> ", targetIdentifier, targetFullName);
+			openSettingsFile();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, startInfo, strlen(startInfo));
+		} break;
+		case MspFn::CLI_COMMAND: {
+			string response = string(reqPayload, reqLen);
+			response += "\n";
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+			response = processCliCommand(reqPayload, reqLen);
+			response += "\n>> ";
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+		} break;
+		case MspFn::CLI_GET_SUGGESTION:
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			break;
 		case MspFn::SAVE_SETTINGS:
 			closeSettingsFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);

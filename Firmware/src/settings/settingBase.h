@@ -86,6 +86,11 @@ protected:
 
 extern vector<SettingBase *> settingsList; // List of all settings
 
+template <typename T>
+class Setting;
+
+extern Setting<string> dummySetting;
+
 SettingBase *getSetting(const char *id);
 
 /**

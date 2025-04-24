@@ -42,11 +42,12 @@ File *SettingBase::settingsFile = nullptr;
 vector<SettingBase *> settingsList;
 
 string errorSettingString = "";
-Setting dummySetting("error_setting", &errorSettingString, string("")); // Dummy setting for error handling, since it is a string, it accepts most values so it won't throw an error
+Setting<string> dummySetting("error_setting", &errorSettingString, string("")); // Dummy setting for error handling, since it is a string, it accepts most values so it won't throw an error
 
+// finds setting, returns dummySetting if not found
 SettingBase *getSetting(const char *id) {
 	for (auto setting : settingsList) {
-		if (setting->id == id) {
+		if (!strncmp(setting->id, id, 64)) {
 			return setting;
 		}
 	}
@@ -98,7 +99,7 @@ bool SettingBase::updateSettingInFile() {
 		u32 oldLineLen = line.length();
 		if (line.find(";") == 0 && oldLineLen == newLineLen) {
 			// found a commented line with the same length, replace it
-			SettingBase::settingsFile->seek(SettingBase::settingsFile->position() - oldLineLen);
+			SettingBase::settingsFile->seek(SettingBase::settingsFile->position() - oldLineLen - 1);
 			SettingBase::settingsFile->print(newLine.c_str());
 			return true;
 		}

@@ -32,6 +32,7 @@
 #include "rtc.h"
 #include "serial.h"
 #include "serialhandler/4way.h"
+#include "serialhandler/cli.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"

@@ -98,6 +98,7 @@ Setting<T>::Setting(const char *id, T *data, T defaultValue)
 
 template <typename T>
 bool Setting<T>::setDataFromString(string s) {
+	rp2040.wdt_reset();
 	try {
 		if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
 			*this->data = std::stoll(s);
@@ -115,13 +116,7 @@ bool Setting<T>::setDataFromString(string s) {
 			*this->data = fix64().setRaw(std::stoll(s));
 			return true;
 		} else if constexpr (std::is_same_v<T, bool>) {
-			if (s == "true" || s == "1") {
-				*this->data = true;
-			} else if (s == "false" || s == "0") {
-				*this->data = false;
-			} else {
-				return false; // invalid value
-			}
+			*this->data = stringToBool(s); // convert string to boolean
 			return true;
 		} else if constexpr (std::is_same_v<T, string>) {
 			replaceEscapeSequences(s); // replace escape sequences in the string
@@ -131,7 +126,7 @@ bool Setting<T>::setDataFromString(string s) {
 			static_assert(false, "Unsupported type for setDataFromString()");
 			return false; // unsupported type
 		}
-	} catch (const std::exception &e) {
+	} catch (...) {
 		return false;
 	}
 }

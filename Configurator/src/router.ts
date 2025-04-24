@@ -7,6 +7,7 @@ import Osd from "@views/Osd.vue"
 import Receiver from "@views/Receiver.vue"
 import Tasks from "@views/Tasks.vue"
 import Tuning from "@views/Tuning.vue"
+import Cli from "@views/Cli.vue"
 
 export const routes = [
 	{ path: "/", component: Home, name: "Home" },
@@ -17,6 +18,7 @@ export const routes = [
 	{ path: "/receiver", component: Receiver, name: "Receiver" },
 	{ path: "/tuning", component: Tuning, name: "Tuning" },
 	{ path: "/gpsmag", component: GpsMag, name: "GPS & Mag" },
+	{ path: "/cli", component: Cli, name: "CLI" },
 ]
 
 const router = createRouter({
