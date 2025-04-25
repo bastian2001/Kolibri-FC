@@ -3,6 +3,7 @@ import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, remov
 import { MspFn, MspVersion } from "@/utils/msp";
 import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
+import { delay } from "@/utils/utils";
 
 export default defineComponent({
 	name: "Cli",
@@ -40,19 +41,20 @@ export default defineComponent({
 					break;
 			}
 		},
-		sendCliStart() {
+		onStart() {
 			this.outputLines = [''];
-			sendCommand('request', MspFn.CLI_INIT);
+			delay(10).then(() => { sendCommand('request', MspFn.CLI_INIT) });
+			this.$refs.cliInput.focus();
 		},
 	},
 	mounted() {
-		this.sendCliStart();
+		this.onStart();
 		addOnCommandHandler(this.onCommand);
-		addOnConnectHandler(this.sendCliStart)
+		addOnConnectHandler(this.onStart)
 	},
 	beforeUnmount() {
 		removeOnCommandHandler(this.onCommand);
-		removeOnConnectHandler(this.sendCliStart);
+		removeOnConnectHandler(this.onStart);
 	},
 });
 </script>
@@ -64,7 +66,8 @@ export default defineComponent({
 			<div class="spacer"></div>
 		</div>
 		<div class="input">
-			<input type="text" id="cliInput" @keydown.enter="sendCommand" autocomplete="off" v-model="inputText" />
+			<input type="text" id="cliInput" @keydown.enter="sendCommand" autocomplete="off" v-model="inputText"
+				ref="cliInput" />
 		</div>
 	</div>
 </template>
