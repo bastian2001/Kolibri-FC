@@ -217,16 +217,10 @@ function crc8DvbS2(crc: number, data: number): number {
 	}
 	return crc & 0xff
 }
-export const read = () => {
+const read = () => {
 	invoke("serial_read")
-		.then(d => {
-			rxBuf = d as number[]
-		})
-		.catch(e => {
-			if (e !== 'Custom { kind: TimedOut, error: "Operation timed out" }') console.error(e)
-		})
-		.finally(() => {
-			rxBuf.forEach(c => {
+		.then(rxBuf => {
+			;(rxBuf as number[]).forEach(c => {
 				switch (mspState) {
 					case MspState.IDLE:
 						if (c === 36) mspState = MspState.PACKET_START /* $ */
@@ -402,6 +396,13 @@ export const read = () => {
 						break
 				}
 			})
+		})
+		.catch(e => {
+			if (
+				e !== 'Custom { kind: TimedOut, error: "Operation timed out" }' &&
+				e !== 'Custom { kind: BrokenPipe, error: "Broken pipe" }'
+			)
+				console.error(e)
 		})
 }
 
