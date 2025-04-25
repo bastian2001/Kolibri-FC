@@ -58,7 +58,6 @@ void initSettings() {
 	addSetting(SETTING_GPS_VEL_FILTER_CUTOFF, &gpsVelocityFilterCutoff, 0.2f);
 
 	addArraySetting(SETTING_MAG_CAL_HARD, magOffset);
-	addSetting(SETTING_MAG_UPDATE_RATE, &magUpdateRate, 75);
 	addSetting(SETTING_MAG_FILTER_CUTOFF, &magFilterCutoff, 0.02f);
 
 	addSetting(SETTING_BEEP_TONE, &dshotBeepTone, 2);

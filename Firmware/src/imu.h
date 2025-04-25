@@ -9,7 +9,6 @@ extern fix32 gravityRoll, gravityPitch; // roll and pitch, angles from the gravi
 extern fix32 combinedHeading; // heading of the drone (in rad) by combining the magnetometer and the gyro
 extern fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading; // trigonometric values of the Euler angles
 extern PT1 magHeadingCorrection; // PT1 filter for the IMU heading correction (from yaw to heading via compass) (updated on every compass read)
-extern u32 magUpdateRate; // update rate of the magnetometer (in Hz)
 extern fix32 magFilterCutoff; // filter frequency for the magnetometer data
 extern fix32 vVel; // vertical velocity of the drone (up = positive, m/s)
 extern fix32 combinedAltitude; // altitude of the drone (in meters ASL) by combining the barometer, GPS and the accelerometer

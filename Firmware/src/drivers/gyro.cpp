@@ -58,49 +58,50 @@ void gyroLoop() {
 		if (duration < tasks[TASK_GYROREAD].minDuration)
 			tasks[TASK_GYROREAD].minDuration = duration;
 		taskTimerGyro = 0;
-	}
 
-	// run gyro (and potentially accel) calibration
-	if (armingDisableFlags & 0x40) {
-		if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE && (gyroDataRaw[0] != -1 || gyroDataRaw[1] != -1 || gyroDataRaw[2] != -1)) {
-			// ignore -1 (0xFFFF), as this speaks for a communication error
-			gyroCalibratedCycles++;
-			if (gyroCalibratedCycles >= QUIET_SAMPLES) {
-				gyroCalibrationOffsetTemp[0] += gyroDataRaw[0];
-				gyroCalibrationOffsetTemp[1] += gyroDataRaw[1];
-				gyroCalibrationOffsetTemp[2] += gyroDataRaw[2];
+		if (armingDisableFlags & 0x40) {
+			if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE) {
+				// ignore -1 (0xFFFF), as this speaks for a communication error
+				gyroCalibratedCycles++;
+				if (gyroCalibratedCycles >= QUIET_SAMPLES) {
+					gyroCalibrationOffsetTemp[0] += gyroDataRaw[0];
+					gyroCalibrationOffsetTemp[1] += gyroDataRaw[1];
+					gyroCalibrationOffsetTemp[2] += gyroDataRaw[2];
+				}
+				if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
+					armingDisableFlags &= ~0x40;
+					// add CALIBRATION_SAMPLES / 2 to get proper rounding
+					// Since C++ doesn't always floor, it actually truncates, we need to add CALIBRATION_SAMPLES / 2 and subtract CALIBRATION_SAMPLES for negative values
+					gyroCalibrationOffset[0] = (gyroCalibrationOffsetTemp[0] + (gyroCalibrationOffset[0] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+					gyroCalibrationOffset[1] = (gyroCalibrationOffsetTemp[1] + (gyroCalibrationOffset[1] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+					gyroCalibrationOffset[2] = (gyroCalibrationOffsetTemp[2] + (gyroCalibrationOffset[2] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+				}
+			} else {
+				gyroCalibrationOffsetTemp[0] = 0;
+				gyroCalibrationOffsetTemp[1] = 0;
+				gyroCalibrationOffsetTemp[2] = 0;
+				gyroCalibratedCycles = 0;
 			}
-			if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
-				armingDisableFlags &= 0xFFFFFFBF;
-				gyroCalibrationOffset[0] = (gyroCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-				gyroCalibrationOffset[1] = (gyroCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-				gyroCalibrationOffset[2] = (gyroCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-			}
-		} else {
-			gyroCalibrationOffsetTemp[0] = 0;
-			gyroCalibrationOffsetTemp[1] = 0;
-			gyroCalibrationOffsetTemp[2] = 0;
-			gyroCalibratedCycles = 0;
-		}
-		if (accelCalibrationCycles) {
-			if (accelCalibrationCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
-				accelCalibrationOffset[0] = 0;
-				accelCalibrationOffset[1] = 0;
-				accelCalibrationOffset[2] = 0;
-				accelCalibrationOffsetTemp[0] = 0;
-				accelCalibrationOffsetTemp[1] = 0;
-				accelCalibrationOffsetTemp[2] = 0;
-			}
-			accelCalibrationCycles--;
-			if (accelCalibrationCycles < CALIBRATION_SAMPLES) {
-				accelCalibrationOffsetTemp[0] += accelDataRaw[0];
-				accelCalibrationOffsetTemp[1] += accelDataRaw[1];
-				accelCalibrationOffsetTemp[2] += accelDataRaw[2] - 2048;
-				if (accelCalibrationCycles == 0) {
-					accelCalibrationOffset[0] = (accelCalibrationOffsetTemp[0] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-					accelCalibrationOffset[1] = (accelCalibrationOffsetTemp[1] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-					accelCalibrationOffset[2] = (accelCalibrationOffsetTemp[2] + CALIBRATION_SAMPLES / 2) / CALIBRATION_SAMPLES;
-					accelCalDone = 1;
+			if (accelCalibrationCycles) {
+				if (accelCalibrationCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
+					accelCalibrationOffset[0] = 0;
+					accelCalibrationOffset[1] = 0;
+					accelCalibrationOffset[2] = 0;
+					accelCalibrationOffsetTemp[0] = 0;
+					accelCalibrationOffsetTemp[1] = 0;
+					accelCalibrationOffsetTemp[2] = 0;
+				}
+				accelCalibrationCycles--;
+				if (accelCalibrationCycles < CALIBRATION_SAMPLES) {
+					accelCalibrationOffsetTemp[0] += accelDataRaw[0];
+					accelCalibrationOffsetTemp[1] += accelDataRaw[1];
+					accelCalibrationOffsetTemp[2] += accelDataRaw[2] - 2048;
+					if (accelCalibrationCycles == 0) {
+						accelCalibrationOffset[0] = (accelCalibrationOffsetTemp[0] + (accelCalibrationOffset[0] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+						accelCalibrationOffset[1] = (accelCalibrationOffsetTemp[1] + (accelCalibrationOffset[1] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+						accelCalibrationOffset[2] = (accelCalibrationOffsetTemp[2] + (accelCalibrationOffset[2] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+						accelCalDone = 1;
+					}
 				}
 			}
 		}
@@ -135,7 +136,7 @@ int gyroInit() {
 	gyroDataRaw = bmiDataRaw + 3;
 	accelDataRaw = bmiDataRaw;
 
-	armingDisableFlags |= 0x00000040;
+	armingDisableFlags |= 0x40;
 
 	// set up pins
 	gpio_init(PIN_GYRO_INT1);

@@ -23,8 +23,8 @@ public:
 				 void (*applyBoundsFn)() = nullptr, bool (*checkValidityFn)() = nullptr);
 
 	void resetToDefault() override;
-	string toString() override;
-	bool setDataFromString(string s) override;
+	string toString(bool readable = false) override;
+	bool setDataFromString(string s, bool readable = false) override;
 	bool checkValidity() override;
 
 	/// @brief Calls the applyBoundsFn function to set the min and max values for the setting
@@ -63,7 +63,7 @@ ArraySetting<T>::ArraySetting(const char *id, T *dataArray, size_t itemCount, vo
 }
 
 template <typename T>
-bool ArraySetting<T>::setDataFromString(string s) {
+bool ArraySetting<T>::setDataFromString(string s, bool readable) {
 	try {
 		if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
 			for (u32 i = 0; i < itemCount; i++) {
@@ -104,10 +104,16 @@ bool ArraySetting<T>::setDataFromString(string s) {
 			for (u32 i = 0; i < itemCount; i++) {
 				size_t pos = s.find(',');
 				if (pos == string::npos) {
-					this->data[i] = fix32().setRaw(std::stoll(s));
+					if (readable)
+						this->data[i] = std::stod(s);
+					else
+						this->data[i] = T().setRaw(std::stoll(s));
 					break;
 				} else {
-					this->data[i] = fix32().setRaw(std::stoll(s.substr(0, pos)));
+					if (readable)
+						this->data[i] = std::stod(s.substr(0, pos));
+					else
+						this->data[i] = T().setRaw(std::stoll(s.substr(0, pos)));
 					s.erase(0, pos + 1);
 				}
 			}
@@ -149,7 +155,7 @@ bool ArraySetting<T>::checkValidity() {
 }
 
 template <typename T>
-string ArraySetting<T>::toString() {
+string ArraySetting<T>::toString(bool readable) {
 	string s;
 	if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
 		for (u32 i = 0; i < itemCount; i++) {
@@ -160,7 +166,13 @@ string ArraySetting<T>::toString() {
 		}
 	} else if constexpr (std::is_same_v<T, fix32> || std::is_same_v<T, fix64>) {
 		for (u32 i = 0; i < itemCount; i++) {
-			s += std::to_string(this->data[i].raw);
+			if (readable) {
+				char buffer[32];
+				snprintf(buffer, sizeof(buffer), "%.2f", 6, data[i].getf64());
+				s += string(buffer);
+			} else {
+				s += std::to_string(this->data[i].raw);
+			}
 			if (i < itemCount - 1) {
 				s += ",";
 			}

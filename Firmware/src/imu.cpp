@@ -23,7 +23,6 @@ fix32 gravityRoll, gravityPitch;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
-u32 magUpdateRate;
 fix32 magFilterCutoff;
 fix32 vVel, combinedAltitude, vVelHelper;
 PT1 eVel;
@@ -48,7 +47,7 @@ void imuInit() {
 	accelDataFiltered[2] = PT1(accelFilterCutoff, 3200);
 	eVel = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
 	nVel = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
-	magHeadingCorrection = PT1(magFilterCutoff, magUpdateRate);
+	magHeadingCorrection = PT1(magFilterCutoff, MAG_HARDWARE == MAG_HMC5883L ? 75 : 200);
 	magHeadingCorrection.setRolloverParams(-PI, PI);
 }
 
@@ -120,9 +119,9 @@ void updateFromAccel() {
 
 void updatePitchRollValues() {
 	startFixTrig();
-	roll = atan2Fix(1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]), 2 * (q.w * q.v[0] - q.v[1] * q.v[2]));
+	roll = atan2Fix(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
-	yaw = atan2Fix(1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]), 2 * (q.v[0] * q.v[1] - q.w * q.v[2]));
+	yaw = atan2Fix(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
 	fix32 temp = (fix32)magHeadingCorrection + yaw;
 	if (temp >= FIX_PI) {
 		temp -= FIX_PI * 2;

@@ -23,7 +23,6 @@ void configuratorLoop() {
 		accelCalDone = 0;
 		char data = 1;
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::ACC_CALIBRATION, lastMspVersion, &data, 1);
-		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, "ACC_CALIBRATION_DONE", 21);
 		openSettingsFile();
 		getSetting(SETTING_ACC_CAL)->updateSettingInFile();
 		closeSettingsFile();
@@ -293,9 +292,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				break;
 			}
 			if (reqPayload[0]) {
-				armingDisableFlags |= 1 << 7;
+				armingDisableFlags |= 0x80;
 			} else {
-				armingDisableFlags &= ~(1 << 7);
+				armingDisableFlags &= ~0x80;
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
@@ -690,7 +689,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 40);
 		} break;
 		case MspFn::GET_MAG_DATA: {
-			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magX.geti32(), (i16)magY.geti32(), (i16)(magHeading * FIX_RAD_TO_DEG).geti32()};
+			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magRight.geti32(), (i16)magFront.geti32(), (i16)(magHeading * FIX_RAD_TO_DEG).geti32()};
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, 12);
 		} break;
 		case MspFn::GET_ROTATION: {

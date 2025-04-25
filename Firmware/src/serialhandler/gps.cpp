@@ -312,10 +312,10 @@ void gpsLoop() {
 				updateElem(OSDElem::PLUS_CODE, olcString);
 				if (gpsStatus.fixType == FIX_3D && gpsStatus.satCount >= 6) {
 					gpsBaroAlt.setRaw(((i64)gpsMotion.alt << 16) / 1000);
-					// armingDisableFlags &= 0xFFFFFFFB;
+					// armingDisableFlags &= ~0x04;
 				}
 				// else
-				// 	armingDisableFlags |= 0x00000004;
+				// 	armingDisableFlags |= 0x04;
 			} break;
 			}
 		}

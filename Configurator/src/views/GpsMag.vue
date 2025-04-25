@@ -42,7 +42,7 @@ export default defineComponent({
 			magY: 0,
 			magZ: 0,
 			magRight: 0,
-			magRear: 0,
+			magFront: 0,
 			magHeading: 0,
 			gpsAcc: { tAcc: 1000, hAcc: 1000, vAcc: 1000, headAcc: 1000, sAcc: 1000, pDop: 1000, },
 			gpsStatus: { gpsInited: false, initStep: 0, fix: 0, timeValidityFlags: 0, flags: 0, flags2: 0, flags3: 0, satCount: 0 },
@@ -81,7 +81,7 @@ export default defineComponent({
 						this.magY = leBytesToInt(data.slice(2, 4), true);
 						this.magZ = leBytesToInt(data.slice(4, 6), true);
 						this.magRight = leBytesToInt(data.slice(6, 8), true);
-						this.magRear = leBytesToInt(data.slice(8, 10), true);
+						this.magFront = leBytesToInt(data.slice(8, 10), true);
 						this.magHeading = leBytesToInt(data.slice(10, 12), true);
 						//each canvas plots values from -500 to 500
 						const scale = 500 / 1000;
@@ -172,7 +172,7 @@ export default defineComponent({
 			Magnetic Heading: {{ roundToDecimal(magHeading, 2) }}°<br />
 			Mag X: {{ magX }}, Mag Y: {{ magY }}, Mag Z: {{ magZ }}<br />
 			Mag total: {{ roundToDecimal(Math.sqrt(magX ** 2 + magY ** 2 + magZ ** 2), 2) }}<br />
-			Mag Right: {{ magRight }}, Mag Rear: {{ magRear }}<br />
+			Mag Right: {{ magRight }}, Mag Front: {{ magFront }}<br />
 			Combined Altitude: {{ roundToDecimal(combinedAltitude, 2) }}m<br />
 			Vertical Velocity: {{ roundToDecimal(verticalVelocity, 2) }}m/s<br />
 		</div>

@@ -67,7 +67,7 @@ fix32 atanFix(fix32 x) {
 	interp0->base[1] = atanLut[high + 1].raw;
 	return fix32().setRaw((i32)interp0->peek[1] * sign + offset);
 }
-fix32 atan2Fix(const fix32 x, const fix32 y) {
+fix32 atan2Fix(const fix32 y, const fix32 x) {
 	if (x != 0)
 		return atanFix(y / x) + FIX_PI * (x.raw < 0) * y.sign();
 	return FIX_PI / 2 * y.sign();

@@ -12,7 +12,6 @@
 
 // magnetometer settings
 #define SETTING_MAG_CAL_HARD "compass_calibration_hard"
-#define SETTING_MAG_UPDATE_RATE "compass_update_rate"
 #define SETTING_MAG_FILTER_CUTOFF "compass_filter_cutoff"
 
 // motor and ESC settings

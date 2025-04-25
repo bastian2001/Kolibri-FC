@@ -87,7 +87,6 @@ enum class MAG_REG {
 #endif
 enum MAG_STATES {
 	MAG_NOT_INIT = 0,
-	MAG_INIT,
 	MAG_MEASURING,
 	MAG_SOON_READY,
 	MAG_CHECK_DATA_READY,
@@ -111,5 +110,5 @@ extern u32 magStateAfterRead; // set to MAG_CALIBRATE or MAG_PROCESS_DATA to sta
 extern i16 magOffset[3]; // offset that gets subtracted from the magnetometer values
 extern fix32 magHeading; // heading in radians
 extern i32 magData[3]; // raw magnetometer data after subtracting offset
-extern fix32 magX, magY; // magnetometer in earth's right and rearward direction
+extern fix32 magRight, magFront; // magnetometer in earth's right and rearward direction
 extern i32 magRunCounter; // counts up for each value read, to measure the compass frequency

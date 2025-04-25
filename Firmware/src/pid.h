@@ -39,7 +39,7 @@ extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
 extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL mode => (position lock)
 extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
-extern u32 idlePermille; // idle throttle in permille (0-1000)
+extern u16 idlePermille; // idle throttle in permille (0-1000)
 extern u8 maxAngle; // degrees, applied in angle mode and GPS mode
 extern u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
 extern u16 angleBurstTime; // milliseconds, time for which the maxAngleBurst is allowed

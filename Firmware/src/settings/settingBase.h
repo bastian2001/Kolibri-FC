@@ -52,15 +52,18 @@ public:
 	 *
 	 * @return string string representation of the setting
 	 */
-	virtual string toString() = 0;
+	virtual string toString(bool readable = false) = 0;
 
 	/**
 	 * @brief Set the data from a string.
 	 *
+	 * @param s string to set the data from
+	 * @param readable if true, fix values are read as floats, otherwise as raw values
+	 *
 	 * @return true if successful
 	 * @return false if failed (e.g. parser error)
 	 */
-	virtual bool setDataFromString(string s) = 0;
+	virtual bool setDataFromString(string s, bool readable = false) = 0;
 
 	/**
 	 * @brief Check if the setting is valid.

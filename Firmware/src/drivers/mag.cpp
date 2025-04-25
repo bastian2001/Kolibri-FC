@@ -10,7 +10,7 @@ i32 magData[3] = {0};
 i32 magRunCounter = 0;
 
 i16 magOffset[3] = {0};
-fix32 magX = 0, magY = 0;
+fix32 magRight = 0, magFront = 0;
 
 fix32 magHeading = 0;
 
@@ -35,7 +35,6 @@ void initMag() {
 		}
 		sleep_ms(2);
 	}
-	magState = MAG_INIT;
 	magBuffer[0] = (u8)MAG_REG::CONF_REGA;
 	magBuffer[1] = MAG_AVG_8 | MAG_ODR_75HZ | MAG_LOAD_FLOAT;
 	magBuffer[2] = MAG_RANGE_2_5;
@@ -56,7 +55,9 @@ void initMag() {
 		}
 		sleep_ms(2);
 	}
-	magState = MAG_INIT;
+	magBuffer[0] = (u8)MAG_REG::SET_RESET;
+	magBuffer[1] = 1;
+	i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 2, false);
 	magBuffer[0] = (u8)MAG_REG::CONTROL_1;
 	magBuffer[1] = MAG_OSR_512 | MAG_RANGE_2 | MAG_ODR_200HZ | MAG_MODE_CONTINUOUS;
 	i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 2, false);
@@ -91,7 +92,6 @@ void magLoop() {
 	elapsedMicros taskTimer = 0;
 	switch (magState) {
 	case MAG_NOT_INIT: // not initialized
-	case MAG_INIT:
 		break;
 	case MAG_MEASURING:
 #if MAG_HARDWARE == MAG_QMC5883L
@@ -138,22 +138,27 @@ void magLoop() {
 	case MAG_PROCESS_DATA: {
 		static i32 magDataRaw[3];
 #if MAG_HARDWARE == MAG_HMC5883L
-		magDataRaw[0] = (i16)(magBuffer[1] + (magBuffer[0] << 8));
-		magDataRaw[1] = (i16)(magBuffer[5] + (magBuffer[4] << 8));
+		// TODO: can't be right: 3 permutations (odd)
+		magDataRaw[0] = -(i16)(magBuffer[5] + (magBuffer[4] << 8));
+		magDataRaw[1] = (i16)(magBuffer[1] + (magBuffer[0] << 8));
 		magDataRaw[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8));
 #elif MAG_HARDWARE == MAG_QMC5883L
-		magDataRaw[0] = -(((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4);
-		magDataRaw[1] = ((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4;
+		magDataRaw[0] = -((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4;
+		magDataRaw[1] = -((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4;
 		magDataRaw[2] = ((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4;
 #endif
 		magData[0] = magDataRaw[0] - magOffset[0];
 		magData[1] = magDataRaw[1] - magOffset[1];
 		magData[2] = magDataRaw[2] - magOffset[2];
-		// x: right, y: backward, z: down
-		// roll: left, pitch: front
-		magX = cosRoll * magData[0] * (-1) - sinRoll * magData[2];
-		magY = cosPitch * magData[1] * (-1) - sinPitch * sinRoll * magData[0] * (-1) + sinPitch * cosRoll * magData[2] * (-1);
-		magHeading = atan2f(-magX.getf32(), -magY.getf32()) + 0.05643f; // 3.25° magnetic declination in radians
+		// x/0: forward, y/1: right, z/2: down
+		// roll: left, pitch: forward
+		// 2 -> -2
+		// 0 -> 1
+		// 1 -> 0
+		magRight = cosRoll * magData[1] + sinRoll * magData[2];
+		magFront = cosPitch * magData[0] + sinPitch * sinRoll * magData[1] - sinPitch * cosRoll * magData[2];
+		startFixTrig();
+		magHeading = atan2Fix(-magRight, magFront) + fix32(0.05643f); // 3.25° magnetic declination in radians
 		fix32 updateVal = magHeading - fix32(yaw);
 		if (updateVal - (fix32)magHeadingCorrection > fix32(PI)) {
 			updateVal -= fix32(2 * PI);
@@ -168,13 +173,13 @@ void magLoop() {
 		// https://www.nxp.com/docs/en/application-note/AN4248.pdf
 		i16 val[4];
 #if MAG_HARDWARE == MAG_HMC5883L
-		val[0] = magBuffer[1] + (magBuffer[0] << 8); // x
-		val[1] = magBuffer[5] + (magBuffer[4] << 8); // y
-		val[2] = magBuffer[3] + (magBuffer[2] << 8); // z
+		val[0] = -(i16)(magBuffer[5] + (magBuffer[4] << 8));
+		val[1] = (i16)(magBuffer[1] + (magBuffer[0] << 8));
+		val[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8));
 #elif MAG_HARDWARE == MAG_QMC5883L
-		val[0] = -(((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4); // x
-		val[1] = ((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4; // y
-		val[2] = ((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4; // z
+		val[0] = -((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4;
+		val[1] = -((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4;
+		val[2] = ((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4;
 #endif
 		val[3] = 1;
 		magData[0] = val[0] - magOffset[0];
@@ -187,10 +192,11 @@ void magLoop() {
 			xtyVector[row] += val[row] * (val[0] * val[0] + val[1] * val[1] + val[2] * val[2]);
 		}
 #if MAG_HARDWARE == MAG_HMC5883L
-		if (++calibrationCycle == 1000) {
+		if (++calibrationCycle == 1000)
 #elif MAG_HARDWARE == MAG_QMC5883L
-		if (++calibrationCycle == 3000) {
+		if (++calibrationCycle == 3000)
 #endif
+		{
 			magState = MAG_PROCESS_CALIBRATION;
 			calibrationCycle = 0;
 			magStateAfterRead = MAG_PROCESS_DATA;

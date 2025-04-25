@@ -23,8 +23,8 @@ public:
 	Setting(const char *id, T *data, T defaultValue);
 
 	void resetToDefault() override;
-	string toString() override;
-	bool setDataFromString(string s) override;
+	string toString(bool readable = false) override;
+	bool setDataFromString(string s, bool readable = false) override;
 	bool checkValidity() override;
 
 	/**
@@ -71,25 +71,6 @@ Setting<T>::Setting(const char *id, T *data, T defaultValue)
 	} else if constexpr (std::is_same_v<T, fix64>) {
 		this->minValue = FIX64_MIN;
 		this->maxValue = FIX64_MAX;
-	} else if constexpr (std::is_array_v<T>) {
-		if constexpr (std::is_integral_v<std::remove_all_extents_t<T>>) {
-			this->minValue = std::numeric_limits<std::remove_all_extents_t<T>>::min();
-			this->maxValue = std::numeric_limits<std::remove_all_extents_t<T>>::max();
-		} else if constexpr (std::is_floating_point_v<std::remove_all_extents_t<T>>) {
-			this->minValue = std::numeric_limits<std::remove_all_extents_t<T>>::min();
-			this->maxValue = std::numeric_limits<std::remove_all_extents_t<T>>::max();
-		} else if constexpr (std::is_same_v<std::remove_all_extents_t<T>, fix32>) {
-			this->minValue = FIX32_MIN;
-			this->maxValue = FIX32_MAX;
-		} else if constexpr (std::is_same_v<std::remove_all_extents_t<T>, fix64>) {
-			this->minValue = FIX64_MIN;
-			this->maxValue = FIX64_MAX;
-		} else if constexpr (std::is_same_v<std::remove_all_extents_t<T>, bool>) {
-			this->minValue = false;
-			this->maxValue = true;
-		} else {
-			static_assert(false, "Unsupported array type for Setting constructor");
-		}
 	} else if constexpr (std::is_same_v<T, bool>) {
 	} else if constexpr (std::is_same_v<T, string>) {
 	} else {
@@ -98,7 +79,7 @@ Setting<T>::Setting(const char *id, T *data, T defaultValue)
 }
 
 template <typename T>
-bool Setting<T>::setDataFromString(string s) {
+bool Setting<T>::setDataFromString(string s, bool readable) {
 	rp2040.wdt_reset();
 	try {
 		if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
@@ -110,11 +91,12 @@ bool Setting<T>::setDataFromString(string s) {
 		} else if constexpr (std::is_floating_point_v<T>) {
 			*this->data = std::stod(s);
 			return true;
-		} else if constexpr (std::is_same_v<T, fix32>) {
-			*this->data = fix32().setRaw(std::stol(s));
-			return true;
-		} else if constexpr (std::is_same_v<T, fix64>) {
-			*this->data = fix64().setRaw(std::stoll(s));
+		} else if constexpr (std::is_same_v<T, fix32> || std::is_same_v<T, fix64>) {
+			if (readable) {
+				*this->data = std::stod(s);
+			} else {
+				*this->data = T().setRaw(std::stoll(s));
+			}
 			return true;
 		} else if constexpr (std::is_same_v<T, bool>) {
 			*this->data = stringToBool(s);
@@ -149,12 +131,18 @@ bool Setting<T>::checkValidity() {
 }
 
 template <typename T>
-string Setting<T>::toString() {
+string Setting<T>::toString(bool readable) {
 	string s;
 	if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
 		s = std::to_string(*data);
 	} else if constexpr (std::is_same_v<T, fix32> || std::is_same_v<T, fix64>) {
-		s = std::to_string(data->raw);
+		if (readable) {
+			char buffer[32];
+			snprintf(buffer, sizeof(buffer), "%.2f", 6, data->getf64());
+			s = string(buffer);
+		} else {
+			s = std::to_string(data->raw);
+		}
 	} else if constexpr (std::is_same_v<T, bool>) {
 		s = (*data) ? "1" : "0";
 	} else if constexpr (std::is_same_v<T, string>) {

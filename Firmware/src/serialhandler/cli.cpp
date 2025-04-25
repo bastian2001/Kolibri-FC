@@ -37,7 +37,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		if (setting == &dummySetting) {
 			response = "Setting '" + string(key) + "' not found\n";
 		} else {
-			if (setting->setDataFromString(value)) {
+			if (setting->setDataFromString(value, true)) {
 				response = "Setting updated: " + string(key) + "\n";
 				setting->updateSettingInFile();
 			} else {
@@ -73,7 +73,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		} else {
 			for (const auto &id : ids) {
 				SettingBase *setting = getSetting(id.c_str());
-				response += id + ": " + setting->toString() + "\n";
+				response += id + ": " + setting->toString(true) + "\n";
 			}
 		}
 	} else if (cmd == "save") {
