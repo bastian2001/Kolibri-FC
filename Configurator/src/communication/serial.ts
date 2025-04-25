@@ -192,7 +192,6 @@ export const sendRaw = (data: number[], dataStr: string = "") => {
 		invoke("serial_write", { data }).then(resolve).catch(reject)
 	})
 }
-let rxBuf: number[] = []
 let pingStarted = 0
 let newCommand: Command = {
 	command: 65535,
