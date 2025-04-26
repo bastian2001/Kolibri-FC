@@ -11,6 +11,9 @@ export default defineComponent({
 		return {
 			outputLines: [''], // purely controlled by the FC
 			inputText: '' as string,
+			history: [] as string[],
+			historyIndex: -1 as number,
+			historyBackup: '',
 		};
 	},
 	methods: {
@@ -19,6 +22,8 @@ export default defineComponent({
 				const input = this.inputText.trim();
 				if (input) {
 					sendCommand('request', MspFn.CLI_COMMAND, MspVersion.V2, [], this.inputText);
+					this.history.push(this.inputText);
+					this.historyIndex = -1;
 					this.inputText = ''; // Clear the input field
 				}
 			}
@@ -46,13 +51,53 @@ export default defineComponent({
 			delay(10).then(() => { sendCommand('request', MspFn.CLI_INIT) });
 			this.$refs.cliInput.focus();
 		},
+		navigateHistory(e: KeyboardEvent) {
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				if (this.history.length > 0) {
+					// Navigate up in history
+					if (this.historyIndex === -1) {
+						this.historyBackup = this.inputText;
+						this.historyIndex = this.history.length - 1;
+					} else if (this.historyIndex > 0) {
+						this.historyIndex--;
+						if (this.historyIndex === -1) this.historyIndex = 0; // Prevent going out of bounds
+					}
+					this.inputText = this.history[this.historyIndex];
+				}
+			} else if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				if (this.history.length > 0 && this.historyIndex !== -1) {
+					// Navigate down in history
+					if (this.historyIndex < this.history.length - 1) {
+						this.historyIndex++;
+						this.inputText = this.history[this.historyIndex]
+					} else {
+						this.historyIndex = -1;
+						this.inputText = this.historyBackup; // Restore the backup input
+					}
+				}
+			}
+		},
 	},
 	mounted() {
 		this.onStart();
+		// load last 20 commands from local storage
+		const history = localStorage.getItem('cliHistory');
+		if (history) {
+			const parsedHistory = JSON.parse(history);
+			if (Array.isArray(parsedHistory)) {
+				this.history = parsedHistory.slice(-20); // Limit to last 20 commands
+			}
+		}
 		addOnCommandHandler(this.onCommand);
 		addOnConnectHandler(this.onStart)
 	},
 	beforeUnmount() {
+		// save last 20 commands from history to local storage
+		const history = this.history.slice(-20);
+		localStorage.setItem('cliHistory', JSON.stringify(history));
+
 		removeOnCommandHandler(this.onCommand);
 		removeOnConnectHandler(this.onStart);
 	},
@@ -66,8 +111,8 @@ export default defineComponent({
 			<div class="spacer"></div>
 		</div>
 		<div class="input">
-			<input type="text" id="cliInput" @keydown.enter="sendCommand" autocomplete="off" v-model="inputText"
-				ref="cliInput" />
+			<input type="text" id="cliInput" @keydown.enter="sendCommand" @keydown.up.prevent="navigateHistory"
+				@keydown.down.prevent="navigateHistory" autocomplete="off" v-model="inputText" ref="cliInput" />
 		</div>
 	</div>
 </template>
