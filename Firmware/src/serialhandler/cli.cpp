@@ -19,7 +19,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 	string response = "";
 
 	if (cmd == "help") {
-		response = "set, get, save, reboot, print, echo, reset";
+		response = "set, get, save, reboot, status, gyro_calibration, print, echo, reset";
 	} else if (cmd == "set") {
 		string key = "";
 		string value = "";
@@ -85,6 +85,24 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		Serial.flush();
 		sleep_ms(100);
 		rp2040.reboot();
+	} else if (cmd == "status") {
+		response = "Firmware: " FIRMWARE_NAME " " FIRMWARE_VERSION_STRING "\n";
+		response += "UAV Name: " + uavName + "\n";
+		response += "Running since: " + std::to_string(millis()) + " ms\n";
+	} else if (cmd == "gyro_calibration") {
+		if (payload == "start") {
+			response = "Starting gyro calibration...\n";
+			// Start gyro calibration
+		} else if (payload == "get") {
+			char str[100];
+			snprintf(str, sizeof(str), "Gyro calibration data: %d %d %d", gyroCalibrationOffset[0], gyroCalibrationOffset[1], gyroCalibrationOffset[2]);
+			response = str;
+		} else if (payload == "stop") {
+			response = "Stopping gyro calibration...\n";
+			// Stop gyro calibration
+		} else {
+			response = "Invalid command. Use 'gyro_calibration start|get|stop'\n";
+		}
 	} else if (cmd == "print") {
 		settingsFile.seek(0);
 		string line;

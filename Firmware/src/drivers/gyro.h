@@ -72,6 +72,7 @@ enum class GyroReg : u8 {
  */
 extern u32 gyroUpdateFlag;
 extern u16 accelCalibrationCycles; /// counts down the cycles for the accelerometer calibration, calibration is done if the value is 0
+extern i32 gyroCalibrationOffset[3]; /// offset that gets subtracted from the gyro values
 extern i32 accelCalibrationOffset[3]; /// offset that gets subtracted from the accelerometer values
 extern i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of bmiDataRaw
 extern i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of bmiDataRaw
