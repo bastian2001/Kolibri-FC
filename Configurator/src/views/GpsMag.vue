@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/communication/serial";
 import { MspFn } from "@utils/msp";
-import { leBytesToInt, roundToDecimal } from "@utils/utils";
+import { leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
 import { type Command } from "@utils/types";
 
@@ -27,12 +27,16 @@ export default defineComponent({
 				})
 				.catch(() => { });
 		}, 1000);
+		this.baroDataInterval = setInterval(() => {
+			sendCommand('request', MspFn.GET_BARO_DATA);
+		}, 100);
 	},
 	unmounted() {
 		removeOnCommandHandler(this.onCommand);
 		clearInterval(this.magPointInterval);
 		clearInterval(this.getGpsDataInterval);
 		clearInterval(this.gpsDataSlowInterval);
+		clearInterval(this.baroDataInterval);
 	},
 	data() {
 		return {
@@ -49,12 +53,13 @@ export default defineComponent({
 			gpsMotion: { velN: 0, velE: 0, velD: 0, gSpeed: 0, headMot: 0, lat: 0, lon: 0, alt: 0 },
 			gpsTime: { year: 0, month: 0, day: 0, hour: 0, minute: 0, second: 0 },
 			combinedAltitude: 0,
+			baro: { altitude: 0, pressure: 0, temperature: 0, pressureRaw: 0 },
 			verticalVelocity: 0,
 			getGpsDataInterval: -1,
 			gpsDataSlowInterval: -1,
+			baroDataInterval: -1,
 			MspFn,
 			sendCommand,
-			roundToDecimal,
 		};
 	},
 	methods: {
@@ -154,6 +159,14 @@ export default defineComponent({
 							this.configuratorLog.push('Magnetometer calibration started');
 						}
 						break;
+					case MspFn.GET_BARO_DATA:
+						this.baro = {
+							altitude: leBytesToInt(command.data.slice(0, 4), true) * 1e-3,
+							pressure: leBytesToInt(command.data.slice(4, 8), true) * 1e-3,
+							temperature: leBytesToInt(command.data.slice(8, 12), true) * 1e-2,
+							pressureRaw: leBytesToInt(command.data.slice(12, 16), true)
+						};
+						break;
 				}
 			}
 		}
@@ -168,33 +181,33 @@ export default defineComponent({
 		<br />
 		<button @click="() => sendCommand('request', MspFn.MAG_CALIBRATION)">Calibrate Magnetometer</button>
 		<br />
-		<div class="gpsInfo magStatus">
-			Magnetic Heading: {{ roundToDecimal(magHeading, 2) }}°<br />
+		<div class="infoDiv magStatus">
+			Magnetic Heading: {{ magHeading }}°<br />
 			Mag X: {{ magX }}, Mag Y: {{ magY }}, Mag Z: {{ magZ }}<br />
-			Mag total: {{ roundToDecimal(Math.sqrt(magX ** 2 + magY ** 2 + magZ ** 2), 2) }}<br />
+			Mag total: {{ Math.sqrt(magX ** 2 + magY ** 2 + magZ ** 2).toFixed(2) }}<br />
 			Mag Right: {{ magRight }}, Mag Front: {{ magFront }}<br />
-			Combined Altitude: {{ roundToDecimal(combinedAltitude, 2) }}m<br />
-			Vertical Velocity: {{ roundToDecimal(verticalVelocity, 2) }}m/s<br />
+			Combined Altitude: {{ combinedAltitude.toFixed(2) }}m<br />
+			Vertical Velocity: {{ verticalVelocity.toFixed(2) }}m/s<br />
 		</div>
-		<div class="gpsAcc gpsInfo">
-			Time Accuracy: {{ roundToDecimal(gpsAcc.tAcc, 2) }}µs<br />
-			Horizontal Accuracy: {{ roundToDecimal(gpsAcc.hAcc, 2) }}m<br />
-			Vertical Accuracy: {{ roundToDecimal(gpsAcc.vAcc, 2) }}m<br />
-			Heading Accuracy: {{ roundToDecimal(gpsAcc.headAcc, 2) }}°<br />
-			Speed Accuracy: {{ roundToDecimal(gpsAcc.sAcc, 2) }}m/s<br />
-			PDOP: {{ roundToDecimal(gpsAcc.pDop, 2) }}
+		<div class="gpsAcc infoDiv">
+			Time Accuracy: {{ gpsAcc.tAcc.toFixed(2) }}µs<br />
+			Horizontal Accuracy: {{ gpsAcc.hAcc.toFixed(2) }}m<br />
+			Vertical Accuracy: {{ gpsAcc.vAcc.toFixed(2) }}m<br />
+			Heading Accuracy: {{ gpsAcc.headAcc.toFixed(2) }}°<br />
+			Speed Accuracy: {{ gpsAcc.sAcc.toFixed(2) }}m/s<br />
+			PDOP: {{ gpsAcc.pDop.toFixed(2) }}
 		</div>
-		<div class="gpsMotion gpsInfo">
-			Latitude: {{ degToDegMinSec(gpsMotion.lat) }} - {{ roundToDecimal(gpsMotion.lat, 7) }}°<br />
-			Longitude: {{ degToDegMinSec(gpsMotion.lon) }} - {{ roundToDecimal(gpsMotion.lon, 7) }}°<br />
-			Altitude: {{ roundToDecimal(gpsMotion.alt, 2) }}m<br />
-			North Velocity: {{ roundToDecimal(gpsMotion.velN, 2) }}m/s<br />
-			East Velocity: {{ roundToDecimal(gpsMotion.velE, 2) }}m/s<br />
-			Down Velocity: {{ roundToDecimal(gpsMotion.velD, 2) }}m/s<br />
-			Ground Speed: {{ roundToDecimal(gpsMotion.gSpeed, 2) }}m/s<br />
-			Heading: {{ roundToDecimal(gpsMotion.headMot, 2) }}°
+		<div class="gpsMotion infoDiv">
+			Latitude: {{ degToDegMinSec(gpsMotion.lat) }} - {{ gpsMotion.lat.toFixed(2) }}°<br />
+			Longitude: {{ degToDegMinSec(gpsMotion.lon) }} - {{ gpsMotion.lon.toFixed(2) }}°<br />
+			Altitude: {{ gpsMotion.alt.toFixed(2) }}m<br />
+			North Velocity: {{ gpsMotion.velN.toFixed(2) }}m/s<br />
+			East Velocity: {{ gpsMotion.velE.toFixed(2) }}m/s<br />
+			Down Velocity: {{ gpsMotion.velD.toFixed(2) }}m/s<br />
+			Ground Speed: {{ gpsMotion.gSpeed.toFixed(2) }}m/s<br />
+			Heading of motion: {{ gpsMotion.headMot.toFixed(2) }}°
 		</div>
-		<div class="gpsStatus gpsInfo">
+		<div class="gpsStatus infoDiv">
 			GPS Inited: {{ gpsStatus.gpsInited ? 'Yes' : 'No' }}<br />
 			Init Step: {{ gpsStatus.initStep }}<br />
 			Fix: {{ gpsStatus.fix }}<br />
@@ -204,7 +217,7 @@ export default defineComponent({
 			Flags3: {{ gpsStatus.flags3 }}<br />
 			Satellite Count: {{ gpsStatus.satCount }}
 		</div>
-		<div class="gpsTime gpsInfo">
+		<div class="gpsTime infoDiv">
 			Year: {{ gpsTime.year }}<br />
 			Month: {{ gpsTime.month }}<br />
 			Day: {{ gpsTime.day }}<br />
@@ -212,11 +225,17 @@ export default defineComponent({
 			Minute: {{ gpsTime.minute }}<br />
 			Second: {{ gpsTime.second }}
 		</div>
+		<div class="baroData infoDiv">
+			Baro Raw Altitude: {{ baro.altitude.toFixed(2) }}m<br />
+			Baro Raw Pressure: {{ baro.pressure.toFixed(2) }}Pa<br />
+			Baro Raw Temperature: {{ baro.temperature.toFixed(2) }}°C<br />
+			Baro Raw Pressure: 0x{{ baro.pressureRaw.toString(16) }}<br />
+		</div>
 	</div>
 </template>
 
 <style scoped>
-.gpsInfo {
+.infoDiv {
 	display: inline-block;
 	margin: 0 1rem;
 	min-width: 200px;

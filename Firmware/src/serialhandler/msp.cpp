@@ -690,7 +690,15 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::GET_MAG_DATA: {
 			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magRight.geti32(), (i16)magFront.geti32(), (i16)(magHeading * FIX_RAD_TO_DEG).geti32()};
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, 12);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, sizeof(raw));
+		} break;
+		case MspFn::GET_BARO_DATA: {
+			i32 raw[4] = {
+				(i32)(baroASL * 1000),
+				(i32)(baroPres * 1000),
+				(i32)(baroTemp * 100),
+				pressureRaw};
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, sizeof(raw));
 		} break;
 		case MspFn::GET_ROTATION: {
 			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles

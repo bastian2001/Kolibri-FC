@@ -113,6 +113,7 @@ enum class MspFn {
 	GET_ROTATION = 0x4150,
 
 	// 0x416_ Barometer
+	GET_BARO_DATA = 0x4160,
 
 	// 0x417_ Task Manager
 	TASK_STATUS = 0x4170,

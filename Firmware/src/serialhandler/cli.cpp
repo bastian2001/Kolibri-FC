@@ -88,20 +88,24 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 	} else if (cmd == "status") {
 		response = "Firmware: " FIRMWARE_NAME " " FIRMWARE_VERSION_STRING "\n";
 		response += "UAV Name: " + uavName + "\n";
-		response += "Running since: " + std::to_string(millis()) + " ms\n";
+		response += "Uptime: " + std::to_string(millis()) + " ms\n";
 	} else if (cmd == "gyro_calibration") {
 		if (payload == "start") {
-			response = "Starting gyro calibration...\n";
-			// Start gyro calibration
+			response = "Calibrating gyro";
+			gyroCalibrationOffsetTemp[0] = 0;
+			gyroCalibrationOffsetTemp[1] = 0;
+			gyroCalibrationOffsetTemp[2] = 0;
+			gyroCalibratedCycles = 0;
+			gyroCalibrationOffset[0] = 0;
+			gyroCalibrationOffset[1] = 0;
+			gyroCalibrationOffset[2] = 0;
+			armingDisableFlags |= 0x40; // disable arming, start calibration
 		} else if (payload == "get") {
 			char str[100];
 			snprintf(str, sizeof(str), "Gyro calibration data: %d %d %d", gyroCalibrationOffset[0], gyroCalibrationOffset[1], gyroCalibrationOffset[2]);
 			response = str;
-		} else if (payload == "stop") {
-			response = "Stopping gyro calibration...\n";
-			// Stop gyro calibration
 		} else {
-			response = "Invalid command. Use 'gyro_calibration start|get|stop'\n";
+			response = "Invalid usage. Use 'gyro_calibration start' or 'gyro_calibration get'\n";
 		}
 	} else if (cmd == "print") {
 		settingsFile.seek(0);
