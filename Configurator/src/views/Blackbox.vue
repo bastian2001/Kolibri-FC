@@ -628,6 +628,34 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				path: 'e'
 			}
 		]
+	},
+	LOG_BARO: {
+		name: 'Barometer',
+		path: 'motion.baro',
+		unit: '',
+		modifier: [
+			{
+				displayNameShort: 'Raw',
+				displayName: 'Pressure Raw',
+				path: 'raw',
+				max: 4150000,
+				min: 4025000
+			},
+			{
+				displayNameShort: 'hPa',
+				displayName: 'Pressure hPa',
+				path: 'hpa',
+				max: 1013.25,
+				min: 983
+			},
+			{
+				displayNameShort: 'Alt',
+				displayName: 'Baro Altitude',
+				path: 'alt',
+				min: 0,
+				max: 255
+			}
+		]
 	}
 };
 const ACC_RANGES = [2, 4, 8, 16];
@@ -1648,6 +1676,9 @@ export default defineComponent({
 					case 42:
 						frameSize += 4;
 						break;
+					case 43:
+						frameSize += 3;
+						break;
 					default:
 						frameSize += 2;
 						break;
@@ -1663,7 +1694,8 @@ export default defineComponent({
 					gyro: {},
 					pid: { roll: {}, pitch: {}, yaw: {} },
 					motors: { out: {}, rpm: {} },
-					motion: { gps: {}, accelRaw: {}, accelFiltered: {}, hvel: {} },
+					motion: { gps: {}, accelRaw: {}, accelFiltered: {}, hvel: {}, baro: {} },
+
 					attitude: {}
 				};
 				if (flags.includes('LOG_ROLL_ELRS_RAW'))
@@ -2018,6 +2050,12 @@ export default defineComponent({
 						leBytesToInt(data.slice(i + offsets['LOG_HVEL'] + 2, i + offsets['LOG_HVEL'] + 4), true) /
 						256;
 				}
+				if (flags.includes('LOG_BARO')) {
+					const raw = leBytesToInt(data.slice(i + offsets['LOG_BARO'], i + offsets['LOG_BARO'] + 3))
+					frame.motion.baro.raw = raw
+					frame.motion.baro.hpa = raw / 4096
+					frame.motion.baro.alt = 44330 * (1 - Math.pow(frame.motion.baro.hpa / 1013.25, 1 / 5.255))
+				}
 				log.push(frame);
 			}
 			this.loadedLog = {
@@ -2100,6 +2138,9 @@ export default defineComponent({
 							break;
 						case 42:
 							frameSize += 4;
+							break;
+						case 43:
+							frameSize += 3;
 							break;
 						default:
 							frameSize += 2;

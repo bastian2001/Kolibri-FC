@@ -85,9 +85,8 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 	size_t bytesRead = 1;
 	while (bytesRead > 0) {
 		rp2040.wdt_reset();
-		// gpio_put(PIN_LED_ACTIVITY, chunkNum & 1);
-		if (chunkNum % 100 == 0)
-			p.neoPixelSetValue(0, chunkNum & 0xFF, true);
+		if (chunkNum % 1000 == 0)
+			p.neoPixelSetValue(0, chunkNum & 0xFF, chunkNum & 0xFF, chunkNum & 0xFF, true);
 		bytesRead = logFile.read(buffer + 3, 1024);
 		buffer[1] = chunkNum & 0xFF;
 		buffer[2] = chunkNum >> 8;
@@ -412,6 +411,12 @@ void writeSingleFrame() {
 		v = fix32(eVel).raw >> 8;
 		bbBuffer[bufferPos++] = v;
 		bbBuffer[bufferPos++] = v >> 8;
+	}
+	if (currentBBFlags & LOG_BARO) {
+		i32 val = blackboxPres;
+		bbBuffer[bufferPos++] = val;
+		bbBuffer[bufferPos++] = val >> 8;
+		bbBuffer[bufferPos++] = val >> 16;
 	}
 	bbBuffer[0] = bufferPos - 1;
 	bbFrameNum++;

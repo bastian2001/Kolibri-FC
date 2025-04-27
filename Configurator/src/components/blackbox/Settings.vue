@@ -24,7 +24,7 @@ export default defineComponent({
 	mounted() {
 		this.flagNames = Object.keys(this.flags);
 		let i = 0;
-		const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 3, 1, 7];
+		const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 3, 1, 6, 2];
 		const g: string[][] = [];
 		for (const size of groupSizes) {
 			g.push(this.flagNames.slice(i, i + size));

@@ -6,6 +6,8 @@ extern f32 baroUpVel;
 extern f32 baroPres;
 extern u8 baroTemp;
 extern fix32 gpsBaroAlt;
+extern i32 pressureRaw;
+extern volatile i32 blackboxPres;
 
 #ifdef BARO_LPS22
 #define I2C_BARO_ADDR 0x5D

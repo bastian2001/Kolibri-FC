@@ -62,6 +62,11 @@ export type LogFrame = {
 	}
 	motion: {
 		altitude?: number
+		baro: {
+			raw?: number
+			hpa?: number
+			alt?: number
+		}
 		vvel?: number
 		hvel: {
 			n?: number

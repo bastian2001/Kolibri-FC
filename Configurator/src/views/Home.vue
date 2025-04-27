@@ -5,7 +5,7 @@ import { useLogStore } from '@stores/logStore';
 import { leBytesToInt, delay } from '@utils/utils';
 import { MspFn, MspVersion } from '@utils/msp';
 import { type Command } from '@utils/types';
-import { roundToDecimal, prefixZeros } from '@utils/utils';
+import { prefixZeros } from '@utils/utils';
 
 const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
 const ARMING_DISABLE_FLAGS = [
@@ -67,7 +67,6 @@ export default defineComponent({
 			FLIGHT_MODES,
 			ARMING_DISABLE_FLAGS,
 			prefixZeros,
-			roundToDecimal,
 		};
 	},
 	methods: {
@@ -245,11 +244,11 @@ export default defineComponent({
 			</div>
 		</div>
 		<div class="attInfo">
-			<div class="axisLabel axisRoll">Roll: {{ roundToDecimal(attitude.roll, 2) }}°</div>
-			<div class="axisLabel axisPitch">Pitch: {{ roundToDecimal(attitude.pitch, 2) }}°</div>
-			<div v-if="showHeading" class="axisLabel axisHeading">Heading: {{ roundToDecimal(attitude.heading, 2) }}°
+			<div class="axisLabel axisRoll">Roll: {{ attitude.roll.toFixed(2) }}°</div>
+			<div class="axisLabel axisPitch">Pitch: {{ attitude.pitch.toFixed(2) }}°</div>
+			<div v-if="showHeading" class="axisLabel axisHeading">Heading: {{ attitude.heading.toFixed(2) }}°
 			</div>
-			<div v-else class="axisLabel axisYaw">Yaw: {{ roundToDecimal(attitude.yaw, 2) }}°</div>
+			<div v-else class="axisLabel axisYaw">Yaw: {{ attitude.yaw.toFixed(2) }}°</div>
 			<br />
 			<input type="checkbox" v-model="showHeading" id="headingCheckbox" />
 			<label for="headingCheckbox">Show Heading instead of Yaw</label>

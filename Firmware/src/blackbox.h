@@ -13,6 +13,7 @@
 #define LOG_YAW_SETPOINT (1 << 7) // 2 bytes
 #define LOG_ROLL_GYRO_RAW (1 << 8) // 2 bytes
 #define LOG_PITCH_GYRO_RAW (1 << 9) // 2 bytes
+// 20 bytes total
 #define LOG_YAW_GYRO_RAW (1 << 10) // 2 bytes
 #define LOG_ROLL_PID_P (1 << 11) // 2 bytes
 #define LOG_ROLL_PID_I (1 << 12) // 2 bytes
@@ -23,6 +24,7 @@
 #define LOG_PITCH_PID_I (1 << 17) // 2 bytes
 #define LOG_PITCH_PID_D (1 << 18) // 2 bytes
 #define LOG_PITCH_PID_FF (1 << 19) // 2 bytes
+// 40 bytes total
 #define LOG_PITCH_PID_S (1 << 20) // 2 bytes
 #define LOG_YAW_PID_P (1 << 21) // 2 bytes
 #define LOG_YAW_PID_I (1 << 22) // 2 bytes
@@ -31,6 +33,7 @@
 #define LOG_YAW_PID_S (1 << 25) // 2 bytes
 #define LOG_MOTOR_OUTPUTS (1 << 26) // 6 bytes
 #define LOG_FRAMETIME (1 << 27) // 2 bytes
+// 60 bytes total
 #define LOG_FLIGHT_MODE (1 << 28) // 1 byte
 #define LOG_ALTITUDE (1 << 29) // 2 bytes
 #define LOG_VVEL (1 << 30) // 2 bytes
@@ -40,12 +43,15 @@
 #define LOG_ATT_YAW (1LL << 34) // 2 bytes
 #define LOG_MOTOR_RPM (1LL << 35) // 6 bytes
 #define LOG_ACCEL_RAW (1LL << 36) // 6 bytes
+// 85 bytes total
 #define LOG_ACCEL_FILTERED (1LL << 37) // 6 bytes
 #define LOG_VERTICAL_ACCEL (1LL << 38) // 2 bytes
 #define LOG_VVEL_SETPOINT (1LL << 39) // 2 bytes
 #define LOG_MAG_HEADING (1LL << 40) // 2 bytes
 #define LOG_COMBINED_HEADING (1LL << 41) // 2 bytes
 #define LOG_HVEL (1LL << 42) // 4 bytes
+#define LOG_BARO (1LL << 43) // 3 bytes
+// 106 bytes total
 
 #define LOG_HEAD_MAGIC 0
 #define LOG_HEAD_BB_VERSION 4
