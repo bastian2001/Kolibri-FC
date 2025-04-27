@@ -22,7 +22,9 @@ export default defineComponent({
 				const input = this.inputText.trim();
 				if (input) {
 					sendCommand('request', MspFn.CLI_COMMAND, MspVersion.V2, [], this.inputText);
-					this.history.push(this.inputText);
+					if (this.history.length && this.history[this.history.length - 1] !== this.inputText) {
+						this.history.push(this.inputText);
+					}
 					this.historyIndex = -1;
 					this.inputText = ''; // Clear the input field
 				}
