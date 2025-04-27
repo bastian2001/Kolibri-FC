@@ -11,16 +11,16 @@ i16 gyroCalibrationOffsetTemp[3] = {0};
 i32 accelCalibrationOffsetTemp[3] = {0};
 u16 accelCalibrationCycles = 0;
 
-i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
+volatile i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
 i16 *gyroDataRaw;
 i16 *accelDataRaw;
 
-u8 spiSm = 0;
-u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
-u32 gyroDmaRxData[14] = {0};
-u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg::ACC_X_LSB) << 23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+volatile u8 spiSm = 0;
+volatile u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
+volatile u32 gyroDmaRxData[14] = {0};
+volatile const u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg::ACC_X_LSB) << 23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 u32 gyroUpdateFlag = 0;
-u8 gyroInterrupts = 0;
+volatile u8 gyroInterrupts = 0;
 elapsedMicros taskTimerGyro = 0;
 
 extern const u8 bmi270_config_file[8192];
@@ -75,6 +75,9 @@ void gyroLoop() {
 					gyroCalibrationOffset[0] = (gyroCalibrationOffsetTemp[0] + (gyroCalibrationOffset[0] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
 					gyroCalibrationOffset[1] = (gyroCalibrationOffsetTemp[1] + (gyroCalibrationOffset[1] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
 					gyroCalibrationOffset[2] = (gyroCalibrationOffsetTemp[2] + (gyroCalibrationOffset[2] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+					gyroCalibrationOffset[0] = constrain(gyroCalibrationOffset[0], -20, 20);
+					gyroCalibrationOffset[1] = constrain(gyroCalibrationOffset[1], -20, 20);
+					gyroCalibrationOffset[2] = constrain(gyroCalibrationOffset[2], -20, 20);
 				}
 			} else {
 				gyroCalibrationOffsetTemp[0] = 0;
@@ -111,7 +114,12 @@ void gyroLoop() {
 void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
 	dma_channel_abort(gyroDmaRxChannel);
 	dma_channel_abort(gyroDmaTxChannel);
+	while (dma_channel_is_busy(gyroDmaRxChannel) || dma_channel_is_busy(gyroDmaTxChannel) || dma_hw->abort & (1u << gyroDmaRxChannel) || dma_hw->abort & (1u << gyroDmaTxChannel)) {
+		// wait until busy is deasserted and abort is cleared (12.6.8.3 and E5)
+		tight_loop_contents();
+	}
 	gpio_put(PIN_GYRO_CS, 0);
+	pio_sm_clear_fifos(PIO_GYRO_SPI, spiSm);
 	dma_channel_set_trans_count(gyroDmaRxChannel, 14, false);
 	dma_channel_set_write_addr(gyroDmaRxChannel, gyroDmaRxData, true);
 	dma_channel_set_trans_count(gyroDmaTxChannel, 14, false);
@@ -133,8 +141,8 @@ void gyroDmaInterrupt() {
 
 int gyroInit() {
 	// init gyro/accel pointer
-	gyroDataRaw = bmiDataRaw + 3;
-	accelDataRaw = bmiDataRaw;
+	gyroDataRaw = (i16 *)bmiDataRaw + 3;
+	accelDataRaw = (i16 *)bmiDataRaw;
 
 	armingDisableFlags |= 0x40;
 
