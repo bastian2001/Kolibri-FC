@@ -76,7 +76,7 @@ void modesLoop() {
 		if (newFlightMode >= FlightMode::LENGTH)
 			newFlightMode = FlightMode::ACRO;
 		if (newFlightMode != flightMode) {
-			switch (flightMode) {
+			switch (newFlightMode) {
 			case FlightMode::ACRO:
 				updateElem(OSDElem::FLIGHT_MODE, "ACRO ");
 				break;

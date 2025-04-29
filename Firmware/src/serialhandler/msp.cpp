@@ -323,6 +323,30 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 0; // config state flags, e.g. reboot required
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
+		case MspFn::MSP_RAW_IMU: {
+			buf[len++] = accelDataRaw[0] & 0xFF; // accel x
+			buf[len++] = accelDataRaw[0] >> 8;
+			buf[len++] = accelDataRaw[1] & 0xFF; // accel y
+			buf[len++] = accelDataRaw[1] >> 8;
+			buf[len++] = accelDataRaw[2] & 0xFF; // accel z
+			buf[len++] = accelDataRaw[2] >> 8;
+			i16 gyroX = gyroData[0].geti32(); // gyro x
+			i16 gyroY = gyroData[1].geti32(); // gyro y
+			i16 gyroZ = gyroData[2].geti32(); // gyro z
+			buf[len++] = gyroX & 0xFF;
+			buf[len++] = gyroX >> 8;
+			buf[len++] = gyroY & 0xFF;
+			buf[len++] = gyroY >> 8;
+			buf[len++] = gyroZ & 0xFF;
+			buf[len++] = gyroZ >> 8;
+			buf[len++] = magData[0] & 0xFF; // mag x
+			buf[len++] = magData[0] >> 8;
+			buf[len++] = magData[1] & 0xFF; // mag y
+			buf[len++] = magData[1] >> 8;
+			buf[len++] = magData[2] & 0xFF; // mag z
+			buf[len++] = magData[2] >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
 		case MspFn::GET_MOTOR: {
 			u16 motors[8];
 			for (int i = 0; i < 4; i++) {

@@ -8,6 +8,7 @@ import Receiver from "@views/Receiver.vue"
 import Tasks from "@views/Tasks.vue"
 import Tuning from "@views/Tuning.vue"
 import Cli from "@views/Cli.vue"
+import Sensors from "@views/Sensors.vue"
 
 export const routes = [
 	{ path: "/", component: Home, name: "Home" },
@@ -16,6 +17,7 @@ export const routes = [
 	{ path: "/osd", component: Osd, name: "OSD" },
 	{ path: "/motors", component: Motors, name: "Motors" },
 	{ path: "/receiver", component: Receiver, name: "Receiver" },
+	{ path: "/sensors", component: Sensors, name: "Sensors" },
 	{ path: "/tuning", component: Tuning, name: "Tuning" },
 	{ path: "/gpsmag", component: GpsMag, name: "GPS & Mag" },
 	{ path: "/cli", component: Cli, name: "CLI" },
