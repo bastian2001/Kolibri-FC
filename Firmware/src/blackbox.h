@@ -61,8 +61,8 @@
 #define LOG_HEAD_GYRO_ACCEL_RANGE 13
 #define LOG_HEAD_RATE_FACTORS 14
 #define LOG_HEAD_PID_GAINS 74
-#define LOG_HEAD_LOGGED_FIELDS 158
-#define LOG_HEAD_MOTOR_POLES 166
+#define LOG_HEAD_LOGGED_FIELDS 134
+#define LOG_HEAD_MOTOR_POLES 142
 #define LOG_HEAD_LENGTH 256
 
 extern u64 bbFlags; // 64 bits of flags for the blackbox (LOG_ macros)

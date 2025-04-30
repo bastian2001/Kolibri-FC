@@ -13,7 +13,7 @@ static constexpr char targetFullName[] = "Kolibri Dev v0.4";
 elapsedMillis lastConfigPingRx = 0;
 bool configuratorConnected = false;
 
-i16 mspDebugSensors[4];
+i16 mspDebugSensors[4] = {0, 0, 0, 0};
 
 u8 lastMspSerial = 0;
 MspVersion lastMspVersion = MspVersion::V2;
@@ -843,6 +843,29 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
 			getSetting(SETTING_RATE_FACTORS)->updateSettingInFile();
+		} break;
+		case MspFn::GET_EXT_PID: {
+			u16 ifall = iFalloff.geti32();
+			buf[len++] = ifall & 0xFF;
+			buf[len++] = ifall >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		}
+		case MspFn::SET_EXT_PID: {
+			u16 ifall = DECODE_U2((u8 *)reqPayload);
+			if (ifall > 10000) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			iFalloff = ifall;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			openSettingsFile();
+			getSetting(SETTING_IFALLOFF)->updateSettingInFile();
+		} break;
+		case MspFn::GET_FILTER_CONFIG: {
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
+		case MspFn::SET_FILTER_CONFIG: {
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_CRASH_DUMP:
 			for (int i = 0; i < 256; i++) {

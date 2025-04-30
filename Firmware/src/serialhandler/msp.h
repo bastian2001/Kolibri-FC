@@ -129,10 +129,19 @@ enum class MspFn {
 	SET_TZ_OFFSET = 0x41F1,
 
 	// 0x42__ Tuning
+	// 0x420_ Flight Performance (Acro Mode)
 	GET_PIDS = 0x4200,
 	SET_PIDS = 0x4201,
 	GET_RATES = 0x4202,
 	SET_RATES = 0x4203,
+	GET_EXT_PID = 0x4204,
+	SET_EXT_PID = 0x4205,
+	GET_FILTER_CONFIG = 0x4206,
+	SET_FILTER_CONFIG = 0x4207,
+
+	// 0x421_ Angle Mode
+
+	// 0x422_ Altitude and Position Hold
 
 	// 0x4F00-0x4F1F general debug tools
 	GET_CRASH_DUMP = 0x4F00,
