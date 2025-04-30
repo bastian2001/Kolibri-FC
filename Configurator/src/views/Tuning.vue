@@ -9,20 +9,32 @@ export default defineComponent({
 	name: "Tuning",
 	data() {
 		return {
-			pids: [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]],
+			pids: [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
 			rateFactors: [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-			saveTimeout: -1
+			saveTimeout: -1,
+			rateCanvas: document.createElement('canvas'),
+			setpointCanvas: document.createElement('canvas'),
+			rc: [0, 0, 0, 0],
+			getRcInterval: -1,
+			scale: 500,
 		};
 	},
 	mounted() {
 		addOnCommandHandler(this.onCommand);
 		addOnConnectHandler(this.getSettings);
+		window.addEventListener('resize', this.onResize);
+		this.onResize();
 		this.getSettings();
+		this.getRcInterval = setInterval(() => {
+			sendCommand('request', MspFn.RC);
+		}, 1000 / 60);
 	},
 	unmounted() {
 		removeOnCommandHandler(this.onCommand);
 		removeOnConnectHandler(this.getSettings);
+		window.removeEventListener('resize', this.onResize);
 		clearTimeout(this.saveTimeout);
+		clearInterval(this.getRcInterval);
 	},
 	methods: {
 		getSettings() {
@@ -31,13 +43,9 @@ export default defineComponent({
 			});
 		},
 		scrollInputPID(e: WheelEvent, i: number, j: number) {
-			let val = 1;
-			if (j === 5) val = 0.0001;
-			if (e.deltaY > 0) this.pids[i][j] -= val;
-			else this.pids[i][j] += val;
-			this.pids[i][j] = Math.round(this.pids[i][j] * 10000) / 10000;
+			if (e.deltaY > 0) this.pids[i][j]--;
+			else this.pids[i][j]++;
 			if (this.pids[i][j] < 0) this.pids[i][j] = 0;
-			if (j === 5 && this.pids[i][j] > 1) this.pids[i][j] = 1;
 		},
 		scrollInputRate(e: WheelEvent, i: number, j: number) {
 			let val = 5;
@@ -48,14 +56,10 @@ export default defineComponent({
 		},
 		saveSettings() {
 			const data = [];
-			for (let ax = 0; ax < 3; ax++) {
-				for (let i = 0; i < 5; i++) data.push(this.pids[ax][i] & 0xff, (this.pids[ax][i] >> 8) & 0xff);
-				data.push(
-					Math.round(this.pids[ax][5] * 65536) & 0xff,
-					(Math.round(this.pids[ax][5] * 65536) >> 8) & 0xff
-				);
-				data.push(0, 0);
-			}
+			for (let ax = 0; ax < 3; ax++)
+				for (let i = 0; i < 5; i++)
+					data.push(this.pids[ax][i] & 0xff, (this.pids[ax][i] >> 8) & 0xff);
+
 			sendCommand('request', MspFn.SET_PIDS, MspVersion.V2, data).then(() => {
 				this.saveTimeout = setTimeout(() => {
 					console.error('Save timeout');
@@ -66,15 +70,13 @@ export default defineComponent({
 			if (command.cmdType === 'response') {
 				switch (command.command) {
 					case MspFn.GET_PIDS:
-						if (command.length !== 3 * 2 * 7) break;
+						if (command.length < 3 * 2 * 5) break;
 						for (let ax = 0; ax < 3; ax++) {
-							for (let i = 0; i < 6; i++)
+							for (let i = 0; i < 5; i++)
 								this.pids[ax][i] = leBytesToInt(
-									command.data.slice(ax * 14 + i * 2, ax * 14 + i * 2 + 2),
+									command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2),
 									false
 								);
-							this.pids[ax][5] /= 65536;
-							this.pids[ax][5] = Math.round(this.pids[ax][5] * 10000) / 10000;
 						}
 						break;
 					case MspFn.GET_RATES:
@@ -99,9 +101,173 @@ export default defineComponent({
 					case MspFn.SAVE_SETTINGS:
 						clearTimeout(this.saveTimeout);
 						break;
+					case MspFn.RC:
+						if (command.length < 8) break;
+						for (let i = 0; i < 4; i++) {
+							this.rc[i] = (leBytesToInt(command.data.slice(i * 2, i * 2 + 2), false) - 1500) / 512;
+						}
+						this.drawSetpointCanvas();
+						break;
 				}
 			}
+		},
+		onResize() {
+			const domCanvas = this.$refs.rateCanvas as HTMLCanvasElement;
+			const wrapper = domCanvas.parentElement as HTMLDivElement;
+			if (!domCanvas || !wrapper) return;
+			const rateCanvas = this.rateCanvas
+			const setpointCanvas = this.setpointCanvas
+			const height = Math.min(wrapper.clientWidth * 3 / 4, 500);
+			const width = wrapper.clientWidth;
+			domCanvas.width = width;
+			domCanvas.height = height;
+			rateCanvas.width = width;
+			rateCanvas.height = height;
+			setpointCanvas.width = width;
+			setpointCanvas.height = height;
+			this.drawAll();
+		},
+		drawAll() {
+			this.drawRateCanvas();
+			this.drawSetpointCanvas();
+		},
+		getSetpoint(s: number, ax: number): number {
+			if (s > 1) s = 1;
+			if (s < -1) s = -1;
+			const sPos = s > 0 ? s : -s;
+			let setpoint = 0;
+			for (let i = 0; i < 5; i++) {
+				const v = this.rateFactors[ax][i] * Math.pow(sPos, i + 1);
+				if (s < 0) setpoint -= v;
+				else setpoint += v;
+			}
+			return setpoint
+		},
+		drawRateCanvas() {
+			const canvas = this.rateCanvas
+			const ctx = canvas.getContext('2d');
+			if (!ctx) return;
+			ctx.fillStyle = '#333';
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.strokeStyle = 'white';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(0, canvas.height / 2);
+			ctx.lineTo(canvas.width, canvas.height / 2);
+			ctx.stroke()
+			ctx.beginPath();
+			ctx.moveTo(canvas.width / 2, 0);
+			ctx.lineTo(canvas.width / 2, canvas.height);
+			ctx.stroke()
+			ctx.lineWidth = .5;
+			ctx.beginPath();
+			ctx.moveTo(canvas.width / 4, 0);
+			ctx.lineTo(canvas.width / 4, canvas.height);
+			ctx.stroke()
+			ctx.beginPath();
+			ctx.moveTo(canvas.width * 3 / 4, 0);
+			ctx.lineTo(canvas.width * 3 / 4, canvas.height);
+			ctx.stroke()
+
+			// set scale based on max rate
+			let max = 0;
+			for (let i = 0; i < 3; i++) {
+				let ax = 0;
+				for (let j = 0; j < 5; j++) {
+					ax += this.rateFactors[i][j]
+				}
+				if (ax > max) max = ax;
+			}
+			if (max > 500) this.scale = 750;
+			if (max > 750) this.scale = 1000;
+			if (max > 1000) this.scale = 1500;
+			if (max > 1500) this.scale = 2000;
+
+			// draw horizontal lines and text
+			let drawLines = 0;
+			switch (this.scale) {
+				case 750:
+				case 1500:
+					break;
+				case 500:
+				case 1000:
+					drawLines = 4;
+					break;
+				case 2000:
+					drawLines = 8;
+					break;
+			}
+			ctx.fillStyle = 'white';
+			ctx.font = '14px sans-serif';
+			ctx.textBaseline = 'middle'
+			for (let i = 1; i < drawLines; i++) {
+				if (i === drawLines / 2) continue;
+				ctx.beginPath();
+				ctx.moveTo(0, canvas.height * i / drawLines)
+				ctx.lineTo(canvas.width, canvas.height * i / drawLines);
+				ctx.stroke()
+				const rate = this.scale * (drawLines / 2 - i) / (drawLines / 2);
+				ctx.textAlign = i < drawLines / 2 ? 'right' : 'left'
+				ctx.fillText(rate.toString() + ' °/s', canvas.width / 2 + (i < drawLines / 2 ? -5 : 5), canvas.height * i / drawLines);
+			}
+			// draw max rate texts
+			ctx.textBaseline = 'top'
+			ctx.textAlign = 'right'
+			ctx.fillText(this.scale.toString() + ' °/s', canvas.width / 2 - 5, 5);
+			ctx.textBaseline = 'bottom'
+			ctx.textAlign = 'left'
+			ctx.fillText((-this.scale).toString() + ' °/s', canvas.width / 2 + 5, canvas.height - 5);
+			ctx.lineWidth = 2;
+			const colors = ['#ff0000', '#00ff00', '#0000ff'];
+
+			// draw all 3 rate curves
+			for (let i = 0; i < 3; i++) {
+				ctx.strokeStyle = colors[i];
+				ctx.beginPath();
+				ctx.moveTo(0, canvas.height / 2);
+				for (let j = -50; j <= 50; j++) {
+					const val = this.getSetpoint(j / 50, i);
+					const x = canvas.width * (j + 50) / 100;
+					const y = canvas.height / 2 - canvas.height * val / (this.scale * 2);
+					if (j === -50)
+						ctx.moveTo(x, y);
+					else
+						ctx.lineTo(x, y);
+				}
+				ctx.stroke()
+			}
+		},
+		drawSetpointCanvas() {
+			const canvas = this.setpointCanvas
+			const ctx = canvas.getContext('2d');
+			if (!ctx) return;
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			//draw all 3 setpoints as dots
+			const colors = ['#ff5555', '#55ff55', '#5555ff'];
+			const rcMap = [0, 1, 3]
+			for (let i = 0; i < 3; i++) {
+				ctx.fillStyle = colors[i];
+				const setpoint = this.getSetpoint(this.rc[rcMap[i]], i);
+				// console.log(setpoint, this.rc[rcMap[i]], i);
+
+				const x = canvas.width * (this.rc[rcMap[i]] + 1) / 2;
+				const y = canvas.height / 2 - canvas.height * setpoint / this.scale / 2;
+				ctx.beginPath();
+				ctx.arc(x, y, 7, 0, Math.PI * 2);
+				ctx.fill();
+			}
+
+			(this.$refs.rateCanvas as HTMLCanvasElement).getContext('2d')?.drawImage(this.rateCanvas, 0, 0);
+			(this.$refs.rateCanvas as HTMLCanvasElement).getContext('2d')?.drawImage(canvas, 0, 0);
 		}
+	},
+	watch: {
+		rateFactors: {
+			handler() {
+				this.drawAll();
+			},
+			deep: true
+		},
 	}
 })
 </script>
@@ -122,7 +288,6 @@ export default defineComponent({
 						<th>D</th>
 						<th>FF</th>
 						<th>S</th>
-						<th>iFall</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -161,6 +326,12 @@ export default defineComponent({
 					</tr>
 				</tbody>
 			</table>
+			<div class="rateCanvasWrapper">
+				<canvas id="rateCanvas" width="500" height="500" ref="rateCanvas"></canvas>
+			</div>
+		</div>
+		<div class="filters">
+
 		</div>
 	</div>
 </template>
@@ -212,5 +383,13 @@ input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
 	-webkit-appearance: none;
 	margin: 0;
+}
+
+.rateCanvasWrapper {
+	margin-top: 1rem;
+}
+
+#rateCanvas {
+	width: 100%;
 }
 </style>

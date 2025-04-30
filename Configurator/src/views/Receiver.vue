@@ -53,7 +53,7 @@ export default defineComponent({
 							this.channels = new Array(channelCount).fill(1500);
 						}
 						for (let i = 0; i < 16; i++) {
-							this.channels[i] = command.data[i * 2] + (command.data[i * 2 + 1] << 8);
+							this.channels[i] = leBytesToInt(command.data.slice(i * 2, i * 2 + 2));
 						}
 					} break;
 					case MspFn.GET_RX_STATUS: {
@@ -89,7 +89,8 @@ export default defineComponent({
 				LQI: {{ uplinkLinkQuality }}%<br />
 				SNR: {{ uplinkSnr }}dB<br />
 				Antenna {{ antennaSelection }} is used<br />
-				Packet Rate index {{ packetRateIdx }} ({{ targetPacketRate }}Hz) => actual {{ actualPacketRate }}Hz<br />
+				Packet Rate index {{ packetRateIdx }} ({{ targetPacketRate }}Hz) => actual {{ actualPacketRate
+				}}Hz<br />
 				TX Power: {{ txPower }}mW<br />
 				Total RC message count: {{ rcMsgCount }}
 			</div>
