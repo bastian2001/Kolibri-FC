@@ -276,19 +276,19 @@ export default defineComponent({
 			const s = Math.random() * 0.5 + 0.5;
 			const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
 			let color = '';
-			switch (this.traces.length) {
-				case 0:
-					color = 'red'
-					break;
-				case 1:
-					color = 'green'
-					break;
-				case 2:
-					color = 'blue'
-					break;
-				default:
-					color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
-			}
+			const colors = [
+				'red',
+				'green',
+				'blue',
+				'yellow',
+				'purple',
+				'orange',
+				'pink',
+				'cyan',
+				'magenta',
+			];
+			color = colors[this.traces.length] || `hsl(${h}, ${s * 100}%, ${l * 100}%)`
+
 
 			this.traces.push({
 				color,
