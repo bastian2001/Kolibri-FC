@@ -148,11 +148,11 @@ void startLogging() {
 		for (int j = 0; j < 3; j++)
 			rf[i][j] = rateFactors[i][j].raw;
 	blackboxFile.write((u8 *)rf, 60);
-	i32 pg[3][7];
+	i32 pg[3][5];
 	for (int i = 0; i < 3; i++)
-		for (int j = 0; j < 7; j++)
+		for (int j = 0; j < 5; j++)
 			pg[i][j] = pidGains[i][j].raw;
-	blackboxFile.write((u8 *)pg, 84);
+	blackboxFile.write((u8 *)pg, 60);
 	blackboxFile.write((u8 *)&bbFlags, 8);
 	blackboxFile.write((u8)MOTOR_POLES);
 	while (blackboxFile.position() < 256) {

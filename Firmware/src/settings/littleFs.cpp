@@ -81,6 +81,7 @@ void initSettings() {
 	addSetting(SETTING_ANGLE_BURST_TIME, &angleBurstTime, 3000);
 	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
 	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
+	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
 
 	addSetting(SETTING_TIMEZONE_OFFSET, &rtcTimezoneOffset, 0);
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");

@@ -23,6 +23,7 @@
 // flight performance settings
 #define SETTING_PID_GAINS "pid_gains"
 #define SETTING_IDLE_PERMILLE "motor_idle_per_mille"
+#define SETTING_IFALLOFF "pid_ifalloff"
 #define SETTING_MAX_ANGLE "angle_max_angle"
 #define SETTING_RATE_FACTORS "rates_factors"
 #define SETTING_DFILTER_CUTOFF "filter_d_cutoff"

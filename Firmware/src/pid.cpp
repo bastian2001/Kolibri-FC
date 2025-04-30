@@ -15,7 +15,8 @@ i16 throttles[4];
 
 fix32 gyroData[3];
 
-fix32 pidGains[3][7];
+fix32 pidGains[3][5];
+fix32 iFalloff = 400;
 fix32 pidGainsVVel[4], pidGainsHVel[4];
 fix32 angleModeP = 10, velocityModeP = 10;
 
@@ -64,12 +65,11 @@ PT1 pushEast;
 
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {
-		pidGains[i][P].setRaw(40 << P_SHIFT);
-		pidGains[i][I].setRaw(20 << I_SHIFT);
-		pidGains[i][D].setRaw(100 << D_SHIFT);
-		pidGains[i][FF].setRaw(0 << FF_SHIFT);
+		pidGains[i][P].setRaw(80 << P_SHIFT);
+		pidGains[i][I].setRaw(40 << I_SHIFT);
+		pidGains[i][D].setRaw(500 << D_SHIFT);
+		pidGains[i][FF].setRaw(70 << FF_SHIFT);
 		pidGains[i][S].setRaw(0 << S_SHIFT);
-		pidGains[i][iFalloff] = .998;
 	}
 }
 
@@ -366,9 +366,9 @@ void pidLoop() {
 			takeoffCounter = 0; // if the quad hasn't "taken off" yet, reset the counter
 		if (takeoffCounter < 1000) // enable i term falloff (windup prevention) only before takeoff
 		{
-			rollErrorSum = rollErrorSum * pidGains[0][iFalloff];
-			pitchErrorSum = pitchErrorSum * pidGains[1][iFalloff];
-			yawErrorSum = yawErrorSum * pidGains[2][iFalloff];
+			rollErrorSum = rollErrorSum - iFalloff / 3200;
+			pitchErrorSum = pitchErrorSum - iFalloff / 3200;
+			yawErrorSum = yawErrorSum - iFalloff / 3200;
 		}
 
 		fix32 diffRoll = rollSetpoint - rollSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms

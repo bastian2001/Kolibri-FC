@@ -1630,30 +1630,26 @@ export default defineComponent({
 					rateFactors[i][j] = leBytesToInt(rfBytes.slice(i * 12 + j * 4, i * 12 + j * 4 + 4)) / 65536;
 			const pidConstants: number[][] = [[], [], []];
 			const pidConstantsNice: number[][] = [[], [], []];
-			const pcBytes = header.slice(74, 158);
+			const pcBytes = header.slice(74, 134);
 			for (let i = 0; i < 3; i++) {
-				pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 28, i * 28 + 4));
+				pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 20, i * 20 + 4));
 				pidConstantsNice[i][0] = pidConstants[i][0] >> 11;
 				pidConstants[i][0] /= 65536;
-				pidConstants[i][1] = leBytesToInt(pcBytes.slice(i * 28 + 4, i * 28 + 8));
+				pidConstants[i][1] = leBytesToInt(pcBytes.slice(i * 20 + 4, i * 20 + 8));
 				pidConstantsNice[i][1] = pidConstants[i][1] >> 3;
 				pidConstants[i][1] /= 65536;
-				pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 28 + 8, i * 28 + 12));
+				pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 20 + 8, i * 20 + 12));
 				pidConstantsNice[i][2] = pidConstants[i][2] >> 10;
 				pidConstants[i][2] /= 65536;
-				pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 28 + 12, i * 28 + 16));
+				pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 20 + 12, i * 20 + 16));
 				pidConstantsNice[i][3] = pidConstants[i][3] >> 13;
 				pidConstants[i][3] /= 65536;
-				pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 28 + 16, i * 28 + 20));
+				pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 20 + 16, i * 20 + 20));
 				pidConstantsNice[i][4] = pidConstants[i][4] >> 8;
 				pidConstants[i][4] /= 65536;
-				for (let j = 5; j < 7; j++)
-					pidConstants[i][j] =
-						leBytesToInt(pcBytes.slice(i * 28 + j * 4, i * 28 + j * 4 + 4)) / 65536;
 			}
-			const motorPoles = header[166];
 			const flags: string[] = [];
-			const flagSlice = header.slice(158, 166)
+			const flagSlice = header.slice(134, 142)
 			let frameSize = 0;
 			const offsets: { [key: string]: number } = {};
 			for (let j = 0; j < 64; j++) {
@@ -1684,6 +1680,7 @@ export default defineComponent({
 						break;
 				}
 			}
+			const motorPoles = header[142];
 			const framesPerSecond = pidFreq / freqDiv;
 			const frames = data.length / frameSize;
 			const log: LogFrame[] = [];
