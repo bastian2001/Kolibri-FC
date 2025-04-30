@@ -8,10 +8,10 @@
 #define P_SHIFT 11
 #define I_SHIFT 3
 #define D_SHIFT 10
-#define FF_SHIFT 13
+#define FF_SHIFT 8
 #define S_SHIFT 8 // setpoint follow
 
-extern fix32 gyroData[3]; // gyro data in deg/s
+extern fix32 gyroScaled[3]; // gyro data in deg/s
 extern fix32 rateFactors[5][3]; // rate factors for the PID controller, 0 = x^1, 1 = x^2... (x normalized to +-1 at full deflection)
 enum {
 	P,
@@ -39,6 +39,9 @@ extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
 extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL mode => (position lock)
 extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
+extern u16 gyroFilterCutoff; // cutoff frequency for the gyro filter (Hz)
+extern fix32 setpointDiffCutoff; // used for feedforward and I term relaxation (Hz)
+extern fix32 pidBoostCutoff; // used for
 extern u16 idlePermille; // idle throttle in permille (0-1000)
 extern u8 maxAngle; // degrees, applied in angle mode and GPS mode
 extern u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)

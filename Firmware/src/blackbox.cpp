@@ -216,17 +216,17 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
-		i16 i = (gyroData[AXIS_ROLL].raw >> 12);
+		i16 i = (gyroScaled[AXIS_ROLL].raw >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
-		i16 i = (gyroData[AXIS_PITCH].raw >> 12);
+		i16 i = (gyroScaled[AXIS_PITCH].raw >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
-		i16 i = (gyroData[AXIS_YAW].raw >> 12);
+		i16 i = (gyroScaled[AXIS_YAW].raw >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}

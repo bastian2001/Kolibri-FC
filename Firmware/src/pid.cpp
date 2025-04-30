@@ -13,7 +13,7 @@ FlightMode flightMode = FlightMode::ACRO;
 
 i16 throttles[4];
 
-fix32 gyroData[3];
+fix32 gyroScaled[3];
 
 fix32 pidGains[3][5];
 fix32 iFalloff = 400;
@@ -28,8 +28,22 @@ fix32 throttle;
 fix64 targetLat, targetLon;
 u16 dFilterCutoff;
 PT2 dFilterRoll, dFilterPitch, dFilterYaw;
+u16 gyroFilterCutoff;
+PT1 gyroFiltered[3];
 
-fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8];
+fix32 setpointDiffCutoff = 12;
+PT1 setpointDiff[3];
+fix32 lastSetpoints[3];
+
+fix32 pidBoostCutoff = 5;
+PT1 pidBoostFilter;
+fix32 lastThrottle;
+u8 pidBoostAxis = 1; // 0: off, 1: RP only, 2: RPY
+fix32 pidBoostP = 1.5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
+fix32 pidBoostI = 1.5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
+fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
+fix32 pidBoostStart = 1000; // dThrottle/dt in 1/1024 / s when pidBoost starts
+fix32 pidBoostFull = 3000; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
 
 u32 pidLoopCounter = 0;
 
@@ -68,7 +82,7 @@ void initPidGains() {
 		pidGains[i][P].setRaw(80 << P_SHIFT);
 		pidGains[i][I].setRaw(40 << I_SHIFT);
 		pidGains[i][D].setRaw(500 << D_SHIFT);
-		pidGains[i][FF].setRaw(70 << FF_SHIFT);
+		pidGains[i][FF].setRaw(40 << FF_SHIFT);
 		pidGains[i][S].setRaw(0 << S_SHIFT);
 	}
 }
@@ -76,10 +90,10 @@ void initPidGains() {
 void initRateFactors() {
 	for (int i = 0; i < 3; i++) {
 		rateFactors[0][i] = 100; // first order, center rate
-		rateFactors[1][i] = 0;
-		rateFactors[2][i] = 200;
-		rateFactors[3][i] = 0;
-		rateFactors[4][i] = 800;
+		rateFactors[1][i] = 100;
+		rateFactors[2][i] = 150;
+		rateFactors[3][i] = 200;
+		rateFactors[4][i] = 350;
 	}
 }
 
@@ -108,6 +122,16 @@ void initPid() {
 	dFilterPitch = PT2(dFilterCutoff, 3200);
 	dFilterYaw = PT2(dFilterCutoff, 3200);
 
+	gyroFiltered[AXIS_ROLL] = PT1(gyroFilterCutoff, 3200);
+	gyroFiltered[AXIS_PITCH] = PT1(gyroFilterCutoff, 3200);
+	gyroFiltered[AXIS_YAW] = PT1(gyroFilterCutoff, 3200);
+
+	setpointDiff[AXIS_ROLL] = PT1(setpointDiffCutoff, 3200);
+	setpointDiff[AXIS_PITCH] = PT1(setpointDiffCutoff, 3200);
+	setpointDiff[AXIS_YAW] = PT1(setpointDiffCutoff, 3200);
+
+	pidBoostFilter = PT1(pidBoostCutoff, 3200);
+
 	vVelDFilter = PT1(vvelDFilterCutoff, 3200);
 	vVelFFFilter = PT1(vvelFFFilterCutoff, 3200);
 
@@ -128,9 +152,12 @@ void pidLoop() {
 	taskTimerPid = 0;
 	tasks[TASK_PID].runCounter++;
 
+	gyroFiltered[AXIS_ROLL].update(gyroScaled[AXIS_ROLL]);
+	gyroFiltered[AXIS_PITCH].update(gyroScaled[AXIS_PITCH]);
+	gyroFiltered[AXIS_YAW].update(gyroScaled[AXIS_YAW]);
+
 	if (armed) {
 		// Quad armed
-		static u32 ffBufPos = 0;
 		static fix32 polynomials[5][3];
 		ELRS->getSmoothChannels(smoothChannels);
 		// calculate setpoints
@@ -357,9 +384,9 @@ void pidLoop() {
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 			}
 		}
-		rollError = rollSetpoint - gyroData[AXIS_ROLL];
-		pitchError = pitchSetpoint - gyroData[AXIS_PITCH];
-		yawError = yawSetpoint - gyroData[AXIS_YAW];
+		rollError = rollSetpoint - gyroFiltered[AXIS_ROLL];
+		pitchError = pitchSetpoint - gyroFiltered[AXIS_PITCH];
+		yawError = yawSetpoint - gyroFiltered[AXIS_YAW];
 		if (ELRS->channels[2] > 1020)
 			takeoffCounter++;
 		else if (takeoffCounter < 1000) // 1000 = ca. 0.3s
@@ -371,43 +398,55 @@ void pidLoop() {
 			yawErrorSum = yawErrorSum - iFalloff / 3200;
 		}
 
-		fix32 diffRoll = rollSetpoint - rollSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
-		fix32 diffPitch = pitchSetpoint - pitchSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
-		fix32 diffYaw = yawSetpoint - yawSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
-
-		fix32 totalDiff = diffRoll.abs() + diffPitch.abs() + diffYaw.abs();
-		fix32 iRelaxMultiplier = 1;
-		if (totalDiff > 15) {
-			iRelaxMultiplier = fix32(0.125f);
-		} else if (totalDiff > 5) {
-			iRelaxMultiplier = fix32(1) - (totalDiff - 5) / 10 * 7 / 8;
+		fix32 pFactor = 1, iFactor = 1, dFactor = 1;
+		if (pidBoostAxis) {
+			pidBoostFilter.update(throttle - lastThrottle);
+			fix32 boostStrength = (fix32(pidBoostFilter).abs() - pidBoostStart) / (pidBoostFull - pidBoostStart);
+			if (boostStrength > 1)
+				boostStrength = 1;
+			else if (boostStrength < 0)
+				boostStrength = 0;
+			pFactor += pidBoostP * boostStrength;
+			iFactor += pidBoostI * boostStrength;
+			dFactor += pidBoostD * boostStrength;
 		}
 
-		rollErrorSum = rollErrorSum + rollError * iRelaxMultiplier;
-		pitchErrorSum = pitchErrorSum + pitchError * iRelaxMultiplier;
-		yawErrorSum = yawErrorSum + yawError * iRelaxMultiplier;
+		setpointDiff[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
+		setpointDiff[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
+		setpointDiff[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
 
-		rollP = pidGains[0][P] * rollError;
-		pitchP = pidGains[1][P] * pitchError;
-		yawP = pidGains[2][P] * yawError;
+		fix32 totalDiff = fix32(setpointDiff[AXIS_ROLL]).abs() + fix32(setpointDiff[AXIS_PITCH]).abs() + fix32(setpointDiff[AXIS_YAW]).abs();
+		fix32 iRelaxMultiplier = 1;
+		if (totalDiff > 450) {
+			iRelaxMultiplier = fix32(0.125f);
+		} else if (totalDiff > 150) {
+			iRelaxMultiplier = fix32(1) - (totalDiff - 150) / 300 * 7 / 8;
+		}
+
+		rollErrorSum = rollErrorSum + rollError * iRelaxMultiplier * pidBoostI;
+		pitchErrorSum = pitchErrorSum + pitchError * iRelaxMultiplier * pidBoostI;
+		yawErrorSum = yawErrorSum + yawError * iRelaxMultiplier * pidBoostI;
+
+		rollP = pidGains[0][P] * rollError * pidBoostP;
+		pitchP = pidGains[1][P] * pitchError * pidBoostP;
+		yawP = pidGains[2][P] * yawError * (pidBoostAxis == 2 ? pidBoostP : 1);
 		rollI = pidGains[0][I] * rollErrorSum;
 		pitchI = pidGains[1][I] * pitchErrorSum;
 		yawI = pidGains[2][I] * yawErrorSum;
-		rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroData[AXIS_ROLL]);
-		pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroData[AXIS_PITCH]);
-		yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroData[AXIS_YAW]);
-		rollFF = pidGains[0][FF] * diffRoll;
-		pitchFF = pidGains[1][FF] * diffPitch;
-		yawFF = pidGains[2][FF] * diffYaw;
+		rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroFiltered[AXIS_ROLL]) * pidBoostD;
+		pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroFiltered[AXIS_PITCH]) * pidBoostD;
+		yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroFiltered[AXIS_YAW]) * (pidBoostAxis == 2 ? pidBoostD : 1);
+		rollFF = pidGains[0][FF] * setpointDiff[AXIS_ROLL];
+		pitchFF = pidGains[1][FF] * setpointDiff[AXIS_PITCH];
+		yawFF = pidGains[2][FF] * setpointDiff[AXIS_YAW];
 		rollS = pidGains[0][S] * rollSetpoint;
 		pitchS = pidGains[1][S] * pitchSetpoint;
 		yawS = pidGains[2][S] * yawSetpoint;
 
-		rollSetpoints[ffBufPos] = rollSetpoint;
-		pitchSetpoints[ffBufPos] = pitchSetpoint;
-		yawSetpoints[ffBufPos] = yawSetpoint;
-		ffBufPos++;
-		ffBufPos &= 7;
+		lastSetpoints[AXIS_ROLL] = rollSetpoint;
+		lastSetpoints[AXIS_PITCH] = pitchSetpoint;
+		lastSetpoints[AXIS_YAW] = yawSetpoint;
+		lastThrottle = throttle;
 
 		fix32 rollTerm = rollP + rollI + rollD + rollFF + rollS;
 		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
@@ -490,9 +529,9 @@ void pidLoop() {
 		for (int i = 0; i < 4; i++)
 			throttles[i] = throttles[i] > 2000 ? 2000 : throttles[i];
 		sendThrottles(throttles);
-		rollLast = gyroData[AXIS_ROLL];
-		pitchLast = gyroData[AXIS_PITCH];
-		yawLast = gyroData[AXIS_YAW];
+		rollLast = gyroFiltered[AXIS_ROLL];
+		pitchLast = gyroFiltered[AXIS_PITCH];
+		yawLast = gyroFiltered[AXIS_YAW];
 		if ((pidLoopCounter % bbFreqDivider) == 0 && bbFreqDivider) {
 			writeSingleFrame();
 		}

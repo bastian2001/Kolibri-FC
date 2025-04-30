@@ -332,9 +332,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = accelDataRaw[1] >> 8;
 			buf[len++] = accelDataRaw[2] & 0xFF; // accel z
 			buf[len++] = accelDataRaw[2] >> 8;
-			i16 gyroX = gyroData[0].geti32(); // gyro x
-			i16 gyroY = gyroData[1].geti32(); // gyro y
-			i16 gyroZ = gyroData[2].geti32(); // gyro z
+			i16 gyroX = gyroScaled[0].geti32(); // gyro x
+			i16 gyroY = gyroScaled[1].geti32(); // gyro y
+			i16 gyroZ = gyroScaled[2].geti32(); // gyro z
 			buf[len++] = gyroX & 0xFF;
 			buf[len++] = gyroX >> 8;
 			buf[len++] = gyroY & 0xFF;

@@ -1642,7 +1642,7 @@ export default defineComponent({
 				pidConstantsNice[i][2] = pidConstants[i][2] >> 10;
 				pidConstants[i][2] /= 65536;
 				pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 20 + 12, i * 20 + 16));
-				pidConstantsNice[i][3] = pidConstants[i][3] >> 13;
+				pidConstantsNice[i][3] = pidConstants[i][3] >> 8;
 				pidConstants[i][3] /= 65536;
 				pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 20 + 16, i * 20 + 20));
 				pidConstantsNice[i][4] = pidConstants[i][4] >> 8;

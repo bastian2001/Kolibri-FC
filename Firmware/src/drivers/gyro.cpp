@@ -46,11 +46,11 @@ void gyroLoop() {
 		bmiDataRaw[5] -= gyroCalibrationOffset[2];
 		gyroUpdateFlag = 0xFFFFFFFF;
 		for (int i = 0; i < 3; i++) {
-			gyroData[i].setRaw((i32)gyroDataRaw[i] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math,gyro data in range of -2000 ... +2000 (degrees per second)
+			gyroScaled[i].setRaw((i32)gyroDataRaw[i] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math,gyro data in range of -2000 ... +2000 (degrees per second)
 		}
 
-		gyroData[AXIS_PITCH] = -gyroData[AXIS_PITCH];
-		gyroData[AXIS_YAW] = -gyroData[AXIS_YAW];
+		gyroScaled[AXIS_PITCH] = -gyroScaled[AXIS_PITCH];
+		gyroScaled[AXIS_YAW] = -gyroScaled[AXIS_YAW];
 		duration = taskTimerGyro;
 		tasks[TASK_GYROREAD].totalDuration += duration;
 		if (duration > tasks[TASK_GYROREAD].maxDuration)
