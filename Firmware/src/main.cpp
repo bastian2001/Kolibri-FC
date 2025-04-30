@@ -17,10 +17,11 @@ void setup() {
 	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
 	rebootReason = BootReason::WATCHDOG;
 
-	initPid();
 	Serial.println("Setup started");
 	initLittleFs();
 	initSettings();
+
+	initPid();
 
 	EEPROM.begin(4096);
 	// save crash info to EEPROM

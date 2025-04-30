@@ -13,6 +13,8 @@ static constexpr char targetFullName[] = "Kolibri Dev v0.4";
 elapsedMillis lastConfigPingRx = 0;
 bool configuratorConnected = false;
 
+i16 mspDebugSensors[4];
+
 u8 lastMspSerial = 0;
 MspVersion lastMspVersion = MspVersion::V2;
 
@@ -378,6 +380,16 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = pitchInt >> 8;
 			buf[len++] = yawInt & 0xFF;
 			buf[len++] = yawInt >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
+		case MspFn::MSP_ALTITUDE: {
+			i32 altitudeInt = combinedAltitude.raw / 656; // fix32 raw (m) to cm
+			buf[len++] = altitudeInt & 0xFF;
+			buf[len++] = altitudeInt >> 8;
+			buf[len++] = altitudeInt >> 16;
+			buf[len++] = altitudeInt >> 24;
+			buf[len++] = 0; // vario
+			buf[len++] = 0; // vario
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::BOXIDS:
@@ -877,6 +889,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
 			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
+		case MspFn::DEBUG_SENSORS: {
+			memcpy(buf, mspDebugSensors, sizeof(mspDebugSensors));
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, sizeof(mspDebugSensors));
 		} break;
 		default:
 			sendMsp(serialNum, MspMsgType::ERROR, fn, version, "Unknown command", strlen("Unknown command"));

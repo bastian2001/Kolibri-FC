@@ -38,6 +38,7 @@
 
 extern bool configuratorConnected; // true if the configurator is connected
 extern u8 accelCalDone; // accel calibration flag to send a message to the configurator
+extern i16 mspDebugSensors[4]; // write values here to see them in the sensors tab. +-100, +-1000, +-10000, +-256
 
 /**
  * @brief MSP Serial Functions
@@ -61,6 +62,7 @@ enum class MspFn {
 	GET_MOTOR = 104,
 	RC = 105,
 	MSP_ATTITUDE = 108,
+	MSP_ALTITUDE = 109,
 	BOXIDS = 119,
 	GET_MOTOR_3D_CONFIG = 124,
 	GET_MOTOR_CONFIG = 131,
@@ -137,6 +139,7 @@ enum class MspFn {
 	CLEAR_CRASH_DUMP = 0x4F01,
 	SET_DEBUG_LED = 0x4F02,
 	PLAY_SOUND = 0x4F03,
+	DEBUG_SENSORS = 0x4F04,
 
 	// 0x4F20-0x4FFF temporary debug tools
 };

@@ -15,6 +15,7 @@ export const MspFn = {
 	GET_MOTOR: 104,
 	RC: 105,
 	MSP_ATTITUDE: 108,
+	MSP_ALTITUDE: 109,
 	BOXIDS: 119,
 	GET_MOTOR_3D_CONFIG: 124,
 	GET_MOTOR_CONFIG: 131,
@@ -91,6 +92,7 @@ export const MspFn = {
 	CLEAR_CRASH_DUMP: 0x4f01,
 	SET_DEBUG_LED: 0x4f02,
 	PLAY_SOUND: 0x4f03,
+	DEBUG_SENSORS: 0x4f04,
 
 	// 0x4F20-0x4FFF temporary debug tools
 }

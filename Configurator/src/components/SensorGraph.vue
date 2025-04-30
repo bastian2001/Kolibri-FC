@@ -1,4 +1,5 @@
 <script lang="ts">
+import { MspFn } from "@/utils/msp";
 import { defineComponent, PropType } from "vue";
 
 export default defineComponent({
@@ -24,7 +25,7 @@ export default defineComponent({
 	data() {
 		return {
 			traces: [] as {
-				color: string, sensorId: number, min: number, max: number, id: number, unit?: string
+				color: string, sensorId: number, min: number, max: number, id: number, mspFn: number, unit?: string, rangeFn?: () => { min: number, max: number }
 			}[],
 			sensorOptions: [
 				{
@@ -33,6 +34,7 @@ export default defineComponent({
 					min: -2,
 					max: 2,
 					unit: 'g',
+					mspFn: MspFn.MSP_RAW_IMU
 				},
 				{
 					name: 'Accel Y',
@@ -40,6 +42,7 @@ export default defineComponent({
 					min: -2,
 					max: 2,
 					unit: 'g',
+					mspFn: MspFn.MSP_RAW_IMU
 				},
 				{
 					name: 'Accel Z',
@@ -47,6 +50,7 @@ export default defineComponent({
 					min: -2,
 					max: 2,
 					unit: 'g',
+					mspFn: MspFn.MSP_RAW_IMU
 				},
 				{
 					name: 'Gyro X',
@@ -54,6 +58,7 @@ export default defineComponent({
 					min: -800,
 					max: 800,
 					unit: '°/s',
+					mspFn: MspFn.MSP_RAW_IMU
 				},
 				{
 					name: 'Gyro Y',
@@ -61,6 +66,7 @@ export default defineComponent({
 					min: -800,
 					max: 800,
 					unit: '°/s',
+					mspFn: MspFn.MSP_RAW_IMU
 				},
 				{
 					name: 'Gyro Z',
@@ -68,26 +74,165 @@ export default defineComponent({
 					min: -800,
 					max: 800,
 					unit: '°/s',
+					mspFn: MspFn.MSP_RAW_IMU
 				},
 				{
 					name: 'Mag X',
 					sensorId: 6,
 					min: -600,
 					max: 600,
+					mspFn: MspFn.MSP_RAW_IMU
 				},
 				{
 					name: 'Mag Y',
 					sensorId: 7,
 					min: -600,
 					max: 600,
+					mspFn: MspFn.MSP_RAW_IMU
 				},
 				{
 					name: 'Mag Z',
 					sensorId: 8,
 					min: -600,
 					max: 600,
+					mspFn: MspFn.MSP_RAW_IMU
 				},
-			],
+				{
+					name: 'Roll angle',
+					sensorId: 9,
+					min: -180,
+					max: 180,
+					mspFn: MspFn.GET_ROTATION,
+					unit: '°'
+				},
+				{
+					name: 'Pitch angle',
+					sensorId: 10,
+					min: -180,
+					max: 180,
+					mspFn: MspFn.GET_ROTATION,
+					unit: '°'
+				},
+				{
+					name: 'Yaw angle',
+					sensorId: 11,
+					min: -180,
+					max: 180,
+					mspFn: MspFn.GET_ROTATION,
+					unit: '°'
+				},
+				{
+					name: 'Heading',
+					sensorId: 12,
+					min: -180,
+					max: 180,
+					mspFn: MspFn.GET_ROTATION,
+					unit: '°'
+				},
+				{
+					name: 'Altitude',
+					sensorId: 13,
+					min: -100,
+					max: 100,
+					mspFn: MspFn.MSP_ALTITUDE,
+					unit: 'm',
+					rangeFn: this.altRange
+				},
+				{
+					name: 'RC channel 1',
+					sensorId: 14,
+					min: 1000,
+					max: 2000,
+					mspFn: MspFn.RC,
+					unit: 'µs'
+				},
+				{
+					name: 'RC channel 2',
+					sensorId: 15,
+					min: 1000,
+					max: 2000,
+					mspFn: MspFn.RC,
+					unit: 'µs'
+				},
+				{
+					name: 'RC channel 3',
+					sensorId: 16,
+					min: 1000,
+					max: 2000,
+					mspFn: MspFn.RC,
+					unit: 'µs'
+				},
+				{
+					name: 'RC channel 4',
+					sensorId: 17,
+					min: 1000,
+					max: 2000,
+					mspFn: MspFn.RC,
+					unit: 'µs'
+				},
+				{
+					name: 'RC channel 5',
+					sensorId: 18,
+					min: 1000,
+					max: 2000,
+					mspFn: MspFn.RC,
+					unit: 'µs'
+				},
+				{
+					name: 'RC channel 6',
+					sensorId: 19,
+					min: 1000,
+					max: 2000,
+					mspFn: MspFn.RC,
+					unit: 'µs'
+				},
+				{
+					name: 'RC channel 7',
+					sensorId: 20,
+					min: 1000,
+					max: 2000,
+					mspFn: MspFn.RC,
+					unit: 'µs'
+				},
+				{
+					name: 'RC channel 8',
+					sensorId: 21,
+					min: 1000,
+					max: 2000,
+					mspFn: MspFn.RC,
+					unit: 'µs'
+				},
+				{
+					name: 'Debug 1',
+					sensorId: 22,
+					min: -100,
+					max: 100,
+					mspFn: MspFn.DEBUG_SENSORS,
+				},
+				{
+					name: 'Debug 2',
+					sensorId: 23,
+					min: -1000,
+					max: 1000,
+					mspFn: MspFn.DEBUG_SENSORS,
+				},
+				{
+					name: 'Debug 3',
+					sensorId: 24,
+					min: -10000,
+					max: 10000,
+					mspFn: MspFn.DEBUG_SENSORS,
+				},
+				{
+					name: 'Debug 4',
+					sensorId: 25,
+					min: -256,
+					max: 256,
+					mspFn: MspFn.DEBUG_SENSORS,
+				},
+			] as {
+				name: string, sensorId: number, min: number, max: number, mspFn: number, unit?: string
+			}[],
 			maximized: false,
 			lowOpacity: false,
 		};
@@ -102,7 +247,6 @@ export default defineComponent({
 		},
 		selectColor(trace: { color: string, sensorId: number, min: number, max: number, unit?: string }) {
 			// open color selector from browser
-			console.log('selectColor', trace);
 			const picker = document.createElement('input');
 			picker.type = 'color';
 			picker.value = trace.color;
@@ -124,6 +268,7 @@ export default defineComponent({
 			this.traces[index].sensorId = sensorId;
 			this.traces[index].min = this.sensorOptions[sensorId].min;
 			this.traces[index].max = this.sensorOptions[sensorId].max;
+			this.traces[index].mspFn = this.sensorOptions[sensorId].mspFn;
 			this.traces[index].unit = this.sensorOptions[sensorId].unit;
 		},
 		addTrace() {
@@ -151,6 +296,7 @@ export default defineComponent({
 				min: this.sensorOptions[0].min,
 				max: this.sensorOptions[0].max,
 				unit: this.sensorOptions[0].unit,
+				mspFn: this.sensorOptions[0].mspFn,
 				id: Math.random()
 			});
 		},
@@ -166,6 +312,18 @@ export default defineComponent({
 		delGraph() {
 			this.$emit('delete', this.gid);
 		},
+		altRange(): { min: number, max: number } {
+			const window: number[] = []
+			for (let i = this.history.length - this.width; i < this.history.length; i++) {
+				window.push(this.history[i][13]);
+			}
+			const min = Math.min(...window);
+			const max = Math.max(...window);
+			return {
+				min: min,
+				max: max,
+			};
+		}
 	},
 	watch: {
 		history: {
@@ -199,11 +357,15 @@ export default defineComponent({
 					ctx.beginPath();
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = 2;
+					const min = trace.rangeFn ? trace.rangeFn().min : trace.min;
+					const max = trace.rangeFn ? trace.rangeFn().max : trace.max;
+					trace.min = min;
+					trace.max = max;
 					for (let i = newHistory.length - this.width; i < newHistory.length; i++) {
 						const x = canvas.width * (i - (newHistory.length - this.width)) / (this.width - 1);
 						let value = newHistory[i][trace.sensorId];
-						value = Math.max(trace.min, Math.min(trace.max, value));
-						const y = canvas.height * (1 - (value - trace.min) / (trace.max - trace.min));
+						value = Math.max(min, Math.min(max, value));
+						const y = canvas.height * (1 - (value - min) / (max - min));
 						ctx.lineTo(x, y);
 					}
 					ctx.stroke();
@@ -242,6 +404,14 @@ export default defineComponent({
 				}
 			},
 		},
+		traces: {
+			handler(newTraces: {
+				color: string, sensorId: number, min: number, max: number, id: number, mspFn: number, unit?: string
+			}[]) {
+				this.$emit('mspFn', newTraces.map(trace => trace.mspFn));
+			},
+			deep: true,
+		}
 	},
 	mounted() {
 		switch (this.gid) {
@@ -264,6 +434,34 @@ export default defineComponent({
 					{ ...this.sensorOptions[6], color: 'red', id: Math.random() },
 					{ ...this.sensorOptions[7], color: 'green', id: Math.random() },
 					{ ...this.sensorOptions[8], color: 'blue', id: Math.random() }
+				];
+				break;
+			case 'atti':
+				this.traces = [
+					{ ...this.sensorOptions[9], color: 'red', id: Math.random() },
+					{ ...this.sensorOptions[10], color: 'green', id: Math.random() },
+					{ ...this.sensorOptions[11], color: 'blue', id: Math.random() }
+				];
+				break;
+			case 'baro':
+				this.traces = [
+					{ ...this.sensorOptions[13], color: 'red', id: Math.random() }
+				];
+				break;
+			case 'rc':
+				this.traces = [
+					{ ...this.sensorOptions[14], color: 'red', id: Math.random() },
+					{ ...this.sensorOptions[15], color: 'green', id: Math.random() },
+					{ ...this.sensorOptions[16], color: 'blue', id: Math.random() },
+					{ ...this.sensorOptions[17], color: 'yellow', id: Math.random() },
+				];
+				break;
+			case 'debug':
+				this.traces = [
+					{ ...this.sensorOptions[22], color: 'red', id: Math.random() },
+					{ ...this.sensorOptions[23], color: 'green', id: Math.random() },
+					{ ...this.sensorOptions[24], color: 'blue', id: Math.random() },
+					{ ...this.sensorOptions[25], color: 'yellow', id: Math.random() },
 				];
 				break;
 		}
