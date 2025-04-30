@@ -188,6 +188,7 @@ export default defineComponent({
 			switch (this.scale) {
 				case 750:
 				case 1500:
+					drawLines = 6
 					break;
 				case 500:
 				case 1000:
@@ -313,16 +314,18 @@ export default defineComponent({
 						<th>x^3</th>
 						<th>x^4</th>
 						<th>x^5</th>
+						<th>Max rate</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr v-for="(ax, i) in rateFactors">
-						<td>{{ ['Roll', 'Pitch', 'Yaw'][i] }}</td>
+						<td style="text-align:left">{{ ['Roll', 'Pitch', 'Yaw'][i] }}</td>
 						<td v-for="(_val, j) in ax">
 							<input type="number" v-model="rateFactors[i][j]" @wheel="e => {
 								scrollInputRate(e, i, j);
 							}" />
 						</td>
+						<td> {{ ax[0] + ax[1] + ax[2] + ax[3] + ax[4]  + ' °/s'}}</td>
 					</tr>
 				</tbody>
 			</table>
@@ -361,6 +364,11 @@ export default defineComponent({
 
 .saveBtn:hover {
 	background-color: #fff1;
+}
+
+table {
+	table-layout: fixed;
+	width: 100%;
 }
 
 th,
