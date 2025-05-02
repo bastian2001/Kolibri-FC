@@ -42,8 +42,8 @@ u8 pidBoostAxis = 1; // 0: off, 1: RP only, 2: RPY
 fix32 pidBoostP = 1.5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
 fix32 pidBoostI = 1.5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
 fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
-fix32 pidBoostStart = 1000; // dThrottle/dt in 1/1024 / s when pidBoost starts
-fix32 pidBoostFull = 3000; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
+fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
+fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
 
 u32 pidLoopCounter = 0;
 
@@ -393,15 +393,17 @@ void pidLoop() {
 			takeoffCounter = 0; // if the quad hasn't "taken off" yet, reset the counter
 		if (takeoffCounter < 1000) // enable i term falloff (windup prevention) only before takeoff
 		{
-			rollErrorSum = rollErrorSum - iFalloff / 3200;
-			pitchErrorSum = pitchErrorSum - iFalloff / 3200;
-			yawErrorSum = yawErrorSum - iFalloff / 3200;
+			rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign();
+			pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign();
+			yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign();
 		}
 
 		fix32 pFactor = 1, iFactor = 1, dFactor = 1;
 		if (pidBoostAxis) {
 			pidBoostFilter.update(throttle - lastThrottle);
-			fix32 boostStrength = (fix32(pidBoostFilter).abs() - pidBoostStart) / (pidBoostFull - pidBoostStart);
+			fix32 boostStrength = (fix32(pidBoostFilter).abs() * 3200 - pidBoostStart) / (pidBoostFull - pidBoostStart);
+			bbDebug1 = boostStrength.raw;
+			bbDebug2 = fix32(pidBoostFilter).raw;
 			if (boostStrength > 1)
 				boostStrength = 1;
 			else if (boostStrength < 0)
@@ -414,6 +416,8 @@ void pidLoop() {
 		setpointDiff[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
 		setpointDiff[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
 		setpointDiff[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
+		bbDebug3 = fix32(setpointDiff[AXIS_ROLL]).geti32();
+		bbDebug4 = (((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200).geti32();
 
 		fix32 totalDiff = fix32(setpointDiff[AXIS_ROLL]).abs() + fix32(setpointDiff[AXIS_PITCH]).abs() + fix32(setpointDiff[AXIS_YAW]).abs();
 		fix32 iRelaxMultiplier = 1;

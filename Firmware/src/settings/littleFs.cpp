@@ -72,6 +72,8 @@ void initSettings() {
 	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
 	addSetting(SETTING_SETPOINT_DIFF_CUTOFF, &setpointDiffCutoff, 12);
 	addSetting(SETTING_PID_BOOST_CUTOFF, &pidBoostCutoff, 5);
+	addSetting(SETTING_PID_BOOST_START, &pidBoostStart, 2000);
+	addSetting(SETTING_PID_BOOST_FULL, &pidBoostFull, 6000);
 	addSetting(SETTING_MAX_TARGET_HVEL, &maxTargetHvel, 12);
 	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
 	addSetting(SETTING_VVEL_FF_FILTER_CUTOFF, &vvelFFFilterCutoff, 2);

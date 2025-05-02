@@ -116,6 +116,10 @@ export type LogFrame = {
 		}
 	}
 	flightMode?: number
+	debug1?: number
+	debug2?: number
+	debug3?: number
+	debug4?: number
 }
 
 export type BBLog = {

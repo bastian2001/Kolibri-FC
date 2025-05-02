@@ -656,6 +656,34 @@ const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				max: 255
 			}
 		]
+	},
+	LOG_DEBUG_1: {
+		name: 'Debug 1',
+		path: 'debug1',
+		unit: '',
+		minValue: 0,
+		maxValue: 100
+	},
+	LOG_DEBUG_2: {
+		name: 'Debug 2',
+		path: 'debug2',
+		unit: '',
+		minValue: 0,
+		maxValue: 100
+	},
+	LOG_DEBUG_3: {
+		name: 'Debug 3',
+		path: 'debug3',
+		unit: '',
+		minValue: 0,
+		maxValue: 100
+	},
+	LOG_DEBUG_4: {
+		name: 'Debug 4',
+		path: 'debug4',
+		unit: '',
+		minValue: 0,
+		maxValue: 100
 	}
 };
 const ACC_RANGES = [2, 4, 8, 16];
@@ -1670,6 +1698,8 @@ export default defineComponent({
 						frameSize += 1;
 						break;
 					case 42:
+					case 44:
+					case 45:
 						frameSize += 4;
 						break;
 					case 43:
@@ -2053,6 +2083,18 @@ export default defineComponent({
 					frame.motion.baro.hpa = raw / 4096
 					frame.motion.baro.alt = 44330 * (1 - Math.pow(frame.motion.baro.hpa / 1013.25, 1 / 5.255))
 				}
+				if (flags.includes('LOG_DEBUG_1')) {
+					frame.debug1 = leBytesToInt(data.slice(i + offsets['LOG_DEBUG_1'], i + offsets['LOG_DEBUG_1'] + 4), true);
+				}
+				if (flags.includes('LOG_DEBUG_2')) {
+					frame.debug2 = leBytesToInt(data.slice(i + offsets['LOG_DEBUG_2'], i + offsets['LOG_DEBUG_2'] + 4), true);
+				}
+				if (flags.includes('LOG_DEBUG_3')) {
+					frame.debug3 = leBytesToInt(data.slice(i + offsets['LOG_DEBUG_3'], i + offsets['LOG_DEBUG_3'] + 2), true);
+				}
+				if (flags.includes('LOG_DEBUG_4')) {
+					frame.debug4 = leBytesToInt(data.slice(i + offsets['LOG_DEBUG_4'], i + offsets['LOG_DEBUG_4'] + 2), true);
+				}
 				log.push(frame);
 			}
 			this.loadedLog = {
@@ -2134,6 +2176,8 @@ export default defineComponent({
 							frameSize += 1;
 							break;
 						case 42:
+						case 44:
+						case 45:
 							frameSize += 4;
 							break;
 						case 43:

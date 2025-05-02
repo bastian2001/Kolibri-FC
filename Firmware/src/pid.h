@@ -41,7 +41,9 @@ extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL 
 extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
 extern u16 gyroFilterCutoff; // cutoff frequency for the gyro filter (Hz)
 extern fix32 setpointDiffCutoff; // used for feedforward and I term relaxation (Hz)
-extern fix32 pidBoostCutoff; // used for
+extern fix32 pidBoostCutoff; // cutoff frequency for pid boost throttle filter
+extern fix32 pidBoostStart;
+extern fix32 pidBoostFull;
 extern u16 idlePermille; // idle throttle in permille (0-1000)
 extern u8 maxAngle; // degrees, applied in angle mode and GPS mode
 extern u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)

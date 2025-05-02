@@ -51,7 +51,11 @@
 #define LOG_COMBINED_HEADING (1LL << 41) // 2 bytes
 #define LOG_HVEL (1LL << 42) // 4 bytes
 #define LOG_BARO (1LL << 43) // 3 bytes
-// 106 bytes total
+#define LOG_DEBUG_1 (1LL << 44) // 4 bytes
+#define LOG_DEBUG_2 (1LL << 45) // 4 bytes
+#define LOG_DEBUG_3 (1LL << 46) // 2 bytes
+#define LOG_DEBUG_4 (1LL << 47) // 2 bytes
+// 118 bytes total
 
 #define LOG_HEAD_MAGIC 0
 #define LOG_HEAD_BB_VERSION 4
@@ -68,6 +72,8 @@
 extern u64 bbFlags; // 64 bits of flags for the blackbox (LOG_ macros)
 extern volatile bool bbLogging, fsReady; // Blackbox state
 extern u8 bbFreqDivider; // Blackbox frequency divider (compared to PID loop)
+extern u32 bbDebug1, bbDebug2;
+extern u16 bbDebug3, bbDebug4;
 
 /// @brief Set up SD card and create /kolibri folder
 void initBlackbox();

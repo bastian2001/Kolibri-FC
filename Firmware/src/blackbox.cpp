@@ -10,6 +10,9 @@ FSInfo fsInfo;
 int currentLogNum = 0;
 u8 bbFreqDivider = 2;
 
+u32 bbDebug1, bbDebug2;
+u16 bbDebug3, bbDebug4;
+
 RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 File blackboxFile;
@@ -417,6 +420,26 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = val;
 		bbBuffer[bufferPos++] = val >> 8;
 		bbBuffer[bufferPos++] = val >> 16;
+	}
+	if (currentBBFlags & LOG_DEBUG_1) {
+		bbBuffer[bufferPos++] = bbDebug1;
+		bbBuffer[bufferPos++] = bbDebug1 >> 8;
+		bbBuffer[bufferPos++] = bbDebug1 >> 16;
+		bbBuffer[bufferPos++] = bbDebug1 >> 24;
+	}
+	if (currentBBFlags & LOG_DEBUG_2) {
+		bbBuffer[bufferPos++] = bbDebug2;
+		bbBuffer[bufferPos++] = bbDebug2 >> 8;
+		bbBuffer[bufferPos++] = bbDebug2 >> 16;
+		bbBuffer[bufferPos++] = bbDebug2 >> 24;
+	}
+	if (currentBBFlags & LOG_DEBUG_3) {
+		bbBuffer[bufferPos++] = bbDebug3;
+		bbBuffer[bufferPos++] = bbDebug3 >> 8;
+	}
+	if (currentBBFlags & LOG_DEBUG_4) {
+		bbBuffer[bufferPos++] = bbDebug4;
+		bbBuffer[bufferPos++] = bbDebug4 >> 8;
 	}
 	bbBuffer[0] = bufferPos - 1;
 	bbFrameNum++;
