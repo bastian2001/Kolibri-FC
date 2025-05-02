@@ -2,6 +2,13 @@
 import { MspFn } from "@/utils/msp";
 import { defineComponent, PropType } from "vue";
 
+type SensorTrace = {
+	color: string;
+	sensorId: number;
+	id: number;
+	mspFn: number;
+};
+
 export default defineComponent({
 	name: "SensorGraph",
 	props: {
@@ -24,228 +31,53 @@ export default defineComponent({
 	},
 	data() {
 		return {
-			traces: [] as {
-				color: string, sensorId: number, min: number, max: number, id: number, mspFn: number, unit?: string, rangeFn?: () => { min: number, max: number }
-			}[],
+			traces: [] as SensorTrace[],
 			sensorOptions: [
-				{
-					name: 'Accel X',
-					sensorId: 0,
-					min: -2,
-					max: 2,
-					unit: 'g',
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Accel Y',
-					sensorId: 1,
-					min: -2,
-					max: 2,
-					unit: 'g',
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Accel Z',
-					sensorId: 2,
-					min: -2,
-					max: 2,
-					unit: 'g',
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Gyro X',
-					sensorId: 3,
-					min: -800,
-					max: 800,
-					unit: '°/s',
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Gyro Y',
-					sensorId: 4,
-					min: -800,
-					max: 800,
-					unit: '°/s',
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Gyro Z',
-					sensorId: 5,
-					min: -800,
-					max: 800,
-					unit: '°/s',
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Mag X',
-					sensorId: 6,
-					min: -600,
-					max: 600,
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Mag Y',
-					sensorId: 7,
-					min: -600,
-					max: 600,
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Mag Z',
-					sensorId: 8,
-					min: -600,
-					max: 600,
-					mspFn: MspFn.MSP_RAW_IMU
-				},
-				{
-					name: 'Roll angle',
-					sensorId: 9,
-					min: -180,
-					max: 180,
-					mspFn: MspFn.GET_ROTATION,
-					unit: '°'
-				},
-				{
-					name: 'Pitch angle',
-					sensorId: 10,
-					min: -180,
-					max: 180,
-					mspFn: MspFn.GET_ROTATION,
-					unit: '°'
-				},
-				{
-					name: 'Yaw angle',
-					sensorId: 11,
-					min: -180,
-					max: 180,
-					mspFn: MspFn.GET_ROTATION,
-					unit: '°'
-				},
-				{
-					name: 'Heading',
-					sensorId: 12,
-					min: -180,
-					max: 180,
-					mspFn: MspFn.GET_ROTATION,
-					unit: '°'
-				},
-				{
-					name: 'Altitude',
-					sensorId: 13,
-					min: -100,
-					max: 100,
-					mspFn: MspFn.MSP_ALTITUDE,
-					unit: 'm',
-					rangeFn: this.altRange
-				},
-				{
-					name: 'RC channel 1',
-					sensorId: 14,
-					min: 1000,
-					max: 2000,
-					mspFn: MspFn.RC,
-					unit: 'µs'
-				},
-				{
-					name: 'RC channel 2',
-					sensorId: 15,
-					min: 1000,
-					max: 2000,
-					mspFn: MspFn.RC,
-					unit: 'µs'
-				},
-				{
-					name: 'RC channel 3',
-					sensorId: 16,
-					min: 1000,
-					max: 2000,
-					mspFn: MspFn.RC,
-					unit: 'µs'
-				},
-				{
-					name: 'RC channel 4',
-					sensorId: 17,
-					min: 1000,
-					max: 2000,
-					mspFn: MspFn.RC,
-					unit: 'µs'
-				},
-				{
-					name: 'RC channel 5',
-					sensorId: 18,
-					min: 1000,
-					max: 2000,
-					mspFn: MspFn.RC,
-					unit: 'µs'
-				},
-				{
-					name: 'RC channel 6',
-					sensorId: 19,
-					min: 1000,
-					max: 2000,
-					mspFn: MspFn.RC,
-					unit: 'µs'
-				},
-				{
-					name: 'RC channel 7',
-					sensorId: 20,
-					min: 1000,
-					max: 2000,
-					mspFn: MspFn.RC,
-					unit: 'µs'
-				},
-				{
-					name: 'RC channel 8',
-					sensorId: 21,
-					min: 1000,
-					max: 2000,
-					mspFn: MspFn.RC,
-					unit: 'µs'
-				},
-				{
-					name: 'Debug 1',
-					sensorId: 22,
-					min: -100,
-					max: 100,
-					mspFn: MspFn.DEBUG_SENSORS,
-				},
-				{
-					name: 'Debug 2',
-					sensorId: 23,
-					min: -1000,
-					max: 1000,
-					mspFn: MspFn.DEBUG_SENSORS,
-				},
-				{
-					name: 'Debug 3',
-					sensorId: 24,
-					min: -10000,
-					max: 10000,
-					mspFn: MspFn.DEBUG_SENSORS,
-				},
-				{
-					name: 'Debug 4',
-					sensorId: 25,
-					min: -256,
-					max: 256,
-					mspFn: MspFn.DEBUG_SENSORS,
-				},
-			] as {
-				name: string, sensorId: number, min: number, max: number, mspFn: number, unit?: string
-			}[],
+				{ name: 'Accel X', sensorId: 0, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Accel Y', sensorId: 1, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Accel Z', sensorId: 2, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Gyro X', sensorId: 3, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Gyro Y', sensorId: 4, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Gyro Z', sensorId: 5, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Mag X', sensorId: 6, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Mag Y', sensorId: 7, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Mag Z', sensorId: 8, mspFn: MspFn.MSP_RAW_IMU },
+				{ name: 'Roll angle', sensorId: 9, mspFn: MspFn.GET_ROTATION, },
+				{ name: 'Pitch angle', sensorId: 10, mspFn: MspFn.GET_ROTATION, },
+				{ name: 'Yaw angle', sensorId: 11, mspFn: MspFn.GET_ROTATION, },
+				{ name: 'Heading', sensorId: 12, mspFn: MspFn.GET_ROTATION, },
+				{ name: 'Altitude', sensorId: 13, mspFn: MspFn.MSP_ALTITUDE, },
+				{ name: 'RC channel 1', sensorId: 14, mspFn: MspFn.RC, },
+				{ name: 'RC channel 2', sensorId: 15, mspFn: MspFn.RC, },
+				{ name: 'RC channel 3', sensorId: 16, mspFn: MspFn.RC, },
+				{ name: 'RC channel 4', sensorId: 17, mspFn: MspFn.RC, },
+				{ name: 'RC channel 5', sensorId: 18, mspFn: MspFn.RC, },
+				{ name: 'RC channel 6', sensorId: 19, mspFn: MspFn.RC, },
+				{ name: 'RC channel 7', sensorId: 20, mspFn: MspFn.RC, },
+				{ name: 'RC channel 8', sensorId: 21, mspFn: MspFn.RC, },
+				{ name: 'Debug 1', sensorId: 22, mspFn: MspFn.DEBUG_SENSORS, },
+				{ name: 'Debug 2', sensorId: 23, mspFn: MspFn.DEBUG_SENSORS, },
+				{ name: 'Debug 3', sensorId: 24, mspFn: MspFn.DEBUG_SENSORS, },
+				{ name: 'Debug 4', sensorId: 25, mspFn: MspFn.DEBUG_SENSORS, },
+			],
 			maximized: false,
 			lowOpacity: false,
+			canvasWorker: new Worker(new URL('@/utils/worker/sensorCanvas.ts', import.meta.url), {
+				type: 'classic',
+			}),
 		};
 	},
 	methods: {
 		onResize() {
-			const canvas = this.$refs['sensorGraph' + this.gid] as HTMLCanvasElement;
 			const wrapper = this.$refs['wrapper' + this.gid] as HTMLDivElement;
-			if (!canvas || !wrapper) return;
-			canvas.width = wrapper.clientWidth;
-			canvas.height = wrapper.clientHeight;
+			if (!wrapper) return;
+			this.canvasWorker.postMessage({
+				type: 'resize',
+				width: wrapper.clientWidth,
+				height: wrapper.clientHeight,
+			});
 		},
-		selectColor(trace: { color: string, sensorId: number, min: number, max: number, unit?: string }) {
+		selectColor(trace: SensorTrace, index: number) {
 			// open color selector from browser
 			const picker = document.createElement('input');
 			picker.type = 'color';
@@ -255,21 +87,26 @@ export default defineComponent({
 			picker.addEventListener('input', (event) => {
 				color = (event.target as HTMLInputElement).value;
 				if (timeout !== -1) clearTimeout(timeout);
-				timeout = setTimeout(() => {
-					trace.color = color;
-				}, 100);
+				trace.color = color;
+				this.canvasWorker.postMessage({
+					type: 'color',
+					index,
+					color,
+				});
 			});
 			picker.click();
 		},
-		onChange(index: number) {
+		traceChanged(index: number) {
 			const select = document.getElementById('selectSensor' + this.gid + '_' + index) as HTMLSelectElement;
 			if (!select) return;
 			const sensorId = parseInt(select.value);
 			this.traces[index].sensorId = sensorId;
-			this.traces[index].min = this.sensorOptions[sensorId].min;
-			this.traces[index].max = this.sensorOptions[sensorId].max;
 			this.traces[index].mspFn = this.sensorOptions[sensorId].mspFn;
-			this.traces[index].unit = this.sensorOptions[sensorId].unit;
+			this.canvasWorker.postMessage({
+				type: 'sensorId',
+				index,
+				sensorId,
+			});
 		},
 		addTrace() {
 			const h = Math.random() * 360;
@@ -293,15 +130,21 @@ export default defineComponent({
 			this.traces.push({
 				color,
 				sensorId: 0,
-				min: this.sensorOptions[0].min,
-				max: this.sensorOptions[0].max,
-				unit: this.sensorOptions[0].unit,
 				mspFn: this.sensorOptions[0].mspFn,
 				id: Math.random()
+			});
+			this.canvasWorker.postMessage({
+				type: 'new',
+				color,
+				sensorId: 0,
 			});
 		},
 		delTrace(index: number) {
 			this.traces.splice(index, 1);
+			this.canvasWorker.postMessage({
+				type: 'delete',
+				index,
+			});
 		},
 		maximize() {
 			this.maximized = !this.maximized;
@@ -312,106 +155,34 @@ export default defineComponent({
 		delGraph() {
 			this.$emit('delete', this.gid);
 		},
-		altRange(): { min: number, max: number } {
-			const window: number[] = []
-			for (let i = this.history.length - this.width; i < this.history.length; i++) {
-				window.push(this.history[i][13]);
-			}
-			const min = Math.min(...window);
-			const max = Math.max(...window);
-			return {
-				min: min,
-				max: max,
-			};
-		}
 	},
 	watch: {
 		history: {
 			handler(newHistory) {
-				const canvas = this.$refs['sensorGraph' + this.gid] as HTMLCanvasElement;
-				const ctx = canvas.getContext('2d');
-				if (!ctx || !this.traces.length) return;
-				ctx.fillStyle = 'black';
-				ctx.fillRect(0, 0, canvas.width, canvas.height);
-				// draw grid, one line every 50 frames, using total%50 as the offset
-				ctx.strokeStyle = 'rgba(255, 255, 255,0.8)';
-				ctx.lineWidth = 1;
-				for (let i = this.total % 50; i < this.width; i += 50) {
-					ctx.beginPath();
-					const x = Math.round(canvas.width * (this.width - i) / (this.width - 1));
-					ctx.moveTo(x, 0);
-					ctx.lineTo(x, canvas.height);
-					ctx.stroke();
-				}
-				// horizontal center lines
-				ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-				for (let i = 1; i < 4; i++) {
-					ctx.beginPath();
-					const y = Math.round(canvas.height * i / 4);
-					ctx.moveTo(0, y);
-					ctx.lineTo(canvas.width, y);
-					ctx.stroke();
-				}
-				// draw the traces
-				for (const trace of this.traces) {
-					ctx.beginPath();
-					ctx.strokeStyle = trace.color;
-					ctx.lineWidth = 2;
-					const min = trace.rangeFn ? trace.rangeFn().min : trace.min;
-					const max = trace.rangeFn ? trace.rangeFn().max : trace.max;
-					trace.min = min;
-					trace.max = max;
-					for (let i = newHistory.length - this.width; i < newHistory.length; i++) {
-						const x = canvas.width * (i - (newHistory.length - this.width)) / (this.width - 1);
-						let value = newHistory[i][trace.sensorId];
-						value = Math.max(min, Math.min(max, value));
-						const y = canvas.height * (1 - (value - min) / (max - min));
-						ctx.lineTo(x, y);
-					}
-					ctx.stroke();
-				}
-				// draw limits
-				ctx.font = '14px sans-serif';
-				ctx.textAlign = 'right';
-				ctx.textBaseline = 'top';
-				const topText = this.traces[0].max + ' ' + (this.traces[0].unit || '');
-				let needsIndividualTexts = false;
-				for (const trace of this.traces) {
-					const text = trace.max + ' ' + (trace.unit || '');
-					if (text !== topText) {
-						needsIndividualTexts = true;
-						break;
-					}
-				}
-				if (needsIndividualTexts) {
-					let right = 0;
-					for (let i = this.traces.length - 1; i >= 0; i--) {
-						const text = this.traces[i].max + ' ' + (this.traces[i].unit || '');
-						ctx.textBaseline = 'top';
-						ctx.fillStyle = this.traces[i].color;
-						ctx.fillText(text, canvas.width - 5 - right, 5);
-						const bottomText = this.traces[i].min + ' ' + (this.traces[i].unit || '');
-						ctx.textBaseline = 'bottom';
-						ctx.fillText(bottomText, canvas.width - 5 - right, canvas.height - 5);
-						right += ctx.measureText(text).width + 15;
-					}
-				} else {
-					ctx.fillStyle = 'white';
-					ctx.fillText(topText, canvas.width - 5, 5);
-					const bottomText = this.traces[0].min + ' ' + (this.traces[0].unit || '');
-					ctx.textBaseline = 'bottom';
-					ctx.fillText(bottomText, canvas.width - 5, canvas.height - 5);
-				}
+				if (!this.canvasWorker) return;
+				const data = JSON.parse(JSON.stringify(newHistory[newHistory.length - 1]))
+
+				this.canvasWorker.postMessage({
+					type: 'data',
+					data,
+					offset: this.total,
+				});
 			},
 		},
 		traces: {
-			handler(newTraces: {
-				color: string, sensorId: number, min: number, max: number, id: number, mspFn: number, unit?: string
-			}[]) {
+			handler(newTraces: SensorTrace[]) {
 				this.$emit('mspFn', newTraces.map(trace => trace.mspFn));
 			},
 			deep: true,
-		}
+		},
+		width: {
+			handler(newWidth) {
+				this.canvasWorker.postMessage({
+					type: 'window',
+					window: newWidth,
+				});
+			},
+		},
 	},
 	mounted() {
 		switch (this.gid) {
@@ -465,11 +236,26 @@ export default defineComponent({
 				];
 				break;
 		}
+
+		const offscreen = (this.$refs['sensorGraph' + this.gid] as HTMLCanvasElement).transferControlToOffscreen(); const wrapper = this.$refs['wrapper' + this.gid] as HTMLDivElement;
+		if (!wrapper) return;
+		const width = wrapper.clientWidth;
+		const height = wrapper.clientHeight;
+		this.canvasWorker.postMessage({
+			type: 'init',
+			canvas: offscreen,
+			width,
+			height,
+			traces: JSON.parse(JSON.stringify(this.traces)),
+			window: this.width,
+		}, [offscreen]);
+
 		window.addEventListener('resize', this.onResize);
 		this.onResize();
 	},
 	beforeUnmount() {
 		window.removeEventListener('resize', this.onResize);
+		this.canvasWorker.terminate();
 	},
 })
 </script>
@@ -480,9 +266,9 @@ export default defineComponent({
 		</div>
 		<div class="setup">
 			<div class="trace" v-for="(trace, index) in traces" :key="trace.id">
-				<div class="color" :style="{ backgroundColor: trace.color }" @click="selectColor(trace)"></div>
+				<div class="color" :style="{ backgroundColor: trace.color }" @click="selectColor(trace, index)"></div>
 				<select :name="'selectSensor' + gid + '_' + index" :id="'selectSensor' + gid + '_' + index"
-					v-model="trace.sensorId" class="select" @change="onChange(index)">
+					v-model="trace.sensorId" class="select" @change="traceChanged(index)">
 					<option v-for="(s, i) in sensorOptions" :key="i" :value="i">
 						{{ s.name }}
 					</option>
