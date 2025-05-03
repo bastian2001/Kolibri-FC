@@ -1,132 +1,108 @@
-export type LogFrame = {
-	elrs: {
-		roll?: number
-		pitch?: number
-		throttle?: number
-		yaw?: number
-	}
-	setpoint: {
-		roll?: number
-		pitch?: number
-		throttle?: number
-		yaw?: number
-		vvel?: number
-	}
-	gyro: {
-		roll?: number
-		pitch?: number
-		yaw?: number
-	}
-	pid: {
-		roll: {
-			p?: number
-			i?: number
-			d?: number
-			ff?: number
-			s?: number
-		}
-		pitch: {
-			p?: number
-			i?: number
-			d?: number
-			ff?: number
-			s?: number
-		}
-		yaw: {
-			p?: number
-			i?: number
-			d?: number
-			ff?: number
-			s?: number
-		}
-	}
-	motors: {
-		out: {
-			rr?: number
-			fr?: number
-			rl?: number
-			fl?: number
-		}
-		rpm: {
-			rr?: number
-			fr?: number
-			rl?: number
-			fl?: number
-		}
-	}
-	frametime?: number
-	attitude: {
-		roll?: number
-		pitch?: number
-		yaw?: number
-	}
-	motion: {
-		altitude?: number
-		baro: {
-			raw?: number
-			hpa?: number
-			alt?: number
-		}
-		vvel?: number
-		hvel: {
-			n?: number
-			e?: number
-		}
-		magHeading?: number
-		combinedHeading?: number
-		accelRaw: {
-			x?: number
-			y?: number
-			z?: number
-		}
-		accelFiltered: {
-			x?: number
-			y?: number
-			z?: number
-		}
-		accelVertical?: number
-		gps: {
-			year?: number
-			month?: number
-			day?: number
-			hour?: number
-			minute?: number
-			second?: number
-			time_validity_flags?: number
-			t_acc?: number
-			ns?: number
-			fix_type?: number
-			flags?: number
-			flags2?: number
-			sat_count?: number
-			lon?: number
-			lat?: number
-			alt?: number
-			h_acc?: number
-			v_acc?: number
-			vel_n?: number
-			vel_e?: number
-			vel_d?: number
-			g_speed?: number
-			head_mot?: number
-			s_acc?: number
-			head_acc?: number
-			p_dop?: number
-			flags3?: number
-		}
-	}
-	flightMode?: number
-	debug1?: number
-	debug2?: number
-	debug3?: number
-	debug4?: number
+export type LogDataType =
+	| Uint8Array
+	| Int8Array
+	| Uint16Array
+	| Int16Array
+	| Uint32Array
+	| Int32Array
+	| Float32Array
+	| Float64Array
+
+export type LogData = {
+	elrsRoll?: Uint16Array
+	elrsPitch?: Uint16Array
+	elrsThrottle?: Uint16Array
+	elrsYaw?: Uint16Array
+	setpointRoll?: Float32Array
+	setpointPitch?: Float32Array
+	setpointThrottle?: Float32Array
+	setpointYaw?: Float32Array
+	setpointVvel?: Float32Array
+	gyroRawRoll?: Float32Array
+	gyroRawPitch?: Float32Array
+	gyroRawYaw?: Float32Array
+	pidRollP?: Float32Array
+	pidRollI?: Float32Array
+	pidRollD?: Float32Array
+	pidRollFF?: Float32Array
+	pidRollS?: Float32Array
+	pidPitchP?: Float32Array
+	pidPitchI?: Float32Array
+	pidPitchD?: Float32Array
+	pidPitchFF?: Float32Array
+	pidPitchS?: Float32Array
+	pidYawP?: Float32Array
+	pidYawI?: Float32Array
+	pidYawD?: Float32Array
+	pidYawFF?: Float32Array
+	pidYawS?: Float32Array
+	motorOutRR?: Uint16Array
+	motorOutFR?: Uint16Array
+	motorOutRL?: Uint16Array
+	motorOutFL?: Uint16Array
+	rpmRR?: Float32Array
+	rpmFR?: Float32Array
+	rpmRL?: Float32Array
+	rpmFL?: Float32Array
+	frametime?: Uint16Array
+	rollAngle?: Float32Array
+	pitchAngle?: Float32Array
+	yawAngle?: Float32Array
+	altitude?: Float32Array
+	baroRaw?: Uint32Array
+	baroHpa?: Float32Array
+	baroAlt?: Float32Array
+	vvel?: Float32Array
+	hvelN?: Float32Array
+	hvelE?: Float32Array
+	magHeading?: Float32Array
+	combinedHeading?: Float32Array
+	accelRawX?: Float32Array
+	accelRawY?: Float32Array
+	accelRawZ?: Float32Array
+	accelFilteredX?: Float32Array
+	accelFilteredY?: Float32Array
+	accelFilteredZ?: Float32Array
+	accelVertical?: Float32Array
+	gpsYear?: Uint16Array
+	gpsMonth?: Uint8Array
+	gpsDay?: Uint8Array
+	gpsHour?: Uint8Array
+	gpsMinute?: Uint8Array
+	gpsSecond?: Uint8Array
+	gpsTimeValidityFlags?: Uint8Array
+	gpsTAcc?: Uint32Array
+	gpsNs?: Uint32Array
+	gpsFixType?: Uint8Array
+	gpsFlags?: Uint8Array
+	gpsFlags2?: Uint8Array
+	gpsSatCount?: Uint8Array
+	gpsLon?: Float64Array
+	gpsLat?: Float64Array
+	gpsAlt?: Float32Array
+	gpsHAcc?: Float32Array
+	gpsVAcc?: Float32Array
+	gpsVelN?: Float32Array
+	gpsVelE?: Float32Array
+	gpsVelD?: Float32Array
+	gpsGSpeed?: Float32Array
+	gpsHeadMot?: Float32Array
+	gpsSAcc?: Float32Array
+	gpsHeadAcc?: Float32Array
+	gpsPDop?: Float32Array
+	gpsFlags3?: Uint16Array
+	flightMode?: Uint8Array
+	debug1?: Int32Array
+	debug2?: Int32Array
+	debug3?: Int16Array
+	debug4?: Int16Array
 }
 
 export type BBLog = {
 	frameCount: number
 	rawFile: Uint8Array
 	flags: string[]
-	frames: LogFrame[]
+	logData: LogData
 	version: Uint8Array
 	startTime: Date
 	ranges: {
