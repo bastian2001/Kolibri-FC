@@ -1,3 +1,4 @@
+#include "arm_acle.h"
 #include "global.h"
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
@@ -5,15 +6,16 @@
 u32 gyroLastState = 0;
 
 u32 gyroCalibratedCycles = 0;
-i32 gyroCalibrationOffset[3] = {0};
-i32 accelCalibrationOffset[3] = {0};
-i16 gyroCalibrationOffsetTemp[3] = {0};
+i16 bmiCalibrationOffset[6] __attribute__((aligned(4))) = {0};
+i16 *gyroCalibrationOffset = bmiCalibrationOffset + 3;
+i16 *accelCalibrationOffset = bmiCalibrationOffset;
+i32 gyroCalibrationOffsetTemp[3] = {0};
 i32 accelCalibrationOffsetTemp[3] = {0};
 u16 accelCalibrationCycles = 0;
 
-volatile i16 bmiDataRaw[6] = {0, 0, 0, 0, 0, 0};
-i16 *gyroDataRaw;
-i16 *accelDataRaw;
+volatile i16 bmiDataRaw[6] __attribute__((aligned(4))) = {0};
+volatile i16 *gyroDataRaw = bmiDataRaw + 3;
+volatile i16 *accelDataRaw = bmiDataRaw;
 
 volatile u8 spiSm = 0;
 volatile u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
@@ -38,12 +40,20 @@ void gyroLoop() {
 			gyroInterrupts = 3;
 		}
 
+#if __ARM_FEATURE_SIMD32
+		// ARMv7E-M SIMD, saturated 2x16 vector subtraction => does not overflow, will clamp
+		*((int16x2_t *)bmiDataRaw) = __qsub16(*((int16x2_t *)bmiDataRaw), *((int16x2_t *)bmiCalibrationOffset));
+		*((int16x2_t *)(bmiDataRaw + 2)) = __qsub16(*((int16x2_t *)(bmiDataRaw + 2)), *((int16x2_t *)(bmiCalibrationOffset + 2)));
+		*((int16x2_t *)(bmiDataRaw + 4)) = __qsub16(*((int16x2_t *)(bmiDataRaw + 4)), *((int16x2_t *)(bmiCalibrationOffset + 4)));
+#else
+		// warning: overflow can occur!
 		bmiDataRaw[0] -= accelCalibrationOffset[0];
 		bmiDataRaw[1] -= accelCalibrationOffset[1];
 		bmiDataRaw[2] -= accelCalibrationOffset[2];
 		bmiDataRaw[3] -= gyroCalibrationOffset[0];
 		bmiDataRaw[4] -= gyroCalibrationOffset[1];
 		bmiDataRaw[5] -= gyroCalibrationOffset[2];
+#endif
 		gyroUpdateFlag = 0xFFFFFFFF;
 		for (int i = 0; i < 3; i++) {
 			gyroScaled[i].setRaw((i32)gyroDataRaw[i] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math,gyro data in range of -2000 ... +2000 (degrees per second)
@@ -140,9 +150,6 @@ void gyroDmaInterrupt() {
 }
 
 int gyroInit() {
-	// init gyro/accel pointer
-	gyroDataRaw = (i16 *)bmiDataRaw + 3;
-	accelDataRaw = (i16 *)bmiDataRaw;
 
 	armingDisableFlags |= 0x40;
 

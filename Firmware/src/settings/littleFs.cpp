@@ -48,7 +48,7 @@ void closeSettingsFile() {
 void initSettings() {
 	openSettingsFile();
 
-	addArraySetting(SETTING_ACC_CAL, accelCalibrationOffset);
+	addPointerSetting(SETTING_ACC_CAL, accelCalibrationOffset, 3);
 	addSetting(SETTING_ACC_FILTER_CUTOFF, &accelFilterCutoff, 100);
 
 	addSetting(SETTING_BB_FLAGS, &bbFlags, 0b1111111111111111100000000000000011111111111ULL);

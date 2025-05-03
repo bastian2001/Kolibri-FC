@@ -218,3 +218,11 @@ ArraySetting<T> *addArraySetting(const char *id, T (&data)[N], void (*setDefault
 	settingsList.push_back(setting);
 	return setting;
 }
+
+template <typename T>
+ArraySetting<T> *addPointerSetting(const char *id, T *data, size_t itemCount, void (*setDefaultValueFn)() = nullptr,
+								   void (*applyBoundsFn)() = nullptr, bool (*checkValidityFn)() = nullptr) {
+	ArraySetting<T> *setting = new ArraySetting<T>(id, (T *)data, itemCount, setDefaultValueFn, applyBoundsFn, checkValidityFn);
+	settingsList.push_back(setting);
+	return setting;
+}

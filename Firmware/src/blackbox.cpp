@@ -371,7 +371,7 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = rpmPacket >> 40;
 	}
 	if (currentBBFlags & LOG_ACCEL_RAW) {
-		memcpy(&bbBuffer[bufferPos], accelDataRaw, 6);
+		memcpy(&bbBuffer[bufferPos], (void *)accelDataRaw, 6);
 		bufferPos += 6;
 	}
 	if (currentBBFlags & LOG_ACCEL_FILTERED) {
