@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import { MspFn, MspVersion } from "@utils/msp";
 import { Command } from "@utils/types";
-import { leBytesToInt } from "@utils/utils";
+import { intToLeBytes, leBytesToInt } from "@utils/utils";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/communication/serial";
 
 export default defineComponent({
@@ -58,7 +58,7 @@ export default defineComponent({
 			const data = [];
 			for (let ax = 0; ax < 3; ax++)
 				for (let i = 0; i < 5; i++)
-					data.push(this.pids[ax][i] & 0xff, (this.pids[ax][i] >> 8) & 0xff);
+					data.push(...intToLeBytes(this.pids[ax][i], 2));
 
 			sendCommand('request', MspFn.SET_PIDS, MspVersion.V2, data).then(() => {
 				this.saveTimeout = setTimeout(() => {
@@ -92,7 +92,7 @@ export default defineComponent({
 						const data = [];
 						for (let ax = 0; ax < 3; ax++)
 							for (let i = 0; i < 5; i++)
-								data.push(this.rateFactors[ax][i] & 0xff, (this.rateFactors[ax][i] >> 8) & 0xff);
+								data.push(...intToLeBytes(this.rateFactors[ax][i], 2));
 						sendCommand('request', MspFn.SET_RATES, MspVersion.V2, data);
 						break;
 					case MspFn.SET_RATES:
@@ -325,7 +325,7 @@ export default defineComponent({
 								scrollInputRate(e, i, j);
 							}" />
 						</td>
-						<td> {{ ax[0] + ax[1] + ax[2] + ax[3] + ax[4]  + ' °/s'}}</td>
+						<td> {{ ax[0] + ax[1] + ax[2] + ax[3] + ax[4] + ' °/s' }}</td>
 					</tr>
 				</tbody>
 			</table>

@@ -654,10 +654,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buffer, index);
 		} break;
 		case MspFn::BB_FILE_DOWNLOAD: {
-			u8 fileNum = reqPayload[0];
+			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			i32 chunkNum = -1;
-			if (reqLen > 1) {
-				chunkNum = DECODE_I4((u8 *)&reqPayload[1]);
+			if (reqLen >= 6) {
+				chunkNum = DECODE_I4((u8 *)&reqPayload[2]);
 			}
 			printLogBin(serialNum, version, fileNum, chunkNum);
 		} break;
@@ -679,6 +679,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			else
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 			break;
+		case MspFn::BB_FILE_INIT: {
+			if (reqLen < 2) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
+			printFileInit(serialNum, version, fileNum);
+		} break;
 		case MspFn::GET_GPS_STATUS:
 			buf[0] = gpsStatus.gpsInited;
 			buf[1] = gpsStatus.initStep;

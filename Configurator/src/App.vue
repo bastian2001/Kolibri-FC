@@ -1,7 +1,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import { MspFn, MspVersion } from "@utils/msp";
-import { leBytesToInt, delay } from "@utils/utils";
+import { leBytesToInt, delay, intToLeBytes } from "@utils/utils";
 import { routes } from "./router";
 import { connect, disconnect, sendCommand, getDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./communication/serial";
 import { useLogStore } from "@stores/logStore";
@@ -140,18 +140,14 @@ export default defineComponent({
 				.then(() => {
 					const now = Date.now() / 1000;
 					sendCommand('request', MspFn.SET_RTC, MspVersion.V2, [
-						now & 0xff,
-						(now >> 8) & 0xff,
-						(now >> 16) & 0xff,
-						(now >> 24) & 0xff
+						...intToLeBytes(Math.floor(now), 4),
 					]);
 				})
 				.then(() => delay(5))
 				.then(() => {
 					const offset = -new Date().getTimezoneOffset();
 					sendCommand('request', MspFn.SET_TZ_OFFSET, MspVersion.V2, [
-						offset & 0xff,
-						(offset >> 8) & 0xff
+						...intToLeBytes(offset, 2),
 					]);
 				});
 		}

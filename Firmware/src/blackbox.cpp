@@ -1,5 +1,7 @@
 #include "global.h"
 
+#define BLACKBOX_CHUNK_SIZE 1024
+
 u64 bbFlags = 0;
 u64 currentBBFlags = 0;
 
@@ -68,7 +70,35 @@ bool clearBlackbox() {
 #endif
 }
 
-void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
+void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
+	char path[32];
+#if BLACKBOX_STORAGE == SD_BB
+	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
+	File logFile = SDFS.open(path, "r");
+#endif
+	if (!logFile) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_INIT, mspVer, "File not found", strlen("File not found"));
+		return;
+	}
+
+	// send init frame
+	u8 b[10];
+	b[0] = logNum & 0xFF;
+	b[1] = logNum >> 8;
+	u32 size = logFile.size();
+	b[2] = size & 0xFF;
+	b[3] = (size >> 8) & 0xFF;
+	b[4] = (size >> 16) & 0xFF;
+	b[5] = (size >> 24) & 0xFF;
+	b[6] = BLACKBOX_CHUNK_SIZE & 0xFF;
+	b[7] = (BLACKBOX_CHUNK_SIZE >> 8) & 0xFF;
+	b[8] = (BLACKBOX_CHUNK_SIZE >> 16) & 0xFF;
+	b[9] = (BLACKBOX_CHUNK_SIZE >> 24) & 0xFF;
+	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_INIT, mspVer, (char *)b, 10);
+	logFile.close();
+}
+
+void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
@@ -78,39 +108,36 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
 		return;
 	}
-	u8 buffer[1027];
-	buffer[0] = logNum;
-	u16 chunkNum = 0;
+
+	u8 buffer[BLACKBOX_CHUNK_SIZE + 6];
+	buffer[0] = logNum & 0xFF;
+	buffer[1] = logNum >> 8;
+	u32 chunkNum = 0;
 	if (singleChunk >= 0) {
 		chunkNum = singleChunk;
-		logFile.seek(chunkNum * 1024, SeekSet);
+		logFile.seek(chunkNum * BLACKBOX_CHUNK_SIZE, SeekSet);
 	}
 	size_t bytesRead = 1;
-	while (bytesRead > 0) {
+	while (true) {
 		rp2040.wdt_reset();
 		if (chunkNum % 1000 == 0)
 			p.neoPixelSetValue(0, chunkNum & 0xFF, chunkNum & 0xFF, chunkNum & 0xFF, true);
-		bytesRead = logFile.read(buffer + 3, 1024);
-		buffer[1] = chunkNum & 0xFF;
-		buffer[2] = chunkNum >> 8;
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 3);
+		bytesRead = logFile.read(buffer + 6, BLACKBOX_CHUNK_SIZE);
+		if (bytesRead <= 0)
+			break;
+		buffer[2] = chunkNum & 0xFF;
+		buffer[3] = chunkNum >> 8;
+		buffer[4] = chunkNum >> 16;
+		buffer[5] = chunkNum >> 24;
+		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 6);
 		Serial.flush();
-		while (Serial.available())
+		while (Serial.available()) // discard any data, prevents eventual panic
 			Serial.read();
 		chunkNum++;
 		if (singleChunk >= 0)
 			break;
 	}
 	logFile.close();
-	// finish frame includes 0xFFFF as chunk number, and then the actual max chunk number
-	if (singleChunk >= 0)
-		return;
-	buffer[0] = logNum;
-	buffer[1] = 0xFF;
-	buffer[2] = 0xFF;
-	buffer[3] = chunkNum & 0xFF;
-	buffer[4] = chunkNum >> 8;
-	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, 5);
 }
 
 void startLogging() {

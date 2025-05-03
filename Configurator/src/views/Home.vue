@@ -2,7 +2,7 @@
 import { defineComponent } from 'vue';
 import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/communication/serial';
 import { useLogStore } from '@stores/logStore';
-import { leBytesToInt, delay } from '@utils/utils';
+import { leBytesToInt, delay, intToLeBytes } from '@utils/utils';
 import { MspFn, MspVersion } from '@utils/msp';
 import { type Command } from '@utils/types';
 import { prefixZeros } from '@utils/utils';
@@ -67,6 +67,7 @@ export default defineComponent({
 			FLIGHT_MODES,
 			ARMING_DISABLE_FLAGS,
 			prefixZeros,
+			intToLeBytes,
 		};
 	},
 	methods: {
@@ -185,10 +186,7 @@ export default defineComponent({
 			<button @click="() => {
 				sendCommand('request', MspFn.SERIAL_PASSTHROUGH, MspVersion.V2, [
 					serialNum,
-					baudRate & 0xff,
-					(baudRate >> 8) & 0xff,
-					(baudRate >> 16) & 0xff,
-					baudRate >> 24
+					...intToLeBytes(baudRate, 4),
 				]);
 			}">Start Serial Passthrough</button>
 			<button @click="() => {

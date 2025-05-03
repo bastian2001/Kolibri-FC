@@ -39,7 +39,7 @@ runAsync().then(() => {
 let command: Command = {
 	command: NaN,
 	length: 0,
-	data: [],
+	data: new Uint8Array(),
 	dataStr: "",
 	cmdType: "request",
 	flag: 0,
@@ -196,7 +196,7 @@ let pingStarted = 0
 let newCommand: Command = {
 	command: 65535,
 	length: 0,
-	data: [],
+	data: new Uint8Array(),
 	dataStr: "",
 	cmdType: "request",
 	flag: 0,
@@ -216,6 +216,7 @@ function crc8DvbS2(crc: number, data: number): number {
 	}
 	return crc & 0xff
 }
+let receivedBytes = 0
 const read = () => {
 	invoke("serial_read")
 		.then(rxBuf => {
@@ -225,7 +226,7 @@ const read = () => {
 						if (c === 36) mspState = MspState.PACKET_START /* $ */
 						break
 					case MspState.PACKET_START:
-						newCommand.data = []
+						receivedBytes = 0
 						newCommand.dataStr = ""
 						if (c === 77) mspState = MspState.TYPE_V1 /* M */
 						else if (c === 88) mspState = MspState.TYPE_V2 /* X */
@@ -256,6 +257,7 @@ const read = () => {
 							mspState = MspState.JUMBO_LEN_LO_V1
 						} else {
 							newCommand.length = c
+							newCommand.data = new Uint8Array(newCommand.length)
 							mspState = MspState.CMD_V1
 						}
 						break
@@ -267,6 +269,7 @@ const read = () => {
 					case MspState.JUMBO_LEN_HI_V1:
 						checksumV1 ^= c
 						newCommand.length += c << 8
+						newCommand.data = new Uint8Array(newCommand.length)
 						newCommand.version = MspVersion.V1_JUMBO
 						mspState = MspState.CMD_V1
 						break
@@ -281,10 +284,10 @@ const read = () => {
 						}
 						break
 					case MspState.PAYLOAD_V1:
-						newCommand.data.push(c)
+						newCommand.data[receivedBytes++] = c
 						newCommand.dataStr += String.fromCharCode(c)
 						checksumV1 ^= c
-						if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V1
+						if (receivedBytes === newCommand.length) mspState = MspState.CHECKSUM_V1
 						break
 					case MspState.FLAG_V2_OVER_V1:
 						newCommand.flag = c
@@ -321,11 +324,11 @@ const read = () => {
 						mspState = newCommand.length > 0 ? MspState.PAYLOAD_V2_OVER_V1 : MspState.CHECKSUM_V2_OVER_V1
 						break
 					case MspState.PAYLOAD_V2_OVER_V1:
-						newCommand.data.push(c)
+						newCommand.data[receivedBytes++] = c
 						newCommand.dataStr += String.fromCharCode(c)
 						checksumV1 ^= c
 						checksumV2 = crc8DvbS2(checksumV2, c)
-						if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V2_OVER_V1
+						if (receivedBytes === newCommand.length) mspState = MspState.CHECKSUM_V2_OVER_V1
 						break
 					case MspState.CHECKSUM_V2_OVER_V1:
 						if (checksumV2 !== c) {
@@ -380,14 +383,15 @@ const read = () => {
 						break
 					case MspState.LEN_HI_V2:
 						newCommand.length += c << 8
+						newCommand.data = new Uint8Array(newCommand.length)
 						checksumV2 = crc8DvbS2(checksumV2, c)
 						mspState = newCommand.length > 0 ? MspState.PAYLOAD_V2 : MspState.CHECKSUM_V2
 						break
 					case MspState.PAYLOAD_V2:
-						newCommand.data.push(c)
+						newCommand.data[receivedBytes++] = c
 						newCommand.dataStr += String.fromCharCode(c)
 						checksumV2 = crc8DvbS2(checksumV2, c)
-						if (newCommand.data.length === newCommand.length) mspState = MspState.CHECKSUM_V2
+						if (receivedBytes === newCommand.length) mspState = MspState.CHECKSUM_V2
 						break
 					case MspState.CHECKSUM_V2:
 						if (checksumV2 === c) setCommand(newCommand)

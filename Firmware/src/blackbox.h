@@ -105,7 +105,16 @@ void writeSingleFrame();
  * @param logNum log number to print
  * @param singleChunk chunk number to print, -1 for all
  */
-void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk);
+void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk);
+
+/**
+ * @brief Print the file number, the file size and the chunk size
+ *
+ * @param serialNum serial number of the device
+ * @param mspVer MSP version to use
+ * @param logNum log number to print
+ */
+void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum);
 
 /// @brief Writes the prepared blackbox frames to the SD card
 void blackboxLoop();

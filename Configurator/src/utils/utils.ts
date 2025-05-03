@@ -1,4 +1,4 @@
-export const leBytesToInt = (bytes: number[], signed = false) => {
+export const leBytesToInt = (bytes: number[] | Uint8Array, signed = false) => {
 	let value = 0
 	for (let i = 0; i < bytes.length; i++) {
 		value += bytes[i] * Math.pow(256, i)
@@ -7,6 +7,19 @@ export const leBytesToInt = (bytes: number[], signed = false) => {
 		value -= Math.pow(256, bytes.length)
 	}
 	return value
+}
+
+export const intToLeBytes = (value: number, length: number) => {
+	const bytes = new Uint8Array(length)
+	const negative = value < 0
+	if (negative) {
+		value += Math.pow(256, length)
+	}
+	for (let i = 0; i < length; i++) {
+		bytes[i] = value & 0xff
+		value >>= 8
+	}
+	return bytes
 }
 
 export function map(value: number, inMin: number, inMax: number, outMin: number, outMax: number) {

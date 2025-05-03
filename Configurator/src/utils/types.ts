@@ -124,10 +124,10 @@ export type LogFrame = {
 
 export type BBLog = {
 	frameCount: number
-	rawFile: number[]
+	rawFile: Uint8Array
 	flags: string[]
 	frames: LogFrame[]
-	version: number[]
+	version: Uint8Array
 	startTime: Date
 	ranges: {
 		gyro: number
@@ -189,7 +189,7 @@ export type GenFlagProps = {
 export type Command = {
 	command: number
 	length: number
-	data: number[]
+	data: Uint8Array
 	dataStr: string
 	cmdType: "request" | "response" | "error"
 	flag: number
