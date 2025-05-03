@@ -1347,7 +1347,6 @@ export default defineComponent({
 			checksum ^= infoNums.length;
 			sendCommand('request', MspFn.BB_FILE_INFO, MspVersion.V2, infoNums);
 		},
-		processLogInfo(data: number[]) {
 		processLogInfo(data: Uint8Array) {
 			/* data of response (repeat 22 bytes for each log file)
 			 * 0. file number
