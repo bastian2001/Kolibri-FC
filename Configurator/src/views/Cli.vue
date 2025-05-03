@@ -22,7 +22,7 @@ export default defineComponent({
 				const input = this.inputText.trim();
 				if (input) {
 					sendCommand('request', MspFn.CLI_COMMAND, MspVersion.V2, [], this.inputText);
-					if (this.history.length && this.history[this.history.length - 1] !== this.inputText) {
+					if (this.history[this.history.length - 1] !== this.inputText) {
 						this.history.push(this.inputText);
 					}
 					this.historyIndex = -1;
@@ -51,29 +51,32 @@ export default defineComponent({
 		onStart() {
 			this.outputLines = [''];
 			delay(10).then(() => { sendCommand('request', MspFn.CLI_INIT) });
-			this.$refs.cliInput.focus();
+			(this.$refs.cliInput as HTMLInputElement).focus();
 		},
 		navigateHistory(e: KeyboardEvent) {
 			if (e.key === 'ArrowUp') {
 				e.preventDefault();
-				if (this.history.length > 0) {
+				if (this.historyIndex === -1) {
+					this.historyBackup = this.inputText;
+				}
+				if (this.filteredHistory.length > 0) {
 					// Navigate up in history
 					if (this.historyIndex === -1) {
 						this.historyBackup = this.inputText;
-						this.historyIndex = this.history.length - 1;
+						this.historyIndex = this.filteredHistory.length - 1;
 					} else if (this.historyIndex > 0) {
 						this.historyIndex--;
 						if (this.historyIndex === -1) this.historyIndex = 0; // Prevent going out of bounds
 					}
-					this.inputText = this.history[this.historyIndex];
+					this.inputText = this.filteredHistory[this.historyIndex];
 				}
 			} else if (e.key === 'ArrowDown') {
 				e.preventDefault();
-				if (this.history.length > 0 && this.historyIndex !== -1) {
+				if (this.filteredHistory.length > 0 && this.historyIndex !== -1) {
 					// Navigate down in history
-					if (this.historyIndex < this.history.length - 1) {
+					if (this.historyIndex < this.filteredHistory.length - 1) {
 						this.historyIndex++;
-						this.inputText = this.history[this.historyIndex]
+						this.inputText = this.filteredHistory[this.historyIndex]
 					} else {
 						this.historyIndex = -1;
 						this.inputText = this.historyBackup; // Restore the backup input
@@ -89,7 +92,7 @@ export default defineComponent({
 		if (history) {
 			const parsedHistory = JSON.parse(history);
 			if (Array.isArray(parsedHistory)) {
-				this.history = parsedHistory.slice(-20); // Limit to last 20 commands
+				this.history = parsedHistory.slice(-100);
 			}
 		}
 		addOnCommandHandler(this.onCommand);
@@ -97,11 +100,23 @@ export default defineComponent({
 	},
 	beforeUnmount() {
 		// save last 20 commands from history to local storage
-		const history = this.history.slice(-20);
+		const history = this.history.slice(-100); // Limit to last 100 commands
 		localStorage.setItem('cliHistory', JSON.stringify(history));
 
 		removeOnCommandHandler(this.onCommand);
 		removeOnConnectHandler(this.onStart);
+	},
+	computed: {
+		filteredHistory() {
+			const h = this.history.filter((item) => item.toLowerCase().includes(this.historyBackup.toLowerCase()))
+			// reduce successive duplicates to one
+			for (let i = h.length - 1; i > 0; i--) {
+				if (h[i] === h[i - 1]) {
+					h.splice(i, 1);
+				}
+			}
+			return h;
+		},
 	},
 });
 </script>
