@@ -220,7 +220,7 @@ export default defineComponent({
 			ctx.textAlign = 'left'
 			ctx.fillText((-this.scale).toString() + ' °/s', canvas.width / 2 + 5, canvas.height - 5);
 			ctx.lineWidth = 2;
-			const colors = ['#ff0000', '#00ff00', '#0000ff'];
+			const colors = ['#f77', '#7f7', '#77f'];
 
 			// draw all 3 rate curves
 			for (let i = 0; i < 3; i++) {
@@ -245,7 +245,7 @@ export default defineComponent({
 			if (!ctx) return;
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			//draw all 3 setpoints as dots
-			const colors = ['#ff5555', '#55ff55', '#5555ff'];
+			const colors = ['#f99', '#9f9', '#99f'];
 			const rcMap = [0, 1, 3]
 			for (let i = 0; i < 3; i++) {
 				ctx.fillStyle = colors[i];
