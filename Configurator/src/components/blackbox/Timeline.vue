@@ -1,7 +1,8 @@
 <script lang="ts">
-import { defineComponent, type PropType } from "vue";
-import { type GenFlagProps, type FlagProps, type BBLog, LogDataType } from "@utils/types";
-import { delay, skipValues } from "@/utils/utils";
+import { defineComponent, PropType } from "vue";
+import { GenFlagProps, FlagProps, BBLog, LogDataType } from "@utils/types";
+import { delay } from "@/utils/utils";
+import { skipValues } from "@/utils/blackbox/other";
 
 export default defineComponent({
 	name: "BlackboxTimeline",

@@ -96,6 +96,7 @@ export type LogData = {
 	debug2?: Int32Array
 	debug3?: Int16Array
 	debug4?: Int16Array
+	timestamp?: Uint32Array
 }
 
 export type BBLog = {

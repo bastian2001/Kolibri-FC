@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core"
 import { MspFn, MspVersion } from "@utils/msp"
-import { type Command } from "@utils/types"
+import { Command } from "@utils/types"
 import { useLogStore } from "@stores/logStore"
 import { runAsync } from "@utils/utils"
 

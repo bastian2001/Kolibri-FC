@@ -4,7 +4,7 @@ import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, rem
 import { useLogStore } from '@stores/logStore';
 import { leBytesToInt, delay, intToLeBytes } from '@utils/utils';
 import { MspFn, MspVersion } from '@utils/msp';
-import { type Command } from '@utils/types';
+import { Command } from '@utils/types';
 import { prefixZeros } from '@utils/utils';
 
 const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];

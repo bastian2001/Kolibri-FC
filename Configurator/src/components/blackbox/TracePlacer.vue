@@ -1,6 +1,6 @@
 <script lang="ts">
 import { BBLog, FlagProps, GenFlagProps, LogDataType, TraceInGraph } from '@utils/types';
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent, PropType } from 'vue';
 
 function getBinomialCoeff(n: number, k: number) {
 	let result = 1;
@@ -93,7 +93,7 @@ export default defineComponent({
 			return range;
 		},
 		path(): string {
-			if (this.currentNormalizedFlag?.path) {
+			if (this.currentNormalizedFlag) {
 				if (this.currentModifierName) {
 					return this.currentModifierName;
 				}

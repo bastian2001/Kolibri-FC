@@ -4,7 +4,7 @@ import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/comm
 import { MspFn } from "@utils/msp";
 import { leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
-import { type Command } from "@utils/types";
+import { Command } from "@utils/types";
 
 export default defineComponent({
 	name: "GpsMag",

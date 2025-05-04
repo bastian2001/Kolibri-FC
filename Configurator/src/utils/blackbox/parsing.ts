@@ -1,0 +1,642 @@
+import { BBLog, LogData } from "@utils/types"
+import { leBytesToInt } from "@utils/utils"
+import { BB_ALL_FLAGS } from "@utils/blackbox/bbFlags"
+
+const ACC_RANGES = [2, 4, 8, 16]
+const GYRO_RANGES = [2000, 1000, 500, 250, 125]
+
+export function parseBlackbox(binFile: Uint8Array): BBLog | string {
+	const header = binFile.slice(0, 256)
+	const data = binFile.slice(256)
+	const magic = leBytesToInt(header.slice(0, 4))
+	if (magic !== 0x99a12720) {
+		return magic.toString(16)
+	}
+	const version = header.slice(4, 7)
+	const sTime = leBytesToInt(header.slice(7, 11)) // unix timestamp in seconds (UTC)
+	const startTime = new Date(sTime * 1000)
+	const pidFreq = 3200 / (1 + header[11])
+	const freqDiv = header[12]
+	const rangeByte = header[13]
+	const ranges = {
+		gyro: GYRO_RANGES[(rangeByte >> 2) & 0b111],
+		accel: ACC_RANGES[rangeByte & 0b11],
+	}
+	const rateFactors: number[][] = [[], [], [], [], []]
+	const rfBytes = header.slice(14, 74)
+	for (let i = 0; i < 5; i++)
+		for (let j = 0; j < 3; j++)
+			rateFactors[i][j] = leBytesToInt(rfBytes.slice(i * 12 + j * 4, i * 12 + j * 4 + 4)) / 65536
+	const pidConstants: number[][] = [[], [], []]
+	const pidConstantsNice: number[][] = [[], [], []]
+	const pcBytes = header.slice(74, 134)
+	for (let i = 0; i < 3; i++) {
+		pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 20, i * 20 + 4))
+		pidConstantsNice[i][0] = pidConstants[i][0] >> 11
+		pidConstants[i][0] /= 65536
+		pidConstants[i][1] = leBytesToInt(pcBytes.slice(i * 20 + 4, i * 20 + 8))
+		pidConstantsNice[i][1] = pidConstants[i][1] >> 3
+		pidConstants[i][1] /= 65536
+		pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 20 + 8, i * 20 + 12))
+		pidConstantsNice[i][2] = pidConstants[i][2] >> 10
+		pidConstants[i][2] /= 65536
+		pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 20 + 12, i * 20 + 16))
+		pidConstantsNice[i][3] = pidConstants[i][3] >> 8
+		pidConstants[i][3] /= 65536
+		pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 20 + 16, i * 20 + 20))
+		pidConstantsNice[i][4] = pidConstants[i][4] >> 8
+		pidConstants[i][4] /= 65536
+	}
+	const flags: string[] = []
+	const flagSlice = header.slice(134, 142)
+	let frameSize = 0
+	const offsets: { [key: string]: number } = {}
+	for (let j = 0; j < 64; j++) {
+		const byteNum = Math.floor(j / 8)
+		const bitNum = j % 8
+		const flagIsSet = flagSlice[byteNum] & (1 << bitNum)
+		if (!flagIsSet || !Object.keys(BB_ALL_FLAGS)[j]) continue
+		flags.push(Object.keys(BB_ALL_FLAGS)[j])
+		offsets[Object.keys(BB_ALL_FLAGS)[j]] = frameSize
+		switch (j) {
+			case 26:
+			case 35:
+			case 36:
+			case 37:
+				frameSize += 6
+				break
+			case 28:
+				frameSize += 1
+				break
+			case 42:
+			case 44:
+			case 45:
+				frameSize += 4
+				break
+			case 43:
+				frameSize += 3
+				break
+			default:
+				frameSize += 2
+				break
+		}
+	}
+	const motorPoles = header[142]
+	const framesPerSecond = pidFreq / freqDiv
+	const frames = data.length / frameSize
+	const frameCount = Math.floor(frames)
+	const logData: LogData = {}
+	if (flags.includes("LOG_ROLL_ELRS_RAW")) {
+		logData.elrsRoll = new Uint16Array(frameCount)
+		const o = offsets["LOG_ROLL_ELRS_RAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.elrsRoll[f] = leBytesToInt(data.slice(p, p + 2))
+		}
+	}
+	if (flags.includes("LOG_PITCH_ELRS_RAW")) {
+		logData.elrsPitch = new Uint16Array(frameCount)
+		const o = offsets["LOG_PITCH_ELRS_RAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.elrsPitch[f] = leBytesToInt(data.slice(p, p + 2))
+		}
+	}
+	if (flags.includes("LOG_THROTTLE_ELRS_RAW")) {
+		logData.elrsThrottle = new Uint16Array(frameCount)
+		const o = offsets["LOG_THROTTLE_ELRS_RAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.elrsThrottle[f] = leBytesToInt(data.slice(p, p + 2))
+		}
+	}
+	if (flags.includes("LOG_YAW_ELRS_RAW")) {
+		logData.elrsYaw = new Uint16Array(frameCount)
+		const o = offsets["LOG_YAW_ELRS_RAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.elrsYaw[f] = leBytesToInt(data.slice(p, p + 2))
+		}
+	}
+	if (flags.includes("LOG_ROLL_SETPOINT")) {
+		logData.setpointRoll = new Float32Array(frameCount)
+		const o = offsets["LOG_ROLL_SETPOINT"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.setpointRoll[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_PITCH_SETPOINT")) {
+		logData.setpointPitch = new Float32Array(frameCount)
+		const o = offsets["LOG_PITCH_SETPOINT"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.setpointPitch[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_THROTTLE_SETPOINT")) {
+		logData.setpointThrottle = new Float32Array(frameCount)
+		const o = offsets["LOG_THROTTLE_SETPOINT"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.setpointThrottle[f] = leBytesToInt(data.slice(p, p + 2)) / 32 + 1000 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_YAW_SETPOINT")) {
+		logData.setpointYaw = new Float32Array(frameCount)
+		const o = offsets["LOG_YAW_SETPOINT"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.setpointYaw[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_ROLL_GYRO_RAW")) {
+		logData.gyroRawRoll = new Float32Array(frameCount)
+		const o = offsets["LOG_ROLL_GYRO_RAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.gyroRawRoll[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_PITCH_GYRO_RAW")) {
+		logData.gyroRawPitch = new Float32Array(frameCount)
+		const o = offsets["LOG_PITCH_GYRO_RAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.gyroRawPitch[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_YAW_GYRO_RAW")) {
+		logData.gyroRawYaw = new Float32Array(frameCount)
+		const o = offsets["LOG_YAW_GYRO_RAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.gyroRawYaw[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_ROLL_PID_P")) {
+		logData.pidRollP = new Float32Array(frameCount)
+		const o = offsets["LOG_ROLL_PID_P"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidRollP[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_ROLL_PID_I")) {
+		logData.pidRollI = new Float32Array(frameCount)
+		const o = offsets["LOG_ROLL_PID_I"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidRollI[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_ROLL_PID_D")) {
+		logData.pidRollD = new Float32Array(frameCount)
+		const o = offsets["LOG_ROLL_PID_D"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidRollD[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_ROLL_PID_FF")) {
+		logData.pidRollFF = new Float32Array(frameCount)
+		const o = offsets["LOG_ROLL_PID_FF"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidRollFF[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_ROLL_PID_S")) {
+		logData.pidRollS = new Float32Array(frameCount)
+		const o = offsets["LOG_ROLL_PID_S"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidRollS[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_PITCH_PID_P")) {
+		logData.pidPitchP = new Float32Array(frameCount)
+		const o = offsets["LOG_PITCH_PID_P"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidPitchP[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_PITCH_PID_I")) {
+		logData.pidPitchI = new Float32Array(frameCount)
+		const o = offsets["LOG_PITCH_PID_I"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidPitchI[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_PITCH_PID_D")) {
+		logData.pidPitchD = new Float32Array(frameCount)
+		const o = offsets["LOG_PITCH_PID_D"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidPitchD[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_PITCH_PID_FF")) {
+		logData.pidPitchFF = new Float32Array(frameCount)
+		const o = offsets["LOG_PITCH_PID_FF"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidPitchFF[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_PITCH_PID_S")) {
+		logData.pidPitchS = new Float32Array(frameCount)
+		const o = offsets["LOG_PITCH_PID_S"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidPitchS[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_YAW_PID_P")) {
+		logData.pidYawP = new Float32Array(frameCount)
+		const o = offsets["LOG_YAW_PID_P"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidYawP[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_YAW_PID_I")) {
+		logData.pidYawI = new Float32Array(frameCount)
+		const o = offsets["LOG_YAW_PID_I"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidYawI[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_YAW_PID_D")) {
+		logData.pidYawD = new Float32Array(frameCount)
+		const o = offsets["LOG_YAW_PID_D"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidYawD[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_YAW_PID_FF")) {
+		logData.pidYawFF = new Float32Array(frameCount)
+		const o = offsets["LOG_YAW_PID_FF"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidYawFF[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_YAW_PID_S")) {
+		logData.pidYawS = new Float32Array(frameCount)
+		const o = offsets["LOG_YAW_PID_S"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pidYawS[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+		}
+	}
+	if (flags.includes("LOG_MOTOR_OUTPUTS")) {
+		logData.motorOutRR = new Uint16Array(frameCount)
+		logData.motorOutFR = new Uint16Array(frameCount)
+		logData.motorOutRL = new Uint16Array(frameCount)
+		logData.motorOutFL = new Uint16Array(frameCount)
+		const o = offsets["LOG_MOTOR_OUTPUTS"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			const throttleBytes = data.slice(p, p + 6)
+			const motors01 = leBytesToInt(throttleBytes.slice(0, 3))
+			const motors23 = leBytesToInt(throttleBytes.slice(3, 6))
+			logData.motorOutRR[f] = motors01 & 0xfff
+			logData.motorOutFR[f] = motors01 >> 12
+			logData.motorOutRL[f] = motors23 & 0xfff
+			logData.motorOutFL[f] = motors23 >> 12
+		}
+	}
+	if (flags.includes("LOG_FRAMETIME")) {
+		logData.frametime = new Uint16Array(frameCount)
+		logData.timestamp = new Uint32Array(frameCount)
+		const o = offsets["LOG_FRAMETIME"]
+		let t = 0
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.frametime[f] = leBytesToInt(data.slice(p, p + 2))
+			t += logData.frametime[f]
+			logData.timestamp[f] = t
+		}
+	}
+	if (flags.includes("LOG_FLIGHT_MODE")) {
+		logData.flightMode = new Uint8Array(frameCount)
+		const o = offsets["LOG_FLIGHT_MODE"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.flightMode[f] = data[p]
+		}
+	}
+	if (flags.includes("LOG_ALTITUDE")) {
+		logData.altitude = new Float32Array(frameCount)
+		const o = offsets["LOG_ALTITUDE"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.altitude[f] = leBytesToInt(data.slice(p, p + 2), true) / 16
+		}
+	}
+	if (flags.includes("LOG_VVEL")) {
+		logData.vvel = new Float32Array(frameCount)
+		const o = offsets["LOG_VVEL"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.vvel[f] = leBytesToInt(data.slice(p, p + 2), true) / 256
+		}
+	}
+	if (flags.includes("LOG_GPS")) {
+		logData.gpsYear = new Uint16Array(frameCount)
+		logData.gpsMonth = new Uint8Array(frameCount)
+		logData.gpsDay = new Uint8Array(frameCount)
+		logData.gpsHour = new Uint8Array(frameCount)
+		logData.gpsMinute = new Uint8Array(frameCount)
+		logData.gpsSecond = new Uint8Array(frameCount)
+		logData.gpsTimeValidityFlags = new Uint8Array(frameCount)
+		logData.gpsTAcc = new Uint32Array(frameCount)
+		logData.gpsNs = new Uint32Array(frameCount)
+		logData.gpsFixType = new Uint8Array(frameCount)
+		logData.gpsFlags = new Uint8Array(frameCount)
+		logData.gpsFlags2 = new Uint8Array(frameCount)
+		logData.gpsSatCount = new Uint8Array(frameCount)
+		logData.gpsLon = new Float64Array(frameCount)
+		logData.gpsLat = new Float64Array(frameCount)
+		logData.gpsAlt = new Float32Array(frameCount)
+		logData.gpsHAcc = new Float32Array(frameCount)
+		logData.gpsVAcc = new Float32Array(frameCount)
+		logData.gpsVelN = new Float32Array(frameCount)
+		logData.gpsVelE = new Float32Array(frameCount)
+		logData.gpsVelD = new Float32Array(frameCount)
+		logData.gpsGSpeed = new Float32Array(frameCount)
+		logData.gpsHeadMot = new Float32Array(frameCount)
+		logData.gpsSAcc = new Float32Array(frameCount)
+		logData.gpsHeadAcc = new Float32Array(frameCount)
+		logData.gpsPDop = new Float32Array(frameCount)
+		logData.gpsFlags3 = new Uint16Array(frameCount)
+		const gpsData = new Uint8Array(92)
+		const o = offsets["LOG_GPS"]
+		for (let f = 0; f < frameCount; f++) {
+			const dataPos = f * frameSize + o
+			if (frameCount < f + 3) break // 3 init frames
+			if (
+				leBytesToInt(data.slice(dataPos, dataPos + 2)) === 20551 && // if this frame has 'G' * 256 + 'P'
+				leBytesToInt(data.slice(dataPos + frameSize, dataPos + 2 + frameSize)) === 20563 && // if the next frame has 'S' * 256 + 'P'
+				leBytesToInt(data.slice(dataPos + frameSize * 2, dataPos + 2 + frameSize * 2)) === 21590 // if the 2nd next frame has 'V' * 256 + 'T'
+			) {
+				if (frameCount < f + 49) break // 3 init frames + 46 frames of data
+				for (let j = 0; j < 46; j++) {
+					const gpsBytes = data.slice(dataPos + frameSize * (3 + j), dataPos + frameSize * (3 + j) + 2)
+					gpsData.set(gpsBytes, j * 2)
+				}
+				logData.gpsYear[f] = leBytesToInt(gpsData.slice(4, 6))
+				logData.gpsMonth[f] = gpsData[6]
+				logData.gpsDay[f] = gpsData[7]
+				logData.gpsHour[f] = gpsData[8]
+				logData.gpsMinute[f] = gpsData[9]
+				logData.gpsSecond[f] = gpsData[10]
+				logData.gpsTimeValidityFlags[f] = gpsData[11]
+				logData.gpsTAcc[f] = leBytesToInt(gpsData.slice(12, 16))
+				logData.gpsNs[f] = leBytesToInt(gpsData.slice(16, 20), true)
+				logData.gpsFixType[f] = gpsData[20]
+				logData.gpsFlags[f] = gpsData[21]
+				logData.gpsFlags2[f] = gpsData[22]
+				logData.gpsSatCount[f] = gpsData[23]
+				logData.gpsLon[f] = leBytesToInt(gpsData.slice(24, 28), true) / 10000000
+				logData.gpsLat[f] = leBytesToInt(gpsData.slice(28, 32), true) / 10000000
+				logData.gpsAlt[f] = leBytesToInt(gpsData.slice(36, 40), true) / 1000
+				logData.gpsHAcc[f] = leBytesToInt(gpsData.slice(40, 44)) / 1000
+				logData.gpsVAcc[f] = leBytesToInt(gpsData.slice(44, 48)) / 1000
+				logData.gpsVelN[f] = leBytesToInt(gpsData.slice(48, 52), true) / 1000
+				logData.gpsVelE[f] = leBytesToInt(gpsData.slice(52, 56), true) / 1000
+				logData.gpsVelD[f] = leBytesToInt(gpsData.slice(56, 60), true) / 1000
+				logData.gpsGSpeed[f] = leBytesToInt(gpsData.slice(60, 64), true) / 1000
+				logData.gpsHeadMot[f] = leBytesToInt(gpsData.slice(64, 68), true) / 100000
+				logData.gpsSAcc[f] = leBytesToInt(gpsData.slice(68, 72)) / 1000
+				logData.gpsHeadAcc[f] = leBytesToInt(gpsData.slice(72, 76)) / 100000
+				logData.gpsPDop[f] = leBytesToInt(gpsData.slice(76, 78)) / 100
+				logData.gpsFlags3[f] = leBytesToInt(gpsData.slice(78, 80))
+			} else if (f > 0) {
+				logData.gpsYear[f] = logData.gpsYear[f - 1]
+				logData.gpsMonth[f] = logData.gpsMonth[f - 1]
+				logData.gpsDay[f] = logData.gpsDay[f - 1]
+				logData.gpsHour[f] = logData.gpsHour[f - 1]
+				logData.gpsMinute[f] = logData.gpsMinute[f - 1]
+				logData.gpsSecond[f] = logData.gpsSecond[f - 1]
+				logData.gpsTimeValidityFlags[f] = logData.gpsTimeValidityFlags[f - 1]
+				logData.gpsTAcc[f] = logData.gpsTAcc[f - 1]
+				logData.gpsNs[f] = logData.gpsNs[f - 1]
+				logData.gpsFixType[f] = logData.gpsFixType[f - 1]
+				logData.gpsFlags[f] = logData.gpsFlags[f - 1]
+				logData.gpsFlags2[f] = logData.gpsFlags2[f - 1]
+				logData.gpsSatCount[f] = logData.gpsSatCount[f - 1]
+				logData.gpsLon[f] = logData.gpsLon[f - 1]
+				logData.gpsLat[f] = logData.gpsLat[f - 1]
+				logData.gpsAlt[f] = logData.gpsAlt[f - 1]
+				logData.gpsHAcc[f] = logData.gpsHAcc[f - 1]
+				logData.gpsVAcc[f] = logData.gpsVAcc[f - 1]
+				logData.gpsVelN[f] = logData.gpsVelN[f - 1]
+				logData.gpsVelE[f] = logData.gpsVelE[f - 1]
+				logData.gpsVelD[f] = logData.gpsVelD[f - 1]
+				logData.gpsGSpeed[f] = logData.gpsGSpeed[f - 1]
+				logData.gpsHeadMot[f] = logData.gpsHeadMot[f - 1]
+				logData.gpsSAcc[f] = logData.gpsSAcc[f - 1]
+				logData.gpsHeadAcc[f] = logData.gpsHeadAcc[f - 1]
+				logData.gpsPDop[f] = logData.gpsPDop[f - 1]
+				logData.gpsFlags3[f] = logData.gpsFlags3[f - 1]
+			}
+		}
+	}
+	if (flags.includes("LOG_ATT_ROLL")) {
+		logData.rollAngle = new Float32Array(frameCount)
+		const o = offsets["LOG_ATT_ROLL"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.rollAngle[f] = ((leBytesToInt(data.slice(p, p + 2), true) / 10000) * 180) / Math.PI
+		}
+	}
+	if (flags.includes("LOG_ATT_PITCH")) {
+		logData.pitchAngle = new Float32Array(frameCount)
+		const o = offsets["LOG_ATT_PITCH"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.pitchAngle[f] = ((leBytesToInt(data.slice(p, p + 2), true) / 10000) * 180) / Math.PI
+		}
+	}
+	if (flags.includes("LOG_ATT_YAW")) {
+		logData.yawAngle = new Float32Array(frameCount)
+		const o = offsets["LOG_ATT_YAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.yawAngle[f] = ((leBytesToInt(data.slice(p, p + 2), true) / 10000) * 180) / Math.PI
+		}
+	}
+	if (flags.includes("LOG_MOTOR_RPM")) {
+		logData.rpmRR = new Float32Array(frameCount)
+		logData.rpmFR = new Float32Array(frameCount)
+		logData.rpmRL = new Float32Array(frameCount)
+		logData.rpmFL = new Float32Array(frameCount)
+		const o = offsets["LOG_MOTOR_RPM"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			const motors01 = leBytesToInt(data.slice(p, p + 3))
+			const motors23 = leBytesToInt(data.slice(p + 3, p + 6))
+			let rr = motors01 & 0xfff
+			let fr = motors01 >> 12
+			let rl = motors23 & 0xfff
+			let fl = motors23 >> 12
+			if (rr === 0xfff) {
+				logData.rpmRR[f] = 0
+			} else {
+				rr = (rr & 0x1ff) << (rr >> 9)
+				logData.rpmRR[f] = (60000000 + 50 * rr) / rr / (motorPoles / 2)
+			}
+			if (fr === 0xfff) {
+				logData.rpmFR[f] = 0
+			} else {
+				fr = (fr & 0x1ff) << (fr >> 9)
+				logData.rpmFR[f] = (60000000 + 50 * fr) / fr / (motorPoles / 2)
+			}
+			if (rl === 0xfff) {
+				logData.rpmRL[f] = 0
+			} else {
+				rl = (rl & 0x1ff) << (rl >> 9)
+				logData.rpmRL[f] = (60000000 + 50 * rl) / rl / (motorPoles / 2)
+			}
+			if (fl === 0xfff) {
+				logData.rpmFL[f] = 0
+			} else {
+				fl = (fl & 0x1ff) << (fl >> 9)
+				logData.rpmFL[f] = (60000000 + 50 * fl) / fl / (motorPoles / 2)
+			}
+		}
+	}
+	if (flags.includes("LOG_ACCEL_RAW")) {
+		logData.accelRawX = new Float32Array(frameCount)
+		logData.accelRawY = new Float32Array(frameCount)
+		logData.accelRawZ = new Float32Array(frameCount)
+		const o = offsets["LOG_ACCEL_RAW"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.accelRawX[f] = (leBytesToInt(data.slice(p, p + 2), true) * 9.81) / 2048
+			logData.accelRawY[f] = (leBytesToInt(data.slice(p + 2, p + 4), true) * 9.81) / 2048
+			logData.accelRawZ[f] = (leBytesToInt(data.slice(p + 4, p + 6), true) * 9.81) / 2048
+		}
+	}
+	if (flags.includes("LOG_ACCEL_FILTERED")) {
+		logData.accelFilteredX = new Float32Array(frameCount)
+		logData.accelFilteredY = new Float32Array(frameCount)
+		logData.accelFilteredZ = new Float32Array(frameCount)
+		const o = offsets["LOG_ACCEL_FILTERED"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.accelFilteredX[f] = (leBytesToInt(data.slice(p, p + 2), true) * 9.81) / 2048
+			logData.accelFilteredY[f] = (leBytesToInt(data.slice(p + 2, p + 4), true) * 9.81) / 2048
+			logData.accelFilteredZ[f] = (leBytesToInt(data.slice(p + 4, p + 6), true) * 9.81) / 2048
+		}
+	}
+	if (flags.includes("LOG_VERTICAL_ACCEL")) {
+		logData.accelVertical = new Float32Array(frameCount)
+		const o = offsets["LOG_VERTICAL_ACCEL"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.accelVertical[f] = leBytesToInt(data.slice(p, p + 2), true) / 128
+		}
+	}
+	if (flags.includes("LOG_VVEL_SETPOINT")) {
+		logData.setpointVvel = new Float32Array(frameCount)
+		const o = offsets["LOG_VVEL_SETPOINT"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.setpointVvel[f] = leBytesToInt(data.slice(p, p + 2), true) / 4096
+		}
+	}
+	if (flags.includes("LOG_MAG_HEADING")) {
+		logData.magHeading = new Float32Array(frameCount)
+		const o = offsets["LOG_MAG_HEADING"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.magHeading[f] = ((leBytesToInt(data.slice(p, p + 2), true) / 8192) * 180) / Math.PI
+		}
+	}
+	if (flags.includes("LOG_COMBINED_HEADING")) {
+		logData.combinedHeading = new Float32Array(frameCount)
+		const o = offsets["LOG_COMBINED_HEADING"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.combinedHeading[f] = ((leBytesToInt(data.slice(p, p + 2), true) / 8192) * 180) / Math.PI
+		}
+	}
+	if (flags.includes("LOG_HVEL")) {
+		logData.hvelN = new Float32Array(frameCount)
+		logData.hvelE = new Float32Array(frameCount)
+		const o = offsets["LOG_HVEL"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.hvelN[f] = leBytesToInt(data.slice(p, p + 2), true) / 256
+			logData.hvelE[f] = leBytesToInt(data.slice(p + 2, p + 4), true) / 256
+		}
+	}
+	if (flags.includes("LOG_BARO")) {
+		logData.baroRaw = new Uint32Array(frameCount)
+		logData.baroHpa = new Float32Array(frameCount)
+		logData.baroAlt = new Float32Array(frameCount)
+		const o = offsets["LOG_BARO"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.baroRaw[f] = leBytesToInt(data.slice(p, p + 3))
+			logData.baroHpa[f] = logData.baroRaw[f] / 4096
+			logData.baroAlt[f] = 44330 * (1 - Math.pow(logData.baroHpa[f] / 1013.25, 1 / 5.255))
+		}
+	}
+	if (flags.includes("LOG_DEBUG_1")) {
+		logData.debug1 = new Int32Array(frameCount)
+		const o = offsets["LOG_DEBUG_1"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.debug1[f] = leBytesToInt(data.slice(p, p + 4), true)
+		}
+	}
+	if (flags.includes("LOG_DEBUG_2")) {
+		logData.debug2 = new Int32Array(frameCount)
+		const o = offsets["LOG_DEBUG_2"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.debug2[f] = leBytesToInt(data.slice(p, p + 4), true)
+		}
+	}
+	if (flags.includes("LOG_DEBUG_3")) {
+		logData.debug3 = new Int16Array(frameCount)
+		const o = offsets["LOG_DEBUG_3"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.debug3[f] = leBytesToInt(data.slice(p, p + 2), true)
+		}
+	}
+	if (flags.includes("LOG_DEBUG_4")) {
+		logData.debug4 = new Int16Array(frameCount)
+		const o = offsets["LOG_DEBUG_4"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = f * frameSize + o
+			logData.debug4[f] = leBytesToInt(data.slice(p, p + 2), true)
+		}
+	}
+	return {
+		frameCount: frames,
+		flags,
+		logData,
+		version,
+		startTime,
+		ranges,
+		pidFrequency: pidFreq,
+		frequencyDivider: freqDiv,
+		rateFactors,
+		pidConstants,
+		framesPerSecond,
+		rawFile: binFile,
+		isExact: true,
+		pidConstantsNice,
+		motorPoles,
+	} as BBLog
+}

@@ -2,7 +2,7 @@
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/communication/serial';
 import { MspFn, MspVersion } from '@utils/msp';
 import { Command, FlagProps } from '@utils/types';
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent, PropType } from 'vue';
 import { leBytesToInt } from '@utils/utils';
 
 export default defineComponent({

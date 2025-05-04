@@ -1,27 +1,11 @@
-import type { BBLog, GenFlagProps, FlagProps } from "./types"
+import { BBLog, GenFlagProps, FlagProps } from "../types"
 
 const getGyroBBRange = (file: BBLog | undefined) => {
 	if (!file) return { max: -2000, min: 2000 }
-	return { max: 1000, min: -1000 }
-	// let maxSetpoints = [0, 0, 0]
-	// for (let exp = 0; exp < 5; exp++) for (let ax = 0; ax < 3; ax++) maxSetpoints[ax] += file.rateFactors[exp][ax]
-	// //Math.max leads to a stack overflow, thus using a for loop now
-	// let max = 0,
-	// 	min = 0
-	// for (let i = 0; i < maxSetpoints.length; i++) {
-	// 	if (maxSetpoints[i] > max) max = maxSetpoints[i]
-	// 	if (maxSetpoints[i] < min) min = maxSetpoints[i]
-	// }
-	// file.frames.forEach(f => {
-	// 	if (f.gyro.roll! > max) max = f.gyro.roll!
-	// 	if (f.gyro.pitch! > max) max = f.gyro.pitch!
-	// 	if (f.gyro.yaw! > max) max = f.gyro.yaw!
-	// 	if (f.gyro.roll! < min) min = f.gyro.roll!
-	// 	if (f.gyro.pitch! < min) min = f.gyro.pitch!
-	// 	if (f.gyro.yaw! < min) min = f.gyro.yaw!
-	// })
-	// const fullRange = Math.round(Math.max(max, -min))
-	// return { max: fullRange, min: -fullRange }
+	let maxSetpoints = [0, 0, 0]
+	for (let exp = 0; exp < 5; exp++) for (let ax = 0; ax < 3; ax++) maxSetpoints[ax] += file.rateFactors[exp][ax]
+	const max = Math.max(...maxSetpoints) * 1.5
+	return { max: max, min: -max }
 }
 const getAltitudeRange = (file: BBLog | undefined) => {
 	if (!file || !file.logData.altitude) return { max: 300, min: 0 }
@@ -335,16 +319,15 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Time Accuracy",
 				min: 0,
 				max: 100,
-				path: "t_acc",
-				unit: "gpsTAcc",
+				path: "gpsTAcc",
+				unit: "ns",
 			},
 			{
 				displayNameShort: "Nanosec",
 				displayName: "Nanoseconds",
 				min: 0,
 				max: 1e9,
-				path: "ns",
-				unit: "gpsNs",
+				path: "gpsNs",
 			},
 			{
 				displayNameShort: "Fix",
@@ -367,24 +350,24 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayNameShort: "Lon",
 				displayName: "Longitude",
 				rangeFn: getLongitudeRange,
-				path: "lon",
-				unit: "gpsLon",
+				path: "gpsLon",
+				unit: "°",
 				decimals: 7,
 			},
 			{
 				displayNameShort: "Lat",
 				displayName: "Latitude",
 				rangeFn: getLatitudeRange,
-				path: "lat",
-				unit: "gpsLat",
+				path: "gpsLat",
+				unit: "°",
 				decimals: 7,
 			},
 			{
 				displayNameShort: "Alt",
 				displayName: "Altitude",
 				rangeFn: getAltitudeRange,
-				path: "alt",
-				unit: "gpsAlt",
+				path: "gpsAlt",
+				unit: "m",
 				decimals: 2,
 			},
 			{
@@ -392,8 +375,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Horizontal Accuracy",
 				min: 0,
 				max: 20,
-				path: "h_acc",
-				unit: "gpsHAcc",
+				path: "gpsHAcc",
+				unit: "m",
 				decimals: 2,
 			},
 			{
@@ -401,8 +384,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Vertical Accuracy",
 				min: 0,
 				max: 20,
-				path: "v_acc",
-				unit: "gpsVAcc",
+				path: "gpsVAcc",
+				unit: "m",
 				decimals: 2,
 			},
 			{
@@ -410,8 +393,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Velocity North",
 				min: -15,
 				max: 15,
-				path: "vel_n",
-				unit: "gpsVelN",
+				path: "gpsVelN",
+				unit: "m/s",
 				decimals: 2,
 			},
 			{
@@ -419,8 +402,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Velocity East",
 				min: -15,
 				max: 15,
-				path: "vel_e",
-				unit: "gpsVelE",
+				path: "gpsVelE",
+				unit: "m/s",
 				decimals: 2,
 			},
 			{
@@ -428,8 +411,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Velocity Down",
 				min: 10,
 				max: -10, //down is positive, invert by default
-				path: "vel_d",
-				unit: "gpsVelD",
+				path: "gpsVelD",
+				unit: "m/s",
 				decimals: 2,
 			},
 			{
@@ -437,8 +420,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Ground Speed",
 				min: 0,
 				max: 50,
-				path: "g_speed",
-				unit: "gpsGSpeed",
+				path: "gpsGSpeed",
+				unit: "m/s",
 				decimals: 2,
 			},
 			{
@@ -446,16 +429,16 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Heading of Motion",
 				min: -180,
 				max: 180,
-				path: "head_mot",
-				unit: "gpsHeadMot",
+				path: "gpsHeadMot",
+				unit: "°",
 			},
 			{
 				displayNameShort: "S Acc",
 				displayName: "Speed Accuracy",
 				min: 0,
 				max: 10,
-				path: "s_acc",
-				unit: "gpsSAcc",
+				path: "gpsSAcc",
+				unit: "m/s",
 				decimals: 2,
 			},
 			{
@@ -463,8 +446,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				displayName: "Heading Accuracy",
 				min: 0,
 				max: 20,
-				path: "head_acc",
-				unit: "gpsHeadAcc",
+				path: "gpsHeadAcc",
+				unit: "°",
 				decimals: 2,
 			},
 			{
@@ -647,126 +630,126 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 }
 
 export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
-	// GEN_ROLL_SETPOINT: {
-	// 	replaces: "LOG_ROLL_SETPOINT",
-	// 	requires: ["LOG_ROLL_ELRS_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_PITCH_SETPOINT: {
-	// 	replaces: "LOG_PITCH_SETPOINT",
-	// 	requires: ["LOG_PITCH_ELRS_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_THROTTLE_SETPOINT: {
-	// 	replaces: "LOG_THROTTLE_SETPOINT",
-	// 	requires: ["LOG_THROTTLE_ELRS_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_YAW_SETPOINT: {
-	// 	replaces: "LOG_YAW_SETPOINT",
-	// 	requires: ["LOG_YAW_ELRS_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_ROLL_PID_P: {
-	// 	replaces: "LOG_ROLL_PID_P",
-	// 	requires: [["LOG_ROLL_SETPOINT", "GEN_ROLL_SETPOINT"], "LOG_ROLL_GYRO_RAW"],
-	// 	exact: true,
-	// },
-	// GEN_ROLL_PID_I: {
-	// 	replaces: "LOG_ROLL_PID_I",
-	// 	requires: [["LOG_ROLL_SETPOINT", "GEN_ROLL_SETPOINT"], "LOG_ROLL_GYRO_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_ROLL_PID_D: {
-	// 	replaces: "LOG_ROLL_PID_D",
-	// 	requires: ["LOG_ROLL_GYRO_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_ROLL_PID_FF: {
-	// 	replaces: "LOG_ROLL_PID_FF",
-	// 	requires: [["LOG_ROLL_SETPOINT", "GEN_ROLL_SETPOINT"]],
-	// 	exact: false,
-	// },
-	// GEN_ROLL_PID_S: {
-	// 	replaces: "LOG_ROLL_PID_S",
-	// 	requires: [["LOG_ROLL_SETPOINT", "GEN_ROLL_SETPOINT"]],
-	// 	exact: true,
-	// },
-	// GEN_PITCH_PID_P: {
-	// 	replaces: "LOG_PITCH_PID_P",
-	// 	requires: [["LOG_PITCH_SETPOINT", "GEN_PITCH_SETPOINT"], "LOG_PITCH_GYRO_RAW"],
-	// 	exact: true,
-	// },
-	// GEN_PITCH_PID_I: {
-	// 	replaces: "LOG_PITCH_PID_I",
-	// 	requires: [["LOG_PITCH_SETPOINT", "GEN_PITCH_SETPOINT"], "LOG_PITCH_GYRO_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_PITCH_PID_D: {
-	// 	replaces: "LOG_PITCH_PID_D",
-	// 	requires: ["LOG_PITCH_GYRO_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_PITCH_PID_FF: {
-	// 	replaces: "LOG_PITCH_PID_FF",
-	// 	requires: [["LOG_PITCH_SETPOINT", "GEN_PITCH_SETPOINT"]],
-	// 	exact: false,
-	// },
-	// GEN_PITCH_PID_S: {
-	// 	replaces: "LOG_PITCH_PID_S",
-	// 	requires: [["LOG_PITCH_SETPOINT", "GEN_PITCH_SETPOINT"]],
-	// 	exact: true,
-	// },
-	// GEN_YAW_PID_P: {
-	// 	replaces: "LOG_YAW_PID_P",
-	// 	requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"], "LOG_YAW_GYRO_RAW"],
-	// 	exact: true,
-	// },
-	// GEN_YAW_PID_I: {
-	// 	replaces: "LOG_YAW_PID_I",
-	// 	requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"], "LOG_YAW_GYRO_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_YAW_PID_D: {
-	// 	replaces: "LOG_YAW_PID_D",
-	// 	requires: ["LOG_YAW_GYRO_RAW"],
-	// 	exact: false,
-	// },
-	// GEN_YAW_PID_FF: {
-	// 	replaces: "LOG_YAW_PID_FF",
-	// 	requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"]],
-	// 	exact: false,
-	// },
-	// GEN_YAW_PID_S: {
-	// 	replaces: "LOG_YAW_PID_S",
-	// 	requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"]],
-	// 	exact: true,
-	// },
-	// GEN_MOTOR_OUTPUTS: {
-	// 	replaces: "LOG_MOTOR_OUTPUTS",
-	// 	requires: [
-	// 		["GEN_THROTTLE_SETPOINT", "LOG_THROTTLE_SETPOINT"],
-	// 		["LOG_ROLL_PID_P", "GEN_ROLL_PID_P"],
-	// 		["LOG_ROLL_PID_I", "GEN_ROLL_PID_I"],
-	// 		["LOG_ROLL_PID_D", "GEN_ROLL_PID_D"],
-	// 		["LOG_ROLL_PID_FF", "GEN_ROLL_PID_FF"],
-	// 		["LOG_ROLL_PID_S", "GEN_ROLL_PID_S"],
-	// 		["LOG_PITCH_PID_P", "GEN_PITCH_PID_P"],
-	// 		["LOG_PITCH_PID_I", "GEN_PITCH_PID_I"],
-	// 		["LOG_PITCH_PID_D", "GEN_PITCH_PID_D"],
-	// 		["LOG_PITCH_PID_FF", "GEN_PITCH_PID_FF"],
-	// 		["LOG_PITCH_PID_S", "GEN_PITCH_PID_S"],
-	// 		["LOG_YAW_PID_P", "GEN_YAW_PID_P"],
-	// 		["LOG_YAW_PID_I", "GEN_YAW_PID_I"],
-	// 		["LOG_YAW_PID_D", "GEN_YAW_PID_D"],
-	// 		["LOG_YAW_PID_FF", "GEN_YAW_PID_FF"],
-	// 		["LOG_YAW_PID_S", "GEN_YAW_PID_S"],
-	// 	],
-	// 	exact: true,
-	// },
-	// GEN_VVEL_SETPOINT: {
-	// 	replaces: "LOG_VVEL_SETPOINT",
-	// 	requires: ["LOG_THROTTLE_ELRS_RAW"],
-	// 	exact: false,
-	// },
+	GEN_ROLL_SETPOINT: {
+		replaces: "LOG_ROLL_SETPOINT",
+		requires: ["LOG_ROLL_ELRS_RAW"],
+		exact: false,
+	},
+	GEN_PITCH_SETPOINT: {
+		replaces: "LOG_PITCH_SETPOINT",
+		requires: ["LOG_PITCH_ELRS_RAW"],
+		exact: false,
+	},
+	GEN_THROTTLE_SETPOINT: {
+		replaces: "LOG_THROTTLE_SETPOINT",
+		requires: ["LOG_THROTTLE_ELRS_RAW"],
+		exact: false,
+	},
+	GEN_YAW_SETPOINT: {
+		replaces: "LOG_YAW_SETPOINT",
+		requires: ["LOG_YAW_ELRS_RAW"],
+		exact: false,
+	},
+	GEN_ROLL_PID_P: {
+		replaces: "LOG_ROLL_PID_P",
+		requires: [["LOG_ROLL_SETPOINT", "GEN_ROLL_SETPOINT"], "LOG_ROLL_GYRO_RAW"],
+		exact: true,
+	},
+	GEN_ROLL_PID_I: {
+		replaces: "LOG_ROLL_PID_I",
+		requires: [["LOG_ROLL_SETPOINT", "GEN_ROLL_SETPOINT"], "LOG_ROLL_GYRO_RAW"],
+		exact: false,
+	},
+	GEN_ROLL_PID_D: {
+		replaces: "LOG_ROLL_PID_D",
+		requires: ["LOG_ROLL_GYRO_RAW"],
+		exact: false,
+	},
+	GEN_ROLL_PID_FF: {
+		replaces: "LOG_ROLL_PID_FF",
+		requires: [["LOG_ROLL_SETPOINT", "GEN_ROLL_SETPOINT"]],
+		exact: false,
+	},
+	GEN_ROLL_PID_S: {
+		replaces: "LOG_ROLL_PID_S",
+		requires: [["LOG_ROLL_SETPOINT", "GEN_ROLL_SETPOINT"]],
+		exact: true,
+	},
+	GEN_PITCH_PID_P: {
+		replaces: "LOG_PITCH_PID_P",
+		requires: [["LOG_PITCH_SETPOINT", "GEN_PITCH_SETPOINT"], "LOG_PITCH_GYRO_RAW"],
+		exact: true,
+	},
+	GEN_PITCH_PID_I: {
+		replaces: "LOG_PITCH_PID_I",
+		requires: [["LOG_PITCH_SETPOINT", "GEN_PITCH_SETPOINT"], "LOG_PITCH_GYRO_RAW"],
+		exact: false,
+	},
+	GEN_PITCH_PID_D: {
+		replaces: "LOG_PITCH_PID_D",
+		requires: ["LOG_PITCH_GYRO_RAW"],
+		exact: false,
+	},
+	GEN_PITCH_PID_FF: {
+		replaces: "LOG_PITCH_PID_FF",
+		requires: [["LOG_PITCH_SETPOINT", "GEN_PITCH_SETPOINT"]],
+		exact: false,
+	},
+	GEN_PITCH_PID_S: {
+		replaces: "LOG_PITCH_PID_S",
+		requires: [["LOG_PITCH_SETPOINT", "GEN_PITCH_SETPOINT"]],
+		exact: true,
+	},
+	GEN_YAW_PID_P: {
+		replaces: "LOG_YAW_PID_P",
+		requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"], "LOG_YAW_GYRO_RAW"],
+		exact: true,
+	},
+	GEN_YAW_PID_I: {
+		replaces: "LOG_YAW_PID_I",
+		requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"], "LOG_YAW_GYRO_RAW"],
+		exact: false,
+	},
+	GEN_YAW_PID_D: {
+		replaces: "LOG_YAW_PID_D",
+		requires: ["LOG_YAW_GYRO_RAW"],
+		exact: false,
+	},
+	GEN_YAW_PID_FF: {
+		replaces: "LOG_YAW_PID_FF",
+		requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"]],
+		exact: false,
+	},
+	GEN_YAW_PID_S: {
+		replaces: "LOG_YAW_PID_S",
+		requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"]],
+		exact: true,
+	},
+	GEN_MOTOR_OUTPUTS: {
+		replaces: "LOG_MOTOR_OUTPUTS",
+		requires: [
+			["GEN_THROTTLE_SETPOINT", "LOG_THROTTLE_SETPOINT"],
+			["LOG_ROLL_PID_P", "GEN_ROLL_PID_P"],
+			["LOG_ROLL_PID_I", "GEN_ROLL_PID_I"],
+			["LOG_ROLL_PID_D", "GEN_ROLL_PID_D"],
+			["LOG_ROLL_PID_FF", "GEN_ROLL_PID_FF"],
+			["LOG_ROLL_PID_S", "GEN_ROLL_PID_S"],
+			["LOG_PITCH_PID_P", "GEN_PITCH_PID_P"],
+			["LOG_PITCH_PID_I", "GEN_PITCH_PID_I"],
+			["LOG_PITCH_PID_D", "GEN_PITCH_PID_D"],
+			["LOG_PITCH_PID_FF", "GEN_PITCH_PID_FF"],
+			["LOG_PITCH_PID_S", "GEN_PITCH_PID_S"],
+			["LOG_YAW_PID_P", "GEN_YAW_PID_P"],
+			["LOG_YAW_PID_I", "GEN_YAW_PID_I"],
+			["LOG_YAW_PID_D", "GEN_YAW_PID_D"],
+			["LOG_YAW_PID_FF", "GEN_YAW_PID_FF"],
+			["LOG_YAW_PID_S", "GEN_YAW_PID_S"],
+		],
+		exact: true,
+	},
+	GEN_VVEL_SETPOINT: {
+		replaces: "LOG_VVEL_SETPOINT",
+		requires: ["LOG_THROTTLE_ELRS_RAW"],
+		exact: false,
+	},
 }
