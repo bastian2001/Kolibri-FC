@@ -225,8 +225,11 @@ export default defineComponent({
 	width: 8rem;
 	background-color: transparent;
 	border: 1px solid var(--border-color);
+	appearance: none;
 	border-radius: 4px;
-	padding: 3px 6px;
+	padding: 4px 15px 4px 8px;
+	background: transparent url('data:image/gif;base64,R0lGODlhBgAGAKEDAFVVVX9/f9TU1CgmNyH5BAEKAAMALAAAAAAGAAYAAAIODA4hCDKWxlhNvmCnGwUAOw==') right center no-repeat !important;
+	background-position: calc(100% - 5px) center !important;
 	color: var(--text-color);
 	outline: none;
 }

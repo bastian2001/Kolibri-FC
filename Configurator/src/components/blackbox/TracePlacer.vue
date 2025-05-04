@@ -340,14 +340,14 @@ export default defineComponent({
 }
 
 select {
-	width: 8rem;
+	min-width: 8rem;
 	appearance: none !important;
 	background-color: transparent;
 	background: transparent url('data:image/gif;base64,R0lGODlhBgAGAKEDAFVVVX9/f9TU1CgmNyH5BAEKAAMALAAAAAAGAAYAAAIODA4hCDKWxlhNvmCnGwUAOw==') right center no-repeat !important;
 	background-position: calc(100% - 5px) center !important;
 	border: 1px solid var(--border-color);
 	border-radius: 4px;
-	padding: 3px 6px;
+	padding: 3px 15px 3px 6px;
 	color: var(--text-color) !important;
 	color: black;
 	outline: none;
