@@ -416,8 +416,6 @@ void pidLoop() {
 		setpointDiff[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
 		setpointDiff[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
 		setpointDiff[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
-		bbDebug3 = fix32(setpointDiff[AXIS_ROLL]).geti32();
-		bbDebug4 = (((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200).geti32();
 
 		fix32 totalDiff = fix32(setpointDiff[AXIS_ROLL]).abs() + fix32(setpointDiff[AXIS_PITCH]).abs() + fix32(setpointDiff[AXIS_YAW]).abs();
 		fix32 iRelaxMultiplier = 1;
@@ -427,19 +425,21 @@ void pidLoop() {
 			iRelaxMultiplier = fix32(1) - (totalDiff - 150) / 300 * 7 / 8;
 		}
 
-		rollErrorSum = rollErrorSum + rollError * iRelaxMultiplier * pidBoostI;
-		pitchErrorSum = pitchErrorSum + pitchError * iRelaxMultiplier * pidBoostI;
-		yawErrorSum = yawErrorSum + yawError * iRelaxMultiplier * pidBoostI;
+		rollErrorSum = rollErrorSum + rollError * iRelaxMultiplier * iFactor;
+		pitchErrorSum = pitchErrorSum + pitchError * iRelaxMultiplier * iFactor;
+		yawErrorSum = yawErrorSum + yawError * iRelaxMultiplier * iFactor;
 
-		rollP = pidGains[0][P] * rollError * pidBoostP;
-		pitchP = pidGains[1][P] * pitchError * pidBoostP;
-		yawP = pidGains[2][P] * yawError * (pidBoostAxis == 2 ? pidBoostP : 1);
+		rollP = pidGains[0][P] * rollError * pFactor;
+		pitchP = pidGains[1][P] * pitchError * pFactor;
+		yawP = pidGains[2][P] * yawError * (pidBoostAxis == 2 ? pFactor : 1);
 		rollI = pidGains[0][I] * rollErrorSum;
 		pitchI = pidGains[1][I] * pitchErrorSum;
 		yawI = pidGains[2][I] * yawErrorSum;
-		rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroFiltered[AXIS_ROLL]) * pidBoostD;
-		pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroFiltered[AXIS_PITCH]) * pidBoostD;
-		yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroFiltered[AXIS_YAW]) * (pidBoostAxis == 2 ? pidBoostD : 1);
+		rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroFiltered[AXIS_ROLL]) * dFactor;
+		pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroFiltered[AXIS_PITCH]) * dFactor;
+		yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroFiltered[AXIS_YAW]) * (pidBoostAxis == 2 ? dFactor : 1);
+		bbDebug3 = (pidGains[0][D] * fix32(dFilterRoll) * dFactor).geti32();
+		bbDebug4 = (pidGains[0][D] * fix32(dFilterRoll)).geti32();
 		rollFF = pidGains[0][FF] * setpointDiff[AXIS_ROLL];
 		pitchFF = pidGains[1][FF] * setpointDiff[AXIS_PITCH];
 		yawFF = pidGains[2][FF] * setpointDiff[AXIS_YAW];

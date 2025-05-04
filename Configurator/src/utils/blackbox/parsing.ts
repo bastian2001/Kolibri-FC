@@ -179,7 +179,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_ROLL_PID_P"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidRollP[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidRollP[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_ROLL_PID_I")) {
@@ -187,7 +187,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_ROLL_PID_I"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidRollI[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidRollI[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_ROLL_PID_D")) {
@@ -195,7 +195,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_ROLL_PID_D"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidRollD[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidRollD[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_ROLL_PID_FF")) {
@@ -203,7 +203,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_ROLL_PID_FF"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidRollFF[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidRollFF[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_ROLL_PID_S")) {
@@ -211,7 +211,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_ROLL_PID_S"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidRollS[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidRollS[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_PITCH_PID_P")) {
@@ -219,7 +219,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_PITCH_PID_P"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidPitchP[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidPitchP[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_PITCH_PID_I")) {
@@ -227,7 +227,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_PITCH_PID_I"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidPitchI[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidPitchI[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_PITCH_PID_D")) {
@@ -235,7 +235,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_PITCH_PID_D"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidPitchD[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidPitchD[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_PITCH_PID_FF")) {
@@ -243,7 +243,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_PITCH_PID_FF"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidPitchFF[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidPitchFF[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_PITCH_PID_S")) {
@@ -251,7 +251,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_PITCH_PID_S"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidPitchS[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidPitchS[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_YAW_PID_P")) {
@@ -259,7 +259,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_YAW_PID_P"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidYawP[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidYawP[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_YAW_PID_I")) {
@@ -267,7 +267,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_YAW_PID_I"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidYawI[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidYawI[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_YAW_PID_D")) {
@@ -275,7 +275,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_YAW_PID_D"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidYawD[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidYawD[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_YAW_PID_FF")) {
@@ -283,7 +283,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_YAW_PID_FF"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidYawFF[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidYawFF[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_YAW_PID_S")) {
@@ -291,7 +291,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_YAW_PID_S"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = f * frameSize + o
-			logData.pidYawS[f] = leBytesToInt(data.slice(p, p + 2), true) / 16 // data is 12.4 fixed point
+			logData.pidYawS[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
 	if (flags.includes("LOG_MOTOR_OUTPUTS")) {

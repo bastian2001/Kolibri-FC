@@ -178,6 +178,7 @@ export default defineComponent({
 				}
 				if (ax > max) max = ax;
 			}
+			this.scale = 500;
 			if (max > 500) this.scale = 750;
 			if (max > 750) this.scale = 1000;
 			if (max > 1000) this.scale = 1500;
