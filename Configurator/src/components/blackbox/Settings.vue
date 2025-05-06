@@ -85,7 +85,7 @@ export default defineComponent({
 		<div class="settingsWindow">
 			<div v-for="group in groups" class="group">
 				<label v-for="name in group" :for="`check-${name}`">
-					<input :id="`check-${name}`" type="checkbox" v-model="selected" name="selected" :value="name" />
+					<input :id="`check-${name}`" type="checkbox" v-model="selected" :value="name" />
 					{{ flags[name].name }}
 				</label>
 			</div>

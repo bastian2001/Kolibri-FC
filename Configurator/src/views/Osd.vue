@@ -53,7 +53,7 @@ export default defineComponent({
 
 	<div class="wrapper">
 		Paste the .mcm file here, using an ASCII character table.<br>
-		<textarea name="font" id="fontInput" cols="30" rows="10" v-model="file"></textarea>
+		<textarea id="fontInput" cols="30" rows="10" v-model="file"></textarea>
 		<button @click="() => upload()">Upload</button>
 	</div>
 </template>

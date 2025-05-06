@@ -267,8 +267,8 @@ export default defineComponent({
 		<div class="setup">
 			<div class="trace" v-for="(trace, index) in traces" :key="trace.id">
 				<div class="color" :style="{ backgroundColor: trace.color }" @click="selectColor(trace, index)"></div>
-				<select :name="'selectSensor' + gid + '_' + index" :id="'selectSensor' + gid + '_' + index"
-					v-model="trace.sensorId" class="select" @change="traceChanged(index)">
+				<select :id="'selectSensor' + gid + '_' + index" v-model="trace.sensorId" class="select"
+					@change="traceChanged(index)">
 					<option v-for="(s, i) in sensorOptions" :key="i" :value="i">
 						{{ s.name }}
 					</option>

@@ -286,13 +286,12 @@ export default defineComponent({
 <template>
 	<div class="wrapper">
 		<span class="colorMark" :style="`background-color: ${trace.color}`" @click="selectColor">&nbsp;</span>
-		<select name="flag" id="flagSelector" v-model="flagName">
+		<select id="flagSelector" v-model="flagName">
 			<option v-for="flag in availableFlagNames" :value="flag">{{ flagProps[flag].name }}</option>
 			<option v-for="flag in availableGenFlagNames" :value="flag">{{ flagProps[genFlagProps[flag].replaces].name
 			}} (Gen.)</option>
 		</select>
-		<select v-if="currentNormalizedFlag?.modifier" name="graphNum" id="graphNum" v-model="currentModifierName"
-			style="width: auto">
+		<select v-if="currentNormalizedFlag?.modifier" id="graphNum" v-model="currentModifierName" style="width: auto">
 			<option v-for="m in currentNormalizedFlag.modifier || []" :value="m.path">{{ m.displayNameShort }}</option>
 		</select>
 		<button class="delete" aria-label="delete trace" @click="$emit('delete')">
@@ -300,9 +299,9 @@ export default defineComponent({
 		</button>
 		<br />
 		<label><input type="checkbox" v-model="autoRangeOn" />Auto</label>&nbsp;
-		<input type="number" name="minValue" id="minValue" v-model="minValue" :disabled="autoRangeOn" />
+		<input type="number" id="minValue" v-model="minValue" :disabled="autoRangeOn" />
 		&nbsp;-
-		<input type="number" name="maxValue" id="maxValue" v-model="maxValue" :disabled="autoRangeOn" />
+		<input type="number" id="maxValue" v-model="maxValue" :disabled="autoRangeOn" />
 		&nbsp;
 		<p class="unit">{{ currentNormalizedFlag?.unit || '' }}</p>
 		<br />
@@ -315,18 +314,18 @@ export default defineComponent({
 				<option value="sma">SMA</option>
 				<option value="binomial">Binomial</option>
 			</select>
-			<input v-if="filterType === 'pt1'" type="number" name="pt1Cutoff" id="pt1Cutoff" placeholder="cutoff"
+			<input v-if="filterType === 'pt1'" type="number" id="pt1Cutoff" placeholder="cutoff"
 				v-model="filterValue1" />
-			<input v-else-if="filterType === 'pt2'" type="number" name="pt2Cutoff" id="pt2Cutoff" placeholder="cutoff"
+			<input v-else-if="filterType === 'pt2'" type="number" id="pt2Cutoff" placeholder="cutoff"
 				v-model="filterValue1" />
-			<input v-else-if="filterType === 'pt3'" type="number" name="pt3Cutoff" id="pt3Cutoff" placeholder="cutoff"
+			<input v-else-if="filterType === 'pt3'" type="number" id="pt3Cutoff" placeholder="cutoff"
 				v-model="filterValue1" />
-			<input v-else-if="filterType === 'sma'" type="number" name="smaN" id="smaN" placeholder="frames"
+			<input v-else-if="filterType === 'sma'" type="number" id="smaN" placeholder="frames"
 				v-model="filterValue1" />
-			<input v-else-if="filterType === 'binomial'" type="number" name="binomialN" id="binomialN"
-				placeholder="frames" v-model="filterValue1" />
+			<input v-else-if="filterType === 'binomial'" type="number" id="binomialN" placeholder="frames"
+				v-model="filterValue1" />
 			<label>
-				<input type="checkbox" name="delayComp" id="delayCompCheckbox" v-model="filterValue2" />
+				<input type="checkbox" id="delayCompCheckbox" v-model="filterValue2" />
 				Delay Comp.
 			</label>
 		</div>

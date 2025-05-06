@@ -2,11 +2,15 @@
 import { defineComponent } from "vue";
 import { MspFn, MspVersion } from "@utils/msp";
 import { Command } from "@utils/types";
-import { intToLeBytes, leBytesToInt } from "@utils/utils";
+import { delay, intToLeBytes, leBytesToInt } from "@utils/utils";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/communication/serial";
+import NumericInput from "@/components/NumericInput.vue";
 
 export default defineComponent({
 	name: "Tuning",
+	components: {
+		NumericInput,
+	},
 	data() {
 		return {
 			pids: [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
@@ -17,6 +21,17 @@ export default defineComponent({
 			rc: [0, 0, 0, 0],
 			getRcInterval: -1,
 			scale: 500,
+			gyroCutoff: 0,
+			accelCutoff: 0,
+			dCutoff: 0,
+			setpointDiffCutoff: 0,
+			magCutoff: 0,
+			gpsVelocityCutoff: 0,
+			altholdFfCutoff: 0,
+			altholdDCutoff: 0,
+			posholdFfCutoff: 0,
+			posholdIrelaxCutoff: 0,
+			posholdPushCutoff: 0,
 		};
 	},
 	mounted() {
@@ -38,21 +53,11 @@ export default defineComponent({
 	},
 	methods: {
 		getSettings() {
-			sendCommand('request', MspFn.GET_PIDS).then(() => {
-				sendCommand('request', MspFn.GET_RATES);
-			});
-		},
-		scrollInputPID(e: WheelEvent, i: number, j: number) {
-			if (e.deltaY > 0) this.pids[i][j]--;
-			else this.pids[i][j]++;
-			if (this.pids[i][j] < 0) this.pids[i][j] = 0;
-		},
-		scrollInputRate(e: WheelEvent, i: number, j: number) {
-			let val = 5;
-			if (e.deltaY > 0) this.rateFactors[i][j] -= val;
-			else this.rateFactors[i][j] += val;
-			if (this.rateFactors[i][j] < 0) this.rateFactors[i][j] = 0;
-			if (j === 5 && this.rateFactors[i][j] > 1) this.rateFactors[i][j] = 1;
+			sendCommand('request', MspFn.GET_PIDS)
+				.then(() => delay(5))
+				.then(() => sendCommand('request', MspFn.GET_RATES))
+				.then(() => delay(5))
+				.then(() => sendCommand('request', MspFn.GET_FILTER_CONFIG))
 		},
 		saveSettings() {
 			const data = [];
@@ -107,6 +112,20 @@ export default defineComponent({
 							this.rc[i] = (leBytesToInt(command.data.slice(i * 2, i * 2 + 2), false) - 1500) / 512;
 						}
 						this.drawSetpointCanvas();
+						break;
+					case MspFn.GET_FILTER_CONFIG:
+						if (command.length < 22) break;
+						this.gyroCutoff = leBytesToInt(command.data.slice(0, 2), false);
+						this.accelCutoff = leBytesToInt(command.data.slice(2, 4), false);
+						this.dCutoff = leBytesToInt(command.data.slice(4, 6), false);
+						this.setpointDiffCutoff = leBytesToInt(command.data.slice(6, 8), false) / 10;
+						this.magCutoff = leBytesToInt(command.data.slice(8, 10), false) / 100;
+						this.altholdFfCutoff = leBytesToInt(command.data.slice(10, 12), false) / 100;
+						this.altholdDCutoff = leBytesToInt(command.data.slice(12, 14), false) / 10;
+						this.posholdFfCutoff = leBytesToInt(command.data.slice(14, 16), false) / 100;
+						this.posholdIrelaxCutoff = leBytesToInt(command.data.slice(16, 18), false) / 100;
+						this.posholdPushCutoff = leBytesToInt(command.data.slice(18, 20), false) / 10;
+						this.gpsVelocityCutoff = leBytesToInt(command.data.slice(20, 22), false) / 100;
 						break;
 				}
 			}
@@ -250,8 +269,6 @@ export default defineComponent({
 			for (let i = 0; i < 3; i++) {
 				ctx.fillStyle = colors[i];
 				const setpoint = this.getSetpoint(this.rc[rcMap[i]], i);
-				// console.log(setpoint, this.rc[rcMap[i]], i);
-
 				const x = canvas.width * (this.rc[rcMap[i]] + 1) / 2;
 				const y = canvas.height / 2 - canvas.height * setpoint / this.scale / 2;
 				ctx.beginPath();
@@ -280,8 +297,8 @@ export default defineComponent({
 			<button class="saveBtn" @click="() => { saveSettings() }">Save Settings</button>
 		</div>
 		<div class="pids">
-			<h3>PID Gains</h3>
-			<table>
+			<h2>PID Gains</h2>
+			<table cellspacing="0">
 				<thead>
 					<tr>
 						<th>&nbsp;</th>
@@ -296,17 +313,16 @@ export default defineComponent({
 					<tr v-for="(ax, i) in pids">
 						<td>{{ ['Roll', 'Pitch', 'Yaw'][i] }}</td>
 						<td v-for="(_val, j) in ax">
-							<input type="number" v-model="pids[i][j]" @wheel="e => {
-								scrollInputPID(e, i, j);
-							}" />
+							<NumericInput v-model="pids[i][j]" :min="0" :max="2000" :step="1" unit=""
+								style="width: 100%" />
 						</td>
 					</tr>
 				</tbody>
 			</table>
 		</div>
 		<div class="rates">
-			<h3>Rate Factors</h3>
-			<table>
+			<h2>Rate Factors</h2>
+			<table cellspacing="0">
 				<thead>
 					<tr>
 						<th>&nbsp;</th>
@@ -322,11 +338,10 @@ export default defineComponent({
 					<tr v-for="(ax, i) in rateFactors">
 						<td style="text-align:left">{{ ['Roll', 'Pitch', 'Yaw'][i] }}</td>
 						<td v-for="(_val, j) in ax">
-							<input type="number" v-model="rateFactors[i][j]" @wheel="e => {
-								scrollInputRate(e, i, j);
-							}" />
+							<NumericInput v-model="rateFactors[i][j]" :min="0" :max="1000" :step="5" unit=""
+								style="width: 100%" />
 						</td>
-						<td> {{ ax[0] + ax[1] + ax[2] + ax[3] + ax[4] + ' °/s' }}</td>
+						<td style="text-align: center;"> {{ ax[0] + ax[1] + ax[2] + ax[3] + ax[4] + ' °/s' }}</td>
 					</tr>
 				</tbody>
 			</table>
@@ -335,7 +350,53 @@ export default defineComponent({
 			</div>
 		</div>
 		<div class="filters">
-
+			<h2>Filters</h2>
+			<h3>Flight performance</h3>
+			<div class="inputDiv">
+				<p class="inputDescription" for="gyroCutoff">Gyro filter cutoff frequency</p>
+				<NumericInput v-model="gyroCutoff" :min="50" :max="300" :step="5" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="accelCutoff">Accelerometer filter cutoff frequency</p>
+				<NumericInput v-model="accelCutoff" :min="50" :max="300" :step="5" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="dCutoff">D-term filter cutoff frequency</p>
+				<NumericInput v-model="dCutoff" :min="20" :max="300" :step="5" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="setpointDiffCutoff">FF + I-term-relax filter cutoff frequency</p>
+				<NumericInput v-model="setpointDiffCutoff" :min="5" :max="30" :step=".5" unit="Hz" />
+			</div>
+			<h3>Advanced flight modes</h3>
+			<div class="inputDiv">
+				<p class="inputDescription" for="magCutoff">Magnetometer filter cutoff frequency</p>
+				<NumericInput v-model="magCutoff" :min="0.05" :max="1" :step=".01" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="altholdFfCutoff">Altitude FF cutoff frequency</p>
+				<NumericInput v-model="altholdFfCutoff" :min="0.5" :max="10" :step=".1" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="altholdDCutoff">Altitude D cutoff frequency</p>
+				<NumericInput v-model="altholdDCutoff" :min="5" :max="50" :step=".5" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="gpsVelocityCutoff">GPS velocity filter cutoff frequency</p>
+				<NumericInput v-model="gpsVelocityCutoff" :min="0.05" :max="1" :step=".01" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="posholdFfCutoff">Position Hold FF cutoff frequency</p>
+				<NumericInput v-model="posholdFfCutoff" :min="0.5" :max="10" :step=".1" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="posholdIrelaxCutoff">Position Hold I-term-relax cutoff frequency</p>
+				<NumericInput v-model="posholdIrelaxCutoff" :min="0.1" :max="5" :step=".1" unit="Hz" />
+			</div>
+			<div class="inputDiv">
+				<p class="inputDescription" for="posholdPushCutoff">Position Hold pushback cutoff frequency</p>
+				<NumericInput v-model="posholdPushCutoff" :min="1" :max="15" :step=".25" unit="Hz" />
+			</div>
 		</div>
 	</div>
 </template>
@@ -374,24 +435,31 @@ table {
 
 th,
 td {
-	text-align: right;
-	padding: 3px 8px;
+	padding: 0px;
+	border-spacing: 0px;
+	border-collapse: collapse;
 }
 
-input {
-	width: 100%;
-	background-color: transparent;
-	border: none;
+td {
 	border-bottom: 1px solid var(--border-color);
-	text-align: right;
-	padding: 3px;
-	outline: none;
+	border-right: 1px solid var(--border-color);
+	margin: 0;
 }
 
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-	-webkit-appearance: none;
-	margin: 0;
+.inlineInput {
+	width: 100px;
+}
+
+.inputDescription {
+	display: inline-block;
+	margin: 0
+}
+
+.inputDiv {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	border-bottom: 1px solid var(--border-color);
 }
 
 .rateCanvasWrapper {

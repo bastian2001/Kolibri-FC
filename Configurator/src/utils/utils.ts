@@ -11,6 +11,7 @@ export const leBytesToInt = (bytes: number[] | Uint8Array, signed = false) => {
 
 export const intToLeBytes = (value: number, length: number) => {
 	const bytes = new Uint8Array(length)
+	value = Math.round(value)
 	const negative = value < 0
 	if (negative) {
 		value += Math.pow(256, length)
@@ -42,8 +43,8 @@ export function getNestedProperty(
 	return current
 }
 
-export function roundToDecimal(num: number, places: number) {
-	return Math.round(num * Math.pow(10, places)) / Math.pow(10, places)
+export function roundToDecimal(num: number, decimals: number) {
+	return parseFloat(num.toFixed(decimals))
 }
 
 export function constrain(num: number, min: number, max: number) {

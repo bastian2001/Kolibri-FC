@@ -251,7 +251,7 @@ export default defineComponent({
 	flex-grow: 1;
 	min-width: 250px;
 	margin-left: 1rem;
-	background-color: var(--background-color-light);
+	background-color: var(--background-light);
 	height: 3rem;
 	padding: 0 0.5rem;
 	color: var(--text-color);
