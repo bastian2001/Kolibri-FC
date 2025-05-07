@@ -7,6 +7,8 @@ elapsedMillis adcTimer = 0;
 f32 temperature = 0;
 
 void initADC() {
+	addSetting(SETTING_EMPTY_VOLTAGE, &emptyVoltage, 1400);
+
 	adc_gpio_init(PIN_ADC_VOLTAGE);
 	adc_gpio_init(PIN_ADC_CURRENT);
 	adc_init();

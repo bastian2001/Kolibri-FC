@@ -97,7 +97,7 @@ bool SettingBase::updateSettingInFile() {
 		rp2040.wdt_reset();
 		line = SettingBase::settingsFile->readStringUntil('\n').c_str();
 		u32 oldLineLen = line.length();
-		if (line.find(";") == 0 && oldLineLen == newLineLen) {
+		if (line[0] == ';' && oldLineLen == newLineLen) {
 			// found a commented line with the same length, replace it
 			SettingBase::settingsFile->seek(SettingBase::settingsFile->position() - oldLineLen - 1);
 			SettingBase::settingsFile->print(newLine.c_str());

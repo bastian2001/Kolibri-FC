@@ -42,6 +42,9 @@ void blackboxLoop() {
 }
 
 void initBlackbox() {
+	addSetting(SETTING_BB_FLAGS, &bbFlags, 0b1111111111111111100000000000000011111111111ULL);
+	addSetting(SETTING_BB_DIV, &bbFreqDivider, 2);
+
 #if BLACKBOX_STORAGE == SD_BB
 	SDFSConfig cfg(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
 	SDFS.setConfig(cfg);

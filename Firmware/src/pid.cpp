@@ -35,7 +35,7 @@ fix32 setpointDiffCutoff = 12;
 PT1 setpointDiff[3];
 fix32 lastSetpoints[3];
 
-fix32 pidBoostCutoff = 5;
+fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
 PT1 pidBoostFilter;
 fix32 lastThrottle;
 u8 pidBoostAxis = 1; // 0: off, 1: RP only, 2: RPY
@@ -49,17 +49,17 @@ u32 pidLoopCounter = 0;
 
 fix32 rateFactors[5][3];
 fix64 vVelMaxErrorSum, vVelMinErrorSum;
-u8 maxAngle;
-u8 maxAngleBurst;
+u8 maxAngle; // degrees, applied in angle mode and GPS mode
+u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
 fix32 stickToAngle;
 u16 idlePermille;
 fix32 throttleScale;
-fix32 maxTargetHvel;
+fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
 fix32 smoothChannels[4];
 elapsedMillis burstTimer;
 elapsedMillis burstCooldown;
-u16 angleBurstTime;
-u16 angleBurstCooldownTime;
+u16 angleBurstTime; // milliseconds, time for which the maxAngleBurst is allowed
+u16 angleBurstCooldownTime; // milliseconds, time for which the maxAngleBurst is not allowed after the burst time
 
 fix32 vvelDFilterCutoff;
 fix32 vvelFFFilterCutoff;
@@ -69,7 +69,7 @@ PT1 vVelFFFilter;
 fix32 hvelFfFilterCutoff;
 fix32 hvelIRelaxFilterCutoff;
 fix32 hvelPushFilterCutoff;
-u16 hvelStickDeadband;
+u16 hvelStickDeadband; // deadband for the horizontal velocity stick input (total stick is -512 to 512)
 PT1 ffFilterNVel;
 PT1 ffFilterEVel;
 DualPT1 iRelaxFilterNVel;
@@ -112,6 +112,30 @@ void initPidHVel() {
 }
 
 void initPid() {
+	addArraySetting(SETTING_PID_GAINS, pidGains, &initPidGains);
+	addArraySetting(SETTING_RATE_FACTORS, rateFactors, &initRateFactors);
+	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
+	addArraySetting(SETTING_PID_HVEL, pidGainsHVel, &initPidHVel);
+	addSetting(SETTING_IDLE_PERMILLE, &idlePermille, 25);
+	addSetting(SETTING_MAX_ANGLE, &maxAngle, 40);
+	addSetting(SETTING_DFILTER_CUTOFF, &dFilterCutoff, 70);
+	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
+	addSetting(SETTING_SETPOINT_DIFF_CUTOFF, &setpointDiffCutoff, 12);
+	addSetting(SETTING_PID_BOOST_CUTOFF, &pidBoostCutoff, 5);
+	addSetting(SETTING_PID_BOOST_START, &pidBoostStart, 2000);
+	addSetting(SETTING_PID_BOOST_FULL, &pidBoostFull, 6000);
+	addSetting(SETTING_MAX_TARGET_HVEL, &maxTargetHvel, 12);
+	addSetting(SETTING_VVEL_FF_FILTER_CUTOFF, &vvelFFFilterCutoff, 2);
+	addSetting(SETTING_VVEL_D_FILTER_CUTOFF, &vvelDFilterCutoff, 15);
+	addSetting(SETTING_HVEL_FF_FILTER_CUTOFF, &hvelFfFilterCutoff, 2);
+	addSetting(SETTING_HVEL_I_RELAX_FILTER_CUTOFF, &hvelIRelaxFilterCutoff, 0.5f);
+	addSetting(SETTING_HVEL_PUSH_FILTER_CUTOFF, &hvelPushFilterCutoff, 4);
+	addSetting(SETTING_MAX_ANGLE_BURST, &maxAngleBurst, 60);
+	addSetting(SETTING_ANGLE_BURST_TIME, &angleBurstTime, 3000);
+	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
+	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
+	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
+
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
 
@@ -293,7 +317,9 @@ void pidLoop() {
 				dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
 				dPitch = targetPitch - (FIX_RAD_TO_DEG * pitch);
 				newRollSetpoint = dRoll * velocityModeP;
+				newRollSetpoint = constrain(newRollSetpoint, -1000, 1000);
 				newPitchSetpoint = dPitch * velocityModeP;
+				newPitchSetpoint = constrain(newPitchSetpoint, -1000, 1000);
 				lastNVelSetpoint = nVelSetpoint;
 				lastEVelSetpoint = eVelSetpoint;
 				nVelLast = nVel;

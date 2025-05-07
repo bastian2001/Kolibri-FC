@@ -53,7 +53,7 @@ export default defineComponent({
 			editVal: 0,
 			movement: 0,
 			entered: false,
-			suppressNextClick: false,
+			moved: false,
 			lastWheel: 0,
 		};
 	},
@@ -68,9 +68,9 @@ export default defineComponent({
 	mounted() {
 		const w = this.$refs.wrapper as HTMLDivElement;
 		w.onmousedown = (e: MouseEvent) => {
-			e.preventDefault();
 			if (e.button !== 0) return;
 			if (this.entered) return
+			e.preventDefault();
 			w.requestPointerLock().then(() => {
 				w.onmousemove = this.onMouseMove;
 				this.movement = 0;
@@ -81,20 +81,17 @@ export default defineComponent({
 			if (this.entered) return
 			document.exitPointerLock();
 			w.onmousemove = null;
-		};
-		w.onclick = (e: MouseEvent) => {
-			if (this.suppressNextClick) {
-				this.suppressNextClick = false;
-				return;
+			if (!this.moved) {
+				this.entered = true;
+				this.editVal = this.val;
+				this.$nextTick(() => {
+					const input = this.$refs.input as HTMLInputElement;
+					input.focus();
+					input.select();
+				});
+			} else {
+				this.moved = false;
 			}
-			if (e.button !== 0 || this.entered) return;
-			this.entered = true;
-			this.editVal = this.val;
-			this.$nextTick(() => {
-				const input = this.$refs.input as HTMLInputElement;
-				input.focus();
-				input.select();
-			});
 		};
 		w.onfocus = () => {
 			if (this.entered) return;
@@ -109,16 +106,17 @@ export default defineComponent({
 	},
 	methods: {
 		onWheel(e: WheelEvent) {
+			e.preventDefault();
 			if (e.timeStamp - this.lastWheel < 3) return; // Prevents double wheel events
 			this.lastWheel = e.timeStamp
 			if (e.deltaY > 0) {
-				this.val -= this.step;
+				this.editVal -= this.step;
 			} else {
-				this.val += this.step;
+				this.editVal += this.step;
 			}
-			if (this.val < this.min) this.val = this.min;
-			if (this.val > this.max) this.val = this.max;
-			this.val = parseFloat(this.val.toFixed(this.decimals));
+			if (this.editVal < this.min) this.editVal = this.min;
+			if (this.editVal > this.max) this.editVal = this.max;
+			this.editVal = roundToDecimal(this.editVal, this.decimals);
 		},
 		onMouseMove(e: MouseEvent) {
 			const sens = sensitivityMap[this.sensitivity];
@@ -126,7 +124,7 @@ export default defineComponent({
 			while (this.movement > sens) {
 				this.val += this.step;
 				this.movement -= sens;
-				this.suppressNextClick = true;
+				this.moved = true;
 				if (this.val > this.max) {
 					this.val = this.max;
 					this.movement = 0;
@@ -135,7 +133,7 @@ export default defineComponent({
 			while (this.movement < -sens) {
 				this.val -= this.step;
 				this.movement += sens;
-				this.suppressNextClick = true;
+				this.moved = true;
 				if (this.val < this.min) {
 					this.val = this.min;
 					this.movement = 0;
@@ -144,19 +142,24 @@ export default defineComponent({
 			this.val = roundToDecimal(this.val, this.decimals);
 		},
 		onKeyDown(e: KeyboardEvent) {
-			e.preventDefault();
 			if (e.key === 'Enter') {
-				this.entered = false;
-				this.val = this.editVal;
+				this.saveAndExit();
 			} else if (e.key === 'Escape') {
+				this.editVal = this.val;
 				this.entered = false;
 			} else if (e.key === 'ArrowUp') {
-				this.val += this.step;
-				this.val = roundToDecimal(this.val, this.decimals);
+				e.preventDefault();
+				this.editVal += this.step;
+				this.editVal = roundToDecimal(this.editVal, this.decimals);
 			} else if (e.key === 'ArrowDown') {
+				e.preventDefault();
 				this.val -= this.step;
-				this.val = roundToDecimal(this.val, this.decimals);
+				this.editVal = roundToDecimal(this.editVal, this.decimals);
 			}
+		},
+		saveAndExit() {
+			this.entered = false;
+			this.val = this.editVal;
 			if (this.fixToSteps) {
 				if (this.min !== Number.MIN_SAFE_INTEGER) {
 					this.val = Math.round((this.val - this.min) / this.step) * this.step + this.min;
@@ -189,13 +192,13 @@ export default defineComponent({
 </script>
 
 <template>
-	<div class="numericInputWrapper" :class="{ entered }" ref="wrapper" tabindex="0">
-		<div class="numericInputDisplay" v-if="!entered" @wheel="onWheel">
-			{{ val }} {{ unit }}
+	<div class="numericInputWrapper" :class="{ entered }" ref="wrapper" :tabindex="entered ? -1 : 0">
+		<div class="numericInputDisplay" v-if="!entered">
+			{{ val.toLocaleString() }} {{ unit }}
 		</div>
-		<div v-else class="numericInputEdit">
-			<input type="number" class="numericInputInput" ref="input" :value="editVal" @keydown="onKeyDown"
-				@focusout="entered = false">
+		<div v-else class="numericInputEdit" @wheel="onWheel">
+			<input type="number" class="numericInputInput" ref="input" v-model="editVal" @keydown="onKeyDown"
+				@focusout="saveAndExit">
 		</div>
 	</div>
 </template>
@@ -213,6 +216,7 @@ export default defineComponent({
 	font-size: 1rem;
 	cursor: ew-resize;
 	padding: 6px 8px 5px 8px;
+	box-sizing: border-box;
 }
 
 .numericInputDisplay:hover {
@@ -225,6 +229,7 @@ export default defineComponent({
 	color: white;
 	text-align: center;
 	padding: 4px 16px 3px 16px;
+	box-sizing: border-box;
 	background-color: var(--background-highlight);
 }
 

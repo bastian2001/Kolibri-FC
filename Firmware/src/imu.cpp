@@ -32,6 +32,11 @@ fix32 vAccel;
 Quaternion q;
 
 void imuInit() {
+	addSetting(SETTING_ACC_FILTER_CUTOFF, &accelFilterCutoff, 100);
+	addSetting(SETTING_GPS_VEL_FILTER_CUTOFF, &gpsVelocityFilterCutoff, 0.2f);
+	addSetting(SETTING_GPS_UPDATE_RATE, &gpsUpdateRate, 20);
+	addSetting(SETTING_MAG_FILTER_CUTOFF, &magFilterCutoff, 0.02f);
+
 	pitch = 0; // pitch up
 	roll = 0; // roll right
 	yaw = 0; // yaw right

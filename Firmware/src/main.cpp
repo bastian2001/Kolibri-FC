@@ -19,7 +19,8 @@ void setup() {
 
 	Serial.println("Setup started");
 	initLittleFs();
-	initSettings();
+	openSettingsFile();
+	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
 
 	initPid();
 
@@ -64,6 +65,7 @@ void setup() {
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
+	closeSettingsFile();
 }
 
 elapsedMillis activityTimer;

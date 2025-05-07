@@ -41,21 +41,12 @@ extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL 
 extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
 extern u16 gyroFilterCutoff; // cutoff frequency for the gyro filter (Hz)
 extern fix32 setpointDiffCutoff; // used for feedforward and I term relaxation (Hz)
-extern fix32 pidBoostCutoff; // cutoff frequency for pid boost throttle filter
-extern fix32 pidBoostStart;
-extern fix32 pidBoostFull;
 extern u16 idlePermille; // idle throttle in permille (0-1000)
-extern u8 maxAngle; // degrees, applied in angle mode and GPS mode
-extern u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
-extern u16 angleBurstTime; // milliseconds, time for which the maxAngleBurst is allowed
-extern u16 angleBurstCooldownTime; // milliseconds, time for which the maxAngleBurst is not allowed after the burst time
-extern fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
 extern fix32 hvelFfFilterCutoff; // cutoff frequency for the horizontal velocity feedforward filter (Hz)
 extern fix32 hvelIRelaxFilterCutoff; // cutoff frequency for the horizontal velocity I term relax filter (Hz)
 extern fix32 hvelPushFilterCutoff; // cutoff frequency for the horizontal velocity push filter (Hz)
 extern fix32 vvelDFilterCutoff; // cutoff frequency for the vertical velocity D filter (Hz)
 extern fix32 vvelFFFilterCutoff; // cutoff frequency for the vertical velocity feedforward filter (Hz)
-extern u16 hvelStickDeadband; // deadband for the horizontal velocity stick input (total stick is -512 to 512)
 
 enum class FlightMode {
 	ACRO,
@@ -76,8 +67,3 @@ void pidLoop();
 
 /// @brief intialize PID terms and gains
 void initPid();
-
-void initPidGains();
-void initRateFactors();
-void initPidVVel();
-void initPidHVel();

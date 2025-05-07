@@ -79,6 +79,9 @@ void dmaIrqHandler() {
 }
 
 void initSpeaker() {
+	addSetting(SETTING_START_SOUND, &startSoundFile, "start.wav");
+	addSetting(SETTING_START_FALLBACK_RTTTL, &fallbackRtttl, "Drone:o=6,b=800:1c#6,1d#6,1g#6.,1d#6$1,1g#6.$1,1d#6$2,1g#6$2");
+
 	gpio_init(PIN_SPEAKER);
 	gpio_set_dir(PIN_SPEAKER, GPIO_OUT);
 	gpio_put(PIN_SPEAKER, 0);

@@ -150,6 +150,7 @@ void gyroDmaInterrupt() {
 }
 
 int gyroInit() {
+	addPointerSetting(SETTING_ACC_CAL, accelCalibrationOffset, 3);
 
 	armingDisableFlags |= 0x40;
 

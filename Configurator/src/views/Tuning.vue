@@ -82,8 +82,7 @@ export default defineComponent({
 									command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2),
 									false
 								);
-						}
-						break;
+						} break;
 					case MspFn.GET_RATES:
 						if (command.length !== 5 * 2 * 3) break;
 						for (let ax = 0; ax < 3; ax++) {
@@ -91,18 +90,35 @@ export default defineComponent({
 								this.rateFactors[ax][i] = leBytesToInt(
 									command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2)
 								);
-						}
-						break;
-					case MspFn.SET_PIDS:
+						} break;
+					case MspFn.SET_PIDS: {
 						const data = [];
 						for (let ax = 0; ax < 3; ax++)
 							for (let i = 0; i < 5; i++)
 								data.push(...intToLeBytes(this.rateFactors[ax][i], 2));
 						sendCommand('request', MspFn.SET_RATES, MspVersion.V2, data);
-						break;
+					} break;
 					case MspFn.SET_RATES:
-						sendCommand('request', MspFn.SAVE_SETTINGS);
+						const data = [
+							...intToLeBytes(this.gyroCutoff, 2),
+							...intToLeBytes(this.accelCutoff, 2),
+							...intToLeBytes(this.dCutoff, 2),
+							...intToLeBytes(this.setpointDiffCutoff * 10, 2),
+							...intToLeBytes(this.magCutoff * 100, 2),
+							...intToLeBytes(this.altholdFfCutoff * 100, 2),
+							...intToLeBytes(this.altholdDCutoff * 10, 2),
+							...intToLeBytes(this.posholdFfCutoff * 100, 2),
+							...intToLeBytes(this.posholdIrelaxCutoff * 100, 2),
+							...intToLeBytes(this.posholdPushCutoff * 10, 2),
+							...intToLeBytes(this.gpsVelocityCutoff * 100, 2)
+						];
+						console.log('set filter config');
+						sendCommand('request', MspFn.SET_FILTER_CONFIG, MspVersion.V2, data);
 						break;
+					case MspFn.SET_FILTER_CONFIG: {
+						console.log('set filter config done');
+						sendCommand('request', MspFn.SAVE_SETTINGS);
+					} break;
 					case MspFn.SAVE_SETTINGS:
 						clearTimeout(this.saveTimeout);
 						break;
@@ -351,51 +367,40 @@ export default defineComponent({
 		</div>
 		<div class="filters">
 			<h2>Filters</h2>
-			<h3>Flight performance</h3>
-			<div class="inputDiv">
+			<div class="filterGrid">
+				<h4>Flight performance</h4>
 				<p class="inputDescription" for="gyroCutoff">Gyro filter cutoff frequency</p>
-				<NumericInput v-model="gyroCutoff" :min="50" :max="300" :step="5" unit="Hz" />
-			</div>
-			<div class="inputDiv">
+				<NumericInput v-model="gyroCutoff" :min="50" :max="300" :step="5" unit="Hz" class="numericInput" />
 				<p class="inputDescription" for="accelCutoff">Accelerometer filter cutoff frequency</p>
-				<NumericInput v-model="accelCutoff" :min="50" :max="300" :step="5" unit="Hz" />
-			</div>
-			<div class="inputDiv">
+				<NumericInput v-model="accelCutoff" :min="50" :max="300" :step="5" unit="Hz" class="numericInput" />
 				<p class="inputDescription" for="dCutoff">D-term filter cutoff frequency</p>
-				<NumericInput v-model="dCutoff" :min="20" :max="300" :step="5" unit="Hz" />
-			</div>
-			<div class="inputDiv">
+				<NumericInput v-model="dCutoff" :min="20" :max="300" :step="5" unit="Hz" class="numericInput" />
 				<p class="inputDescription" for="setpointDiffCutoff">FF + I-term-relax filter cutoff frequency</p>
-				<NumericInput v-model="setpointDiffCutoff" :min="5" :max="30" :step=".5" unit="Hz" />
-			</div>
-			<h3>Advanced flight modes</h3>
-			<div class="inputDiv">
+				<NumericInput v-model="setpointDiffCutoff" :min="5" :max="30" :step=".5" unit="Hz"
+					class="numericInput" />
+				<h4>Advanced flight modes</h4>
 				<p class="inputDescription" for="magCutoff">Magnetometer filter cutoff frequency</p>
-				<NumericInput v-model="magCutoff" :min="0.05" :max="1" :step=".01" unit="Hz" />
-			</div>
-			<div class="inputDiv">
+				<NumericInput v-model="magCutoff" :min="0.05" :max="1" :step=".01" unit="Hz" class="numericInput" />
 				<p class="inputDescription" for="altholdFfCutoff">Altitude FF cutoff frequency</p>
-				<NumericInput v-model="altholdFfCutoff" :min="0.5" :max="10" :step=".1" unit="Hz" />
-			</div>
-			<div class="inputDiv">
+				<NumericInput v-model="altholdFfCutoff" :min="0.5" :max="10" :step=".1" unit="Hz"
+					class="numericInput" />
 				<p class="inputDescription" for="altholdDCutoff">Altitude D cutoff frequency</p>
-				<NumericInput v-model="altholdDCutoff" :min="5" :max="50" :step=".5" unit="Hz" />
-			</div>
-			<div class="inputDiv">
+				<NumericInput v-model="altholdDCutoff" :min="5" :max="50" :step=".5" unit="Hz" class="numericInput" />
 				<p class="inputDescription" for="gpsVelocityCutoff">GPS velocity filter cutoff frequency</p>
-				<NumericInput v-model="gpsVelocityCutoff" :min="0.05" :max="1" :step=".01" unit="Hz" />
-			</div>
-			<div class="inputDiv">
+				<NumericInput v-model="gpsVelocityCutoff" :min="0.05" :max="1" :step=".01" unit="Hz"
+					class="numericInput" />
 				<p class="inputDescription" for="posholdFfCutoff">Position Hold FF cutoff frequency</p>
-				<NumericInput v-model="posholdFfCutoff" :min="0.5" :max="10" :step=".1" unit="Hz" />
-			</div>
-			<div class="inputDiv">
-				<p class="inputDescription" for="posholdIrelaxCutoff">Position Hold I-term-relax cutoff frequency</p>
-				<NumericInput v-model="posholdIrelaxCutoff" :min="0.1" :max="5" :step=".1" unit="Hz" />
-			</div>
-			<div class="inputDiv">
+				<NumericInput v-model="posholdFfCutoff" :min="0.5" :max="10" :step=".1" unit="Hz"
+					class="numericInput" />
+				<p class="inputDescription" for="posholdIrelaxCutoff">Position Hold I-term-relax cutoff
+					frequency
+				</p>
+				<NumericInput v-model="posholdIrelaxCutoff" :min="0.1" :max="5" :step=".1" unit="Hz"
+					class="numericInput" />
 				<p class="inputDescription" for="posholdPushCutoff">Position Hold pushback cutoff frequency</p>
-				<NumericInput v-model="posholdPushCutoff" :min="1" :max="15" :step=".25" unit="Hz" />
+				<NumericInput v-model="posholdPushCutoff" :min="1" :max="15" :step=".25" unit="Hz"
+					class="numericInput" />
+				<div class="gridEnd"></div>
 			</div>
 		</div>
 	</div>
@@ -438,28 +443,20 @@ td {
 	padding: 0px;
 	border-spacing: 0px;
 	border-collapse: collapse;
-}
-
-td {
 	border-bottom: 1px solid var(--border-color);
 	border-right: 1px solid var(--border-color);
 	margin: 0;
 }
 
-.inlineInput {
-	width: 100px;
+td:first-of-type,
+th:first-of-type {
+	border-left: 1px solid var(--border-color);
+	padding: 6px 8px 5px 8px;
 }
 
-.inputDescription {
-	display: inline-block;
-	margin: 0
-}
-
-.inputDiv {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	border-bottom: 1px solid var(--border-color);
+th {
+	border-top: 1px solid var(--border-color);
+	padding: 6px 8px 5px 8px;
 }
 
 .rateCanvasWrapper {
@@ -468,5 +465,52 @@ td {
 
 #rateCanvas {
 	width: 100%;
+}
+
+.filterGrid {
+	display: grid;
+	grid-template-columns: 1fr 0fr;
+}
+
+.filterGrid h4 {
+	justify-self: center;
+	grid-column: 1 / -1;
+	border-top: 1px solid var(--border-color);
+	width: 100%;
+	margin: 0;
+	padding: 6px 8px 5px 8px;
+	text-align: center;
+	box-sizing: border-box;
+	background-color: var(--accent-blue);
+	border-left: 1px solid var(--border-color);
+	border-right: 1px solid var(--border-color);
+}
+
+.inputDescription {
+	display: inline-block;
+	margin: 0;
+	border-top: 1px solid var(--border-color);
+	margin: 0px;
+	padding: 6px 8px 5px 8px;
+	box-sizing: border-box;
+	border-left: 1px solid var(--border-color);
+}
+
+.numericInput {
+	border-top: 1px solid var(--border-color);
+	box-sizing: border-box;
+	border-right: 1px solid var(--border-color);
+}
+
+.filterGrid>:first-child {
+	border-radius: 8px 8px 0px 0px;
+}
+
+.gridEnd {
+	border-radius: 0px 0px 8px 8px;
+	border: 1px solid var(--border-color);
+	grid-column: 1 / -1;
+	height: 8px;
+	background-color: var(--accent-blue);
 }
 </style>

@@ -904,6 +904,45 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::SET_FILTER_CONFIG: {
+			if (reqLen < 22) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			openSettingsFile();
+
+			gyroFilterCutoff = DECODE_U2((u8 *)&reqPayload[0]);
+			getSetting(SETTING_GYRO_FILTER_CUTOFF)->updateSettingInFile();
+
+			accelFilterCutoff = DECODE_U2((u8 *)&reqPayload[2]);
+			getSetting(SETTING_ACC_FILTER_CUTOFF)->updateSettingInFile();
+
+			dFilterCutoff = DECODE_U2((u8 *)&reqPayload[4]);
+			getSetting(SETTING_DFILTER_CUTOFF)->updateSettingInFile();
+
+			setpointDiffCutoff = DECODE_U2((u8 *)&reqPayload[6]) / 10.0f;
+			getSetting(SETTING_SETPOINT_DIFF_CUTOFF)->updateSettingInFile();
+
+			magFilterCutoff = DECODE_U2((u8 *)&reqPayload[8]) / 100.0f;
+			getSetting(SETTING_MAG_FILTER_CUTOFF)->updateSettingInFile();
+
+			vvelFFFilterCutoff = DECODE_U2((u8 *)&reqPayload[10]) / 100.0f;
+			getSetting(SETTING_VVEL_FF_FILTER_CUTOFF)->updateSettingInFile();
+
+			vvelDFilterCutoff = DECODE_U2((u8 *)&reqPayload[12]) / 10.0f;
+			getSetting(SETTING_VVEL_D_FILTER_CUTOFF)->updateSettingInFile();
+
+			hvelFfFilterCutoff = DECODE_U2((u8 *)&reqPayload[14]) / 100.0f;
+			getSetting(SETTING_HVEL_FF_FILTER_CUTOFF)->updateSettingInFile();
+
+			hvelIRelaxFilterCutoff = DECODE_U2((u8 *)&reqPayload[16]) / 100.0f;
+			getSetting(SETTING_HVEL_I_RELAX_FILTER_CUTOFF)->updateSettingInFile();
+
+			hvelPushFilterCutoff = DECODE_U2((u8 *)&reqPayload[18]) / 10.0f;
+			getSetting(SETTING_HVEL_PUSH_FILTER_CUTOFF)->updateSettingInFile();
+
+			gpsVelocityFilterCutoff = DECODE_U2((u8 *)&reqPayload[20]) / 100.0f;
+			getSetting(SETTING_GPS_VEL_FILTER_CUTOFF)->updateSettingInFile();
+
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_CRASH_DUMP:
@@ -921,7 +960,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::SET_DEBUG_LED:
-			// gpio_put(PIN_LED_DEBUG, reqPayload[0]);
 			p.neoPixelSetValue(1, reqPayload[0] * 255, reqPayload[0] * 255, reqPayload[0] * 255, true);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;

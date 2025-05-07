@@ -13,6 +13,8 @@ u16 dshotBeepTone = 1;
 BidirDShotX1 *escs[4];
 
 void initESCs() {
+	addSetting(SETTING_BEEP_TONE, &dshotBeepTone, 2);
+
 	for (int i = 0; i < 4; i++) {
 		escs[3 - i] = new BidirDShotX1(PIN_MOTORS + i, 600, PIO_ESC);
 	}

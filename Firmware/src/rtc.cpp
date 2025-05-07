@@ -15,6 +15,8 @@ constexpr u16 days[4][12] =
 datetime_t currentDateTime;
 
 void rtcInit() {
+	addSetting(SETTING_TIMEZONE_OFFSET, &rtcTimezoneOffset, 0);
+
 	datetime_t t;
 	rtcConvertToDatetime(EPOCH_2000, &t);
 	// rtc_init();

@@ -15,6 +15,8 @@ fix32 magRight = 0, magFront = 0;
 fix32 magHeading = 0;
 
 void initMag() {
+	addArraySetting(SETTING_MAG_CAL_HARD, magOffset);
+
 	i2c_init(I2C_MAG, 400000);
 	gpio_set_function(PIN_SDA0, GPIO_FUNC_I2C);
 	gpio_set_function(PIN_SCL0, GPIO_FUNC_I2C);
