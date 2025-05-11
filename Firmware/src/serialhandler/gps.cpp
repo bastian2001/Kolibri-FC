@@ -39,7 +39,7 @@ void initGPS() {
 	placeElem(OSDElem::HEADING, 15, 14);
 	placeElem(OSDElem::HOME_DISTANCE, 23, 14);
 	placeElem(OSDElem::GPS_STATUS, 1, 12);
-	placeElem(OSDElem::PLUS_CODE, 1, 15);
+	placeElem(OSDElem::PLUS_CODE, 6, 12);
 	enableElem(OSDElem::LATITUDE);
 	enableElem(OSDElem::LONGITUDE);
 	enableElem(OSDElem::ALTITUDE);
@@ -292,9 +292,10 @@ void gpsLoop() {
 				updateElem(OSDElem::LATITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "\x98%.7f", gpsMotion.lon / 10000000.f);
 				updateElem(OSDElem::LONGITUDE, (char *)buf);
-				snprintf((char *)buf, 16, "\x7F%d\x0C ", gpsMotion.alt / 1000);
+				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
 				updateElem(OSDElem::ALTITUDE, (char *)buf);
-				snprintf((char *)buf, 16, "%d\x9E ", gpsMotion.gSpeed / 278);
+				fix32 gVel = fix32(3.6f) * sqrtf(((fix32)eVel * (fix32)eVel + (fix32)nVel * (fix32)nVel).getf32());
+				snprintf((char *)buf, 16, "%d\x9E ", (gVel + fix32(0.5f)).geti32());
 				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
 				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());
 				updateElem(OSDElem::HEADING, (char *)buf);

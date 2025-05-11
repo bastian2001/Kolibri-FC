@@ -16,7 +16,7 @@ i16 throttles[4];
 fix32 gyroScaled[3];
 
 fix32 pidGains[3][5];
-fix32 iFalloff = 400;
+fix32 iFalloff;
 fix32 pidGainsVVel[4], pidGainsHVel[4];
 fix32 angleModeP = 10, velocityModeP = 10;
 
@@ -338,7 +338,7 @@ void pidLoop() {
 			// convert (new...) global roll, pitch and yaw to local roll, pitch and yaw
 			rollSetpoint = newRollSetpoint * cosPitch - newYawSetpoint * sinPitch;
 			pitchSetpoint = newPitchSetpoint * cosRoll + newYawSetpoint * cosPitch * sinRoll;
-			yawSetpoint = -newPitchSetpoint * sinRoll + newYawSetpoint * cosPitch * cosRoll;
+			yawSetpoint = -newPitchSetpoint * sinRoll + newYawSetpoint * cosPitch * cosRoll - newRollSetpoint * sinPitch;
 
 			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 				fix32 t = throttle - 512;
@@ -419,9 +419,9 @@ void pidLoop() {
 			takeoffCounter = 0; // if the quad hasn't "taken off" yet, reset the counter
 		if (takeoffCounter < 1000) // enable i term falloff (windup prevention) only before takeoff
 		{
-			rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign();
-			pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign();
-			yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign();
+			rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign() / pidGains[0][I];
+			pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign() / pidGains[1][I];
+			yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign() / pidGains[2][I];
 		}
 
 		fix32 pFactor = 1, iFactor = 1, dFactor = 1;
