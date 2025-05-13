@@ -39,8 +39,8 @@ fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
 PT1 pidBoostFilter;
 fix32 lastThrottle;
 u8 pidBoostAxis = 1; // 0: off, 1: RP only, 2: RPY
-fix32 pidBoostP = 1.5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
-fix32 pidBoostI = 1.5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
+fix32 pidBoostP = 2.5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
+fix32 pidBoostI = 2.5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
 fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
 fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
 fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect

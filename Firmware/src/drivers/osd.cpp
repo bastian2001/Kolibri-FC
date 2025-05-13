@@ -85,7 +85,7 @@ void drawElem(u8 elem) {
 	// draw element using the elemData array
 	u16 pos = (u16)(elemPositions[elem][0] & 0x3F) + (u16)(elemPositions[elem][1] & 0x3F) * OSD_WIDTH;
 	bool blinking = elemPositions[elem][1] & 0x40;
-	bool isOff = blinking ? (osdTimer % 1000 < 500) : false; // blink every 500ms
+	bool isOff = blinking ? (osdTimer % 500 < 250) : false; // blink every 500ms
 	for (int i = 0; i < 16; i++) {
 		if (!elemData[elem][i])
 			break;
