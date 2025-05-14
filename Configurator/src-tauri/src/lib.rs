@@ -1,4 +1,6 @@
 use serialport::SerialPort;
+use std::collections::HashSet;
+use std::net::ToSocketAddrs;
 use std::sync::Mutex;
 use tauri::command;
 
@@ -18,7 +20,8 @@ pub fn run() {
             serial_open,
             serial_read,
             serial_write,
-            serial_close
+            serial_close,
+            tcp_search
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -92,4 +95,20 @@ fn serial_write(state: tauri::State<'_, MyState>, data: Vec<u8>) -> Result<(), S
 fn serial_close(state: tauri::State<'_, MyState>) {
     *state.port.lock().unwrap() = None;
     println!("Port closed");
+}
+
+#[command]
+fn tcp_search(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, String> {
+    let hostname = "elrs_rx.local";
+
+    // to_socket_addrs will invoke the same getaddrinfo() your ping uses
+    let addrs = (hostname, 0).to_socket_addrs().map_err(|e| e.to_string())?;
+
+    // collect unique IP strings
+    let mut ips = HashSet::new();
+    for addr in addrs {
+        ips.insert(addr.ip().to_string());
+    }
+
+    Ok(ips.into_iter().collect())
 }

@@ -6,6 +6,7 @@ import { routes } from "./router";
 import { connect, disconnect, sendCommand, getDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./communication/serial";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "./utils/types";
+import { invoke } from "@tauri-apps/api/core";
 
 export default defineComponent({
 	name: "App",
@@ -25,6 +26,14 @@ export default defineComponent({
 				logDiv.scrollTop = logDiv.scrollHeight;
 			})
 		})
+
+		setInterval(() => {
+			invoke('tcp_search').then((result: unknown) => {
+				console.log(result as string[]);
+			}).catch((err) => {
+				console.error(err);
+			});
+		}, 5000);
 	},
 	unmounted() {
 		clearInterval(this.listInterval);
