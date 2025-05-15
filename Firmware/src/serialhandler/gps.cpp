@@ -4,7 +4,7 @@ RingBuffer<u8> gpsBuffer(1024);
 elapsedMillis gpsInitTimer;
 bool gpsInitAck = false;
 GpsAccuracy gpsAcc;
-datetime_t gpsTime;
+struct tm gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
 fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
@@ -237,12 +237,12 @@ void gpsLoop() {
 				memcpy(currentPvtMsg, msgData, 92);
 				lastPvtMessage = 0;
 				newPvtMessageFlag = 0xFFFFFFFF;
-				gpsTime.year = DECODE_U2(&msgData[4]);
-				gpsTime.month = msgData[6];
-				gpsTime.day = msgData[7];
-				gpsTime.hour = msgData[8];
-				gpsTime.min = msgData[9];
-				gpsTime.sec = msgData[10];
+				gpsTime.tm_year = DECODE_U2(&msgData[4]);
+				gpsTime.tm_mon = msgData[6];
+				gpsTime.tm_mday = msgData[7];
+				gpsTime.tm_hour = msgData[8];
+				gpsTime.tm_min = msgData[9];
+				gpsTime.tm_sec = msgData[10];
 				gpsStatus.timeValidityFlags = msgData[11];
 				gpsAcc.tAcc = DECODE_U4(&msgData[12]);
 				gpsStatus.fixType = msgData[20];
@@ -260,10 +260,13 @@ void gpsLoop() {
 					thisQuality = TIME_QUALITY_FULLY_RESOLVED;
 				}
 				if (thisQuality >= rtcTimeQuality) {
-					// refresh from gpsTime every 2 mins, as long as the quality is not decreasing
-					if (++goodTimes == 100 || thisQuality > rtcTimeQuality) {
-						// goodTimes = (thisQuality > rtcTimeQuality) * 1100; // already update time 10s after the quality has settled
-						rtcSetDatetime(&gpsTime, thisQuality, false);
+					// refresh from gpsTime every 1200 frames, typically 1 min at 20Hz, as long as the quality is not decreasing
+					if (++goodTimes == 1200 || thisQuality > rtcTimeQuality) {
+						goodTimes = (thisQuality > rtcTimeQuality) * 1100; // already update time 10s after the quality has settled
+						struct timespec gpsTimespec;
+						rtcConvertToTimespec(&gpsTime, &gpsTimespec);
+						gpsTimespec.tv_nsec = DECODE_U4(&msgData[16]);
+						rtcSetTime(&gpsTimespec, thisQuality);
 					}
 				}
 				gpsStatus.satCount = msgData[23];

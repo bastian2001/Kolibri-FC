@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <pico/aon_timer.h>
 #include <vector>
 using std::vector;
 
@@ -64,7 +65,7 @@ typedef struct gpsMotion {
 	i32 headMot; // unit: 10^-5 deg
 } GpsMotion;
 extern GpsAccuracy gpsAcc;
-extern datetime_t gpsTime;
+extern struct tm gpsTime;
 extern GpsStatus gpsStatus;
 extern GpsMotion gpsMotion;
 

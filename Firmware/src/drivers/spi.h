@@ -1,5 +1,5 @@
-#include "Arduino.h"
 #include "hardware/spi.h"
+#include <Arduino.h>
 
 /**
  * @brief Read a register from a SPI device

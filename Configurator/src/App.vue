@@ -138,9 +138,10 @@ export default defineComponent({
 				.then(() => delay(5))
 				.then(() => sendCommand('request', MspFn.STATUS))
 				.then(() => {
-					const now = Date.now() / 1000;
+					const now = Date.now();
 					sendCommand('request', MspFn.SET_RTC, MspVersion.V2, [
-						...intToLeBytes(Math.floor(now), 4),
+						...intToLeBytes(Math.floor(now / 1000), 4),
+						...intToLeBytes(now % 1000, 2)
 					]);
 				})
 				.then(() => delay(5))

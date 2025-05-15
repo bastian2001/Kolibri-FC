@@ -451,27 +451,32 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			break;
 		case MspFn::SET_RTC: {
-			if (reqLen < 4) {
+			if (reqLen < 6) {
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 				break;
 			}
-			datetime_t t;
-			rtcConvertToDatetime(DECODE_U4((u8 *)reqPayload), &t);
-			rtcSetDatetime(&t, TIME_QUALITY_MSP);
+			const struct timespec t = {
+				.tv_sec = DECODE_U4((u8 *)reqPayload),
+				.tv_nsec = DECODE_U2((u8 *)&reqPayload[4]) * 1000000, // convert millis to nanoseconds
+			};
+			rtcSetTime(&t, TIME_QUALITY_MSP);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_RTC: {
-			datetime_t t;
-			rtcGetDatetime(&t);
-			buf[0] = t.year & 0xFF;
-			buf[1] = t.year >> 8;
-			buf[2] = t.month;
-			buf[3] = t.day;
-			buf[4] = t.hour;
-			buf[5] = t.min;
-			buf[6] = t.sec;
-			buf[7] = 0; // millis
-			buf[8] = 0; // millis
+			struct tm tm;
+			struct timespec ts;
+			rtcGetTime(&ts, true);
+			rtcConvertToTm(&ts, &tm);
+			buf[0] = tm.tm_year & 0xFF;
+			buf[1] = tm.tm_year >> 8;
+			buf[2] = tm.tm_mon;
+			buf[3] = tm.tm_mday;
+			buf[4] = tm.tm_hour;
+			buf[5] = tm.tm_min;
+			buf[6] = tm.tm_sec;
+			u16 millis = ts.tv_nsec / 1000000;
+			buf[7] = millis & 0xFF; // millis
+			buf[8] = millis >> 8; // millis
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 9);
 		} break;
 		case MspFn::STATUS: {
@@ -710,13 +715,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 24);
 			break;
 		case MspFn::GET_GPS_TIME:
-			buf[0] = gpsTime.year & 0xFF;
-			buf[1] = gpsTime.year >> 8;
-			buf[2] = gpsTime.month;
-			buf[3] = gpsTime.day;
-			buf[4] = gpsTime.hour;
-			buf[5] = gpsTime.min;
-			buf[6] = gpsTime.sec;
+			buf[0] = gpsTime.tm_year & 0xFF;
+			buf[1] = gpsTime.tm_year >> 8;
+			buf[2] = gpsTime.tm_mon;
+			buf[3] = gpsTime.tm_mday;
+			buf[4] = gpsTime.tm_hour;
+			buf[5] = gpsTime.tm_min;
+			buf[6] = gpsTime.tm_sec;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 7);
 			break;
 		case MspFn::GET_GPS_MOTION: {
