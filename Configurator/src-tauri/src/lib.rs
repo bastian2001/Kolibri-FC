@@ -132,20 +132,57 @@ fn serial_close(state: tauri::State<'_, MyState>) {
 #[command]
 async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, String> {
     let hostnames = ["elrs_rx.local", "elrs-rx.fritz.box"];
-    let mut result = Vec::new();
+    let mut output = Vec::new();
 
     // Track which IPs we've already seen to avoid duplicates
     let mut seen_ips = HashSet::new();
+
+    // Create a vector of futures to execute concurrently
+    let mut futures = Vec::new();
 
     for hostname in &hostnames {
         match (hostname.to_string(), 0).to_socket_addrs() {
             Ok(addr_iter) => {
                 for addr in addr_iter {
-                    let ip = addr.ip().to_string();
+                    let ip = addr.ip();
 
-                    // Only add this IP if we haven't seen it before
+                    // Only proceed if we haven't seen this IP before
                     if seen_ips.insert(ip.clone()) {
-                        result.push(format!("{},{}", hostname, ip));
+                        println!("Pinging {}", ip);
+
+                        // Clone hostname and IP for future use
+                        let hostname = hostname.to_string();
+                        let ip_str = ip.to_string();
+
+                        // Create a future that owns all its data
+                        let fut = async move {
+                            // Create the data inside the future
+                            let data = [0u8; 56];
+                            let timeout = Duration::from_millis(3000);
+                            let options = ping_rs::PingOptions {
+                                ttl: 64,
+                                dont_fragment: true,
+                            };
+
+                            // Now use ping_rs directly here
+                            match ping_rs::send_ping(&ip, timeout, &data, Some(&options)) {
+                                Ok(reply) => {
+                                    println!("  Ping to {} successful: {:?}", ip_str, reply.rtt);
+                                    // Only include hosts that respond within our timeout
+                                    if reply.rtt <= 3000 {
+                                        Some((hostname, ip_str))
+                                    } else {
+                                        None
+                                    }
+                                }
+                                Err(e) => {
+                                    println!("  Ping to {} failed: {:?}", ip_str, e);
+                                    None
+                                }
+                            }
+                        };
+
+                        futures.push(fut);
                     }
                 }
             }
@@ -153,13 +190,19 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
         }
     }
 
-    // If we found no valid hostnames, try to add direct IP entries as fallback
-    if result.is_empty() {
-        // You could add some common IPs as fallbacks here
-        println!("No hostnames resolved successfully");
+    // Execute all the futures concurrently
+    for future in futures {
+        if let Some((hostname, ip)) = future.await {
+            output.push(format!("{},{}", hostname, ip));
+        }
     }
 
-    Ok(result)
+    // If we found no valid hostnames, log it
+    if output.is_empty() {
+        println!("No hostnames resolved successfully or responded to pings");
+    }
+
+    Ok(output)
 }
 
 #[command]
