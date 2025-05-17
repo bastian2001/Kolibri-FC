@@ -1,6 +1,6 @@
 <script lang="ts">
 import { MspFn } from "@/msp/protocol";
-import { defineComponent, PropType } from "vue";
+import { defineComponent } from "vue";
 
 type SensorTrace = {
 	color: string;
