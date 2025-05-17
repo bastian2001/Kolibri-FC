@@ -12,10 +12,6 @@ type SensorTrace = {
 export default defineComponent({
 	name: "SensorGraph",
 	props: {
-		history: {
-			type: Object as PropType<number[][]>,
-			required: true,
-		},
 		gid: {
 			type: String,
 			required: true,
@@ -155,20 +151,19 @@ export default defineComponent({
 		delGraph() {
 			this.$emit('delete', this.gid);
 		},
+		updateFn(newHistory: number[][], total: number) {
+			if (!this.canvasWorker) return;
+			const data = JSON.parse(JSON.stringify(newHistory[newHistory.length - 1]));
+
+			this.canvasWorker.postMessage({
+				type: 'data',
+				data,
+				offset: total,
+			});
+
+		}
 	},
 	watch: {
-		history: {
-			handler(newHistory) {
-				if (!this.canvasWorker) return;
-				const data = JSON.parse(JSON.stringify(newHistory[newHistory.length - 1]))
-
-				this.canvasWorker.postMessage({
-					type: 'data',
-					data,
-					offset: this.total,
-				});
-			},
-		},
 		traces: {
 			handler(newTraces: SensorTrace[]) {
 				this.$emit('mspFn', newTraces.map(trace => trace.mspFn));
@@ -252,6 +247,7 @@ export default defineComponent({
 
 		window.addEventListener('resize', this.onResize);
 		this.onResize();
+		this.$emit('updateFn', this.updateFn);
 	},
 	beforeUnmount() {
 		window.removeEventListener('resize', this.onResize);

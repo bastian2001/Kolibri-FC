@@ -25,7 +25,11 @@ export default defineComponent({
 					name: 'gyro',
 					mspFn: [MspFn.MSP_RAW_IMU],
 				},
-			],
+			] as {
+				name: string;
+				mspFn: number[];
+				updateFn?: (history: number[][], total: number) => void;
+			}[],
 			gotTypes: [] as number[],
 
 		};
@@ -142,17 +146,20 @@ export default defineComponent({
 						this.checkHistory();
 						break;
 					}
-						break;
 				}
 			}
 		},
 		pushHistory() {
 			this.history.shift();
 			this.history.push(this.values);
-			this.history = [...this.history];
 			this.values = [...this.values]
 			this.gotTypes = [];
 			this.total++;
+			this.graphs.forEach((graph) => {
+				if (graph.updateFn) {
+					graph.updateFn(this.history, this.total);
+				}
+			});
 		},
 		checkHistory() {
 			// check if all reqSensorMsgs are in the gotTypes array, then push the history
@@ -182,7 +189,7 @@ export default defineComponent({
 			else if (!this.graphs.map(g => g.name).includes('debug'))
 				this.graphs.push({ name: 'debug', mspFn: [] });
 			else
-				this.graphs.push({ name: Math.random().toString(), mspFn: [] })
+				this.graphs.push({ name: Math.random().toString(), mspFn: [] });
 		},
 	},
 	watch: {
@@ -203,13 +210,14 @@ export default defineComponent({
 		<p>Zoom: <input type="range" v-model="width" min="100" max="600" step="25"> {{ width }} frames</p>
 		<p>Frequency: <input type="range" v-model="frequency" min="10" max="60"> {{ frequency }} Hz</p>
 		<div class="all">
-			<SensorGraph v-for="(graph, index) in graphs" :key="graph.name" :gid="graph.name" :history
-				:width="parseInt(width)" :total @delete="(_e) => {
+			<SensorGraph v-for="(graph, index) in graphs" :key="graph.name" :gid="graph.name" :width="parseInt(width)"
+				@delete="(_e) => {
 					graphs.splice(index, 1);
 				}" @mspFn="(mspFn) => {
 					graph.mspFn = mspFn;
-				}
-				">
+				}" @updateFn="(updateFn) => {
+					graph.updateFn = updateFn;
+				}">
 			</SensorGraph>
 			<div class="buttonWrapper">
 				<button @click="addGraph">Add</button>
