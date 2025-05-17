@@ -1,8 +1,8 @@
 <script lang="ts">
 import Channel from "@components/Channel.vue";
 import { defineComponent } from "vue";
-import { addOnCommandHandler, sendCommand, removeOnCommandHandler } from "@/communication/serial";
-import { MspFn } from "@utils/msp";
+import { addOnCommandHandler, sendCommand, removeOnCommandHandler } from "@/msp/comm";
+import { MspFn } from "@/msp/protocol";
 import { Command } from "@utils/types";
 import { leBytesToInt } from "@utils/utils";
 

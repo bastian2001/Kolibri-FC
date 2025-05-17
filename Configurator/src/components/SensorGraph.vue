@@ -1,5 +1,5 @@
 <script lang="ts">
-import { MspFn } from "@/utils/msp";
+import { MspFn } from "@/msp/protocol";
 import { defineComponent, PropType } from "vue";
 
 type SensorTrace = {

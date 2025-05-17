@@ -1,6 +1,6 @@
 <script lang="ts">
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/communication/serial';
-import { MspFn, MspVersion } from '@utils/msp';
+import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/msp/comm';
+import { MspFn, MspVersion } from '@/msp/protocol';
 import { Command, FlagProps } from '@utils/types';
 import { defineComponent, PropType } from 'vue';
 import { leBytesToInt } from '@utils/utils';

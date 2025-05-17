@@ -1,9 +1,9 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@utils/msp";
+import { MspFn, MspVersion } from "@/msp/protocol";
 import { leBytesToInt, delay, intToLeBytes } from "@utils/utils";
 import { routes } from "./router";
-import { connect, disconnect, sendCommand, getDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./communication/serial";
+import { connect, disconnect, sendCommand, getDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./msp/comm";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "./utils/types";
 import { invoke } from "@tauri-apps/api/core";
@@ -27,13 +27,8 @@ export default defineComponent({
 			})
 		})
 
-		setInterval(() => {
-			invoke('tcp_search').then((result: unknown) => {
-				console.log(result as string[]);
-			}).catch((err) => {
-				console.error(err);
-			});
-		}, 5000);
+		this.runTcpSearch()
+		setInterval(this.runTcpSearch, 20000);
 	},
 	unmounted() {
 		clearInterval(this.listInterval);
@@ -45,10 +40,12 @@ export default defineComponent({
 	data() {
 		return {
 			configuratorLog: useLogStore(),
-			devices: [] as string[],
+			serialDevices: [] as string[],
+			wifiDevices: [] as string[],
+			manualDevice: false,
 			listInterval: -1,
 			battery: '',
-			device: undefined,
+			device: '',
 			connected: false,
 			routes
 		};
@@ -115,7 +112,7 @@ export default defineComponent({
 			}
 		},
 		connect() {
-			console.log(this.device);
+			console.log("Connecting to " + this.device);
 			connect(this.device).catch(() => {
 				this.connected = false;
 			});
@@ -126,7 +123,14 @@ export default defineComponent({
 			});
 		},
 		listDevices() {
-			this.devices = getDevices();
+			this.serialDevices = getDevices();
+		},
+		runTcpSearch() {
+			invoke('tcp_list').then((result: unknown) => {
+				this.wifiDevices = (result as string[]).map(d => "tcp://" + d);
+			}).catch((err) => {
+				console.error(err);
+			});
 		},
 		odh() {
 			this.connected = false;
@@ -161,6 +165,11 @@ export default defineComponent({
 				});
 		}
 	},
+	computed: {
+		allDevices(): string[] {
+			return [...this.wifiDevices, ...this.serialDevices];
+		}
+	}
 });
 </script>
 
@@ -170,11 +179,17 @@ export default defineComponent({
 			<img src="https://svelte.dev/svelte-logo-horizontal.svg" alt="Svelte logo" class="kolibriLogo" />
 			<div class="space"></div>
 			<div class="connector">
-				<select v-model="device">
-					<option v-for="d in devices" :value="d">{{ d }}</option>
-				</select>&nbsp;&nbsp;
+				<input type="checkbox" id="manualDeviceEnabled" v-model="manualDevice" />
+				<label for="manualDeviceEnabled">Manual device</label>
+				&nbsp;&nbsp;
+				<select v-model="device" v-if="!manualDevice">
+					<option v-for="d in allDevices" :value="d">{{ d }}</option>
+				</select>
+				<input v-else type="text" v-model="device" placeholder="Enter device name" class="manualDeviceInput" />
+				&nbsp;&nbsp;
 				<button v-if="connected" @click="disconnect" class="connectButton">Disconnect</button>
-				<button v-else-if="devices.length" @click="connect" class="connectButton">Connect</button>
+				<button v-else-if="allDevices.length || manualDevice" @click="connect"
+					class="connectButton">Connect</button>
 				<span v-else style="color: #888">No devices found</span>
 				&nbsp;&nbsp;
 			</div>
@@ -231,7 +246,7 @@ export default defineComponent({
 }
 
 .connector select {
-	width: 8rem;
+	width: 12rem;
 	background-color: transparent;
 	border: 1px solid var(--border-color);
 	appearance: none;
@@ -318,5 +333,14 @@ export default defineComponent({
 .battery p {
 	margin: 0;
 	padding: 0;
+}
+
+.manualDeviceInput {
+	background-color: transparent;
+	border: 1px solid var(--border-color);
+	border-radius: 4px;
+	padding: 4px 8px;
+	color: var(--text-color);
+	outline: none;
 }
 </style>
