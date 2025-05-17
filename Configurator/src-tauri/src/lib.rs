@@ -189,9 +189,20 @@ async fn tcp_open(state: tauri::State<'_, MyState>, path: String) -> Result<(), 
 
     match TcpStream::connect(path) {
         Ok(stream) => {
+            // Set TCP_NODELAY to reduce latency
             if let Err(e) = stream.set_nodelay(true) {
                 println!("Error setting nodelay: {:?}", e);
                 return Err("Failed to set nodelay".to_string());
+            }
+
+            // Set a reasonable read timeout
+            if let Err(e) = stream.set_read_timeout(Some(Duration::from_millis(100))) {
+                println!("Warning: Failed to set read timeout: {:?}", e);
+            }
+
+            // Set a reasonable write timeout
+            if let Err(e) = stream.set_write_timeout(Some(Duration::from_millis(100))) {
+                println!("Warning: Failed to set write timeout: {:?}", e);
             }
 
             // Get lock with 1s timeout
@@ -253,13 +264,29 @@ async fn tcp_read(state: tauri::State<'_, MyState>) -> Result<Vec<u8>, String> {
     if let Ok(mut stream_guard) = lock_result {
         match stream_guard.as_mut() {
             Some(stream) => {
+                // Set non-blocking mode for read operations
+                if let Err(e) = stream.set_nonblocking(true) {
+                    println!("Warning: Failed to set nonblocking mode: {:?}", e);
+                }
+
                 let mut buf: Vec<u8> = vec![0; 10000];
                 match stream.read(buf.as_mut_slice()) {
                     Ok(t) => {
+                        // Restore blocking mode for other operations
+                        let _ = stream.set_nonblocking(false);
                         buf.resize(t, 0);
                         Ok(buf)
                     }
-                    Err(e) => Err(format!("{:?}", e)),
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        // No data available, not an error
+                        let _ = stream.set_nonblocking(false);
+                        Ok(vec![])
+                    }
+                    Err(e) => {
+                        let _ = stream.set_nonblocking(false);
+                        println!("TCP read error: {:?}", e);
+                        Ok(vec![]) // Return empty vector to prevent disruption
+                    }
                 }
             }
             None => Ok(vec![]), // Return empty data when no connection
@@ -274,14 +301,26 @@ async fn tcp_read(state: tauri::State<'_, MyState>) -> Result<Vec<u8>, String> {
 async fn tcp_write(state: tauri::State<'_, MyState>, data: Vec<u8>) -> Result<(), String> {
     // For write operations, wait with timeout
     let mut stream_guard = match acquire_mutex_with_timeout(&state.tcp_stream, 1000) {
-        Ok(guard) => guard,
-        Err(e) => return Err(e),
+        Ok(guard) => {
+            println!("Lock acquired for TCP write");
+            guard
+        }
+        Err(e) => {
+            println!("Failed to acquire lock for TCP write: {}", e);
+            return Err(e);
+        }
     };
 
     match stream_guard.as_mut() {
         Some(stream) => match stream.write(data.as_slice()) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("{:?}", e)),
+            Ok(_) => {
+                println!("Data written to TCP stream");
+                Ok(())
+            }
+            Err(e) => {
+                println!("Error writing to TCP stream: {:?}", e);
+                Err(format!("{:?}", e))
+            }
         },
         None => Err("No TCP connection open".to_string()),
     }

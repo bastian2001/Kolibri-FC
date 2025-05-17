@@ -63,7 +63,7 @@ export default defineComponent({
 						break;
 					case MspFn.FIRMWARE_VARIANT:
 						this.configuratorLog.push(`Firmware: ${command.dataStr}`);
-						if (command.dataStr !== 'BTFL') {
+						if (command.dataStr !== 'KOLI') {
 							this.configuratorLog.push(
 								`This configurator is only compatible with Kolibri firmware, disconnecting...`
 							);
