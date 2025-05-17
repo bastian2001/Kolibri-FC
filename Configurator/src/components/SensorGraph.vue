@@ -20,10 +20,6 @@ export default defineComponent({
 			type: Number,
 			default: 150,
 		},
-		total: {
-			type: Number,
-			default: 0,
-		},
 	},
 	data() {
 		return {
