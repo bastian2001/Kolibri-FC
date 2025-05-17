@@ -228,7 +228,7 @@ enum class MspVersion {
 	V1_OVER_CRSF,
 	V1_JUMBO_OVER_CRSF,
 	V2_OVER_V1_OVER_CRSF,
-	V2_OVER_V1_JUMBO_OVER_CRSF,
+	V2_OVER_V1_JUMBO_OVER_CRSF
 };
 
 extern u8 lastMspSerial;

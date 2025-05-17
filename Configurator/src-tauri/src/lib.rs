@@ -148,11 +148,8 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
                         result.push(format!("{},{}", hostname, ip));
                     }
                 }
-                println!("Resolved {} successfully", hostname);
             }
-            Err(e) => {
-                println!("Error resolving {}: {}", hostname, e);
-            }
+            Err(_e) => {}
         }
     }
 
@@ -160,8 +157,6 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
     if result.is_empty() {
         // You could add some common IPs as fallbacks here
         println!("No hostnames resolved successfully");
-    } else {
-        println!("Found {} resolved addresses", result.len());
     }
 
     Ok(result)
@@ -177,8 +172,6 @@ async fn tcp_open(state: tauri::State<'_, MyState>, path: String) -> Result<(), 
     if !path.contains(':') {
         return Err("Path must include a port, e.g., 'hostname:port'".to_string());
     }
-
-    println!("Attempting to connect to TCP path: {}", path);
 
     if let Err(e) = path.to_socket_addrs() {
         println!("Invalid socket address: {:?}", e);
@@ -207,7 +200,7 @@ async fn tcp_open(state: tauri::State<'_, MyState>, path: String) -> Result<(), 
 
             // Get lock with 1s timeout
             let mut stream_guard = acquire_mutex_with_timeout(&state.tcp_stream, 1000)
-                .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+                .map_err(|e| format!("tcp_open: Failed to acquire lock: {}", e))?;
 
             *stream_guard = Some(stream);
             println!("TCP connection opened");
@@ -223,33 +216,26 @@ async fn tcp_open(state: tauri::State<'_, MyState>, path: String) -> Result<(), 
 #[command]
 async fn tcp_close(state: tauri::State<'_, MyState>) -> Result<(), String> {
     println!("Closing TCP connection");
-    println!("About to acquire lock...");
 
     // Try to acquire the lock with a timeout
     let mut stream_guard = match acquire_mutex_with_timeout(&state.tcp_stream, 1000) {
-        Ok(guard) => {
-            println!("Lock acquired");
-            guard
-        }
+        Ok(guard) => guard,
         Err(e) => {
-            println!("Failed to acquire lock: {}", e);
+            println!("tcp_close: Failed to acquire lock: {}", e);
             return Err(e);
         }
     };
 
     match stream_guard.take() {
         Some(stream) => {
-            println!("Some");
             if let Err(e) = stream.shutdown(std::net::Shutdown::Both) {
                 println!("Error shutting down TCP connection: {:?}", e);
                 return Err(format!("Error shutting down: {:?}", e));
             }
-            println!("No error");
             println!("TCP connection closed");
             Ok(())
         }
         None => {
-            println!("None");
             println!("No TCP connection to close");
             Err("No TCP connection to close".to_string())
         }
@@ -301,10 +287,7 @@ async fn tcp_read(state: tauri::State<'_, MyState>) -> Result<Vec<u8>, String> {
 async fn tcp_write(state: tauri::State<'_, MyState>, data: Vec<u8>) -> Result<(), String> {
     // For write operations, wait with timeout
     let mut stream_guard = match acquire_mutex_with_timeout(&state.tcp_stream, 1000) {
-        Ok(guard) => {
-            println!("Lock acquired for TCP write");
-            guard
-        }
+        Ok(guard) => guard,
         Err(e) => {
             println!("Failed to acquire lock for TCP write: {}", e);
             return Err(e);
@@ -313,10 +296,7 @@ async fn tcp_write(state: tauri::State<'_, MyState>, data: Vec<u8>) -> Result<()
 
     match stream_guard.as_mut() {
         Some(stream) => match stream.write(data.as_slice()) {
-            Ok(_) => {
-                println!("Data written to TCP stream");
-                Ok(())
-            }
+            Ok(_) => Ok(()),
             Err(e) => {
                 println!("Error writing to TCP stream: {:?}", e);
                 Err(format!("{:?}", e))

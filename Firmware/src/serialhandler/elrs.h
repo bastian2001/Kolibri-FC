@@ -49,6 +49,7 @@ public:
 	static constexpr u8 ERROR_UNSUPPORTED_COMMAND = 0x03;
 	static constexpr u8 ERROR_INVALID_PREFIX = 0x04;
 	static constexpr u8 ERROR_INVALID_LENGTH = 0x05;
+	static constexpr u8 ERROR_MSP_OVER_CRSF = 0x06;
 	i16 uplinkRssi[2] = {0}; // RX RSSI values of both antennas (signed, more negative = worse)
 	u8 uplinkLinkQuality = 0; // RX packet success rate 0-100 [%]
 	i8 uplinkSNR = 0; // RX SNR in dB
@@ -110,7 +111,6 @@ private:
 	u8 telemBuffer[30] = {0};
 	u32 currentTelemSensor = 0;
 	u8 msgBufIndex = 0;
-	u8 mspTelemSeq = 0;
 	SerialUART &elrsSerial;
 	Stream *elrsStream;
 	u8 serialNum = 255;
@@ -123,8 +123,9 @@ private:
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter = 0;
 	u32 crc = 0;
-	u8 lastExtSrcAddr = 0;
+	u8 mspExtSrcAddr = 0;
 	u8 mspRxPayload[512] = {0};
+	u8 mspTelemSeq = 0;
 	u16 mspRxPayloadLen = 0;
 	u16 mspRxCmd = 0;
 	u8 mspRxSeq = 0;
@@ -134,6 +135,7 @@ private:
 	bool mspRecording = false;
 	MspVersion mspVersion = MspVersion::V2_OVER_CRSF;
 	void processMessage();
+	void resetMsp();
 };
 
 struct __attribute__((packed)) crsf_channels_10 {
