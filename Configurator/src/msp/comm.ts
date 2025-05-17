@@ -94,8 +94,8 @@ addOnCommandHandler((c: Command) => {
 				break
 		}
 	}
-	console.log(structuredClone(c))
 	if (!Object.values(MspFn).includes(c.command) && !Number.isNaN(c.command)) {
+		console.log(structuredClone(c))
 		configuratorLog?.push("Unsupported command, see console for details.")
 	}
 })
@@ -420,7 +420,6 @@ const read = () => {
 	if (connectType === "serial" || connectType === "tcp") {
 		invoke(connectType == "serial" ? "serial_read" : "tcp_read")
 			.then(d => {
-				console.log("Received data:", d)
 				handleRead(d as number[])
 			})
 			.catch(e => {
@@ -453,7 +452,10 @@ export const connect = (portToOpen: string) => {
 
 	if (portToOpen.startsWith("tcp://")) {
 		return new Promise((resolve: any, reject) => {
-			const path = portToOpen.substring(6) + ":5761"
+			let path = portToOpen.substring(6)
+			if (path.indexOf(":") === -1) {
+				path += ":5761" // default port
+			}
 			invoke("tcp_open", { path })
 				.then(() => {
 					connectType = "tcp"
@@ -483,7 +485,7 @@ export const connect = (portToOpen: string) => {
 			.then(() => {
 				connectType = "serial"
 				cmdEnabled = true
-				readInterval = setInterval(read, 3)
+				readInterval = setInterval(read, 50)
 				pingInterval = setInterval(() => {
 					sendCommand("request", MspFn.CONFIGURATOR_PING).catch(() => {})
 					pingStarted = Date.now()
@@ -552,15 +554,33 @@ export const disconnect = () => {
 	})
 }
 
-let devices: string[] = []
-function listDevices() {
+let serialDevices: string[] = []
+function listSerialDevices() {
 	invoke("serial_list").then((d: unknown) => {
-		devices = d as string[]
+		serialDevices = d as string[]
 	})
 }
-listDevices()
-setInterval(listDevices, 1000)
-export const getDevices = () => devices
+let wifiDevices: string[][] = []
+function listWifiDevices() {
+	invoke("tcp_list")
+		.then((result: unknown) => {
+			wifiDevices = (result as string[]).map(d => {
+				const parts = d.split(",")
+				const host = parts[0]
+				const ip = parts[1]
+				return [`tcp://${ip}`, host]
+			})
+		})
+		.catch(err => {
+			console.error(err)
+		})
+}
+listSerialDevices()
+listWifiDevices()
+setInterval(listSerialDevices, 1000)
+setInterval(listWifiDevices, 20000)
+export const getSerialDevices = () => serialDevices
+export const getWifiDevices = () => wifiDevices
 
 const onDisconnectHandlers: (() => void)[] = []
 const onConnectHandlers: (() => void)[] = []

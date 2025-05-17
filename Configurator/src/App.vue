@@ -3,10 +3,9 @@ import { defineComponent } from "vue";
 import { MspFn, MspVersion } from "@/msp/protocol";
 import { leBytesToInt, delay, intToLeBytes } from "@utils/utils";
 import { routes } from "./router";
-import { connect, disconnect, sendCommand, getDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./msp/comm";
+import { connect, disconnect, sendCommand, getSerialDevices, getWifiDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./msp/comm";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "./utils/types";
-import { invoke } from "@tauri-apps/api/core";
 
 export default defineComponent({
 	name: "App",
@@ -26,9 +25,6 @@ export default defineComponent({
 				logDiv.scrollTop = logDiv.scrollHeight;
 			})
 		})
-
-		this.runTcpSearch()
-		setInterval(this.runTcpSearch, 20000);
 	},
 	unmounted() {
 		clearInterval(this.listInterval);
@@ -41,7 +37,7 @@ export default defineComponent({
 		return {
 			configuratorLog: useLogStore(),
 			serialDevices: [] as string[],
-			wifiDevices: [] as string[],
+			wifiDevices: [] as string[][],
 			manualDevice: false,
 			listInterval: -1,
 			battery: '',
@@ -67,7 +63,7 @@ export default defineComponent({
 						break;
 					case MspFn.FIRMWARE_VARIANT:
 						this.configuratorLog.push(`Firmware: ${command.dataStr}`);
-						if (command.dataStr !== 'KOLI') {
+						if (command.dataStr !== 'BTFL') {
 							this.configuratorLog.push(
 								`This configurator is only compatible with Kolibri firmware, disconnecting...`
 							);
@@ -123,14 +119,8 @@ export default defineComponent({
 			});
 		},
 		listDevices() {
-			this.serialDevices = getDevices();
-		},
-		runTcpSearch() {
-			invoke('tcp_list').then((result: unknown) => {
-				this.wifiDevices = (result as string[]).map(d => "tcp://" + d);
-			}).catch((err) => {
-				console.error(err);
-			});
+			this.serialDevices = getSerialDevices();
+			this.wifiDevices = getWifiDevices();
 		},
 		odh() {
 			this.connected = false;
@@ -165,11 +155,11 @@ export default defineComponent({
 				});
 		}
 	},
-	computed: {
-		allDevices(): string[] {
-			return [...this.wifiDevices, ...this.serialDevices];
-		}
-	}
+	// computed: {
+	// 	allDevices(): string[] {
+	// 		return [...this.wifiDevices, ...this.serialDevices];
+	// 	}
+	// }
 });
 </script>
 
@@ -183,12 +173,14 @@ export default defineComponent({
 				<label for="manualDeviceEnabled">Manual device</label>
 				&nbsp;&nbsp;
 				<select v-model="device" v-if="!manualDevice">
-					<option v-for="d in allDevices" :value="d">{{ d }}</option>
+					<!-- <option v-for="d in allDevices" :value="d">{{ d }}</option> -->
+					<option v-for="d in wifiDevices" :value="d[0]">{{ d[0] }} ({{ d[1] }})</option>
+					<option v-for="d in serialDevices" :value="d">{{ d }}</option>
 				</select>
 				<input v-else type="text" v-model="device" placeholder="Enter device name" class="manualDeviceInput" />
 				&nbsp;&nbsp;
 				<button v-if="connected" @click="disconnect" class="connectButton">Disconnect</button>
-				<button v-else-if="allDevices.length || manualDevice" @click="connect"
+				<button v-else-if="serialDevices.length || wifiDevices.length || manualDevice" @click="connect"
 					class="connectButton">Connect</button>
 				<span v-else style="color: #888">No devices found</span>
 				&nbsp;&nbsp;

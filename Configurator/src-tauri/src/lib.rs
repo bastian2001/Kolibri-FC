@@ -1,11 +1,35 @@
 use serialport::SerialPort;
 use std::collections::HashSet;
-use std::io::Read;
-use std::io::Write;
-use std::net::TcpStream;
-use std::net::ToSocketAddrs;
-use std::sync::Mutex;
+use std::io::{Read, Write};
+use std::net::{TcpStream, ToSocketAddrs};
+use std::sync::{Mutex, MutexGuard};
+use std::time::Duration;
 use tauri::command;
+
+// Helper function to acquire mutex with timeout
+fn acquire_mutex_with_timeout<T>(
+    mutex: &Mutex<T>,
+    timeout_ms: u64,
+) -> Result<MutexGuard<T>, String> {
+    // First, try to acquire without waiting
+    match mutex.try_lock() {
+        Ok(guard) => return Ok(guard),
+        Err(_) => {
+            // If failed, start trying with small waits
+            let start_time = std::time::Instant::now();
+            let timeout = Duration::from_millis(timeout_ms);
+
+            while start_time.elapsed() < timeout {
+                std::thread::sleep(Duration::from_millis(1));
+                if let Ok(guard) = mutex.try_lock() {
+                    return Ok(guard);
+                }
+            }
+
+            Err("Timed out waiting for mutex".to_string())
+        }
+    }
+}
 
 #[derive(Default)]
 struct MyState {
@@ -107,16 +131,24 @@ fn serial_close(state: tauri::State<'_, MyState>) {
 
 #[command]
 async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, String> {
-    let hostnames = ["elrs_rx.local", "elrs_rx.fritz.box"];
+    let hostnames = ["elrs_rx.local", "elrs-rx.fritz.box"];
+    let mut result = Vec::new();
 
-    // to_socket_addrs will invoke the same getaddrinfo() your ping uses
-    // let addrs = (hostname, 0).to_socket_addrs().map_err(|e| e.to_string())?;
-    let mut addrs = Vec::new();
-    for h in &hostnames {
-        let hostname = h.to_string();
-        match (hostname.clone(), 0).to_socket_addrs() {
-            Ok(addr) => {
-                addrs.extend(addr);
+    // Track which IPs we've already seen to avoid duplicates
+    let mut seen_ips = HashSet::new();
+
+    for hostname in &hostnames {
+        match (hostname.to_string(), 0).to_socket_addrs() {
+            Ok(addr_iter) => {
+                for addr in addr_iter {
+                    let ip = addr.ip().to_string();
+
+                    // Only add this IP if we haven't seen it before
+                    if seen_ips.insert(ip.clone()) {
+                        result.push(format!("{},{}", hostname, ip));
+                    }
+                }
+                println!("Resolved {} successfully", hostname);
             }
             Err(e) => {
                 println!("Error resolving {}: {}", hostname, e);
@@ -124,13 +156,15 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
         }
     }
 
-    // collect unique IP strings
-    let mut ips = HashSet::new();
-    for addr in addrs {
-        ips.insert(addr.ip().to_string());
+    // If we found no valid hostnames, try to add direct IP entries as fallback
+    if result.is_empty() {
+        // You could add some common IPs as fallbacks here
+        println!("No hostnames resolved successfully");
+    } else {
+        println!("Found {} resolved addresses", result.len());
     }
 
-    Ok(ips.into_iter().collect())
+    Ok(result)
 }
 
 #[command]
@@ -143,24 +177,28 @@ async fn tcp_open(state: tauri::State<'_, MyState>, path: String) -> Result<(), 
     if !path.contains(':') {
         return Err("Path must include a port, e.g., 'hostname:port'".to_string());
     }
-    // Attempt to connect to the provided path
+
     println!("Attempting to connect to TCP path: {}", path);
-    // Ensure the path is a valid socket address
+
     if let Err(e) = path.to_socket_addrs() {
         println!("Invalid socket address: {:?}", e);
         return Err(format!("Invalid socket address: {:?}", e));
     }
-    // Attempt to connect to the TCP address
+
     println!("Connecting to TCP address: {}", path);
-    // Use TcpStream to connect to the provided path
+
     match TcpStream::connect(path) {
         Ok(stream) => {
-            // Set the TCP stream to nodelay mode
             if let Err(e) = stream.set_nodelay(true) {
                 println!("Error setting nodelay: {:?}", e);
                 return Err("Failed to set nodelay".to_string());
             }
-            *state.tcp_stream.lock().unwrap() = Some(stream);
+
+            // Get lock with 1s timeout
+            let mut stream_guard = acquire_mutex_with_timeout(&state.tcp_stream, 1000)
+                .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+
+            *stream_guard = Some(stream);
             println!("TCP connection opened");
             Ok(())
         }
@@ -172,53 +210,75 @@ async fn tcp_open(state: tauri::State<'_, MyState>, path: String) -> Result<(), 
 }
 
 #[command]
-async fn tcp_close(state: tauri::State<'_, MyState>) -> Result<(), ()> {
+async fn tcp_close(state: tauri::State<'_, MyState>) -> Result<(), String> {
     println!("Closing TCP connection");
-    // Close the TCP connection, if it exists
-    match *state.tcp_stream.lock().unwrap() {
-        Some(ref mut stream) => {
+    println!("About to acquire lock...");
+
+    // Try to acquire the lock with a timeout
+    let mut stream_guard = match acquire_mutex_with_timeout(&state.tcp_stream, 1000) {
+        Ok(guard) => {
+            println!("Lock acquired");
+            guard
+        }
+        Err(e) => {
+            println!("Failed to acquire lock: {}", e);
+            return Err(e);
+        }
+    };
+
+    match stream_guard.take() {
+        Some(stream) => {
             println!("Some");
             if let Err(e) = stream.shutdown(std::net::Shutdown::Both) {
                 println!("Error shutting down TCP connection: {:?}", e);
-                return Err(());
+                return Err(format!("Error shutting down: {:?}", e));
             }
             println!("No error");
-            *state.tcp_stream.lock().unwrap() = None;
             println!("TCP connection closed");
             Ok(())
         }
         None => {
             println!("None");
             println!("No TCP connection to close");
-            Err(())
+            Err("No TCP connection to close".to_string())
         }
     }
 }
 
 #[command]
 async fn tcp_read(state: tauri::State<'_, MyState>) -> Result<Vec<u8>, String> {
-    // Read data from the TCP connection, if it exists
-    let mut stream = state.tcp_stream.lock().unwrap();
-    match stream.as_mut() {
-        Some(stream) => {
-            let mut buf: Vec<u8> = vec![0; 10000];
-            match stream.read(buf.as_mut_slice()) {
-                Ok(t) => {
-                    buf.resize(t, 0);
-                    Ok(buf)
+    // For read operations, use try_lock to make it non-blocking
+    let lock_result = state.tcp_stream.try_lock();
+
+    if let Ok(mut stream_guard) = lock_result {
+        match stream_guard.as_mut() {
+            Some(stream) => {
+                let mut buf: Vec<u8> = vec![0; 10000];
+                match stream.read(buf.as_mut_slice()) {
+                    Ok(t) => {
+                        buf.resize(t, 0);
+                        Ok(buf)
+                    }
+                    Err(e) => Err(format!("{:?}", e)),
                 }
-                Err(e) => Err(format!("{:?}", e)),
             }
+            None => Ok(vec![]), // Return empty data when no connection
         }
-        None => Err("No TCP connection open".to_string()),
+    } else {
+        // If we can't get the lock, just return empty data
+        Ok(vec![])
     }
 }
 
 #[command]
 async fn tcp_write(state: tauri::State<'_, MyState>, data: Vec<u8>) -> Result<(), String> {
-    // Write data to the TCP connection, if it exists
-    let mut stream = state.tcp_stream.lock().unwrap();
-    match stream.as_mut() {
+    // For write operations, wait with timeout
+    let mut stream_guard = match acquire_mutex_with_timeout(&state.tcp_stream, 1000) {
+        Ok(guard) => guard,
+        Err(e) => return Err(e),
+    };
+
+    match stream_guard.as_mut() {
         Some(stream) => match stream.write(data.as_slice()) {
             Ok(_) => Ok(()),
             Err(e) => Err(format!("{:?}", e)),
