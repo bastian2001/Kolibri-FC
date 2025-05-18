@@ -60,6 +60,7 @@ export default defineComponent({
 			BB_ALL_FLAGS,
 			BB_GEN_FLAGS,
 			configuratorLog: useLogStore(),
+			getChunkInterval: -1,
 		};
 	},
 	computed: {
@@ -798,6 +799,32 @@ export default defineComponent({
 				...intToLeBytes(this.binFileNumber, 2)
 			]);
 		},
+		getChunkTimeoutFn() {
+			if (this.binFileNumber === -1) {
+				clearInterval(this.getChunkInterval);
+				return;
+			}
+			// first get the last chunk so that there's no timeout for the others
+			if (!this.receivedChunks[this.totalChunks - 1]) {
+				console.log('Timeouted, requesting last chunk: ' + (this.totalChunks - 1));
+				sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [
+					...intToLeBytes(this.binFileNumber, 2),
+					...intToLeBytes(this.totalChunks - 1, 4),
+				]);
+				return;
+			}
+			// then check for all the other chunks
+			for (let i = 0; i < this.totalChunks; i++) {
+				if (!this.receivedChunks[i]) {
+					console.log('Timeouted, requesting missing chunk: ' + i);
+					sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [
+						...intToLeBytes(this.binFileNumber, 2),
+						...intToLeBytes(i, 4),
+					]);
+					return;
+				}
+			}
+		},
 		handleFileChunk(data: Uint8Array) {
 			//typically 1030 data bytes per packet
 			//bytes 0-1 are the file number
@@ -814,6 +841,10 @@ export default defineComponent({
 			const chunkData = data.slice(6);
 			this.receivedChunks[chunkNum] = true;
 
+			// if there was no chunk received for 500ms, request the missing chunk
+			clearInterval(this.getChunkInterval);
+			this.getChunkInterval = setInterval(this.getChunkTimeoutFn, 500);
+
 			this.binFile.set(chunkData, chunkNum * this.chunkSize);
 			if (this.receivedChunks.length === this.totalChunks) {
 				for (let i = 0; i < this.totalChunks; i++) {
@@ -826,6 +857,7 @@ export default defineComponent({
 						return;
 					}
 				}
+				clearInterval(this.getChunkInterval);
 				this.decodeBinFile();
 			}
 		},
@@ -934,6 +966,7 @@ export default defineComponent({
 	},
 	unmounted() {
 		clearTimeout(this.drawFullCanvasTimeout);
+		clearInterval(this.getChunkInterval);
 		removeOnConnectHandler(this.getFileList);
 		removeOnCommandHandler(this.onCommand)
 		window.removeEventListener('resize', this.onResize);
