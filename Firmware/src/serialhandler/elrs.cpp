@@ -1,6 +1,15 @@
 #include "global.h"
 #include "hardware/interp.h"
-RingBuffer<u8> elrsBuffer(260);
+
+/* Prevent long execution time in loop() if there is a lot of data in the buffer.
+ * - Lower values: more consistent execution time
+ * - Higher values: more throughput (better for large MSP requests)
+ * 30 works well enough, but if DMA is possible for receiving, the value can be decreased because the buffer will not fill up as quickly.
+ */
+#define ELRS_MAX_SCAN 30
+#define ELRS_BUFFER_SIZE 600 // need to accept large bursts of MSP data
+
+RingBuffer<u8> elrsBuffer(ELRS_BUFFER_SIZE);
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 
 ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
@@ -51,7 +60,7 @@ void ExpressLRS::loop() {
 		}
 	}
 	int maxScan = elrsBuffer.itemCount();
-	if (maxScan > 250) {
+	if (maxScan > ELRS_BUFFER_SIZE - ELRS_MAX_SCAN) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
 		crc = 0;
@@ -162,15 +171,16 @@ void ExpressLRS::loop() {
 		return;
 	}
 	taskTimer = 0;
-	if (maxScan > 10) maxScan = 10;
-	if (msgBufIndex > 54) maxScan = 64 - msgBufIndex;
+	if (maxScan > ELRS_MAX_SCAN) maxScan = ELRS_MAX_SCAN; // limit to max scan size
+	if (maxScan + msgBufIndex > 64) maxScan = 64 - msgBufIndex; // limit to packet length
 	for (int i = 0; i < maxScan; i++) {
 		msgBuffer[msgBufIndex] = elrsBuffer.pop();
 		if (msgBufIndex >= 2) {
 			crc ^= msgBuffer[msgBufIndex];
 			crc = crcLutD5[crc];
-		} else
+		} else {
 			crc = 0;
+		}
 		msgBufIndex++;
 		if (msgBufIndex >= 2 + msgBuffer[1]) break; // if the message is complete, stop scanning, so we don't corrupt the crc
 	}
@@ -467,126 +477,7 @@ void ExpressLRS::processMessage() {
 	} break;
 	case FRAMETYPE_MSP_REQ:
 	case FRAMETYPE_MSP_WRITE: {
-		const u8 *const crsfPayload = &msgBuffer[3];
-		const u8 *const extPayload = &crsfPayload[2];
-		const u8 *const mspData = &extPayload[1];
-		const i8 crsfPacketSize = size - 4; // regular payload size = extended payload size + 2 (ext src and dest)
-		u8 minSize = 3; // ext src, dest and status byte
-		if (crsfPacketSize < minSize) break;
-
-		const u8 status = *extPayload; // first byte of payload is the status byte
-		const u8 isError = (status >> 7);
-		const bool isNewFrame = (status >> 4) & 0b1;
-		const u8 sequenceNo = status & 0xF;
-		u8 readPos = 0; // read position for MSP payload
-
-		bool sequenceError = false;
-		if ((this->mspRxSeq + 1) & 0xF != sequenceNo) sequenceError = true;
-
-		if (isError || (!isNewFrame && sequenceError)) {
-			// if the frame is an error or the sequence number is not the expected one, reset the MSP state
-			this->resetMsp();
-			this->errorCount++;
-			this->errorFlag = true;
-			this->lastError = ExpressLRS::ERROR_MSP_OVER_CRSF;
-			return;
-		}
-
-		if (isNewFrame) {
-			// set MSP version
-			const u8 headerVersion = (status >> 5) & 0b11; // 1 = V1 or V1_JUMBO, 2 = V2
-			switch (headerVersion) {
-			case 1:
-				if (extPayload[1] == 0xFF)
-					this->mspVersion = MspVersion::V1_JUMBO_OVER_CRSF;
-				else
-					this->mspVersion = MspVersion::V1_OVER_CRSF;
-				break;
-			case 2:
-				this->mspVersion = MspVersion::V2_OVER_CRSF;
-				break;
-			default:
-				this->resetMsp();
-				this->errorCount++;
-				this->errorFlag = true;
-				this->lastError = ExpressLRS::ERROR_MSP_OVER_CRSF;
-				return; // unsupported MSP version
-			}
-
-			// save return address for once packet is complete
-			this->mspExtSrcAddr = msgBuffer[4];
-
-			// calculate frame length
-			switch (this->mspVersion) {
-			case MspVersion::V1_OVER_CRSF:
-				minSize += 2; // 1 payload length, 1 command
-				readPos = 2;
-				if (crsfPacketSize < minSize) break;
-				this->mspRxPayloadLen = mspData[0];
-				this->mspRxCmd = mspData[1];
-				break;
-			case MspVersion::V1_JUMBO_OVER_CRSF:
-				minSize += 4; // 1+2 payload length, 1 command
-				readPos = 4;
-				if (crsfPacketSize < minSize) break;
-				this->mspRxCmd = mspData[3]; // command
-				this->mspRxPayloadLen = mspData[1] | (mspData[2] << 8); // (2 and 3 (ELRS) or 1 and 2 (KOLI)?)
-				if (this->mspRxPayloadLen > 512) {
-					this->resetMsp();
-					this->errorCount++;
-					this->errorFlag = true;
-					this->lastError = ExpressLRS::ERROR_MSP_OVER_CRSF;
-					return; // invalid payload length
-				}
-				break;
-			case MspVersion::V2_OVER_CRSF:
-				minSize += 5; // 1 flags, 2 payload length, 2 command
-				readPos = 5;
-				if (crsfPacketSize < minSize) break;
-				this->mspRxFlag = mspData[0];
-				this->mspRxCmd = mspData[1] | (mspData[2] << 8);
-				this->mspRxPayloadLen = mspData[3] | (mspData[4] << 8);
-				if (this->mspRxPayloadLen > 512) {
-					this->resetMsp();
-					this->errorCount++;
-					this->errorFlag = true;
-					this->lastError = ExpressLRS::ERROR_MSP_OVER_CRSF;
-					return; // invalid payload length
-				}
-			}
-
-			i8 thisMspPayloadLen = size - 6 - readPos; // how much MSP payload is in this CRSF frame = total packet size minus sync, len, type, ext src, ext dest and CRSF CRC, then deduct start of MSP payload (readPos)
-			if (thisMspPayloadLen < 0) {
-				// something is wrong
-				this->resetMsp();
-				this->errorCount++;
-				this->errorFlag = true;
-				this->lastError = ExpressLRS::ERROR_MSP_OVER_CRSF;
-				return;
-			}
-			i16 mspNeedsPayloadBytes = this->mspRxPayloadLen - this->mspRxPos; // how many bytes we still need to read for the MSP payload
-			u8 readFromThisPacket = MIN(thisMspPayloadLen, mspNeedsPayloadBytes); // how much MSP payload we can read from this packet
-			if (readFromThisPacket < 0) {
-				// something is wrong
-				this->resetMsp();
-				this->errorCount++;
-				this->errorFlag = true;
-				this->lastError = ExpressLRS::ERROR_MSP_OVER_CRSF;
-				return;
-			}
-			memcpy(this->mspRxPayload + this->mspRxPos, &mspData[readPos], readFromThisPacket);
-			this->mspRxPos += readFromThisPacket; // update the position in the MSP payload
-
-			// if we have a full packet
-			if (this->mspRxPos >= this->mspRxPayloadLen) {
-				Serial.printf("cmd %04X, ver %d, len %d, data ", this->mspRxCmd, (int)this->mspVersion, this->mspRxPayloadLen);
-				for (int i = 0; i < this->mspRxPayloadLen; i++) {
-					Serial.printf("%02X ", this->mspRxPayload[i]);
-				}
-				processMspCmd(this->serialNum, MspMsgType::REQUEST, (MspFn)this->mspRxCmd, this->mspVersion, (char *)this->mspRxPayload, this->mspRxPayloadLen);
-				this->mspRecording = false;
-			}
-		}
+		this->processMspReq(size);
 	} break;
 	default:
 		lastError = ERROR_UNSUPPORTED_COMMAND;
@@ -683,12 +574,137 @@ void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload,
 	}
 }
 
-void ExpressLRS::resetMsp() {
-	this->mspRecording = false;
+void ExpressLRS::resetMsp(bool setError) {
 	this->mspRxPos = 0;
+	this->mspRecording = false;
 	this->mspRxPayloadLen = 0;
 	this->mspVersion = MspVersion::V2_OVER_CRSF;
 	this->mspExtSrcAddr = 0;
 	this->mspRxCmd = 0;
 	this->mspRxSeq = 0;
+	if (setError) {
+		this->errorCount++;
+		this->errorFlag = true;
+		this->lastError = ExpressLRS::ERROR_MSP_OVER_CRSF;
+	}
+}
+
+void ExpressLRS::processMspReq(int size) {
+	const u8 *const crsfPayload = &msgBuffer[3];
+	const u8 *const extPayload = &crsfPayload[2];
+	const u8 *const mspData = &extPayload[1];
+	const i8 crsfPacketSize = size - 4; // regular payload size = extended payload size + 2 (ext src and dest)
+	u8 minSize = 3; // ext src, dest and status byte
+	if (crsfPacketSize < minSize) return;
+
+	const u8 status = *extPayload; // first byte of payload is the status byte
+	const u8 isError = (status >> 7);
+	const bool isNewFrame = (status >> 4) & 0b1;
+	const u8 sequenceNo = status & 0xF;
+	u8 readPos = 0; // read position for MSP payload
+
+	const u8 expectedSequence = (this->mspRxSeq + 1) & 0xF;
+	const bool sequenceError = sequenceNo != expectedSequence;
+
+	if (isError || (!isNewFrame && sequenceError)) return this->resetMsp(true);
+
+	if (isNewFrame) {
+		this->resetMsp(); // if a new frame comes in before the previous one is complete we need to reset the rxPos
+
+		// set MSP version
+		const u8 headerVersion = (status >> 5) & 0b11; // 1 = V1 or V1_JUMBO, 2 = V2
+		switch (headerVersion) {
+		case 1:
+			if (extPayload[1] == 0xFF)
+				this->mspVersion = MspVersion::V1_JUMBO_OVER_CRSF;
+			else
+				this->mspVersion = MspVersion::V1_OVER_CRSF;
+			break;
+		case 2:
+			this->mspVersion = MspVersion::V2_OVER_CRSF;
+			break;
+		default:
+			Serial.println("unsupported MSP version: " + String(headerVersion));
+			this->resetMsp(true);
+			return;
+		}
+
+		// save return address for once packet is complete
+		this->mspExtSrcAddr = msgBuffer[4];
+
+		// calculate frame length
+		switch (this->mspVersion) {
+		case MspVersion::V1_OVER_CRSF:
+			minSize += 2; // 1 payload length, 1 command
+			readPos = 2;
+			if (crsfPacketSize < minSize) {
+				Serial.println("Too small V1");
+				this->resetMsp(true);
+				return; // broken packet
+			}
+			this->mspRxPayloadLen = mspData[0];
+			this->mspRxCmd = mspData[1];
+			break;
+		case MspVersion::V1_JUMBO_OVER_CRSF:
+			minSize += 4; // 1+2 payload length, 1 command
+			readPos = 4;
+			if (crsfPacketSize < minSize) {
+				Serial.println("Too small V1 Jumbo");
+				this->resetMsp(true);
+				return; // broken packet
+			}
+			this->mspRxCmd = mspData[3];
+			this->mspRxPayloadLen = mspData[1] | (mspData[2] << 8); // (2 and 3 (ELRS) or 1 and 2 (KOLI)?)
+			if (this->mspRxPayloadLen > 512) {
+				Serial.println("Too large V1 Jumbo");
+				this->resetMsp(true);
+				return; // invalid payload length
+			}
+			break;
+		case MspVersion::V2_OVER_CRSF:
+			minSize += 5; // 1 flags, 2 payload length, 2 command
+			readPos = 5;
+			if (crsfPacketSize < minSize) {
+				Serial.println("Too small V2");
+				this->resetMsp(true);
+				return;
+			}
+			this->mspRxFlag = mspData[0];
+			this->mspRxCmd = mspData[1] | (mspData[2] << 8);
+			this->mspRxPayloadLen = mspData[3] | (mspData[4] << 8);
+			if (this->mspRxPayloadLen > 512) {
+				Serial.println("Too large V2");
+				this->resetMsp(true);
+				return; // invalid payload length
+			}
+		}
+		this->mspRecording = true;
+	}
+	if (!this->mspRecording) {
+		Serial.println("MSP recording not started, but got a packet, probably packet loss");
+		this->resetMsp(true);
+		return;
+	}
+	this->mspRxSeq = sequenceNo; // save the sequence number for next frame
+
+	i8 thisMspPayloadLen = size - 7 - readPos; // how much MSP payload is in this CRSF frame = total packet size minus sync, len, type, ext src, ext dest, status and CRSF CRC, then deduct start of MSP payload (readPos)
+
+	// something is wrong
+	if (thisMspPayloadLen < 0) return this->resetMsp(true);
+
+	i16 mspNeedsPayloadBytes = this->mspRxPayloadLen - this->mspRxPos; // how many bytes we still need to read for the MSP payload
+	i16 readFromThisPacket = MIN(thisMspPayloadLen, mspNeedsPayloadBytes); // how much MSP payload we can read from this packet
+
+	// something is wrong
+	if (readFromThisPacket < 0) return this->resetMsp(true);
+
+	memcpy(this->mspRxPayload + this->mspRxPos, &mspData[readPos], readFromThisPacket);
+
+	this->mspRxPos += readFromThisPacket; // update the position in the MSP payload
+
+	// if we have a full packet
+	if (this->mspRxPos >= this->mspRxPayloadLen) {
+		processMspCmd(this->serialNum, MspMsgType::REQUEST, (MspFn)this->mspRxCmd, this->mspVersion, (char *)this->mspRxPayload, this->mspRxPayloadLen);
+		this->resetMsp();
+	}
 }

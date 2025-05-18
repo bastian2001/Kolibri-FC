@@ -49,7 +49,8 @@ public:
 	static constexpr u8 ERROR_UNSUPPORTED_COMMAND = 0x03;
 	static constexpr u8 ERROR_INVALID_PREFIX = 0x04;
 	static constexpr u8 ERROR_INVALID_LENGTH = 0x05;
-	static constexpr u8 ERROR_MSP_OVER_CRSF = 0x06;
+	static constexpr u8 ERROR_INVALID_PKT_LEN = 0x06;
+	static constexpr u8 ERROR_MSP_OVER_CRSF = 0x07;
 	i16 uplinkRssi[2] = {0}; // RX RSSI values of both antennas (signed, more negative = worse)
 	u8 uplinkLinkQuality = 0; // RX packet success rate 0-100 [%]
 	i8 uplinkSNR = 0; // RX SNR in dB
@@ -130,12 +131,13 @@ private:
 	u16 mspRxCmd = 0;
 	u8 mspRxSeq = 0;
 	u16 mspRxPos = 0;
+	bool mspRecording = false;
 	u8 mspRxFlag = 0;
 	bool pinged = false;
-	bool mspRecording = false;
 	MspVersion mspVersion = MspVersion::V2_OVER_CRSF;
 	void processMessage();
-	void resetMsp();
+	void resetMsp(bool setError = false);
+	void processMspReq(int size);
 };
 
 struct __attribute__((packed)) crsf_channels_10 {
