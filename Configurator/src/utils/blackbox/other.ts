@@ -1,6 +1,7 @@
 import { LogData, LogDataType } from "@utils/types"
 
 export function skipValues(slice: LogData, everyNth: number): LogData {
+	if (!everyNth) everyNth = 1
 	const skipped: LogData = {}
 	for (const key in slice) {
 		// @ts-expect-error
