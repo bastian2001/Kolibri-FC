@@ -1,11 +1,11 @@
 <script lang="ts">
 import Motor from "@components/Motor.vue";
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@utils/msp";
+import { MspFn, MspVersion } from "@/msp/protocol";
 import { intToLeBytes, leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "@utils/types";
-import { sendCommand, addOnDisconnectHandler, removeOnDisconnectHandler, addOnCommandHandler, removeOnCommandHandler } from "@/communication/serial";
+import { sendCommand, addOnDisconnectHandler, removeOnDisconnectHandler, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
 
 export default defineComponent({
 	name: "Motors",

@@ -1,6 +1,6 @@
 <script lang="ts">
-import { sendCommand } from "@/communication/serial";
-import { MspFn, MspVersion } from "@/utils/msp";
+import { sendCommand } from "@/msp/comm";
+import { MspFn, MspVersion } from "@/msp/protocol";
 import { defineComponent } from "vue";
 import fonts from "@/utils/fonts";
 

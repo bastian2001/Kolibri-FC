@@ -1,9 +1,9 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@utils/msp";
+import { MspFn, MspVersion } from "@/msp/protocol";
 import { Command } from "@utils/types";
 import { delay, intToLeBytes, leBytesToInt } from "@utils/utils";
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/communication/serial";
+import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
 import NumericInput from "@/components/NumericInput.vue";
 
 export default defineComponent({

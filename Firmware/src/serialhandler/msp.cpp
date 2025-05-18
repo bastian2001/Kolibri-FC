@@ -112,7 +112,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 			break;
 		}
 		memcpy(&buf[headerSize], data, len);
-		ELRS->sendMspMsg(type, version == MspVersion::V2 ? 2 : 1, buf, len + headerSize);
+		ELRS->sendMspMsg(type, version == MspVersion::V2_OVER_CRSF ? 2 : 1, buf, len + headerSize);
 	} else {
 		u8 pos = 0;
 		u8 header[12];

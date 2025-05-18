@@ -1,6 +1,6 @@
 <script lang="ts">
-import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/communication/serial";
-import { MspFn, MspVersion } from "@/utils/msp";
+import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
+import { MspFn, MspVersion } from "@/msp/protocol";
 import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
 import { delay } from "@/utils/utils";

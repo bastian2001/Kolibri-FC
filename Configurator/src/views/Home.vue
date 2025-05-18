@@ -1,9 +1,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/communication/serial';
+import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/msp/comm';
 import { useLogStore } from '@stores/logStore';
 import { leBytesToInt, delay, intToLeBytes } from '@utils/utils';
-import { MspFn, MspVersion } from '@utils/msp';
+import { MspFn, MspVersion } from '@/msp/protocol';
 import { Command } from '@utils/types';
 import { prefixZeros } from '@utils/utils';
 
