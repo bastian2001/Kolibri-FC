@@ -81,15 +81,14 @@ u32 getBlackboxChunkSize(MspVersion v) {
 	case MspVersion::V1:
 	case MspVersion::V2_OVER_V1:
 	case MspVersion::V1_OVER_CRSF:
-	case MspVersion::V2_OVER_V1_OVER_CRSF:
 		return BLACKBOX_MSPV1_CHUNK_SIZE;
+
 	case MspVersion::V2_OVER_CRSF:
 	case MspVersion::V1_JUMBO_OVER_CRSF:
-	case MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF:
 		return BLACKBOX_CRSF_CHUNK_SIZE;
+		
 	case MspVersion::V2:
 	case MspVersion::V1_JUMBO:
-	case MspVersion::V2_OVER_V1_JUMBO:
 	default:
 		return BLACKBOX_CHUNK_SIZE;
 	}

@@ -149,8 +149,6 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
 
                     // Only proceed if we haven't seen this IP before
                     if seen_ips.insert(ip.clone()) {
-                        println!("Pinging {}", ip);
-
                         // ping the IP address so that we can check if it is reachable. Sometimes the OS still knows about nonexistent devices on the network due to DNS caching
 
                         let hostname = hostname.to_string();
@@ -170,10 +168,6 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
                                 };
                                 match ping_rs::send_ping(&ip, timeout, &data, Some(&options)) {
                                     Ok(reply) => {
-                                        println!(
-                                            "  Ping to {} successful: {:?}",
-                                            ip_str, reply.rtt
-                                        );
                                         // Only include hosts that respond within our timeout
                                         if reply.rtt <= 3000 {
                                             return Some((hostname, ip_str));
@@ -204,7 +198,6 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
                                 Ok(output) => {
                                     let success = output.status.success();
                                     if success {
-                                        println!("  Ping to {} successful", ip_str);
                                         Some((hostname, ip_str))
                                     } else {
                                         let stderr = String::from_utf8_lossy(&output.stderr);

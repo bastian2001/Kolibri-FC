@@ -159,9 +159,9 @@ enum class MspState {
 	PACKET_START, // receiving M or X
 	TYPE_V1, // got M, receiving type byte (<, >, !)
 	LEN_V1, // if 255 is received in this step, inject jumbo len bytes
+	CMD_V1,
 	JUMBO_LEN_LO_V1,
 	JUMBO_LEN_HI_V1,
-	CMD_V1,
 	PAYLOAD_V1,
 	FLAG_V2_OVER_V1,
 	CMD_LO_V2_OVER_V1,
@@ -222,13 +222,10 @@ enum class MspVersion {
 	V1,
 	V1_JUMBO,
 	V2_OVER_V1,
-	V2_OVER_V1_JUMBO,
 
 	V2_OVER_CRSF,
 	V1_OVER_CRSF,
 	V1_JUMBO_OVER_CRSF,
-	V2_OVER_V1_OVER_CRSF,
-	V2_OVER_V1_JUMBO_OVER_CRSF
 };
 
 extern u8 lastMspSerial;

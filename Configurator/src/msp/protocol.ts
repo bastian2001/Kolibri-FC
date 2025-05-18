@@ -112,5 +112,4 @@ export const MspVersion = {
 	V1: 1,
 	V2: 2,
 	V2_OVER_V1: 3,
-	V2_OVER_V1_JUMBO: 4,
 }

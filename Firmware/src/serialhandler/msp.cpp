@@ -37,18 +37,12 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 	if (serialNum > ARRAYLEN(serials)) return;
 
 	if (version == MspVersion::V1 && len > 254) version = MspVersion::V1_JUMBO;
-	if (version == MspVersion::V1_JUMBO && len < 255) version = MspVersion::V1;
-	if (version == MspVersion::V2_OVER_V1 && len > 248) version = MspVersion::V2_OVER_V1_JUMBO;
-	if (version == MspVersion::V2_OVER_V1_JUMBO && len < 249) version = MspVersion::V2_OVER_V1;
+	if (version == MspVersion::V2_OVER_V1 && len > 248) return;
 	if (version == MspVersion::V1_OVER_CRSF && len > 254) version = MspVersion::V1_JUMBO_OVER_CRSF;
-	if (version == MspVersion::V1_JUMBO_OVER_CRSF && len < 255) version = MspVersion::V1_OVER_CRSF;
-	if (version == MspVersion::V2_OVER_V1_OVER_CRSF && len > 248) version = MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
-	if (version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF && len < 249) version = MspVersion::V2_OVER_V1_OVER_CRSF;
 
-	bool versionHasV1 = version == MspVersion::V1 || version == MspVersion::V1_JUMBO || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_V1_JUMBO || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
-	bool versionHasV2 = version == MspVersion::V2 || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_V1_JUMBO || version == MspVersion::V2_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
-	bool versionHasJumbo = version == MspVersion::V1_JUMBO || version == MspVersion::V2_OVER_V1_JUMBO || version == MspVersion::V1_JUMBO_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
-	bool versionHasCrsf = version == MspVersion::V2_OVER_CRSF || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V2_OVER_V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF || version == MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF;
+	bool versionHasV1 = version == MspVersion::V1 || version == MspVersion::V1_JUMBO || version == MspVersion::V2_OVER_V1 || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF;
+	bool versionHasV2 = version == MspVersion::V2 || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_CRSF;
+	bool versionHasCrsf = version == MspVersion::V2_OVER_CRSF || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF;
 	if (!versionHasV2 && fn >= MspFn::MSP_V2_FRAME) return;
 	Stream *ser = serials[serialNum];
 
@@ -62,13 +56,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 			headerSize = 5; // flag, cmd (2), size (2)
 			break;
 		case MspVersion::V1_JUMBO_OVER_CRSF:
-			headerSize = 4; // sizeV1=255, sizeJumbo (2), cmd
-			break;
-		case MspVersion::V2_OVER_V1_OVER_CRSF:
-			headerSize = 7; // sizeV1, cmdV1=255, flag, cmdV2 (2), sizeV2 (2)
-			break;
-		case MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF:
-			headerSize = 9; // sizeV1=255, sizeJumbo (2), cmdV1=255, flag, cmdV2 (2), sizeV2 (2)
+			headerSize = 4; // sizeV1=255, cmd, sizeJumbo (2)
 			break;
 		}
 		char buf[len + headerSize] = {0};
@@ -86,29 +74,9 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 			break;
 		case MspVersion::V1_JUMBO_OVER_CRSF:
 			buf[0] = 255; // trigger jumbo
-			buf[1] = len & 0xFF;
-			buf[2] = len >> 8;
-			buf[3] = (u8)fn;
-			break;
-		case MspVersion::V2_OVER_V1_OVER_CRSF:
-			buf[0] = len + 5;
-			buf[1] = 255; // trigger v2 over v1
-			buf[2] = 0; // flag
-			buf[3] = (u8)fn;
-			buf[4] = (u16)fn >> 8;
-			buf[5] = len & 0xFF;
-			buf[6] = len >> 8;
-			break;
-		case MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF:
-			buf[0] = 255; // trigger jumbo
-			buf[1] = (len + 5) & 0xFF;
-			buf[2] = (len + 5) >> 8;
-			buf[3] = 255; // trigger v2 over v1
-			buf[4] = 0; // flag
-			buf[5] = (u8)fn;
-			buf[6] = (u16)fn >> 8;
-			buf[7] = len & 0xFF;
-			buf[8] = len >> 8;
+			buf[1] = (u8)fn;
+			buf[2] = len & 0xFF;
+			buf[3] = len >> 8;
 			break;
 		}
 		memcpy(&buf[headerSize], data, len);
@@ -116,37 +84,38 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 	} else {
 		u8 pos = 0;
 		u8 header[12];
-		u32 crcV1 = 0; // u32 is faster
-		u32 crcV2 = 0; // u32 is faster
+		u32 crcV1 = 0;
+		u32 crcV2 = 0;
 		header[pos++] = '$';
 		header[pos++] = versionHasV1 ? 'M' : 'X';
 		header[pos++] = (u8)type;
-		if (versionHasV1) {
-			if (versionHasJumbo) {
-				header[pos++] = 255;
-				header[pos++] = len;
-				header[pos++] = len >> 8;
-			} else {
-				header[pos++] = len;
-			}
-			if (versionHasV2) {
-				header[pos++] = (u8)MspFn::MSP_V2_FRAME;
-				header[pos++] = 0; // flag
-				header[pos++] = (u16)fn;
-				header[pos++] = (u16)fn >> 8;
-				header[pos++] = len & 0xFF;
-				header[pos++] = len >> 8;
-			} else {
-				header[pos++] = (u8)fn;
-			}
-
-		} else {
-			// MSPv2
+		switch (version) {
+		case MspVersion::V1:
+			header[pos++] = len;
+			header[pos++] = (u8)fn;
+			break;
+		case MspVersion::V1_JUMBO:
+			header[pos++] = 255;
+			header[pos++] = (u8)fn;
+			header[pos++] = len;
+			header[pos++] = len >> 8;
+			break;
+		case MspVersion::V2_OVER_V1:
+			header[pos++] = len + 6;
+			header[pos++] = (u8)MspFn::MSP_V2_FRAME;
 			header[pos++] = 0; // flag
 			header[pos++] = (u16)fn;
 			header[pos++] = (u16)fn >> 8;
 			header[pos++] = len & 0xFF;
 			header[pos++] = len >> 8;
+			break;
+		case MspVersion::V2:
+			header[pos++] = 0; // flag
+			header[pos++] = (u16)fn;
+			header[pos++] = (u16)fn >> 8;
+			header[pos++] = len & 0xFF;
+			header[pos++] = len >> 8;
+			break;
 		}
 		if (versionHasV2) {
 			CRC_LUT_D5_APPLY(crcV2, 0); // flag
@@ -1017,21 +986,22 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	static MspState mspState = MspState::IDLE;
 
 	tasks[TASK_CONFIGURATOR].runCounter++;
-	payloadBuf[payloadBufIndex++] = c;
 
 	switch (mspState) {
 	case MspState::IDLE:
-		payloadBufIndex = 0;
 		if (c == '$')
 			mspState = MspState::PACKET_START;
 		break;
 	case MspState::PACKET_START:
+		payloadBufIndex = 0;
 		switch (c) {
 		case 'M':
 			mspState = MspState::TYPE_V1;
+			msgMspVer = MspVersion::V1;
 			break;
 		case 'X':
 			mspState = MspState::TYPE_V2;
+			msgMspVer = MspVersion::V2;
 			break;
 		default:
 			mspState = MspState::IDLE;
@@ -1058,13 +1028,20 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		break;
 	case MspState::LEN_V1:
 		crcV1 ^= c;
-		if (c == 255) {
+		payloadLen = c;
+		mspState = MspState::CMD_V1;
+		break;
+	case MspState::CMD_V1:
+		crcV1 ^= c;
+		fn = (MspFn)c;
+		if (c == (u8)MspFn::MSP_V2_FRAME) {
+			msgMspVer = MspVersion::V2_OVER_V1;
+			mspState = MspState::FLAG_V2_OVER_V1;
+		} else if (payloadLen == 255) {
 			msgMspVer = MspVersion::V1_JUMBO;
 			mspState = MspState::JUMBO_LEN_LO_V1;
 		} else {
-			payloadLen = c;
-			msgMspVer = MspVersion::V1;
-			mspState = MspState::CMD_V1;
+			mspState = payloadLen ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
 		}
 		break;
 	case MspState::JUMBO_LEN_LO_V1:
@@ -1075,21 +1052,11 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	case MspState::JUMBO_LEN_HI_V1:
 		payloadLen |= ((u16)c << 8);
 		crcV1 ^= c;
-		mspState = MspState::CMD_V1;
-		break;
-	case MspState::CMD_V1:
-		crcV1 ^= c;
-		if (c == (u8)MspFn::MSP_V2_FRAME) {
-			msgMspVer = msgMspVer == MspVersion::V1 ? MspVersion::V2_OVER_V1 : MspVersion::V2_OVER_V1_JUMBO;
-			mspState = MspState::FLAG_V2_OVER_V1;
-		} else {
-			fn = (MspFn)c;
-			mspState = payloadLen ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
-			payloadBufIndex = 0;
-		}
+		mspState = payloadLen ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
 		break;
 	case MspState::PAYLOAD_V1:
 		crcV1 ^= c;
+		payloadBuf[payloadBufIndex++] = c;
 		if (payloadBufIndex == payloadLen)
 			mspState = MspState::CHECKSUM_V1;
 		break;
@@ -1131,6 +1098,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	case MspState::PAYLOAD_V2_OVER_V1:
 		crcV1 ^= c;
 		crcV2 = crcLutD5[c ^ crcV2];
+		payloadBuf[payloadBufIndex++] = c;
 		if (payloadBufIndex == payloadLen)
 			mspState = MspState::CHECKSUM_V2_OVER_V1;
 		break;
@@ -1152,7 +1120,6 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		break;
 	case MspState::TYPE_V2:
 		mspState = MspState::FLAG_V2;
-		msgMspVer = MspVersion::V2;
 		switch (c) {
 		case '<':
 			msgType = MspMsgType::REQUEST;
@@ -1196,10 +1163,10 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		}
 		crcV2 = crcLutD5[c ^ crcV2];
 		mspState = payloadLen ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
-		payloadBufIndex = 0;
 		break;
 	case MspState::PAYLOAD_V2:
 		crcV2 = crcLutD5[c ^ crcV2];
+		payloadBuf[payloadBufIndex++] = c;
 		if (payloadBufIndex == payloadLen)
 			mspState = MspState::CHECKSUM_V2;
 		break;

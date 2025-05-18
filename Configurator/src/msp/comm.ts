@@ -9,9 +9,9 @@ const MspState = {
 	PACKET_START: 1, // receiving M or X
 	TYPE_V1: 2, // got M, receiving type byte (<, >, !)
 	LEN_V1: 3, // if 255 is received in this step, inject jumbo len bytes
-	JUMBO_LEN_LO_V1: 4,
-	JUMBO_LEN_HI_V1: 5,
-	CMD_V1: 6,
+	CMD_V1: 4,
+	JUMBO_LEN_LO_V1: 5,
+	JUMBO_LEN_HI_V1: 6,
 	PAYLOAD_V1: 7,
 	FLAG_V2_OVER_V1: 8,
 	CMD_LO_V2_OVER_V1: 9,
@@ -127,9 +127,6 @@ export function sendCommand(
 	const len = data.length
 
 	if (len > 254 && version === MspVersion.V1) version = MspVersion.V1_JUMBO
-	if (len < 255 && version === MspVersion.V1_JUMBO) version = MspVersion.V1
-	if (len > 248 && version === MspVersion.V2_OVER_V1) version = MspVersion.V2_OVER_V1_JUMBO
-	if (len < 249 && version === MspVersion.V2_OVER_V1_JUMBO) version = MspVersion.V2_OVER_V1
 
 	const typeLut = {
 		request: 60,
@@ -139,8 +136,9 @@ export function sendCommand(
 	const cmd = [charToInt("$"), charToInt(version === MspVersion.V2 ? "X" : "M"), typeLut[type]]
 	switch (version) {
 		case MspVersion.V1_JUMBO:
-			cmd.push(0xff, len & 0xff, len >> 8)
+			cmd.push(0xff)
 			cmd.push(command & 0xff)
+			cmd.push(len & 0xff, len >> 8)
 			break
 		case MspVersion.V1:
 			cmd.push(len & 0xff)
@@ -158,30 +156,22 @@ export function sendCommand(
 			cmd.push(command & 0xff, command >> 8) // V2 command
 			cmd.push(len & 0xff, len >> 8) // V2 len
 			break
-		case MspVersion.V2_OVER_V1_JUMBO:
-			cmd.push(0xff, (len + 6) & 0xff, (len + 6) >> 8) // V1 len, v1 jumbo len
-			cmd.push(0xff) //  V2 trigger
-			cmd.push(0) // V2 flag
-			cmd.push(command & 0xff, command >> 8) // V2 command
-			cmd.push(len & 0xff, len >> 8) // V2 len
-			break
 	}
 	cmd.push(...data)
 	const crcV2StartLut = {
 		[MspVersion.V2]: 3,
 		[MspVersion.V2_OVER_V1]: 5,
-		[MspVersion.V2_OVER_V1_JUMBO]: 7,
 		[MspVersion.V1]: 0x7fffffff, // such that slice returns empty array
 		[MspVersion.V1_JUMBO]: 0x7fffffff, // such that slice returns empty array
 	}
 
 	let checksumV1 = cmd.slice(3).reduce((a, b) => a ^ b, 0),
 		checksumV2 = cmd.slice(crcV2StartLut[version]).reduce(crc8DvbS2, 0)
-	if ([MspVersion.V2, MspVersion.V2_OVER_V1, MspVersion.V2_OVER_V1_JUMBO].includes(version)) {
+	if ([MspVersion.V2, MspVersion.V2_OVER_V1].includes(version)) {
 		cmd.push(checksumV2)
 		checksumV1 ^= checksumV2
 	}
-	if ([MspVersion.V1, MspVersion.V1_JUMBO, MspVersion.V2_OVER_V1, MspVersion.V2_OVER_V1_JUMBO].includes(version)) {
+	if ([MspVersion.V1, MspVersion.V1_JUMBO, MspVersion.V2_OVER_V1].includes(version)) {
 		cmd.push(checksumV1)
 	}
 	if (connectType === "serial") {
@@ -270,12 +260,23 @@ function handleRead(rxBuf: number[]) {
 				break
 			case MspState.LEN_V1:
 				checksumV1 ^= c
-				if (c === 255) {
+				newCommand.length = c
+				mspState = MspState.CMD_V1
+				break
+			case MspState.CMD_V1:
+				checksumV1 ^= c
+				newCommand.command = c
+
+				if (newCommand.length === 255) {
+					newCommand.version = MspVersion.V1_JUMBO
 					mspState = MspState.JUMBO_LEN_LO_V1
+				} else if (c === 255) {
+					checksumV2 = 0
+					newCommand.version = MspVersion.V2_OVER_V1
+					mspState = MspState.FLAG_V2_OVER_V1
 				} else {
-					newCommand.length = c
 					newCommand.data = new Uint8Array(newCommand.length)
-					mspState = MspState.CMD_V1
+					mspState = newCommand.length > 0 ? MspState.PAYLOAD_V1 : MspState.CHECKSUM_V1
 				}
 				break
 			case MspState.JUMBO_LEN_LO_V1:
@@ -287,18 +288,7 @@ function handleRead(rxBuf: number[]) {
 				checksumV1 ^= c
 				newCommand.length += c << 8
 				newCommand.data = new Uint8Array(newCommand.length)
-				newCommand.version = MspVersion.V1_JUMBO
-				mspState = MspState.CMD_V1
-				break
-			case MspState.CMD_V1:
-				checksumV1 ^= c
-				if (c === 255) {
-					checksumV2 = 0
-					mspState = MspState.FLAG_V2_OVER_V1
-				} else {
-					newCommand.command = c
-					mspState = newCommand.length > 0 ? MspState.PAYLOAD_V1 : MspState.CHECKSUM_V1
-				}
+				mspState = newCommand.length > 0 ? MspState.PAYLOAD_V1 : MspState.CHECKSUM_V1
 				break
 			case MspState.PAYLOAD_V1:
 				newCommand.data[receivedBytes++] = c
@@ -322,8 +312,6 @@ function handleRead(rxBuf: number[]) {
 				newCommand.command += c << 8
 				checksumV1 ^= c
 				checksumV2 = crc8DvbS2(checksumV2, c)
-				newCommand.version =
-					newCommand.version === MspVersion.V1_JUMBO ? MspVersion.V2_OVER_V1_JUMBO : MspVersion.V2_OVER_V1
 				mspState = MspState.LEN_LO_V2_OVER_V1
 				break
 			case MspState.LEN_LO_V2_OVER_V1:
@@ -334,6 +322,7 @@ function handleRead(rxBuf: number[]) {
 				break
 			case MspState.LEN_HI_V2_OVER_V1:
 				newCommand.length += c << 8
+				newCommand.data = new Uint8Array(newCommand.length)
 				checksumV1 ^= c
 				checksumV2 = crc8DvbS2(checksumV2, c)
 				mspState = newCommand.length > 0 ? MspState.PAYLOAD_V2_OVER_V1 : MspState.CHECKSUM_V2_OVER_V1

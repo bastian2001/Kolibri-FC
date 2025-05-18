@@ -653,8 +653,8 @@ void ExpressLRS::processMspReq(int size) {
 				this->resetMsp(true);
 				return; // broken packet
 			}
-			this->mspRxCmd = mspData[3];
-			this->mspRxPayloadLen = mspData[1] | (mspData[2] << 8); // (2 and 3 (ELRS) or 1 and 2 (KOLI)?)
+			this->mspRxCmd = mspData[1];
+			this->mspRxPayloadLen = mspData[2] | (mspData[3] << 8);
 			if (this->mspRxPayloadLen > 512) {
 				Serial.println("Too large V1 Jumbo");
 				this->resetMsp(true);
