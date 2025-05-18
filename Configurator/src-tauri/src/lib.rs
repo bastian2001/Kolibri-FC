@@ -2,6 +2,7 @@ use serialport::SerialPort;
 use std::collections::HashSet;
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
+use std::process::Command;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 use tauri::command;
@@ -150,33 +151,69 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
                     if seen_ips.insert(ip.clone()) {
                         println!("Pinging {}", ip);
 
-                        // Clone hostname and IP for future use
+                        // ping the IP address so that we can check if it is reachable. Sometimes the OS still knows about nonexistent devices on the network due to DNS caching
+
                         let hostname = hostname.to_string();
                         let ip_str = ip.to_string();
 
-                        // Create a future that owns all its data
+                        // Create a future that uses the system ping command
+                        // On Linux, there are permission issues with ping-rs, so we use the system ping command
+                        // On Windows, the ping command has such a stupid output (OS language dependent, and the status code also doesn't tell us anything useful), need to use ping-rs here. Besides that, a ping to an unreachable host is (sometimes?) counted as 0% loss because there's a reply from the local PC's IP telling it it cannot find the IP...
                         let fut = async move {
-                            // Create the data inside the future
-                            let data = [0u8; 56];
-                            let timeout = Duration::from_millis(3000);
-                            let options = ping_rs::PingOptions {
-                                ttl: 64,
-                                dont_fragment: true,
+                            // Different ping arguments based on OS
+                            if cfg!(target_os = "windows") {
+                                let data = [0u8; 4];
+                                let timeout = Duration::from_millis(3000);
+                                let options = ping_rs::PingOptions {
+                                    ttl: 64,
+                                    dont_fragment: true,
+                                };
+                                match ping_rs::send_ping(&ip, timeout, &data, Some(&options)) {
+                                    Ok(reply) => {
+                                        println!(
+                                            "  Ping to {} successful: {:?}",
+                                            ip_str, reply.rtt
+                                        );
+                                        // Only include hosts that respond within our timeout
+                                        if reply.rtt <= 3000 {
+                                            return Some((hostname, ip_str));
+                                        } else {
+                                            return None;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        println!("  Ping to {} failed: {:?}", ip_str, e);
+                                        return None;
+                                    }
+                                };
                             };
 
-                            // Now use ping_rs directly here
-                            match ping_rs::send_ping(&ip, timeout, &data, Some(&options)) {
-                                Ok(reply) => {
-                                    println!("  Ping to {} successful: {:?}", ip_str, reply.rtt);
-                                    // Only include hosts that respond within our timeout
-                                    if reply.rtt <= 3000 {
+                            let c = if cfg!(target_os = "macos") {
+                                // macOS ping with timeout and limited count
+                                Command::new("ping")
+                                    .args(["-c", "1", "-t", "3", &ip_str])
+                                    .output()
+                            } else {
+                                // Linux ping with timeout and limited count
+                                Command::new("ping")
+                                    .args(["-c", "1", "-W", "3", &ip_str])
+                                    .output()
+                            };
+
+                            match c {
+                                Ok(output) => {
+                                    let success = output.status.success();
+                                    if success {
+                                        println!("  Ping to {} successful", ip_str);
                                         Some((hostname, ip_str))
                                     } else {
+                                        let stderr = String::from_utf8_lossy(&output.stderr);
+                                        println!("  Ping to {} failed: {}", ip_str, stderr);
                                         None
                                     }
                                 }
                                 Err(e) => {
-                                    println!("  Ping to {} failed: {:?}", ip_str, e);
+                                    println!("  Ping command failed for {}: {:?}", ip_str, e);
                                     None
                                 }
                             }
@@ -190,9 +227,12 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
         }
     }
 
-    // Execute all the futures concurrently
-    for future in futures {
-        if let Some((hostname, ip)) = future.await {
+    // Execute all the futures concurrently using join_all
+    let results = futures_util::future::join_all(futures).await;
+
+    // Process results
+    for result in results {
+        if let Some((hostname, ip)) = result {
             output.push(format!("{},{}", hostname, ip));
         }
     }

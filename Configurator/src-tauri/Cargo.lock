@@ -1894,6 +1894,7 @@ dependencies = [
 name = "kolibri-configurator"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "ping-rs",
  "serde",
  "serde_json",
