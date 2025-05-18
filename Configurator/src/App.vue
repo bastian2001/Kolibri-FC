@@ -155,11 +155,6 @@ export default defineComponent({
 				});
 		}
 	},
-	// computed: {
-	// 	allDevices(): string[] {
-	// 		return [...this.wifiDevices, ...this.serialDevices];
-	// 	}
-	// }
 });
 </script>
 
@@ -173,7 +168,6 @@ export default defineComponent({
 				<label for="manualDeviceEnabled">Manual device</label>
 				&nbsp;&nbsp;
 				<select v-model="device" v-if="!manualDevice">
-					<!-- <option v-for="d in allDevices" :value="d">{{ d }}</option> -->
 					<option v-for="d in wifiDevices" :value="d[0]">{{ d[0] }} ({{ d[1] }})</option>
 					<option v-for="d in serialDevices" :value="d">{{ d }}</option>
 				</select>
