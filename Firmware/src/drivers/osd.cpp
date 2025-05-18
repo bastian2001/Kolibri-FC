@@ -91,9 +91,6 @@ void drawElem(u8 elem) {
 			break;
 		char data = elemData[elem][i];
 		if (isOff) data = ' ';
-		if (elem == (u8)OSDElem::TOT_VOLTAGE) {
-			Serial.printf("OSD: %c, %d, %d\n", data, i, pos);
-		}
 		pos &= 0x1FF;
 		u8 posLow = pos & 0xFF;
 		u8 posHigh = pos >> 8;

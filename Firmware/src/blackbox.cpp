@@ -1,6 +1,9 @@
 #include "global.h"
 
+// rather conservative estimates of available buffers. Doesn't need to be perfect.
 #define BLACKBOX_CHUNK_SIZE 1024
+#define BLACKBOX_CRSF_CHUNK_SIZE 480
+#define BLACKBOX_MSPV1_CHUNK_SIZE 230
 
 u64 bbFlags = 0;
 u64 currentBBFlags = 0;
@@ -73,6 +76,25 @@ bool clearBlackbox() {
 #endif
 }
 
+u32 getBlackboxChunkSize(MspVersion v) {
+	switch (v) {
+	case MspVersion::V1:
+	case MspVersion::V2_OVER_V1:
+	case MspVersion::V1_OVER_CRSF:
+	case MspVersion::V2_OVER_V1_OVER_CRSF:
+		return BLACKBOX_MSPV1_CHUNK_SIZE;
+	case MspVersion::V2_OVER_CRSF:
+	case MspVersion::V1_JUMBO_OVER_CRSF:
+	case MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF:
+		return BLACKBOX_CRSF_CHUNK_SIZE;
+	case MspVersion::V2:
+	case MspVersion::V1_JUMBO:
+	case MspVersion::V2_OVER_V1_JUMBO:
+	default:
+		return BLACKBOX_CHUNK_SIZE;
+	}
+}
+
 void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
@@ -93,10 +115,11 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	b[3] = (size >> 8) & 0xFF;
 	b[4] = (size >> 16) & 0xFF;
 	b[5] = (size >> 24) & 0xFF;
-	b[6] = BLACKBOX_CHUNK_SIZE & 0xFF;
-	b[7] = (BLACKBOX_CHUNK_SIZE >> 8) & 0xFF;
-	b[8] = (BLACKBOX_CHUNK_SIZE >> 16) & 0xFF;
-	b[9] = (BLACKBOX_CHUNK_SIZE >> 24) & 0xFF;
+	u32 chunkSize = getBlackboxChunkSize(mspVer);
+	b[6] = chunkSize & 0xFF;
+	b[7] = (chunkSize >> 8) & 0xFF;
+	b[8] = (chunkSize >> 16) & 0xFF;
+	b[9] = (chunkSize >> 24) & 0xFF;
 	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_INIT, mspVer, (char *)b, 10);
 	logFile.close();
 }
@@ -112,20 +135,22 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 		return;
 	}
 
-	u8 buffer[BLACKBOX_CHUNK_SIZE + 6];
+	u32 chunkSize = getBlackboxChunkSize(mspVer);
+
+	u8 buffer[chunkSize + 6];
 	buffer[0] = logNum & 0xFF;
 	buffer[1] = logNum >> 8;
 	u32 chunkNum = 0;
 	if (singleChunk >= 0) {
 		chunkNum = singleChunk;
-		logFile.seek(chunkNum * BLACKBOX_CHUNK_SIZE, SeekSet);
+		logFile.seek(chunkNum * chunkSize, SeekSet);
 	}
 	size_t bytesRead = 1;
 	while (true) {
 		rp2040.wdt_reset();
-		if (chunkNum % 1000 == 0)
+		if (chunkNum % 100 == 0)
 			p.neoPixelSetValue(0, chunkNum & 0xFF, chunkNum & 0xFF, chunkNum & 0xFF, true);
-		bytesRead = logFile.read(buffer + 6, BLACKBOX_CHUNK_SIZE);
+		bytesRead = logFile.read(buffer + 6, chunkSize);
 		if (bytesRead <= 0)
 			break;
 		buffer[2] = chunkNum & 0xFF;
