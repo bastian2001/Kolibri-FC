@@ -1,7 +1,8 @@
 <script lang="ts">
-import { defineComponent, type PropType } from "vue";
-import { type GenFlagProps, type FlagProps, type BBLog } from "@utils/types";
-import { getNestedProperty } from "@utils/utils";
+import { defineComponent, PropType } from "vue";
+import { GenFlagProps, FlagProps, BBLog, LogDataType } from "@utils/types";
+import { delay } from "@/utils/utils";
+import { skipValues } from "@/utils/blackbox/other";
 
 export default defineComponent({
 	name: "BlackboxTimeline",
@@ -100,7 +101,7 @@ export default defineComponent({
 			this.$emit('update', sf, ef);
 			this.drawSelection();
 		},
-		fullDraw() {
+		fullDraw(allowShortening = true) {
 			if (!this.loadedLog) return;
 			let drawFlag = '';
 			if (
@@ -119,7 +120,7 @@ export default defineComponent({
 			const minMax = this.flagProps[drawFlag].rangeFn
 				? this.flagProps[drawFlag].rangeFn!(this.loadedLog)
 				: { min: this.flagProps[drawFlag].minValue!, max: this.flagProps[drawFlag].maxValue! };
-			this.drawTrace(drawFlag, minMax.min, minMax.max);
+			this.drawTrace(drawFlag, minMax.min, minMax.max, allowShortening);
 			this.drawSelection();
 		},
 		onResize() {
@@ -153,33 +154,49 @@ export default defineComponent({
 			ctx2.drawImage(this.osCanvas, 0, 0);
 			ctx2.drawImage(this.selCanvas, 0, 0);
 		},
-		drawTrace(traceName: string, min: number, max: number) {
+		drawTrace(traceName: string, min: number, max: number, allowShortening: boolean) {
 			if (!this.loadedLog) return;
 			const ctx = this.osCanvas.getContext('2d') as CanvasRenderingContext2D;
 			ctx.clearRect(0, 0, this.osCanvas.width, this.osCanvas.height);
-			const drawArray = [];
+			let drawArray: number[] | LogDataType = [];
 			if (traceName === 'LOG_MOTOR_OUTPUTS') {
-				for (let i = 0; i < this.loadedLog!.frameCount; i++) {
-					let avg = this.loadedLog!.frames[i].motors.out.rr!;
-					avg += this.loadedLog!.frames[i].motors.out.rl!;
-					avg += this.loadedLog!.frames[i].motors.out.fr!;
-					avg += this.loadedLog!.frames[i].motors.out.fl!;
+				for (let i = 0; i < this.loadedLog.frameCount; i++) {
+					let avg = this.loadedLog.logData.motorOutRR![i];
+					avg += this.loadedLog.logData.motorOutRL![i];
+					avg += this.loadedLog.logData.motorOutFR![i];
+					avg += this.loadedLog.logData.motorOutFL![i];
 					avg /= 4;
 					drawArray.push(avg);
 				}
+				if (allowShortening) {
+					const everyNth = Math.floor(this.loadedLog.frameCount / this.canvas.width);
+					if (everyNth > 1) {
+						drawArray = drawArray.filter((_, i) => i % everyNth === 0);
+						delay(500).then(() => {
+							this.fullDraw(false);
+						});
+					}
+				}
 			} else {
-				for (let i = 0; i < this.loadedLog!.frameCount; i++) {
-					drawArray.push(
-						getNestedProperty(this.loadedLog!.frames[i], this.flagProps[traceName].path, { min: min, max: max })
-					);
+				if (allowShortening) {
+					const everyNth = Math.floor(this.loadedLog.frameCount / this.canvas.width);
+					const skipped = skipValues(this.loadedLog.logData, everyNth)
+					// @ts-expect-error
+					drawArray = skipped[this.flagProps[traceName].path] as LogDataType;
+					delay(500).then(() => {
+						this.fullDraw(false);
+					});
+				} else {
+					// @ts-expect-error
+					drawArray = this.loadedLog.logData[this.flagProps[traceName].path] as LogDataType;
 				}
 			}
-			const scaleX = this.canvas.width / this.loadedLog!.frameCount;
+			const scaleX = this.canvas.width / drawArray.length;
 			const scaleY = this.canvas.height / (max - min - 1);
 			ctx.beginPath();
 			ctx.strokeStyle = '#61a0ff';
 			ctx.lineWidth = 1;
-			for (let i = 0; i < this.loadedLog!.frameCount; i++) {
+			for (let i = 0; i < drawArray.length; i++) {
 				ctx.lineTo(i * scaleX, this.osCanvas.height - (drawArray[i] - min) * scaleY);
 			}
 			ctx.stroke();

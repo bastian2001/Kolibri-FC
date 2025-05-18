@@ -1,11 +1,11 @@
 <script lang="ts">
 import Motor from "@components/Motor.vue";
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@utils/msp";
-import { leBytesToInt } from "@utils/utils";
+import { MspFn, MspVersion } from "@/msp/protocol";
+import { intToLeBytes, leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
-import { type Command } from "@utils/types";
-import { sendCommand, addOnDisconnectHandler, removeOnDisconnectHandler, addOnCommandHandler, removeOnCommandHandler } from "@/communication/serial";
+import { Command } from "@utils/types";
+import { sendCommand, addOnDisconnectHandler, removeOnDisconnectHandler, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
 
 export default defineComponent({
 	name: "Motors",
@@ -69,10 +69,10 @@ export default defineComponent({
 	computed: {
 		throttlesU8() {
 			return [
-				this.throttles[0] & 0xff, this.throttles[0] >> 8,
-				this.throttles[1] & 0xff, this.throttles[1] >> 8,
-				this.throttles[2] & 0xff, this.throttles[2] >> 8,
-				this.throttles[3] & 0xff, this.throttles[3] >> 8
+				...intToLeBytes(this.throttles[0], 2),
+				...intToLeBytes(this.throttles[1], 2),
+				...intToLeBytes(this.throttles[2], 2),
+				...intToLeBytes(this.throttles[3], 2),
 			]
 		},
 	},

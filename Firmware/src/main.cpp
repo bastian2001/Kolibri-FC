@@ -17,10 +17,14 @@ void setup() {
 	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
 	rebootReason = BootReason::WATCHDOG;
 
-	initPID();
-	EEPROM.begin(4096);
 	Serial.println("Setup started");
-	readEEPROM();
+	initLittleFs();
+	openSettingsFile();
+	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
+
+	initPid();
+
+	EEPROM.begin(4096);
 	// save crash info to EEPROM
 	if (crashInfo[0] == 255) {
 		Serial.println("Crash detected");
@@ -61,6 +65,7 @@ void setup() {
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
+	closeSettingsFile();
 }
 
 elapsedMillis activityTimer;

@@ -1,11 +1,11 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/communication/serial';
+import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/msp/comm';
 import { useLogStore } from '@stores/logStore';
-import { leBytesToInt, delay } from '@utils/utils';
-import { MspFn, MspVersion } from '@utils/msp';
-import { type Command } from '@utils/types';
-import { roundToDecimal, prefixZeros } from '@utils/utils';
+import { leBytesToInt, delay, intToLeBytes } from '@utils/utils';
+import { MspFn, MspVersion } from '@/msp/protocol';
+import { Command } from '@utils/types';
+import { prefixZeros } from '@utils/utils';
 
 const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
 const ARMING_DISABLE_FLAGS = [
@@ -67,7 +67,7 @@ export default defineComponent({
 			FLIGHT_MODES,
 			ARMING_DISABLE_FLAGS,
 			prefixZeros,
-			roundToDecimal,
+			intToLeBytes,
 		};
 	},
 	methods: {
@@ -179,17 +179,12 @@ export default defineComponent({
 			<button @click="ledOff">LED Off</button>
 			<button @click="calibrateAccel">Calibrate Accelerometer</button>
 			<button @click="playSound">Play Sound</button>
-			<input type="number" name="serial" step="1" min="1" max="2" placeholder="Serial Number"
-				v-model="serialNum" />
-			<input type="number" name="baud" step="1" min="9600" max="115200" placeholder="Baud Rate"
-				v-model="baudRate" />
+			<input type="number" step="1" min="1" max="2" placeholder="Serial Number" v-model="serialNum" />
+			<input type="number" step="1" min="9600" max="115200" placeholder="Baud Rate" v-model="baudRate" />
 			<button @click="() => {
 				sendCommand('request', MspFn.SERIAL_PASSTHROUGH, MspVersion.V2, [
 					serialNum,
-					baudRate & 0xff,
-					(baudRate >> 8) & 0xff,
-					(baudRate >> 16) & 0xff,
-					baudRate >> 24
+					...intToLeBytes(baudRate, 4),
 				]);
 			}">Start Serial Passthrough</button>
 			<button @click="() => {
@@ -245,11 +240,11 @@ export default defineComponent({
 			</div>
 		</div>
 		<div class="attInfo">
-			<div class="axisLabel axisRoll">Roll: {{ roundToDecimal(attitude.roll, 2) }}°</div>
-			<div class="axisLabel axisPitch">Pitch: {{ roundToDecimal(attitude.pitch, 2) }}°</div>
-			<div v-if="showHeading" class="axisLabel axisHeading">Heading: {{ roundToDecimal(attitude.heading, 2) }}°
+			<div class="axisLabel axisRoll">Roll: {{ attitude.roll.toFixed(2) }}°</div>
+			<div class="axisLabel axisPitch">Pitch: {{ attitude.pitch.toFixed(2) }}°</div>
+			<div v-if="showHeading" class="axisLabel axisHeading">Heading: {{ attitude.heading.toFixed(2) }}°
 			</div>
-			<div v-else class="axisLabel axisYaw">Yaw: {{ roundToDecimal(attitude.yaw, 2) }}°</div>
+			<div v-else class="axisLabel axisYaw">Yaw: {{ attitude.yaw.toFixed(2) }}°</div>
 			<br />
 			<input type="checkbox" v-model="showHeading" id="headingCheckbox" />
 			<label for="headingCheckbox">Show Heading instead of Yaw</label>

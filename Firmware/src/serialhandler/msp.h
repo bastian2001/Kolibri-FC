@@ -38,6 +38,7 @@
 
 extern bool configuratorConnected; // true if the configurator is connected
 extern u8 accelCalDone; // accel calibration flag to send a message to the configurator
+extern i16 mspDebugSensors[4]; // write values here to see them in the sensors tab. +-100, +-1000, +-10000, +-256
 
 /**
  * @brief MSP Serial Functions
@@ -57,9 +58,11 @@ enum class MspFn {
 	GET_ADVANCED_CONFIG = 90,
 	SET_ARMING_DISABLED = 99,
 	MSP_STATUS = 101,
+	MSP_RAW_IMU = 102,
 	GET_MOTOR = 104,
 	RC = 105,
 	MSP_ATTITUDE = 108,
+	MSP_ALTITUDE = 109,
 	BOXIDS = 119,
 	GET_MOTOR_3D_CONFIG = 124,
 	GET_MOTOR_CONFIG = 131,
@@ -80,6 +83,11 @@ enum class MspFn {
 	// 0x401_ Entering special modes
 	SERIAL_PASSTHROUGH = 0x4010,
 
+	// 0x402_ CLI
+	CLI_INIT = 0x4020,
+	CLI_COMMAND = 0x4021,
+	CLI_GET_SUGGESTION = 0x4022,
+
 	// 0x410_ Settings Meta commands
 	SAVE_SETTINGS = 0x4100,
 
@@ -94,6 +102,7 @@ enum class MspFn {
 	BB_FILE_DOWNLOAD = 0x4124,
 	BB_FILE_DELETE = 0x4125,
 	BB_FORMAT = 0x4126,
+	BB_FILE_INIT = 0x4127,
 
 	// 0x413_ GPS
 	GET_GPS_STATUS = 0x4130,
@@ -108,6 +117,7 @@ enum class MspFn {
 	GET_ROTATION = 0x4150,
 
 	// 0x416_ Barometer
+	GET_BARO_DATA = 0x4160,
 
 	// 0x417_ Task Manager
 	TASK_STATUS = 0x4170,
@@ -120,16 +130,26 @@ enum class MspFn {
 	SET_TZ_OFFSET = 0x41F1,
 
 	// 0x42__ Tuning
+	// 0x420_ Flight Performance (Acro Mode)
 	GET_PIDS = 0x4200,
 	SET_PIDS = 0x4201,
 	GET_RATES = 0x4202,
 	SET_RATES = 0x4203,
+	GET_EXT_PID = 0x4204,
+	SET_EXT_PID = 0x4205,
+	GET_FILTER_CONFIG = 0x4206,
+	SET_FILTER_CONFIG = 0x4207,
+
+	// 0x421_ Angle Mode
+
+	// 0x422_ Altitude and Position Hold
 
 	// 0x4F00-0x4F1F general debug tools
 	GET_CRASH_DUMP = 0x4F00,
 	CLEAR_CRASH_DUMP = 0x4F01,
 	SET_DEBUG_LED = 0x4F02,
 	PLAY_SOUND = 0x4F03,
+	DEBUG_SENSORS = 0x4F04,
 
 	// 0x4F20-0x4FFF temporary debug tools
 };
@@ -208,7 +228,7 @@ enum class MspVersion {
 	V1_OVER_CRSF,
 	V1_JUMBO_OVER_CRSF,
 	V2_OVER_V1_OVER_CRSF,
-	V2_OVER_V1_JUMBO_OVER_CRSF,
+	V2_OVER_V1_JUMBO_OVER_CRSF
 };
 
 extern u8 lastMspSerial;

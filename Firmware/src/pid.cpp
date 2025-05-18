@@ -2,14 +2,6 @@
 
 FlightMode flightMode = FlightMode::ACRO;
 
-#define MAX_ANGLE 40 // degrees, applied in angle mode and GPS mode
-#define MAX_ANGLE_BURST 60 // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
-#define BURST_DURATION 3000 // ms
-#define BURST_COOLDOWN 5000 // ms
-
-#define HVEL_STICK_DEADBAND 30
-#define MAX_TARGET_HVEL 12
-
 /*
  * To avoid a lot of floating point math, fixed point math is used.
  * The gyro data is 16 bit, with a range of +/- 2000 degrees per second.
@@ -21,9 +13,10 @@ FlightMode flightMode = FlightMode::ACRO;
 
 i16 throttles[4];
 
-fix32 gyroData[3];
+fix32 gyroScaled[3];
 
-fix32 pidGains[3][7];
+fix32 pidGains[3][5];
+fix32 iFalloff;
 fix32 pidGainsVVel[4], pidGainsHVel[4];
 fix32 angleModeP = 10, velocityModeP = 10;
 
@@ -33,48 +26,145 @@ fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pit
 fix32 altSetpoint;
 fix32 throttle;
 fix64 targetLat, targetLon;
-PT2 dFilterRoll(70, 3200), dFilterPitch(70, 3200), dFilterYaw(70, 3200);
+u16 dFilterCutoff;
+PT2 dFilterRoll, dFilterPitch, dFilterYaw;
+u16 gyroFilterCutoff;
+PT1 gyroFiltered[3];
 
-fix32 rollSetpoints[8], pitchSetpoints[8], yawSetpoints[8];
+fix32 setpointDiffCutoff = 12;
+PT1 setpointDiff[3];
+fix32 lastSetpoints[3];
+
+fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
+PT1 pidBoostFilter;
+fix32 lastThrottle;
+u8 pidBoostAxis = 1; // 0: off, 1: RP only, 2: RPY
+fix32 pidBoostP = 2.5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
+fix32 pidBoostI = 2.5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
+fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
+fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
+fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
 
 u32 pidLoopCounter = 0;
 
 fix32 rateFactors[5][3];
 fix64 vVelMaxErrorSum, vVelMinErrorSum;
-constexpr fix32 TO_ANGLE = fix32(MAX_ANGLE) / fix32(512);
-constexpr fix32 THROTTLE_SCALE = fix32(2000 - IDLE_PERMILLE * 2) / fix32(1024);
+u8 maxAngle; // degrees, applied in angle mode and GPS mode
+u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
+fix32 stickToAngle;
+u16 idlePermille;
+fix32 throttleScale;
+fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
 fix32 smoothChannels[4];
 elapsedMillis burstTimer;
 elapsedMillis burstCooldown;
+u16 angleBurstTime; // milliseconds, time for which the maxAngleBurst is allowed
+u16 angleBurstCooldownTime; // milliseconds, time for which the maxAngleBurst is not allowed after the burst time
 
-#define RIGHT_BITS(x, n) ((u32)(-(x)) >> (32 - n))
+fix32 vvelDFilterCutoff;
+fix32 vvelFFFilterCutoff;
+PT1 vVelDFilter;
+PT1 vVelFFFilter;
 
-void initPID() {
+fix32 hvelFfFilterCutoff;
+fix32 hvelIRelaxFilterCutoff;
+fix32 hvelPushFilterCutoff;
+u16 hvelStickDeadband; // deadband for the horizontal velocity stick input (total stick is -512 to 512)
+PT1 ffFilterNVel;
+PT1 ffFilterEVel;
+DualPT1 iRelaxFilterNVel;
+DualPT1 iRelaxFilterEVel;
+PT1 pushNorth;
+PT1 pushEast;
+
+void initPidGains() {
 	for (int i = 0; i < 3; i++) {
-		pidGains[i][P].setRaw(40 << P_SHIFT);
-		pidGains[i][I].setRaw(20 << I_SHIFT);
-		pidGains[i][D].setRaw(100 << D_SHIFT);
-		pidGains[i][FF].setRaw(0 << FF_SHIFT);
+		pidGains[i][P].setRaw(80 << P_SHIFT);
+		pidGains[i][I].setRaw(40 << I_SHIFT);
+		pidGains[i][D].setRaw(500 << D_SHIFT);
+		pidGains[i][FF].setRaw(40 << FF_SHIFT);
 		pidGains[i][S].setRaw(0 << S_SHIFT);
-		pidGains[i][iFalloff] = .998;
 	}
+}
+
+void initRateFactors() {
 	for (int i = 0; i < 3; i++) {
 		rateFactors[0][i] = 100; // first order, center rate
-		rateFactors[1][i] = 0;
-		rateFactors[2][i] = 200;
-		rateFactors[3][i] = 0;
-		rateFactors[4][i] = 800;
+		rateFactors[1][i] = 100;
+		rateFactors[2][i] = 150;
+		rateFactors[3][i] = 200;
+		rateFactors[4][i] = 350;
 	}
+}
+
+void initPidVVel() {
 	pidGainsVVel[P] = 50; // additional throttle if velocity is 1m/s too low
 	pidGainsVVel[I] = .03; // increase throttle by 3200x this value, when error is 1m/s
 	pidGainsVVel[D] = 10000; // additional throttle, if accelerating by 3200m/s^2
 	pidGainsVVel[FF] = 30000;
+}
+
+void initPidHVel() {
 	pidGainsHVel[P] = 12; // immediate target tilt in degree @ 1m/s too slow/fast
 	pidGainsHVel[I] = 1.f / 3200.f; // additional tilt per 1/3200th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 0; // tilt in degrees, if changing speed by 3200m/s /s
 	pidGainsHVel[FF] = 3200.f * .1f; // tilt in degrees for target acceleration of 3200m/s^2
+}
+
+void initPid() {
+	addArraySetting(SETTING_PID_GAINS, pidGains, &initPidGains);
+	addArraySetting(SETTING_RATE_FACTORS, rateFactors, &initRateFactors);
+	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
+	addArraySetting(SETTING_PID_HVEL, pidGainsHVel, &initPidHVel);
+	addSetting(SETTING_IDLE_PERMILLE, &idlePermille, 25);
+	addSetting(SETTING_MAX_ANGLE, &maxAngle, 40);
+	addSetting(SETTING_DFILTER_CUTOFF, &dFilterCutoff, 70);
+	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
+	addSetting(SETTING_SETPOINT_DIFF_CUTOFF, &setpointDiffCutoff, 12);
+	addSetting(SETTING_PID_BOOST_CUTOFF, &pidBoostCutoff, 5);
+	addSetting(SETTING_PID_BOOST_START, &pidBoostStart, 2000);
+	addSetting(SETTING_PID_BOOST_FULL, &pidBoostFull, 6000);
+	addSetting(SETTING_MAX_TARGET_HVEL, &maxTargetHvel, 12);
+	addSetting(SETTING_VVEL_FF_FILTER_CUTOFF, &vvelFFFilterCutoff, 2);
+	addSetting(SETTING_VVEL_D_FILTER_CUTOFF, &vvelDFilterCutoff, 15);
+	addSetting(SETTING_HVEL_FF_FILTER_CUTOFF, &hvelFfFilterCutoff, 2);
+	addSetting(SETTING_HVEL_I_RELAX_FILTER_CUTOFF, &hvelIRelaxFilterCutoff, 0.5f);
+	addSetting(SETTING_HVEL_PUSH_FILTER_CUTOFF, &hvelPushFilterCutoff, 4);
+	addSetting(SETTING_MAX_ANGLE_BURST, &maxAngleBurst, 60);
+	addSetting(SETTING_ANGLE_BURST_TIME, &angleBurstTime, 3000);
+	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
+	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
+	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
+
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
-	vVelMinErrorSum = IDLE_PERMILLE * 2 / pidGainsVVel[I].getf32();
+	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
+
+	stickToAngle = fix32(maxAngle) / fix32(512);
+	throttleScale = fix32(2000 - idlePermille * 2) / fix32(1024);
+
+	dFilterRoll = PT2(dFilterCutoff, 3200);
+	dFilterPitch = PT2(dFilterCutoff, 3200);
+	dFilterYaw = PT2(dFilterCutoff, 3200);
+
+	gyroFiltered[AXIS_ROLL] = PT1(gyroFilterCutoff, 3200);
+	gyroFiltered[AXIS_PITCH] = PT1(gyroFilterCutoff, 3200);
+	gyroFiltered[AXIS_YAW] = PT1(gyroFilterCutoff, 3200);
+
+	setpointDiff[AXIS_ROLL] = PT1(setpointDiffCutoff, 3200);
+	setpointDiff[AXIS_PITCH] = PT1(setpointDiffCutoff, 3200);
+	setpointDiff[AXIS_YAW] = PT1(setpointDiffCutoff, 3200);
+
+	pidBoostFilter = PT1(pidBoostCutoff, 3200);
+
+	vVelDFilter = PT1(vvelDFilterCutoff, 3200);
+	vVelFFFilter = PT1(vvelFFFilterCutoff, 3200);
+
+	ffFilterNVel = PT1(hvelFfFilterCutoff, 3200);
+	ffFilterEVel = PT1(hvelFfFilterCutoff, 3200);
+	iRelaxFilterNVel = DualPT1(hvelIRelaxFilterCutoff, 3200);
+	iRelaxFilterEVel = DualPT1(hvelIRelaxFilterCutoff, 3200);
+	pushNorth = PT1(hvelPushFilterCutoff, 3200);
+	pushEast = PT1(hvelPushFilterCutoff, 3200);
 }
 
 u32 takeoffCounter = 0;
@@ -86,9 +176,12 @@ void pidLoop() {
 	taskTimerPid = 0;
 	tasks[TASK_PID].runCounter++;
 
+	gyroFiltered[AXIS_ROLL].update(gyroScaled[AXIS_ROLL]);
+	gyroFiltered[AXIS_PITCH].update(gyroScaled[AXIS_PITCH]);
+	gyroFiltered[AXIS_YAW].update(gyroScaled[AXIS_YAW]);
+
 	if (armed) {
 		// Quad armed
-		static u32 ffBufPos = 0;
 		static fix32 polynomials[5][3];
 		ELRS->getSmoothChannels(smoothChannels);
 		// calculate setpoints
@@ -104,17 +197,11 @@ void pidLoop() {
 			fix32 dPitch;
 			fix32 newRollSetpoint, newPitchSetpoint, newYawSetpoint;
 			if (flightMode < FlightMode::GPS_VEL) {
-				dRoll = (smoothChannels[0] - 1500) * TO_ANGLE + (FIX_RAD_TO_DEG * roll);
-				dPitch = (smoothChannels[1] - 1500) * TO_ANGLE - (FIX_RAD_TO_DEG * pitch);
+				dRoll = (smoothChannels[0] - 1500) * stickToAngle + (FIX_RAD_TO_DEG * roll);
+				dPitch = (smoothChannels[1] - 1500) * stickToAngle - (FIX_RAD_TO_DEG * pitch);
 				newRollSetpoint = dRoll * angleModeP;
 				newPitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FlightMode::GPS_VEL) {
-				static PT1 ffFilterNVel(2, 3200);
-				static PT1 ffFilterEVel(2, 3200);
-				static DualPT1 iRelaxFilterNVel(0.5, 3200);
-				static DualPT1 iRelaxFilterEVel(0.5, 3200);
-				static PT1 pushNorth(4, 3200);
-				static PT1 pushEast(4, 3200);
 				static fix32 lastNVelSetpoint = 0;
 				static fix32 lastEVelSetpoint = 0;
 				static elapsedMillis locationSetpointTimer = 0;
@@ -122,25 +209,25 @@ void pidLoop() {
 				fix32 fwdCommand = smoothChannels[1] - 1500;
 				fix32 pushEastVel = 0;
 				fix32 pushNorthVel = 0;
-				if (fwdCommand.abs() < HVEL_STICK_DEADBAND)
+				if (fwdCommand.abs() < hvelStickDeadband)
 					fwdCommand = 0;
 				else if (fwdCommand > 0)
-					fwdCommand -= HVEL_STICK_DEADBAND;
+					fwdCommand -= hvelStickDeadband;
 				else
-					fwdCommand += HVEL_STICK_DEADBAND;
-				if (rightCommand.abs() < HVEL_STICK_DEADBAND)
+					fwdCommand += hvelStickDeadband;
+				if (rightCommand.abs() < hvelStickDeadband)
 					rightCommand = 0;
 				else if (rightCommand > 0)
-					rightCommand -= HVEL_STICK_DEADBAND;
+					rightCommand -= hvelStickDeadband;
 				else
-					rightCommand += HVEL_STICK_DEADBAND;
+					rightCommand += hvelStickDeadband;
 				if (rightCommand || fwdCommand) {
 					eVelSetpoint = cosHeading * rightCommand + sinHeading * fwdCommand;
 					nVelSetpoint = -sinHeading * rightCommand + cosHeading * fwdCommand;
 					eVelSetpoint = eVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
 					nVelSetpoint = nVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
-					eVelSetpoint *= MAX_TARGET_HVEL; // +-1 => +-12m/s
-					nVelSetpoint *= MAX_TARGET_HVEL; // +-1 => +-12m/s
+					eVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
+					nVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
 					pushNorth.set(0);
 					pushEast.set(0);
 					locationSetpointTimer = 0;
@@ -165,9 +252,9 @@ void pidLoop() {
 					eVelSetpoint = 0;
 					nVelSetpoint = 0;
 					pushEastVel = fix32(pushEast) / 4;
-					pushEastVel = constrain(pushEastVel, -MAX_TARGET_HVEL, MAX_TARGET_HVEL);
+					pushEastVel = constrain(pushEastVel, -maxTargetHvel, maxTargetHvel);
 					pushNorthVel = fix32(pushNorth) / 4;
-					pushNorthVel = constrain(pushNorthVel, -MAX_TARGET_HVEL, MAX_TARGET_HVEL);
+					pushNorthVel = constrain(pushNorthVel, -maxTargetHvel, maxTargetHvel);
 				}
 				eVelError = (eVelSetpoint + pushEastVel) - eVel;
 				nVelError = (nVelSetpoint + pushNorthVel) - nVel;
@@ -210,27 +297,29 @@ void pidLoop() {
 				fix32 nVelPID = nVelP + nVelI + nVelD + nVelFF;
 				fix32 targetRoll = eVelPID * cosHeading - nVelPID * sinHeading;
 				fix32 targetPitch = eVelPID * sinHeading + nVelPID * cosHeading;
-				if (targetRoll.abs() > MAX_ANGLE || targetPitch.abs() > MAX_ANGLE) {
-					// limit the tilt to MAX_ANGLE
-					if (burstCooldown > BURST_COOLDOWN) {
+				if (targetRoll.abs() > maxAngle || targetPitch.abs() > maxAngle) {
+					// limit the tilt to maxAngle
+					if (burstCooldown > angleBurstCooldownTime) {
 						// restart burst timer
 						burstTimer = 0;
 					}
-					if (burstTimer < BURST_DURATION) {
+					if (burstTimer < angleBurstTime) {
 						// allowed to tilt more for a short time
-						targetRoll = constrain(targetRoll, -MAX_ANGLE_BURST, MAX_ANGLE_BURST);
-						targetPitch = constrain(targetPitch, -MAX_ANGLE_BURST, MAX_ANGLE_BURST);
+						targetRoll = constrain(targetRoll, -maxAngleBurst, maxAngleBurst);
+						targetPitch = constrain(targetPitch, -maxAngleBurst, maxAngleBurst);
 						burstCooldown = 0;
 					} else {
-						// limit the tilt to MAX_ANGLE
-						targetRoll = constrain(targetRoll, -MAX_ANGLE, MAX_ANGLE);
-						targetPitch = constrain(targetPitch, -MAX_ANGLE, MAX_ANGLE);
+						// limit the tilt to maxAngle
+						targetRoll = constrain(targetRoll, -maxAngle, maxAngle);
+						targetPitch = constrain(targetPitch, -maxAngle, maxAngle);
 					}
 				}
 				dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
 				dPitch = targetPitch - (FIX_RAD_TO_DEG * pitch);
 				newRollSetpoint = dRoll * velocityModeP;
+				newRollSetpoint = constrain(newRollSetpoint, -1000, 1000);
 				newPitchSetpoint = dPitch * velocityModeP;
+				newPitchSetpoint = constrain(newPitchSetpoint, -1000, 1000);
 				lastNVelSetpoint = nVelSetpoint;
 				lastEVelSetpoint = eVelSetpoint;
 				nVelLast = nVel;
@@ -249,12 +338,10 @@ void pidLoop() {
 			// convert (new...) global roll, pitch and yaw to local roll, pitch and yaw
 			rollSetpoint = newRollSetpoint * cosPitch - newYawSetpoint * sinPitch;
 			pitchSetpoint = newPitchSetpoint * cosRoll + newYawSetpoint * cosPitch * sinRoll;
-			yawSetpoint = -newPitchSetpoint * sinRoll + newYawSetpoint * cosPitch * cosRoll;
+			yawSetpoint = -newPitchSetpoint * sinRoll + newYawSetpoint * cosPitch * cosRoll - newRollSetpoint * sinPitch;
 
 			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
 				fix32 t = throttle - 512;
-				static PT1 vVelDFilter(15, 3200);
-				static PT1 vVelFFFilter(2, 3200);
 				static elapsedMillis setAltSetpointTimer;
 				static u32 stickWasCentered = 0;
 				// deadband in center of stick
@@ -323,64 +410,80 @@ void pidLoop() {
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 			}
 		}
-		rollError = rollSetpoint - gyroData[AXIS_ROLL];
-		pitchError = pitchSetpoint - gyroData[AXIS_PITCH];
-		yawError = yawSetpoint - gyroData[AXIS_YAW];
+		rollError = rollSetpoint - gyroFiltered[AXIS_ROLL];
+		pitchError = pitchSetpoint - gyroFiltered[AXIS_PITCH];
+		yawError = yawSetpoint - gyroFiltered[AXIS_YAW];
 		if (ELRS->channels[2] > 1020)
 			takeoffCounter++;
 		else if (takeoffCounter < 1000) // 1000 = ca. 0.3s
 			takeoffCounter = 0; // if the quad hasn't "taken off" yet, reset the counter
 		if (takeoffCounter < 1000) // enable i term falloff (windup prevention) only before takeoff
 		{
-			rollErrorSum = rollErrorSum * pidGains[0][iFalloff];
-			pitchErrorSum = pitchErrorSum * pidGains[1][iFalloff];
-			yawErrorSum = yawErrorSum * pidGains[2][iFalloff];
+			rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign() / pidGains[0][I];
+			pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign() / pidGains[1][I];
+			yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign() / pidGains[2][I];
 		}
 
-		fix32 diffRoll = rollSetpoint - rollSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
-		fix32 diffPitch = pitchSetpoint - pitchSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
-		fix32 diffYaw = yawSetpoint - yawSetpoints[ffBufPos]; // e.g. 50 for 1000 deg/s in 50ms
+		fix32 pFactor = 1, iFactor = 1, dFactor = 1;
+		if (pidBoostAxis) {
+			pidBoostFilter.update(throttle - lastThrottle);
+			fix32 boostStrength = (fix32(pidBoostFilter).abs() * 3200 - pidBoostStart) / (pidBoostFull - pidBoostStart);
+			bbDebug1 = boostStrength.raw;
+			bbDebug2 = fix32(pidBoostFilter).raw;
+			if (boostStrength > 1)
+				boostStrength = 1;
+			else if (boostStrength < 0)
+				boostStrength = 0;
+			pFactor += pidBoostP * boostStrength;
+			iFactor += pidBoostI * boostStrength;
+			dFactor += pidBoostD * boostStrength;
+		}
 
-		fix32 totalDiff = diffRoll.abs() + diffPitch.abs() + diffYaw.abs();
+		setpointDiff[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
+		setpointDiff[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
+		setpointDiff[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
+
+		fix32 totalDiff = fix32(setpointDiff[AXIS_ROLL]).abs() + fix32(setpointDiff[AXIS_PITCH]).abs() + fix32(setpointDiff[AXIS_YAW]).abs();
 		fix32 iRelaxMultiplier = 1;
-		if (totalDiff > 15) {
+		if (totalDiff > 450) {
 			iRelaxMultiplier = fix32(0.125f);
-		} else if (totalDiff > 5) {
-			iRelaxMultiplier = fix32(1) - (totalDiff - 5) / 10 * 7 / 8;
+		} else if (totalDiff > 150) {
+			iRelaxMultiplier = fix32(1) - (totalDiff - 150) / 300 * 7 / 8;
 		}
 
-		rollErrorSum = rollErrorSum + rollError * iRelaxMultiplier;
-		pitchErrorSum = pitchErrorSum + pitchError * iRelaxMultiplier;
-		yawErrorSum = yawErrorSum + yawError * iRelaxMultiplier;
+		rollErrorSum = rollErrorSum + rollError * iRelaxMultiplier * iFactor;
+		pitchErrorSum = pitchErrorSum + pitchError * iRelaxMultiplier * iFactor;
+		yawErrorSum = yawErrorSum + yawError * iRelaxMultiplier * iFactor;
 
-		rollP = pidGains[0][P] * rollError;
-		pitchP = pidGains[1][P] * pitchError;
-		yawP = pidGains[2][P] * yawError;
+		rollP = pidGains[0][P] * rollError * pFactor;
+		pitchP = pidGains[1][P] * pitchError * pFactor;
+		yawP = pidGains[2][P] * yawError * (pidBoostAxis == 2 ? pFactor : 1);
 		rollI = pidGains[0][I] * rollErrorSum;
 		pitchI = pidGains[1][I] * pitchErrorSum;
 		yawI = pidGains[2][I] * yawErrorSum;
-		rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroData[AXIS_ROLL]);
-		pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroData[AXIS_PITCH]);
-		yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroData[AXIS_YAW]);
-		rollFF = pidGains[0][FF] * diffRoll;
-		pitchFF = pidGains[1][FF] * diffPitch;
-		yawFF = pidGains[2][FF] * diffYaw;
+		rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroFiltered[AXIS_ROLL]) * dFactor;
+		pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroFiltered[AXIS_PITCH]) * dFactor;
+		yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroFiltered[AXIS_YAW]) * (pidBoostAxis == 2 ? dFactor : 1);
+		bbDebug3 = (pidGains[0][D] * fix32(dFilterRoll) * dFactor).geti32();
+		bbDebug4 = (pidGains[0][D] * fix32(dFilterRoll)).geti32();
+		rollFF = pidGains[0][FF] * setpointDiff[AXIS_ROLL];
+		pitchFF = pidGains[1][FF] * setpointDiff[AXIS_PITCH];
+		yawFF = pidGains[2][FF] * setpointDiff[AXIS_YAW];
 		rollS = pidGains[0][S] * rollSetpoint;
 		pitchS = pidGains[1][S] * pitchSetpoint;
 		yawS = pidGains[2][S] * yawSetpoint;
 
-		rollSetpoints[ffBufPos] = rollSetpoint;
-		pitchSetpoints[ffBufPos] = pitchSetpoint;
-		yawSetpoints[ffBufPos] = yawSetpoint;
-		ffBufPos++;
-		ffBufPos &= 7;
+		lastSetpoints[AXIS_ROLL] = rollSetpoint;
+		lastSetpoints[AXIS_PITCH] = pitchSetpoint;
+		lastSetpoints[AXIS_YAW] = yawSetpoint;
+		lastThrottle = throttle;
 
 		fix32 rollTerm = rollP + rollI + rollD + rollFF + rollS;
 		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 		fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
-		// scale throttle from 0...1024 to IDLE_PERMILLE*2...2000 (DShot output is 0...2000)
-		throttle *= THROTTLE_SCALE; // 0...1024 => 0...2000-IDLE_PERMILLE*2
-		throttle += IDLE_PERMILLE * 2; // 0...2000-IDLE_PERMILLE*2 => IDLE_PERMILLE*2...2000
+		// scale throttle from 0...1024 to idlePermille*2...2000 (DShot output is 0...2000)
+		throttle *= throttleScale; // 0...1024 => 0...2000-idlePermille*2
+		throttle += idlePermille * 2; // 0...2000-idlePermille*2 => idlePermille*2...2000
 		fix32 tRR, tRL, tFR, tFL;
 #ifdef PROPS_OUT
 		tRR = throttle - rollTerm + pitchTerm + yawTerm;
@@ -425,30 +528,30 @@ void pidLoop() {
 			throttles[(u8)MOTOR::RR] -= diff;
 			throttles[(u8)MOTOR::FR] -= diff;
 		}
-		if (throttles[(u8)MOTOR::RR] < IDLE_PERMILLE * 2) {
-			i16 diff = IDLE_PERMILLE * 2 - throttles[(u8)MOTOR::RR];
-			throttles[(u8)MOTOR::RR] = IDLE_PERMILLE * 2;
+		if (throttles[(u8)MOTOR::RR] < idlePermille * 2) {
+			i16 diff = idlePermille * 2 - throttles[(u8)MOTOR::RR];
+			throttles[(u8)MOTOR::RR] = idlePermille * 2;
 			throttles[(u8)MOTOR::FL] += diff;
 			throttles[(u8)MOTOR::FR] += diff;
 			throttles[(u8)MOTOR::RL] += diff;
 		}
-		if (throttles[(u8)MOTOR::RL] < IDLE_PERMILLE * 2) {
-			i16 diff = IDLE_PERMILLE * 2 - throttles[(u8)MOTOR::RL];
-			throttles[(u8)MOTOR::RL] = IDLE_PERMILLE * 2;
+		if (throttles[(u8)MOTOR::RL] < idlePermille * 2) {
+			i16 diff = idlePermille * 2 - throttles[(u8)MOTOR::RL];
+			throttles[(u8)MOTOR::RL] = idlePermille * 2;
 			throttles[(u8)MOTOR::FL] += diff;
 			throttles[(u8)MOTOR::FR] += diff;
 			throttles[(u8)MOTOR::RR] += diff;
 		}
-		if (throttles[(u8)MOTOR::FR] < IDLE_PERMILLE * 2) {
-			i16 diff = IDLE_PERMILLE * 2 - throttles[(u8)MOTOR::FR];
-			throttles[(u8)MOTOR::FR] = IDLE_PERMILLE * 2;
+		if (throttles[(u8)MOTOR::FR] < idlePermille * 2) {
+			i16 diff = idlePermille * 2 - throttles[(u8)MOTOR::FR];
+			throttles[(u8)MOTOR::FR] = idlePermille * 2;
 			throttles[(u8)MOTOR::FL] += diff;
 			throttles[(u8)MOTOR::RL] += diff;
 			throttles[(u8)MOTOR::RR] += diff;
 		}
-		if (throttles[(u8)MOTOR::FL] < IDLE_PERMILLE * 2) {
-			i16 diff = IDLE_PERMILLE * 2 - throttles[(u8)MOTOR::FL];
-			throttles[(u8)MOTOR::FL] = IDLE_PERMILLE * 2;
+		if (throttles[(u8)MOTOR::FL] < idlePermille * 2) {
+			i16 diff = idlePermille * 2 - throttles[(u8)MOTOR::FL];
+			throttles[(u8)MOTOR::FL] = idlePermille * 2;
 			throttles[(u8)MOTOR::RL] += diff;
 			throttles[(u8)MOTOR::RR] += diff;
 			throttles[(u8)MOTOR::FR] += diff;
@@ -456,9 +559,9 @@ void pidLoop() {
 		for (int i = 0; i < 4; i++)
 			throttles[i] = throttles[i] > 2000 ? 2000 : throttles[i];
 		sendThrottles(throttles);
-		rollLast = gyroData[AXIS_ROLL];
-		pitchLast = gyroData[AXIS_PITCH];
-		yawLast = gyroData[AXIS_YAW];
+		rollLast = gyroFiltered[AXIS_ROLL];
+		pitchLast = gyroFiltered[AXIS_PITCH];
+		yawLast = gyroFiltered[AXIS_YAW];
 		if ((pidLoopCounter % bbFreqDivider) == 0 && bbFreqDivider) {
 			writeSingleFrame();
 		}
@@ -476,7 +579,8 @@ void pidLoop() {
 			if (motorBeepTimer > 500)
 				motorBeepTimer = 0;
 			if (motorBeepTimer < 50) {
-				u16 motors[4] = {DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2, DSHOT_CMD_BEACON2};
+				u16 cmd = DSHOT_BEEP_CMD(dshotBeepTone);
+				u16 motors[4] = {cmd, cmd, cmd, cmd};
 				sendRaw11Bit(motors);
 			} else {
 				u16 motors[4] = {0, 0, 0, 0};

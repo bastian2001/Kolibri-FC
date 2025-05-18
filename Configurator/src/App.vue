@@ -1,9 +1,9 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@utils/msp";
-import { leBytesToInt, delay } from "@utils/utils";
+import { MspFn, MspVersion } from "@/msp/protocol";
+import { leBytesToInt, delay, intToLeBytes } from "@utils/utils";
 import { routes } from "./router";
-import { connect, disconnect, sendCommand, getDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./communication/serial";
+import { connect, disconnect, sendCommand, getSerialDevices, getWifiDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./msp/comm";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "./utils/types";
 
@@ -36,10 +36,12 @@ export default defineComponent({
 	data() {
 		return {
 			configuratorLog: useLogStore(),
-			devices: [] as string[],
+			serialDevices: [] as string[],
+			wifiDevices: [] as string[][],
+			manualDevice: false,
 			listInterval: -1,
 			battery: '',
-			device: undefined,
+			device: '',
 			connected: false,
 			routes
 		};
@@ -89,7 +91,7 @@ export default defineComponent({
 						this.configuratorLog.push(`Name: ${command.dataStr}`);
 						break;
 					case MspFn.STATUS:
-						this.battery = `${leBytesToInt(command.data.slice(0, 2)) / 100}V`;
+						this.battery = `${(leBytesToInt(command.data.slice(0, 2)) / 100).toFixed(2)}V`;
 						break;
 					case MspFn.SET_RTC:
 						this.configuratorLog.push('RTC updated');
@@ -106,7 +108,7 @@ export default defineComponent({
 			}
 		},
 		connect() {
-			console.log(this.device);
+			console.log("Connecting to " + this.device);
 			connect(this.device).catch(() => {
 				this.connected = false;
 			});
@@ -117,7 +119,8 @@ export default defineComponent({
 			});
 		},
 		listDevices() {
-			this.devices = getDevices();
+			this.serialDevices = getSerialDevices();
+			this.wifiDevices = getWifiDevices();
 		},
 		odh() {
 			this.connected = false;
@@ -138,20 +141,17 @@ export default defineComponent({
 				.then(() => delay(5))
 				.then(() => sendCommand('request', MspFn.STATUS))
 				.then(() => {
-					const now = Date.now() / 1000;
+					const now = Date.now();
 					sendCommand('request', MspFn.SET_RTC, MspVersion.V2, [
-						now & 0xff,
-						(now >> 8) & 0xff,
-						(now >> 16) & 0xff,
-						(now >> 24) & 0xff
+						...intToLeBytes(Math.floor(now / 1000), 4),
+						...intToLeBytes(now % 1000, 2)
 					]);
 				})
 				.then(() => delay(5))
 				.then(() => {
 					const offset = -new Date().getTimezoneOffset();
 					sendCommand('request', MspFn.SET_TZ_OFFSET, MspVersion.V2, [
-						offset & 0xff,
-						(offset >> 8) & 0xff
+						...intToLeBytes(offset, 2),
 					]);
 				});
 		}
@@ -165,11 +165,18 @@ export default defineComponent({
 			<img src="https://svelte.dev/svelte-logo-horizontal.svg" alt="Svelte logo" class="kolibriLogo" />
 			<div class="space"></div>
 			<div class="connector">
-				<select v-model="device">
-					<option v-for="d in devices" :value="d">{{ d }}</option>
-				</select>&nbsp;&nbsp;
+				<input type="checkbox" id="manualDeviceEnabled" v-model="manualDevice" />
+				<label for="manualDeviceEnabled">Manual device</label>
+				&nbsp;&nbsp;
+				<select v-model="device" v-if="!manualDevice">
+					<option v-for="d in wifiDevices" :value="d[0]">{{ d[0] }} ({{ d[1] }})</option>
+					<option v-for="d in serialDevices" :value="d">{{ d }}</option>
+				</select>
+				<input v-else type="text" v-model="device" placeholder="Enter device name" class="manualDeviceInput" />
+				&nbsp;&nbsp;
 				<button v-if="connected" @click="disconnect" class="connectButton">Disconnect</button>
-				<button v-else-if="devices.length" @click="connect" class="connectButton">Connect</button>
+				<button v-else-if="serialDevices.length || wifiDevices.length || manualDevice" @click="connect"
+					class="connectButton">Connect</button>
 				<span v-else style="color: #888">No devices found</span>
 				&nbsp;&nbsp;
 			</div>
@@ -226,11 +233,14 @@ export default defineComponent({
 }
 
 .connector select {
-	width: 8rem;
+	width: 12rem;
 	background-color: transparent;
 	border: 1px solid var(--border-color);
+	appearance: none;
 	border-radius: 4px;
-	padding: 3px 6px;
+	padding: 4px 15px 4px 8px;
+	background: transparent url('data:image/gif;base64,R0lGODlhBgAGAKEDAFVVVX9/f9TU1CgmNyH5BAEKAAMALAAAAAAGAAYAAAIODA4hCDKWxlhNvmCnGwUAOw==') right center no-repeat !important;
+	background-position: calc(100% - 5px) center !important;
 	color: var(--text-color);
 	outline: none;
 }
@@ -252,7 +262,7 @@ export default defineComponent({
 	flex-grow: 1;
 	min-width: 250px;
 	margin-left: 1rem;
-	background-color: var(--background-color-light);
+	background-color: var(--background-light);
 	height: 3rem;
 	padding: 0 0.5rem;
 	color: var(--text-color);
@@ -310,5 +320,14 @@ export default defineComponent({
 .battery p {
 	margin: 0;
 	padding: 0;
+}
+
+.manualDeviceInput {
+	background-color: transparent;
+	border: 1px solid var(--border-color);
+	border-radius: 4px;
+	padding: 4px 8px;
+	color: var(--text-color);
+	outline: none;
 }
 </style>

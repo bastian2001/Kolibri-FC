@@ -22,5 +22,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+futures-util = "0.3"
+ping-rs = "0.1.2"
 serialport = {git="https://github.com/LukaOber/serialport-rs.git"}
 

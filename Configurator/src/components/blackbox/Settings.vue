@@ -1,8 +1,8 @@
 <script lang="ts">
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/communication/serial';
-import { MspFn, MspVersion } from '@utils/msp';
+import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/msp/comm';
+import { MspFn, MspVersion } from '@/msp/protocol';
 import { Command, FlagProps } from '@utils/types';
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent, PropType } from 'vue';
 import { leBytesToInt } from '@utils/utils';
 
 export default defineComponent({
@@ -24,7 +24,7 @@ export default defineComponent({
 	mounted() {
 		this.flagNames = Object.keys(this.flags);
 		let i = 0;
-		const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 3, 1, 7];
+		const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 3, 1, 6, 2, 20];
 		const g: string[][] = [];
 		for (const size of groupSizes) {
 			g.push(this.flagNames.slice(i, i + size));
@@ -85,7 +85,7 @@ export default defineComponent({
 		<div class="settingsWindow">
 			<div v-for="group in groups" class="group">
 				<label v-for="name in group" :for="`check-${name}`">
-					<input :id="`check-${name}`" type="checkbox" v-model="selected" name="selected" :value="name" />
+					<input :id="`check-${name}`" type="checkbox" v-model="selected" :value="name" />
 					{{ flags[name].name }}
 				</label>
 			</div>

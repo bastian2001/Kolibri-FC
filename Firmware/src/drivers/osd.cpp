@@ -6,7 +6,7 @@ elapsedMillis osdTimer = 0;
 
 u8 drawIterator = 0;
 
-u8 elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 2 bytes for x and y position, the MSB of x is used as an updated flag, the MSB of y is used as a visible flag
+u8 elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 2 bytes for x and y position, the 3 MSBs of x is used as an updated flag + reserved, the 3 MSBs of y is used as a visible flag + blinking flag + reserved
 
 u8 elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 16 bytes for data
 
@@ -54,8 +54,15 @@ void updateCharacter(u8 cmAddr, u8 data[54]) {
 }
 
 void placeElem(OSDElem elem, u8 x, u8 y) {
-	elemPositions[(u8)elem][0] = (elemPositions[(u8)elem][0] & 0x80) | (x & 0x7F);
-	elemPositions[(u8)elem][1] = (elemPositions[(u8)elem][1] & 0x80) | (y & 0x7F);
+	elemPositions[(u8)elem][0] = (elemPositions[(u8)elem][0] & 0xC0) | (x & 0x3F);
+	elemPositions[(u8)elem][1] = (elemPositions[(u8)elem][1] & 0xC0) | (y & 0x3F);
+}
+
+void enableBlinking(OSDElem elem) {
+	elemPositions[(u8)elem][1] |= 0x40;
+}
+void disableBlinking(OSDElem elem) {
+	elemPositions[(u8)elem][1] &= ~0x40;
 }
 
 void updateElem(OSDElem elem, const char *str) {
@@ -76,16 +83,20 @@ void disableElem(OSDElem elem) {
 void drawElem(u8 elem) {
 	elemPositions[elem][0] &= ~0x80; // clear updated flag
 	// draw element using the elemData array
-	u16 pos = (u16)(elemPositions[elem][0] & 0x7F) + (u16)(elemPositions[elem][1] & 0x7F) * OSD_WIDTH;
+	u16 pos = (u16)(elemPositions[elem][0] & 0x3F) + (u16)(elemPositions[elem][1] & 0x3F) * OSD_WIDTH;
+	bool blinking = elemPositions[elem][1] & 0x40;
+	bool isOff = blinking ? (osdTimer % 500 < 250) : false; // blink every 500ms
 	for (int i = 0; i < 16; i++) {
 		if (!elemData[elem][i])
 			break;
+		char data = elemData[elem][i];
+		if (isOff) data = ' ';
 		pos &= 0x1FF;
 		u8 posLow = pos & 0xFF;
 		u8 posHigh = pos >> 8;
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMAH, &posHigh);
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMAL, &posLow);
-		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMDI, &elemData[elem][i]);
+		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMDI, (u8 *)&data);
 		pos++;
 	}
 }

@@ -1,7 +1,6 @@
 <script lang="ts">
-import { BBLog, FlagProps, GenFlagProps, TraceInGraph } from '@utils/types';
-import { getNestedProperty } from '@utils/utils';
-import { defineComponent, type PropType } from 'vue';
+import { BBLog, FlagProps, GenFlagProps, LogDataType, TraceInGraph } from '@utils/types';
+import { defineComponent, PropType } from 'vue';
 
 function getBinomialCoeff(n: number, k: number) {
 	let result = 1;
@@ -94,9 +93,9 @@ export default defineComponent({
 			return range;
 		},
 		path(): string {
-			if (this.currentNormalizedFlag?.path) {
+			if (this.currentNormalizedFlag) {
 				if (this.currentModifierName) {
-					return this.currentNormalizedFlag.path + '.' + this.currentModifierName;
+					return this.currentModifierName;
 				}
 				return this.currentNormalizedFlag.path;
 			}
@@ -129,34 +128,32 @@ export default defineComponent({
 	methods: {
 		applyFilter() {
 			if (this.filteringOn && this.flagName) {
+				// @ts-expect-error
+				const array = this.loadedLog.logData[this.path] as LogDataType;
 				switch (this.filterType) {
 					case 'pt1':
 						{
-							this.trace.overrideData = [getNestedProperty(this.loadedLog.frames[0], this.path)];
+							this.trace.overrideData = [array[0]];
 							let state = this.trace.overrideData[0] || 0;
 							if (this.filterValue1 && this.filterValue1 < 0) this.filterValue1 = 0;
 							const omega = (2 * Math.PI * (this.filterValue1 || 1)) / this.loadedLog.framesPerSecond;
 							const alpha = omega / (1 + omega);
-							for (let i = 1; i < this.loadedLog.frames.length; i++) {
-								state =
-									state +
-									alpha * (getNestedProperty(this.loadedLog.frames[i], this.path, { defaultValue: 0 }) - state);
+							for (let i = 1; i < array.length; i++) {
+								state = state + alpha * (array[i] - state);
 								this.trace.overrideData.push(state);
 							}
 						}
 						break;
 					case 'pt2':
 						{
-							this.trace.overrideData = [getNestedProperty(this.loadedLog.frames[0], this.path)];
+							this.trace.overrideData = [array[0]];
 							let state1 = this.trace.overrideData[0] || 0;
 							let state = this.trace.overrideData[0] || 0;
 							if (this.filterValue1 && this.filterValue1 < 0) this.filterValue1 = 0;
 							const omega = (1.554 * (2 * Math.PI * (this.filterValue1 || 1))) / this.loadedLog.framesPerSecond;
 							const alpha = omega / (1 + omega);
-							for (let i = 1; i < this.loadedLog.frames.length; i++) {
-								state1 =
-									state1 +
-									alpha * (getNestedProperty(this.loadedLog.frames[i], this.path, { defaultValue: 0 }) - state1);
+							for (let i = 1; i < array.length; i++) {
+								state1 = state1 + alpha * (array[i] - state1);
 								state = state + alpha * (state1 - state);
 								this.trace.overrideData.push(state);
 							}
@@ -164,17 +161,15 @@ export default defineComponent({
 						break;
 					case 'pt3':
 						{
-							this.trace.overrideData = [getNestedProperty(this.loadedLog.frames[0], this.path)];
+							this.trace.overrideData = [array[0]];
 							let state1 = this.trace.overrideData[0] || 0;
 							let state2 = this.trace.overrideData[0] || 0;
 							let state = this.trace.overrideData[0] || 0;
 							if (this.filterValue1 && this.filterValue1 < 0) this.filterValue1 = 0;
 							const omega = (1.961 * (2 * Math.PI * (this.filterValue1 || 1))) / this.loadedLog.framesPerSecond;
 							const alpha = omega / (1 + omega);
-							for (let i = 1; i < this.loadedLog.frames.length; i++) {
-								state1 =
-									state1 +
-									alpha * (getNestedProperty(this.loadedLog.frames[i], this.path, { defaultValue: 0 }) - state1);
+							for (let i = 1; i < array.length; i++) {
+								state1 = state1 + alpha * (array[i] - state1);
 								state2 = state2 + alpha * (state1 - state2);
 								state = state + alpha * (state2 - state);
 								this.trace.overrideData.push(state);
@@ -188,12 +183,10 @@ export default defineComponent({
 							this.filterValue1 = Math.min(this.filterValue1, 100);
 							this.filterValue1 = Math.max(this.filterValue1, 1);
 							const compFrames = this.filterValue2 ? this.filterValue1 / 2 : 0;
-							for (let i = 0; i < this.loadedLog.frames.length; i++) {
+							for (let i = 0; i < array.length; i++) {
 								let sum = 0;
 								for (let j = 0; j < this.filterValue1; j++) {
-									sum += getNestedProperty(this.loadedLog.frames[Math.round(i - j + compFrames)] || {}, this.path, {
-										defaultValue: 0
-									}); // || {} to prevent undefined => default value will be used
+									sum += array[Math.round(i - j + compFrames)] || 0; // || {} to prevent undefined => default value will be used
 								}
 								this.trace.overrideData.push(sum / this.filterValue1);
 							}
@@ -212,13 +205,10 @@ export default defineComponent({
 								binomSum += binomialCoeffs[i];
 							}
 							const compFrames = this.filterValue2 ? this.filterValue1 / 2 : 0;
-							for (let i = 0; i < this.loadedLog.frames.length; i++) {
+							for (let i = 0; i < array.length; i++) {
 								let sum = 0;
 								for (let j = 0; j < this.filterValue1; j++) {
-									sum +=
-										getNestedProperty(this.loadedLog.frames[Math.round(i - j + compFrames)] || {}, this.path, {
-											defaultValue: 0
-										}) * binomialCoeffs[j];
+									sum += (array[Math.round(i - j + compFrames)] || 0) * binomialCoeffs[j];
 								}
 								this.trace.overrideData.push(sum / binomSum);
 							}
@@ -296,13 +286,12 @@ export default defineComponent({
 <template>
 	<div class="wrapper">
 		<span class="colorMark" :style="`background-color: ${trace.color}`" @click="selectColor">&nbsp;</span>
-		<select name="flag" id="flagSelector" v-model="flagName">
+		<select id="flagSelector" v-model="flagName">
 			<option v-for="flag in availableFlagNames" :value="flag">{{ flagProps[flag].name }}</option>
 			<option v-for="flag in availableGenFlagNames" :value="flag">{{ flagProps[genFlagProps[flag].replaces].name
 			}} (Gen.)</option>
 		</select>
-		<select v-if="currentNormalizedFlag?.modifier" name="graphNum" id="graphNum" v-model="currentModifierName"
-			style="width: auto">
+		<select v-if="currentNormalizedFlag?.modifier" id="graphNum" v-model="currentModifierName" style="width: auto">
 			<option v-for="m in currentNormalizedFlag.modifier || []" :value="m.path">{{ m.displayNameShort }}</option>
 		</select>
 		<button class="delete" aria-label="delete trace" @click="$emit('delete')">
@@ -310,9 +299,9 @@ export default defineComponent({
 		</button>
 		<br />
 		<label><input type="checkbox" v-model="autoRangeOn" />Auto</label>&nbsp;
-		<input type="number" name="minValue" id="minValue" v-model="minValue" :disabled="autoRangeOn" />
+		<input type="number" id="minValue" v-model="minValue" :disabled="autoRangeOn" />
 		&nbsp;-
-		<input type="number" name="maxValue" id="maxValue" v-model="maxValue" :disabled="autoRangeOn" />
+		<input type="number" id="maxValue" v-model="maxValue" :disabled="autoRangeOn" />
 		&nbsp;
 		<p class="unit">{{ currentNormalizedFlag?.unit || '' }}</p>
 		<br />
@@ -325,18 +314,18 @@ export default defineComponent({
 				<option value="sma">SMA</option>
 				<option value="binomial">Binomial</option>
 			</select>
-			<input v-if="filterType === 'pt1'" type="number" name="pt1Cutoff" id="pt1Cutoff" placeholder="cutoff"
+			<input v-if="filterType === 'pt1'" type="number" id="pt1Cutoff" placeholder="cutoff"
 				v-model="filterValue1" />
-			<input v-else-if="filterType === 'pt2'" type="number" name="pt2Cutoff" id="pt2Cutoff" placeholder="cutoff"
+			<input v-else-if="filterType === 'pt2'" type="number" id="pt2Cutoff" placeholder="cutoff"
 				v-model="filterValue1" />
-			<input v-else-if="filterType === 'pt3'" type="number" name="pt3Cutoff" id="pt3Cutoff" placeholder="cutoff"
+			<input v-else-if="filterType === 'pt3'" type="number" id="pt3Cutoff" placeholder="cutoff"
 				v-model="filterValue1" />
-			<input v-else-if="filterType === 'sma'" type="number" name="smaN" id="smaN" placeholder="frames"
+			<input v-else-if="filterType === 'sma'" type="number" id="smaN" placeholder="frames"
 				v-model="filterValue1" />
-			<input v-else-if="filterType === 'binomial'" type="number" name="binomialN" id="binomialN"
-				placeholder="frames" v-model="filterValue1" />
+			<input v-else-if="filterType === 'binomial'" type="number" id="binomialN" placeholder="frames"
+				v-model="filterValue1" />
 			<label>
-				<input type="checkbox" name="delayComp" id="delayCompCheckbox" v-model="filterValue2" />
+				<input type="checkbox" id="delayCompCheckbox" v-model="filterValue2" />
 				Delay Comp.
 			</label>
 		</div>
@@ -350,14 +339,14 @@ export default defineComponent({
 }
 
 select {
-	width: 8rem;
+	min-width: 8rem;
 	appearance: none !important;
 	background-color: transparent;
 	background: transparent url('data:image/gif;base64,R0lGODlhBgAGAKEDAFVVVX9/f9TU1CgmNyH5BAEKAAMALAAAAAAGAAYAAAIODA4hCDKWxlhNvmCnGwUAOw==') right center no-repeat !important;
 	background-position: calc(100% - 5px) center !important;
 	border: 1px solid var(--border-color);
 	border-radius: 4px;
-	padding: 3px 6px;
+	padding: 3px 15px 3px 6px;
 	color: var(--text-color) !important;
 	color: black;
 	outline: none;

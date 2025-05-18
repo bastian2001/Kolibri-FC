@@ -10,6 +10,9 @@ u16 offTime = 0;
 u16 currentWrap = 400;
 bool stopWavFlag = false;
 u8 startNewPwmSound = 0; // 1 = start new static sound, 2 = start new sweep sound
+std::string startSoundFile;
+std::string fallbackRtttl;
+
 struct newPwmSound {
 	u16 startFrequency;
 	u16 endFrequency;
@@ -76,6 +79,9 @@ void dmaIrqHandler() {
 }
 
 void initSpeaker() {
+	addSetting(SETTING_START_SOUND, &startSoundFile, "start.wav");
+	addSetting(SETTING_START_FALLBACK_RTTTL, &fallbackRtttl, "Drone:o=6,b=800:1c#6,1d#6,1g#6.,1d#6$1,1g#6.$1,1d#6$2,1g#6$2");
+
 	gpio_init(PIN_SPEAKER);
 	gpio_set_dir(PIN_SPEAKER, GPIO_OUT);
 	gpio_put(PIN_SPEAKER, 0);
@@ -110,11 +116,11 @@ void initSpeaker() {
 	dma_channel_set_irq0_enabled(speakerDmaBChan, true);
 	dma_channel_set_read_addr(speakerDmaBChan, speakerChanBData, false);
 	dma_channel_set_write_addr(speakerDmaBChan, &pwm_hw->slice[sliceNum].cc, false);
-	if (playWav("start.wav")) {
+	if (playWav(startSoundFile.c_str())) {
 		soundState = 0b110;
 	} else {
 		soundState = 0b001;
-		makeSound(1000, 100, 100, 0);
+		makeRtttlSound(fallbackRtttl.c_str());
 	}
 	irq_set_exclusive_handler(DMA_IRQ_0, dmaIrqHandler);
 	irq_set_enabled(DMA_IRQ_0, true);

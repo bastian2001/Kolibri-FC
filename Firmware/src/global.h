@@ -1,19 +1,14 @@
-#define LITTLEFS_BB 0
-#define SD_BB 1
-#define BLACKBOX_STORAGE SD_BB
+#define SD_BB 0
+#define FLASH_BB 1 // not implemented yet
 #include "typedefs.h"
 #ifdef USE_TINYUSB
 #include <Adafruit_TinyUSB.h>
 #endif
 #include <Arduino.h>
 
-#if BLACKBOX_STORAGE == LITTLEFS_BB
-#include "LittleFS.h"
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 #include "SDFS.h"
 #endif
-#include "EEPROM.h"
-#include "EEPROMImpl.h"
 #include "NeoPixelConnect.h"
 #include "PIO_DShot.h"
 #include "adc.h"
@@ -27,17 +22,8 @@
 #include "drivers/spi.h"
 #include "elapsedMillis.h"
 #include "git_version.h"
-#include "hardware/adc.h"
-#include "hardware/dma.h"
-#include "hardware/i2c.h"
-#include "hardware/pio.h"
-#include "hardware/pwm.h"
-#include "hardware/resets.h"
-#include "hardware/spi.h"
-#include "hardware/watchdog.h"
 #include "imu.h"
 #include "modes.h"
-#include "pico/stdlib.h"
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
@@ -46,14 +32,31 @@
 #include "rtc.h"
 #include "serial.h"
 #include "serialhandler/4way.h"
+#include "serialhandler/cli.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
+#include "settings/arraySetting.h"
+#include "settings/littleFs.h"
+#include "settings/setting.h"
+#include "settings/settingIds.h"
 #include "taskManager.h"
 #include "unittest.h"
 #include "utils/filters.h"
 #include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"
+#include <EEPROM.h>
+#include <LittleFS.h>
+#include <hardware/adc.h>
+#include <hardware/dma.h>
+#include <hardware/i2c.h>
+#include <hardware/pio.h>
+#include <hardware/pwm.h>
+#include <hardware/resets.h>
+#include <hardware/spi.h>
+#include <hardware/watchdog.h>
+#include <pico/stdlib.h>
+#include <string>
 
 #define SPI_OSD spi1 // SPI for OSD
 
@@ -104,6 +107,7 @@ extern BootReason rebootReason; // Reason for rebooting (can be set right before
 extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0xdeadbeefdeadbeef)
 
 extern NeoPixelConnect p;
+extern std::string uavName;
 
 #define FIRMWARE_NAME "Kolibri"
 #define FIRMWARE_VERSION_MAJOR 0

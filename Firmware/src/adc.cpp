@@ -7,6 +7,8 @@ elapsedMillis adcTimer = 0;
 f32 temperature = 0;
 
 void initADC() {
+	addSetting(SETTING_EMPTY_VOLTAGE, &emptyVoltage, 1400);
+
 	adc_gpio_init(PIN_ADC_VOLTAGE);
 	adc_gpio_init(PIN_ADC_CURRENT);
 	adc_init();
@@ -14,11 +16,6 @@ void initADC() {
 	placeElem(OSDElem::TOT_VOLTAGE, 1, 1);
 	// enableElem(OSDElem::CURRENT);
 	// placeElem(OSDElem::CURRENT, 1, 2);
-	EEPROM.get((u16)EEPROM_POS::BATTERY_EMPTY_THRESHOLD, emptyVoltage);
-	if (!emptyVoltage) {
-		emptyVoltage = 1400;
-		EEPROM.put((u16)EEPROM_POS::BATTERY_EMPTY_THRESHOLD, emptyVoltage);
-	}
 }
 
 u8 adcType = 0; // 1 = voltage, 0 = current
@@ -34,8 +31,10 @@ void adcLoop() {
 			adcVoltage = (raw * 3630U) / 4096U; // 36.3V full deflection, voltage divider is 11:1, and 4096 is 3.3V
 			if ((adcVoltage > emptyVoltage && pVoltage <= emptyVoltage) || (adcVoltage < 400 && pVoltage >= 400)) {
 				stopSound();
+				disableBlinking(OSDElem::TOT_VOLTAGE);
 			} else if (pVoltage > emptyVoltage && adcVoltage <= emptyVoltage) {
-				makeSound(5000, 65535, 300, 300);
+				makeSound(3000, 65535, 300, 300);
+				enableBlinking(OSDElem::TOT_VOLTAGE);
 			}
 			u8 voltageStr[16] = {0};
 			snprintf((char *)voltageStr, 16, "%.2f\x06", adcVoltage / 100.f);

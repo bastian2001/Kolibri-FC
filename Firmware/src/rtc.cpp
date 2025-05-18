@@ -1,7 +1,9 @@
 #include "global.h"
+#include <pico/aon_timer.h>
 
 #define EPOCH_2000 946684800
 #define DAYS_IN_4_YEARS 1461
+#define SECONDS_PER_DAY 86400
 
 u8 rtcTimeQuality = TIME_QUALITY_NONE;
 i16 rtcTimezoneOffset = 0;
@@ -12,43 +14,44 @@ constexpr u16 days[4][12] =
 		{731, 762, 790, 821, 851, 882, 912, 943, 974, 1004, 1035, 1065},
 		{1096, 1127, 1155, 1186, 1216, 1247, 1277, 1308, 1339, 1369, 1400, 1430},
 };
-datetime_t currentDateTime;
 
 void rtcInit() {
-	datetime_t t;
-	rtcConvertToDatetime(EPOCH_2000, &t);
-	// rtc_init();
-	rtcSetDatetime(&t, TIME_QUALITY_NONE);
+	addSetting(SETTING_TIMEZONE_OFFSET, &rtcTimezoneOffset, 0);
+
+	const timespec time = {
+		.tv_sec = EPOCH_2000,
+		.tv_nsec = 0};
+	aon_timer_start(&time);
+	rtcSetTime(&time, TIME_QUALITY_NONE);
 }
 
-bool rtcSetDatetime(datetime_t *t, u8 quality, bool hasDotw) {
+bool rtcSetTime(const struct timespec *t, u8 quality) {
 	if (quality < rtcTimeQuality) return false;
 	rtcTimeQuality = quality;
-	if (!hasDotw) setDotwInDatetime(t);
-	// return rtc_set_datetime(t);
-	currentDateTime = *t;
-	return true;
+	return aon_timer_set_time(t);
 }
 
-void rtcConvertToDatetime(u32 timestamp, datetime_t *t) {
+void rtcConvertToTm(const struct timespec *ts, struct tm *tm) {
+	u32 timestamp = ts->tv_sec;
 	if (timestamp < EPOCH_2000) {
-		t->year = 2000;
-		t->month = 1;
-		t->day = 1;
-		t->dotw = 5;
-		t->hour = 0;
-		t->min = 0;
-		t->sec = 0;
+		tm->tm_year = 2000;
+		tm->tm_mon = 1;
+		tm->tm_mday = 1;
+		tm->tm_wday = 5;
+		tm->tm_yday = 0;
+		tm->tm_hour = 0;
+		tm->tm_min = 0;
+		tm->tm_sec = 0;
 		return;
 	}
 	timestamp -= EPOCH_2000;
-	t->sec = timestamp % 60;
+	tm->tm_sec = timestamp % 60;
 	timestamp /= 60;
-	t->min = timestamp % 60;
+	tm->tm_min = timestamp % 60;
 	timestamp /= 60;
-	t->hour = timestamp % 24;
+	tm->tm_hour = timestamp % 24;
 	timestamp /= 24;
-	t->dotw = (timestamp + 5) % 7; // 2000-01-01 was a Saturday (5)
+	tm->tm_wday = (timestamp + 5) % 7; // 2000-01-01 was a Saturday (5)
 	u16 year = 2000;
 
 	const u16 *daysOfThisYear = days[0];
@@ -63,39 +66,39 @@ void rtcConvertToDatetime(u32 timestamp, datetime_t *t) {
 			break;
 		}
 	}
-	t->year = year;
+	tm->tm_year = year;
+	tm->tm_yday = timestamp;
 	for (u8 i = 11; i >= 0; i--) {
 		if (timestamp >= daysOfThisYear[i]) {
-			t->month = i + 1;
-			t->day = timestamp - daysOfThisYear[i] + 1;
+			tm->tm_mon = i + 1;
+			tm->tm_mday = timestamp - daysOfThisYear[i] + 1;
 			break;
 		}
 	}
 }
 
+void rtcConvertToTimespec(const struct tm *tm, struct timespec *ts) {
+	u32 t = EPOCH_2000;
+	t += (DAYS_IN_4_YEARS * SECONDS_PER_DAY) * ((tm->tm_year - 2000) / 4); // complete 4-year cycles
+	t += SECONDS_PER_DAY * days[tm->tm_year % 4][tm->tm_mon - 1]; // until the beginning of the month
+	t += SECONDS_PER_DAY * (tm->tm_mday - 1); // until the beginning of the day
+	t += tm->tm_hour * 3600; // until the beginning of the hour
+	t += tm->tm_min * 60; // until the beginning of the minute
+	t += tm->tm_sec; // until the beginning of the second
+	ts->tv_sec = t;
+	ts->tv_nsec = 0; // No nanoseconds in this implementation
+}
+
 time_t rtcGetUnixTimestamp() {
-	datetime_t d;
-	rtcGetDatetime(&d);
-	time_t t = EPOCH_2000;
-	t += (DAYS_IN_4_YEARS * 24 * 60 * 60) * ((d.year - 2000) / 4); // complete 4 years
-	t += 24 * 60 * 60 * days[d.year % 4][d.month - 1]; // until the beginning of this month
-	t += (d.day - 1) * 24 * 60 * 60; // until the beginning of the day
-	t += (d.hour) * 60 * 60;
-	t += (d.min) * 60;
-	t += d.sec;
-	return t;
+	timespec t;
+	rtcGetTime(&t);
+	return t.tv_sec;
 }
 
-void setDotwInDatetime(datetime_t *t) {
-	u32 daysSince2000 = 5;
-	u16 years = t->year - 2000;
-	daysSince2000 += (years / 4) * 1461;
-	daysSince2000 += days[years % 4][t->month - 1] + t->day - 1;
-	t->dotw = daysSince2000 % 7;
-}
-
-bool rtcGetDatetime(datetime_t *t) {
-	// return rtc_get_datetime(t);
-	*t = currentDateTime;
-	return true;
+bool rtcGetTime(struct timespec *t, bool withOffset) {
+	if (aon_timer_get_time(t)) {
+		if (withOffset) t->tv_sec += rtcTimezoneOffset * 60; // convert minutes to seconds
+		return true;
+	}
+	return false;
 }

@@ -1,5 +1,10 @@
 #include "global.h"
 
+// rather conservative estimates of available buffers. Doesn't need to be perfect.
+#define BLACKBOX_CHUNK_SIZE 1024
+#define BLACKBOX_CRSF_CHUNK_SIZE 480
+#define BLACKBOX_MSPV1_CHUNK_SIZE 230
+
 u64 bbFlags = 0;
 u64 currentBBFlags = 0;
 
@@ -10,11 +15,13 @@ FSInfo fsInfo;
 int currentLogNum = 0;
 u8 bbFreqDivider = 2;
 
+u32 bbDebug1, bbDebug2;
+u16 bbDebug3, bbDebug4;
+
 RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 File blackboxFile;
 
-i32 maxFileSize = 0;
 u32 bbFrameNum = 0, newestPvtStartedAt = 0;
 elapsedMicros frametime;
 void blackboxLoop() {
@@ -38,10 +45,10 @@ void blackboxLoop() {
 }
 
 void initBlackbox() {
-#if BLACKBOX_STORAGE == LITTLEFS
-	fsReady = LittleFS.begin();
-	fsReady = fsReady && LittleFS.info(fsInfo);
-#elif BLACKBOX_STORAGE == SD_BB
+	addSetting(SETTING_BB_FLAGS, &bbFlags, 0b1111111111111111100000000000000011111111111ULL);
+	addSetting(SETTING_BB_DIV, &bbFreqDivider, 2);
+
+#if BLACKBOX_STORAGE == SD_BB
 	SDFSConfig cfg(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
 	SDFS.setConfig(cfg);
 	SDFS.setTimeCallback(rtcGetUnixTimestamp);
@@ -56,10 +63,7 @@ void initBlackbox() {
 bool clearBlackbox() {
 	if (!fsReady || bbLogging)
 		return false;
-#if BLACKBOX_STORAGE == LITTLEFS
-	LittleFS.format();
-	return true;
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 	for (int i = 0; i < 100; i++) {
 		char path[32];
 		snprintf(path, 32, "/kolibri/%01d.kbb", i);
@@ -72,22 +76,57 @@ bool clearBlackbox() {
 #endif
 }
 
-void setFlags(u64 flags) {
-	bbFlags = flags;
-	EEPROM.put((u16)EEPROM_POS::BB_FLAGS, bbFlags);
-}
-void setDivider(u8 divider) {
-	if (divider > 0)
-		bbFreqDivider = divider;
-	EEPROM.put((u16)EEPROM_POS::BB_FREQ_DIVIDER, bbFreqDivider);
+u32 getBlackboxChunkSize(MspVersion v) {
+	switch (v) {
+	case MspVersion::V1:
+	case MspVersion::V2_OVER_V1:
+	case MspVersion::V1_OVER_CRSF:
+	case MspVersion::V2_OVER_V1_OVER_CRSF:
+		return BLACKBOX_MSPV1_CHUNK_SIZE;
+	case MspVersion::V2_OVER_CRSF:
+	case MspVersion::V1_JUMBO_OVER_CRSF:
+	case MspVersion::V2_OVER_V1_JUMBO_OVER_CRSF:
+		return BLACKBOX_CRSF_CHUNK_SIZE;
+	case MspVersion::V2:
+	case MspVersion::V1_JUMBO:
+	case MspVersion::V2_OVER_V1_JUMBO:
+	default:
+		return BLACKBOX_CHUNK_SIZE;
+	}
 }
 
-void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
+void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	char path[32];
-#if BLACKBOX_STORAGE == LITTLEFS
-	snprintf(path, 32, "/logs%01d/%01d.kbb", logNum / 10, logNum % 10);
-	File logFile = LittleFS.open(path, "r");
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
+	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
+	File logFile = SDFS.open(path, "r");
+#endif
+	if (!logFile) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_INIT, mspVer, "File not found", strlen("File not found"));
+		return;
+	}
+
+	// send init frame
+	u8 b[10];
+	b[0] = logNum & 0xFF;
+	b[1] = logNum >> 8;
+	u32 size = logFile.size();
+	b[2] = size & 0xFF;
+	b[3] = (size >> 8) & 0xFF;
+	b[4] = (size >> 16) & 0xFF;
+	b[5] = (size >> 24) & 0xFF;
+	u32 chunkSize = getBlackboxChunkSize(mspVer);
+	b[6] = chunkSize & 0xFF;
+	b[7] = (chunkSize >> 8) & 0xFF;
+	b[8] = (chunkSize >> 16) & 0xFF;
+	b[9] = (chunkSize >> 24) & 0xFF;
+	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_INIT, mspVer, (char *)b, 10);
+	logFile.close();
+}
+
+void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
+	char path[32];
+#if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
 	File logFile = SDFS.open(path, "r");
 #endif
@@ -95,64 +134,48 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u8 logNum, i32 singleChunk) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
 		return;
 	}
-	u8 buffer[1027];
-	buffer[0] = logNum;
-	u16 chunkNum = 0;
+
+	u32 chunkSize = getBlackboxChunkSize(mspVer);
+
+	u8 buffer[chunkSize + 6];
+	buffer[0] = logNum & 0xFF;
+	buffer[1] = logNum >> 8;
+	u32 chunkNum = 0;
 	if (singleChunk >= 0) {
 		chunkNum = singleChunk;
-		logFile.seek(chunkNum * 1024, SeekSet);
+		logFile.seek(chunkNum * chunkSize, SeekSet);
 	}
 	size_t bytesRead = 1;
-	while (bytesRead > 0) {
+	while (true) {
 		rp2040.wdt_reset();
-		// gpio_put(PIN_LED_ACTIVITY, chunkNum & 1);
 		if (chunkNum % 100 == 0)
-			p.neoPixelSetValue(0, chunkNum & 0xFF, true);
-		bytesRead = logFile.read(buffer + 3, 1024);
-		buffer[1] = chunkNum & 0xFF;
-		buffer[2] = chunkNum >> 8;
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 3);
+			p.neoPixelSetValue(0, chunkNum & 0xFF, chunkNum & 0xFF, chunkNum & 0xFF, true);
+		bytesRead = logFile.read(buffer + 6, chunkSize);
+		if (bytesRead <= 0)
+			break;
+		buffer[2] = chunkNum & 0xFF;
+		buffer[3] = chunkNum >> 8;
+		buffer[4] = chunkNum >> 16;
+		buffer[5] = chunkNum >> 24;
+		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 6);
 		Serial.flush();
-		while (Serial.available())
+		while (Serial.available()) // discard any data, prevents eventual panic
 			Serial.read();
 		chunkNum++;
 		if (singleChunk >= 0)
 			break;
 	}
 	logFile.close();
-	// finish frame includes 0xFFFF as chunk number, and then the actual max chunk number
-	if (singleChunk >= 0)
-		return;
-	buffer[0] = logNum;
-	buffer[1] = 0xFF;
-	buffer[2] = 0xFF;
-	buffer[3] = chunkNum & 0xFF;
-	buffer[4] = chunkNum >> 8;
-	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, 5);
 }
 
 void startLogging() {
 	if (!bbFlags || !fsReady || bbLogging || !bbFreqDivider)
 		return;
 	currentBBFlags = bbFlags;
-#if BLACKBOX_STORAGE == LITTLEFS
-	if (!(LittleFS.info(fsInfo)))
-		return;
-	maxFileSize = fsInfo.totalBytes - fsInfo.usedBytes - 50000;
-	if (maxFileSize < 20000) {
-		return;
-	}
-#endif
 	char path[32];
 	for (int i = 0; i < 100; i++) {
 		rp2040.wdt_reset();
-#if BLACKBOX_STORAGE == LITTLEFS
-		snprintf(path, 32, "/logs%01d/%01d.kbb", ((i + currentLogNum) % 100) / 10, (i + currentLogNum) % 10);
-		if (!LittleFS.exists(path)) {
-			currentLogNum += i + 1;
-			break;
-		}
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 		snprintf(path, 32, "/kolibri/%01d.kbb", (i + currentLogNum) % 100);
 		if (!SDFS.exists(path)) {
 			currentLogNum += i + 1;
@@ -164,9 +187,7 @@ void startLogging() {
 			return;
 		}
 	}
-#if BLACKBOX_STORAGE == LITTLEFS
-	blackboxFile = LittleFS.open(path, "a");
-#elif BLACKBOX_STORAGE == SD_BB
+#if BLACKBOX_STORAGE == SD_BB
 	blackboxFile = SDFS.open(path, "a");
 #endif
 	if (!blackboxFile)
@@ -185,11 +206,11 @@ void startLogging() {
 		for (int j = 0; j < 3; j++)
 			rf[i][j] = rateFactors[i][j].raw;
 	blackboxFile.write((u8 *)rf, 60);
-	i32 pg[3][7];
+	i32 pg[3][5];
 	for (int i = 0; i < 3; i++)
-		for (int j = 0; j < 7; j++)
+		for (int j = 0; j < 5; j++)
 			pg[i][j] = pidGains[i][j].raw;
-	blackboxFile.write((u8 *)pg, 84);
+	blackboxFile.write((u8 *)pg, 60);
 	blackboxFile.write((u8 *)&bbFlags, 8);
 	blackboxFile.write((u8)MOTOR_POLES);
 	while (blackboxFile.position() < 256) {
@@ -215,12 +236,6 @@ void writeSingleFrame() {
 	if (!fsReady || !bbLogging) {
 		return;
 	}
-#if BLACKBOX_STORAGE == LITTLEFS
-	if (blackboxFile.size() > maxFileSize) {
-		endLogging();
-		return;
-	}
-#endif
 	u8 *bbBuffer = (u8 *)malloc(128);
 	if (currentBBFlags & LOG_ROLL_ELRS_RAW) {
 		bbBuffer[bufferPos++] = ELRS->channels[0];
@@ -259,17 +274,17 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = setpoint >> 8;
 	}
 	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
-		i16 i = (gyroData[AXIS_ROLL].raw >> 12);
+		i16 i = (gyroScaled[AXIS_ROLL].raw >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
-		i16 i = (gyroData[AXIS_PITCH].raw >> 12);
+		i16 i = (gyroScaled[AXIS_PITCH].raw >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
 	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
-		i16 i = (gyroData[AXIS_YAW].raw >> 12);
+		i16 i = (gyroScaled[AXIS_YAW].raw >> 12);
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
@@ -411,7 +426,7 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = rpmPacket >> 40;
 	}
 	if (currentBBFlags & LOG_ACCEL_RAW) {
-		memcpy(&bbBuffer[bufferPos], accelDataRaw, 6);
+		memcpy(&bbBuffer[bufferPos], (void *)accelDataRaw, 6);
 		bufferPos += 6;
 	}
 	if (currentBBFlags & LOG_ACCEL_FILTERED) {
@@ -455,9 +470,32 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = v;
 		bbBuffer[bufferPos++] = v >> 8;
 	}
-#if BLACKBOX_STORAGE == LITTLEFS
-	blackboxFile.write(bbBuffer, bufferPos);
-#elif BLACKBOX_STORAGE == SD_BB
+	if (currentBBFlags & LOG_BARO) {
+		i32 val = blackboxPres;
+		bbBuffer[bufferPos++] = val;
+		bbBuffer[bufferPos++] = val >> 8;
+		bbBuffer[bufferPos++] = val >> 16;
+	}
+	if (currentBBFlags & LOG_DEBUG_1) {
+		bbBuffer[bufferPos++] = bbDebug1;
+		bbBuffer[bufferPos++] = bbDebug1 >> 8;
+		bbBuffer[bufferPos++] = bbDebug1 >> 16;
+		bbBuffer[bufferPos++] = bbDebug1 >> 24;
+	}
+	if (currentBBFlags & LOG_DEBUG_2) {
+		bbBuffer[bufferPos++] = bbDebug2;
+		bbBuffer[bufferPos++] = bbDebug2 >> 8;
+		bbBuffer[bufferPos++] = bbDebug2 >> 16;
+		bbBuffer[bufferPos++] = bbDebug2 >> 24;
+	}
+	if (currentBBFlags & LOG_DEBUG_3) {
+		bbBuffer[bufferPos++] = bbDebug3;
+		bbBuffer[bufferPos++] = bbDebug3 >> 8;
+	}
+	if (currentBBFlags & LOG_DEBUG_4) {
+		bbBuffer[bufferPos++] = bbDebug4;
+		bbBuffer[bufferPos++] = bbDebug4 >> 8;
+	}
 	bbBuffer[0] = bufferPos - 1;
 	bbFrameNum++;
 	if (bbFramePtrBuffer.isEmpty()) {
@@ -493,5 +531,4 @@ void writeSingleFrame() {
 			// Both FIFOs are full, we can't keep up with the logging, dropping oldest frame
 		}
 	}
-#endif
 }

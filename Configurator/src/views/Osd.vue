@@ -1,6 +1,6 @@
 <script lang="ts">
-import { sendCommand } from "@/communication/serial";
-import { MspFn, MspVersion } from "@/utils/msp";
+import { sendCommand } from "@/msp/comm";
+import { MspFn, MspVersion } from "@/msp/protocol";
 import { defineComponent } from "vue";
 import fonts from "@/utils/fonts";
 
@@ -53,7 +53,7 @@ export default defineComponent({
 
 	<div class="wrapper">
 		Paste the .mcm file here, using an ASCII character table.<br>
-		<textarea name="font" id="fontInput" cols="30" rows="10" v-model="file"></textarea>
+		<textarea id="fontInput" cols="30" rows="10" v-model="file"></textarea>
 		<button @click="() => upload()">Upload</button>
 	</div>
 </template>

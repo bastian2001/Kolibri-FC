@@ -48,6 +48,9 @@ void updateElem(OSDElem elem, const char *str);
 
 void placeElem(OSDElem elem, u8 x, u8 y);
 
+void enableBlinking(OSDElem elem);
+void disableBlinking(OSDElem elem);
+
 void enableElem(OSDElem elem);
 void disableElem(OSDElem elem);
 

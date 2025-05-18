@@ -20,27 +20,27 @@ void modesLoop() {
 		ELRS->newPacketFlag &= 0xFFFFFFFE;
 		if (!armed) {
 			if (ELRS->consecutiveArmedCycles == 10)
-				armingDisableFlags &= 0xFFFFFFFE;
+				armingDisableFlags &= ~0x01;
 			else
-				armingDisableFlags |= 0x00000001;
+				armingDisableFlags |= 0x01;
 			if (ELRS->channels[2] < 1020)
-				armingDisableFlags &= 0xFFFFFFFD;
+				armingDisableFlags &= ~0x02;
 			else
-				armingDisableFlags |= 0x00000002;
+				armingDisableFlags |= 0x02;
 			// if (lastPvtMessage > 1000)
-			// 	armingDisableFlags |= 0x00000004;
+			// 	armingDisableFlags |= 0x04;
 			if (configuratorConnected && mspOverrideMotors > 1000)
-				armingDisableFlags |= 0x00000008;
+				armingDisableFlags |= 0x08;
 			else
-				armingDisableFlags &= 0xFFFFFFF7;
+				armingDisableFlags &= ~0x08;
 			if (ELRS->isLinkUp)
-				armingDisableFlags &= 0xFFFFFFEF;
+				armingDisableFlags &= ~0x10;
 			else
-				armingDisableFlags |= 0x00000010;
+				armingDisableFlags |= 0x10;
 			if (flightMode <= FlightMode::ANGLE)
-				armingDisableFlags &= 0xFFFFFFDF;
+				armingDisableFlags &= ~0x20;
 			else
-				armingDisableFlags |= 0x00000020;
+				armingDisableFlags |= 0x20;
 			if (!armingDisableFlags) {
 				startLogging();
 				armed = true;
@@ -49,17 +49,17 @@ void modesLoop() {
 				startPointLon = gpsMotion.lon;
 			} else if (ELRS->consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
 				u8 wavSuccess = 0;
-				if (armingDisableFlags & 0x00000040) {
+				if (armingDisableFlags & 0x40) {
 					wavSuccess = playWav("armingErrors/gyro.wav");
-				} else if (armingDisableFlags & 0x00000004) {
+				} else if (armingDisableFlags & 0x04) {
 					wavSuccess = playWav("armingErrors/nogpsmodule.wav");
-				} else if (armingDisableFlags & 0x00000008) {
+				} else if (armingDisableFlags & (0x08 | 0x80)) { // 08 by kolibri configurator, 80 by other configurators
 					wavSuccess = playWav("armingErrors/configurator.wav");
-				} else if (armingDisableFlags & 0x00000010) {
+				} else if (armingDisableFlags & 0x10) {
 					wavSuccess = playWav("armingErrors/elrsLink.wav");
-				} else if (armingDisableFlags & 0x00000020) {
+				} else if (armingDisableFlags & 0x20) {
 					wavSuccess = playWav("armingErrors/wrongMode.wav");
-				} else if (armingDisableFlags & 0x00000002) {
+				} else if (armingDisableFlags & 0x02) {
 					wavSuccess = playWav("armingErrors/throttle.wav");
 				}
 				if (!wavSuccess)
@@ -76,7 +76,7 @@ void modesLoop() {
 		if (newFlightMode >= FlightMode::LENGTH)
 			newFlightMode = FlightMode::ACRO;
 		if (newFlightMode != flightMode) {
-			switch (flightMode) {
+			switch (newFlightMode) {
 			case FlightMode::ACRO:
 				updateElem(OSDElem::FLIGHT_MODE, "ACRO ");
 				break;
