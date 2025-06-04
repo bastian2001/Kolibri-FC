@@ -126,8 +126,6 @@ void setup1() {
 }
 elapsedMicros taskTimer = 0;
 
-extern PIO speakerPio;
-extern u8 speakerSm;
 void loop1() {
 	tasks[TASK_LOOP1].runCounter++;
 	u32 duration = taskTimer;

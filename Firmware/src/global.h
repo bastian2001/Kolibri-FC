@@ -16,6 +16,7 @@
 #include "drivers/baro.h"
 #include "drivers/esc.h"
 #include "drivers/gyro.h"
+#include "drivers/halfduplexUart.h"
 #include "drivers/mag.h"
 #include "drivers/osd.h"
 #include "drivers/speaker.h"
@@ -27,7 +28,6 @@
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
-#include "pioasm/speaker8bit.pio.h"
 #include "ringbuffer.h"
 #include "rtc.h"
 #include "serial.h"
@@ -36,6 +36,7 @@
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
+#include "serialhandler/tramp.h"
 #include "settings/arraySetting.h"
 #include "settings/littleFs.h"
 #include "settings/setting.h"
@@ -69,10 +70,12 @@
 #endif
 #define I2C_MAG i2c0 // I2C for magnetometer
 
-#define PIO_ESC pio1
-#define PIO_GYRO_SPI pio2
-#define PIO_SDIO pio0
-#define PIO_LED pio2
+#define PIO_ESC pio1 // uses all 4 SMs
+#define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
+#define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
+#define PIO_LED pio2 // 1 SM, 4 instructions
+#define PIO_HALFDUPLEX_UART pio2 // 1 SM, 16 instructions
+// Total usage of pio2: 3 SMs (assuming one UART) and 25/32 instructions
 
 #define PROPS_OUT
 

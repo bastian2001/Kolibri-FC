@@ -523,7 +523,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::CLI_INIT: {
 			// send start info
-			// const char *startInfo = "\n" FIRMWARE_VERSION_STRING "\n" targetIdentifier "" ">> ";
 			char startInfo[256] = {0};
 			snprintf(startInfo, 256, "\n" FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands\n>> ", targetIdentifier, targetFullName);
 			openSettingsFile();
@@ -974,7 +973,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 
 void mspHandleByte(u8 c, u8 serialNum) {
 	elapsedMicros taskTimer = 0;
-	static char payloadBuf[2052] = {0}; // worst case: 2048 bytes payload + 3 bytes checksum (v2 over v1 jumbo) + 1 byte start. After the start byte, the index is reset to 0
+	static char payloadBuf[2048] = {0};
 	static u16 payloadBufIndex = 0;
 	static u16 payloadLen = 0;
 	static MspFn fn = MspFn::API_VERSION;

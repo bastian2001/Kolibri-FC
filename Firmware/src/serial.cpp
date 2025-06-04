@@ -2,15 +2,19 @@
 
 u8 readChar = 0;
 u32 crcLutD5[256] = {0};
-Stream *serials[3] = {
+Stream *serials[SERIAL_TOTAL] = {
 	&Serial,
 	&Serial1,
-	&Serial2};
+	&Serial2,
+	&SoftSerial1,
+};
 
-u32 serialFunctions[3] = {
-	SERIAL_MSP,
-	SERIAL_CRSF,
-	SERIAL_GPS};
+u32 serialFunctions[SERIAL_TOTAL] = {
+	SERIAL_MSP, // Serial
+	SERIAL_CRSF, // Serial1
+	SERIAL_GPS, // Serial2
+	SERIAL_IRC_TRAMP, // SoftSerial1
+};
 
 void initSerial() {
 	for (u32 i = 0; i < 256; i++) {
@@ -28,7 +32,7 @@ void initSerial() {
 void serialLoop() {
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_SERIAL].runCounter++;
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < SERIAL_TOTAL; i++) {
 		if (serialFunctions[i] & SERIAL_DISABLED)
 			continue;
 		Stream *serial = serials[i];
@@ -53,6 +57,8 @@ void serialLoop() {
 				process4Way(readChar);
 			}
 			if (serialFunctions[i] & SERIAL_IRC_TRAMP) {
+				if (!trampRxBuffer.isFull())
+					trampRxBuffer.push(readChar);
 			}
 			if (serialFunctions[i] & SERIAL_SMARTAUDIO) {
 			}
