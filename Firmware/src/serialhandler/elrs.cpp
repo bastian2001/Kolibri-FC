@@ -158,7 +158,7 @@ void ExpressLRS::loop() {
 			case FlightMode::ALT_HOLD:
 				this->sendPacket(FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
 				break;
-			case FlightMode::GPS_VEL:
+			case FlightMode::GPS:
 				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
 				break;
 			case FlightMode::GPS_POS:

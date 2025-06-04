@@ -37,7 +37,7 @@ extern fix32 throttle; // current throttle setpoint (idlePermille*2 to 2000)
 extern fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000ish)
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
-extern fix64 targetLat, targetLon; // target latitude and longitude for GPS_VEL mode => (position lock)
+extern fix64 targetLat, targetLon; // target latitude and longitude for GPS mode => (position lock)
 extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
 extern u16 gyroFilterCutoff; // cutoff frequency for the gyro filter (Hz)
 extern fix32 setpointDiffCutoff; // used for feedforward and I term relaxation (Hz)
@@ -52,8 +52,8 @@ enum class FlightMode {
 	ACRO,
 	ANGLE,
 	ALT_HOLD,
-	GPS_VEL, // control the velocity of the drone
-	GPS_POS, // set a position and hold it/fly to it
+	GPS, // control the velocity of the drone
+	GPS_WP, // waypoint mode, i.e. GPS mode with automatic control
 	LENGTH // place behind all other modes, acts as a limit for loops etc.
 };
 extern FlightMode flightMode; // currently selected flight mode (NOT whether the drone is armed)

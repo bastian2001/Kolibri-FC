@@ -192,16 +192,16 @@ void pidLoop() {
 		rollSetpoint = 0;
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
-		if (flightMode == FlightMode::ANGLE || flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
+		if (flightMode == FlightMode::ANGLE || flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS) {
 			fix32 dRoll;
 			fix32 dPitch;
 			fix32 newRollSetpoint, newPitchSetpoint, newYawSetpoint;
-			if (flightMode < FlightMode::GPS_VEL) {
+			if (flightMode < FlightMode::GPS) {
 				dRoll = (smoothChannels[0] - 1500) * stickToAngle + (FIX_RAD_TO_DEG * roll);
 				dPitch = (smoothChannels[1] - 1500) * stickToAngle - (FIX_RAD_TO_DEG * pitch);
 				newRollSetpoint = dRoll * angleModeP;
 				newPitchSetpoint = dPitch * angleModeP;
-			} else if (flightMode == FlightMode::GPS_VEL) {
+			} else if (flightMode == FlightMode::GPS) {
 				static fix32 lastNVelSetpoint = 0;
 				static fix32 lastEVelSetpoint = 0;
 				static elapsedMillis locationSetpointTimer = 0;
@@ -340,7 +340,7 @@ void pidLoop() {
 			pitchSetpoint = newPitchSetpoint * cosRoll + newYawSetpoint * cosPitch * sinRoll;
 			yawSetpoint = -newPitchSetpoint * sinRoll + newYawSetpoint * cosPitch * cosRoll - newRollSetpoint * sinPitch;
 
-			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS_VEL) {
+			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS) {
 				fix32 t = throttle - 512;
 				static elapsedMillis setAltSetpointTimer;
 				static u32 stickWasCentered = 0;

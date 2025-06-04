@@ -86,7 +86,7 @@ void modesLoop() {
 			case FlightMode::ALT_HOLD:
 				updateElem(OSDElem::FLIGHT_MODE, "ALT  ");
 				break;
-			case FlightMode::GPS_VEL:
+			case FlightMode::GPS:
 				updateElem(OSDElem::FLIGHT_MODE, "GPSV ");
 				break;
 			case FlightMode::GPS_POS:
