@@ -53,7 +53,7 @@ enum class FlightMode {
 	ANGLE,
 	ALT_HOLD,
 	GPS, // control the velocity of the drone
-	GPS_WP, // waypoint mode, i.e. GPS mode with automatic control
+	GPS_WP, // waypoint mode, i.e. GPS mode with automatic control, for now it just goes to the homepoint and hovers there
 	LENGTH // place behind all other modes, acts as a limit for loops etc.
 };
 extern FlightMode flightMode; // currently selected flight mode (NOT whether the drone is armed)

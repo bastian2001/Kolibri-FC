@@ -77,6 +77,9 @@ DualPT1 iRelaxFilterEVel;
 PT1 pushNorth;
 PT1 pushEast;
 
+static fix32 calcThrottle(fix32 stickPos);
+static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix32 *nVelSetpoint);
+
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {
 		pidGains[i][P].setRaw(80 << P_SHIFT);
@@ -181,10 +184,9 @@ void pidLoop() {
 	gyroFiltered[AXIS_YAW].update(gyroScaled[AXIS_YAW]);
 
 	if (armed) {
-		// Quad armed
-		static fix32 polynomials[5][3];
+		// extract smoothed channels
 		ELRS->getSmoothChannels(smoothChannels);
-		// calculate setpoints
+		fix32 polynomials[5][3];
 		polynomials[0][0] = (smoothChannels[0] - 1500) >> 9; //-1...+1
 		polynomials[0][1] = (smoothChannels[1] - 1500) >> 9;
 		polynomials[0][2] = (smoothChannels[3] - 1500) >> 9;
@@ -192,72 +194,26 @@ void pidLoop() {
 		rollSetpoint = 0;
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
+
 		if (flightMode == FlightMode::ANGLE || flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS) {
-			fix32 dRoll;
-			fix32 dPitch;
+			// these will be populated below
+			fix32 dRoll, dPitch;
 			fix32 newRollSetpoint, newPitchSetpoint, newYawSetpoint;
 			if (flightMode < FlightMode::GPS) {
+				// angle or alt hold: sticks => target tilt => target angular rate
 				dRoll = (smoothChannels[0] - 1500) * stickToAngle + (FIX_RAD_TO_DEG * roll);
 				dPitch = (smoothChannels[1] - 1500) * stickToAngle - (FIX_RAD_TO_DEG * pitch);
 				newRollSetpoint = dRoll * angleModeP;
 				newPitchSetpoint = dPitch * angleModeP;
 			} else if (flightMode == FlightMode::GPS) {
+				// GPS: sticks => target velocity => target tilt => target angular rate
 				static fix32 lastNVelSetpoint = 0;
 				static fix32 lastEVelSetpoint = 0;
-				static elapsedMillis locationSetpointTimer = 0;
-				fix32 rightCommand = smoothChannels[0] - 1500;
-				fix32 fwdCommand = smoothChannels[1] - 1500;
-				fix32 pushEastVel = 0;
-				fix32 pushNorthVel = 0;
-				if (fwdCommand.abs() < hvelStickDeadband)
-					fwdCommand = 0;
-				else if (fwdCommand > 0)
-					fwdCommand -= hvelStickDeadband;
-				else
-					fwdCommand += hvelStickDeadband;
-				if (rightCommand.abs() < hvelStickDeadband)
-					rightCommand = 0;
-				else if (rightCommand > 0)
-					rightCommand -= hvelStickDeadband;
-				else
-					rightCommand += hvelStickDeadband;
-				if (rightCommand || fwdCommand) {
-					eVelSetpoint = cosHeading * rightCommand + sinHeading * fwdCommand;
-					nVelSetpoint = -sinHeading * rightCommand + cosHeading * fwdCommand;
-					eVelSetpoint = eVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
-					nVelSetpoint = nVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
-					eVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
-					nVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
-					pushNorth.set(0);
-					pushEast.set(0);
-					locationSetpointTimer = 0;
-				} else if (locationSetpointTimer < 2000) {
-					eVelSetpoint = 0;
-					nVelSetpoint = 0;
-					targetLat = gpsLatitudeFiltered;
-					targetLon = gpsLongitudeFiltered;
-				} else {
-					fix64 latDiff = targetLat - fix64(gpsMotion.lat) / 10000000;
-					fix64 lonDiff = targetLon - fix64(gpsMotion.lon) / 10000000;
-					if (lonDiff > 180)
-						lonDiff = lonDiff - 360;
-					else if (lonDiff < -180)
-						lonDiff = lonDiff + 360;
-					fix32 tooFarSouth = latDiff * (40075000 / 360); // in m
-					fix32 tooFarWest = lonDiff * (40075000 / 360); // in m
-					startFixTrig();
-					tooFarWest *= cosFix(targetLat);
-					pushNorth.update(tooFarSouth);
-					pushEast.update(tooFarWest);
-					eVelSetpoint = 0;
-					nVelSetpoint = 0;
-					pushEastVel = fix32(pushEast) / 4;
-					pushEastVel = constrain(pushEastVel, -maxTargetHvel, maxTargetHvel);
-					pushNorthVel = fix32(pushNorth) / 4;
-					pushNorthVel = constrain(pushNorthVel, -maxTargetHvel, maxTargetHvel);
-				}
-				eVelError = (eVelSetpoint + pushEastVel) - eVel;
-				nVelError = (nVelSetpoint + pushNorthVel) - nVel;
+
+				sticksToGpsSetpoint(smoothChannels, &eVelSetpoint, &nVelSetpoint);
+
+				eVelError = eVelSetpoint - eVel;
+				nVelError = nVelSetpoint - nVel;
 
 				// shift to get more resolution in the filter
 				// after shifting, we get a value of 0.08 for 1m/s² commanded acceleration
@@ -284,6 +240,8 @@ void pidLoop() {
 					eVelErrorSum = eVelErrorSum + eVelError / divider;
 					nVelErrorSum = nVelErrorSum + nVelError / divider;
 				}
+
+				// calculate PID terms
 				eVelP = pidGainsHVel[P] * eVelError;
 				nVelP = pidGainsHVel[P] * nVelError;
 				eVelI = pidGainsHVel[I] * eVelErrorSum;
@@ -320,6 +278,7 @@ void pidLoop() {
 				newRollSetpoint = constrain(newRollSetpoint, -1000, 1000);
 				newPitchSetpoint = dPitch * velocityModeP;
 				newPitchSetpoint = constrain(newPitchSetpoint, -1000, 1000);
+
 				lastNVelSetpoint = nVelSetpoint;
 				lastEVelSetpoint = eVelSetpoint;
 				nVelLast = nVel;
@@ -341,62 +300,15 @@ void pidLoop() {
 			yawSetpoint = -newPitchSetpoint * sinRoll + newYawSetpoint * cosPitch * cosRoll - newRollSetpoint * sinPitch;
 
 			if (flightMode == FlightMode::ALT_HOLD || flightMode == FlightMode::GPS) {
-				fix32 t = throttle - 512;
-				static elapsedMillis setAltSetpointTimer;
-				static u32 stickWasCentered = 0;
-				// deadband in center of stick
-				if (t > 0) {
-					t -= 50;
-					if (t < 0) t = 0;
-				} else {
-					t += 50;
-					if (t > 0) t = 0;
-				}
-				// estimate throttle
-				vVelSetpoint = t / 90; // +/- 5 m/s
-				if (vVelSetpoint == 0) {
-					if (!stickWasCentered) {
-						setAltSetpointTimer = 0;
-						stickWasCentered = 1;
-					} else if (setAltSetpointTimer > 1000) {
-						if (stickWasCentered == 1) {
-							// set altitude setpoint 1s after throttle is centered
-							altSetpoint = combinedAltitude;
-							stickWasCentered = 2;
-						}
-						vVelSetpoint += (altSetpoint - combinedAltitude) / 5; // prevent vVel drift slowly
-					}
-				} else {
-					stickWasCentered = 0;
-				}
-				vVelError = vVelSetpoint - vVel;
-				vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(vVelSetpoint - vVelLastSetpoint).abs() < fix32(0.001f)) ? vVelError : vVelError / 2); // reduce windup during fast changes
-				vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
-				vVelP = pidGainsVVel[P] * vVelError;
-				vVelI = pidGainsVVel[I] * vVelErrorSum;
-				vVelD = pidGainsVVel[D] * vVelDFilter.update(vVelLast - vVel);
-				vVelFF = pidGainsVVel[FF] * vVelFFFilter;
-				vVelLastSetpoint = vVelSetpoint;
-				throttle = vVelP + vVelI + vVelD + vVelFF;
-				/* The cos of the thrust angle gives us the thrust "efficiency" (=cos(acos(...))),
-				aka how much of the thrust is actually used to lift the quad.
-				Dividing by this "efficiency" will give us the actual thrust needed to lift the quad.
-				This acts much quicker than the PID would ever increase the throttle when tilting the quad. */
-				fix32 throttleFactor = cosRoll * cosPitch;
-				if (throttleFactor < 0) // quad is upside down
-					throttleFactor = 1;
-				throttleFactor = constrain(throttleFactor, fix32(0.33f), 1); // we limit the throttle increase to 3x (ca. 72° tilt), and also prevent division by zero
-				throttleFactor = fix32(1) / throttleFactor; // 1/cos(acos(...)) = 1/cos(thrust angle)
-				throttle = throttle * throttleFactor;
-				throttle = constrain(throttle, 0, 1024);
+				throttle = calcThrottle(throttle);
 			}
-			vVelLast = vVel;
 		} else if (flightMode == FlightMode::ACRO) {
 			/*
 			 * at full stick deflection, ...Raw values are either +1 or -1. That will make all the
 			 * polynomials also +/-1. Thus, the total rate for each axis is equal to the sum of all 5 rateFactors
 			 * of that axis. The center rate is the ratefactor[x][0].
 			 */
+			// acro: sticks => target angular rate
 			for (int i = 1; i < 5; i++) {
 				for (int j = 0; j < 3; j++) {
 					polynomials[i][j] = polynomials[i - 1][j] * polynomials[0][j];
@@ -410,20 +322,28 @@ void pidLoop() {
 				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
 			}
 		}
+
+		// the setpoints have been calculated above using the respective flight mode
+		// below is the PID controller (setpoint -> ESC output)
+
+		// get errors
 		rollError = rollSetpoint - gyroFiltered[AXIS_ROLL];
 		pitchError = pitchSetpoint - gyroFiltered[AXIS_PITCH];
 		yawError = yawSetpoint - gyroFiltered[AXIS_YAW];
-		if (ELRS->channels[2] > 1020)
+
+		// I term windup prevention
+		if (ELRS->channels[2] > 1020) {
 			takeoffCounter++;
-		else if (takeoffCounter < 1000) // 1000 = ca. 0.3s
-			takeoffCounter = 0; // if the quad hasn't "taken off" yet, reset the counter
-		if (takeoffCounter < 1000) // enable i term falloff (windup prevention) only before takeoff
-		{
+		} else if (takeoffCounter < 1000) { // 1000 = ca. 0.3s
+			takeoffCounter = 0;
+		} // if the quad hasn't "taken off" yet, reset the counter
+		if (takeoffCounter < 1000) { // enable i term falloff (windup prevention) only before takeoff
 			rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign() / pidGains[0][I];
 			pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign() / pidGains[1][I];
 			yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign() / pidGains[2][I];
 		}
 
+		// PID boost / anti gravity
 		fix32 pFactor = 1, iFactor = 1, dFactor = 1;
 		if (pidBoostAxis) {
 			pidBoostFilter.update(throttle - lastThrottle);
@@ -439,10 +359,12 @@ void pidLoop() {
 			dFactor += pidBoostD * boostStrength;
 		}
 
+		// setpoint differentiator for iRelax and FF
 		setpointDiff[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
 		setpointDiff[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
 		setpointDiff[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
 
+		// I term relax multiplier
 		fix32 totalDiff = fix32(setpointDiff[AXIS_ROLL]).abs() + fix32(setpointDiff[AXIS_PITCH]).abs() + fix32(setpointDiff[AXIS_YAW]).abs();
 		fix32 iRelaxMultiplier = 1;
 		if (totalDiff > 450) {
@@ -451,10 +373,12 @@ void pidLoop() {
 			iRelaxMultiplier = fix32(1) - (totalDiff - 150) / 300 * 7 / 8;
 		}
 
+		// I sum
 		rollErrorSum = rollErrorSum + rollError * iRelaxMultiplier * iFactor;
 		pitchErrorSum = pitchErrorSum + pitchError * iRelaxMultiplier * iFactor;
 		yawErrorSum = yawErrorSum + yawError * iRelaxMultiplier * iFactor;
 
+		// PID terms
 		rollP = pidGains[0][P] * rollError * pFactor;
 		pitchP = pidGains[1][P] * pitchError * pFactor;
 		yawP = pidGains[2][P] * yawError * (pidBoostAxis == 2 ? pFactor : 1);
@@ -464,8 +388,6 @@ void pidLoop() {
 		rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroFiltered[AXIS_ROLL]) * dFactor;
 		pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroFiltered[AXIS_PITCH]) * dFactor;
 		yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroFiltered[AXIS_YAW]) * (pidBoostAxis == 2 ? dFactor : 1);
-		bbDebug3 = (pidGains[0][D] * fix32(dFilterRoll) * dFactor).geti32();
-		bbDebug4 = (pidGains[0][D] * fix32(dFilterRoll)).geti32();
 		rollFF = pidGains[0][FF] * setpointDiff[AXIS_ROLL];
 		pitchFF = pidGains[1][FF] * setpointDiff[AXIS_PITCH];
 		yawFF = pidGains[2][FF] * setpointDiff[AXIS_YAW];
@@ -473,17 +395,16 @@ void pidLoop() {
 		pitchS = pidGains[1][S] * pitchSetpoint;
 		yawS = pidGains[2][S] * yawSetpoint;
 
-		lastSetpoints[AXIS_ROLL] = rollSetpoint;
-		lastSetpoints[AXIS_PITCH] = pitchSetpoint;
-		lastSetpoints[AXIS_YAW] = yawSetpoint;
-		lastThrottle = throttle;
-
+		// RPY terms
 		fix32 rollTerm = rollP + rollI + rollD + rollFF + rollS;
 		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 		fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
+
 		// scale throttle from 0...1024 to idlePermille*2...2000 (DShot output is 0...2000)
 		throttle *= throttleScale; // 0...1024 => 0...2000-idlePermille*2
 		throttle += idlePermille * 2; // 0...2000-idlePermille*2 => idlePermille*2...2000
+
+		// apply mixer
 		fix32 tRR, tRL, tFR, tFL;
 #ifdef PROPS_OUT
 		tRR = throttle - rollTerm + pitchTerm + yawTerm;
@@ -500,68 +421,37 @@ void pidLoop() {
 		throttles[(u8)MOTOR::RL] = tRL.geti32();
 		throttles[(u8)MOTOR::FR] = tFR.geti32();
 		throttles[(u8)MOTOR::FL] = tFL.geti32();
-		if (throttles[(u8)MOTOR::RR] > 2000) {
-			i16 diff = throttles[(u8)MOTOR::RR] - 2000;
-			throttles[(u8)MOTOR::RR] = 2000;
-			throttles[(u8)MOTOR::FL] -= diff;
-			throttles[(u8)MOTOR::FR] -= diff;
-			throttles[(u8)MOTOR::RL] -= diff;
+
+		// apply idling
+		i16 low = 0x7FFF, high = 0, diff = 0;
+		for (int i = i; i < 4; i++) {
+			auto &t = throttles[i];
+			if (t < low) low = t;
+			if (t > high) high = t;
 		}
-		if (throttles[(u8)MOTOR::RL] > 2000) {
-			i16 diff = throttles[(u8)MOTOR::RL] - 2000;
-			throttles[(u8)MOTOR::RL] = 2000;
-			throttles[(u8)MOTOR::FL] -= diff;
-			throttles[(u8)MOTOR::FR] -= diff;
-			throttles[(u8)MOTOR::RR] -= diff;
+		if (high > 2000) diff = 2000 - high;
+		low += diff;
+		if (low < idlePermille * 2) diff += idlePermille * 2 - low;
+		for (int i = 0; i < 4; i++) {
+			auto &t = throttles[i];
+			t += diff;
+			if (t > 2000) t = 2000;
 		}
-		if (throttles[(u8)MOTOR::FR] > 2000) {
-			i16 diff = throttles[(u8)MOTOR::FR] - 2000;
-			throttles[(u8)MOTOR::FR] = 2000;
-			throttles[(u8)MOTOR::FL] -= diff;
-			throttles[(u8)MOTOR::RL] -= diff;
-			throttles[(u8)MOTOR::RR] -= diff;
-		}
-		if (throttles[(u8)MOTOR::FL] > 2000) {
-			i16 diff = throttles[(u8)MOTOR::FL] - 2000;
-			throttles[(u8)MOTOR::FL] = 2000;
-			throttles[(u8)MOTOR::RL] -= diff;
-			throttles[(u8)MOTOR::RR] -= diff;
-			throttles[(u8)MOTOR::FR] -= diff;
-		}
-		if (throttles[(u8)MOTOR::RR] < idlePermille * 2) {
-			i16 diff = idlePermille * 2 - throttles[(u8)MOTOR::RR];
-			throttles[(u8)MOTOR::RR] = idlePermille * 2;
-			throttles[(u8)MOTOR::FL] += diff;
-			throttles[(u8)MOTOR::FR] += diff;
-			throttles[(u8)MOTOR::RL] += diff;
-		}
-		if (throttles[(u8)MOTOR::RL] < idlePermille * 2) {
-			i16 diff = idlePermille * 2 - throttles[(u8)MOTOR::RL];
-			throttles[(u8)MOTOR::RL] = idlePermille * 2;
-			throttles[(u8)MOTOR::FL] += diff;
-			throttles[(u8)MOTOR::FR] += diff;
-			throttles[(u8)MOTOR::RR] += diff;
-		}
-		if (throttles[(u8)MOTOR::FR] < idlePermille * 2) {
-			i16 diff = idlePermille * 2 - throttles[(u8)MOTOR::FR];
-			throttles[(u8)MOTOR::FR] = idlePermille * 2;
-			throttles[(u8)MOTOR::FL] += diff;
-			throttles[(u8)MOTOR::RL] += diff;
-			throttles[(u8)MOTOR::RR] += diff;
-		}
-		if (throttles[(u8)MOTOR::FL] < idlePermille * 2) {
-			i16 diff = idlePermille * 2 - throttles[(u8)MOTOR::FL];
-			throttles[(u8)MOTOR::FL] = idlePermille * 2;
-			throttles[(u8)MOTOR::RL] += diff;
-			throttles[(u8)MOTOR::RR] += diff;
-			throttles[(u8)MOTOR::FR] += diff;
-		}
-		for (int i = 0; i < 4; i++)
-			throttles[i] = throttles[i] > 2000 ? 2000 : throttles[i];
+
+		// send to ESCs
 		sendThrottles(throttles);
+
+		// save states
 		rollLast = gyroFiltered[AXIS_ROLL];
 		pitchLast = gyroFiltered[AXIS_PITCH];
 		yawLast = gyroFiltered[AXIS_YAW];
+		lastSetpoints[AXIS_ROLL] = rollSetpoint;
+		lastSetpoints[AXIS_PITCH] = pitchSetpoint;
+		lastSetpoints[AXIS_YAW] = yawSetpoint;
+		lastThrottle = throttle;
+		vVelLast = vVel;
+
+		// write blackbox if needed
 		if ((pidLoopCounter % bbFreqDivider) == 0 && bbFreqDivider) {
 			writeSingleFrame();
 		}
@@ -604,4 +494,122 @@ void pidLoop() {
 		tasks[TASK_PID].maxDuration = duration;
 	}
 	taskTimerPid = 0;
+}
+
+static fix32 calcThrottle(fix32 stickPos) {
+	fix32 t = stickPos - 512;
+	static elapsedMillis setAltSetpointTimer;
+	static u32 stickWasCentered = 0;
+
+	// deadband in center of stick
+	if (t.abs() < 50)
+		t = 0;
+	else if (t > 0)
+		t -= 50;
+	else
+		t += 50;
+
+	// estimate throttle
+	vVelSetpoint = t / 90; // +/- 5 m/s
+	if (vVelSetpoint == 0) {
+		if (!stickWasCentered) {
+			setAltSetpointTimer = 0;
+			stickWasCentered = 1;
+		} else if (setAltSetpointTimer > 1000) {
+			if (stickWasCentered == 1) {
+				// set altitude setpoint 1s after throttle is centered
+				altSetpoint = combinedAltitude;
+				stickWasCentered = 2;
+			}
+			vVelSetpoint += (altSetpoint - combinedAltitude) / 5; // prevent vVel drift slowly
+		}
+	} else {
+		stickWasCentered = 0;
+	}
+
+	vVelError = vVelSetpoint - vVel;
+	vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(vVelSetpoint - vVelLastSetpoint).abs() < fix32(0.001f)) ? vVelError : vVelError / 2); // reduce windup during fast changes
+	vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
+	vVelP = pidGainsVVel[P] * vVelError;
+	vVelI = pidGainsVVel[I] * vVelErrorSum;
+	vVelD = pidGainsVVel[D] * vVelDFilter.update(vVelLast - vVel);
+	vVelFF = pidGainsVVel[FF] * vVelFFFilter;
+	vVelLastSetpoint = vVelSetpoint;
+	t = vVelP + vVelI + vVelD + vVelFF;
+	/* The cos of the thrust angle gives us the thrust "efficiency" (=cos(acos(...))),
+	aka how much of the thrust is actually used to lift the quad.
+	Dividing by this "efficiency" will give us the actual thrust needed to lift the quad.
+	This acts much quicker than the PID would ever increase the throttle when tilting the quad. */
+	fix32 throttleFactor = cosRoll * cosPitch;
+	if (throttleFactor < 0) // quad is upside down
+		throttleFactor = 1;
+	throttleFactor = constrain(throttleFactor, fix32(0.33f), 1); // we limit the throttle increase to 3x (ca. 72° tilt), and also prevent division by zero
+	throttleFactor = fix32(1) / throttleFactor; // 1/cos(acos(...)) = 1/cos(thrust angle)
+	t = t * throttleFactor;
+	t = constrain(t, 0, 1024);
+	return t;
+}
+
+static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix32 *nVelSetpoint) {
+	static elapsedMillis locationSetpointTimer = 0;
+	fix32 rightCommand = channels[0] - 1500;
+	fix32 fwdCommand = channels[1] - 1500;
+	fix32 pushEastVel = 0;
+	fix32 pushNorthVel = 0;
+
+	// fwd/right stick deadband
+	if (fwdCommand.abs() < hvelStickDeadband)
+		fwdCommand = 0;
+	else if (fwdCommand > 0)
+		fwdCommand -= hvelStickDeadband;
+	else
+		fwdCommand += hvelStickDeadband;
+	if (rightCommand.abs() < hvelStickDeadband)
+		rightCommand = 0;
+	else if (rightCommand > 0)
+		rightCommand -= hvelStickDeadband;
+	else
+		rightCommand += hvelStickDeadband;
+
+	// calculate nVel/eVel setpoints
+	if (rightCommand || fwdCommand) {
+		// fly into a direction
+		*eVelSetpoint = cosHeading * rightCommand + sinHeading * fwdCommand;
+		*nVelSetpoint = -sinHeading * rightCommand + cosHeading * fwdCommand;
+		*eVelSetpoint = *eVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
+		*nVelSetpoint = *nVelSetpoint >> 9; // +-512 => +-1 (slightly less due to deadband)
+		*eVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
+		*nVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
+		pushNorth.set(0);
+		pushEast.set(0);
+		locationSetpointTimer = 0;
+	} else if (locationSetpointTimer < 2000) {
+		// stop craft within the first 2s after releasing sticks
+		*eVelSetpoint = 0;
+		*nVelSetpoint = 0;
+		targetLat = gpsLatitudeFiltered;
+		targetLon = gpsLongitudeFiltered;
+	} else {
+		// lock position 2s after releasing sticks (push..., target...)
+		fix64 latDiff = targetLat - fix64(gpsMotion.lat) / 10000000;
+		fix64 lonDiff = targetLon - fix64(gpsMotion.lon) / 10000000;
+		if (lonDiff > 180)
+			lonDiff = lonDiff - 360;
+		else if (lonDiff < -180)
+			lonDiff = lonDiff + 360;
+		fix32 tooFarSouth = latDiff * (40075000 / 360); // in m
+		fix32 tooFarWest = lonDiff * (40075000 / 360); // in m
+		startFixTrig();
+		tooFarWest *= cosFix(targetLat);
+		pushNorth.update(tooFarSouth);
+		pushEast.update(tooFarWest);
+		*eVelSetpoint = 0;
+		*nVelSetpoint = 0;
+		pushEastVel = fix32(pushEast) / 4;
+		pushEastVel = constrain(pushEastVel, -maxTargetHvel, maxTargetHvel);
+		pushNorthVel = fix32(pushNorth) / 4;
+		pushNorthVel = constrain(pushNorthVel, -maxTargetHvel, maxTargetHvel);
+	}
+	*eVelSetpoint += pushEastVel;
+	*nVelSetpoint += pushNorthVel;
 }
