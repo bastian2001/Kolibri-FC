@@ -5,4 +5,4 @@ void modesInit();
 
 extern u32 armingDisableFlags; // each flag is 1 to prevent arming, or 0 to allow arming
 extern bool armed; // true if the drone is armed
-extern i32 startPointLat, startPointLon; // GPS coordinates of the drone when it was armed
+extern fix64 homepointLat, homepointLon; // GPS coordinates of the drone when it was armed

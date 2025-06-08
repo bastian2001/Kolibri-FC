@@ -286,14 +286,14 @@ void gpsLoop() {
 				gpsStatus.flags3 = DECODE_U2(&msgData[78]);
 				eVel.update(fix32(0.001f) * gpsMotion.velE);
 				nVel.update(fix32(0.001f) * gpsMotion.velN);
-				static fix64 lastLat = fix64(gpsMotion.lat) / 10000000;
-				static fix64 lastLon = fix64(gpsMotion.lon) / 10000000;
-				gpsLatitudeFiltered = (gpsLatitudeFiltered * 3 + fix64(gpsMotion.lat) / 10000000) / 4;
-				gpsLongitudeFiltered = (gpsLongitudeFiltered * 3 + fix64(gpsMotion.lon) / 10000000) / 4;
+				fix64 lat64 = fix64(gpsMotion.lat) / 10000000;
+				fix64 lon64 = fix64(gpsMotion.lon) / 10000000;
+				gpsLatitudeFiltered = (gpsLatitudeFiltered * 3 + lat64) / 4;
+				gpsLongitudeFiltered = (gpsLongitudeFiltered * 3 + lon64) / 4;
 				u8 buf[16];
-				snprintf((char *)buf, 16, "\x89%.7f", gpsMotion.lat / 10000000.f);
+				snprintf((char *)buf, 16, "\x89%.7f", lat64.getf32());
 				updateElem(OSDElem::LATITUDE, (char *)buf);
-				snprintf((char *)buf, 16, "\x98%.7f", gpsMotion.lon / 10000000.f);
+				snprintf((char *)buf, 16, "\x98%.7f", lon64.getf32());
 				updateElem(OSDElem::LONGITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
 				updateElem(OSDElem::ALTITUDE, (char *)buf);
@@ -302,14 +302,13 @@ void gpsLoop() {
 				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
 				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());
 				updateElem(OSDElem::HEADING, (char *)buf);
-				f32 toRadians = 1.745329251e-9f;
-				f32 sin1 = sinf((gpsMotion.lat - startPointLat) * (toRadians / 2));
-				f32 sin2 = sinf((gpsMotion.lon - startPointLon) * (toRadians / 2));
 
-				int dist = 2 * 6371000 *
-						   asinf(sqrtf(sin1 * sin1 + cosf(gpsMotion.lat * toRadians) * cosf(startPointLat * toRadians) * sin2 * sin2));
+				fix32 distN, distE;
+				distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
+				i32 dist = sqrtf((distN * distN + distE * distE).getf32());
 				snprintf((char *)buf, 16, "\x11%d\x0C  ", dist);
 				updateElem(OSDElem::HOME_DISTANCE, (char *)buf);
+
 				snprintf((char *)buf, 16, "\x1E\x1F%d  ", gpsStatus.satCount);
 				updateElem(OSDElem::GPS_STATUS, (char *)buf);
 				fillOpenLocationCode();

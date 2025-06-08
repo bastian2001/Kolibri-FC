@@ -1,6 +1,6 @@
 #include "global.h"
 bool armed = false;
-i32 startPointLat, startPointLon;
+fix64 homepointLat, homepointLon;
 /**
  * 0: switch in armed position for >= 10 cycles
  * 1: throttle down
@@ -45,8 +45,8 @@ void modesLoop() {
 				startLogging();
 				armed = true;
 				p.neoPixelSetValue(1, 255, 255, 255, true);
-				startPointLat = gpsMotion.lat;
-				startPointLon = gpsMotion.lon;
+				homepointLat = gpsLatitudeFiltered;
+				homepointLon = gpsLongitudeFiltered;
 			} else if (ELRS->consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
 				u8 wavSuccess = 0;
 				if (armingDisableFlags & 0x40) {
@@ -76,36 +76,7 @@ void modesLoop() {
 		if (newFlightMode >= FlightMode::LENGTH)
 			newFlightMode = FlightMode::ACRO;
 		if (newFlightMode != flightMode) {
-			switch (newFlightMode) {
-			case FlightMode::ACRO:
-				updateElem(OSDElem::FLIGHT_MODE, "ACRO ");
-				break;
-			case FlightMode::ANGLE:
-				updateElem(OSDElem::FLIGHT_MODE, "ANGLE");
-				break;
-			case FlightMode::ALT_HOLD:
-				updateElem(OSDElem::FLIGHT_MODE, "ALT  ");
-				break;
-			case FlightMode::GPS:
-				updateElem(OSDElem::FLIGHT_MODE, "GPS  ");
-				break;
-			case FlightMode::GPS_WP:
-				updateElem(OSDElem::FLIGHT_MODE, "WAYPT");
-				break;
-			default:
-				break;
-			}
-			if (flightMode <= FlightMode::ANGLE && newFlightMode > FlightMode::ANGLE) {
-				// just switched to an altitude hold mode, make sure the quad doesn't just fall at the beginning
-				vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
-				altSetpoint = combinedAltitude;
-			}
-			if (flightMode <= FlightMode::ALT_HOLD && newFlightMode > FlightMode::ALT_HOLD) {
-				// just switched to a GPS mode, prevent suddenly flying away to the old position lock
-				targetLat = gpsLatitudeFiltered;
-				targetLon = gpsLongitudeFiltered;
-			}
-			flightMode = newFlightMode;
+			setFlightMode(newFlightMode);
 		}
 		u32 duration = taskTimer;
 		tasks[TASK_MODES].totalDuration += duration;
