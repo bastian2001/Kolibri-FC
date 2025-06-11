@@ -1,6 +1,8 @@
 #include "global.h"
 bool armed = false;
 fix64 homepointLat, homepointLon;
+fix32 homepointAlt;
+
 /**
  * 0: switch in armed position for >= 10 cycles
  * 1: throttle down
@@ -47,6 +49,7 @@ void modesLoop() {
 				p.neoPixelSetValue(1, 255, 255, 255, true);
 				homepointLat = gpsLatitudeFiltered;
 				homepointLon = gpsLongitudeFiltered;
+				homepointAlt = combinedAltitude;
 			} else if (ELRS->consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
 				u8 wavSuccess = 0;
 				if (armingDisableFlags & 0x40) {

@@ -20,6 +20,9 @@ fix32 iFalloff;
 fix32 pidGainsVVel[4], pidGainsHVel[4];
 fix32 angleModeP = 10, velocityModeP = 10;
 
+fix64 rthStartLat, rthStartLon;
+u8 rthState = 0; // 0: climb, 1: navigate home, 2: descend
+
 fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast, vVelLastSetpoint;
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
 fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, vVelFF, eVelP, eVelI, eVelD, eVelFF, nVelP, nVelI, nVelD, nVelFF;
@@ -213,7 +216,27 @@ void pidLoop() {
 					vVelSetpoint = stickToTargetVvel(throttle);
 				} else {
 					// GPS_WP: sticks do nothing, for now just fly home
-					autopilotNavigate(targetLat, targetLon, 300, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+					switch (rthState) {
+					case 0: {
+						// climb to 30m above home altitude
+						const fix32 targetAlt = homepointAlt + 30;
+						autopilotNavigate(rthStartLat, rthStartLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+						if (combinedAltitude > targetAlt - 1)
+							rthState = 1;
+					} break;
+					case 1: {
+						// navigate home
+						const fix32 targetAlt = homepointAlt + 30;
+						autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+						if (eVelSetpoint.abs() < fix32(0.5f) && nVelSetpoint.abs() < fix32(0.5f))
+							rthState = 2;
+					} break;
+					case 2: {
+						// descend to 3m above home altitude, then hover
+						const fix32 targetAlt = homepointAlt + 3;
+						autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+					}
+					}
 				}
 
 				throttle = calcThrottle(vVelSetpoint);
@@ -698,6 +721,11 @@ void setFlightMode(FlightMode mode) {
 		// just switched to a GPS mode, prevent suddenly flying away to the old position lock
 		targetLat = gpsLatitudeFiltered;
 		targetLon = gpsLongitudeFiltered;
+	}
+	if (mode == FlightMode::GPS_WP) {
+		rthStartLat = gpsLatitudeFiltered;
+		rthStartLon = gpsLongitudeFiltered;
+		rthState = 0;
 	}
 
 	flightMode = mode;
