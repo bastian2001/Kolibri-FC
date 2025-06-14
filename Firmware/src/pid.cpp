@@ -42,8 +42,8 @@ fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
 PT1 pidBoostFilter;
 fix32 lastThrottle;
 u8 pidBoostAxis = 1; // 0: off, 1: RP only, 2: RPY
-fix32 pidBoostP = 2.5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
-fix32 pidBoostI = 2.5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
+fix32 pidBoostP = 5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
+fix32 pidBoostI = 5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
 fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
 fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
 fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
@@ -440,6 +440,8 @@ void pidLoop() {
 		pitchS = pidGains[1][S] * pitchSetpoint;
 		yawS = pidGains[2][S] * yawSetpoint;
 
+		lastThrottle = throttle;
+
 		// RPY terms
 		fix32 rollTerm = rollP + rollI + rollD + rollFF + rollS;
 		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
@@ -469,7 +471,7 @@ void pidLoop() {
 
 		// apply idling
 		i16 low = 0x7FFF, high = 0, diff = 0;
-		for (int i = i; i < 4; i++) {
+		for (int i = 0; i < 4; i++) {
 			auto &t = throttles[i];
 			if (t < low) low = t;
 			if (t > high) high = t;
@@ -493,7 +495,6 @@ void pidLoop() {
 		lastSetpoints[AXIS_ROLL] = rollSetpoint;
 		lastSetpoints[AXIS_PITCH] = pitchSetpoint;
 		lastSetpoints[AXIS_YAW] = yawSetpoint;
-		lastThrottle = throttle;
 		vVelLast = vVel;
 
 		// write blackbox if needed
@@ -651,10 +652,10 @@ static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix3
 		*nVelSetpoint = 0;
 	} else {
 		// lock position 2s after releasing sticks (push..., target...)
-		fix32 tooFarSouth, tooFarWest;
-		distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, targetLat, targetLon, &tooFarSouth, &tooFarWest);
-		pushNorth.update(tooFarSouth);
-		pushEast.update(tooFarWest);
+		fix32 distNorth, distEast;
+		distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, targetLat, targetLon, &distNorth, &distEast);
+		pushNorth.update(distNorth);
+		pushEast.update(distEast);
 		*eVelSetpoint = fix32(pushEast) / 4;
 		*eVelSetpoint = constrain(*eVelSetpoint, -maxTargetHvel, maxTargetHvel);
 		*nVelSetpoint = fix32(pushNorth) / 4;
@@ -676,8 +677,8 @@ static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVel
 		speed = maxTargetHvel;
 		est = dist / speed;
 	}
-	*eVelSetpoint = speed * cosFix(angle);
-	*nVelSetpoint = speed * sinFix(angle);
+	*eVelSetpoint = speed * sinFix(angle);
+	*nVelSetpoint = speed * cosFix(angle);
 
 	fix32 altDiff = toAlt - combinedAltitude;
 	fix32 temp = altDiff / est;

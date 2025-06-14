@@ -56,7 +56,7 @@ void imuInit() {
 	magHeadingCorrection.setRolloverParams(-PI, PI);
 }
 
-void updateFromGyro() {
+void __not_in_flash_func(updateFromGyro)() {
 	// quaternion of all 3 axis rotations combined
 
 	f32 all[] = {-gyroDataRaw[1] * RAW_TO_HALF_ANGLE, -gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
@@ -70,7 +70,7 @@ void updateFromGyro() {
 }
 
 f32 orientation_vector[3];
-void updateFromAccel() {
+void __not_in_flash_func(updateFromAccel)() {
 	// filter accel data
 	accelDataFiltered[0].update(accelDataRaw[0]);
 	accelDataFiltered[1].update(accelDataRaw[1]);
@@ -122,7 +122,7 @@ void updateFromAccel() {
 	Quaternion_normalize(&q, &q);
 }
 
-void updatePitchRollValues() {
+void __not_in_flash_func(updatePitchRollValues)() {
 	startFixTrig();
 	roll = atan2Fix(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
@@ -149,7 +149,7 @@ void updatePitchRollValues() {
 fix32 rAccel, fAccel;
 fix32 nAccel, eAccel;
 
-void updateSpeeds() {
+void __not_in_flash_func(updateSpeeds)() {
 	fix32 preHelper = vVelHelper;
 	cosPitch = cosFix(pitch);
 	cosRoll = cosFix(roll);
@@ -187,7 +187,7 @@ void updateSpeeds() {
 	nVel.add(northAccel * RAW_TO_M_PER_SEC2 / 3200);
 }
 
-void imuUpdate() {
+void __not_in_flash_func(imuUpdate)() {
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_IMU].runCounter++;
 	u32 t0, t1, t2, t3;
