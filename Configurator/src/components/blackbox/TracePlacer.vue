@@ -1,5 +1,5 @@
 <script lang="ts">
-import { BBLog, FlagProps, GenFlagProps, LogDataType, TraceInGraph } from '@utils/types';
+import { BBLog, FlagProps, GenFlagProps, LogDataType, TraceInGraph, TraceInternalData } from '@utils/types';
 import { defineComponent, PropType } from 'vue';
 
 function getBinomialCoeff(n: number, k: number) {
@@ -18,6 +18,7 @@ function getBinomialCoeff(n: number, k: number) {
 
 export default defineComponent({
 	name: 'TracePlacer',
+	emits: ['backupfn', 'update', 'delete'],
 	props: {
 		flagProps: {
 			type: Object as PropType<{ [key: string]: FlagProps }>,
@@ -35,6 +36,10 @@ export default defineComponent({
 			type: Object as PropType<TraceInGraph>,
 			required: true,
 		},
+		setData: {
+			type: Object,
+			default: {},
+		}
 	},
 	data() {
 		return {
@@ -120,10 +125,18 @@ export default defineComponent({
 		}
 	},
 	mounted() {
-		const h = Math.random() * 360;
-		const s = Math.random() * 0.5 + 0.5;
-		const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
-		this.trace.color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
+		this.$emit('backupfn', this.backupfn);
+		if (this.trace.color === "transparent") {
+			const h = Math.random() * 360;
+			const s = Math.random() * 0.5 + 0.5;
+			const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
+			this.trace.color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
+			return;
+		}
+		for (const key in this.setData) {
+			// @ts-expect-error
+			this[key] = this.setData[key];
+		}
 	},
 	methods: {
 		applyFilter() {
@@ -232,6 +245,20 @@ export default defineComponent({
 				}, 1000);
 			});
 			picker.click();
+		},
+		backupfn() {
+			const d: TraceInternalData = {
+				autoRangeOn: this.autoRangeOn,
+				currentModifierName: this.currentModifierName,
+				filteringOn: this.filteringOn,
+				filterType: this.filterType,
+				filterValue1: this.filterValue1,
+				filterValue2: this.filterValue2,
+				flagName: this.flagName,
+				minValue: this.minValue,
+				maxValue: this.maxValue
+			}
+			return d
 		}
 	},
 	watch: {

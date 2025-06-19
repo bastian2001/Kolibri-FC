@@ -135,6 +135,18 @@ export type TraceInGraph = {
 	overrideSliceAndSkip?: number[]
 }
 
+export type TraceInternalData = {
+	autoRangeOn: boolean
+	currentModifierName: string
+	filteringOn: boolean
+	filterType: "pt1" | "pt2" | "pt3" | "sma" | "binomial"
+	filterValue1: number
+	filterValue2: boolean
+	flagName: string
+	minValue: number
+	maxValue: number
+}
+
 export type FlagProps = {
 	name: string
 	path: string
