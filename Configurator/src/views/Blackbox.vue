@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import Timeline from "@components/blackbox/Timeline.vue";
 import Settings from "@components/blackbox/Settings.vue";
-import { BBLog, TraceInGraph, Command, LogData, LogDataType } from "@utils/types";
+import { BBLog, TraceInGraph, Command, LogData, LogDataType, TraceInternalData } from "@utils/types";
 import { constrain, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
 import { skipValues } from "@/utils/blackbox/other";
 import { MspFn, MspVersion } from "@/msp/protocol";
@@ -12,6 +12,7 @@ import TracePlacer from "@components/blackbox/TracePlacer.vue";
 import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
 import { parseBlackbox } from "@/utils/blackbox/parsing";
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
+import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
 
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
 ];
@@ -61,6 +62,8 @@ export default defineComponent({
 			BB_GEN_FLAGS,
 			configuratorLog: useLogStore(),
 			getChunkInterval: -1,
+			traceInternalData: [[]] as TraceInternalData[][],
+			traceInternalBackupFn: [[]] as (() => (TraceInternalData | void))[][],
 		};
 	},
 	computed: {
@@ -155,12 +158,18 @@ export default defineComponent({
 		},
 		addGraph() {
 			this.graphs.push([]);
+			this.traceInternalBackupFn.push([]);
+			this.traceInternalData.push([]);
 		},
 		deleteGraph(g: number) {
 			this.graphs = this.graphs.filter((_, i) => i !== g);
+			this.traceInternalBackupFn = this.traceInternalBackupFn.filter((_, i) => i !== g);
+			this.traceInternalData = this.traceInternalData.filter((_, i) => i !== g);
 		},
 		deleteTrace(g: number, t: number) {
 			this.graphs[g] = this.graphs[g].filter((_, i) => i !== t);
+			this.traceInternalBackupFn[g] = this.traceInternalBackupFn[g].filter((_, i) => i !== t);
+			this.traceInternalData[g] = this.traceInternalData[g].filter((_, i) => i !== t);
 		},
 		addTrace(graphIndex: number) {
 			const defaultTrace = {
@@ -175,7 +184,9 @@ export default defineComponent({
 				displayName: '',
 				id: Math.random()
 			};
+			this.traceInternalBackupFn[graphIndex].push(() => { })
 			this.graphs[graphIndex].push(defaultTrace)
+
 		},
 		formatBB() {
 			sendCommand('request', MspFn.BB_FORMAT);
@@ -442,6 +453,7 @@ export default defineComponent({
 						const scale = heightPerGraph / range;
 						ctx.strokeStyle = trace.color;
 						ctx.lineWidth = trace.strokeWidth * 2;
+						if (!trace.path) continue
 						// @ts-expect-error
 						const data = constrain(trace.overrideData ? trace.overrideSliceAndSkip![closestFrameSliceSkip] : frame[trace.path][0], trace.minValue, trace.maxValue);
 						const pointY = heightOffset + heightPerGraph - (data - trace.minValue) * scale;
@@ -963,13 +975,51 @@ export default defineComponent({
 		this.domCanvas.addEventListener('touchend', this.onTouchUp, { passive: false });
 		this.onResize()
 		addOnCommandHandler(this.onCommand)
+
+		this.loadedLog = getSavedLog()
+		if (this.loadedLog) {
+			const { min, max } = getFrameRange();
+			this.startFrame = min;
+			this.endFrame = max;
+			const d = getGraphs();
+			for (const i in d) {
+				if (!this.graphs[i]) this.graphs[i] = [];
+				if (!this.traceInternalData[i]) this.traceInternalData[i] = [];
+				for (const j in d[i]) {
+					const g = d[i][j];
+					this.graphs[i][j] = g.t
+					this.traceInternalData[i][j] = g.s as TraceInternalData;
+				}
+			}
+		} else {
+			this.startFrame = 0;
+			this.endFrame = 0;
+			this.graphs = [[]];
+		}
 	},
-	unmounted() {
+	beforeUnmount() {
 		clearTimeout(this.drawFullCanvasTimeout);
 		clearInterval(this.getChunkInterval);
 		removeOnConnectHandler(this.getFileList);
 		removeOnCommandHandler(this.onCommand)
 		window.removeEventListener('resize', this.onResize);
+
+		saveLog(this.loadedLog);
+		if (this.loadedLog) {
+			setFrameRange(this.startFrame, this.endFrame);
+			const g = [] as { t: TraceInGraph, s: TraceInternalData | undefined }[][]
+			for (const i in this.graphs) {
+				g[i] = [];
+				for (const j in this.graphs[i]) {
+					const s = this.traceInternalBackupFn[i][j]() as TraceInternalData | undefined;
+					g[i][j] = { t: this.graphs[i][j], s }
+				}
+			}
+			setGraphs(g);
+		} else {
+			setFrameRange(0, 0);
+			setGraphs([[]]);
+		}
 	}
 })
 </script>
@@ -1005,6 +1055,9 @@ export default defineComponent({
 						drawCanvas()
 					}" @delete="() => {
 						deleteTrace(graphIndex, traceIndex);
+					}" :set-data="traceInternalData[graphIndex][traceIndex]" @backupfn="(f: () => TraceInternalData | undefined) => {
+						if (!traceInternalBackupFn[graphIndex]) traceInternalBackupFn[graphIndex] = [];
+						traceInternalBackupFn[graphIndex][traceIndex] = f;
 					}" />
 				<button class="addTraceButton" :disabled="!loadedLog?.flags?.length" @click="() => {
 					addTrace(graphIndex);
