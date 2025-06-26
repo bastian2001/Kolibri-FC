@@ -5,7 +5,7 @@
 
 extern fix32 roll, pitch, yaw; // Euler angles of the drone
 extern fix32 accelFilterCutoff; // filter frequency for the accelerometer data
-extern fix32 gravityRoll, gravityPitch; // roll and pitch, angles from the gravity vector (not Euler angles)
+extern fix32 gravityRoll, gravityPitch, totalTilt; // roll and pitch, angles from the gravity vector (not Euler angles)
 extern fix32 combinedHeading; // heading of the drone (in rad) by combining the magnetometer and the gyro
 extern fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading; // trigonometric values of the Euler angles
 extern PT1 magHeadingCorrection; // PT1 filter for the IMU heading correction (from yaw to heading via compass) (updated on every compass read)
@@ -16,6 +16,7 @@ extern PT1 eVel; // east velocity of the drone (m/s) by GPS + accel (filtered)
 extern PT1 nVel; // north velocity of the drone (m/s) by GPS + accel (filtered)
 extern PT1 accelDataFiltered[3]; // PT1 filters for the accelerometer data
 extern fix32 vAccel; // vertical up acceleration of the drone (m/s^2) provided by the accelerometer
+extern Quaternion q; // attitude quaternion of the drone, used to calculate the attitude angles and the heading
 
 /**
  * @brief initialize the IMU

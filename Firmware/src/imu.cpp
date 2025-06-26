@@ -19,7 +19,7 @@ constexpr fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 fo
 fix32 accelFilterCutoff;
 PT1 accelDataFiltered[3];
 fix32 roll, pitch, yaw;
-fix32 gravityRoll, gravityPitch;
+fix32 gravityRoll, gravityPitch, totalTilt;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
@@ -136,14 +136,17 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	combinedHeading = temp;
 
 	// update true pitch/roll values
-	Quaternion shortest_path;
-	float vTemp[3] = {0, 0, -1};
-	// decision was made to not recalculate the orientation_vector, as this saves 50µs @132MHz at only a slight loss in precision (accel update delayed by 1 cycle)
-	Quaternion_from_unit_vecs(orientation_vector, vTemp, &shortest_path);
 	float orientation_correction_axes[3];
-	fix32 angle = Quaternion_toAxisAngle(&shortest_path, orientation_correction_axes);
-	gravityRoll = angle * orientation_correction_axes[0];
-	gravityPitch = angle * orientation_correction_axes[1];
+	totalTilt = Quaternion_toAxisAngle(&q, orientation_correction_axes);
+	gravityRoll = totalTilt * orientation_correction_axes[0];
+	gravityPitch = totalTilt * orientation_correction_axes[1];
+	fix32 tempYaw = totalTilt * orientation_correction_axes[2];
+
+	static int c = 0;
+	if (++c > 1000) {
+		c = 0;
+		Serial.printf("%.3f %.3f %.3f %.3f\n",totalTilt.getf32(), gravityRoll.getf32(), gravityPitch.getf32(), tempYaw.getf32());
+	}
 }
 
 fix32 rAccel, fAccel;
