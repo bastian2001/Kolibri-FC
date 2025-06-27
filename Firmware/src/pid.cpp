@@ -29,6 +29,7 @@ fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pit
 fix32 altSetpoint;
 fix32 throttle;
 fix64 targetLat, targetLon;
+fix32 targetAngleHeading;
 u16 dFilterCutoff;
 PT2 dFilterRoll, dFilterPitch, dFilterYaw;
 u16 gyroFilterCutoff;
@@ -41,7 +42,7 @@ fix32 lastSetpoints[3];
 fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
 PT1 pidBoostFilter;
 fix32 lastThrottle;
-u8 pidBoostAxis = 1; // 0: off, 1: RP only, 2: RPY
+u8 pidBoostAxis = 0; // 0: off, 1: RP only, 2: RPY
 fix32 pidBoostP = 5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
 fix32 pidBoostI = 5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
 fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
@@ -177,7 +178,7 @@ void initPid() {
 
 u32 takeoffCounter = 0;
 elapsedMicros taskTimerPid;
-void pidLoop() {
+void __not_in_flash_func(pidLoop)() {
 	u32 duration = taskTimerPid;
 	if (tasks[TASK_PID].maxGap < duration)
 		tasks[TASK_PID].maxGap = duration;
@@ -302,13 +303,6 @@ void pidLoop() {
 					}
 				}
 
-				// fix32 dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
-				// fix32 dPitch = targetPitch - (FIX_RAD_TO_DEG * pitch);
-				// newRollSetpoint = dRoll * velocityModeP;
-				// newRollSetpoint = constrain(newRollSetpoint, -1000, 1000);
-				// newPitchSetpoint = dPitch * velocityModeP;
-				// newPitchSetpoint = constrain(newPitchSetpoint, -1000, 1000);
-
 				lastNVelSetpoint = nVelSetpoint;
 				lastEVelSetpoint = eVelSetpoint;
 				nVelLast = nVel;
@@ -317,12 +311,6 @@ void pidLoop() {
 				// angle or alt hold: sticks => target tilt => target angular rate
 				targetRoll = (smoothChannels[0] - 1500) * stickToAngle; // -1000...+1000
 				targetPitch = (smoothChannels[1] - 1500) * stickToAngle; // -1000...+1000
-				// fix32 dRoll = targetRoll + (FIX_RAD_TO_DEG * roll);
-				// fix32 dPitch = targetPitch - (FIX_RAD_TO_DEG * pitch);
-				// newRollSetpoint = dRoll * angleModeP;
-				// newRollSetpoint = constrain(newRollSetpoint, -1000, 1000);
-				// newPitchSetpoint = dPitch * angleModeP;
-				// newPitchSetpoint = constrain(newPitchSetpoint, -1000, 1000);
 
 				if (flightMode == FlightMode::ALT_HOLD) {
 					// throttle stick => vertical velocity
@@ -343,7 +331,7 @@ void pidLoop() {
 				newYawSetpoint += rateFactors[i][2] * polynomials[i][2];
 
 			/*
-			headQuat = Quaternion that has current heading + diff heading from target yaw rate
+			headQuat = Quaternion that has target heading
 			targetRPQuat = Quaternion that has target roll + target pitch
 			targetQuat = headQuat * targetRPQuat
 			diffQuat = from current orientation to targetQuat
@@ -354,25 +342,27 @@ void pidLoop() {
 			startFixTrig();
 
 			// set headQuat
-			fix32 heading = combinedHeading + fix32(newYawSetpoint) * FIX_DEG_TO_RAD / 3200;
-			fix32 halfHeading = heading / 2;
-			fix32 cosHeading = cosFix(halfHeading);
-			fix32 sinHeading = sinFix(halfHeading);
-			headQuat.w = cosHeading.getf32();
+			targetAngleHeading += newYawSetpoint / 3200;
+			if (targetAngleHeading > 180)
+				targetAngleHeading -= 360;
+			else if (targetAngleHeading < -180)
+				targetAngleHeading += 360;
+			fix32 halfHeading = -targetAngleHeading * FIX_DEG_TO_RAD / 2;
+			headQuat.w = cosFix(halfHeading).getf32();
 			headQuat.v[0] = 0;
 			headQuat.v[1] = 0;
-			headQuat.v[2] = sinHeading.getf32();
+			headQuat.v[2] = sinFix(halfHeading).getf32();
 
 			// create targetRPQuat
-			f32 totalAngle = sqrtf(((targetRoll * targetRoll + targetPitch * targetPitch) * FIX_DEG_TO_RAD).getf32());
+			fix32 totalAngle = sqrtf((targetRoll * targetRoll + targetPitch * targetPitch).getf32());
 			f32 ratios[3] = {
-				targetRoll.getf32() / totalAngle,
-				targetPitch.getf32() / totalAngle,
-				0 // yaw is not set yet
+				(-targetRoll / totalAngle).getf32(),
+				(targetPitch / totalAngle).getf32(),
+				0 // yaw is not set
 			};
 			if (totalAngle > maxAngle)
 				totalAngle = maxAngle;
-			Quaternion_fromAxisAngle(ratios, totalAngle, &targetRPQuat);
+			Quaternion_fromAxisAngle(ratios, (totalAngle * FIX_DEG_TO_RAD).getf32(), &targetRPQuat);
 
 			// create targetQuat
 			Quaternion_multiply(&headQuat, &targetRPQuat, &targetQuat);
@@ -381,19 +371,18 @@ void pidLoop() {
 			Quaternion currentQuatInv;
 			Quaternion_conjugate(&q, &currentQuatInv);
 			Quaternion_multiply(&currentQuatInv, &targetQuat, &diffQuat);
+			Quaternion_normalize(&diffQuat, &diffQuat);
 
 			// extract roll, pitch and yaw from diffQuat
 			f32 axis[3];
 			fix32 angle = Quaternion_toAxisAngle(&diffQuat, axis);
-			fix32 angles[3];
-			angles[0] = angle * axis[0] * FIX_RAD_TO_DEG; // roll
-			angles[1] = angle * axis[1] * FIX_RAD_TO_DEG; // pitch
-			angles[2] = angle * axis[2] * FIX_RAD_TO_DEG; // yaw
 
-			// convert (new...) global roll, pitch and yaw to local roll, pitch and yaw
-			rollSetpoint = newRollSetpoint * cosPitch - newYawSetpoint * sinPitch;
-			pitchSetpoint = newPitchSetpoint * cosRoll + newYawSetpoint * cosPitch * sinRoll;
-			yawSetpoint = -newPitchSetpoint * sinRoll + newYawSetpoint * cosPitch * cosRoll - newRollSetpoint * sinPitch;
+			// apply P gain and limit to total 1000 deg/s
+			angle *= angleModeP;
+			if (angle > 1000) angle = 1000;
+			rollSetpoint = -angle * axis[0] * FIX_RAD_TO_DEG;
+			pitchSetpoint = angle * axis[1] * FIX_RAD_TO_DEG;
+			yawSetpoint = -angle * axis[2] * FIX_RAD_TO_DEG;
 		} else {
 			/*
 			 * at full stick deflection, ...Raw values are either +1 or -1. That will make all the
@@ -459,10 +448,10 @@ void pidLoop() {
 		// I term relax multiplier
 		fix32 totalDiff = fix32(setpointDiff[AXIS_ROLL]).abs() + fix32(setpointDiff[AXIS_PITCH]).abs() + fix32(setpointDiff[AXIS_YAW]).abs();
 		fix32 iRelaxMultiplier = 1;
-		if (totalDiff > 450) {
-			iRelaxMultiplier = fix32(0.125f);
-		} else if (totalDiff > 150) {
-			iRelaxMultiplier = fix32(1) - (totalDiff - 150) / 300 * 7 / 8;
+		if (totalDiff > 300) {
+			iRelaxMultiplier = fix32(0.0625f);
+		} else if (totalDiff > 70) {
+			iRelaxMultiplier = fix32(1) - (totalDiff - 70) / 230 * 15 / 16;
 		}
 
 		// I sum
@@ -765,8 +754,11 @@ void setFlightMode(FlightMode mode) {
 		vVelErrorSum = throttle.getfix64() / pidGainsVVel[I]; // TODO: set target Vvel to 0 until the first zero-crossing
 		altSetpoint = combinedAltitude;
 	}
+	if (flightMode < FlightMode::ANGLE && mode >= FlightMode::ANGLE) {
+		targetAngleHeading = yaw * FIX_RAD_TO_DEG;
+	}
 	if (mode == FlightMode::GPS) {
-		// just switched to a GPS mode, prevent suddenly flying away to the old position lock
+		// just switched to GPS mode, prevent suddenly flying away to the old position lock
 		targetLat = gpsLatitudeFiltered;
 		targetLon = gpsLongitudeFiltered;
 		altSetpoint = combinedAltitude;

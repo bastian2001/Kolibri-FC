@@ -140,13 +140,6 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	totalTilt = Quaternion_toAxisAngle(&q, orientation_correction_axes);
 	gravityRoll = totalTilt * orientation_correction_axes[0];
 	gravityPitch = totalTilt * orientation_correction_axes[1];
-	fix32 tempYaw = totalTilt * orientation_correction_axes[2];
-
-	static int c = 0;
-	if (++c > 1000) {
-		c = 0;
-		Serial.printf("%.3f %.3f %.3f %.3f\n",totalTilt.getf32(), gravityRoll.getf32(), gravityPitch.getf32(), tempYaw.getf32());
-	}
 }
 
 fix32 rAccel, fAccel;
