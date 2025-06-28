@@ -18,7 +18,7 @@ fix32 gyroScaled[3];
 fix32 pidGains[3][5];
 fix32 iFalloff;
 fix32 pidGainsVVel[4], pidGainsHVel[4];
-fix32 angleModeP = 10, velocityModeP = 10;
+fix32 angleModeP = 10;
 
 fix64 rthStartLat, rthStartLon;
 u8 rthState = 0; // 0: climb, 1: navigate home, 2: descend

@@ -19,7 +19,6 @@ constexpr fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 fo
 fix32 accelFilterCutoff;
 PT1 accelDataFiltered[3];
 fix32 roll, pitch, yaw;
-fix32 gravityRoll, gravityPitch, totalTilt;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
@@ -40,8 +39,6 @@ void imuInit() {
 	pitch = 0; // pitch up
 	roll = 0; // roll right
 	yaw = 0; // yaw right
-	gravityRoll = 0; // roll right
-	gravityPitch = 0; // pitch up
 	q.w = 1;
 	q.v[0] = 0;
 	q.v[1] = 0;
@@ -134,12 +131,6 @@ void __not_in_flash_func(updatePitchRollValues)() {
 		temp += FIX_PI * 2;
 	}
 	combinedHeading = temp;
-
-	// update true pitch/roll values
-	float orientation_correction_axes[3];
-	totalTilt = Quaternion_toAxisAngle(&q, orientation_correction_axes);
-	gravityRoll = totalTilt * orientation_correction_axes[0];
-	gravityPitch = totalTilt * orientation_correction_axes[1];
 }
 
 fix32 rAccel, fAccel;
