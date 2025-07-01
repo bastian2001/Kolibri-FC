@@ -4,7 +4,7 @@ const getGyroBBRange = (file: BBLog | undefined) => {
 	if (!file) return { max: -2000, min: 2000 }
 	let maxSetpoints = [0, 0, 0]
 	for (let exp = 0; exp < 5; exp++) for (let ax = 0; ax < 3; ax++) maxSetpoints[ax] += file.rateFactors[exp][ax]
-	const max = Math.max(...maxSetpoints) * 1.5
+	const max = Math.max(...maxSetpoints) * 1.2
 	return { max: max, min: -max }
 }
 const getAltitudeRange = (file: BBLog | undefined) => {
