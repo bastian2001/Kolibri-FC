@@ -51,7 +51,8 @@ void initBlackbox() {
 #if BLACKBOX_STORAGE == SD_BB
 	SDFSConfig cfg(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
 	SDFS.setConfig(cfg);
-	SDFS.setTimeCallback(rtcGetUnixTimestamp);
+	// While Linux expects a UTC timestamp here, officially FAT filesystems (and Windows) use local time
+	SDFS.setTimeCallback(rtcGetUnixTimestampWithOffset);
 	fsReady = SDFS.begin();
 	if (!SDFS.exists("/kolibri")) {
 		SDFS.mkdir("/kolibri");
@@ -86,7 +87,7 @@ u32 getBlackboxChunkSize(MspVersion v) {
 	case MspVersion::V2_OVER_CRSF:
 	case MspVersion::V1_JUMBO_OVER_CRSF:
 		return BLACKBOX_CRSF_CHUNK_SIZE;
-		
+
 	case MspVersion::V2:
 	case MspVersion::V1_JUMBO:
 	default:
