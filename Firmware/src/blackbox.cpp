@@ -11,8 +11,6 @@ u64 currentBBFlags = 0;
 volatile bool bbLogging = false;
 volatile bool fsReady = false;
 
-FSInfo fsInfo;
-int currentLogNum = 0;
 u8 bbFreqDivider = 2;
 
 u32 bbDebug1, bbDebug2;
@@ -54,8 +52,8 @@ void initBlackbox() {
 	// While Linux expects a UTC timestamp here, officially FAT filesystems (and Windows) use local time
 	SDFS.setTimeCallback(rtcGetUnixTimestampWithOffset);
 	fsReady = SDFS.begin();
-	if (!SDFS.exists("/kolibri")) {
-		SDFS.mkdir("/kolibri");
+	if (!SDFS.exists("/blackbox")) {
+		SDFS.mkdir("/blackbox");
 	}
 	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
 #endif
@@ -65,14 +63,17 @@ bool clearBlackbox() {
 	if (!fsReady || bbLogging)
 		return false;
 #if BLACKBOX_STORAGE == SD_BB
-	for (int i = 0; i < 100; i++) {
-		char path[32];
-		snprintf(path, 32, "/kolibri/%01d.kbb", i);
-		SDFS.remove(path);
+	Dir dir = SDFS.openDir("/blackbox");
+	while (dir.next()) {
 		rp2040.wdt_reset();
+		if (dir.isFile()) {
+			char path[64];
+			snprintf(path, 64, "/blackbox/%s", dir.fileName().c_str());
+			if (!SDFS.remove(path)) return false;
+		}
 	}
-	if (!SDFS.rmdir("/kolibri")) return false;
-	if (!SDFS.mkdir("/kolibri")) return false;
+	if (!SDFS.rmdir("/blackbox")) return false;
+	if (!SDFS.mkdir("/blackbox")) return false;
 	return true;
 #endif
 }
@@ -98,7 +99,7 @@ u32 getBlackboxChunkSize(MspVersion v) {
 void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
-	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
+	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
 	File logFile = SDFS.open(path, "r");
 #endif
 	if (!logFile) {
@@ -127,7 +128,7 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
-	snprintf(path, 32, "/kolibri/%01d.kbb", logNum);
+	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
 	File logFile = SDFS.open(path, "r");
 #endif
 	if (!logFile) {
@@ -172,22 +173,36 @@ void startLogging() {
 	if (!bbFlags || !fsReady || bbLogging || !bbFreqDivider)
 		return;
 	currentBBFlags = bbFlags;
-	char path[32];
-	for (int i = 0; i < 100; i++) {
-		rp2040.wdt_reset();
 #if BLACKBOX_STORAGE == SD_BB
-		snprintf(path, 32, "/kolibri/%01d.kbb", (i + currentLogNum) % 100);
-		if (!SDFS.exists(path)) {
-			currentLogNum += i + 1;
-			break;
-		}
-#endif
-		if (i == 99) {
-			// clearBlackbox();
-			return;
+	char path[32];
+	Dir dir = SDFS.openDir("/blackbox");
+	int i = 0;
+	while (dir.next()) {
+		rp2040.wdt_reset();
+		// we want to find the highest numbered file in /blackbox
+		if (dir.isFile()) {
+			String name = dir.fileName();
+			if (!name.startsWith("KOLI") || !name.endsWith(".kbb")) {
+				continue;
+			}
+			if (name.length() != 12) {
+				continue;
+			}
+			char num[5];
+			name.substring(4, 8).toCharArray(num, 5);
+			u32 index = 0;
+			for (int j = 0; j < 4; j++) {
+				if (num[j] < '0' || num[j] > '9') {
+					index = 99999;
+				}
+				index = index * 10 + (num[j] - '0');
+			}
+			if (index > i && index < 10000) {
+				i = index;
+			}
 		}
 	}
-#if BLACKBOX_STORAGE == SD_BB
+	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", i + 1);
 	blackboxFile = SDFS.open(path, "a");
 #endif
 	if (!blackboxFile)

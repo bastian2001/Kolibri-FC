@@ -101,7 +101,13 @@ export default defineComponent({
 			if (command.cmdType === 'response') {
 				switch (command.command) {
 					case MspFn.BB_FILE_LIST:
-						this.logNums = Array.from(command.data).map(n => ({ text: '', num: n }));
+						const nums = [];
+						for (let i = 0; i < command.data.length; i += 2) {
+							const num = leBytesToInt(command.data.slice(i, i + 2));
+							nums.push(num);
+						}
+						nums.sort((a, b) => a - b);
+						this.logNums = nums.map(n => ({ text: '', num: n }));
 						if (!this.logNums.length) {
 							this.logNums = [{ text: 'No logs found', num: -1 }];
 							this.selected = -1;
@@ -129,6 +135,7 @@ export default defineComponent({
 						break;
 					case MspFn.BB_FORMAT:
 						this.configuratorLog.push('Blackbox formatted');
+						this.logNums = [{ text: 'No logs found', num: -1 }];
 						break;
 					case MspFn.BB_FILE_INIT:
 						this.prepareFileDownload(command.data);
@@ -892,35 +899,31 @@ export default defineComponent({
 					clearInterval(this.logInfoInterval);
 					break;
 				}
-				infoNums[i] = this.logNums[this.logInfoPosition++].num;
+				infoNums[i * 2] = this.logNums[this.logInfoPosition].num & 0xFF;
+				infoNums[i * 2 + 1] = (this.logNums[this.logInfoPosition++].num >> 8) & 0xFF;
 			}
 			if (infoNums.length == 0) return;
-			let checksum = 0;
-			for (let i = 0; i < infoNums.length; i++) checksum ^= infoNums[i];
-			checksum ^= 0x06;
-			checksum ^= infoNums.length;
 			sendCommand('request', MspFn.BB_FILE_INFO, MspVersion.V2, infoNums);
 		},
 		processLogInfo(data: Uint8Array) {
 			/* data of response (repeat 22 bytes for each log file)
-			 * 0. file number
-			 * 1-4. file size in bytes
-			 * 5-7. version of bb file format
-			 * 8-11: time of recording start
-			 * 12. byte that indicates PID frequency
-			 * 13. byte that indicates frequency divider
-			 * 14-21: recording flags
+			 * 0-1. file number
+			 * 2-5. file size in bytes
+			 * 6-8. version of bb file format
+			 * 9-12: time of recording start
+			 * 13. byte that indicates PID frequency
+			 * 14. byte that indicates frequency divider
+			 * 15-22: recording flags
 			 */
-			for (let i = 0; i < data.length; i += 22) {
-				const fileNum = data[i];
-				const fileSize =
-					data[i + 1] + data[i + 2] * 256 + data[i + 3] * 256 * 256 + data[i + 4] * 256 * 256 * 256;
-				const bbVersion = data[i + 5] * 256 * 256 + data[i + 6] * 256 + data[i + 7];
-				const sTime = leBytesToInt(data.slice(i + 8, i + 12), false); // unix timestamp in seconds (UTC)
+			for (let i = 0; i < data.length; i += 23) {
+				const fileNum = leBytesToInt(data.slice(i, i + 2));
+				const fileSize = leBytesToInt(data.slice(i + 2, i + 6));
+				const bbVersion = leBytesToInt(data.slice(i + 6, i + 9).reverse(), false);
+				const sTime = leBytesToInt(data.slice(i + 9, i + 13), false); // unix timestamp in seconds (UTC)
 				const startTime = new Date(sTime * 1000);
-				const pidFreq = 3200 / (data[i + 12] + 1);
-				const freqDiv = data[i + 13];
-				const flags = data.slice(i + 14, i + 22);
+				const pidFreq = 3200 / (data[i + 13] + 1);
+				const freqDiv = data[i + 14];
+				const flags = data.slice(i + 15, i + 23);
 				if (bbVersion !== 1) continue;
 				const framesPerSecond = pidFreq / freqDiv;
 				const dataBytes = fileSize - 256;
