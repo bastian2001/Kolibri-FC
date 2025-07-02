@@ -133,6 +133,7 @@ export type TraceInGraph = {
 	displayName: string
 	overrideData?: number[]
 	overrideSliceAndSkip?: number[]
+	hasSetData: boolean
 }
 
 export type TraceInternalData = {

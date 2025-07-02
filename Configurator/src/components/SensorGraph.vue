@@ -1,5 +1,6 @@
 <script lang="ts">
 import { MspFn } from "@/msp/protocol";
+import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/other";
 import { defineComponent } from "vue";
 
 type SensorTrace = {
@@ -105,18 +106,7 @@ export default defineComponent({
 			const s = Math.random() * 0.5 + 0.5;
 			const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
 			let color = '';
-			const colors = [
-				'red',
-				'green',
-				'blue',
-				'yellow',
-				'purple',
-				'orange',
-				'pink',
-				'cyan',
-				'magenta',
-			];
-			color = colors[this.traces.length] || `hsl(${h}, ${s * 100}%, ${l * 100}%)`
+			color = TRACE_COLORS_FOR_BLACK_BACKGROUND[this.traces.length] || `hsl(${h}, ${s * 100}%, ${l * 100}%)`
 
 
 			this.traces.push({

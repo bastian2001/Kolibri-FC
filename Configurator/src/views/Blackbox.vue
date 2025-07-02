@@ -13,6 +13,7 @@ import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
 import { parseBlackbox } from "@/utils/blackbox/parsing";
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
 import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
+import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/other";
 
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
 ];
@@ -179,18 +180,21 @@ export default defineComponent({
 			this.traceInternalData[g] = this.traceInternalData[g].filter((_, i) => i !== t);
 		},
 		addTrace(graphIndex: number) {
-			const defaultTrace = {
+			const defaultTrace: TraceInGraph = {
 				color: 'transparent',
 				maxValue: 10,
 				minValue: 0,
 				strokeWidth: 1,
 				path: '',
-				modifier: '',
 				decimals: 0,
 				unit: '',
 				displayName: '',
-				id: Math.random()
+				id: Math.random(),
+				hasSetData: false
 			};
+
+			const c = TRACE_COLORS_FOR_BLACK_BACKGROUND[this.graphs[graphIndex].length]
+			if (c) defaultTrace.color = c;
 			this.traceInternalBackupFn[graphIndex].push(() => { })
 			this.graphs[graphIndex].push(defaultTrace)
 
@@ -1015,7 +1019,9 @@ export default defineComponent({
 				g[i] = [];
 				for (const j in this.graphs[i]) {
 					const s = this.traceInternalBackupFn[i][j]() as TraceInternalData | undefined;
-					g[i][j] = { t: this.graphs[i][j], s }
+					const t = this.graphs[i][j];
+					t.hasSetData = true;
+					g[i][j] = { t, s }
 				}
 			}
 			setGraphs(g);
