@@ -24,5 +24,8 @@ void rtcConvertToTimespec(const struct tm *tm, struct timespec *ts);
 /// @brief Get the current RTC time as a unix timestamp.
 /// @return The number of seconds since the Unix epoch (1970-01-01 00:00:00 UTC). Without the timezone offset.
 time_t rtcGetUnixTimestamp();
+/// @brief Get the current RTC time as a unix timestamp with the timezone offset applied.
+/// @return The number of seconds since the Unix epoch (1970-01-01 00:00:00 UTC) with the timezone offset applied.
+time_t rtcGetUnixTimestampWithOffset();
 /// @brief Get the current RTC time as a timespec.
 bool rtcGetTime(struct timespec *t, bool withOffset = false);

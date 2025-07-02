@@ -94,6 +94,11 @@ time_t rtcGetUnixTimestamp() {
 	rtcGetTime(&t);
 	return t.tv_sec;
 }
+time_t rtcGetUnixTimestampWithOffset() {
+	timespec t;
+	rtcGetTime(&t, true);
+	return t.tv_sec;
+}
 
 bool rtcGetTime(struct timespec *t, bool withOffset) {
 	if (aon_timer_get_time(t)) {

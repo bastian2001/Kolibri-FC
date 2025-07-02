@@ -75,7 +75,7 @@ extern u8 bbFreqDivider; // Blackbox frequency divider (compared to PID loop)
 extern u32 bbDebug1, bbDebug2;
 extern u16 bbDebug3, bbDebug4;
 
-/// @brief Set up SD card and create /kolibri folder
+/// @brief Set up SD card and create /blackbox folder
 void initBlackbox();
 
 /// @brief Start a logging file
