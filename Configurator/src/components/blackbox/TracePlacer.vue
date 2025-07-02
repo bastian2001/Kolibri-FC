@@ -51,7 +51,8 @@ export default defineComponent({
 			filterValue2: false,
 			flagName: '',
 			minValue: 0,
-			maxValue: 1
+			maxValue: 1,
+			setupDone: false
 		};
 	},
 	computed: {
@@ -126,17 +127,33 @@ export default defineComponent({
 	},
 	mounted() {
 		this.$emit('backupfn', this.backupfn);
-		if (this.trace.color === "transparent") {
-			const h = Math.random() * 360;
-			const s = Math.random() * 0.5 + 0.5;
-			const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
-			this.trace.color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
+		if (!this.trace.hasSetData) {
+			if (this.trace.color === 'transparent') {
+				const h = Math.random() * 360;
+				const s = Math.random() * 0.5 + 0.5;
+				const l = Math.random() * 0.5 + 0.3; // 0.3 - 0.8
+				this.trace.color = `hsl(${h}, ${s * 100}%, ${l * 100}%)`;
+			}
+			this.$nextTick(() => {
+				this.setupDone = true;
+			})
 			return;
 		}
-		for (const key in this.setData) {
-			// @ts-expect-error
-			this[key] = this.setData[key];
+
+		if (this.trace.hasSetData) {
+			this.flagName = this.setData.flagName
+			this.autoRangeOn = this.setData.autoRangeOn
+			this.filteringOn = this.setData.filteringOn
+			this.filterType = this.setData.filterType
+			this.filterValue1 = this.setData.filterValue1
+			this.filterValue2 = this.setData.filterValue2
+			this.minValue = this.setData.minValue
+			this.maxValue = this.setData.maxValue
+			this.currentModifierName = this.setData.currentModifierName
 		}
+		this.$nextTick(() => {
+			this.setupDone = true;
+		})
 	},
 	methods: {
 		applyFilter() {
@@ -264,7 +281,7 @@ export default defineComponent({
 	watch: {
 		autoRangeOn: {
 			handler(newValue) {
-				if (newValue) {
+				if (newValue && this.setupDone) {
 					this.minValue = this.autoRange.min;
 					this.maxValue = this.autoRange.max;
 				}
@@ -272,7 +289,7 @@ export default defineComponent({
 		},
 		autoRange: {
 			handler(newRange) {
-				if (this.autoRangeOn) {
+				if (this.autoRangeOn && this.setupDone) {
 					this.minValue = newRange.min;
 					this.maxValue = newRange.max;
 				}
@@ -280,14 +297,17 @@ export default defineComponent({
 		},
 		watchForFilter: {
 			handler() {
-				this.applyFilter();
+				if (this.setupDone)
+					this.applyFilter();
 			},
 			deep: true,
 		},
 		flagName: {
 			handler() {
-				this.currentModifierName = ''
-				this.filteringOn = false;
+				if (this.setupDone) {
+					this.currentModifierName = ''
+					this.filteringOn = false;
+				}
 			}
 		},
 		watchForRedraw: {
