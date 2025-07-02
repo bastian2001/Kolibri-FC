@@ -1212,6 +1212,7 @@ canvas {
 .dataViewerWrapper {
 	position: relative;
 	overflow: hidden;
+	background-color: black;
 }
 
 .timelineWrapper {

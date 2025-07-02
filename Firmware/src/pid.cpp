@@ -365,12 +365,12 @@ void __not_in_flash_func(pidLoop)() {
 			Quaternion_fromAxisAngle(ratios, (totalAngle * FIX_DEG_TO_RAD).getf32(), &targetRPQuat);
 
 			// create targetQuat
-			Quaternion_multiply(&headQuat, &targetRPQuat, &targetQuat);
+			Quaternion_multiply(&targetRPQuat, &headQuat, &targetQuat);
 
 			// create diffQuat
 			Quaternion currentQuatInv;
 			Quaternion_conjugate(&q, &currentQuatInv);
-			Quaternion_multiply(&currentQuatInv, &targetQuat, &diffQuat);
+			Quaternion_multiply(&targetQuat, &currentQuatInv, &diffQuat);
 			Quaternion_normalize(&diffQuat, &diffQuat);
 
 			// extract roll, pitch and yaw from diffQuat
