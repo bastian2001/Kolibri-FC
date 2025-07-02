@@ -166,54 +166,55 @@ export default defineComponent({
 		},
 	},
 	mounted() {
+		const c = TRACE_COLORS_FOR_BLACK_BACKGROUND
 		switch (this.gid) {
 			case 'gyro':
 				this.traces = [
-					{ ...this.sensorOptions[3], color: 'red', id: Math.random() },
-					{ ...this.sensorOptions[4], color: 'green', id: Math.random() },
-					{ ...this.sensorOptions[5], color: 'blue', id: Math.random() }
+					{ ...this.sensorOptions[3], color: c[0], id: Math.random() },
+					{ ...this.sensorOptions[4], color: c[1], id: Math.random() },
+					{ ...this.sensorOptions[5], color: c[2], id: Math.random() }
 				];
 				break;
 			case 'accel':
 				this.traces = [
-					{ ...this.sensorOptions[0], color: 'red', id: Math.random() },
-					{ ...this.sensorOptions[1], color: 'green', id: Math.random() },
-					{ ...this.sensorOptions[2], color: 'blue', id: Math.random() }
+					{ ...this.sensorOptions[0], color: c[0], id: Math.random() },
+					{ ...this.sensorOptions[1], color: c[1], id: Math.random() },
+					{ ...this.sensorOptions[2], color: c[2], id: Math.random() }
 				];
 				break;
 			case 'mag':
 				this.traces = [
-					{ ...this.sensorOptions[6], color: 'red', id: Math.random() },
-					{ ...this.sensorOptions[7], color: 'green', id: Math.random() },
-					{ ...this.sensorOptions[8], color: 'blue', id: Math.random() }
+					{ ...this.sensorOptions[6], color: c[0], id: Math.random() },
+					{ ...this.sensorOptions[7], color: c[1], id: Math.random() },
+					{ ...this.sensorOptions[8], color: c[2], id: Math.random() }
 				];
 				break;
 			case 'atti':
 				this.traces = [
-					{ ...this.sensorOptions[9], color: 'red', id: Math.random() },
-					{ ...this.sensorOptions[10], color: 'green', id: Math.random() },
-					{ ...this.sensorOptions[11], color: 'blue', id: Math.random() }
+					{ ...this.sensorOptions[9], color: c[0], id: Math.random() },
+					{ ...this.sensorOptions[10], color: c[1], id: Math.random() },
+					{ ...this.sensorOptions[11], color: c[2], id: Math.random() }
 				];
 				break;
 			case 'baro':
 				this.traces = [
-					{ ...this.sensorOptions[13], color: 'red', id: Math.random() }
+					{ ...this.sensorOptions[13], color: c[0], id: Math.random() }
 				];
 				break;
 			case 'rc':
 				this.traces = [
-					{ ...this.sensorOptions[14], color: 'red', id: Math.random() },
-					{ ...this.sensorOptions[15], color: 'green', id: Math.random() },
-					{ ...this.sensorOptions[16], color: 'blue', id: Math.random() },
-					{ ...this.sensorOptions[17], color: 'yellow', id: Math.random() },
+					{ ...this.sensorOptions[14], color: c[0], id: Math.random() },
+					{ ...this.sensorOptions[15], color: c[1], id: Math.random() },
+					{ ...this.sensorOptions[16], color: c[2], id: Math.random() },
+					{ ...this.sensorOptions[17], color: c[3], id: Math.random() },
 				];
 				break;
 			case 'debug':
 				this.traces = [
-					{ ...this.sensorOptions[22], color: 'red', id: Math.random() },
-					{ ...this.sensorOptions[23], color: 'green', id: Math.random() },
-					{ ...this.sensorOptions[24], color: 'blue', id: Math.random() },
-					{ ...this.sensorOptions[25], color: 'yellow', id: Math.random() },
+					{ ...this.sensorOptions[22], color: c[0], id: Math.random() },
+					{ ...this.sensorOptions[23], color: c[1], id: Math.random() },
+					{ ...this.sensorOptions[24], color: c[2], id: Math.random() },
+					{ ...this.sensorOptions[25], color: c[3], id: Math.random() },
 				];
 				break;
 		}
