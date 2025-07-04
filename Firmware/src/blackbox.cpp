@@ -5,6 +5,8 @@
 #define BLACKBOX_CRSF_CHUNK_SIZE 480
 #define BLACKBOX_MSPV1_CHUNK_SIZE 230
 
+#define BLACKBOX_WRITE_BUFFER_SIZE 8192
+
 u64 bbFlags = 0;
 u64 currentBBFlags = 0;
 
@@ -20,25 +22,66 @@ RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 File blackboxFile;
 
-u32 bbFrameNum = 0, newestPvtStartedAt = 0;
+u32 bbFrameNum = 0;
 elapsedMicros frametime;
+u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
+u32 bbWriteBufferPos = 0;
+#define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
+bool bbCreateHighlight = false;
 void blackboxLoop() {
-	if (rp2040.fifo.available() && bbLogging && fsReady) {
-		elapsedMicros taskTimer = 0;
-		tasks[TASK_BLACKBOX].runCounter++;
+	if (!bbLogging || !fsReady) {
+		return;
+	}
+	elapsedMicros taskTimer = 0;
+	tasks[TASK_BLACKBOX].runCounter++;
+
+	// write a normal blackbox frame
+	if (rp2040.fifo.available()) {
 		u8 *frame = (u8 *)rp2040.fifo.pop();
-		u8 len = frame[0];
-		if (len > 0 && bbLogging)
-			blackboxFile.write(frame + 1, len);
+		u8 &len = frame[0];
+		if (BB_WR_BUF_HAS_FREE(len + 1)) {
+			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_NORMAL;
+			memcpy(bbWriteBuffer + bbWriteBufferPos, frame + 1, len);
+			bbWriteBufferPos += len;
+		}
 		free(frame);
-		u32 duration = taskTimer;
-		tasks[TASK_BLACKBOX].totalDuration += duration;
-		if (duration < tasks[TASK_BLACKBOX].minDuration) {
-			tasks[TASK_BLACKBOX].minDuration = duration;
-		}
-		if (duration > tasks[TASK_BLACKBOX].maxDuration) {
-			tasks[TASK_BLACKBOX].maxDuration = duration;
-		}
+	}
+
+	// write a flight mode change
+
+	// save a highlight frame
+	if (bbCreateHighlight && BB_WR_BUF_HAS_FREE(1)) {
+		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_HIGHLIGHT;
+	}
+
+	// save GPS PVT message
+	if (newPvtMessageFlag & (1 << 0) && BB_WR_BUF_HAS_FREE(92 + 1)) {
+		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_GPS;
+		memcpy(bbWriteBuffer + bbWriteBufferPos, currentPvtMsg, 92);
+		bbWriteBufferPos += 92;
+		newPvtMessageFlag &= ~(1 << 0);
+	}
+
+	// save ELRS joysticks
+	if (ELRS->newPacketFlag & (1 << 1) && BB_WR_BUF_HAS_FREE(6 + 1)) { // 1 for frame type, 6 for channels
+		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_RC;
+		u64 channels = 0;
+		channels |= ELRS->channels[0];
+		channels |= ELRS->channels[1] << 12;
+		channels |= ELRS->channels[2] << 24;
+		channels |= ELRS->channels[3] << 36;
+		memcpy(bbWriteBuffer + bbWriteBufferPos, &channels, 6);
+		bbWriteBufferPos += 6;
+		ELRS->newPacketFlag &= ~(1 << 1);
+	}
+
+	u32 duration = taskTimer;
+	tasks[TASK_BLACKBOX].totalDuration += duration;
+	if (duration < tasks[TASK_BLACKBOX].minDuration) {
+		tasks[TASK_BLACKBOX].minDuration = duration;
+	}
+	if (duration > tasks[TASK_BLACKBOX].maxDuration) {
+		tasks[TASK_BLACKBOX].maxDuration = duration;
 	}
 }
 
@@ -232,6 +275,7 @@ void startLogging() {
 		blackboxFile.write((u8)0);
 	}
 	bbFrameNum = 0;
+	bbWriteBufferPos = 0;
 	bbLogging = true;
 	// 256 bytes header
 	frametime = 0;
@@ -252,22 +296,6 @@ void writeSingleFrame() {
 		return;
 	}
 	u8 *bbBuffer = (u8 *)malloc(128);
-	if (currentBBFlags & LOG_ROLL_ELRS_RAW) {
-		bbBuffer[bufferPos++] = ELRS->channels[0];
-		bbBuffer[bufferPos++] = ELRS->channels[0] >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_ELRS_RAW) {
-		bbBuffer[bufferPos++] = ELRS->channels[1];
-		bbBuffer[bufferPos++] = ELRS->channels[1] >> 8;
-	}
-	if (currentBBFlags & LOG_THROTTLE_ELRS_RAW) {
-		bbBuffer[bufferPos++] = ELRS->channels[2];
-		bbBuffer[bufferPos++] = ELRS->channels[2] >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_ELRS_RAW) {
-		bbBuffer[bufferPos++] = ELRS->channels[3];
-		bbBuffer[bufferPos++] = ELRS->channels[3] >> 8;
-	}
 	if (currentBBFlags & LOG_ROLL_SETPOINT) {
 		i16 setpoint = (i16)(rollSetpoint.raw >> 12);
 		bbBuffer[bufferPos++] = setpoint;
@@ -390,31 +418,6 @@ void writeSingleFrame() {
 		const i32 vvel = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
 		bbBuffer[bufferPos++] = vvel;
 		bbBuffer[bufferPos++] = vvel >> 8;
-	}
-	if (currentBBFlags & LOG_GPS) {
-		if (bbFrameNum - newestPvtStartedAt < 46) {
-			u32 pos = (bbFrameNum - newestPvtStartedAt) * 2;
-			bbBuffer[bufferPos++] = currentPvtMsg[pos];
-			bbBuffer[bufferPos++] = currentPvtMsg[pos + 1];
-		} else if (newPvtMessageFlag & 1) {
-			// 6 magic bytes to identify the start of a new PVT message
-			bbBuffer[bufferPos++] = 'G';
-			bbBuffer[bufferPos++] = 'P';
-			newPvtMessageFlag &= ~1;
-		} else if (newPvtMessageFlag & 1 << 1) {
-			bbBuffer[bufferPos++] = 'S';
-			bbBuffer[bufferPos++] = 'P';
-			newPvtMessageFlag &= ~(1 << 1);
-		} else if (newPvtMessageFlag & 1 << 2) {
-			bbBuffer[bufferPos++] = 'V';
-			bbBuffer[bufferPos++] = 'T';
-			newPvtMessageFlag &= ~(1 << 2);
-			newestPvtStartedAt = bbFrameNum + 1;
-		} else {
-			// placeholder 0
-			bbBuffer[bufferPos++] = 0;
-			bbBuffer[bufferPos++] = 0;
-		}
 	}
 	if (currentBBFlags & LOG_ATT_ROLL) {
 		i16 r = (roll * 10000).geti32();
