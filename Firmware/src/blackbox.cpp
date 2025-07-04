@@ -406,9 +406,6 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
-	if (currentBBFlags & LOG_FLIGHT_MODE) {
-		bbBuffer[bufferPos++] = (u8)flightMode;
-	}
 	if (currentBBFlags & LOG_ALTITUDE) {
 		const u32 height = combinedAltitude.raw >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
 		bbBuffer[bufferPos++] = height;
