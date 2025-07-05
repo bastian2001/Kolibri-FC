@@ -610,19 +610,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			 * 0...len-1: file numbers (LE 2 bytes each)
 			 *
 			 * data of response
-			 * 0-1. file number
-			 * 2-5. file size in bytes
-			 * 6-8. version of bb file format
+			 * 0-1: file number
+			 * 2-5: file size in bytes
+			 * 6-8: version of bb file format
 			 * 9-12: time of recording start
-			 * 13. byte that indicates PID frequency
-			 * 14. byte that indicates frequency divider
-			 * 15-22: recording flags
+			 * 13-16: duration in ms
 			 */
 			u8 len = reqLen / 2;
-			len = len > 11 ? 11 : len;
+			len = len > 15 ? 15 : len;
 			u16 fileNums[len];
 			memcpy(fileNums, reqPayload, len * 2);
-			u8 buffer[23 * len];
+			u8 buffer[17 * len];
 			u8 index = 0;
 			for (int i = 0; i < len; i++) {
 				rp2040.wdt_reset();
@@ -642,11 +640,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				buffer[index++] = (logFile.size() >> 24) & 0xFF;
 				logFile.seek(LOG_HEAD_BB_VERSION);
 				// version, timestamp, pid and divider can directly be read from the file
-				for (int i = 0; i < 9; i++)
+				for (int i = 0; i < 7; i++)
 					buffer[index++] = logFile.read();
-				logFile.seek(LOG_HEAD_LOGGED_FIELDS);
-				// flags
-				for (int i = 0; i < 8; i++)
+				logFile.seek(LOG_HEAD_DURATION);
+				for (int i = 0; i < 4; i++)
 					buffer[index++] = logFile.read();
 				logFile.close();
 			}

@@ -681,7 +681,7 @@ export default defineComponent({
 			 * each trace has a range, which represents the top and bottom on the graph for that trace
 			 * a modifier appears for some flags, like motor outputs to define one specific motor for example
 			 */
-			const height = this.dataViewerWrapper.clientHeight * 0.98; //1% free space top and bottom
+			const height = this.dataViewerWrapper.clientHeight;
 			const width = this.dataViewerWrapper.clientWidth;
 			if (Object.keys(this.dataSlice).length === 0 || this.startFrame === this.endFrame) return;
 			this.sliceAndSkip = {}
@@ -735,7 +735,7 @@ export default defineComponent({
 
 			const frameWidth = width / (length - 1);
 			const numGraphs = this.graphs.length;
-			const heightPerGraph = (height - this.dataViewerWrapper.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
+			const heightPerGraph = (height - this.dataViewerWrapper.clientHeight * 0.02 * numGraphs) / numGraphs;
 			let heightOffset = 0.01 * this.dataViewerWrapper.clientHeight;
 			for (let i = 0; i < numGraphs; i++) {
 				ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
@@ -789,6 +789,16 @@ export default defineComponent({
 					ctx.stroke();
 				}
 				heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
+			}
+			for (const h of this.loadedLog.highlights) {
+				if (h < this.startFrame || h > this.endFrame) continue;
+				const highlightX = (h - this.startFrame) * width / (this.endFrame - this.startFrame);
+				ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+				ctx.lineWidth = 4;
+				ctx.beginPath();
+				ctx.moveTo(highlightX, 0);
+				ctx.lineTo(highlightX, height);
+				ctx.stroke();
 			}
 			this.domCanvas.getContext('2d')?.clearRect(0, 0, this.dataViewerWrapper.clientWidth, this.dataViewerWrapper.clientHeight);
 			this.domCanvas.getContext('2d')?.drawImage(this.canvas, 0, 0);
@@ -884,7 +894,7 @@ export default defineComponent({
 				this.decodeBinFile();
 			}
 		},
-		decodeBinFile() {
+		async decodeBinFile() {
 			const l = parseBlackbox(this.binFile)
 			if (typeof l === 'string') {
 				this.rejectWrongFile(
@@ -910,64 +920,23 @@ export default defineComponent({
 			sendCommand('request', MspFn.BB_FILE_INFO, MspVersion.V2, infoNums);
 		},
 		processLogInfo(data: Uint8Array) {
-			/* data of response (repeat 22 bytes for each log file)
-			 * 0-1. file number
-			 * 2-5. file size in bytes
-			 * 6-8. version of bb file format
+			/* data of response (repeat 17 bytes for each log file):
+			 * 0-1: file number
+			 * 2-5: file size in bytes
+			 * 6-8: version of bb file format
 			 * 9-12: time of recording start
-			 * 13. byte that indicates PID frequency
-			 * 14. byte that indicates frequency divider
-			 * 15-22: recording flags
+			 * 13-16: duration in ms
 			 */
-			for (let i = 0; i < data.length; i += 23) {
+			for (let i = 0; i < data.length; i += 17) {
 				const fileNum = leBytesToInt(data.slice(i, i + 2));
-				const fileSize = leBytesToInt(data.slice(i + 2, i + 6));
+				// const fileSize = leBytesToInt(data.slice(i + 2, i + 6));
 				const bbVersion = leBytesToInt(data.slice(i + 6, i + 9).reverse(), false);
-				const sTime = leBytesToInt(data.slice(i + 9, i + 13), false); // unix timestamp in seconds (UTC)
-				const startTime = new Date(sTime * 1000);
-				const pidFreq = 3200 / (data[i + 13] + 1);
-				const freqDiv = data[i + 14];
-				const flags = data.slice(i + 15, i + 23);
+				const startTime = new Date(leBytesToInt(data.slice(i + 9, i + 13), false) * 1000);
 				if (bbVersion !== 1) continue;
-				const framesPerSecond = pidFreq / freqDiv;
-				const dataBytes = fileSize - 256;
-				let frameSize = 0;
-				for (let j = 0; j < 64; j++) {
-					//check flags
-					// flag 26 (motors) has 6 bytes per frame, all others only 2
-					// flag 28 (flight mode) has 1 byte per frame
-					const byteNum = Math.floor(j / 8);
-					const bitNum = j % 8;
-					const flagIsSet = flags[byteNum] & (1 << bitNum);
-					if (!flagIsSet) continue;
-					switch (j) {
-						case 26:
-						case 35:
-						case 36:
-						case 37:
-							frameSize += 6;
-							break;
-						case 28:
-							frameSize += 1;
-							break;
-						case 42:
-						case 44:
-						case 45:
-							frameSize += 4;
-							break;
-						case 43:
-							frameSize += 3;
-							break;
-						default:
-							frameSize += 2;
-							break;
-					}
-				}
-				const frames = dataBytes / frameSize;
 				//append duration of log file to logNums
 				const index = this.logNums.findIndex(n => n.num == fileNum);
 				if (index == -1) continue;
-				const duration = Math.round(frames / framesPerSecond);
+				const duration = Math.round(leBytesToInt(data.slice(i + 13, i + 17), false) / 1000);
 				this.logNums[index].text = `${this.logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
 				this.selected = fileNum;
 			}

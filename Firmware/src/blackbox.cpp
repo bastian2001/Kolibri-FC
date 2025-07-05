@@ -25,6 +25,7 @@ u16 bbDebug3, bbDebug4;
 RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 FsFile blackboxFile;
+elapsedMillis bbDuration;
 
 u32 bbFrameNum = 0;
 elapsedMicros frametime;
@@ -71,7 +72,7 @@ void blackboxLoop() {
 	}
 
 	// save GPS PVT message
-	if (newPvtMessageFlag & (1 << 0) && BB_WR_BUF_HAS_FREE(92 + 1)) {
+	if (newPvtMessageFlag & (1 << 0) && currentBBFlags & LOG_GPS && BB_WR_BUF_HAS_FREE(92 + 1)) {
 		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_GPS;
 		memcpy(bbWriteBuffer + bbWriteBufferPos, currentPvtMsg, 92);
 		bbWriteBufferPos += 92;
@@ -79,7 +80,7 @@ void blackboxLoop() {
 	}
 
 	// save ELRS joysticks
-	if (ELRS->newPacketFlag & (1 << 1) && BB_WR_BUF_HAS_FREE(6 + 1)) {
+	if (ELRS->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 + 1)) {
 		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_RC;
 		u64 channels = 0;
 		channels |= ELRS->channels[0];
@@ -310,6 +311,7 @@ void startLogging() {
 	while (blackboxFile.position() < 256) {
 		blackboxFile.write((u8)0);
 	}
+	bbDuration = 0;
 	bbFrameNum = 0;
 	bbWriteBufferPos = 0;
 	bbLogging = true;
@@ -321,9 +323,13 @@ void endLogging() {
 	if (!fsReady)
 		return;
 	rp2040.wdt_reset();
-	if (bbLogging)
+	if (bbLogging) {
+		bbLogging = false;
+		u32 duration = bbDuration;
+		blackboxFile.seek(LOG_HEAD_DURATION);
+		blackboxFile.write((u8 *)&duration, 4);
 		blackboxFile.close();
-	bbLogging = false;
+	}
 }
 
 void writeSingleFrame() {
