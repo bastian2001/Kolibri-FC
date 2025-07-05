@@ -572,11 +572,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			int i = 0;
 			u16 b[500];
 #if BLACKBOX_STORAGE == SD_BB
-			Dir dir = SDFS.openDir("/blackbox");
-			while (dir.next()) {
-				if (dir.isFile()) {
-					String name = dir.fileName();
-					Serial.println(name);
+			FsFile dir = sdCard.open("/blackbox");
+			FsFile file;
+			while (file.openNext(&dir)) {
+				if (file.isFile()) {
+					char path[32];
+					file.getName(path, 32);
+					String name = path;
 					if (!name.startsWith("KOLI") || !name.endsWith(".kbb")) {
 						continue;
 					}
@@ -628,7 +630,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				u16 fileNum = fileNums[i];
 #if BLACKBOX_STORAGE == SD_BB
 				snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
-				File logFile = SDFS.open(path, "r");
+				FsFile logFile = sdCard.open(path);
 #endif
 				if (!logFile)
 					continue;
@@ -638,11 +640,11 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				buffer[index++] = (logFile.size() >> 8) & 0xFF;
 				buffer[index++] = (logFile.size() >> 16) & 0xFF;
 				buffer[index++] = (logFile.size() >> 24) & 0xFF;
-				logFile.seek(LOG_HEAD_BB_VERSION, SeekSet);
+				logFile.seek(LOG_HEAD_BB_VERSION);
 				// version, timestamp, pid and divider can directly be read from the file
 				for (int i = 0; i < 9; i++)
 					buffer[index++] = logFile.read();
-				logFile.seek(LOG_HEAD_LOGGED_FIELDS, SeekSet);
+				logFile.seek(LOG_HEAD_LOGGED_FIELDS);
 				// flags
 				for (int i = 0; i < 8; i++)
 					buffer[index++] = logFile.read();
@@ -664,7 +666,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 			snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
-			if (SDFS.remove(path))
+			if (sdCard.remove(path))
 #endif
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 1);
 			else

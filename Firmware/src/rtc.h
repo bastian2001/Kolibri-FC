@@ -29,3 +29,5 @@ time_t rtcGetUnixTimestamp();
 time_t rtcGetUnixTimestampWithOffset();
 /// @brief Get the current RTC time as a timespec.
 bool rtcGetTime(struct timespec *t, bool withOffset = false);
+/// @brief Get the current RTC time as a filesystem time (date, time and milliseconds).
+void getFsTime(u16 *date, u16 *time, u8 *ms10);

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "FS.h"
 #include "elapsedMillis.h"
 #include "serialhandler/msp.h"
 #include "typedefs.h"
@@ -82,6 +81,7 @@ extern volatile bool bbLogging, fsReady; // Blackbox state
 extern u8 bbFreqDivider; // Blackbox frequency divider (compared to PID loop)
 extern u32 bbDebug1, bbDebug2;
 extern u16 bbDebug3, bbDebug4;
+extern SdFs sdCard; // SD card filesystem
 
 /// @brief Set up SD card and create /blackbox folder
 void initBlackbox();

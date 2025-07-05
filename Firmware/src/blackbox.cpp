@@ -1,5 +1,9 @@
 #include "global.h"
 
+#if BLACKBOX_STORAGE == SD_BB
+SdFs sdCard;
+#endif
+
 // rather conservative estimates of available buffers. Doesn't need to be perfect.
 #define BLACKBOX_CHUNK_SIZE 1024
 #define BLACKBOX_CRSF_CHUNK_SIZE 480
@@ -20,14 +24,15 @@ u16 bbDebug3, bbDebug4;
 
 RingBuffer<u8 *> bbFramePtrBuffer(64);
 
-File blackboxFile;
+FsFile blackboxFile;
 
 u32 bbFrameNum = 0;
 elapsedMicros frametime;
 u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
 u32 bbWriteBufferPos = 0;
 #define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
-bool bbCreateHighlight = false;
+bool lastHighlightState = false;
+FlightMode lastSavedFlightMode = FlightMode::LENGTH;
 void blackboxLoop() {
 	if (!bbLogging || !fsReady) {
 		return;
@@ -48,10 +53,21 @@ void blackboxLoop() {
 	}
 
 	// write a flight mode change
+	if (flightMode != lastSavedFlightMode && BB_WR_BUF_HAS_FREE(1 + 1)) {
+		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
+		bbWriteBuffer[bbWriteBufferPos++] = (u8)flightMode;
+		lastSavedFlightMode = flightMode;
+	}
 
 	// save a highlight frame
-	if (bbCreateHighlight && BB_WR_BUF_HAS_FREE(1)) {
-		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_HIGHLIGHT;
+	bool highlightSwitch = ELRS->channels[8] > 1500;
+	if (highlightSwitch != lastHighlightState && BB_WR_BUF_HAS_FREE(1)) {
+		if (highlightSwitch) {
+			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_HIGHLIGHT;
+			lastHighlightState = true;
+		} else {
+			lastHighlightState = false;
+		}
 	}
 
 	// save GPS PVT message
@@ -63,16 +79,27 @@ void blackboxLoop() {
 	}
 
 	// save ELRS joysticks
-	if (ELRS->newPacketFlag & (1 << 1) && BB_WR_BUF_HAS_FREE(6 + 1)) { // 1 for frame type, 6 for channels
+	if (ELRS->newPacketFlag & (1 << 1) && BB_WR_BUF_HAS_FREE(6 + 1)) {
 		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_RC;
 		u64 channels = 0;
 		channels |= ELRS->channels[0];
 		channels |= ELRS->channels[1] << 12;
-		channels |= ELRS->channels[2] << 24;
-		channels |= ELRS->channels[3] << 36;
+		channels |= (u64)ELRS->channels[2] << 24;
+		channels |= (u64)ELRS->channels[3] << 36;
 		memcpy(bbWriteBuffer + bbWriteBufferPos, &channels, 6);
 		bbWriteBufferPos += 6;
 		ELRS->newPacketFlag &= ~(1 << 1);
+	}
+
+	// write buffer
+	if (bbWriteBufferPos && !sdCard.card()->isBusy()) {
+		u16 writeBytes = bbWriteBufferPos;
+		if (writeBytes > 512) writeBytes = 512;
+		blackboxFile.write(bbWriteBuffer, writeBytes);
+		bbWriteBufferPos -= writeBytes;
+		if (bbWriteBufferPos) {
+			memmove(bbWriteBuffer, bbWriteBuffer + writeBytes, bbWriteBufferPos);
+		}
 	}
 
 	u32 duration = taskTimer;
@@ -90,13 +117,12 @@ void initBlackbox() {
 	addSetting(SETTING_BB_DIV, &bbFreqDivider, 2);
 
 #if BLACKBOX_STORAGE == SD_BB
-	SDFSConfig cfg(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
-	SDFS.setConfig(cfg);
-	// While Linux expects a UTC timestamp here, officially FAT filesystems (and Windows) use local time
-	SDFS.setTimeCallback(rtcGetUnixTimestampWithOffset);
-	fsReady = SDFS.begin();
-	if (!SDFS.exists("/blackbox")) {
-		SDFS.mkdir("/blackbox");
+	SdioConfig sdConfig(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
+	FsDateTime::setCallback(getFsTime);
+	fsReady = sdCard.begin(sdConfig);
+
+	if (!sdCard.exists("/blackbox")) {
+		sdCard.mkdir("/blackbox");
 	}
 	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
 #endif
@@ -106,17 +132,23 @@ bool clearBlackbox() {
 	if (!fsReady || bbLogging)
 		return false;
 #if BLACKBOX_STORAGE == SD_BB
-	Dir dir = SDFS.openDir("/blackbox");
-	while (dir.next()) {
+	FsFile dir = sdCard.open("/blackbox");
+	FsFile file;
+	if (!dir) return true;
+	if (!dir.isDir()) return false;
+
+	while (file.openNext(&dir)) {
+		char path[32];
+		file.getName(path, 32);
 		rp2040.wdt_reset();
-		if (dir.isFile()) {
-			char path[64];
-			snprintf(path, 64, "/blackbox/%s", dir.fileName().c_str());
-			if (!SDFS.remove(path)) return false;
+		if (!file.isFile()) return false;
+		if (!dir.remove(path)) {
+			file.close();
+			return false;
 		}
 	}
-	if (!SDFS.rmdir("/blackbox")) return false;
-	if (!SDFS.mkdir("/blackbox")) return false;
+	if (!sdCard.rmdir("/blackbox")) return false;
+	if (!sdCard.mkdir("/blackbox")) return false;
 	return true;
 #endif
 }
@@ -143,7 +175,7 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-	File logFile = SDFS.open(path, "r");
+	FsFile logFile = sdCard.open(path);
 #endif
 	if (!logFile) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_INIT, mspVer, "File not found", strlen("File not found"));
@@ -172,7 +204,7 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-	File logFile = SDFS.open(path, "r");
+	FsFile logFile = sdCard.open(path);
 #endif
 	if (!logFile) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
@@ -187,7 +219,7 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 	u32 chunkNum = 0;
 	if (singleChunk >= 0) {
 		chunkNum = singleChunk;
-		logFile.seek(chunkNum * chunkSize, SeekSet);
+		logFile.seek(chunkNum * chunkSize);
 	}
 	size_t bytesRead = 1;
 	while (true) {
@@ -218,13 +250,17 @@ void startLogging() {
 	currentBBFlags = bbFlags;
 #if BLACKBOX_STORAGE == SD_BB
 	char path[32];
-	Dir dir = SDFS.openDir("/blackbox");
+	FsFile dir = sdCard.open("/blackbox");
+	FsFile file;
 	int i = 0;
-	while (dir.next()) {
+	while (file.openNext(&dir)) {
 		rp2040.wdt_reset();
 		// we want to find the highest numbered file in /blackbox
-		if (dir.isFile()) {
-			String name = dir.fileName();
+		if (file.isFile()) {
+			String name;
+			char n[32];
+			file.getName(n, 32);
+			name = n;
 			if (!name.startsWith("KOLI") || !name.endsWith(".kbb")) {
 				continue;
 			}
@@ -246,7 +282,7 @@ void startLogging() {
 		}
 	}
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", i + 1);
-	blackboxFile = SDFS.open(path, "a");
+	blackboxFile = sdCard.open(path, O_WRITE | O_CREAT);
 #endif
 	if (!blackboxFile)
 		return;
