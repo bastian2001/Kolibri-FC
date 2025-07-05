@@ -1,3 +1,4 @@
+#include "git_version.h"
 #include "global.h"
 
 #define SIGNATURE_LENGTH 32
@@ -572,11 +573,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			int i = 0;
 			u16 b[500];
 #if BLACKBOX_STORAGE == SD_BB
-			Dir dir = SDFS.openDir("/blackbox");
-			while (dir.next()) {
-				if (dir.isFile()) {
-					String name = dir.fileName();
-					Serial.println(name);
+			FsFile dir = sdCard.open("/blackbox");
+			FsFile file;
+			while (file.openNext(&dir)) {
+				if (file.isFile()) {
+					char path[32];
+					file.getName(path, 32);
+					String name = path;
 					if (!name.startsWith("KOLI") || !name.endsWith(".kbb")) {
 						continue;
 					}
@@ -608,19 +611,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			 * 0...len-1: file numbers (LE 2 bytes each)
 			 *
 			 * data of response
-			 * 0-1. file number
-			 * 2-5. file size in bytes
-			 * 6-8. version of bb file format
+			 * 0-1: file number
+			 * 2-5: file size in bytes
+			 * 6-8: version of bb file format
 			 * 9-12: time of recording start
-			 * 13. byte that indicates PID frequency
-			 * 14. byte that indicates frequency divider
-			 * 15-22: recording flags
+			 * 13-16: duration in ms
 			 */
 			u8 len = reqLen / 2;
-			len = len > 11 ? 11 : len;
+			len = len > 15 ? 15 : len;
 			u16 fileNums[len];
 			memcpy(fileNums, reqPayload, len * 2);
-			u8 buffer[23 * len];
+			u8 buffer[17 * len];
 			u8 index = 0;
 			for (int i = 0; i < len; i++) {
 				rp2040.wdt_reset();
@@ -628,7 +629,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				u16 fileNum = fileNums[i];
 #if BLACKBOX_STORAGE == SD_BB
 				snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
-				File logFile = SDFS.open(path, "r");
+				FsFile logFile = sdCard.open(path);
 #endif
 				if (!logFile)
 					continue;
@@ -638,13 +639,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				buffer[index++] = (logFile.size() >> 8) & 0xFF;
 				buffer[index++] = (logFile.size() >> 16) & 0xFF;
 				buffer[index++] = (logFile.size() >> 24) & 0xFF;
-				logFile.seek(LOG_HEAD_BB_VERSION, SeekSet);
+				logFile.seek(LOG_HEAD_BB_VERSION);
 				// version, timestamp, pid and divider can directly be read from the file
-				for (int i = 0; i < 9; i++)
+				for (int i = 0; i < 7; i++)
 					buffer[index++] = logFile.read();
-				logFile.seek(LOG_HEAD_LOGGED_FIELDS, SeekSet);
-				// flags
-				for (int i = 0; i < 8; i++)
+				logFile.seek(LOG_HEAD_DURATION);
+				for (int i = 0; i < 4; i++)
 					buffer[index++] = logFile.read();
 				logFile.close();
 			}
@@ -664,7 +664,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 			snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
-			if (SDFS.remove(path))
+			if (sdCard.remove(path))
 #endif
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 1);
 			else

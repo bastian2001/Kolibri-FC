@@ -1,9 +1,15 @@
 #include "global.h"
 
+#if BLACKBOX_STORAGE == SD_BB
+SdFs sdCard;
+#endif
+
 // rather conservative estimates of available buffers. Doesn't need to be perfect.
 #define BLACKBOX_CHUNK_SIZE 1024
 #define BLACKBOX_CRSF_CHUNK_SIZE 480
 #define BLACKBOX_MSPV1_CHUNK_SIZE 230
+
+#define BLACKBOX_WRITE_BUFFER_SIZE 8192
 
 u64 bbFlags = 0;
 u64 currentBBFlags = 0;
@@ -18,27 +24,105 @@ u16 bbDebug3, bbDebug4;
 
 RingBuffer<u8 *> bbFramePtrBuffer(64);
 
-File blackboxFile;
+FsFile blackboxFile;
+elapsedMillis bbDuration;
 
-u32 bbFrameNum = 0, newestPvtStartedAt = 0;
+u32 bbFrameNum = 0;
 elapsedMicros frametime;
+u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
+u32 bbWriteBufferPos = 0;
+#define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
+bool lastHighlightState = false;
+FlightMode lastSavedFlightMode = FlightMode::LENGTH;
+
+void writeFlightModeToBlackbox() {
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
+	bbWriteBuffer[bbWriteBufferPos++] = (u8)flightMode;
+	lastSavedFlightMode = flightMode;
+}
+
+void writeElrsToBlackbox() {
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_RC;
+	u64 channels = 0;
+	channels |= ELRS->channels[0];
+	channels |= ELRS->channels[1] << 12;
+	channels |= (u64)ELRS->channels[2] << 24;
+	channels |= (u64)ELRS->channels[3] << 36;
+	memcpy(bbWriteBuffer + bbWriteBufferPos, &channels, 6);
+	bbWriteBufferPos += 6;
+	ELRS->newPacketFlag &= ~(1 << 1);
+}
+
+void writeGpsToBlackbox() {
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_GPS;
+	memcpy(bbWriteBuffer + bbWriteBufferPos, currentPvtMsg, 92);
+	bbWriteBufferPos += 92;
+	newPvtMessageFlag &= ~(1 << 0);
+}
+
 void blackboxLoop() {
-	if (rp2040.fifo.available() && bbLogging && fsReady) {
-		elapsedMicros taskTimer = 0;
-		tasks[TASK_BLACKBOX].runCounter++;
+	if (!bbLogging || !fsReady) {
+		return;
+	}
+	elapsedMicros taskTimer = 0;
+	tasks[TASK_BLACKBOX].runCounter++;
+
+	// write a normal blackbox frame
+	if (rp2040.fifo.available()) {
 		u8 *frame = (u8 *)rp2040.fifo.pop();
-		u8 len = frame[0];
-		if (len > 0 && bbLogging)
-			blackboxFile.write(frame + 1, len);
+		u8 &len = frame[0];
+		if (BB_WR_BUF_HAS_FREE(len + 1)) {
+			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_NORMAL;
+			memcpy(bbWriteBuffer + bbWriteBufferPos, frame + 1, len);
+			bbWriteBufferPos += len;
+		}
 		free(frame);
-		u32 duration = taskTimer;
-		tasks[TASK_BLACKBOX].totalDuration += duration;
-		if (duration < tasks[TASK_BLACKBOX].minDuration) {
-			tasks[TASK_BLACKBOX].minDuration = duration;
+	}
+
+	// write a flight mode change
+	if (flightMode != lastSavedFlightMode && BB_WR_BUF_HAS_FREE(1 + 1)) {
+		writeFlightModeToBlackbox();
+	}
+
+	// save a highlight frame
+	bool highlightSwitch = ELRS->channels[8] > 1500;
+	if (highlightSwitch != lastHighlightState && BB_WR_BUF_HAS_FREE(1)) {
+		if (highlightSwitch) {
+			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_HIGHLIGHT;
+			lastHighlightState = true;
+		} else {
+			lastHighlightState = false;
 		}
-		if (duration > tasks[TASK_BLACKBOX].maxDuration) {
-			tasks[TASK_BLACKBOX].maxDuration = duration;
+	}
+
+	// save GPS PVT message
+	if (newPvtMessageFlag & (1 << 0) && currentBBFlags & LOG_GPS && BB_WR_BUF_HAS_FREE(92 + 1)) {
+		writeGpsToBlackbox();
+	}
+
+	// save ELRS joysticks
+	if (ELRS->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 + 1)) {
+		writeElrsToBlackbox();
+	}
+
+	// write buffer
+	if (bbWriteBufferPos && !sdCard.card()->isBusy()) {
+		u16 writeBytes = bbWriteBufferPos;
+		if (writeBytes > 512) writeBytes = 512;
+		blackboxFile.write(bbWriteBuffer, writeBytes);
+		bbWriteBufferPos -= writeBytes;
+		if (bbWriteBufferPos) {
+			memmove(bbWriteBuffer, bbWriteBuffer + writeBytes, bbWriteBufferPos);
 		}
+	}
+
+	u32 duration = taskTimer;
+	tasks[TASK_BLACKBOX].totalDuration += duration;
+	if (duration < tasks[TASK_BLACKBOX].minDuration) {
+		tasks[TASK_BLACKBOX].minDuration = duration;
+	}
+	if (duration > tasks[TASK_BLACKBOX].maxDuration) {
+		tasks[TASK_BLACKBOX].maxDuration = duration;
 	}
 }
 
@@ -47,13 +131,12 @@ void initBlackbox() {
 	addSetting(SETTING_BB_DIV, &bbFreqDivider, 2);
 
 #if BLACKBOX_STORAGE == SD_BB
-	SDFSConfig cfg(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
-	SDFS.setConfig(cfg);
-	// While Linux expects a UTC timestamp here, officially FAT filesystems (and Windows) use local time
-	SDFS.setTimeCallback(rtcGetUnixTimestampWithOffset);
-	fsReady = SDFS.begin();
-	if (!SDFS.exists("/blackbox")) {
-		SDFS.mkdir("/blackbox");
+	SdioConfig sdConfig(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
+	FsDateTime::setCallback(getFsTime);
+	fsReady = sdCard.begin(sdConfig);
+
+	if (!sdCard.exists("/blackbox")) {
+		sdCard.mkdir("/blackbox");
 	}
 	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
 #endif
@@ -63,17 +146,23 @@ bool clearBlackbox() {
 	if (!fsReady || bbLogging)
 		return false;
 #if BLACKBOX_STORAGE == SD_BB
-	Dir dir = SDFS.openDir("/blackbox");
-	while (dir.next()) {
+	FsFile dir = sdCard.open("/blackbox");
+	FsFile file;
+	if (!dir) return true;
+	if (!dir.isDir()) return false;
+
+	while (file.openNext(&dir)) {
+		char path[32];
+		file.getName(path, 32);
 		rp2040.wdt_reset();
-		if (dir.isFile()) {
-			char path[64];
-			snprintf(path, 64, "/blackbox/%s", dir.fileName().c_str());
-			if (!SDFS.remove(path)) return false;
+		if (!file.isFile()) return false;
+		if (!dir.remove(path)) {
+			file.close();
+			return false;
 		}
 	}
-	if (!SDFS.rmdir("/blackbox")) return false;
-	if (!SDFS.mkdir("/blackbox")) return false;
+	if (!sdCard.rmdir("/blackbox")) return false;
+	if (!sdCard.mkdir("/blackbox")) return false;
 	return true;
 #endif
 }
@@ -100,7 +189,7 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-	File logFile = SDFS.open(path, "r");
+	FsFile logFile = sdCard.open(path);
 #endif
 	if (!logFile) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_INIT, mspVer, "File not found", strlen("File not found"));
@@ -129,7 +218,7 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-	File logFile = SDFS.open(path, "r");
+	FsFile logFile = sdCard.open(path);
 #endif
 	if (!logFile) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
@@ -144,7 +233,7 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 	u32 chunkNum = 0;
 	if (singleChunk >= 0) {
 		chunkNum = singleChunk;
-		logFile.seek(chunkNum * chunkSize, SeekSet);
+		logFile.seek(chunkNum * chunkSize);
 	}
 	size_t bytesRead = 1;
 	while (true) {
@@ -175,13 +264,17 @@ void startLogging() {
 	currentBBFlags = bbFlags;
 #if BLACKBOX_STORAGE == SD_BB
 	char path[32];
-	Dir dir = SDFS.openDir("/blackbox");
+	FsFile dir = sdCard.open("/blackbox");
+	FsFile file;
 	int i = 0;
-	while (dir.next()) {
+	while (file.openNext(&dir)) {
 		rp2040.wdt_reset();
 		// we want to find the highest numbered file in /blackbox
-		if (dir.isFile()) {
-			String name = dir.fileName();
+		if (file.isFile()) {
+			String name;
+			char n[32];
+			file.getName(n, 32);
+			name = n;
 			if (!name.startsWith("KOLI") || !name.endsWith(".kbb")) {
 				continue;
 			}
@@ -203,7 +296,7 @@ void startLogging() {
 		}
 	}
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", i + 1);
-	blackboxFile = SDFS.open(path, "a");
+	blackboxFile = sdCard.open(path, O_WRITE | O_CREAT);
 #endif
 	if (!blackboxFile)
 		return;
@@ -231,7 +324,12 @@ void startLogging() {
 	while (blackboxFile.position() < 256) {
 		blackboxFile.write((u8)0);
 	}
+	bbDuration = 0;
 	bbFrameNum = 0;
+	bbWriteBufferPos = 0;
+	writeFlightModeToBlackbox();
+	writeGpsToBlackbox();
+	writeElrsToBlackbox();
 	bbLogging = true;
 	// 256 bytes header
 	frametime = 0;
@@ -241,9 +339,13 @@ void endLogging() {
 	if (!fsReady)
 		return;
 	rp2040.wdt_reset();
-	if (bbLogging)
+	if (bbLogging) {
+		bbLogging = false;
+		u32 duration = bbDuration;
+		blackboxFile.seek(LOG_HEAD_DURATION);
+		blackboxFile.write((u8 *)&duration, 4);
 		blackboxFile.close();
-	bbLogging = false;
+	}
 }
 
 void writeSingleFrame() {
@@ -252,22 +354,6 @@ void writeSingleFrame() {
 		return;
 	}
 	u8 *bbBuffer = (u8 *)malloc(128);
-	if (currentBBFlags & LOG_ROLL_ELRS_RAW) {
-		bbBuffer[bufferPos++] = ELRS->channels[0];
-		bbBuffer[bufferPos++] = ELRS->channels[0] >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_ELRS_RAW) {
-		bbBuffer[bufferPos++] = ELRS->channels[1];
-		bbBuffer[bufferPos++] = ELRS->channels[1] >> 8;
-	}
-	if (currentBBFlags & LOG_THROTTLE_ELRS_RAW) {
-		bbBuffer[bufferPos++] = ELRS->channels[2];
-		bbBuffer[bufferPos++] = ELRS->channels[2] >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_ELRS_RAW) {
-		bbBuffer[bufferPos++] = ELRS->channels[3];
-		bbBuffer[bufferPos++] = ELRS->channels[3] >> 8;
-	}
 	if (currentBBFlags & LOG_ROLL_SETPOINT) {
 		i16 setpoint = (i16)(rollSetpoint.raw >> 12);
 		bbBuffer[bufferPos++] = setpoint;
@@ -378,9 +464,6 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
-	if (currentBBFlags & LOG_FLIGHT_MODE) {
-		bbBuffer[bufferPos++] = (u8)flightMode;
-	}
 	if (currentBBFlags & LOG_ALTITUDE) {
 		const u32 height = combinedAltitude.raw >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
 		bbBuffer[bufferPos++] = height;
@@ -390,31 +473,6 @@ void writeSingleFrame() {
 		const i32 vvel = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
 		bbBuffer[bufferPos++] = vvel;
 		bbBuffer[bufferPos++] = vvel >> 8;
-	}
-	if (currentBBFlags & LOG_GPS) {
-		if (bbFrameNum - newestPvtStartedAt < 46) {
-			u32 pos = (bbFrameNum - newestPvtStartedAt) * 2;
-			bbBuffer[bufferPos++] = currentPvtMsg[pos];
-			bbBuffer[bufferPos++] = currentPvtMsg[pos + 1];
-		} else if (newPvtMessageFlag & 1) {
-			// 6 magic bytes to identify the start of a new PVT message
-			bbBuffer[bufferPos++] = 'G';
-			bbBuffer[bufferPos++] = 'P';
-			newPvtMessageFlag &= ~1;
-		} else if (newPvtMessageFlag & 1 << 1) {
-			bbBuffer[bufferPos++] = 'S';
-			bbBuffer[bufferPos++] = 'P';
-			newPvtMessageFlag &= ~(1 << 1);
-		} else if (newPvtMessageFlag & 1 << 2) {
-			bbBuffer[bufferPos++] = 'V';
-			bbBuffer[bufferPos++] = 'T';
-			newPvtMessageFlag &= ~(1 << 2);
-			newestPvtStartedAt = bbFrameNum + 1;
-		} else {
-			// placeholder 0
-			bbBuffer[bufferPos++] = 0;
-			bbBuffer[bufferPos++] = 0;
-		}
 	}
 	if (currentBBFlags & LOG_ATT_ROLL) {
 		i16 r = (roll * 10000).geti32();

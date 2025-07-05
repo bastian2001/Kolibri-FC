@@ -1,12 +1,10 @@
-#include "FS.h"
+#pragma once
+
 #include "elapsedMillis.h"
 #include "serialhandler/msp.h"
 #include "typedefs.h"
 #include <Arduino.h>
-#define LOG_ROLL_ELRS_RAW (1 << 0) // 2 bytes
-#define LOG_PITCH_ELRS_RAW (1 << 1) // 2 bytes
-#define LOG_THROTTLE_ELRS_RAW (1 << 2) // 2 bytes
-#define LOG_YAW_ELRS_RAW (1 << 3) // 2 bytes
+#define LOG_ELRS_RAW (1 << 0) // 6 bytes
 #define LOG_ROLL_SETPOINT (1 << 4) // 2 bytes
 #define LOG_PITCH_SETPOINT (1 << 5) // 2 bytes
 #define LOG_THROTTLE_SETPOINT (1 << 6) // 2 bytes
@@ -34,8 +32,8 @@
 #define LOG_MOTOR_OUTPUTS (1 << 26) // 6 bytes
 #define LOG_FRAMETIME (1 << 27) // 2 bytes
 // 60 bytes total
-#define LOG_FLIGHT_MODE (1 << 28) // 1 byte
 #define LOG_ALTITUDE (1 << 29) // 2 bytes
+
 #define LOG_VVEL (1 << 30) // 2 bytes
 #define LOG_GPS (1U << 31) // 2 bytes
 #define LOG_ATT_ROLL (1LL << 32) // 2 bytes
@@ -67,13 +65,21 @@
 #define LOG_HEAD_PID_GAINS 74
 #define LOG_HEAD_LOGGED_FIELDS 134
 #define LOG_HEAD_MOTOR_POLES 142
+#define LOG_HEAD_DURATION 143
 #define LOG_HEAD_LENGTH 256
+
+#define BB_FRAME_NORMAL 0 // normal frame, i.e. gyro, setpoints, pid, etc.
+#define BB_FRAME_FLIGHTMODE 1 // flight mode change
+#define BB_FRAME_HIGHLIGHT 2 // highlight frame, user pressed a button to highlight this frame
+#define BB_FRAME_GPS 3 // GPS frame, i.e. PVT message
+#define BB_FRAME_RC 4 // RC frame, ELRS channels
 
 extern u64 bbFlags; // 64 bits of flags for the blackbox (LOG_ macros)
 extern volatile bool bbLogging, fsReady; // Blackbox state
 extern u8 bbFreqDivider; // Blackbox frequency divider (compared to PID loop)
 extern u32 bbDebug1, bbDebug2;
 extern u16 bbDebug3, bbDebug4;
+extern SdFs sdCard; // SD card filesystem
 
 /// @brief Set up SD card and create /blackbox folder
 void initBlackbox();

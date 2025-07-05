@@ -91,7 +91,7 @@ public:
 		rdPtr = 0;
 		return 0;
 	}
-	/// @brief get the item at index index, does not pop
+	/// @brief get (peek at) the item at index index, does not pop
 	T &operator[](size_t index) {
 		return buffer[(index + rdPtr) % pSize];
 	}

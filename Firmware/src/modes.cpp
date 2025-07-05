@@ -14,10 +14,10 @@ i32 startPointLat, startPointLon;
 u32 armingDisableFlags = 0;
 
 void modesLoop() {
-	if (ELRS->newPacketFlag & 0x00000001) {
+	if (ELRS->newPacketFlag & (1 << 0)) {
 		elapsedMicros taskTimer = 0;
 		tasks[TASK_MODES].runCounter++;
-		ELRS->newPacketFlag &= 0xFFFFFFFE;
+		ELRS->newPacketFlag &= ~(1 << 0); // clear the flag
 		if (!armed) {
 			if (ELRS->consecutiveArmedCycles == 10)
 				armingDisableFlags &= ~0x01;
