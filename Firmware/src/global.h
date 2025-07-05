@@ -21,7 +21,6 @@
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
 #include "elapsedMillis.h"
-#include "git_version.h"
 #include "imu.h"
 #include "modes.h"
 #include "pid.h"

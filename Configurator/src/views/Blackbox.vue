@@ -18,6 +18,14 @@ import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/other";
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
 ];
 
+const FLIGHT_MODES = [
+	"Acro",
+	"Angle",
+	"Altitude Hold",
+	"GPS Velocity",
+	"GPS Position"
+];
+
 
 export default defineComponent({
 	name: "Blackbox",
@@ -799,6 +807,67 @@ export default defineComponent({
 				ctx.moveTo(highlightX, 0);
 				ctx.lineTo(highlightX, height);
 				ctx.stroke();
+			}
+			const visibleFms: { from?: number, to: number, x: number }[] = [];
+			let currentFm: number | undefined = undefined;
+			let exitFm: number | undefined = undefined;
+			for (const f of this.loadedLog.flightModes) {
+				const frame = f.frame;
+				const prev = currentFm
+				currentFm = f.fm;
+				if (frame <= this.endFrame) exitFm = currentFm;
+				if (frame < this.startFrame || frame > this.endFrame) continue;
+				const x = (frame - this.startFrame) * width / (this.endFrame - this.startFrame);
+				visibleFms.push({ from: prev, to: currentFm, x });
+			}
+			for (const f in visibleFms) {
+				// green line
+				const fm = visibleFms[f];
+				ctx.strokeStyle = 'rgba(0, 255, 0, 1)';
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.moveTo(fm.x, 0);
+				ctx.lineTo(fm.x, height);
+				ctx.stroke();
+
+				// draw text
+				const n = parseInt(f);
+				const prev = visibleFms[n - 1];
+				const prevX = prev ? prev.x : -10000;
+				const textR = FLIGHT_MODES[fm.to] || 'flight mode';
+				const textL = fm.from !== undefined ? FLIGHT_MODES[fm.from] : 'flight mode';
+				const widthR = ctx.measureText(textR).width;
+				const widthL = ctx.measureText(textL).width;
+				ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+				ctx.fillRect(fm.x, height * 0.99 - 25, widthR + 20, 25);
+				ctx.textBaseline = 'middle';
+				ctx.textAlign = 'left';
+				ctx.font = '16px sans-serif';
+				ctx.fillStyle = 'white';
+				ctx.fillText(textR, fm.x + 10, height * 0.99 - 12.5);
+				const space = fm.x - prevX;
+				// draw prev mode if space is enough
+				if (space > (widthL + 20) * 3) {
+					ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+					ctx.fillRect(fm.x - widthL - 20, height * 0.99 - 25, widthL + 20, 25);
+					ctx.textAlign = 'right';
+					ctx.fillStyle = 'white';
+					ctx.fillText(textL, fm.x - 10, height * 0.99 - 12.5);
+				}
+			}
+			if (visibleFms.length === 0) {
+				// just draw the exitFm in the bottom left corner
+				if (exitFm !== undefined) {
+					ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+					const text = FLIGHT_MODES[exitFm] || 'flight mode';
+					const w = ctx.measureText(text).width
+					ctx.fillRect(0, height * 0.99 - 25, w + 20, 25);
+					ctx.fillStyle = 'white';
+					ctx.textBaseline = 'middle';
+					ctx.textAlign = 'left';
+					ctx.font = '16px sans-serif';
+					ctx.fillText(text, 10, height * 0.99 - 12.5);
+				}
 			}
 			this.domCanvas.getContext('2d')?.clearRect(0, 0, this.dataViewerWrapper.clientWidth, this.dataViewerWrapper.clientHeight);
 			this.domCanvas.getContext('2d')?.drawImage(this.canvas, 0, 0);

@@ -1,3 +1,4 @@
+#include "git_version.h"
 #include "global.h"
 
 #define SIGNATURE_LENGTH 32

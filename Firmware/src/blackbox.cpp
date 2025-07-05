@@ -34,6 +34,32 @@ u32 bbWriteBufferPos = 0;
 #define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
 bool lastHighlightState = false;
 FlightMode lastSavedFlightMode = FlightMode::LENGTH;
+
+void writeFlightModeToBlackbox() {
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
+	bbWriteBuffer[bbWriteBufferPos++] = (u8)flightMode;
+	lastSavedFlightMode = flightMode;
+}
+
+void writeElrsToBlackbox() {
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_RC;
+	u64 channels = 0;
+	channels |= ELRS->channels[0];
+	channels |= ELRS->channels[1] << 12;
+	channels |= (u64)ELRS->channels[2] << 24;
+	channels |= (u64)ELRS->channels[3] << 36;
+	memcpy(bbWriteBuffer + bbWriteBufferPos, &channels, 6);
+	bbWriteBufferPos += 6;
+	ELRS->newPacketFlag &= ~(1 << 1);
+}
+
+void writeGpsToBlackbox() {
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_GPS;
+	memcpy(bbWriteBuffer + bbWriteBufferPos, currentPvtMsg, 92);
+	bbWriteBufferPos += 92;
+	newPvtMessageFlag &= ~(1 << 0);
+}
+
 void blackboxLoop() {
 	if (!bbLogging || !fsReady) {
 		return;
@@ -55,9 +81,7 @@ void blackboxLoop() {
 
 	// write a flight mode change
 	if (flightMode != lastSavedFlightMode && BB_WR_BUF_HAS_FREE(1 + 1)) {
-		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
-		bbWriteBuffer[bbWriteBufferPos++] = (u8)flightMode;
-		lastSavedFlightMode = flightMode;
+		writeFlightModeToBlackbox();
 	}
 
 	// save a highlight frame
@@ -73,23 +97,12 @@ void blackboxLoop() {
 
 	// save GPS PVT message
 	if (newPvtMessageFlag & (1 << 0) && currentBBFlags & LOG_GPS && BB_WR_BUF_HAS_FREE(92 + 1)) {
-		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_GPS;
-		memcpy(bbWriteBuffer + bbWriteBufferPos, currentPvtMsg, 92);
-		bbWriteBufferPos += 92;
-		newPvtMessageFlag &= ~(1 << 0);
+		writeGpsToBlackbox();
 	}
 
 	// save ELRS joysticks
 	if (ELRS->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 + 1)) {
-		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_RC;
-		u64 channels = 0;
-		channels |= ELRS->channels[0];
-		channels |= ELRS->channels[1] << 12;
-		channels |= (u64)ELRS->channels[2] << 24;
-		channels |= (u64)ELRS->channels[3] << 36;
-		memcpy(bbWriteBuffer + bbWriteBufferPos, &channels, 6);
-		bbWriteBufferPos += 6;
-		ELRS->newPacketFlag &= ~(1 << 1);
+		writeElrsToBlackbox();
 	}
 
 	// write buffer
@@ -314,6 +327,9 @@ void startLogging() {
 	bbDuration = 0;
 	bbFrameNum = 0;
 	bbWriteBufferPos = 0;
+	writeFlightModeToBlackbox();
+	writeGpsToBlackbox();
+	writeElrsToBlackbox();
 	bbLogging = true;
 	// 256 bytes header
 	frametime = 0;
