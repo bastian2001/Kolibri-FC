@@ -484,7 +484,7 @@ export default defineComponent({
 				}
 				//write down frame number, time in s after start and values next to the cursor at the top
 				let t = (closestFrameNum / this.loadedLog!.framesPerSecond).toFixed(3)
-				if (this.loadedLog!.logData.timestamp) t = (this.loadedLog!.logData.timestamp[closestFrameSliceSkip] / 1e6).toFixed(4)
+				if (this.loadedLog!.logData.timestamp) t = (this.loadedLog!.logData.timestamp[closestFrameNum] / 1e6).toFixed(4)
 				const timeText = t + 's, Frame ' + closestFrameNum;
 				const valueTexts: string[] = [];
 				for (let i = 0; i < numGraphs; i++) {
