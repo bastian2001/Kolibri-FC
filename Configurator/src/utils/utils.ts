@@ -1,10 +1,25 @@
 export const leBytesToInt = (bytes: number[] | Uint8Array, signed = false) => {
 	let value = 0
+	let mul = 1
 	for (let i = 0; i < bytes.length; i++) {
-		value += bytes[i] * Math.pow(256, i)
+		value += bytes[i] * mul
+		mul *= 256
 	}
 	if (signed && bytes[bytes.length - 1] & 0b10000000) {
-		value -= Math.pow(256, bytes.length)
+		value -= mul
+	}
+	return value
+}
+
+export const leBytesToBigInt = (bytes: number[] | Uint8Array, signed = false) => {
+	let value = 0n
+	let mul = 1n
+	for (let i = 0; i < bytes.length; i++) {
+		value += BigInt(bytes[i]) * mul
+		mul *= 256n
+	}
+	if (signed && bytes[bytes.length - 1] & 0b10000000) {
+		value -= mul
 	}
 	return value
 }

@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 #if BLACKBOX_STORAGE == SD_BB
-#include "SDFS.h"
+#include "SdFat.h"
 #endif
 #include "NeoPixelConnect.h"
 #include "PIO_DShot.h"
@@ -21,7 +21,6 @@
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
 #include "elapsedMillis.h"
-#include "git_version.h"
 #include "imu.h"
 #include "modes.h"
 #include "pid.h"

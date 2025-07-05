@@ -101,6 +101,8 @@ export type LogData = {
 
 export type BBLog = {
 	frameCount: number
+	flightModes: { fm: number; frame: number }[]
+	highlights: number[]
 	rawFile: Uint8Array
 	flags: string[]
 	logData: LogData
@@ -133,6 +135,7 @@ export type TraceInGraph = {
 	displayName: string
 	overrideData?: number[]
 	overrideSliceAndSkip?: number[]
+	hasSetData: boolean
 }
 
 export type TraceInternalData = {

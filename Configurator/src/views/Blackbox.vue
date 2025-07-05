@@ -13,8 +13,17 @@ import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
 import { parseBlackbox } from "@/utils/blackbox/parsing";
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
 import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
+import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/other";
 
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
+];
+
+const FLIGHT_MODES = [
+	"Acro",
+	"Angle",
+	"Altitude Hold",
+	"GPS Velocity",
+	"GPS Position"
 ];
 
 
@@ -101,7 +110,13 @@ export default defineComponent({
 			if (command.cmdType === 'response') {
 				switch (command.command) {
 					case MspFn.BB_FILE_LIST:
-						this.logNums = Array.from(command.data).map(n => ({ text: '', num: n }));
+						const nums = [];
+						for (let i = 0; i < command.data.length; i += 2) {
+							const num = leBytesToInt(command.data.slice(i, i + 2));
+							nums.push(num);
+						}
+						nums.sort((a, b) => a - b);
+						this.logNums = nums.map(n => ({ text: '', num: n }));
 						if (!this.logNums.length) {
 							this.logNums = [{ text: 'No logs found', num: -1 }];
 							this.selected = -1;
@@ -129,6 +144,7 @@ export default defineComponent({
 						break;
 					case MspFn.BB_FORMAT:
 						this.configuratorLog.push('Blackbox formatted');
+						this.logNums = [{ text: 'No logs found', num: -1 }];
 						break;
 					case MspFn.BB_FILE_INIT:
 						this.prepareFileDownload(command.data);
@@ -172,18 +188,21 @@ export default defineComponent({
 			this.traceInternalData[g] = this.traceInternalData[g].filter((_, i) => i !== t);
 		},
 		addTrace(graphIndex: number) {
-			const defaultTrace = {
+			const defaultTrace: TraceInGraph = {
 				color: 'transparent',
 				maxValue: 10,
 				minValue: 0,
 				strokeWidth: 1,
 				path: '',
-				modifier: '',
 				decimals: 0,
 				unit: '',
 				displayName: '',
-				id: Math.random()
+				id: Math.random(),
+				hasSetData: false
 			};
+
+			const c = TRACE_COLORS_FOR_BLACK_BACKGROUND[this.graphs[graphIndex].length]
+			if (c) defaultTrace.color = c;
 			this.traceInternalBackupFn[graphIndex].push(() => { })
 			this.graphs[graphIndex].push(defaultTrace)
 
@@ -465,7 +484,7 @@ export default defineComponent({
 				}
 				//write down frame number, time in s after start and values next to the cursor at the top
 				let t = (closestFrameNum / this.loadedLog!.framesPerSecond).toFixed(3)
-				if (this.loadedLog!.logData.timestamp) t = (this.loadedLog!.logData.timestamp[closestFrameSliceSkip] / 1e6).toFixed(4)
+				if (this.loadedLog!.logData.timestamp) t = (this.loadedLog!.logData.timestamp[closestFrameNum] / 1e6).toFixed(4)
 				const timeText = t + 's, Frame ' + closestFrameNum;
 				const valueTexts: string[] = [];
 				for (let i = 0; i < numGraphs; i++) {
@@ -670,7 +689,7 @@ export default defineComponent({
 			 * each trace has a range, which represents the top and bottom on the graph for that trace
 			 * a modifier appears for some flags, like motor outputs to define one specific motor for example
 			 */
-			const height = this.dataViewerWrapper.clientHeight * 0.98; //1% free space top and bottom
+			const height = this.dataViewerWrapper.clientHeight;
 			const width = this.dataViewerWrapper.clientWidth;
 			if (Object.keys(this.dataSlice).length === 0 || this.startFrame === this.endFrame) return;
 			this.sliceAndSkip = {}
@@ -724,7 +743,7 @@ export default defineComponent({
 
 			const frameWidth = width / (length - 1);
 			const numGraphs = this.graphs.length;
-			const heightPerGraph = (height - this.dataViewerWrapper.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
+			const heightPerGraph = (height - this.dataViewerWrapper.clientHeight * 0.02 * numGraphs) / numGraphs;
 			let heightOffset = 0.01 * this.dataViewerWrapper.clientHeight;
 			for (let i = 0; i < numGraphs; i++) {
 				ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
@@ -778,6 +797,77 @@ export default defineComponent({
 					ctx.stroke();
 				}
 				heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
+			}
+			for (const h of this.loadedLog.highlights) {
+				if (h < this.startFrame || h > this.endFrame) continue;
+				const highlightX = (h - this.startFrame) * width / (this.endFrame - this.startFrame);
+				ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+				ctx.lineWidth = 4;
+				ctx.beginPath();
+				ctx.moveTo(highlightX, 0);
+				ctx.lineTo(highlightX, height);
+				ctx.stroke();
+			}
+			const visibleFms: { from?: number, to: number, x: number }[] = [];
+			let currentFm: number | undefined = undefined;
+			let exitFm: number | undefined = undefined;
+			for (const f of this.loadedLog.flightModes) {
+				const frame = f.frame;
+				const prev = currentFm
+				currentFm = f.fm;
+				if (frame <= this.endFrame) exitFm = currentFm;
+				if (frame < this.startFrame || frame > this.endFrame) continue;
+				const x = (frame - this.startFrame) * width / (this.endFrame - this.startFrame);
+				visibleFms.push({ from: prev, to: currentFm, x });
+			}
+			for (const f in visibleFms) {
+				// green line
+				const fm = visibleFms[f];
+				ctx.strokeStyle = 'rgba(0, 255, 0, 1)';
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.moveTo(fm.x, 0);
+				ctx.lineTo(fm.x, height);
+				ctx.stroke();
+
+				// draw text
+				const n = parseInt(f);
+				const prev = visibleFms[n - 1];
+				const prevX = prev ? prev.x : -10000;
+				const textR = FLIGHT_MODES[fm.to] || 'flight mode';
+				const textL = fm.from !== undefined ? FLIGHT_MODES[fm.from] : 'flight mode';
+				const widthR = ctx.measureText(textR).width;
+				const widthL = ctx.measureText(textL).width;
+				ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+				ctx.fillRect(fm.x, height * 0.99 - 25, widthR + 20, 25);
+				ctx.textBaseline = 'middle';
+				ctx.textAlign = 'left';
+				ctx.font = '16px sans-serif';
+				ctx.fillStyle = 'white';
+				ctx.fillText(textR, fm.x + 10, height * 0.99 - 12.5);
+				const space = fm.x - prevX;
+				// draw prev mode if space is enough
+				if (space > (widthL + 20) * 3) {
+					ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+					ctx.fillRect(fm.x - widthL - 20, height * 0.99 - 25, widthL + 20, 25);
+					ctx.textAlign = 'right';
+					ctx.fillStyle = 'white';
+					ctx.fillText(textL, fm.x - 10, height * 0.99 - 12.5);
+				}
+			}
+			if (visibleFms.length === 0) {
+				// just draw the exitFm in the bottom left corner
+				if (exitFm !== undefined) {
+					ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+					const text = FLIGHT_MODES[exitFm] || 'flight mode';
+					const w = ctx.measureText(text).width
+					ctx.fillRect(0, height * 0.99 - 25, w + 20, 25);
+					ctx.fillStyle = 'white';
+					ctx.textBaseline = 'middle';
+					ctx.textAlign = 'left';
+					ctx.font = '16px sans-serif';
+					ctx.fillText(text, 10, height * 0.99 - 12.5);
+				}
 			}
 			this.domCanvas.getContext('2d')?.clearRect(0, 0, this.dataViewerWrapper.clientWidth, this.dataViewerWrapper.clientHeight);
 			this.domCanvas.getContext('2d')?.drawImage(this.canvas, 0, 0);
@@ -873,7 +963,7 @@ export default defineComponent({
 				this.decodeBinFile();
 			}
 		},
-		decodeBinFile() {
+		async decodeBinFile() {
 			const l = parseBlackbox(this.binFile)
 			if (typeof l === 'string') {
 				this.rejectWrongFile(
@@ -892,75 +982,30 @@ export default defineComponent({
 					clearInterval(this.logInfoInterval);
 					break;
 				}
-				infoNums[i] = this.logNums[this.logInfoPosition++].num;
+				infoNums[i * 2] = this.logNums[this.logInfoPosition].num & 0xFF;
+				infoNums[i * 2 + 1] = (this.logNums[this.logInfoPosition++].num >> 8) & 0xFF;
 			}
 			if (infoNums.length == 0) return;
-			let checksum = 0;
-			for (let i = 0; i < infoNums.length; i++) checksum ^= infoNums[i];
-			checksum ^= 0x06;
-			checksum ^= infoNums.length;
 			sendCommand('request', MspFn.BB_FILE_INFO, MspVersion.V2, infoNums);
 		},
 		processLogInfo(data: Uint8Array) {
-			/* data of response (repeat 22 bytes for each log file)
-			 * 0. file number
-			 * 1-4. file size in bytes
-			 * 5-7. version of bb file format
-			 * 8-11: time of recording start
-			 * 12. byte that indicates PID frequency
-			 * 13. byte that indicates frequency divider
-			 * 14-21: recording flags
+			/* data of response (repeat 17 bytes for each log file):
+			 * 0-1: file number
+			 * 2-5: file size in bytes
+			 * 6-8: version of bb file format
+			 * 9-12: time of recording start
+			 * 13-16: duration in ms
 			 */
-			for (let i = 0; i < data.length; i += 22) {
-				const fileNum = data[i];
-				const fileSize =
-					data[i + 1] + data[i + 2] * 256 + data[i + 3] * 256 * 256 + data[i + 4] * 256 * 256 * 256;
-				const bbVersion = data[i + 5] * 256 * 256 + data[i + 6] * 256 + data[i + 7];
-				const sTime = leBytesToInt(data.slice(i + 8, i + 12), false); // unix timestamp in seconds (UTC)
-				const startTime = new Date(sTime * 1000);
-				const pidFreq = 3200 / (data[i + 12] + 1);
-				const freqDiv = data[i + 13];
-				const flags = data.slice(i + 14, i + 22);
+			for (let i = 0; i < data.length; i += 17) {
+				const fileNum = leBytesToInt(data.slice(i, i + 2));
+				// const fileSize = leBytesToInt(data.slice(i + 2, i + 6));
+				const bbVersion = leBytesToInt(data.slice(i + 6, i + 9).reverse(), false);
+				const startTime = new Date(leBytesToInt(data.slice(i + 9, i + 13), false) * 1000);
 				if (bbVersion !== 1) continue;
-				const framesPerSecond = pidFreq / freqDiv;
-				const dataBytes = fileSize - 256;
-				let frameSize = 0;
-				for (let j = 0; j < 64; j++) {
-					//check flags
-					// flag 26 (motors) has 6 bytes per frame, all others only 2
-					// flag 28 (flight mode) has 1 byte per frame
-					const byteNum = Math.floor(j / 8);
-					const bitNum = j % 8;
-					const flagIsSet = flags[byteNum] & (1 << bitNum);
-					if (!flagIsSet) continue;
-					switch (j) {
-						case 26:
-						case 35:
-						case 36:
-						case 37:
-							frameSize += 6;
-							break;
-						case 28:
-							frameSize += 1;
-							break;
-						case 42:
-						case 44:
-						case 45:
-							frameSize += 4;
-							break;
-						case 43:
-							frameSize += 3;
-							break;
-						default:
-							frameSize += 2;
-							break;
-					}
-				}
-				const frames = dataBytes / frameSize;
 				//append duration of log file to logNums
 				const index = this.logNums.findIndex(n => n.num == fileNum);
 				if (index == -1) continue;
-				const duration = Math.round(frames / framesPerSecond);
+				const duration = Math.round(leBytesToInt(data.slice(i + 13, i + 17), false) / 1000);
 				this.logNums[index].text = `${this.logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
 				this.selected = fileNum;
 			}
@@ -1012,7 +1057,9 @@ export default defineComponent({
 				g[i] = [];
 				for (const j in this.graphs[i]) {
 					const s = this.traceInternalBackupFn[i][j]() as TraceInternalData | undefined;
-					g[i][j] = { t: this.graphs[i][j], s }
+					const t = this.graphs[i][j];
+					t.hasSetData = true;
+					g[i][j] = { t, s }
 				}
 			}
 			setGraphs(g);

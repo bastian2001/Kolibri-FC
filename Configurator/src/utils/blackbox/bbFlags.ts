@@ -54,33 +54,55 @@ const getLatitudeRange = (file: BBLog | undefined) => {
 }
 
 export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
-	LOG_ROLL_ELRS_RAW: {
-		name: "Roll ELRS Raw",
-		path: "elrsRoll",
+	LOG_ELRS_RAW: {
+		name: "ELRS Raw",
+		path: "",
 		minValue: 988,
 		maxValue: 2012,
 		unit: "µs",
+		modifier: [
+			{
+				displayNameShort: "Roll",
+				displayName: "Roll",
+				path: "elrsRoll",
+			},
+			{
+				displayNameShort: "Pitch",
+				displayName: "Pitch",
+				path: "elrsPitch",
+			},
+			{
+				displayNameShort: "Throttle",
+				displayName: "Throttle",
+				path: "elrsThrottle",
+			},
+			{
+				displayNameShort: "Yaw",
+				displayName: "Yaw",
+				path: "elrsYaw",
+			},
+		],
 	},
-	LOG_PITCH_ELRS_RAW: {
-		name: "Pitch ELRS Raw",
-		path: "elrsPitch",
-		minValue: 988,
-		maxValue: 2012,
-		unit: "µs",
+	LOG_DUMMY_1: {
+		name: "unused",
+		path: "1",
+		minValue: 0,
+		maxValue: 1,
+		unit: "",
 	},
-	LOG_THROTTLE_ELRS_RAW: {
-		name: "Throttle ELRS Raw",
-		path: "elrsThrottle",
-		minValue: 1000,
-		maxValue: 2000,
-		unit: "µs",
+	LOG_DUMMY_2: {
+		name: "unused",
+		path: "2",
+		minValue: 0,
+		maxValue: 1,
+		unit: "",
 	},
-	LOG_YAW_ELRS_RAW: {
-		name: "Yaw ELRS Raw",
-		path: "elrsYaw",
-		minValue: 988,
-		maxValue: 2012,
-		unit: "µs",
+	LOG_DUMMY_3: {
+		name: "unused",
+		path: "3",
+		minValue: 0,
+		maxValue: 1,
+		unit: "",
 	},
 	LOG_ROLL_SETPOINT: {
 		name: "Roll Setpoint",
@@ -250,12 +272,11 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		maxValue: 1000,
 		unit: "µs",
 	},
-	LOG_FLIGHT_MODE: {
-		name: "Flight Mode",
-		path: "flightMode",
+	LOG_DUMMY_4: {
+		name: "unused",
+		path: "unused",
 		minValue: 0,
-		maxValue: 4,
-		states: ["Acro", "Angle", "Altitude Hold", "GPS Velocity", "GPS Position"],
+		maxValue: 1,
 		unit: "",
 	},
 	LOG_ALTITUDE: {

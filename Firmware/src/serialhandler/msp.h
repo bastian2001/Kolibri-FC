@@ -259,3 +259,6 @@ extern elapsedMillis mspOverrideMotors;
 void configuratorLoop();
 
 void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen);
+
+void printIndMessage(String msg);
+void printfIndMessage(const char *format, ...);

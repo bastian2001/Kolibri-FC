@@ -89,9 +89,32 @@ void rtcConvertToTimespec(const struct tm *tm, struct timespec *ts) {
 	ts->tv_nsec = 0; // No nanoseconds in this implementation
 }
 
+void getFsTime(u16 *date, u16 *time, u8 *ms10) {
+	// While Linux expects a UTC timestamp here, officially FAT filesystems (and Windows) use local time
+	struct timespec t;
+	if (!rtcGetTime(&t, true)) {
+		*date = 0;
+		*time = 0;
+		*ms10 = 0;
+		return;
+	}
+	struct tm tm;
+	rtcConvertToTm(&t, &tm);
+
+	*date = FS_DATE(tm.tm_year, tm.tm_mon, tm.tm_mday);
+	*time = FS_TIME(tm.tm_hour, tm.tm_min, tm.tm_sec);
+	// 10ms chunks since the last even second
+	*ms10 = (tm.tm_sec & 1) * 100 + t.tv_nsec / 10'000'000;
+}
+
 time_t rtcGetUnixTimestamp() {
 	timespec t;
 	rtcGetTime(&t);
+	return t.tv_sec;
+}
+time_t rtcGetUnixTimestampWithOffset() {
+	timespec t;
+	rtcGetTime(&t, true);
 	return t.tv_sec;
 }
 

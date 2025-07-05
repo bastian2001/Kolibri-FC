@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <string>
 
 #define MAX_RTTTL_NOTES 256
 #define MAX_RTTTL_TEXT_LENGTH 1024

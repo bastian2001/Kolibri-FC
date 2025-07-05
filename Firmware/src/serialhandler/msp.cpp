@@ -1,3 +1,4 @@
+#include "git_version.h"
 #include "global.h"
 
 #define SIGNATURE_LENGTH 32
@@ -569,59 +570,81 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			getSetting(SETTING_BB_FLAGS)->updateSettingInFile();
 		} break;
 		case MspFn::BB_FILE_LIST: {
-			int index = 0;
-			char shortbuf[16] = {0};
-			for (int i = 0; i < 100; i++) {
-				rp2040.wdt_reset();
+			int i = 0;
+			u16 b[500];
 #if BLACKBOX_STORAGE == SD_BB
-				snprintf(shortbuf, 16, "/kolibri/%01d.kbb", i);
-				if (SDFS.exists(shortbuf)) {
-					buf[index++] = i;
+			FsFile dir = sdCard.open("/blackbox");
+			FsFile file;
+			while (file.openNext(&dir)) {
+				if (file.isFile()) {
+					char path[32];
+					file.getName(path, 32);
+					String name = path;
+					if (!name.startsWith("KOLI") || !name.endsWith(".kbb")) {
+						continue;
+					}
+					if (name.length() != 12) {
+						continue;
+					}
+					char num[5];
+					name.substring(4, 8).toCharArray(num, 5);
+					u32 index = 0;
+					for (int j = 0; j < 4; j++) {
+						if (num[j] < '0' || num[j] > '9') {
+							index = 99999;
+						}
+						index = index * 10 + (num[j] - '0');
+					}
+					if (index < 10000) {
+						b[i++] = index;
+					}
 				}
-#endif
+				if (i >= 500) {
+					break;
+				}
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, index);
+#endif
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (const char *)b, i * 2);
 		} break;
 		case MspFn::BB_FILE_INFO: {
 			/* data of command
-			 * 0...len-1: file numbers
+			 * 0...len-1: file numbers (LE 2 bytes each)
 			 *
 			 * data of response
-			 * 0. file number
-			 * 1-4. file size in bytes
-			 * 5-7. version of bb file format
-			 * 8-11: time of recording start
-			 * 12. byte that indicates PID frequency
-			 * 13. byte that indicates frequency divider
-			 * 14-21: recording flags
+			 * 0-1: file number
+			 * 2-5: file size in bytes
+			 * 6-8: version of bb file format
+			 * 9-12: time of recording start
+			 * 13-16: duration in ms
 			 */
-			u8 len = reqLen;
-			len = len > 12 ? 12 : len;
-			u8 *fileNums = (u8 *)reqPayload;
-			u8 buffer[22 * len];
+			u8 len = reqLen / 2;
+			len = len > 15 ? 15 : len;
+			u16 fileNums[len];
+			memcpy(fileNums, reqPayload, len * 2);
+			u8 buffer[17 * len];
 			u8 index = 0;
 			for (int i = 0; i < len; i++) {
 				rp2040.wdt_reset();
 				char path[32];
-				u8 fileNum = fileNums[i];
+				u16 fileNum = fileNums[i];
 #if BLACKBOX_STORAGE == SD_BB
-				snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
-				File logFile = SDFS.open(path, "r");
+				snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
+				FsFile logFile = sdCard.open(path);
 #endif
 				if (!logFile)
 					continue;
 				buffer[index++] = fileNum;
+				buffer[index++] = fileNum >> 8;
 				buffer[index++] = logFile.size() & 0xFF;
 				buffer[index++] = (logFile.size() >> 8) & 0xFF;
 				buffer[index++] = (logFile.size() >> 16) & 0xFF;
 				buffer[index++] = (logFile.size() >> 24) & 0xFF;
-				logFile.seek(LOG_HEAD_BB_VERSION, SeekSet);
+				logFile.seek(LOG_HEAD_BB_VERSION);
 				// version, timestamp, pid and divider can directly be read from the file
-				for (int i = 0; i < 9; i++)
+				for (int i = 0; i < 7; i++)
 					buffer[index++] = logFile.read();
-				logFile.seek(LOG_HEAD_LOGGED_FIELDS, SeekSet);
-				// flags
-				for (int i = 0; i < 8; i++)
+				logFile.seek(LOG_HEAD_DURATION);
+				for (int i = 0; i < 4; i++)
 					buffer[index++] = logFile.read();
 				logFile.close();
 			}
@@ -640,8 +663,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u8 fileNum = reqPayload[0];
 			char path[32];
 #if BLACKBOX_STORAGE == SD_BB
-			snprintf(path, 32, "/kolibri/%01d.kbb", fileNum);
-			if (SDFS.remove(path))
+			snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
+			if (sdCard.remove(path))
 #endif
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 1);
 			else
@@ -1187,4 +1210,20 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		tasks[TASK_CONFIGURATOR].maxDuration = duration;
 		tasks[TASK_CONFIGURATOR].debugInfo = (u32)fn;
 	}
+}
+
+void printIndMessage(String msg) {
+	if (msg.length() > 256) {
+		msg = msg.substring(0, 256);
+	}
+	sendMsp(0, MspMsgType::REQUEST, MspFn::IND_MESSAGE, MspVersion::V2, msg.c_str(), msg.length());
+}
+
+void printfIndMessage(const char *format, ...) {
+	va_list args;
+	char msg[256];
+	va_start(args, format);
+	vsnprintf(msg, sizeof(msg), format, args);
+	va_end(args);
+	printIndMessage(msg);
 }

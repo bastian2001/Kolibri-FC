@@ -54,7 +54,7 @@ RTTTLSong songToPlay;
 #define FREQ_TO_WRAP(freq) (2000000 / freq)
 
 u8 speakerSm, sliceNum;
-File speakerFile;
+FsFile speakerFile;
 u32 speakerDataSize = 0;
 u32 speakerCounter = 0;
 const f32 WAV_SPEAKER_CLKDIV = (float)F_CPU / (256 * 44100 * 4);
@@ -295,7 +295,7 @@ bool playWav(const char *filename) {
 		return false;
 	}
 	if (fsReady) {
-		speakerFile = SDFS.open(filename, "r");
+		speakerFile = sdCard.open(filename);
 		if (speakerFile && speakerFile.size() > 1002) {
 			while (speakerFile.position() < 1000) { // skip wav header
 				if (speakerFile.read() == 'd' && speakerFile.read() == 'a' && speakerFile.read() == 't' && speakerFile.read() == 'a') {
