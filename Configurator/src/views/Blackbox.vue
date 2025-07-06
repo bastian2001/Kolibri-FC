@@ -963,7 +963,7 @@ export default defineComponent({
 				this.decodeBinFile();
 			}
 		},
-		async decodeBinFile() {
+		decodeBinFile() {
 			const l = parseBlackbox(this.binFile)
 			if (typeof l === 'string') {
 				this.rejectWrongFile(
