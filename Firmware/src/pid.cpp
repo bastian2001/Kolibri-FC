@@ -21,7 +21,7 @@ fix32 pidGainsVVel[4], pidGainsHVel[4];
 fix32 angleModeP = 10;
 
 fix64 rthStartLat, rthStartLon;
-u8 rthState = 0; // 0: climb, 1: navigate home, 2: descend
+u8 rthState = 0, lastRthState = 255; // 0: climb, 1: navigate home, 2: descend, 3: land
 
 fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast, vVelLastSetpoint;
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
@@ -217,6 +217,8 @@ void __not_in_flash_func(pidLoop)() {
 					vVelSetpoint = stickToTargetVvel(throttle);
 				} else {
 					// GPS_WP: sticks do nothing, for now just fly home
+					bool newState = (rthState != lastRthState);
+					lastRthState = rthState;
 					switch (rthState) {
 					case 0: {
 						// climb to 30m above home altitude
@@ -234,9 +236,28 @@ void __not_in_flash_func(pidLoop)() {
 					} break;
 					case 2: {
 						// descend to 3m above home altitude, then hover
+						static elapsedMillis hoverTimer;
+						if (newState) hoverTimer = 0;
 						const fix32 targetAlt = homepointAlt + 3;
 						autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
-					}
+						if (eVelSetpoint.abs() > fix32(0.5f) || nVelSetpoint.abs() > fix32(0.5f) || vVelSetpoint.abs() > fix32(0.5f)) {
+							hoverTimer = 0; // reset hover timer if we are still moving
+						} else if (hoverTimer > 3) {
+							// after 3 seconds of hovering, land
+							rthState = 3;
+						}
+					} break;
+					case 3: {
+						static elapsedMillis landTimer;
+						if (newState) landTimer = 0;
+						autopilotNavigate(homepointLat, homepointLon, homepointAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+						vVelSetpoint = -0.3f;
+						if (vVel > fix32(-0.2f)) {
+							landTimer = 0;
+						} else if (landTimer > 2) {
+							armed = false;
+						}
+					} break;
 					}
 				}
 
@@ -767,6 +788,7 @@ void setFlightMode(FlightMode mode) {
 		rthStartLat = gpsLatitudeFiltered;
 		rthStartLon = gpsLongitudeFiltered;
 		rthState = 0;
+		lastRthState = 255;
 	}
 
 	flightMode = mode;
