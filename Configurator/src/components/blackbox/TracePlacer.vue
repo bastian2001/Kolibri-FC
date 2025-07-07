@@ -119,6 +119,7 @@ export default defineComponent({
 			return [
 				this.trace.overrideData,
 				this.trace.color,
+				this.trace.strokeWidth,
 				this.minValue,
 				this.maxValue,
 				this.path,
@@ -353,6 +354,9 @@ export default defineComponent({
 		<input type="number" id="maxValue" v-model="maxValue" :disabled="autoRangeOn" />
 		&nbsp;
 		<p class="unit">{{ currentNormalizedFlag?.unit || '' }}</p>
+		&nbsp;
+		<input type="number" id="strokeWidth" v-model="trace.strokeWidth" min="0" max="10" placeholder="stroke width"
+			style="width: 2rem" />
 		<br />
 		<label><input type="checkbox" v-model="filteringOn" /> Filter </label>
 		<div v-if="filteringOn">

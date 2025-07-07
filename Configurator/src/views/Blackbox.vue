@@ -471,13 +471,13 @@ export default defineComponent({
 						const range = trace.maxValue - trace.minValue;
 						const scale = heightPerGraph / range;
 						ctx.strokeStyle = trace.color;
-						ctx.lineWidth = trace.strokeWidth * 2;
+						ctx.lineWidth = 1 + trace.strokeWidth;
 						if (!trace.path) continue
 						// @ts-expect-error
 						const data = constrain(trace.overrideData ? trace.overrideSliceAndSkip![closestFrameSliceSkip] : frame[trace.path][0], trace.minValue, trace.maxValue);
 						const pointY = heightOffset + heightPerGraph - (data - trace.minValue) * scale;
 						ctx.beginPath();
-						ctx.arc(frameX, pointY, trace.strokeWidth * 4, 0, Math.PI * 2);
+						ctx.arc(frameX, pointY, 2.5 + trace.strokeWidth * 1.5, 0, Math.PI * 2);
 						ctx.stroke();
 					}
 					heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
@@ -769,6 +769,7 @@ export default defineComponent({
 					const scale = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth;
+					if (!trace.strokeWidth) continue;
 					if (trace.overrideData) {
 						const overrideSlice = trace.overrideData.slice(
 							Math.max(0, Math.min(this.startFrame, this.endFrame)),
