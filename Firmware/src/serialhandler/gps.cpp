@@ -295,7 +295,7 @@ void gpsLoop() {
 				updateElem(OSDElem::LATITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "\x98%.7f", lon64.getf32());
 				updateElem(OSDElem::LONGITUDE, (char *)buf);
-				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
+				snprintf((char *)buf, 16, "\x7F%d\x0C ", fix32(combinedAltitude).geti32());
 				updateElem(OSDElem::ALTITUDE, (char *)buf);
 				fix32 gVel = fix32(3.6f) * sqrtf(((fix32)eVel * (fix32)eVel + (fix32)nVel * (fix32)nVel).getf32());
 				snprintf((char *)buf, 16, "%d\x9E ", (gVel + fix32(0.5f)).geti32());

@@ -125,11 +125,11 @@ void ExpressLRS::loop() {
 		} break;
 		case 3: {
 			// Baro Altitude (0x09)
-			i32 data = combinedAltitude.raw / 6554; // dm;
+			i32 data = fix32(combinedAltitude).raw / 6554; // dm;
 			data += 10000; // dm + 10000
 			telemBuffer[0] = data >> 8;
 			telemBuffer[1] = data;
-			data = vVel.raw / 655; // cm/s
+			data = fix32(vVel).raw / 655; // cm/s
 			telemBuffer[2] = data >> 8;
 			telemBuffer[3] = data;
 			this->sendPacket(FRAMETYPE_BARO_ALT, (char *)telemBuffer, 4);

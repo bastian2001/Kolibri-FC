@@ -355,7 +355,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_ALTITUDE"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = framePos[f] + o
-			logData.altitude[f] = leBytesToInt(data.slice(p, p + 2), true) / 16
+			logData.altitude[f] = leBytesToInt(data.slice(p, p + 2), true) / 64
 		}
 	}
 	if (flags.includes("LOG_VVEL")) {

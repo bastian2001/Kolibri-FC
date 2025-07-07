@@ -23,7 +23,9 @@ fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
 fix32 magFilterCutoff;
-fix32 vVel, combinedAltitude, vVelHelper;
+DualPT1 vVel(0.3, 3200), combinedAltitude(0.5, 3200);
+PT1 baroImuUpVelFilter(0.5, 50), baroImuUpVelFilter2(5, 3200);
+fix32 lastBaroImuUpVel;
 PT1 eVel;
 PT1 nVel;
 fix32 vAccel;
@@ -137,7 +139,7 @@ fix32 rAccel, fAccel;
 fix32 nAccel, eAccel;
 
 void __not_in_flash_func(updateSpeeds)() {
-	fix32 preHelper = vVelHelper;
+	// fix32 preHelper = vVelHelper;
 	cosPitch = cosFix(pitch);
 	cosRoll = cosFix(roll);
 	cosHeading = cosFix(combinedHeading);
@@ -148,18 +150,28 @@ void __not_in_flash_func(updateSpeeds)() {
 	vAccel += sinRoll * cosPitch * accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
 	vAccel -= sinPitch * accelDataFiltered[1] * RAW_TO_M_PER_SEC2;
 	vAccel -= fix32(9.81f); // remove gravity
-	vVelHelper += vAccel / 3200;
-	vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
-	vVel += vVelHelper - preHelper;
-	f32 measVel;
-	if (gpsStatus.fixType == FIX_3D) {
-		measVel = -gpsMotion.velD * 0.0000001f;
-	} else {
-		measVel = 0.0001f * baroUpVel;
-	}
-	vVel = 0.9999f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
-	combinedAltitude += vVel / 3200;
-	combinedAltitude = 0.9999f * combinedAltitude.getf32() + 0.0001f * gpsBaroAlt.getf32();
+	baroImuUpVelFilter.add(vAccel / 3200);
+	lastBaroImuUpVel = baroImuUpVelFilter2;
+	const fix32 baroImuUpAccel = baroImuUpVelFilter2.update(baroImuUpVelFilter) - lastBaroImuUpVel;
+	bbDebug1 = fix32(baroImuUpVelFilter2).raw;
+	bbDebug2 = baroImuUpAccel.raw;
+	vVel.add(baroImuUpAccel);
+	combinedAltitude.add(vVel.update(baroUpVel) / 3200);
+	combinedAltitude.update(gpsBaroAlt);
+
+	// vVelHelper += vAccel / 3200;
+
+	// vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
+	// vVel += vVelHelper - preHelper;
+	// f32 measVel;
+	// if (gpsStatus.fixType == FIX_3D) {
+	// 	measVel = -gpsMotion.velD * 0.0000001f;
+	// } else {
+	// 	measVel = 0.0001f * baroUpVel;
+	// }
+	// vVel = 0.9999f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
+	// combinedAltitude += vVel / 3200;
+	// combinedAltitude = 0.9999f * combinedAltitude.getf32() + 0.0001f * gpsBaroAlt.getf32();
 
 	fix32 rightAccel = cosRoll * accelDataFiltered[0] - sinRoll * accelDataFiltered[2];
 	fix32 forwardAccel = cosPitch * accelDataFiltered[1] + sinPitch * sinRoll * accelDataFiltered[0] + sinPitch * cosRoll * accelDataFiltered[2];

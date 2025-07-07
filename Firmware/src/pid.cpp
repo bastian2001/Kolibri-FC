@@ -224,7 +224,7 @@ void __not_in_flash_func(pidLoop)() {
 						// climb to 30m above home altitude
 						const fix32 targetAlt = homepointAlt + 30;
 						autopilotNavigate(rthStartLat, rthStartLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
-						if (combinedAltitude > targetAlt - 1)
+						if (fix32(combinedAltitude) > targetAlt - 1)
 							rthState = 1;
 					} break;
 					case 1: {
@@ -252,7 +252,7 @@ void __not_in_flash_func(pidLoop)() {
 						if (newState) landTimer = 0;
 						autopilotNavigate(homepointLat, homepointLon, homepointAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
 						vVelSetpoint = -0.3f;
-						if (vVel > fix32(-0.2f)) {
+						if (fix32(vVel) > fix32(-0.2f)) {
 							landTimer = 0;
 						} else if (landTimer > 2) {
 							armed = false;
@@ -450,8 +450,6 @@ void __not_in_flash_func(pidLoop)() {
 		if (pidBoostAxis) {
 			pidBoostFilter.update(throttle - lastThrottle);
 			fix32 boostStrength = (fix32(pidBoostFilter).abs() * 3200 - pidBoostStart) / (pidBoostFull - pidBoostStart);
-			bbDebug1 = boostStrength.raw;
-			bbDebug2 = fix32(pidBoostFilter).raw;
 			if (boostStrength > 1)
 				boostStrength = 1;
 			else if (boostStrength < 0)

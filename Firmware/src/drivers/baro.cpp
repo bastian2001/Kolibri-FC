@@ -17,10 +17,11 @@ constexpr i32 baroScaleFactor = 7864320;
 #elifdef BARO_LPS22
 #endif
 
-f32 baroASL = 0; // above sea level
+fix32 baroASL = 0; // above sea level
+PT1 baroAslFiltered(2, 50);
 f32 baroPres = 0;
 volatile i32 blackboxPres = 0;
-f32 baroUpVel = 0;
+fix32 baroUpVel = 0;
 u8 baroTemp = 0;
 i32 baroCalibration[9];
 fix32 gpsBaroAlt;
@@ -140,7 +141,7 @@ void readBaroLoop() {
 	}
 }
 
-f32 lastBaroASL = 0, gpsBaroOffset = 0;
+fix32 lastBaroASL = 0, gpsBaroOffset = 0;
 void evalBaroLoop() {
 	if (!newBaroData) return;
 	newBaroData = false;
@@ -156,12 +157,15 @@ void evalBaroLoop() {
 	baroPres = pressureRaw / 40.96f;
 #endif
 	lastBaroASL = baroASL;
-	baroASL = 44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f));
+	baroASL = baroAslFiltered.update(44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f)));
+
 	if (gpsStatus.fixType != FIX_3D || gpsStatus.satCount < 6)
 		gpsBaroAlt = baroASL - gpsBaroOffset;
 	else
 		gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
 	baroUpVel = (baroASL - lastBaroASL) * 50;
+	bbDebug3 = baroUpVel.raw >> 4;
+	baroImuUpVelFilter.update(baroUpVel);
 	u32 duration = taskTimer;
 	tasks[TASK_BAROEVAL].totalDuration += duration;
 	if (duration < tasks[TASK_BAROEVAL].minDuration) {

@@ -466,12 +466,12 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
 	if (currentBBFlags & LOG_ALTITUDE) {
-		const u32 height = combinedAltitude.raw >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
+		const u32 height = fix32(combinedAltitude).raw >> 10; // 10.6 fixed point, approx. 6cm resolution, 4km altitude
 		bbBuffer[bufferPos++] = height;
 		bbBuffer[bufferPos++] = height >> 8;
 	}
 	if (currentBBFlags & LOG_VVEL) {
-		const i32 vvel = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
+		const i32 vvel = fix32(vVel).raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
 		bbBuffer[bufferPos++] = vvel;
 		bbBuffer[bufferPos++] = vvel >> 8;
 	}

@@ -54,7 +54,7 @@ Currently a 64 bit bitmask, where each bit indicates whether a field is enabled 
 -   22: `LOG_YAW_PID_S`: S term of the yaw axis, int16
 -   23 (6): `LOG_MOTOR_OUTPUTS`: Quadruple of the motor outputs, each as a uint12. Can be decoded by generating a 48 bit int, and then splitting it into 4 uint12s. From LSB to MSP: RR, FR, RL, FL
 -   24: `LOG_FRAMETIME`: Time in microseconds since the last recorded frame, uint16
--   25: `LOG_ALTITUDE`: 12.4 fixed int of the sensor-fused altitude, in meters, resolution is about 6cm per LSB
+-   25: `LOG_ALTITUDE`: 10.6 fixed int of the sensor-fused altitude, in meters, resolution is about 1.6cm per LSB
 -   26: `LOG_VVEL`: 8.8 fixed int of the sensor-fused vertical velocity, in meters per second, resolution is about 4mm/s per LSB
 -   27\*: `LOG_GPS`: Raw GPS data as supplied in the UBX-NAV-PVT message
 -   28: `LOG_ATT_ROLL`: int16 of the roll angle in 0.0001 rad per LSB
