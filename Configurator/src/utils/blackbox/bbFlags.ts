@@ -83,27 +83,6 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			},
 		],
 	},
-	LOG_DUMMY_1: {
-		name: "unused",
-		path: "1",
-		minValue: 0,
-		maxValue: 1,
-		unit: "",
-	},
-	LOG_DUMMY_2: {
-		name: "unused",
-		path: "2",
-		minValue: 0,
-		maxValue: 1,
-		unit: "",
-	},
-	LOG_DUMMY_3: {
-		name: "unused",
-		path: "3",
-		minValue: 0,
-		maxValue: 1,
-		unit: "",
-	},
 	LOG_ROLL_SETPOINT: {
 		name: "Roll Setpoint",
 		path: "setpointRoll",
@@ -271,13 +250,6 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		minValue: 0,
 		maxValue: 1000,
 		unit: "µs",
-	},
-	LOG_DUMMY_4: {
-		name: "unused",
-		path: "unused",
-		minValue: 0,
-		maxValue: 1,
-		unit: "",
 	},
 	LOG_ALTITUDE: {
 		name: "Altitude",

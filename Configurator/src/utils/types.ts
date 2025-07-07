@@ -120,6 +120,7 @@ export type BBLog = {
 	framesPerSecond: number
 	isExact: boolean
 	motorPoles: number
+	duration: number
 }
 
 export type TraceInGraph = {
@@ -133,8 +134,8 @@ export type TraceInGraph = {
 	states?: string[]
 	decimals: number
 	displayName: string
-	overrideData?: number[]
-	overrideSliceAndSkip?: number[]
+	overrideData?: Float32Array
+	overrideSliceAndSkip?: Float32Array
 	hasSetData: boolean
 }
 

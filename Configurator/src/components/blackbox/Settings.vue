@@ -24,7 +24,7 @@ export default defineComponent({
 	mounted() {
 		this.flagNames = Object.keys(this.flags);
 		let i = 0;
-		const groupSizes = [4, 4, 3, 5, 5, 5, 3, 3, 3, 1, 6, 2, 20];
+		const groupSizes = [5, 3, 5, 5, 5, 2, 3, 3, 1, 6, 2, 20];
 		const g: string[][] = [];
 		for (const size of groupSizes) {
 			g.push(this.flagNames.slice(i, i + size));
@@ -132,6 +132,10 @@ label {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: 1rem;
+}
+
+.dividerSetting input {
+	color: black
 }
 
 .apply {
