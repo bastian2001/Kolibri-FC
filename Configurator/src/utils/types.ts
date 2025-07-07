@@ -134,8 +134,8 @@ export type TraceInGraph = {
 	states?: string[]
 	decimals: number
 	displayName: string
-	overrideData?: number[]
-	overrideSliceAndSkip?: number[]
+	overrideData?: Float32Array
+	overrideSliceAndSkip?: Float32Array
 	hasSetData: boolean
 }
 

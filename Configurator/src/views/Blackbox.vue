@@ -769,21 +769,22 @@ export default defineComponent({
 					const scale = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth;
-					trace.overrideSliceAndSkip = [];
 					if (trace.overrideData) {
 						const overrideSlice = trace.overrideData.slice(
 							Math.max(0, Math.min(this.startFrame, this.endFrame)),
 							Math.max(0, Math.max(this.startFrame, this.endFrame)) + 1
 						);
 						if (everyNth > 2 && allowShortening) {
-							const len = overrideSlice.length;
-							for (let i = 0; i < len; i += everyNth) {
-								trace.overrideSliceAndSkip.push(overrideSlice[i]);
+							const len = Math.ceil(overrideSlice.length / everyNth);
+							trace.overrideSliceAndSkip = new Float32Array(len);
+							let j = 0;
+							for (let i = 0; i < len; i += 1, j += everyNth) {
+								trace.overrideSliceAndSkip[i] = overrideSlice[j];
 							}
 						} else trace.overrideSliceAndSkip = overrideSlice;
 					}
 					ctx.beginPath();
-					const array: LogDataType | number[] = trace.overrideData
+					const array: LogDataType | Float32Array = trace.overrideData
 						? trace.overrideSliceAndSkip
 						//@ts-expect-error
 						: this.sliceAndSkip[trace.path];
