@@ -119,6 +119,7 @@ export default defineComponent({
 			return [
 				this.trace.overrideData,
 				this.trace.color,
+				this.trace.strokeWidth,
 				this.minValue,
 				this.maxValue,
 				this.path,
@@ -163,38 +164,40 @@ export default defineComponent({
 				switch (this.filterType) {
 					case 'pt1':
 						{
-							this.trace.overrideData = [array[0]];
-							let state = this.trace.overrideData[0] || 0;
+							this.trace.overrideData = new Float32Array(this.loadedLog.frameCount);
+							let state = array[0] || 0;
+							this.trace.overrideData[0] = state;
 							if (this.filterValue1 && this.filterValue1 < 0) this.filterValue1 = 0;
 							const omega = (2 * Math.PI * (this.filterValue1 || 1)) / this.loadedLog.framesPerSecond;
 							const alpha = omega / (1 + omega);
 							for (let i = 1; i < array.length; i++) {
 								state = state + alpha * (array[i] - state);
-								this.trace.overrideData.push(state);
+								this.trace.overrideData[i] = state;
 							}
 						}
 						break;
 					case 'pt2':
 						{
-							this.trace.overrideData = [array[0]];
-							let state1 = this.trace.overrideData[0] || 0;
-							let state = this.trace.overrideData[0] || 0;
+							this.trace.overrideData = new Float32Array(this.loadedLog.frameCount);
+							let state = array[0] || 0;
+							let state1 = state
+							this.trace.overrideData[0] = state;
 							if (this.filterValue1 && this.filterValue1 < 0) this.filterValue1 = 0;
 							const omega = (1.554 * (2 * Math.PI * (this.filterValue1 || 1))) / this.loadedLog.framesPerSecond;
 							const alpha = omega / (1 + omega);
 							for (let i = 1; i < array.length; i++) {
 								state1 = state1 + alpha * (array[i] - state1);
 								state = state + alpha * (state1 - state);
-								this.trace.overrideData.push(state);
+								this.trace.overrideData[i] = state;
 							}
 						}
 						break;
 					case 'pt3':
 						{
-							this.trace.overrideData = [array[0]];
-							let state1 = this.trace.overrideData[0] || 0;
-							let state2 = this.trace.overrideData[0] || 0;
-							let state = this.trace.overrideData[0] || 0;
+							this.trace.overrideData = new Float32Array(this.loadedLog.frameCount);
+							let state = array[0] || 0;
+							let state1 = state;
+							let state2 = state;
 							if (this.filterValue1 && this.filterValue1 < 0) this.filterValue1 = 0;
 							const omega = (1.961 * (2 * Math.PI * (this.filterValue1 || 1))) / this.loadedLog.framesPerSecond;
 							const alpha = omega / (1 + omega);
@@ -202,13 +205,13 @@ export default defineComponent({
 								state1 = state1 + alpha * (array[i] - state1);
 								state2 = state2 + alpha * (state1 - state2);
 								state = state + alpha * (state2 - state);
-								this.trace.overrideData.push(state);
+								this.trace.overrideData[i] = state;
 							}
 						}
 						break;
 					case 'sma':
 						{
-							this.trace.overrideData = [];
+							this.trace.overrideData = new Float32Array(this.loadedLog.frameCount);
 							this.filterValue1 = Math.round(this.filterValue1);
 							this.filterValue1 = Math.min(this.filterValue1, 100);
 							this.filterValue1 = Math.max(this.filterValue1, 1);
@@ -218,13 +221,13 @@ export default defineComponent({
 								for (let j = 0; j < this.filterValue1; j++) {
 									sum += array[Math.round(i - j + compFrames)] || 0; // || {} to prevent undefined => default value will be used
 								}
-								this.trace.overrideData.push(sum / this.filterValue1);
+								this.trace.overrideData[i] = sum / this.filterValue1;
 							}
 						}
 						break;
 					case 'binomial':
 						{
-							this.trace.overrideData = [];
+							this.trace.overrideData = new Float32Array(this.loadedLog.frameCount);
 							const binomialCoeffs = [];
 							this.filterValue1 = Math.round(this.filterValue1);
 							this.filterValue1 = Math.min(this.filterValue1, 100);
@@ -240,7 +243,7 @@ export default defineComponent({
 								for (let j = 0; j < this.filterValue1; j++) {
 									sum += (array[Math.round(i - j + compFrames)] || 0) * binomialCoeffs[j];
 								}
-								this.trace.overrideData.push(sum / binomSum);
+								this.trace.overrideData[i] = sum / binomSum;
 							}
 						}
 						break;
@@ -351,6 +354,9 @@ export default defineComponent({
 		<input type="number" id="maxValue" v-model="maxValue" :disabled="autoRangeOn" />
 		&nbsp;
 		<p class="unit">{{ currentNormalizedFlag?.unit || '' }}</p>
+		&nbsp;
+		<input type="number" id="strokeWidth" v-model="trace.strokeWidth" min="0" max="10" placeholder="stroke width"
+			style="width: 2rem" />
 		<br />
 		<label><input type="checkbox" v-model="filteringOn" /> Filter </label>
 		<div v-if="filteringOn">
