@@ -15,14 +15,14 @@ Format: offset+length: description
 -   0+8: magic number
 -   8+3: version
 -   11+4: UNIX timestamp of the start of the log, UTC
--   15+1: PID rate index, 0 = 3200Hz
--   16+1: blackbox frequency divider, e.g. 1 = 1:1 or 4 = 1:4. 0 is undefined
--   17+1: indicating the gyro ranges (0 (LSB) ... 2: gyr_range register, 3...4 acc_range register)
--   18+60: rate factors (fix32[5][3], 16.16 bits, first dimension is the exponent, second dimension is the axis: 0 = roll, 1 = pitch, 2 = yaw)
--   78+60: PID gains (fix32[3][5], 16.16 bits, first dimension is the axis, second dimension is PID: P, I, D, FF, S)
--   138+8: enabled blackbox fields (uint64_t, bitmask, 0 = disabled, 1 = enabled)
--   146+1: motor pole count
--   147+4: uint32 of the duration of the log in milliseconds. Initially set to 0, filled in at the end of the log. Can be used to indicate a broken log, if this is not set to a value greater than 0.
+-   15+4: uint32 of the duration of the log in milliseconds. Initially set to 0, filled in at the end of the log. Can be used to indicate a broken log, if this is not set to a value greater than 0.
+-   19+1: PID rate index, 0 = 3200Hz
+-   20+1: blackbox frequency divider, e.g. 1 = 1:1 or 4 = 1:4. 0 is undefined
+-   21+1: indicating the gyro ranges (0 (LSB) ... 2: gyr_range register, 3...4 acc_range register)
+-   22+60: rate factors (fix32[5][3], 16.16 bits, first dimension is the exponent, second dimension is the axis: 0 = roll, 1 = pitch, 2 = yaw)
+-   82+60: PID gains (fix32[3][5], 16.16 bits, first dimension is the axis, second dimension is PID: P, I, D, FF, S)
+-   142+8: enabled blackbox fields (uint64_t, bitmask, 0 = disabled, 1 = enabled)
+-   150+1: motor pole count
 -   rest filled with 0x00
 
 ### Blackbox Fields

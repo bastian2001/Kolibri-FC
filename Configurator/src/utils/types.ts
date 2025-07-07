@@ -120,6 +120,7 @@ export type BBLog = {
 	framesPerSecond: number
 	isExact: boolean
 	motorPoles: number
+	duration: number
 }
 
 export type TraceInGraph = {

@@ -1117,6 +1117,7 @@ export default defineComponent({
 			<div v-if="loadedLog" class="fileInfo" style="margin-top: .8rem">
 				<div>Blackbox Version: {{ loadedLog.version.join('.') }}</div>
 				<div>Start Time: {{ loadedLog.startTime.toLocaleString() }}</div>
+				<div>Duration: {{ loadedLog.duration.toFixed(1) }} s</div>
 				<div>Frame Count: {{ loadedLog.frameCount }}</div>
 				<div>PID Frequency: {{ loadedLog.pidFrequency }} Hz</div>
 				<div>Frames per Second: {{ loadedLog.framesPerSecond }} Hz</div>
