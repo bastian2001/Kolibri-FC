@@ -148,8 +148,8 @@ void initPid() {
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
 
-	stickToAngle = fix32(maxAngle) / fix32(512);
-	throttleScale = fix32(2000 - idlePermille * 2) / fix32(1024);
+	stickToAngle = fix32(maxAngle) / 512;
+	throttleScale = fix32(2000 - idlePermille * 2) / 1024;
 
 	dFilterRoll = PT2(dFilterCutoff, 3200);
 	dFilterPitch = PT2(dFilterCutoff, 3200);
@@ -224,14 +224,14 @@ void __not_in_flash_func(pidLoop)() {
 						// climb to 30m above home altitude
 						const fix32 targetAlt = homepointAlt + 30;
 						autopilotNavigate(rthStartLat, rthStartLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
-						if (fix32(combinedAltitude) > targetAlt - 1)
+						if (combinedAltitude > targetAlt - 1)
 							rthState = 1;
 					} break;
 					case 1: {
 						// navigate home
 						const fix32 targetAlt = homepointAlt + 30;
 						autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
-						if (eVelSetpoint.abs() < fix32(0.5f) && nVelSetpoint.abs() < fix32(0.5f))
+						if (eVelSetpoint.abs() < 0.5f && nVelSetpoint.abs() < 0.5f)
 							rthState = 2;
 					} break;
 					case 2: {
@@ -240,7 +240,7 @@ void __not_in_flash_func(pidLoop)() {
 						if (newState) hoverTimer = 0;
 						const fix32 targetAlt = homepointAlt + 3;
 						autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
-						if (eVelSetpoint.abs() > fix32(0.5f) || nVelSetpoint.abs() > fix32(0.5f) || vVelSetpoint.abs() > fix32(0.5f)) {
+						if (eVelSetpoint.abs() > 0.5f || nVelSetpoint.abs() > 0.5f || vVelSetpoint.abs() > 0.5f) {
 							hoverTimer = 0; // reset hover timer if we are still moving
 						} else if (hoverTimer > 3) {
 							// after 3 seconds of hovering, land
@@ -252,7 +252,7 @@ void __not_in_flash_func(pidLoop)() {
 						if (newState) landTimer = 0;
 						autopilotNavigate(homepointLat, homepointLon, homepointAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
 						vVelSetpoint = -0.3f;
-						if (fix32(vVel) > fix32(-0.2f)) {
+						if (vVel > -0.2f) {
 							landTimer = 0;
 						} else if (landTimer > 2) {
 							armed = false;
@@ -275,7 +275,7 @@ void __not_in_flash_func(pidLoop)() {
 				// same here, just more shifting
 				iRelaxFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 12);
 				iRelaxFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 12);
-				fix32 iRelaxTotal = sqrtf(((fix32)iRelaxFilterNVel * (fix32)iRelaxFilterNVel + (fix32)iRelaxFilterEVel * (fix32)iRelaxFilterEVel).getf32());
+				fix32 iRelaxTotal = sqrtf((fix32(iRelaxFilterNVel) * fix32(iRelaxFilterNVel) + fix32(iRelaxFilterEVel) * fix32(iRelaxFilterEVel)).getf32());
 				if (iRelaxTotal < 1) {
 					// low commanded acceleration: normal I gain
 					eVelErrorSum = eVelErrorSum + eVelError;
@@ -632,7 +632,7 @@ static fix32 stickToTargetVvel(fix32 stickPos) {
 
 static fix32 calcThrottle(fix32 targetVvel) {
 	vVelError = targetVvel - vVel;
-	vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(targetVvel - vVelLastSetpoint).abs() < fix32(0.001f)) ? vVelError : vVelError / 2); // reduce windup during fast changes
+	vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(targetVvel - vVelLastSetpoint).abs() < 0.001f) ? vVelError : vVelError / 2); // reduce windup during fast changes
 	vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 	vVelP = pidGainsVVel[P] * vVelError;
 	vVelI = pidGainsVVel[I] * vVelErrorSum;
@@ -647,7 +647,7 @@ static fix32 calcThrottle(fix32 targetVvel) {
 	fix32 throttleFactor = cosRoll * cosPitch;
 	if (throttleFactor < 0) // quad is upside down
 		throttleFactor = 1;
-	throttleFactor = constrain(throttleFactor, fix32(0.33f), 1); // we limit the throttle increase to 3x (ca. 72° tilt), and also prevent division by zero
+	throttleFactor = constrain(throttleFactor, 0.33f, 1); // we limit the throttle increase to 3x (ca. 72° tilt), and also prevent division by zero
 	throttleFactor = fix32(1) / throttleFactor; // 1/cos(acos(...)) = 1/cos(thrust angle)
 	t = t * throttleFactor;
 	t = constrain(t, 0, 1024);

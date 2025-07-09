@@ -17,17 +17,22 @@ constexpr f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 constexpr f32 ANGLE_CHANGE_LIMIT = .0002;
 constexpr fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 fix32 accelFilterCutoff;
-PT1 accelDataFiltered[3];
+PT1 accelDataFilter[3];
+const fix32 *const accelDataFiltered[3] = {&accelDataFilter[0].getConstRef(), &accelDataFilter[1].getConstRef(), &accelDataFilter[2].getConstRef()};
 fix32 roll, pitch, yaw;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
 fix32 magFilterCutoff;
-DualPT1 vVel(0.3, 3200), combinedAltitude(0.5, 3200);
-PT1 baroImuUpVelFilter(0.5, 50), baroImuUpVelFilter2(5, 3200);
+DualPT1 vVelFilter(0.3, 3200), combinedAltitudeFilter(0.1, 3200);
+const fix32 &combinedAltitude = combinedAltitudeFilter.getConstRef();
+const fix32 &vVel = vVelFilter.getConstRef();
+PT1 baroImuUpVelFilter(0.3, 50), baroImuUpVelFilter2(5, 3200);
 fix32 lastBaroImuUpVel;
-PT1 eVel;
-PT1 nVel;
+PT1 eVelFilter;
+PT1 nVelFilter;
+const fix32 &eVel = eVelFilter.getConstRef();
+const fix32 &nVel = nVelFilter.getConstRef();
 fix32 vAccel;
 
 Quaternion q;
@@ -46,11 +51,11 @@ void imuInit() {
 	q.v[1] = 0;
 	q.v[2] = 0;
 	initFixTrig();
-	accelDataFiltered[0] = PT1(accelFilterCutoff, 3200);
-	accelDataFiltered[1] = PT1(accelFilterCutoff, 3200);
-	accelDataFiltered[2] = PT1(accelFilterCutoff, 3200);
-	eVel = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
-	nVel = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
+	accelDataFilter[0] = PT1(accelFilterCutoff, 3200);
+	accelDataFilter[1] = PT1(accelFilterCutoff, 3200);
+	accelDataFilter[2] = PT1(accelFilterCutoff, 3200);
+	eVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
+	nVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
 	magHeadingCorrection = PT1(magFilterCutoff, MAG_HARDWARE == MAG_HMC5883L ? 75 : 200);
 	magHeadingCorrection.setRolloverParams(-PI, PI);
 }
@@ -71,9 +76,9 @@ void __not_in_flash_func(updateFromGyro)() {
 f32 orientation_vector[3];
 void __not_in_flash_func(updateFromAccel)() {
 	// filter accel data
-	accelDataFiltered[0].update(accelDataRaw[0]);
-	accelDataFiltered[1].update(accelDataRaw[1]);
-	accelDataFiltered[2].update(accelDataRaw[2]);
+	accelDataFilter[0].update(accelDataRaw[0]);
+	accelDataFilter[1].update(accelDataRaw[1]);
+	accelDataFilter[2].update(accelDataRaw[2]);
 
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
@@ -126,7 +131,7 @@ void __not_in_flash_func(updatePitchRollValues)() {
 	roll = atan2Fix(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
 	yaw = atan2Fix(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
-	fix32 temp = (fix32)magHeadingCorrection + yaw;
+	fix32 temp = yaw + magHeadingCorrection;
 	if (temp >= FIX_PI) {
 		temp -= FIX_PI * 2;
 	} else if (temp < -FIX_PI) {
@@ -146,44 +151,32 @@ void __not_in_flash_func(updateSpeeds)() {
 	sinPitch = sinFix(pitch);
 	sinRoll = sinFix(roll);
 	sinHeading = sinFix(combinedHeading);
-	vAccel = cosRoll * cosPitch * accelDataFiltered[2] * RAW_TO_M_PER_SEC2;
-	vAccel += sinRoll * cosPitch * accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
-	vAccel -= sinPitch * accelDataFiltered[1] * RAW_TO_M_PER_SEC2;
-	vAccel -= fix32(9.81f); // remove gravity
+	vAccel = cosRoll * cosPitch * *accelDataFiltered[2] * RAW_TO_M_PER_SEC2;
+	vAccel += sinRoll * cosPitch * *accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
+	vAccel -= sinPitch * *accelDataFiltered[1] * RAW_TO_M_PER_SEC2;
+	vAccel -= 9.81f; // remove gravity
 	baroImuUpVelFilter.add(vAccel / 3200);
 	lastBaroImuUpVel = baroImuUpVelFilter2;
 	const fix32 baroImuUpAccel = baroImuUpVelFilter2.update(baroImuUpVelFilter) - lastBaroImuUpVel;
+	bbDebug4 = fix32(baroImuUpVelFilter).raw / 10;
 	bbDebug1 = fix32(baroImuUpVelFilter2).raw;
 	bbDebug2 = baroImuUpAccel.raw;
-	vVel.add(baroImuUpAccel);
-	combinedAltitude.add(vVel.update(baroUpVel) / 3200);
-	combinedAltitude.update(gpsBaroAlt);
+	vVelFilter.add(baroImuUpAccel);
+	const fix32 filterVel = gpsStatus.fixType == FIX_3D ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel;
+	combinedAltitudeFilter.add(vVelFilter.update(filterVel) / 3200);
+	combinedAltitudeFilter.update(gpsBaroAlt);
 
-	// vVelHelper += vAccel / 3200;
-
-	// vVelHelper = fix32(0.9999f) * vVelHelper + 0.0001f * baroUpVel; // this leaves a steady-state error if the accelerometer has a DC offset
-	// vVel += vVelHelper - preHelper;
-	// f32 measVel;
-	// if (gpsStatus.fixType == FIX_3D) {
-	// 	measVel = -gpsMotion.velD * 0.0000001f;
-	// } else {
-	// 	measVel = 0.0001f * baroUpVel;
-	// }
-	// vVel = 0.9999f * vVel.getf32() + measVel; // this eliminates that error without introducing a lot of lag
-	// combinedAltitude += vVel / 3200;
-	// combinedAltitude = 0.9999f * combinedAltitude.getf32() + 0.0001f * gpsBaroAlt.getf32();
-
-	fix32 rightAccel = cosRoll * accelDataFiltered[0] - sinRoll * accelDataFiltered[2];
-	fix32 forwardAccel = cosPitch * accelDataFiltered[1] + sinPitch * sinRoll * accelDataFiltered[0] + sinPitch * cosRoll * accelDataFiltered[2];
-	fix32 northAccel = forwardAccel * cosHeading - rightAccel * sinHeading;
-	fix32 eastAccel = rightAccel * cosHeading + forwardAccel * sinHeading;
+	const fix32 rightAccel = cosRoll * *accelDataFiltered[0] - sinRoll * *accelDataFiltered[2];
+	const fix32 forwardAccel = cosPitch * *accelDataFiltered[1] + sinPitch * sinRoll * *accelDataFiltered[0] + sinPitch * cosRoll * *accelDataFiltered[2];
+	const fix32 northAccel = forwardAccel * cosHeading - rightAccel * sinHeading;
+	const fix32 eastAccel = rightAccel * cosHeading + forwardAccel * sinHeading;
 	rAccel = rightAccel;
 	fAccel = forwardAccel;
 	nAccel = northAccel;
 	eAccel = eastAccel;
 
-	eVel.add(eastAccel * RAW_TO_M_PER_SEC2 / 3200);
-	nVel.add(northAccel * RAW_TO_M_PER_SEC2 / 3200);
+	eVelFilter.add(eastAccel * RAW_TO_M_PER_SEC2 / 3200);
+	nVelFilter.add(northAccel * RAW_TO_M_PER_SEC2 / 3200);
 }
 
 void __not_in_flash_func(imuUpdate)() {

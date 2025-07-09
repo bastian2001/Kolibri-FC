@@ -9,11 +9,13 @@ extern fix32 combinedHeading; // heading of the drone (in rad) by combining the 
 extern fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading; // trigonometric values of the Euler angles
 extern PT1 magHeadingCorrection; // PT1 filter for the IMU heading correction (from yaw to heading via compass) (updated on every compass read)
 extern fix32 magFilterCutoff; // filter frequency for the magnetometer data
-extern DualPT1 vVel; // vertical velocity of the drone (up = positive, m/s)
-extern DualPT1 combinedAltitude; // altitude of the drone (in meters ASL) by combining the barometer, GPS and the accelerometer
-extern PT1 eVel; // east velocity of the drone (m/s) by GPS + accel (filtered)
-extern PT1 nVel; // north velocity of the drone (m/s) by GPS + accel (filtered)
-extern PT1 accelDataFiltered[3]; // PT1 filters for the accelerometer data
+extern const fix32 &vVel; // vertical velocity of the drone (up = positive, m/s)
+extern const fix32 &combinedAltitude; // altitude of the drone (in meters ASL) by combining the barometer, GPS and the accelerometer
+extern PT1 eVelFilter; // east velocity filter, in m/s, updated by GPS and interpolated using accelerometer data
+extern PT1 nVelFilter; // north velocity filter, in m/s, updated by GPS and interpolated using accelerometer data
+extern const fix32 &eVel; // east velocity of the drone (m/s) by GPS + accel (filtered)
+extern const fix32 &nVel; // north velocity of the drone (m/s) by GPS + accel (filtered)
+extern const fix32 *const accelDataFiltered[3]; // PT1 filters for the accelerometer data, raw scaling from accel
 extern fix32 vAccel; // vertical up acceleration of the drone (m/s^2) provided by the accelerometer
 extern Quaternion q; // attitude quaternion of the drone, used to calculate the attitude angles and the heading
 extern PT1 baroImuUpVelFilter;

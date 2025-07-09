@@ -18,7 +18,7 @@ constexpr i32 baroScaleFactor = 7864320;
 #endif
 
 fix32 baroASL = 0; // above sea level
-PT1 baroAslFiltered(2, 50);
+PT2 baroAslFiltered(2, 50);
 f32 baroPres = 0;
 volatile i32 blackboxPres = 0;
 fix32 baroUpVel = 0;

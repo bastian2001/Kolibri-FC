@@ -353,7 +353,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::MSP_ALTITUDE: {
-			i32 altitudeInt = fix32(combinedAltitude).raw / 656; // fix32 raw (m) to cm
+			i32 altitudeInt = combinedAltitude.raw / 656; // fix32 raw (m) to cm
 			buf[len++] = altitudeInt & 0xFF;
 			buf[len++] = altitudeInt >> 8;
 			buf[len++] = altitudeInt >> 16;
@@ -717,8 +717,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 7);
 			break;
 		case MspFn::GET_GPS_MOTION: {
-			fix32 c = fix32(combinedAltitude);
-			fix32 v = fix32(vVel);
 			memcpy(buf, &gpsMotion.lat, 4);
 			memcpy(&buf[4], &gpsMotion.lon, 4);
 			memcpy(&buf[8], &gpsMotion.alt, 4);
@@ -727,8 +725,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[20], &gpsMotion.velD, 4);
 			memcpy(&buf[24], &gpsMotion.gSpeed, 4);
 			memcpy(&buf[28], &gpsMotion.headMot, 4);
-			memcpy(&buf[32], &c.raw, 4);
-			memcpy(&buf[36], &v.raw, 4);
+			memcpy(&buf[32], &combinedAltitude.raw, 4);
+			memcpy(&buf[36], &vVel.raw, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 40);
 		} break;
 		case MspFn::GET_MAG_DATA: {

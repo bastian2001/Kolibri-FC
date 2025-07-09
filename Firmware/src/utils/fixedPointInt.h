@@ -104,10 +104,10 @@ public:
 
 	// ======================== f32 arithmetics ========================
 	inline constexpr fix64 operator+(const f32 other) const {
-		return fix64().setRaw(this->raw + (i64)(other * 4294967296));
+		return *this + (fix64)other;
 	};
 	inline constexpr fix64 operator-(const f32 other) const {
-		return fix64().setRaw(this->raw - (i64)(other * 4294967296));
+		return *this - (fix64)other;
 	};
 	inline constexpr fix64 operator*(const f32 other) const {
 		return *this * (fix64)other;
@@ -323,33 +323,29 @@ public:
 	};
 
 	// ======================== f32 arithmetics ========================
-	inline fix32 operator+(const f32 other) const {
-		return fix32().setRaw(this->raw + (i32)(other * 65536));
+	inline constexpr fix32 operator+(const f32 other) const {
+		return *this + fix32(other);
 	};
 	inline constexpr fix32 operator-(const f32 other) const {
-		return fix32().setRaw(this->raw - (i32)(other * 65536));
+		return *this - fix32(other);
 	};
 	inline constexpr fix32 operator*(const f32 other) const {
-		return fix32().setRaw((i32)(((i64)this->raw * (i64)(other * 65536)) >> 16));
+		return *this * fix32(other);
 	};
 	inline constexpr fix32 operator/(const f32 other) const {
-		return fix32().setRaw((i32)(((i64)this->raw << 16) / (i64)(other * 65536)));
+		return *this / fix32(other);
 	};
 	inline constexpr fix32 operator+=(const f32 other) {
-		this->raw += (i32)(other * 65536);
-		return *this;
+		return *this += fix32(other);
 	};
 	inline constexpr fix32 operator-=(const f32 other) {
-		this->raw -= (i32)(other * 65536);
-		return *this;
+		return *this -= fix32(other);
 	};
 	inline constexpr fix32 operator*=(const f32 other) {
-		this->raw = (i32)(((i64)this->raw * (i64)(other * 65536)) >> 16);
-		return *this;
+		return *this *= fix32(other);
 	};
 	inline constexpr fix32 operator/=(const f32 other) {
-		this->raw = (i32)(((i64)this->raw << 16) / (i64)(other * 65536));
-		return *this;
+		return *this /= fix32(other);
 	};
 	inline constexpr bool operator>(const f32 other) const {
 		return *this > fix32(other);
@@ -366,32 +362,28 @@ public:
 
 	// ======================== f64 arithmetics ========================
 	inline constexpr fix32 operator+(const f64 other) const {
-		return fix32().setRaw(this->raw + (i32)(other * 65536));
+		return *this + fix32(other);
 	};
 	inline constexpr fix32 operator-(const f64 other) const {
-		return fix32().setRaw(this->raw - (i32)(other * 65536));
+		return *this - fix32(other);
 	};
 	inline constexpr fix32 operator*(const f64 other) const {
-		return fix32().setRaw((i32)(((i64)this->raw * (i64)(other * 65536)) >> 16));
+		return *this * fix32(other);
 	};
 	inline constexpr fix32 operator/(const f64 other) const {
-		return fix32().setRaw((i32)(((i64)this->raw << 16) / (i64)(other * 65536)));
+		return *this / fix32(other);
 	};
 	inline constexpr fix32 operator+=(const f64 other) {
-		this->raw += (i32)(other * 65536);
-		return *this;
+		return *this += fix32(other);
 	};
 	inline constexpr fix32 operator-=(const f64 other) {
-		this->raw -= (i32)(other * 65536);
-		return *this;
+		return *this -= fix32(other);
 	};
 	inline constexpr fix32 operator*=(const f64 other) {
-		this->raw = (i32)(((i64)this->raw * (i64)(other * 65536)) >> 16);
-		return *this;
+		return *this *= fix32(other);
 	};
 	inline constexpr fix32 operator/=(const f64 other) {
-		this->raw = (i32)(((i64)this->raw << 16) / (i64)(other * 65536));
-		return *this;
+		return *this /= fix32(other);
 	};
 	inline constexpr bool operator>(const f64 other) const {
 		return *this > fix32(other);

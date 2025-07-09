@@ -466,12 +466,12 @@ void writeSingleFrame() {
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
 	if (currentBBFlags & LOG_ALTITUDE) {
-		const u32 height = fix32(combinedAltitude).raw >> 10; // 10.6 fixed point, approx. 6cm resolution, 4km altitude
+		const u32 height = combinedAltitude.raw >> 10; // 10.6 fixed point, approx. 6cm resolution, 4km altitude
 		bbBuffer[bufferPos++] = height;
 		bbBuffer[bufferPos++] = height >> 8;
 	}
 	if (currentBBFlags & LOG_VVEL) {
-		const i32 vvel = fix32(vVel).raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
+		const i32 vvel = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
 		bbBuffer[bufferPos++] = vvel;
 		bbBuffer[bufferPos++] = vvel >> 8;
 	}
@@ -504,13 +504,13 @@ void writeSingleFrame() {
 		bufferPos += 6;
 	}
 	if (currentBBFlags & LOG_ACCEL_FILTERED) {
-		i16 i = ((fix32)accelDataFiltered[0]).geti32();
+		i16 i = accelDataFiltered[0]->geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i = ((fix32)accelDataFiltered[1]).geti32();
+		i = accelDataFiltered[1]->geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i = ((fix32)accelDataFiltered[2]).geti32();
+		i = accelDataFiltered[2]->geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
@@ -537,10 +537,10 @@ void writeSingleFrame() {
 	if (currentBBFlags & LOG_HVEL) {
 		// same as vvel: 8.8 fixed point in m/s, +-128m/s max, 4mm/s resolution
 		// first nVel (north positive), then eVel (east positive)
-		i32 v = fix32(nVel).raw >> 8;
+		i32 v = nVel.raw >> 8;
 		bbBuffer[bufferPos++] = v;
 		bbBuffer[bufferPos++] = v >> 8;
-		v = fix32(eVel).raw >> 8;
+		v = eVel.raw >> 8;
 		bbBuffer[bufferPos++] = v;
 		bbBuffer[bufferPos++] = v >> 8;
 	}

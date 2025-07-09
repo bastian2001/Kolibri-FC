@@ -53,7 +53,7 @@ fix32 atanFix(fix32 x) {
 	i32 sign = x.sign();
 	i32 offset = 0;
 	x *= sign;
-	if (x > fix32(1)) {
+	if (x > 1) {
 		x = fix32(1) / x;
 		offset = (FIX_PI >> 1).raw * sign;
 		sign = -sign;
@@ -76,7 +76,7 @@ fix32 atan2Fix(const fix32 y, const fix32 x) {
 fix32 acosFix(fix32 x) {
 	i32 sign = x.sign();
 	x *= sign;
-	if (x >= fix32(1)) return FIX_PI / 2 - FIX_PI / 2 * sign; // if abs >= 1, assume the value was +-1
+	if (x >= 1) return FIX_PI / 2 - FIX_PI / 2 * sign; // if abs >= 1, assume the value was +-1
 	u32 high = x.raw >> 8;
 	interp0->accum[1] = x.raw & 0xFF;
 	interp0->base[0] = acosLut[high].raw;
