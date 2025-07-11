@@ -312,7 +312,7 @@ void startLogging() {
 	blackboxFile.write((u8)bbFreqDivider);
 	blackboxFile.write((u8)3); // 2000deg/sec and 16g
 	i32 rf[5][3];
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 3; i++)
 		for (int j = 0; j < 3; j++)
 			rf[i][j] = rateFactors[i][j].raw;
 	blackboxFile.write((u8 *)rf, 60);

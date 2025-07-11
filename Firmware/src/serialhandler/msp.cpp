@@ -840,7 +840,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)rates, sizeof(rates));
 		} break;
 		case MspFn::SET_RATES: {
-			u16 rates[3][5];
+			u16 rates[3][3];
 			memcpy(rates, reqPayload, sizeof(rates));
 			for (int i = 0; i < 3; i++)
 				for (int j = 0; j < 5; j++)

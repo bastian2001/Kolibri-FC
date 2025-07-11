@@ -47,7 +47,8 @@ fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effec
 
 u32 pidLoopCounter = 0;
 
-fix32 rateFactors[5][3];
+fix32 rateFactors[3][3];
+fix32 rateInterp[3][258]; // +-128 (=257) for sticks, index 257 only exists so that high + 1 is valid even if stick = 1
 fix64 vVelMaxErrorSum, vVelMinErrorSum;
 u8 maxAngle; // degrees, applied in angle mode and GPS mode
 u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
@@ -77,6 +78,8 @@ DualPT1 iRelaxFilterEVel;
 PT1 pushNorth;
 PT1 pushEast;
 
+interp_config rateInterpConfig0, rateInterpConfig1, rateInterpConfig2;
+
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {
 		pidGains[i][P].setRaw(80 << P_SHIFT);
@@ -89,12 +92,99 @@ void initPidGains() {
 
 void initRateFactors() {
 	for (int i = 0; i < 3; i++) {
-		rateFactors[0][i] = 100; // first order, center rate
-		rateFactors[1][i] = 100;
-		rateFactors[2][i] = 150;
-		rateFactors[3][i] = 200;
-		rateFactors[4][i] = 350;
+		rateFactors[i][ACTUAL_CENTER_SENSITIVITY] = 170;
+		rateFactors[i][ACTUAL_MAX_RATE] = 900;
+		rateFactors[i][ACTUAL_EXPO] = 0.57;
 	}
+}
+
+/**
+ * @brief calculates the rate based on ACTUAL rates, does NOT use the LUT
+ *
+ * @param stick from -1 to 1, where 0 is center and +-1 is full stick
+ * @param axis AXIS_ROLL, AXIS_PITCH or AXIS_YAW (0, 1 or 2)
+ * @return fix32 the rate in degrees per second
+ */
+static fix32 calculateActual(fix32 stick, u8 axis) {
+	fix32 center = rateFactors[axis][ACTUAL_CENTER_SENSITIVITY];
+	fix32 maxRate = rateFactors[axis][ACTUAL_MAX_RATE];
+	fix32 expo = rateFactors[axis][ACTUAL_EXPO];
+	fix32 stick2 = stick * stick;
+	fix32 stick6 = stick2 * stick2 * stick2;
+	if (expo < 0) expo = 0;
+	if (expo > 1) expo = 1;
+	fix32 linPart = stick * center;
+	fix32 expoPart = (expo * stick6 + (fix32(1) - expo) * stick2) * (maxRate - center) * stick.sign();
+	return linPart + expoPart;
+}
+
+static void startRateInterp() {
+	interp_set_config(interp0, 0, &rateInterpConfig0);
+	interp_set_config(interp0, 1, &rateInterpConfig1);
+	interp_set_config(interp1, 0, &rateInterpConfig2);
+	interp1->base[0] = -1 << 15;
+	interp1->base[1] = 1 << 15;
+}
+
+/**
+ * @brief Get the target rotational rate for a given stick value and axis.
+ *
+ * Uses the interpolator for faster access to the pre-calculated rates. Run startRateInterp() before every batch of using this function.
+ *
+ * @param stick stick position from -1 to 1, where 0 is center and +-1 is full stick
+ * @param axis AXIS_ROLL, AXIS_PITCH or AXIS_YAW (0, 1 or 2)
+ * @return fix32 the rate in degrees per second
+ */
+static fix32 getRateInterp(fix32 stick, u8 axis) {
+	// we use interp1 lane 0 for shifting and clamping the -1...1 stick value. Shifting to it is a 16 bit number, and clamping so that we do not get out of bounds
+	interp1->accum[0] = stick.raw;
+	// the peek value is shifted and clamped to -0.5...0.5 (-32768...32768), after shifting it is -128...128, then move that range to 0...256 for the LUT
+	i32 high = ((i32)interp1->peek[0] >> 8) + 128; // high byte (from 0-255 for -1 to <1 stick, 256 only for stick = 1)
+
+	interp0->accum[1] = interp1->peek[0]; // interpolation alpha value (only 8 LSBs (the ones we removed in the high byte) are used), this is the low byte
+	interp0->base[0] = rateInterp[axis][high].raw; // lower bound from LUT
+	interp0->base[1] = rateInterp[axis][high + 1].raw; // upper bound from LUT
+	return fix32().setRaw(interp0->peek[1]); // alpha applied between lower and upper
+}
+
+static void fillRateInterp() {
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 257; j++) {
+			fix32 stick = fix32(j - 128) / 128; // from -1 to 1
+			rateInterp[i][j] = calculateActual(stick, i);
+		}
+	}
+	startRateInterp();
+
+	elapsedMicros e;
+	i32 time = 0, time2 = 0;
+	e = 0;
+	fix32 sum = 0;
+	fix32 sum2 = 0;
+	for (fix32 i = -1; i <= 1; i += fix32(1) / 1024) {
+		sum += getRateInterp(i, AXIS_ROLL);
+	}
+	time = e;
+	e = 0;
+	for (fix32 i = -1; i <= 1; i += fix32(1) / 1024) {
+		sum2 += calculateActual(i, AXIS_ROLL);
+	}
+	time2 = e;
+	Serial.printf("Time for interp: %d us, Time for calculateActual: %d us, diff: %d us\n", time, time2, time - time2);
+	Serial.printf("Sum for interp: %.3f, Sum for calculateActual: %.3f, diff: %.3f\n", sum.getf32(), sum2.getf32(), (sum - sum2).getf32());
+}
+
+static void initRateInterp() {
+	rateInterpConfig0 = interp_default_config();
+	interp_config_set_blend(&rateInterpConfig0, true);
+	rateInterpConfig1 = interp_default_config();
+	interp_config_set_signed(&rateInterpConfig1, true);
+	rateInterpConfig2 = interp_default_config();
+	interp_config_set_signed(&rateInterpConfig2, true);
+	interp_config_set_clamp(&rateInterpConfig2, true);
+	interp_config_set_shift(&rateInterpConfig2, 1);
+	interp_config_set_mask(&rateInterpConfig2, 0, 30);
+	fillRateInterp();
 }
 
 void initPidVVel() {
@@ -116,7 +206,7 @@ void initPid() {
 	addArraySetting(SETTING_RATE_FACTORS, rateFactors, &initRateFactors);
 	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
 	addArraySetting(SETTING_PID_HVEL, pidGainsHVel, &initPidHVel);
-	addSetting(SETTING_IDLE_PERMILLE, &idlePermille, 25);
+	addSetting(SETTING_IDLE_PERMILLE, &idlePermille, 35);
 	addSetting(SETTING_MAX_ANGLE, &maxAngle, 40);
 	addSetting(SETTING_DFILTER_CUTOFF, &dFilterCutoff, 70);
 	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
@@ -135,6 +225,9 @@ void initPid() {
 	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
 	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
 	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
+
+	sleep_ms(5000);
+	initRateInterp();
 
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
