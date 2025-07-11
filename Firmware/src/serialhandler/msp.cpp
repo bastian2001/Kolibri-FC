@@ -833,21 +833,25 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_RATES: {
-			u16 rates[3][5];
-			for (int ax = 0; ax < 3; ax++)
-				for (int i = 0; i < 3; i++)
-					rates[ax][i] = rateCoeffs[ax][i].geti32();
+			i16 rates[3][3];
+			for (int ax = 0; ax < 3; ax++) {
+				rates[ax][0] = rateCoeffs[ax][0].geti32();
+				rates[ax][1] = rateCoeffs[ax][1].geti32();
+				rates[ax][2] = rateCoeffs[ax][2].raw >> 3; // expo, 3.13 fixed point
+			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)rates, sizeof(rates));
 		} break;
 		case MspFn::SET_RATES: {
-			u16 rates[3][3];
+			i16 rates[3][3];
 			memcpy(rates, reqPayload, sizeof(rates));
-			for (int ax = 0; ax < 3; ax++)
-				for (int i = 0; i < 3; i++)
-					rateCoeffs[ax][i] = rates[ax][i];
+			for (int ax = 0; ax < 3; ax++) {
+				rateCoeffs[ax][0] = rates[ax][0];
+				rateCoeffs[ax][1] = rates[ax][1];
+				rateCoeffs[ax][2].raw = (i32)rates[ax][2] << 3; // 3.13 fixed point for expo (normally [0,1], but technically [-4,4) are allowed here)
+			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
-			getSetting(SETTING_RATE_FACTORS)->updateSettingInFile();
+			getSetting(SETTING_RATE_COEFFS)->updateSettingInFile();
 		} break;
 		case MspFn::GET_EXT_PID: {
 			u16 ifall = iFalloff.geti32();

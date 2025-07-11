@@ -17,7 +17,7 @@ enum {
 	ACTUAL_MAX_RATE, // maximum rate for ACTUAL rates => including exponential part, in deg/s
 	ACTUAL_EXPO // expo factor for ACTUAL rates, between 0 and 1
 };
-extern fix32 rateFactors[3][3]; // rate factors for the PID controller [axis][number type]
+extern fix32 rateCoeffs[3][3]; // rate coefficients for the PID controller [axis][number type ACTUAL_xxx]
 enum {
 	P,
 	I,

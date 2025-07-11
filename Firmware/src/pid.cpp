@@ -47,7 +47,7 @@ fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effec
 
 u32 pidLoopCounter = 0;
 
-fix32 rateFactors[3][3];
+fix32 rateCoeffs[3][3];
 fix32 rateInterp[3][258]; // +-128 (=257) for sticks, index 257 only exists so that high + 1 is valid even if stick = 1
 fix64 vVelMaxErrorSum, vVelMinErrorSum;
 u8 maxAngle; // degrees, applied in angle mode and GPS mode
@@ -90,11 +90,11 @@ void initPidGains() {
 	}
 }
 
-void initRateFactors() {
+void initRateCoeffs() {
 	for (int i = 0; i < 3; i++) {
-		rateFactors[i][ACTUAL_CENTER_SENSITIVITY] = 170;
-		rateFactors[i][ACTUAL_MAX_RATE] = 900;
-		rateFactors[i][ACTUAL_EXPO] = 0.57;
+		rateCoeffs[i][ACTUAL_CENTER_SENSITIVITY] = 170;
+		rateCoeffs[i][ACTUAL_MAX_RATE] = 900;
+		rateCoeffs[i][ACTUAL_EXPO] = 0.57;
 	}
 }
 
@@ -106,9 +106,9 @@ void initRateFactors() {
  * @return fix32 the rate in degrees per second
  */
 static fix32 calculateActual(fix32 stick, u8 axis) {
-	fix32 center = rateFactors[axis][ACTUAL_CENTER_SENSITIVITY];
-	fix32 maxRate = rateFactors[axis][ACTUAL_MAX_RATE];
-	fix32 expo = rateFactors[axis][ACTUAL_EXPO];
+	fix32 center = rateCoeffs[axis][ACTUAL_CENTER_SENSITIVITY];
+	fix32 maxRate = rateCoeffs[axis][ACTUAL_MAX_RATE];
+	fix32 expo = rateCoeffs[axis][ACTUAL_EXPO];
 	fix32 stick2 = stick * stick;
 	fix32 stick6 = stick2 * stick2 * stick2;
 	if (expo < 0) expo = 0;
@@ -136,7 +136,7 @@ static void startRateInterp() {
  * @return fix32 the rate in degrees per second
  */
 static fix32 getRateInterp(fix32 stick, u8 axis) {
-	// we use interp1 lane 0 for shifting and clamping the -1...1 stick value. Shifting to it is a 16 bit number, and clamping so that we do not get out of bounds
+	// we use interp1 lane 0 for shifting and clamping the -1...1 (17 bit) stick value. Shifting so it is a 16 bit number, and clamping so that we do not get out of bounds
 	interp1->accum[0] = stick.raw;
 	// the peek value is shifted and clamped to -0.5...0.5 (-32768...32768), after shifting it is -128...128, then move that range to 0...256 for the LUT
 	i32 high = ((i32)interp1->peek[0] >> 8) + 128; // high byte (from 0-255 for -1 to <1 stick, 256 only for stick = 1)
@@ -203,7 +203,7 @@ void initPidHVel() {
 
 void initPid() {
 	addArraySetting(SETTING_PID_GAINS, pidGains, &initPidGains);
-	addArraySetting(SETTING_RATE_FACTORS, rateFactors, &initRateFactors);
+	addArraySetting(SETTING_RATE_COEFFS, rateCoeffs, &initRateCoeffs);
 	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
 	addArraySetting(SETTING_PID_HVEL, pidGainsHVel, &initPidHVel);
 	addSetting(SETTING_IDLE_PERMILLE, &idlePermille, 35);
@@ -226,7 +226,6 @@ void initPid() {
 	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
 	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
 
-	sleep_ms(5000);
 	initRateInterp();
 
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
@@ -275,12 +274,12 @@ void pidLoop() {
 
 	if (armed) {
 		// Quad armed
-		static fix32 polynomials[5][3];
+		fix32 stickPos[3]; // RPY stick positions, -1...+1
 		ELRS->getSmoothChannels(smoothChannels);
 		// calculate setpoints
-		polynomials[0][0] = (smoothChannels[0] - 1500) >> 9; //-1...+1
-		polynomials[0][1] = (smoothChannels[1] - 1500) >> 9;
-		polynomials[0][2] = (smoothChannels[3] - 1500) >> 9;
+		stickPos[0] = (smoothChannels[0] - 1500) >> 9; //-1...+1
+		stickPos[1] = (smoothChannels[1] - 1500) >> 9;
+		stickPos[2] = (smoothChannels[3] - 1500) >> 9;
 		throttle = (smoothChannels[2] - 988); // 0...1024
 		rollSetpoint = 0;
 		pitchSetpoint = 0;
@@ -418,15 +417,8 @@ void pidLoop() {
 				nVelLast = nVel;
 				eVelLast = eVel;
 			}
-			for (int i = 1; i < 5; i++) {
-				polynomials[i][2] = polynomials[i - 1][2] * polynomials[0][2];
-				if (polynomials[0][2] < 0)
-					polynomials[i][2] = -polynomials[i][2];
-			}
-
-			newYawSetpoint = 0;
-			for (int i = 0; i < 5; i++)
-				newYawSetpoint += rateFactors[i][2] * polynomials[i][2];
+			startRateInterp();
+			newYawSetpoint = getRateInterp(stickPos[2], AXIS_YAW);
 
 			// convert (new...) global roll, pitch and yaw to local roll, pitch and yaw
 			rollSetpoint = newRollSetpoint * cosPitch - newYawSetpoint * sinPitch;
@@ -485,23 +477,11 @@ void pidLoop() {
 			}
 			vVelLast = vVel;
 		} else if (flightMode == FlightMode::ACRO) {
-			/*
-			 * at full stick deflection, ...Raw values are either +1 or -1. That will make all the
-			 * polynomials also +/-1. Thus, the total rate for each axis is equal to the sum of all 5 rateFactors
-			 * of that axis. The center rate is the ratefactor[x][0].
-			 */
-			for (int i = 1; i < 5; i++) {
-				for (int j = 0; j < 3; j++) {
-					polynomials[i][j] = polynomials[i - 1][j] * polynomials[0][j];
-					if (polynomials[0][j] < 0) // on second and fourth order, preserve initial sign
-						polynomials[i][j] = -polynomials[i][j];
-				}
-			}
-			for (int i = 0; i < 5; i++) {
-				rollSetpoint += rateFactors[i][0] * polynomials[i][0];
-				pitchSetpoint += rateFactors[i][1] * polynomials[i][1];
-				yawSetpoint += rateFactors[i][2] * polynomials[i][2];
-			}
+			// acro is the simplest: we just need to calculate the setpoints based on the sticks, no fancy algos for althold or poshold
+			startRateInterp();
+			rollSetpoint = getRateInterp(stickPos[0], AXIS_ROLL);
+			pitchSetpoint = getRateInterp(stickPos[1], AXIS_PITCH);
+			yawSetpoint = getRateInterp(stickPos[2], AXIS_YAW);
 		}
 		rollError = rollSetpoint - gyroFiltered[AXIS_ROLL];
 		pitchError = pitchSetpoint - gyroFiltered[AXIS_PITCH];

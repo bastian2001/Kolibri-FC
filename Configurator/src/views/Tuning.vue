@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import { MspFn, MspVersion } from "@/msp/protocol";
 import { Command } from "@utils/types";
-import { delay, intToLeBytes, leBytesToInt } from "@utils/utils";
+import { delay, getSetpointActual, intToLeBytes, leBytesToInt } from "@utils/utils";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
 import NumericInput from "@/components/NumericInput.vue";
 
@@ -14,7 +14,11 @@ export default defineComponent({
 	data() {
 		return {
 			pids: [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-			rateFactors: [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+			rateCoeffs: [
+				{ center: 0, max: 0, expo: 0 },
+				{ center: 0, max: 0, expo: 0 },
+				{ center: 0, max: 0, expo: 0 }
+			],
 			saveTimeout: -1,
 			rateCanvas: document.createElement('canvas'),
 			setpointCanvas: document.createElement('canvas'),
@@ -84,18 +88,19 @@ export default defineComponent({
 								);
 						} break;
 					case MspFn.GET_RATES:
-						if (command.length !== 5 * 2 * 3) break;
+						if (command.length !== 3 * 2 * 3) break;
 						for (let ax = 0; ax < 3; ax++) {
-							for (let i = 0; i < 5; i++)
-								this.rateFactors[ax][i] = leBytesToInt(
-									command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2)
-								);
+							this.rateCoeffs[ax].center = leBytesToInt(command.data.slice(ax * 6, ax * 6 + 2));
+							this.rateCoeffs[ax].max = leBytesToInt(command.data.slice(ax * 6 + 2, ax * 6 + 4));
+							this.rateCoeffs[ax].expo = leBytesToInt(command.data.slice(ax * 6 + 4, ax * 6 + 6)) / 8192;
 						} break;
 					case MspFn.SET_PIDS: {
 						const data = [];
-						for (let ax = 0; ax < 3; ax++)
-							for (let i = 0; i < 5; i++)
-								data.push(...intToLeBytes(this.rateFactors[ax][i], 2));
+						for (let ax = 0; ax < 3; ax++) {
+							data.push(...intToLeBytes(this.rateCoeffs[ax].center, 2));
+							data.push(...intToLeBytes(this.rateCoeffs[ax].max, 2));
+							data.push(...intToLeBytes(Math.round(this.rateCoeffs[ax].expo * 8192), 2));
+						}
 						sendCommand('request', MspFn.SET_RATES, MspVersion.V2, data);
 					} break;
 					case MspFn.SET_RATES:
@@ -166,18 +171,6 @@ export default defineComponent({
 			this.drawRateCanvas();
 			this.drawSetpointCanvas();
 		},
-		getSetpoint(s: number, ax: number): number {
-			if (s > 1) s = 1;
-			if (s < -1) s = -1;
-			const sPos = s > 0 ? s : -s;
-			let setpoint = 0;
-			for (let i = 0; i < 5; i++) {
-				const v = this.rateFactors[ax][i] * Math.pow(sPos, i + 1);
-				if (s < 0) setpoint -= v;
-				else setpoint += v;
-			}
-			return setpoint
-		},
 		drawRateCanvas() {
 			const canvas = this.rateCanvas
 			const ctx = canvas.getContext('2d');
@@ -207,10 +200,8 @@ export default defineComponent({
 			// set scale based on max rate
 			let max = 0;
 			for (let i = 0; i < 3; i++) {
-				let ax = 0;
-				for (let j = 0; j < 5; j++) {
-					ax += this.rateFactors[i][j]
-				}
+				let ax = this.rateCoeffs[i].max;
+				console.log(ax);
 				if (ax > max) max = ax;
 			}
 			this.scale = 500;
@@ -263,7 +254,7 @@ export default defineComponent({
 				ctx.beginPath();
 				ctx.moveTo(0, canvas.height / 2);
 				for (let j = -50; j <= 50; j++) {
-					const val = this.getSetpoint(j / 50, i);
+					const val = getSetpointActual(j / 50, this.rateCoeffs[i]);
 					const x = canvas.width * (j + 50) / 100;
 					const y = canvas.height / 2 - canvas.height * val / (this.scale * 2);
 					if (j === -50)
@@ -284,7 +275,7 @@ export default defineComponent({
 			const rcMap = [0, 1, 3]
 			for (let i = 0; i < 3; i++) {
 				ctx.fillStyle = colors[i];
-				const setpoint = this.getSetpoint(this.rc[rcMap[i]], i);
+				const setpoint = getSetpointActual(this.rc[rcMap[i]], this.rateCoeffs[i]);
 				const x = canvas.width * (this.rc[rcMap[i]] + 1) / 2;
 				const y = canvas.height / 2 - canvas.height * setpoint / this.scale / 2;
 				ctx.beginPath();
@@ -297,7 +288,7 @@ export default defineComponent({
 		}
 	},
 	watch: {
-		rateFactors: {
+		rateCoeffs: {
 			handler() {
 				this.drawAll();
 			},
@@ -342,22 +333,26 @@ export default defineComponent({
 				<thead>
 					<tr>
 						<th>&nbsp;</th>
-						<th>x^1</th>
-						<th>x^2</th>
-						<th>x^3</th>
-						<th>x^4</th>
-						<th>x^5</th>
-						<th>Max rate</th>
+						<th>Center Sens</th>
+						<th>Max Rate</th>
+						<th>Expo</th>
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="(ax, i) in rateFactors">
+					<tr v-for="(ax, i) in rateCoeffs">
 						<td style="text-align:left">{{ ['Roll', 'Pitch', 'Yaw'][i] }}</td>
-						<td v-for="(_val, j) in ax">
-							<NumericInput v-model="rateFactors[i][j]" :min="0" :max="1000" :step="5" unit=""
+						<td>
+							<NumericInput v-model="ax.center" :min="0" :max="2000" :step="5" unit="°/s"
 								style="width: 100%" />
 						</td>
-						<td style="text-align: center;"> {{ ax[0] + ax[1] + ax[2] + ax[3] + ax[4] + ' °/s' }}</td>
+						<td>
+							<NumericInput v-model="ax.max" :min="0" :max="2000" :step="5" unit="°/s"
+								style="width: 100%" />
+						</td>
+						<td>
+							<NumericInput v-model="ax.expo" :min="0" :max="1" :step="0.01" unit=""
+								style="width: 100%" />
+						</td>
 					</tr>
 				</tbody>
 			</table>
