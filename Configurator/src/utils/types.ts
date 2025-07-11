@@ -99,6 +99,12 @@ export type LogData = {
 	timestamp?: Uint32Array
 }
 
+export type ActualCoeffs = {
+	center: number
+	max: number
+	expo: number
+}
+
 export type BBLog = {
 	frameCount: number
 	flightModes: { fm: number; frame: number }[]
@@ -114,12 +120,13 @@ export type BBLog = {
 	}
 	pidFrequency: number
 	frequencyDivider: number
-	rateFactors: number[][]
+	rateCoeffs: ActualCoeffs[]
 	pidConstants: number[][]
 	pidConstantsNice: number[][]
 	framesPerSecond: number
 	isExact: boolean
 	motorPoles: number
+	duration: number
 }
 
 export type TraceInGraph = {
@@ -133,8 +140,8 @@ export type TraceInGraph = {
 	states?: string[]
 	decimals: number
 	displayName: string
-	overrideData?: number[]
-	overrideSliceAndSkip?: number[]
+	overrideData?: Float32Array
+	overrideSliceAndSkip?: Float32Array
 	hasSetData: boolean
 }
 

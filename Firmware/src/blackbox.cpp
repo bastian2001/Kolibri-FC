@@ -301,19 +301,23 @@ void startLogging() {
 	if (!blackboxFile)
 		return;
 	const u8 data[] = {
-		0x20, 0x27, 0xA1, 0x99, 0, 0, 1 // magic bytes, version
+		0xDC, 0xDF, 0x4B, 0x4F, 0x4C, 0x49, 0x01, 0x00, 0x00, 0x00, 0x01 // magic bytes, version
 	};
-	blackboxFile.write(data, 7);
+	blackboxFile.write(data, 11);
 	u32 recordTime = rtcGetUnixTimestamp();
 	blackboxFile.write((u8 *)&recordTime, 4);
-	blackboxFile.write((u8)0); // 3200Hz gyro
+	u32 zero = 0;
+	blackboxFile.write((u8 *)&zero, 4); // duration, will be filled later
+	blackboxFile.write((u8)0); // 3200Hz PID Loop
 	blackboxFile.write((u8)bbFreqDivider);
 	blackboxFile.write((u8)3); // 2000deg/sec and 16g
-	i32 rf[5][3];
-	for (int i = 0; i < 5; i++)
-		for (int j = 0; j < 3; j++)
-			rf[i][j] = rateFactors[i][j].raw;
-	blackboxFile.write((u8 *)rf, 60);
+	i32 rf[3][3];
+	for (int ax = 0; ax < 3; ax++)
+		for (int i = 0; i < 3; i++)
+			rf[ax][i] = rateCoeffs[ax][i].raw;
+	blackboxFile.write((u8 *)rf, 36);
+	u8 dummy[24] = {0};
+	blackboxFile.write(dummy, 24); // reserved space for future use
 	i32 pg[3][5];
 	for (int i = 0; i < 3; i++)
 		for (int j = 0; j < 5; j++)
@@ -321,17 +325,16 @@ void startLogging() {
 	blackboxFile.write((u8 *)pg, 60);
 	blackboxFile.write((u8 *)&bbFlags, 8);
 	blackboxFile.write((u8)MOTOR_POLES);
-	while (blackboxFile.position() < 256) {
+	while (blackboxFile.position() < LOG_DATA_START) {
 		blackboxFile.write((u8)0);
 	}
 	bbDuration = 0;
 	bbFrameNum = 0;
 	bbWriteBufferPos = 0;
 	writeFlightModeToBlackbox();
-	writeGpsToBlackbox();
-	writeElrsToBlackbox();
+	if (currentBBFlags & LOG_GPS) writeGpsToBlackbox();
+	if (currentBBFlags & LOG_ELRS_RAW) writeElrsToBlackbox();
 	bbLogging = true;
-	// 256 bytes header
 	frametime = 0;
 }
 

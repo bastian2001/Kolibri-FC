@@ -194,7 +194,7 @@ export default defineComponent({
 <template>
 	<div class="numericInputWrapper" :class="{ entered }" ref="wrapper" :tabindex="entered ? -1 : 0">
 		<div class="numericInputDisplay" v-if="!entered">
-			{{ val.toLocaleString() }} {{ unit }}
+			{{ val.toLocaleString() }}&thinsp;{{ unit }}
 		</div>
 		<div v-else class="numericInputEdit" @wheel="onWheel">
 			<input type="number" class="numericInputInput" ref="input" v-model="editVal" @keydown="onKeyDown"

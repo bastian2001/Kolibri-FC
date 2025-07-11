@@ -1,4 +1,4 @@
-import { BBLog, LogData } from "@utils/types"
+import { ActualCoeffs, BBLog, LogData } from "@utils/types"
 import { leBytesToBigInt, leBytesToInt } from "@utils/utils"
 import { BB_ALL_FLAGS } from "@utils/blackbox/bbFlags"
 
@@ -8,27 +8,32 @@ const GYRO_RANGES = [2000, 1000, 500, 250, 125]
 export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	const header = binFile.slice(0, 256)
 	const data = binFile.slice(256)
-	const magic = leBytesToInt(header.slice(0, 4))
-	if (magic !== 0x99a12720) {
+	const magic = leBytesToBigInt(header.slice(0, 8))
+	if (magic !== 0x0001494c4f4bdfdcn) {
 		return magic.toString(16)
 	}
-	const version = header.slice(4, 7)
-	const startTime = new Date(leBytesToInt(header.slice(7, 11)) * 1000)
-	const pidFreq = 3200 / (1 + header[11])
-	const freqDiv = header[12]
-	const rangeByte = header[13]
+	const version = header.slice(8, 11)
+	const startTime = new Date(leBytesToInt(header.slice(11, 15)) * 1000)
+	const duration = leBytesToInt(header.slice(15, 19)) / 1000 // in seconds
+	const pidFreq = [3200][header[19]]
+	const freqDiv = header[20]
+	const rangeByte = header[21]
 	const ranges = {
 		gyro: GYRO_RANGES[(rangeByte >> 2) & 0b111],
 		accel: ACC_RANGES[rangeByte & 0b11],
 	}
-	const rateFactors: number[][] = [[], [], [], [], []]
-	const rfBytes = header.slice(14, 74)
-	for (let i = 0; i < 5; i++)
-		for (let j = 0; j < 3; j++)
-			rateFactors[i][j] = leBytesToInt(rfBytes.slice(i * 12 + j * 4, i * 12 + j * 4 + 4)) / 65536
+	const rateCoeffs: ActualCoeffs[] = []
+	const rfBytes = header.slice(22, 58)
+	for (let i = 0; i < 3; i++) {
+		rateCoeffs[i] = {
+			center: leBytesToInt(rfBytes.slice(i * 12, i * 12 + 4)) / 65536,
+			max: leBytesToInt(rfBytes.slice(i * 12 + 4, i * 12 + 8)) / 65536,
+			expo: leBytesToInt(rfBytes.slice(i * 12 + 8, i * 12 + 12)) / 65536,
+		}
+	}
 	const pidConstants: number[][] = [[], [], []]
 	const pidConstantsNice: number[][] = [[], [], []]
-	const pcBytes = header.slice(74, 134)
+	const pcBytes = header.slice(82, 142)
 	for (let i = 0; i < 3; i++) {
 		pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 20, i * 20 + 4))
 		pidConstantsNice[i][0] = pidConstants[i][0] >> 11
@@ -47,7 +52,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		pidConstants[i][4] /= 65536
 	}
 	const flags: string[] = []
-	const flagSlice = header.slice(134, 142)
+	const flagSlice = header.slice(142, 150)
 	let frameSize = 0
 	const offsets: { [key: string]: number } = {}
 	for (let j = 0; j < 64; j++) {
@@ -58,27 +63,22 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		flags.push(Object.keys(BB_ALL_FLAGS)[j])
 		offsets[Object.keys(BB_ALL_FLAGS)[j]] = frameSize
 		switch (j) {
-			case 26:
-			case 35:
-			case 36:
-			case 37:
+			case 23:
+			case 31:
+			case 32:
+			case 33:
 				frameSize += 6
 				break
-			case 42:
-			case 44:
-			case 45:
+			case 38:
+			case 40:
+			case 41:
 				frameSize += 4
 				break
-			case 43:
+			case 39:
 				frameSize += 3
 				break
 			case 0: // ELRS_RAW
-			case 31: // GPS
-				break
-			case 1: // unused
-			case 2: // unused
-			case 3: // unused
-			case 28: // unused
+			case 27: // GPS
 				break
 			default:
 				frameSize += 2
@@ -646,7 +646,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		ranges,
 		pidFrequency: pidFreq,
 		frequencyDivider: freqDiv,
-		rateFactors,
+		rateCoeffs,
 		pidConstants,
 		framesPerSecond,
 		rawFile: binFile,
@@ -655,5 +655,6 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		motorPoles,
 		flightModes,
 		highlights,
+		duration,
 	}
 }

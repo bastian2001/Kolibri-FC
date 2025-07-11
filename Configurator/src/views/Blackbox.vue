@@ -471,13 +471,13 @@ export default defineComponent({
 						const range = trace.maxValue - trace.minValue;
 						const scale = heightPerGraph / range;
 						ctx.strokeStyle = trace.color;
-						ctx.lineWidth = trace.strokeWidth * 2;
+						ctx.lineWidth = 1 + trace.strokeWidth;
 						if (!trace.path) continue
 						// @ts-expect-error
 						const data = constrain(trace.overrideData ? trace.overrideSliceAndSkip![closestFrameSliceSkip] : frame[trace.path][0], trace.minValue, trace.maxValue);
 						const pointY = heightOffset + heightPerGraph - (data - trace.minValue) * scale;
 						ctx.beginPath();
-						ctx.arc(frameX, pointY, trace.strokeWidth * 4, 0, Math.PI * 2);
+						ctx.arc(frameX, pointY, 2.5 + trace.strokeWidth * 1.5, 0, Math.PI * 2);
 						ctx.stroke();
 					}
 					heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
@@ -769,21 +769,23 @@ export default defineComponent({
 					const scale = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth;
-					trace.overrideSliceAndSkip = [];
+					if (!trace.strokeWidth) continue;
 					if (trace.overrideData) {
 						const overrideSlice = trace.overrideData.slice(
 							Math.max(0, Math.min(this.startFrame, this.endFrame)),
 							Math.max(0, Math.max(this.startFrame, this.endFrame)) + 1
 						);
 						if (everyNth > 2 && allowShortening) {
-							const len = overrideSlice.length;
-							for (let i = 0; i < len; i += everyNth) {
-								trace.overrideSliceAndSkip.push(overrideSlice[i]);
+							const len = Math.ceil(overrideSlice.length / everyNth);
+							trace.overrideSliceAndSkip = new Float32Array(len);
+							let j = 0;
+							for (let i = 0; i < len; i += 1, j += everyNth) {
+								trace.overrideSliceAndSkip[i] = overrideSlice[j];
 							}
 						} else trace.overrideSliceAndSkip = overrideSlice;
 					}
 					ctx.beginPath();
-					const array: LogDataType | number[] = trace.overrideData
+					const array: LogDataType | Float32Array = trace.overrideData
 						? trace.overrideSliceAndSkip
 						//@ts-expect-error
 						: this.sliceAndSkip[trace.path];
@@ -1117,6 +1119,7 @@ export default defineComponent({
 			<div v-if="loadedLog" class="fileInfo" style="margin-top: .8rem">
 				<div>Blackbox Version: {{ loadedLog.version.join('.') }}</div>
 				<div>Start Time: {{ loadedLog.startTime.toLocaleString() }}</div>
+				<div>Duration: {{ loadedLog.duration.toFixed(1) }} s</div>
 				<div>Frame Count: {{ loadedLog.frameCount }}</div>
 				<div>PID Frequency: {{ loadedLog.pidFrequency }} Hz</div>
 				<div>Frames per Second: {{ loadedLog.framesPerSecond }} Hz</div>
@@ -1159,33 +1162,26 @@ export default defineComponent({
 						{{ prefixZeros(loadedLog.pidConstantsNice[2][4], 5, ' ') }}
 					</div>
 				</div>
-				<div class="rateFactors">
-					Rate Factors:
-					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
-					<div>
-						&nbsp;&nbsp;x^1:&nbsp;{{ prefixZeros(loadedLog.rateFactors[0][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[0][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[0][2], 5, ' ') }}
+				<div class="rateCoeffs">
+					Rate Coefficients:
+					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL
+						PITCH&nbsp;&nbsp;&nbsp;YAW
 					</div>
 					<div>
-						&nbsp;&nbsp;x^2:&nbsp;{{ prefixZeros(loadedLog.rateFactors[1][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[1][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[1][2], 5, ' ') }}
+						&nbsp;&nbsp;Center:&nbsp;{{ prefixZeros(loadedLog.rateCoeffs[0].center, 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[1].center, 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[2].center, 5, ' ') }}
 					</div>
 					<div>
-						&nbsp;&nbsp;x^3:&nbsp;{{ prefixZeros(loadedLog.rateFactors[2][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[2][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[2][2], 5, ' ') }}
+						&nbsp;&nbsp;Max:&nbsp;&nbsp;&nbsp;&nbsp;{{ prefixZeros(loadedLog.rateCoeffs[0].max, 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[1].max, 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[2].max, 5, ' ') }}
 					</div>
 					<div>
-						&nbsp;&nbsp;x^4:&nbsp;{{ prefixZeros(loadedLog.rateFactors[3][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[3][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[3][2], 5, ' ') }}
-					</div>
-					<div>
-						&nbsp;&nbsp;x^5:&nbsp;{{ prefixZeros(loadedLog.rateFactors[4][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[4][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[4][2], 5, ' ') }}
+						&nbsp;&nbsp;Expo:&nbsp;&nbsp;&nbsp;{{ prefixZeros(loadedLog.rateCoeffs[0].expo.toFixed(2), 5,
+							' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[1].expo.toFixed(2), 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[2].expo.toFixed(2), 5, ' ') }}
 					</div>
 				</div>
 			</div>
