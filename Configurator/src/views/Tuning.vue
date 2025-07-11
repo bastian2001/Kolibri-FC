@@ -290,6 +290,11 @@ export default defineComponent({
 	watch: {
 		rateCoeffs: {
 			handler() {
+				for (let i = 0; i < 3; i++) {
+					if (this.rateCoeffs[i].center > this.rateCoeffs[i].max) {
+						this.rateCoeffs[i].max = this.rateCoeffs[i].center;
+					}
+				}
 				this.drawAll();
 			},
 			deep: true
