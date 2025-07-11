@@ -6,7 +6,7 @@ elapsedMillis osdTimer = 0;
 
 u8 drawIterator = 0;
 
-u8 elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 2 bytes for x and y position, the 3 MSBs of x is used as an updated flag + reserved, the 3 MSBs of y is used as a visible flag + blinking flag + reserved
+u8 elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 2 bytes for x and y position, the 2 MSBs of x is used as an updated flag + reserved, the 2 MSBs of y is used as a visible flag + blinking flag
 
 u8 elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 16 bytes for data
 
@@ -99,6 +99,8 @@ void drawElem(u8 elem) {
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMDI, (u8 *)&data);
 		pos++;
 	}
+	// TODO send MSP
+	// sendMsp(3, MspMsgType::REQUEST, MspFn::MSP_DISPLAYPORT, MspVersion::V2, <generate subcomand> , 1);
 }
 
 void osdLoop() {
@@ -129,7 +131,6 @@ void osdLoop() {
 		}
 	}
 	if (osdTimer > 1000 && osdReady != 1) {
-		// gyro likely ready, check registers
 		u8 data = 0;
 		osdTimer = 0;
 		regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::STAT, &data, 1, 0, 0);
@@ -147,3 +148,5 @@ void osdLoop() {
 		osdReady = (data & 0b00000011) ? 1 : 2;
 	}
 }
+
+// TODO Make OSD Great again (for digital)

@@ -1,3 +1,5 @@
+#pragma once
+
 #define SD_BB 0
 #define FLASH_BB 1 // not implemented yet
 #include "typedefs.h"
@@ -23,6 +25,7 @@
 #include "elapsedMillis.h"
 #include "imu.h"
 #include "modes.h"
+#include "mspDisplayport.h"
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"

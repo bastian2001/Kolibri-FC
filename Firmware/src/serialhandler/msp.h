@@ -67,6 +67,9 @@ enum class MspFn {
 	GET_MOTOR_3D_CONFIG = 124,
 	GET_MOTOR_CONFIG = 131,
 	UID = 160,
+	MSP_DISPLAYPORT = 182,
+	MSP_SET_OSD_CANVAS = 188,
+	MSP_GET_OSD_CANVAS = 189,
 	ACC_CALIBRATION = 205,
 	MAG_CALIBRATION = 206,
 	SET_MOTOR = 214,
@@ -243,12 +246,31 @@ extern MspVersion lastMspVersion;
  */
 void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const char *data = nullptr, u16 len = 0);
 
-/**
- * @brief Process a byte from the configurator
- *
- * @param c data byte
- * @param serialNum serial port number to send the response to
- */
+class MspParser {
+public:
+	MspParser() = default;
+
+	/**
+	 * @brief Process a byte from the configurator
+	 *
+	 * @param c data byte
+	 * @param serialNum serial port number to send the response to
+	 */
+	void mspHandleByte(u8 c, u8 serialNum);
+
+private:
+	char payloadBuf[2048] = {0}; // Payload buffer
+	u16 payloadBufIndex = 0; // Payload buffer index (0-2047)
+	u16 payloadLen = 0; // Payload Lenght
+	MspFn fn = MspFn::API_VERSION; // MSP function
+	MspMsgType msgType = MspMsgType::ERROR; // Message type
+	u8 msgFlag = 0; // Message flag
+	u32 crcV1 = 0; // Checksum for MSP V1 messages
+	u32 crcV2 = 0; // Checksum for MSP V2 messages
+	MspState mspState = MspState::IDLE; // MSP state
+	MspVersion msgMspVer; // MSP version
+};
+
 void mspHandleByte(u8 c, u8 serialNum);
 
 /// @brief counter for the motor override timeout

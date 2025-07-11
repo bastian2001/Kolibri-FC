@@ -138,7 +138,23 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 			if (versionHasV2) {
 				crcV1 ^= crcV2;
 			}
-		}
+		} // TODO remove print
+		// if (serialNum == 3) {
+		// 	Serial.printf("MSP %s: ", type == MspMsgType::REQUEST ? "REQ" : (type == MspMsgType::RESPONSE ? "RES" : "ERR"));
+		// 	for (int i = 0; i < pos; i++) {
+		// 		Serial.printf("%02X ", header[i]);
+		// 	}
+		// 	for (int i = 0; i < len; i++) {
+		// 		Serial.printf("%02X ", (u8)data[i]);
+		// 	}
+		// 	if (versionHasV2) {
+		// 		Serial.printf("%02X ", (u8)crcV2);
+		// 	}
+		// 	if (versionHasV1) {
+		// 		Serial.printf("%02X ", (u8)crcV1);
+		// 	}
+		// 	Serial.println();
+		// }
 		ser->write(header, pos);
 		ser->write(data, len);
 		if (versionHasV2)
@@ -150,17 +166,25 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 
 void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen) {
 	char buf[256] = {0};
-	u16 len = 0;
+	u16 len = 0; // TODO remove print
+	if (serialNum == 3 && (mspType == MspMsgType::RESPONSE || fn == MspFn::MSP_DISPLAYPORT || fn == MspFn::MSP_SET_OSD_CANVAS)) {
+		Serial.printf("MSP %s: ", mspType == MspMsgType::REQUEST ? "REQ" : (mspType == MspMsgType::RESPONSE ? "RES" : "ERR"));
+		Serial.printf("Fn: %04X, Version: %d, Len: %d, Payload: ", (u16)fn, (int)version, reqLen);
+		for (int i = 0; i < reqLen; i++) {
+			Serial.printf("%02X ", (u8)reqPayload[i]);
+		}
+		Serial.println();
+	}
 	if (mspType == MspMsgType::REQUEST) {
 		switch (fn) {
 		case MspFn::API_VERSION:
 			buf[len++] = MSP_PROTOCOL_VERSION;
-			buf[len++] = API_VERSION_MAJOR;
-			buf[len++] = API_VERSION_MINOR;
+			buf[len++] = 1;
+			buf[len++] = 45;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
 		case MspFn::FIRMWARE_VARIANT:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, "BTFL", FIRMWARE_IDENTIFIER_LENGTH);
 			break;
 		case MspFn::FIRMWARE_VERSION:
 			buf[len++] = FIRMWARE_VERSION_MAJOR;
@@ -394,6 +418,18 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			len = 12;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
+		case MspFn::MSP_DISPLAYPORT:
+			processMspDpMsg(reqPayload, reqLen, serialNum, version);
+			Serial.println("DP_182");
+			break;
+		case MspFn::MSP_SET_OSD_CANVAS:
+			processMspDpMsg(reqPayload, reqLen, serialNum, version);
+			Serial.println("DP_188");
+			break;
+		case MspFn::MSP_GET_OSD_CANVAS:
+			processMspDpMsg(reqPayload, reqLen, serialNum, version);
+			Serial.println("DP_189");
+			break;
 		case MspFn::ACC_CALIBRATION:
 			accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
 			armingDisableFlags |= 0x40;
@@ -995,19 +1031,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 	}
 }
 
-void mspHandleByte(u8 c, u8 serialNum) {
-	elapsedMicros taskTimer = 0;
-	static char payloadBuf[2052] = {0}; // worst case: 2048 bytes payload + 3 bytes checksum (v2 over v1 jumbo) + 1 byte start. After the start byte, the index is reset to 0
-	static u16 payloadBufIndex = 0;
-	static u16 payloadLen = 0;
-	static MspFn fn = MspFn::API_VERSION;
-	static MspMsgType msgType = MspMsgType::ERROR;
-	static u8 msgFlag = 0;
-	static u32 crcV1 = 0;
-	static u32 crcV2 = 0;
-	static MspVersion msgMspVer = MspVersion::V2;
-	static MspState mspState = MspState::IDLE;
+// TODO MSP Subcommands in own file
 
+void MspParser::mspHandleByte(u8 c, u8 serialNum) {
+	elapsedMicros taskTimer = 0;
 	tasks[TASK_CONFIGURATOR].runCounter++;
 
 	switch (mspState) {
