@@ -13,8 +13,15 @@ bool vectorHasString(const std::vector<string> &vec, const string &str) {
 
 string processCliCommand(const char *reqPayload, u16 reqLen) {
 	string payload = string(reqPayload, reqLen);
-	string cmd = payload.substr(0, payload.find(' '));
-	payload = payload.substr(payload.find(' ') + 1);
+	size_t pos = payload.find(' ');
+	string cmd;
+	if (pos != string::npos) {
+		cmd = payload.substr(0, pos);
+		payload = payload.substr(pos + 1);
+	} else {
+		cmd = payload;
+		payload = "";
+	}
 
 	string response = "";
 

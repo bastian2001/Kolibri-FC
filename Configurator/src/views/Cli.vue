@@ -41,7 +41,7 @@ export default defineComponent({
 					}
 					const outputElement = document.querySelector('.output') as HTMLElement;
 					if (outputElement) {
-						outputElement.scrollTop = outputElement.scrollHeight;
+						this.$nextTick(() => { outputElement.scrollTop = outputElement.scrollHeight })
 					}
 					break;
 				default:
