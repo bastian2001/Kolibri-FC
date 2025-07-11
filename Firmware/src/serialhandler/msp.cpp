@@ -179,12 +179,21 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		switch (fn) {
 		case MspFn::API_VERSION:
 			buf[len++] = MSP_PROTOCOL_VERSION;
-			buf[len++] = 1;
-			buf[len++] = 45;
+			if (serialFunctions[serialNum] & SERIAL_MSP_DISPLAYPORT) {
+				buf[len++] = 1; //! Betaflight Compatibility Mode ;)
+				buf[len++] = 45;
+			} else {
+				buf[len++] = API_VERSION_MAJOR;
+				buf[len++] = API_VERSION_MINOR;
+			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
-		case MspFn::FIRMWARE_VARIANT:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, "BTFL", FIRMWARE_IDENTIFIER_LENGTH);
+		case MspFn::FIRMWARE_VARIANT: // TODO remove betaflight compatibility mode
+			if (serialFunctions[serialNum] & SERIAL_MSP_DISPLAYPORT) {
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, "BTFL", FIRMWARE_IDENTIFIER_LENGTH); //! Betaflight Compatibility Mode ;)
+			} else {
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
+			}
 			break;
 		case MspFn::FIRMWARE_VERSION:
 			buf[len++] = FIRMWARE_VERSION_MAJOR;
