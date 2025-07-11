@@ -2,6 +2,7 @@
 #include "hardware/interp.h"
 
 fix32 sinLut[257];
+fix32 cosLut[257];
 fix32 atanLut[257];
 fix32 acosLut[257];
 interp_config sinInterpConfig0, sinInterpConfig1;
@@ -9,6 +10,7 @@ interp_config sinInterpConfig0, sinInterpConfig1;
 void initFixTrig() {
 	for (int i = 0; i <= 256; i++) {
 		sinLut[i] = sin(i * PI / 256);
+		cosLut[i] = cos(i * PI / 256);
 		atanLut[i] = atan((f64)i / 256);
 		acosLut[i] = FIX_PI / 2 - acos((f64)i / 256);
 	}
@@ -22,12 +24,35 @@ fix32 sinFix(const fix32 x) {
 	i32 sign = 1 - ((xNew >> 16) & 1) * 2; // 1 if 0 <= x < PI +/-2n*PI, -1 otherwise
 	xNew &= 0xFFFF; // %= PI
 	u32 high = xNew >> 8;
-	interp0->accum[1] = xNew & 0xFF;
+	interp0->accum[1] = xNew;
 	interp0->base[0] = sinLut[high].raw;
 	interp0->base[1] = sinLut[high + 1].raw;
 	return fix32().setRaw(interp0->peek[1] * sign);
 }
-fix32 cosFix(const fix32 x) { return sinFix(x + FIX_PI / 2); }
+fix32 cosFix(const fix32 x) {
+	i32 xNew = (x / FIX_PI).raw;
+	i32 sign = 1 - ((xNew >> 16) & 1) * 2; // 1 if 0 <= x < PI +/-2n*PI, -1 otherwise
+	xNew &= 0xFFFF; // %= PI
+	u32 high = xNew >> 8;
+	interp0->accum[1] = xNew;
+	interp0->base[0] = cosLut[high].raw;
+	interp0->base[1] = cosLut[high + 1].raw;
+	return fix32().setRaw(interp0->peek[1] * sign);
+}
+
+void sinCosFix(const fix32 x, fix32 &sinOut, fix32 &cosOut) {
+	i32 xNew = (x / FIX_PI).raw;
+	i32 sign = 1 - ((xNew >> 16) & 1) * 2; // 1 if 0 <= x < PI +/-2n*PI, -1 otherwise
+	xNew &= 0xFFFF; // %= PI
+	u32 high = xNew >> 8;
+	interp0->accum[1] = xNew;
+	interp0->base[0] = sinLut[high].raw;
+	interp0->base[1] = sinLut[high + 1].raw;
+	sinOut.setRaw(interp0->peek[1] * sign);
+	interp0->base[0] = cosLut[high].raw;
+	interp0->base[1] = cosLut[high + 1].raw;
+	cosOut.setRaw(interp0->peek[1] * sign);
+}
 
 fix32 atanFix(fix32 x) {
 	i32 sign = x.sign();

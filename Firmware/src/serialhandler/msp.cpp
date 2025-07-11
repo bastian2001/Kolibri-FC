@@ -834,17 +834,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::GET_RATES: {
 			u16 rates[3][5];
-			for (int i = 0; i < 3; i++)
-				for (int j = 0; j < 5; j++)
-					rates[i][j] = rateFactors[j][i].geti32();
+			for (int ax = 0; ax < 3; ax++)
+				for (int i = 0; i < 3; i++)
+					rates[ax][i] = rateCoeffs[ax][i].geti32();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)rates, sizeof(rates));
 		} break;
 		case MspFn::SET_RATES: {
 			u16 rates[3][3];
 			memcpy(rates, reqPayload, sizeof(rates));
-			for (int i = 0; i < 3; i++)
-				for (int j = 0; j < 5; j++)
-					rateFactors[j][i] = rates[i][j];
+			for (int ax = 0; ax < 3; ax++)
+				for (int i = 0; i < 3; i++)
+					rateCoeffs[ax][i] = rates[ax][i];
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
 			getSetting(SETTING_RATE_FACTORS)->updateSettingInFile();

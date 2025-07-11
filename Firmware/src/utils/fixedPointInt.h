@@ -34,6 +34,15 @@ fix32 sinFix(const fix32 x);
 fix32 cosFix(const fix32 x);
 
 /**
+ * @brief calculates the sine and cosine of a fixed point number, faster than sinf and cosf
+ * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
+ * @param x radians
+ * @param sinOut output for sine
+ * @param cosOut output for cosine
+ */
+void sinCosFix(const fix32 x, fix32 &sinOut, fix32 &cosOut);
+
+/**
  * @brief calculates the atan of a fixed point number, about as fast as atanf
  * @details accurate to about +-0.00003. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
  *
