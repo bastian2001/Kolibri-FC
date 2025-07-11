@@ -39,6 +39,7 @@ void setup() {
 	rtcInit();
 	imuInit();
 	osdInit();
+	initMspDisplayport();
 	initMag();
 	initBaro();
 	initGPS();
@@ -93,6 +94,7 @@ void loop() {
 	taskManagerLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500) {
+		Serial.println("Activity timer expired, toggling NeoPixel");
 		static bool on = false;
 		if (on) {
 			p.neoPixelSetValue(0, 0, 0, 0, true);

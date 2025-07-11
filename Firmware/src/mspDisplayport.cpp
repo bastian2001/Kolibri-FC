@@ -1,48 +1,39 @@
 #include <mspDisplayport.h>
 
-// TODO maybe replace string with char array (Performance lol)
-string dpWriteString(u8 row, u8 column, u8 attribute, string content) {
-	if (content.length() > 29) {
-		content = content.substr(0, 28); // shortens string if too long
-	}
-	string msg = "";
-	msg += row;
-	msg += column;
-	msg += attribute;
-	msg += content;
-	msg += "\0";
-	return msg;
+void initMspDisplayport() {
+	Serial3.begin(MSP_DP_SPEED);
 }
 
-// String dpShow() {}
-
-// String dpClear() {}
-
-void processMspDpMsg(const char *payload, u16 payloadLength, u8 serialNum, MspVersion MspVersion) {
-	Serial.printf("Got: ");
-	for (int i = 0; i < payloadLength; i++) {
-		Serial.printf("%02X ", payload[i]);
+void sendMspDp(u8 subcmd, const char *payload = nullptr, u8 payloadLength = 0) {
+	if (payload == nullptr && payloadLength > 0) return;
+	for (int i = 0; i < SERIAL_COUNT; i++) {
+		if (serialFunctions[i] & SERIAL_MSP_DISPLAYPORT) {
+			char data[256];
+			data[0] = subcmd;
+			if (payload != nullptr) memcpy(&data[1], payload, payloadLength);
+			sendMsp(i, MspMsgType::RESPONSE, MspFn::MSP_DISPLAYPORT, MspVersion::V1, data, payloadLength + 1);
+		}
 	}
-	Serial.println();
-	u8 subCmd = payload[0];
-	payload++;
-	payloadLength--;
-	switch (subCmd) {
-	case MspDpFn::HEARTBEAT:
-		break;
-	case MspDpFn::RELEASE:
-		break;
-	case MspDpFn::CLEAR_SCREEN:
-		break;
-	case MspDpFn::WRITE_STRING:
-		break;
-	case MspDpFn::DRAW_SCREEN:
-		break;
-	case MspDpFn::OPTIONS:
-		break;
-	case MspDpFn::SYS:
-		break;
-	default:
-		break;
+}
+
+void onSetCanvas(u8 cols, u8 rows) {
+	sendMspDp(MspDpFn::CLEAR_SCREEN);
+}
+
+void dpWriteString(u8 row, u8 column, u8 attribute, const char *content) {
+	char data[34] = {0};
+	data[0] = row & 0x3F;
+	data[1] = column & 0x3F;
+	data[2] = attribute; // attribute
+	strncpy((char *)&data[3], content, 30);
+	u8 len = strlen(content) + 4;
+	sendMspDp(MspDpFn::WRITE_STRING, data, len);
+}
+
+void mspDisplayportLoop() {
+	static elapsedMillis updateTimer = 0;
+	if (updateTimer > 50) {
+		sendMspDp(MspDpFn::HEARTBEAT);
+		sendMspDp(MspDpFn::DRAW_SCREEN);
 	}
 }

@@ -138,23 +138,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 			if (versionHasV2) {
 				crcV1 ^= crcV2;
 			}
-		} // TODO remove print
-		// if (serialNum == 3) {
-		// 	Serial.printf("MSP %s: ", type == MspMsgType::REQUEST ? "REQ" : (type == MspMsgType::RESPONSE ? "RES" : "ERR"));
-		// 	for (int i = 0; i < pos; i++) {
-		// 		Serial.printf("%02X ", header[i]);
-		// 	}
-		// 	for (int i = 0; i < len; i++) {
-		// 		Serial.printf("%02X ", (u8)data[i]);
-		// 	}
-		// 	if (versionHasV2) {
-		// 		Serial.printf("%02X ", (u8)crcV2);
-		// 	}
-		// 	if (versionHasV1) {
-		// 		Serial.printf("%02X ", (u8)crcV1);
-		// 	}
-		// 	Serial.println();
-		// }
+		}
 		ser->write(header, pos);
 		ser->write(data, len);
 		if (versionHasV2)
@@ -166,15 +150,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 
 void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen) {
 	char buf[256] = {0};
-	u16 len = 0; // TODO remove print
-	if (serialNum == 3 && (mspType == MspMsgType::RESPONSE || fn == MspFn::MSP_DISPLAYPORT || fn == MspFn::MSP_SET_OSD_CANVAS)) {
-		Serial.printf("MSP %s: ", mspType == MspMsgType::REQUEST ? "REQ" : (mspType == MspMsgType::RESPONSE ? "RES" : "ERR"));
-		Serial.printf("Fn: %04X, Version: %d, Len: %d, Payload: ", (u16)fn, (int)version, reqLen);
-		for (int i = 0; i < reqLen; i++) {
-			Serial.printf("%02X ", (u8)reqPayload[i]);
-		}
-		Serial.println();
-	}
+	u16 len = 0;
 	if (mspType == MspMsgType::REQUEST) {
 		switch (fn) {
 		case MspFn::API_VERSION:
@@ -395,6 +371,20 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 0; // vario
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
+		case MspFn::MSP_ANALOG: {
+			u8 voltage = adcVoltage / 10; // dV
+			u16 current = adcCurrent * 100; // cA
+			u16 mAh = 0; // mW
+			u16 rssi = ELRS->uplinkLinkQuality * 10; // 0-1000, 1000 = 100%
+			buf[len++] = voltage;
+			buf[len++] = current & 0xFF;
+			buf[len++] = current >> 8;
+			buf[len++] = mAh & 0xFF;
+			buf[len++] = mAh >> 8;
+			buf[len++] = rssi & 0xFF;
+			buf[len++] = rssi >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
 		case MspFn::BOXIDS:
 			// only exists for compatibility with BLHeliSuite32
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
@@ -428,16 +418,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::MSP_DISPLAYPORT:
-			processMspDpMsg(reqPayload, reqLen, serialNum, version);
-			Serial.println("DP_182");
+			// not happening
 			break;
 		case MspFn::MSP_SET_OSD_CANVAS:
-			processMspDpMsg(reqPayload, reqLen, serialNum, version);
-			Serial.println("DP_188");
+			onSetCanvas(reqPayload[0], reqPayload[1]);
 			break;
 		case MspFn::MSP_GET_OSD_CANVAS:
-			processMspDpMsg(reqPayload, reqLen, serialNum, version);
-			Serial.println("DP_189");
+			// not happening
 			break;
 		case MspFn::ACC_CALIBRATION:
 			accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
@@ -1046,8 +1033,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		}
 	}
 }
-
-// TODO MSP Subcommands in own file
 
 void MspParser::mspHandleByte(u8 c, u8 serialNum) {
 	elapsedMicros taskTimer = 0;
