@@ -1162,33 +1162,26 @@ export default defineComponent({
 						{{ prefixZeros(loadedLog.pidConstantsNice[2][4], 5, ' ') }}
 					</div>
 				</div>
-				<div class="rateFactors">
-					Rate Factors:
-					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
-					<div>
-						&nbsp;&nbsp;x^1:&nbsp;{{ prefixZeros(loadedLog.rateFactors[0][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[0][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[0][2], 5, ' ') }}
+				<div class="rateCoeffs">
+					Rate Coefficients:
+					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL
+						PITCH&nbsp;&nbsp;&nbsp;YAW
 					</div>
 					<div>
-						&nbsp;&nbsp;x^2:&nbsp;{{ prefixZeros(loadedLog.rateFactors[1][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[1][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[1][2], 5, ' ') }}
+						&nbsp;&nbsp;Center:&nbsp;{{ prefixZeros(loadedLog.rateCoeffs[0].center, 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[1].center, 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[2].center, 5, ' ') }}
 					</div>
 					<div>
-						&nbsp;&nbsp;x^3:&nbsp;{{ prefixZeros(loadedLog.rateFactors[2][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[2][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[2][2], 5, ' ') }}
+						&nbsp;&nbsp;Max:&nbsp;&nbsp;&nbsp;&nbsp;{{ prefixZeros(loadedLog.rateCoeffs[0].max, 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[1].max, 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[2].max, 5, ' ') }}
 					</div>
 					<div>
-						&nbsp;&nbsp;x^4:&nbsp;{{ prefixZeros(loadedLog.rateFactors[3][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[3][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[3][2], 5, ' ') }}
-					</div>
-					<div>
-						&nbsp;&nbsp;x^5:&nbsp;{{ prefixZeros(loadedLog.rateFactors[4][0], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[4][1], 5, ' ') }}
-						{{ prefixZeros(loadedLog.rateFactors[4][2], 5, ' ') }}
+						&nbsp;&nbsp;Expo:&nbsp;&nbsp;&nbsp;{{ prefixZeros(loadedLog.rateCoeffs[0].expo.toFixed(2), 5,
+							' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[1].expo.toFixed(2), 5, ' ') }}
+						{{ prefixZeros(loadedLog.rateCoeffs[2].expo.toFixed(2), 5, ' ') }}
 					</div>
 				</div>
 			</div>

@@ -138,12 +138,9 @@ fix32 nAccel, eAccel;
 
 void __not_in_flash_func(updateSpeeds)() {
 	fix32 preHelper = vVelHelper;
-	cosPitch = cosFix(pitch);
-	cosRoll = cosFix(roll);
-	cosHeading = cosFix(combinedHeading);
-	sinPitch = sinFix(pitch);
-	sinRoll = sinFix(roll);
-	sinHeading = sinFix(combinedHeading);
+	sinCosFix(pitch, sinPitch, cosPitch);
+	sinCosFix(roll, sinRoll, cosRoll);
+	sinCosFix(combinedHeading, sinHeading, cosHeading);
 	vAccel = cosRoll * cosPitch * accelDataFiltered[2] * RAW_TO_M_PER_SEC2;
 	vAccel += sinRoll * cosPitch * accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
 	vAccel -= sinPitch * accelDataFiltered[1] * RAW_TO_M_PER_SEC2;

@@ -1,3 +1,5 @@
+import { ActualCoeffs } from "./types"
+
 export const leBytesToInt = (bytes: number[] | Uint8Array, signed = false) => {
 	let value = 0
 	let mul = 1
@@ -66,7 +68,7 @@ export function constrain(num: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, num))
 }
 
-export function prefixZeros(num: number, totalDigits: number, char: string = "0") {
+export function prefixZeros(num: number | string, totalDigits: number, char: string = "0") {
 	let str = num.toString()
 	while (str.length < totalDigits) str = char + str
 	return str
@@ -79,3 +81,11 @@ export function delay(ms: number) {
 }
 
 export const runAsync = () => Promise.resolve()
+
+export function getSetpointActual(stickPos: number, coeffs: ActualCoeffs): number {
+	if (stickPos >= 1) stickPos = 1
+	if (stickPos <= -1) stickPos = -1
+	const linPart = stickPos * coeffs.center
+	const expoPart = coeffs.expo * Math.pow(stickPos, 6) + (1 - coeffs.expo) * Math.pow(stickPos, 2)
+	return linPart + expoPart * Math.sign(stickPos) * (coeffs.max - coeffs.center)
+}

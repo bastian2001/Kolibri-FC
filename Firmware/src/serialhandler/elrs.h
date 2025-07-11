@@ -30,7 +30,7 @@ public:
 	/**
 	 * @brief Calculate the smoothed RC channels
 	 *
-	 * @details uses linear interpolation over 4ms / extrapolation up to 8ms and clamps the values to 1000-2000 / 988-2012
+	 * @details uses linear interpolation over 4ms / extrapolation up to 8ms and clamps the values to 988-2012
 	 * @param smoothChannels Array to store the smoothed channels
 	 */
 	void getSmoothChannels(fix32 smoothChannels[4]);
