@@ -94,15 +94,13 @@ void loop() {
 	taskManagerLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500) {
-		Serial.println("Activity timer expired, toggling NeoPixel");
 		static bool on = false;
 		if (on) {
 			p.neoPixelSetValue(0, 0, 0, 0, true);
-			on = false;
 		} else {
 			p.neoPixelSetValue(0, 255, 255, 255, true);
-			on = true;
 		}
+		on = !on;
 		activityTimer = 0;
 	}
 	duration0 = taskTimer0;

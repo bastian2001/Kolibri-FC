@@ -74,7 +74,7 @@
 #define PIO_ESC pio1
 #define PIO_GYRO_SPI pio2
 #define PIO_SDIO pio0
-#define PIO_LED pio2
+#define PIO_LED pio0
 
 #define PROPS_OUT
 
