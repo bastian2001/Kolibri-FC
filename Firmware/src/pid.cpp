@@ -340,15 +340,43 @@ void __not_in_flash_func(pidLoop)() {
 					} break;
 					case 3: {
 						static elapsedMillis landTimer;
-						if (newState) landTimer = 0;
+						static fix32 altitudes[8];
+						static u8 altIndex = 0;
+						if (newState) {
+							landTimer = 0;
+							for (int i = 0; i < 8; i++) {
+								altitudes[i] = FIX32_MAX;
+							}
+						}
 						autopilotNavigate(homepointLat, homepointLon, homepointAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
 						vVelSetpoint = -0.3f;
-						if (vVel > fix32(-0.2f)) {
+						if (landTimer > 1000) {
 							landTimer = 0;
-						} else if (landTimer > 2) {
-							armed = false;
+							altitudes[altIndex++] = combinedAltitude;
+							if (altIndex >= 8) {
+								altIndex = 0;
+							}
+							fix32 minAlt = FIX32_MAX;
+							fix32 maxAlt = FIX32_MIN;
+							for (int i = 0; i < 8; i++) {
+								if (altitudes[i] < minAlt)
+									minAlt = altitudes[i];
+								else if (altitudes[i] > maxAlt)
+									maxAlt = altitudes[i];
+							}
+							if (maxAlt - minAlt < 0.5) {
+								// if the altitude is stable for 8 seconds, we can stop
+								rthState = 4;
+								vVelSetpoint = 0;
+								eVelSetpoint = 0;
+								nVelSetpoint = 0;
+							}
 						}
 					} break;
+					case 4: {
+						armed = false; // disarm after landing
+						rthState = 0;
+					}
 					}
 				}
 
