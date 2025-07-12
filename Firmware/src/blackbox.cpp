@@ -311,11 +311,13 @@ void startLogging() {
 	blackboxFile.write((u8)0); // 3200Hz PID Loop
 	blackboxFile.write((u8)bbFreqDivider);
 	blackboxFile.write((u8)3); // 2000deg/sec and 16g
-	i32 rf[5][3];
-	for (int i = 0; i < 5; i++)
-		for (int j = 0; j < 3; j++)
-			rf[i][j] = rateFactors[i][j].raw;
-	blackboxFile.write((u8 *)rf, 60);
+	i32 rf[3][3];
+	for (int ax = 0; ax < 3; ax++)
+		for (int i = 0; i < 3; i++)
+			rf[ax][i] = rateCoeffs[ax][i].raw;
+	blackboxFile.write((u8 *)rf, 36);
+	u8 dummy[24] = {0};
+	blackboxFile.write(dummy, 24); // reserved space for future use
 	i32 pg[3][5];
 	for (int i = 0; i < 3; i++)
 		for (int j = 0; j < 5; j++)

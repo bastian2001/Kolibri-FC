@@ -16,8 +16,39 @@ inline void startFixTrig() {
 	interp_set_config(interp0, 1, &sinInterpConfig1);
 }
 
+/**
+ * @brief calculates the sine of a fixed point number, faster than sinf
+ * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start.
+ * Also call startFixTrig() once before every sinFix/cosFix calculation batch to prepare the interpolator for blend mode
+ * @param x
+ * @return fix32
+ */
 fix32 sinFix(const fix32 x);
+
+/**
+ * @brief calculates the cosine of a fixed point number, faster than cosf
+ * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
+ * @param x radians
+ * @return fix32 radians
+ */
 fix32 cosFix(const fix32 x);
+
+/**
+ * @brief calculates the sine and cosine of a fixed point number, faster than sinf and cosf
+ * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
+ * @param x radians
+ * @param sinOut output for sine
+ * @param cosOut output for cosine
+ */
+void sinCosFix(const fix32 x, fix32 &sinOut, fix32 &cosOut);
+
+/**
+ * @brief calculates the atan of a fixed point number, about as fast as atanf
+ * @details accurate to about +-0.00003. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
+ *
+ * @param x radians
+ * @return fix32 radians
+ */
 fix32 atanFix(fix32 x);
 fix32 atan2Fix(const fix32 y, const fix32 x);
 fix32 acosFix(fix32 x);
@@ -452,9 +483,11 @@ public:
 	inline constexpr explicit operator bool() const {
 		return this->raw != 0;
 	};
+	/// @brief 1 for positive or zero, -1 for negative
 	inline constexpr i32 sign() const {
 		return (this->raw >> 31) * 2 + 1;
 	};
+	/// @brief returns the absolute value of this fix32
 	inline constexpr fix32 abs() const {
 		return *this * sign();
 	};

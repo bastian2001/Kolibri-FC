@@ -3,7 +3,7 @@ import { BBLog, GenFlagProps, FlagProps } from "../types"
 const getGyroBBRange = (file: BBLog | undefined) => {
 	if (!file) return { max: -2000, min: 2000 }
 	let maxSetpoints = [0, 0, 0]
-	for (let exp = 0; exp < 5; exp++) for (let ax = 0; ax < 3; ax++) maxSetpoints[ax] += file.rateFactors[exp][ax]
+	for (let ax = 0; ax < 3; ax++) maxSetpoints[ax] = file.rateCoeffs[ax].max
 	const max = Math.max(...maxSetpoints) * 1.2
 	return { max: max, min: -max }
 }
@@ -626,22 +626,22 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 	GEN_ROLL_SETPOINT: {
 		replaces: "LOG_ROLL_SETPOINT",
-		requires: ["LOG_ROLL_ELRS_RAW"],
+		requires: ["LOG_ELRS_RAW"],
 		exact: false,
 	},
 	GEN_PITCH_SETPOINT: {
 		replaces: "LOG_PITCH_SETPOINT",
-		requires: ["LOG_PITCH_ELRS_RAW"],
+		requires: ["LOG_ELRS_RAW"],
 		exact: false,
 	},
 	GEN_THROTTLE_SETPOINT: {
 		replaces: "LOG_THROTTLE_SETPOINT",
-		requires: ["LOG_THROTTLE_ELRS_RAW"],
+		requires: ["LOG_ELRS_RAW"],
 		exact: false,
 	},
 	GEN_YAW_SETPOINT: {
 		replaces: "LOG_YAW_SETPOINT",
-		requires: ["LOG_YAW_ELRS_RAW"],
+		requires: ["LOG_ELRS_RAW"],
 		exact: false,
 	},
 	GEN_ROLL_PID_P: {
@@ -743,7 +743,7 @@ export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 	},
 	GEN_VVEL_SETPOINT: {
 		replaces: "LOG_VVEL_SETPOINT",
-		requires: ["LOG_THROTTLE_ELRS_RAW"],
+		requires: ["LOG_ELRS_RAW"],
 		exact: false,
 	},
 }

@@ -1,6 +1,6 @@
 # Blackbox
 
-This Document describes the blackbox logging as of 7th July 2025 (version 0.0.1).
+This Document describes the blackbox logging as of 11th July 2025 (version 0.0.1).
 
 The blackbox is being logged on the SD card on the FC. Blackbox files end in .kbb, e.g. KOLI0001.kbb.
 The format is binary, and the first 8 bytes are the magic sequence 0xDC 0xDF 0x4B 0x4F 0x4C 0x49 0x01 0x00, the next 3 bytes indicate the used blackbox format version (binary, e.g. 0x00 0x00 0x01 for 0.0.1).
@@ -19,7 +19,8 @@ Format: offset+length: description
 -   19+1: PID rate index, 0 = 3200Hz
 -   20+1: blackbox frequency divider, e.g. 1 = 1:1 or 4 = 1:4. 0 is undefined
 -   21+1: indicating the gyro ranges (0 (LSB) ... 2: gyr_range register, 3...4 acc_range register)
--   22+60: rate factors (fix32[5][3], 16.16 bits, first dimension is the exponent, second dimension is the axis: 0 = roll, 1 = pitch, 2 = yaw)
+-   22+36: rate coefficient (fix32[3][3], 16.16 bits, first dimension is the axis: 0 = roll, 1 = pitch, 2 = yaw, second dimension is the type of coefficient: 0 = center, 1 = max, 2 = expo)
+-   58+24: unused
 -   82+60: PID gains (fix32[3][5], 16.16 bits, first dimension is the axis, second dimension is PID: P, I, D, FF, S)
 -   142+8: enabled blackbox fields (uint64_t, bitmask, 0 = disabled, 1 = enabled)
 -   150+1: motor pole count

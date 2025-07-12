@@ -1,7 +1,7 @@
 import { BBLog } from "@utils/types"
 import { BB_GEN_FLAGS } from "@utils/blackbox/bbFlags"
 import { PT1 } from "@utils/filters"
-import { map } from "@utils/utils"
+import { getSetpointActual, map } from "@utils/utils"
 
 export function fillLogWithGenFlags(log: BBLog) {
 	log.isExact = true
@@ -28,27 +28,15 @@ export function fillLogWithGenFlags(log: BBLog) {
 				case "GEN_ROLL_SETPOINT":
 					log.logData.setpointRoll = new Float32Array(frameCount)
 					for (let i = 0; i < frameCount; i++) {
-						const polynomials: number[] = [(log.logData.elrsRoll![i] - 1500) / 512]
-						for (let j = 1; j < 5; j++) {
-							polynomials[j] = polynomials[0] * polynomials[j - 1]
-							if (polynomials[0] < 0) polynomials[j] = -polynomials[j]
-						}
-						log.logData.setpointRoll[i] = 0
-						for (let j = 0; j < 5; j++)
-							log.logData.setpointRoll[i] += polynomials[j] * log.rateFactors[j][0]
+						const stick = (log.logData.elrsRoll![i] - 1500) / 512
+						log.logData.setpointRoll[i] = getSetpointActual(stick, log.rateCoeffs[0])
 					}
 					break
 				case "GEN_PITCH_SETPOINT":
 					log.logData.setpointPitch = new Float32Array(frameCount)
 					for (let i = 0; i < frameCount; i++) {
-						const polynomials: number[] = [(log.logData.elrsPitch![i] - 1500) / 512]
-						for (let j = 1; j < 5; j++) {
-							polynomials[j] = polynomials[0] * polynomials[j - 1]
-							if (polynomials[0] < 0) polynomials[j] = -polynomials[j]
-						}
-						log.logData.setpointPitch[i] = 0
-						for (let j = 0; j < 5; j++)
-							log.logData.setpointPitch[i] += polynomials[j] * log.rateFactors[j][1]
+						const stick = (log.logData.elrsPitch![i] - 1500) / 512
+						log.logData.setpointPitch[i] = getSetpointActual(stick, log.rateCoeffs[1])
 					}
 					break
 				case "GEN_THROTTLE_SETPOINT":
@@ -60,13 +48,8 @@ export function fillLogWithGenFlags(log: BBLog) {
 				case "GEN_YAW_SETPOINT":
 					log.logData.setpointYaw = new Float32Array(frameCount)
 					for (let i = 0; i < frameCount; i++) {
-						const polynomials: number[] = [(log.logData.elrsYaw![i] - 1500) / 512]
-						for (let j = 1; j < 5; j++) {
-							polynomials[j] = polynomials[0] * polynomials[j - 1]
-							if (polynomials[0] < 0) polynomials[j] = -polynomials[j]
-						}
-						log.logData.setpointYaw[i] = 0
-						for (let j = 0; j < 5; j++) log.logData.setpointYaw[i] += polynomials[j] * log.rateFactors[j][2]
+						const stick = (log.logData.elrsYaw![i] - 1500) / 512
+						log.logData.setpointYaw[i] = getSetpointActual(stick, log.rateCoeffs[2])
 					}
 					break
 				case "GEN_ROLL_PID_P":

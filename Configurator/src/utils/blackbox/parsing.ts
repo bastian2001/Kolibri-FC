@@ -1,4 +1,4 @@
-import { BBLog, LogData } from "@utils/types"
+import { ActualCoeffs, BBLog, LogData } from "@utils/types"
 import { leBytesToBigInt, leBytesToInt } from "@utils/utils"
 import { BB_ALL_FLAGS } from "@utils/blackbox/bbFlags"
 
@@ -22,11 +22,15 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		gyro: GYRO_RANGES[(rangeByte >> 2) & 0b111],
 		accel: ACC_RANGES[rangeByte & 0b11],
 	}
-	const rateFactors: number[][] = [[], [], [], [], []]
-	const rfBytes = header.slice(22, 82)
-	for (let i = 0; i < 5; i++)
-		for (let j = 0; j < 3; j++)
-			rateFactors[i][j] = leBytesToInt(rfBytes.slice(i * 12 + j * 4, i * 12 + j * 4 + 4)) / 65536
+	const rateCoeffs: ActualCoeffs[] = []
+	const rfBytes = header.slice(22, 58)
+	for (let i = 0; i < 3; i++) {
+		rateCoeffs[i] = {
+			center: leBytesToInt(rfBytes.slice(i * 12, i * 12 + 4)) / 65536,
+			max: leBytesToInt(rfBytes.slice(i * 12 + 4, i * 12 + 8)) / 65536,
+			expo: leBytesToInt(rfBytes.slice(i * 12 + 8, i * 12 + 12)) / 65536,
+		}
+	}
 	const pidConstants: number[][] = [[], [], []]
 	const pidConstantsNice: number[][] = [[], [], []]
 	const pcBytes = header.slice(82, 142)
@@ -642,7 +646,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		ranges,
 		pidFrequency: pidFreq,
 		frequencyDivider: freqDiv,
-		rateFactors,
+		rateCoeffs,
 		pidConstants,
 		framesPerSecond,
 		rawFile: binFile,

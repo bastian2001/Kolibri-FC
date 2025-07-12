@@ -12,7 +12,12 @@
 #define S_SHIFT 8 // setpoint follow
 
 extern fix32 gyroScaled[3]; // gyro data in deg/s
-extern fix32 rateFactors[5][3]; // rate factors for the PID controller, 0 = x^1, 1 = x^2... (x normalized to +-1 at full deflection)
+enum {
+	ACTUAL_CENTER_SENSITIVITY, // center sensitivity for ACTUAL rates => linear part, in deg/s
+	ACTUAL_MAX_RATE, // maximum rate for ACTUAL rates => including exponential part, in deg/s
+	ACTUAL_EXPO // expo factor for ACTUAL rates, between 0 and 1
+};
+extern fix32 rateCoeffs[3][3]; // rate coefficients for the PID controller [axis][number type ACTUAL_xxx]
 enum {
 	P,
 	I,

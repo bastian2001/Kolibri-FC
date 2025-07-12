@@ -25,7 +25,7 @@
 #define SETTING_IDLE_PERMILLE "motor_idle_per_mille"
 #define SETTING_IFALLOFF "pid_ifalloff"
 #define SETTING_MAX_ANGLE "angle_max_angle"
-#define SETTING_RATE_FACTORS "rates_factors"
+#define SETTING_RATE_COEFFS "rate_coeffs"
 #define SETTING_DFILTER_CUTOFF "filter_d_cutoff"
 #define SETTING_GYRO_FILTER_CUTOFF "filter_gyro_cutoff"
 #define SETTING_SETPOINT_DIFF_CUTOFF "setpoint_diff_cutoff"
