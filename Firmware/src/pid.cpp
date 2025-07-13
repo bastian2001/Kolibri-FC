@@ -707,6 +707,7 @@ void __not_in_flash_func(pidLoop)() {
 		pitchLast = 0;
 		yawLast = 0;
 		takeoffCounter = 0;
+		targetAngleHeading = yaw * FIX_RAD_TO_DEG;
 	}
 	duration = taskTimerPid;
 	tasks[TASK_PID].totalDuration += duration;
