@@ -463,7 +463,7 @@ void writeSingleFrame() {
 	}
 	if (currentBBFlags & LOG_FRAMETIME) {
 		u16 ft = frametime;
-		frametime = 0;
+		frametime -= ft;
 		bbBuffer[bufferPos++] = ft;
 		bbBuffer[bufferPos++] = ft >> 8;
 	}
