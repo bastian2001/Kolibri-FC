@@ -18,7 +18,8 @@ constexpr i32 baroScaleFactor = 7864320;
 #endif
 
 fix32 baroASL = 0; // above sea level
-PT2 baroAslFiltered(2, 50);
+fix32 lastBaroASL = 0, gpsBaroOffset = 0;
+PT2 baroAslFiltered(1, 50);
 f32 baroPres = 0;
 volatile i32 blackboxPres = 0;
 fix32 baroUpVel = 0;
@@ -121,6 +122,14 @@ void initBaro() {
 	baroBuffer[1] = 0b00000000; // clear register increment (needs to be unset when using block data update)
 	i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 2, false);
 #endif
+
+	sleep_ms(22);
+	readBaroLoop();
+	baroPres = pressureRaw / 40.96f;
+	baroASL = 44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f));
+	lastBaroASL = baroASL;
+	baroAslFiltered.set(baroASL);
+	baroUpVel = 0;
 }
 
 void readBaroLoop() {
@@ -141,7 +150,6 @@ void readBaroLoop() {
 	}
 }
 
-fix32 lastBaroASL = 0, gpsBaroOffset = 0;
 void evalBaroLoop() {
 	if (!newBaroData) return;
 	newBaroData = false;
@@ -166,6 +174,7 @@ void evalBaroLoop() {
 	baroUpVel = (baroASL - lastBaroASL) * 50;
 	bbDebug3 = baroUpVel.raw >> 4;
 	baroImuUpVelFilter.update(baroUpVel);
+	mspDebugSensors[1] = (fix32(baroImuUpVelFilter) * 1000).geti32();
 	u32 duration = taskTimer;
 	tasks[TASK_BAROEVAL].totalDuration += duration;
 	if (duration < tasks[TASK_BAROEVAL].minDuration) {

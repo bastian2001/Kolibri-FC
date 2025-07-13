@@ -24,10 +24,10 @@ fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
 fix32 magFilterCutoff;
-DualPT1 vVelFilter(0.3, 3200), combinedAltitudeFilter(0.1, 3200);
+DualPT1 vVelFilter(0.1, 3200), combinedAltitudeFilter(0.03, 3200);
 const fix32 &combinedAltitude = combinedAltitudeFilter.getConstRef();
 const fix32 &vVel = vVelFilter.getConstRef();
-PT1 baroImuUpVelFilter(0.3, 50), baroImuUpVelFilter2(5, 3200);
+PT1 baroImuUpVelFilter(0.2, 50), baroImuUpVelFilter2(5, 3200);
 fix32 lastBaroImuUpVel;
 PT1 eVelFilter;
 PT1 nVelFilter;
@@ -50,7 +50,6 @@ void imuInit() {
 	q.v[0] = 0;
 	q.v[1] = 0;
 	q.v[2] = 0;
-	initFixTrig();
 	accelDataFilter[0] = PT1(accelFilterCutoff, 3200);
 	accelDataFilter[1] = PT1(accelFilterCutoff, 3200);
 	accelDataFilter[2] = PT1(accelFilterCutoff, 3200);
@@ -58,6 +57,8 @@ void imuInit() {
 	nVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
 	magHeadingCorrection = PT1(magFilterCutoff, MAG_HARDWARE == MAG_HMC5883L ? 75 : 200);
 	magHeadingCorrection.setRolloverParams(-PI, PI);
+
+	combinedAltitudeFilter.set(baroASL);
 }
 
 void __not_in_flash_func(updateFromGyro)() {
@@ -161,6 +162,7 @@ void __not_in_flash_func(updateSpeeds)() {
 	const fix32 filterVel = gpsStatus.fixType == FIX_3D ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel;
 	combinedAltitudeFilter.add(vVelFilter.update(filterVel) / 3200);
 	combinedAltitudeFilter.update(gpsBaroAlt);
+	mspDebugSensors[2] = (vVel * 10000).geti32();
 
 	const fix32 rightAccel = cosRoll * *accelDataFiltered[0] - sinRoll * *accelDataFiltered[2];
 	const fix32 forwardAccel = cosPitch * *accelDataFiltered[1] + sinPitch * sinRoll * *accelDataFiltered[0] + sinPitch * cosRoll * *accelDataFiltered[2];
