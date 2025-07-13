@@ -38,6 +38,8 @@ PT1 gyroFiltered[3];
 fix32 setpointDiffCutoff = 12;
 PT1 setpointDiff[3];
 fix32 lastSetpoints[3];
+i8 forceZeroVvelSetpoint = 0;
+elapsedMillis flightModeChangeTimer;
 
 fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
 PT1 pidBoostFilter;
@@ -306,6 +308,15 @@ void __not_in_flash_func(pidLoop)() {
 					sticksToGpsSetpoint(smoothChannels, &eVelSetpoint, &nVelSetpoint);
 					// throttle stick => vertical velocity
 					vVelSetpoint = stickToTargetVvel(throttle);
+					if (forceZeroVvelSetpoint) {
+						// force zero vVel until the stick crosses 1500
+						vVelSetpoint = 0;
+						if ((forceZeroVvelSetpoint == 1 && smoothChannels[2] > 1500) ||
+							(forceZeroVvelSetpoint == -1 && smoothChannels[2] < 1500) ||
+							flightModeChangeTimer > 2000) {
+							forceZeroVvelSetpoint = 0;
+						}
+					}
 				} else {
 					// GPS_WP: sticks do nothing, for now just fly home
 					bool newState = (rthState != lastRthState);
@@ -455,6 +466,15 @@ void __not_in_flash_func(pidLoop)() {
 				if (flightMode == FlightMode::ALT_HOLD) {
 					// throttle stick => vertical velocity
 					vVelSetpoint = stickToTargetVvel(throttle);
+					if (forceZeroVvelSetpoint) {
+						// force zero vVel until the stick crosses 1500
+						vVelSetpoint = 0;
+						if ((forceZeroVvelSetpoint == 1 && smoothChannels[2] > 1500) ||
+							(forceZeroVvelSetpoint == -1 && smoothChannels[2] < 1500) ||
+							flightModeChangeTimer > 2000) {
+							forceZeroVvelSetpoint = 0;
+						}
+					}
 					throttle = calcThrottle(vVelSetpoint);
 				}
 				// in case of angle, throttle is unchanged
@@ -872,7 +892,9 @@ void setFlightMode(FlightMode mode) {
 
 	if (flightMode < FlightMode::ALT_HOLD && mode >= FlightMode::ALT_HOLD) {
 		// just switched to an altitude hold mode, make sure the quad doesn't just fall at the beginning
-		vVelErrorSum = throttle.getfix64() / pidGainsVVel[I]; // TODO: set target Vvel to 0 until the first zero-crossing
+		vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
+		if (mode == FlightMode::ALT_HOLD || mode == FlightMode::GPS)
+			forceZeroVvelSetpoint = ELRS->channels[2] > 1500 ? 1 : -1; // flag to force zero vVel until the stick crossed 1500
 		altSetpoint = combinedAltitude;
 	}
 	if (flightMode < FlightMode::ANGLE && mode >= FlightMode::ANGLE) {
@@ -891,5 +913,6 @@ void setFlightMode(FlightMode mode) {
 		lastRthState = 255;
 	}
 
+	flightModeChangeTimer = 0;
 	flightMode = mode;
 }
