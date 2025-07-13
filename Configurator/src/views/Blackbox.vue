@@ -771,6 +771,7 @@ export default defineComponent({
 					const scale = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth;
+					ctx.lineJoin = 'bevel'
 					if (!trace.strokeWidth) continue;
 					if (trace.overrideData) {
 						const overrideSlice = trace.overrideData.slice(
