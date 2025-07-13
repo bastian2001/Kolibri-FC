@@ -791,6 +791,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[14], &ELRS->rcMsgCount, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 18);
 		} break;
+		case MspFn::GET_RX_MODES: {
+			mspGetRxModes(serialNum, version);
+		} break;
+		case MspFn::SET_RX_MODES: {
+			mspSetRxModes(serialNum, version, reqPayload, reqLen);
+		} break;
 		case MspFn::GET_TZ_OFFSET: {
 			buf[0] = rtcTimezoneOffset;
 			buf[1] = rtcTimezoneOffset >> 8;

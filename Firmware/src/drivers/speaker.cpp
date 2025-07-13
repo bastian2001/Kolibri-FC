@@ -213,10 +213,10 @@ void speakerLoop() {
 
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_SPEAKER].runCounter++;
-	if (!beeperOn && ((ELRS->channels[9] > 1500 && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
+	if (!beeperOn && ((rxModes[RxModeIndex::BEEPER].isActive() && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
 		beeperOn = true;
 		makeSweepSound(1000, 5000, 65535, 600, 0);
-	} else if (beeperOn && (ELRS->channels[9] <= 1500 && ELRS->isLinkUp)) {
+	} else if (beeperOn && (!rxModes[RxModeIndex::BEEPER].isActive() && ELRS->isLinkUp)) {
 		beeperOn = false;
 		stopSound();
 	}
