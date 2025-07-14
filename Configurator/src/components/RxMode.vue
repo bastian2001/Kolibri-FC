@@ -35,6 +35,7 @@ export default defineComponent({
 			channelBackup: new Array(16).fill(1500),
 			mouseX: 0, // closest -120...120 position from range start grab
 			startMin: 0, // initial min value when range grab starts
+			displaySteps: [900, 1000, 1250, 1500, 1750, 2000, 2100],
 		};
 	},
 	methods: {
@@ -223,7 +224,7 @@ export default defineComponent({
 		</select>&nbsp;&nbsp;&nbsp;
 		<button @click="startAuto()" class="autoBtn">Auto</button>&nbsp;&nbsp;&nbsp;
 		<span v-if="auto">Move a switch</span>
-		<div class="rangeTexts" style="margin-bottom: .5rem">
+		<div class="rangeTexts">
 			<span style="float:right">{{ maxValue }}</span>
 			<span>{{ minValue }}</span>
 		</div>
@@ -238,11 +239,27 @@ export default defineComponent({
 					:style="{ left: `calc(${thumb1Position} * (100% - 1.2rem) + 0.6rem)` }" @mousedown="startGrab(1)"
 					@touchstart="startGrab(1)"></div>
 			</div>
+			<div class="steps">
+				<span v-for="(_, i) in 25" class="step"
+					:style="{ left: `calc((${i} / 24) * (100% - 1.2rem) + 0.6rem)` }" :key="i">
+					<span v-if="displaySteps.includes(i * 50 + 900)" class="stepLineLong"></span>
+					<span v-else class="stepLineShort"></span>
+					<span v-if="displaySteps.includes(i * 50 + 900)" class="stepText">{{ i * 50 + 900 }}</span>
+				</span>
+			</div>
 		</div>
 	</div>
 </template>
 
 <style scoped>
+div,
+span,
+button,
+select {
+	user-select: none;
+	/* broken on Linux in dev mode, but works */
+}
+
 .rxMode {
 	border: 3px solid var(--border-color);
 	border-radius: 4px;
@@ -257,19 +274,19 @@ export default defineComponent({
 
 .rxModeName {
 	font-weight: bold;
-	margin-bottom: 1rem;
+	margin-bottom: .7rem;
 	display: inline-block;
 }
 
 .rxModeBarWrapper {
-	height: .8rem;
 	position: relative;
 }
 
 .rxModeBar {
-	height: 100%;
+	height: .8rem;
 	background: var(--background-highlight);
 	border-radius: .4rem;
+	margin: 0.5rem 0 0.3rem 0;
 	position: relative;
 }
 
@@ -324,5 +341,42 @@ option {
 
 .autoBtn:active {
 	background-color: #fff3;
+}
+
+.steps {
+	position: relative;
+	height: 1.7rem;
+}
+
+.step {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 2px;
+	display: inline-block;
+	transform: translateX(-50%);
+}
+
+.stepLineShort,
+.stepLineLong {
+	display: inline-block;
+	width: 100%;
+	background-color: var(--text-color);
+	margin: 0;
+}
+
+.stepLineShort {
+	height: 0.3rem;
+}
+
+.stepLineLong {
+	height: 0.6rem;
+}
+
+.stepText {
+	position: absolute;
+	text-align: center;
+	transform: translate(-50%, 1.1rem);
+	font-size: 0.7rem;
 }
 </style>
