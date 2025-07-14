@@ -28,7 +28,7 @@ namespace RxModeIndex {
 
 class RxMode {
 public:
-	RxMode() = default;
+	RxMode();
 
 	/**
 	 * @brief Checks if the mode is active based on the current channel value.
@@ -70,11 +70,25 @@ public:
 	 */
 	void getValues(i8 &channel, u16 &minRange, u16 &maxRange) const;
 
-	void disable() {
-		channel = -1; // disable the mode
-		minRange = 255; // reset to default minimum range
-		maxRange = 255; // reset to default maximum range
-	}
+	/**
+	 * @brief Gets the current channel and range values for this mode, but in the data saving i8 format.
+	 *
+	 * @param channel the aux channel (0-15) that this mode is using
+	 * @param minRange the range's minimum for the channel, between -120 and 120
+	 * @param maxRange the range's maximum for the channel, between -120 and 120
+	 */
+	void getValues8(i8 &channel, i8 &minRange, i8 &maxRange) const;
+
+	/**
+	 * @brief Sets the current channel and range values for this mode, but in the data saving i8 format.
+	 *
+	 * @param channel the aux channel (0-15) that this mode is using
+	 * @param minRange the range's minimum for the channel, between -120 and 120
+	 * @param maxRange the range's maximum for the channel, between -120 and 120
+	 */
+	void setValues8(i8 channel, i8 minRange, i8 maxRange);
+
+	void disable();
 
 private:
 	i8 channel = -1; // channel number, -1 if not set

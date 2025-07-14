@@ -150,12 +150,8 @@ void modesLoop() {
 	}
 }
 
-void modesInit() {
-	placeElem(OSDElem::FLIGHT_MODE, 1, 2);
-	enableElem(OSDElem::FLIGHT_MODE);
-
-	rp2040.wdt_reset();
-	if (!littleFsReady) return;
+bool openModesSettingsFile() {
+	if (!littleFsReady) return false;
 	if (modesSettingsFile) {
 		modesSettingsFile.close();
 	}
@@ -165,8 +161,63 @@ void modesInit() {
 		modesSettingsFile = LittleFS.open("/modes.txt", "w+");
 		if (!modesSettingsFile) {
 			Serial.println("Failed to create modes file.");
+			return false;
 		}
+		return true;
 	}
+	return false;
+}
+
+void closeModesSettingsFile() {
+	if (modesSettingsFile) {
+		rp2040.wdt_reset();
+		modesSettingsFile.close();
+	}
+}
+
+void getModesFromFile() {
+	char buf[64];
+	u8 bufIndex = 0;
+	modesSettingsFile.seek(0);
+	for (int i = 0; i < 64 && modesSettingsFile.available(); i++) {
+		buf[bufIndex++] = modesSettingsFile.read();
+	}
+	mspSetRxModes(255, MspVersion::V2, buf, bufIndex);
+}
+
+void setModesInFile() {
+	modesSettingsFile.seek(0);
+	for (int i = 0; i < RxModeIndex::LENGTH; i++) {
+		RxMode &mode = rxModes[i];
+		i8 channel, min, max, res = 0;
+		mode.getValues8(channel, min, max);
+		modesSettingsFile.write((u8)channel);
+		modesSettingsFile.write((u8)min);
+		modesSettingsFile.write((u8)max);
+		modesSettingsFile.write((u8)res); // reserved byte
+	}
+	modesSettingsFile.flush();
+}
+
+void modesInit() {
+	placeElem(OSDElem::FLIGHT_MODE, 1, 2);
+	enableElem(OSDElem::FLIGHT_MODE);
+
+	rp2040.wdt_reset();
+
+	bool newFile = openModesSettingsFile();
+
+	for (int i = 0; i < RxModeIndex::LENGTH; i++) {
+		RxMode &mode = rxModes[i];
+		mode.disable(); // disable all modes initially
+	}
+
+	if (modesSettingsFile && !newFile) {
+		getModesFromFile();
+	} else if (modesSettingsFile && newFile) {
+		setModesInFile();
+	}
+	closeModesSettingsFile();
 }
 
 void mspGetRxModes(u8 serialNum, MspVersion version) {
@@ -174,16 +225,14 @@ void mspGetRxModes(u8 serialNum, MspVersion version) {
 	u8 bufIndex = 0;
 	for (int i = 0; i < RxModeIndex::LENGTH; i++) {
 		RxMode &mode = rxModes[i];
-		i8 channel;
-		u16 minRange, maxRange;
-		mode.getValues(channel, minRange, maxRange);
-		i8 min = ((int)minRange - 1500) / 5;
-		i8 max = ((int)maxRange - 1500) / 5;
+		i8 channel, min, max;
+		mode.getValues8(channel, min, max);
 		buf[bufIndex++] = channel;
 		buf[bufIndex++] = min;
 		buf[bufIndex++] = max;
 		buf[bufIndex++] = 0; // reserved byte
 	}
+	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::GET_RX_MODES, version, buf, bufIndex);
 }
 
 void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16 reqLen) {
@@ -193,10 +242,10 @@ void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16
 		tasks[TASK_MODES].errorCount++;
 		return;
 	}
-	for (u16 i = 0; i < reqLen; i += 4) {
-		i8 channel = reqPayload[i];
-		i8 minRange = reqPayload[i + 1];
-		i8 maxRange = reqPayload[i + 2];
+	for (u16 i = 0; i < reqLen && i < RxModeIndex::LENGTH; i += 4) {
+		const i8 &channel = reqPayload[i];
+		const i8 &minRange = reqPayload[i + 1];
+		const i8 &maxRange = reqPayload[i + 2];
 		if (channel < -1 || channel > 15) {
 			tasks[TASK_MODES].lastError = 2;
 			tasks[TASK_MODES].errorCount++;
@@ -213,15 +262,24 @@ void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16
 	}
 	for (int i = 0; i < reqLen; i += 4) {
 		RxMode &mode = rxModes[i / 4];
-		i8 channel = reqPayload[i];
-		i8 minRange = reqPayload[i + 1];
-		i8 maxRange = reqPayload[i + 2];
+		const i8 &channel = reqPayload[i];
+		const i8 &minRange = reqPayload[i + 1];
+		const i8 &maxRange = reqPayload[i + 2];
 		if (channel == -1) {
 			mode.disable(); // Disable the mode
 		} else {
-			mode.setChannel(channel);
-			mode.setRange(minRange * 5 + 1500, maxRange * 5 + 1500); // Convert to actual range
+			mode.setValues8(channel, minRange, maxRange); // Set the mode with the new values
 		}
+	}
+	openModesSettingsFile();
+	if (modesSettingsFile) {
+		setModesInFile(); // Save the updated modes to the file
+		closeModesSettingsFile();
+		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::SET_RX_MODES, version);
+	} else {
+		tasks[TASK_MODES].lastError = 4;
+		tasks[TASK_MODES].errorCount++;
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::SET_RX_MODES, version, "Failed to open modes file", 26);
 	}
 }
 
@@ -268,6 +326,18 @@ void RxMode::getValues(i8 &channel, u16 &minRange, u16 &maxRange) const {
 	channel = this->channel;
 	minRange = this->minRange;
 	maxRange = this->maxRange;
+}
+
+void RxMode::getValues8(i8 &channel, i8 &minRange, i8 &maxRange) const {
+	channel = this->channel;
+	minRange = (this->minRange - 1500) / 5; // Convert to i8 range
+	maxRange = (this->maxRange - 1500) / 5; // Convert to i8 range
+}
+
+void RxMode::setValues8(i8 channel, i8 minRange, i8 maxRange) {
+	this->channel = channel;
+	this->minRange = minRange * 5 + 1500; // Convert to u16 range
+	this->maxRange = maxRange * 5 + 1500; // Convert to u16 range
 }
 
 void RxMode::disable() {
