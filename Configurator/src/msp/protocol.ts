@@ -77,6 +77,8 @@ export const MspFn = {
 
 	// 0x418_ Receiver
 	GET_RX_STATUS: 0x4180,
+	GET_RX_MODES: 0x4181,
+	SET_RX_MODES: 0x4182,
 
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET: 0x41f0,

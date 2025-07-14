@@ -247,11 +247,6 @@ void ExpressLRS::processMessage() {
 			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
 
-		if (pChannels[4] > 1500)
-			consecutiveArmedCycles++;
-		else
-			consecutiveArmedCycles = 0;
-
 		// update as fast as possible
 		fix32 smooth[4];
 		getSmoothChannels(smooth);
@@ -384,11 +379,6 @@ void ExpressLRS::processMessage() {
 			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
 			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
-
-		if (pChannels[4] > 1500)
-			consecutiveArmedCycles++;
-		else
-			consecutiveArmedCycles = 0;
 
 		// update as fast as possible
 		fix32 smooth[4];
