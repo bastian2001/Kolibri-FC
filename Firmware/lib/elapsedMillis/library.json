@@ -1,24 +1,30 @@
 {
+	"$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
 	"name": "elapsedMillis",
-	"version": "1.0.6",
+	"version": "1.0.6-koli",
 	"keywords": "timing, delay",
+	"build": {
+		"libLDFMode": "off"
+	},
 	"description": "Library for making responsive code easier using elapsed time objects",
-	"authors":
-	[
+	"authors": [
 		{
-		"name": "Paul Stoffregen",
-		"email": "paul@pjrc.com",
-		"url": "http://pjrc.com/about/contact.html"
+			"name": "Paul Stoffregen",
+			"email": "paul@pjrc.com",
+			"url": "http://pjrc.com/about/contact.html"
 		},
 		{
-		"name": "Peter Feerick",
-		"email": "peter.feerick@gmail.com",
-		"url": "https://blog.peterfeerick.com.au/contact/",
-		"maintainer": true
+			"name": "Peter Feerick",
+			"email": "peter.feerick@gmail.com",
+			"url": "https://blog.peterfeerick.com.au/contact/"
+		},
+		{
+			"name": "Bastian2001",
+			"url": "https://github.com/bastian2001",
+			"maintainer": true
 		}
 	],
-	"repository":
-	{
+	"repository": {
 		"type": "git",
 		"url": "https://github.com/pfeerick/elapsedMillis.git"
 	},

@@ -21,7 +21,7 @@
  * THE SOFTWARE.
  */
 
-/**
+/*
  * This file is basically identical to github.com/pfeerick/elapsedMillis, except
  * that it is using a micros32 function instead of a micros function. Since micros()
  * is 32 bit, there is no reason to first get a 64 bit value and then cast it to 32 bit.
