@@ -38,6 +38,8 @@ PT1 gyroFiltered[3];
 fix32 setpointDiffCutoff = 12;
 PT1 setpointDiff[3];
 fix32 lastSetpoints[3];
+i8 forceZeroVvelSetpoint = 0;
+elapsedMillis flightModeChangeTimer;
 
 fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
 PT1 pidBoostFilter;
@@ -306,6 +308,15 @@ void __not_in_flash_func(pidLoop)() {
 					sticksToGpsSetpoint(smoothChannels, &eVelSetpoint, &nVelSetpoint);
 					// throttle stick => vertical velocity
 					vVelSetpoint = stickToTargetVvel(throttle);
+					if (forceZeroVvelSetpoint) {
+						// force zero vVel until the stick crosses 1500
+						vVelSetpoint = 0;
+						if ((forceZeroVvelSetpoint == 1 && smoothChannels[2] > 1500) ||
+							(forceZeroVvelSetpoint == -1 && smoothChannels[2] < 1500) ||
+							flightModeChangeTimer > 2000) {
+							forceZeroVvelSetpoint = 0;
+						}
+					}
 				} else {
 					// GPS_WP: sticks do nothing, for now just fly home
 					bool newState = (rthState != lastRthState);
@@ -340,15 +351,43 @@ void __not_in_flash_func(pidLoop)() {
 					} break;
 					case 3: {
 						static elapsedMillis landTimer;
-						if (newState) landTimer = 0;
+						static fix32 altitudes[8];
+						static u8 altIndex = 0;
+						if (newState) {
+							landTimer = 0;
+							for (int i = 0; i < 8; i++) {
+								altitudes[i] = FIX32_MAX;
+							}
+						}
 						autopilotNavigate(homepointLat, homepointLon, homepointAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
 						vVelSetpoint = -0.3f;
-						if (vVel > -0.2f) {
+						if (landTimer > 1000) {
 							landTimer = 0;
-						} else if (landTimer > 2) {
-							armed = false;
+							altitudes[altIndex++] = combinedAltitude;
+							if (altIndex >= 8) {
+								altIndex = 0;
+							}
+							fix32 minAlt = FIX32_MAX;
+							fix32 maxAlt = FIX32_MIN;
+							for (int i = 0; i < 8; i++) {
+								if (altitudes[i] < minAlt)
+									minAlt = altitudes[i];
+								else if (altitudes[i] > maxAlt)
+									maxAlt = altitudes[i];
+							}
+							if (maxAlt - minAlt < 0.5) {
+								// if the altitude is stable for 8 seconds, we can stop
+								rthState = 4;
+								vVelSetpoint = 0;
+								eVelSetpoint = 0;
+								nVelSetpoint = 0;
+							}
 						}
 					} break;
+					case 4: {
+						armed = false; // disarm after landing
+						rthState = 0;
+					}
 					}
 				}
 
@@ -427,6 +466,15 @@ void __not_in_flash_func(pidLoop)() {
 				if (flightMode == FlightMode::ALT_HOLD) {
 					// throttle stick => vertical velocity
 					vVelSetpoint = stickToTargetVvel(throttle);
+					if (forceZeroVvelSetpoint) {
+						// force zero vVel until the stick crosses 1500
+						vVelSetpoint = 0;
+						if ((forceZeroVvelSetpoint == 1 && smoothChannels[2] > 1500) ||
+							(forceZeroVvelSetpoint == -1 && smoothChannels[2] < 1500) ||
+							flightModeChangeTimer > 2000) {
+							forceZeroVvelSetpoint = 0;
+						}
+					}
 					throttle = calcThrottle(vVelSetpoint);
 				}
 				// in case of angle, throttle is unchanged
@@ -454,10 +502,12 @@ void __not_in_flash_func(pidLoop)() {
 			else if (targetAngleHeading <= -180)
 				targetAngleHeading += 360;
 			fix32 halfHeading = -targetAngleHeading * FIX_DEG_TO_RAD / 2;
-			headQuat.w = cosFix(halfHeading).getf32();
+			fix32 co, si;
+			sinCosFix(halfHeading, si, co);
+			headQuat.w = co.getf32();
 			headQuat.v[0] = 0;
 			headQuat.v[1] = 0;
-			headQuat.v[2] = sinFix(halfHeading).getf32();
+			headQuat.v[2] = si.getf32();
 
 			// create targetRPQuat
 			fix32 totalAngle = sqrtf((targetRoll * targetRoll + targetPitch * targetPitch).getf32());
@@ -493,7 +543,7 @@ void __not_in_flash_func(pidLoop)() {
 			bbDebug2 = axis[0] * 10000;
 			bbDebug3 = axis[1] * 10000;
 			bbDebug4 = axis[2] * 10000;
- 
+
 			// apply P gain and limit to total 1000 deg/s
 			angle *= angleModeP;
 			if (angle > FIX_DEG_TO_RAD * 1000) angle = FIX_DEG_TO_RAD * 1000;
@@ -668,6 +718,7 @@ void __not_in_flash_func(pidLoop)() {
 		pitchLast = 0;
 		yawLast = 0;
 		takeoffCounter = 0;
+		targetAngleHeading = yaw * FIX_RAD_TO_DEG;
 	}
 	duration = taskTimerPid;
 	tasks[TASK_PID].totalDuration += duration;
@@ -853,7 +904,9 @@ void setFlightMode(FlightMode mode) {
 
 	if (flightMode < FlightMode::ALT_HOLD && mode >= FlightMode::ALT_HOLD) {
 		// just switched to an altitude hold mode, make sure the quad doesn't just fall at the beginning
-		vVelErrorSum = throttle.getfix64() / pidGainsVVel[I]; // TODO: set target Vvel to 0 until the first zero-crossing
+		vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
+		if (mode == FlightMode::ALT_HOLD || mode == FlightMode::GPS)
+			forceZeroVvelSetpoint = ELRS->channels[2] > 1500 ? 1 : -1; // flag to force zero vVel until the stick crossed 1500
 		altSetpoint = combinedAltitude;
 	}
 	if (flightMode < FlightMode::ANGLE && mode >= FlightMode::ANGLE) {
@@ -872,5 +925,6 @@ void setFlightMode(FlightMode mode) {
 		lastRthState = 255;
 	}
 
+	flightModeChangeTimer = 0;
 	flightMode = mode;
 }

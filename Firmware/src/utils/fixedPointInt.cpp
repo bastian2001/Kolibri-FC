@@ -17,6 +17,7 @@ void initFixTrig() {
 	sinInterpConfig0 = interp_default_config();
 	sinInterpConfig1 = interp_default_config();
 	interp_config_set_blend(&sinInterpConfig0, 1);
+	interp_config_set_signed(&sinInterpConfig1, 1);
 }
 
 fix32 sinFix(const fix32 x) {
