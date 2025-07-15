@@ -32,6 +32,8 @@
 #define SETTING_PID_BOOST_CUTOFF "pid_boost_cutoff"
 #define SETTING_PID_BOOST_START "pid_boost_start"
 #define SETTING_PID_BOOST_FULL "pid_boost_full"
+#define SETTING_DYNAMIC_IDLE_EN "dynamic_idle_enable"
+#define SETTING_DYNAMIC_IDLE_RPM "dynamic_idle_rpm"
 #define SETTING_PID_VVEL "althold_pid"
 #define SETTING_VVEL_FF_FILTER_CUTOFF "althold_vvel_ff_cutoff"
 #define SETTING_VVEL_D_FILTER_CUTOFF "althold_vvel_d_cutoff"
