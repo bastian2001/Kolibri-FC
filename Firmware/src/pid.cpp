@@ -502,10 +502,12 @@ void __not_in_flash_func(pidLoop)() {
 			else if (targetAngleHeading < -180)
 				targetAngleHeading += 360;
 			fix32 halfHeading = -targetAngleHeading * FIX_DEG_TO_RAD / 2;
-			headQuat.w = cosFix(halfHeading).getf32();
+			fix32 co, si;
+			sinCosFix(halfHeading, si, co);
+			headQuat.w = co.getf32();
 			headQuat.v[0] = 0;
 			headQuat.v[1] = 0;
-			headQuat.v[2] = sinFix(halfHeading).getf32();
+			headQuat.v[2] = si.getf32();
 
 			// create targetRPQuat
 			fix32 totalAngle = sqrtf((targetRoll * targetRoll + targetPitch * targetPitch).getf32());
