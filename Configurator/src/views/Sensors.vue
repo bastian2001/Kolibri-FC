@@ -11,8 +11,8 @@ export default defineComponent({
 	data() {
 		return {
 			fetchInterval: -1,
-			history: new Array(600).fill(0).map(() => new Array(25).fill(0)) as number[][],
-			values: new Array(25).fill(0) as number[],
+			history: new Array(600).fill(0).map(() => new Array(26).fill(0)) as number[][],
+			values: new Array(26).fill(0) as number[],
 			total: 0,
 			width: '300',
 			frequency: 50,
@@ -137,10 +137,10 @@ export default defineComponent({
 
 						const data = command.data;
 						if (data.length < 8) break;
-						this.values[18] = leBytesToInt(data.slice(0, 2), true);
-						this.values[19] = leBytesToInt(data.slice(2, 4), true);
-						this.values[20] = leBytesToInt(data.slice(4, 6), true);
-						this.values[21] = leBytesToInt(data.slice(6, 8), true);
+						this.values[22] = leBytesToInt(data.slice(0, 2), true);
+						this.values[23] = leBytesToInt(data.slice(2, 4), true);
+						this.values[24] = leBytesToInt(data.slice(4, 6), true);
+						this.values[25] = leBytesToInt(data.slice(6, 8), true);
 
 						this.gotTypes.push(MspFn.DEBUG_SENSORS);
 						this.checkHistory();
@@ -211,11 +211,11 @@ export default defineComponent({
 		<p>Frequency: <input type="range" v-model="frequency" min="10" max="60"> {{ frequency }} Hz</p>
 		<div class="all">
 			<SensorGraph v-for="(graph, index) in graphs" :key="graph.name" :gid="graph.name" :width="parseInt(width)"
-				@delete="(_e) => {
+				@delete="(_e: Event) => {
 					graphs.splice(index, 1);
-				}" @mspFn="(mspFn) => {
+				}" @mspFn="(mspFn: number[]) => {
 					graph.mspFn = mspFn;
-				}" @updateFn="(updateFn) => {
+				}" @updateFn="(updateFn: (history: number[][], total: number) => void) => {
 					graph.updateFn = updateFn;
 				}">
 			</SensorGraph>

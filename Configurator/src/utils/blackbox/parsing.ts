@@ -597,12 +597,17 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		logData.baroRaw = new Uint32Array(frameCount)
 		logData.baroHpa = new Float32Array(frameCount)
 		logData.baroAlt = new Float32Array(frameCount)
+		logData.baroUpVel = new Float32Array(frameCount) // TODO remove
+		logData.baroUpAccel = new Float32Array(frameCount) // TODO remove
+		const fOffset = framesPerSecond / 50
 		const o = offsets["LOG_BARO"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = framePos[f] + o
 			logData.baroRaw[f] = leBytesToInt(data.slice(p, p + 3))
 			logData.baroHpa[f] = logData.baroRaw[f] / 4096
 			logData.baroAlt[f] = 44330 * (1 - Math.pow(logData.baroHpa[f] / 1013.25, 1 / 5.255))
+			logData.baroUpVel[f] = (logData.baroAlt[f] - logData.baroAlt[Math.max(0, f - fOffset)]) * 50 // TODO remove
+			logData.baroUpAccel[f] = (logData.baroUpVel[f] - logData.baroUpVel[Math.max(0, f - fOffset)]) * 50 // TODO remove
 		}
 	}
 	if (flags.includes("LOG_DEBUG_1")) {

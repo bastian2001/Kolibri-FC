@@ -591,6 +591,22 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				rangeFn: getAltitudeRange,
 				decimals: 2,
 			},
+			{
+				displayNameShort: "Up Vel", // TODO remove
+				displayName: "Baro Up Velocity",
+				path: "baroUpVel",
+				max: 10,
+				min: -10,
+				decimals: 2,
+			},
+			{
+				displayNameShort: "Up Accel", // TODO remove
+				displayName: "Baro Up Acceleration",
+				path: "baroUpAccel",
+				max: 10,
+				min: -10,
+				decimals: 2,
+			},
 		],
 	},
 	LOG_DEBUG_1: {
