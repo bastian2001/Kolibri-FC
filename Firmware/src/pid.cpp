@@ -857,8 +857,10 @@ static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVel
 		speed = maxTargetHvel;
 		est = dist / speed;
 	}
-	*eVelSetpoint = speed * sinFix(angle);
-	*nVelSetpoint = speed * cosFix(angle);
+	fix32 si, co;
+	sinCosFix(angle, si, co);
+	*eVelSetpoint = speed * si;
+	*nVelSetpoint = speed * co;
 
 	fix32 altDiff = toAlt - combinedAltitude;
 	fix32 temp = altDiff / est;
