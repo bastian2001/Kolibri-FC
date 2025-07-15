@@ -451,7 +451,7 @@ void __not_in_flash_func(pidLoop)() {
 			targetAngleHeading += newYawSetpoint / 3200;
 			if (targetAngleHeading > 180)
 				targetAngleHeading -= 360;
-			else if (targetAngleHeading < -180)
+			else if (targetAngleHeading <= -180)
 				targetAngleHeading += 360;
 			fix32 halfHeading = -targetAngleHeading * FIX_DEG_TO_RAD / 2;
 			headQuat.w = cosFix(halfHeading).getf32();
@@ -478,14 +478,25 @@ void __not_in_flash_func(pidLoop)() {
 			Quaternion_conjugate(&q, &currentQuatInv);
 			Quaternion_multiply(&targetQuat, &currentQuatInv, &diffQuat);
 			Quaternion_normalize(&diffQuat, &diffQuat);
+			// Ensure shortest rotation path by checking w component
+			if (diffQuat.w < 0) {
+				diffQuat.w = -diffQuat.w;
+				diffQuat.v[0] = -diffQuat.v[0];
+				diffQuat.v[1] = -diffQuat.v[1];
+				diffQuat.v[2] = -diffQuat.v[2];
+			}
 
 			// extract roll, pitch and yaw from diffQuat
 			f32 axis[3];
 			fix32 angle = Quaternion_toAxisAngle(&diffQuat, axis);
-
+			bbDebug1 = angle.raw;
+			bbDebug2 = axis[0] * 10000;
+			bbDebug3 = axis[1] * 10000;
+			bbDebug4 = axis[2] * 10000;
+ 
 			// apply P gain and limit to total 1000 deg/s
 			angle *= angleModeP;
-			if (angle > 1000) angle = 1000;
+			if (angle > FIX_DEG_TO_RAD * 1000) angle = FIX_DEG_TO_RAD * 1000;
 			rollSetpoint = -angle * axis[0] * FIX_RAD_TO_DEG;
 			pitchSetpoint = angle * axis[1] * FIX_RAD_TO_DEG;
 			yawSetpoint = -angle * axis[2] * FIX_RAD_TO_DEG;

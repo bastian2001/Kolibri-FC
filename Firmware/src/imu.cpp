@@ -154,9 +154,6 @@ void __not_in_flash_func(updateSpeeds)() {
 	baroImuUpVelFilter.add(vAccel / 3200);
 	lastBaroImuUpVel = baroImuUpVelFilter2;
 	const fix32 baroImuUpAccel = baroImuUpVelFilter2.update(baroImuUpVelFilter) - lastBaroImuUpVel;
-	bbDebug4 = fix32(baroImuUpVelFilter).raw / 10;
-	bbDebug1 = fix32(baroImuUpVelFilter2).raw;
-	bbDebug2 = baroImuUpAccel.raw;
 	vVelFilter.add(baroImuUpAccel);
 	const fix32 filterVel = gpsStatus.fixType == FIX_3D ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel;
 	combinedAltitudeFilter.add(vVelFilter.update(filterVel) / 3200);
