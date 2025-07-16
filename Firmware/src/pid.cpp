@@ -36,7 +36,9 @@ u16 gyroFilterCutoff;
 PT1 gyroFiltered[3];
 
 bool useDynamicIdle = false;
-u16 dynamicIdleRpm = 0;
+u16 dynamicIdleRpm = 2000;
+fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
+fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07}; // TODO get good values
 
 fix32 setpointDiffCutoff = 12;
 PT1 setpointDiff[3];
@@ -239,7 +241,7 @@ void initPid() {
 	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
 	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
 	addSetting(SETTING_DYNAMIC_IDLE_EN, &useDynamicIdle, false);
-	addSetting(SETTING_DYNAMIC_IDLE_RPM, &dynamicIdleRpm, 0);
+	addSetting(SETTING_DYNAMIC_IDLE_RPM, &dynamicIdleRpm, 2000);
 
 	initRateInterp();
 
@@ -653,18 +655,37 @@ void __not_in_flash_func(pidLoop)() {
 		throttles[(u8)MOTOR::FR] = tFR.geti32();
 		throttles[(u8)MOTOR::FL] = tFL.geti32();
 
-		// apply idling
-		if (useDynamicIdle) {
-			// TODO: dynamic idle
-			i16 low = 0x7FFF, high = 0, diff = 0;
+		// apply idling / throttle clamping
+		if (useDynamicIdle) { // TODO make sure rpm data is valid
+			static i32 lastRpm[4] = {0};
+			i16 motorDiff[4] = {0};
+
 			for (int i = 0; i < 4; i++) {
 				auto &t = throttles[i];
-				if (t < low) low = t;
-				if (t > high) high = t;
+				if (t > 2000) {
+					// request to decrease all throttles
+					motorDiff[i] = 2000 - t;
+				} else if (escRpm[i] < dynamicIdleRpm * 2) {
+					// if lower than 2x idle RPM, run PID
+					// maybe request to increase all throttles
+					i16 rpmError = dynamicIdleRpm - escRpm[i];
+					dynamicIdlePids[i][P] = dynamicIdlePidGains[P] * rpmError;
+					dynamicIdlePids[i][I] += dynamicIdlePidGains[I] * rpmError;
+					if (dynamicIdlePids[i][I] < 0) dynamicIdlePids[i][I] = 0;
+					if (dynamicIdlePids[i][I] > 400) dynamicIdlePids[i][I] = 400;
+					dynamicIdlePids[i][D] = dynamicIdlePidGains[D] * (lastRpm[i] - (i32)escRpm[i]);
+					i16 minT = (dynamicIdlePids[i][P] + dynamicIdlePids[i][I] + dynamicIdlePids[i][D]).geti32();
+					if (minT > 400) minT = 400;
+					if (minT > t) motorDiff[i] = minT - t;
+				} else {
+					dynamicIdlePids[i][I] = 0;
+				}
+				lastRpm[i] = escRpm[i];
 			}
-			if (high > 2000) diff = 2000 - high;
-			low += diff;
-			if (low < idlePermille * 2) diff += idlePermille * 2 - low;
+			i32 diff = 0x80000000;
+			for (int i = 0; i < 4; i++) {
+				if (motorDiff[i] > diff) diff = motorDiff[i];
+			}
 			for (int i = 0; i < 4; i++) {
 				auto &t = throttles[i];
 				t += diff;

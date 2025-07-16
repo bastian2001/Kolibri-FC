@@ -53,7 +53,7 @@ void decodeErpm() {
 		u32 telemVal = BidirDShotX1::convertFromRaw(escRawTelemetry[m], telemType);
 		switch (telemType) {
 		case BidirDshotTelemetryType::ERPM:
-			escRpm[m] = telemVal;
+			escRpm[m] = telemVal / (MOTOR_POLES / 2);
 			break;
 		case BidirDshotTelemetryType::TEMPERATURE:
 			escTemp[m] = telemVal;
