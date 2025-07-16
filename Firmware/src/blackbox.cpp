@@ -85,7 +85,7 @@ void blackboxLoop() {
 	}
 
 	// save a highlight frame
-	bool highlightSwitch = ELRS->channels[8] > 1500;
+	bool highlightSwitch = rxModes[(int)RxModeIndex::BB_HIGHLIGHT].isActive();
 	if (highlightSwitch != lastHighlightState && BB_WR_BUF_HAS_FREE(1)) {
 		if (highlightSwitch) {
 			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_HIGHLIGHT;
