@@ -676,9 +676,11 @@ void __not_in_flash_func(pidLoop)() {
 					dynamicIdlePids[i][D] = dynamicIdlePidGains[D] * (lastRpm[i] - (i32)escRpm[i]);
 					i16 minT = (dynamicIdlePids[i][P] + dynamicIdlePids[i][I] + dynamicIdlePids[i][D]).geti32();
 					if (minT > 400) minT = 400;
+					if (minT < 0) minT = 0;
 					if (minT > t) motorDiff[i] = minT - t;
 				} else {
 					dynamicIdlePids[i][I] = 0;
+					if (t < 0) motorDiff[i] = -t;
 				}
 				lastRpm[i] = escRpm[i];
 			}
