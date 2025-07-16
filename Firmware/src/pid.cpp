@@ -673,24 +673,27 @@ void __not_in_flash_func(pidLoop)() {
 		} else {
 #if __ARM_FEATURE_SIMD32
 			int16x2_t *const thr = (int16x2_t *)&throttles; // make the following code easier to read
-			int16x2_t l = min16x2(thr[0], thr[1]); // l has the min of {0; 2} and {1; 3}, e.g. 0 and 3
-			int16x2_t h = max16x2(thr[0], thr[1]); // h has the max of {0; 2} and {1; 3}, e.g. 1 and 2
+			i32 low = min16x2(thr[0], thr[1]); // low has the min of {0; 2} and {1; 3}, e.g. 0 and 3
+			i32 high = max16x2(thr[0], thr[1]); // high has the max of {0; 2} and {1; 3}, e.g. 1 and 2
 
-			int16x2_t x = __ror(l, 16); // swap values
-			l = min16x2(l, x); // the min throttle, but twice in this variable
-			x = __ror(h, 16);
-			h = max16x2(h, x); // the max throttle, but twice in this variable
+			int16x2_t x = low >> 16;
+			low = (i16)low;
+			low = min16x2(low, x); // get lower of the two low values
+			x = high >> 16;
+			high = (i16)high;
+			high = max16x2(high, x); // get the higher of the two high values
 
-			i32 diff = 0, high = (i16)h, low = (i16)l;
+			// find largest diff to add to all such that all are >= 0 (and preferrably <= 2000)
+			i32 diff = 0;
 			if (high > 2000) diff = 2000 - high; // calc the diff just like in non simd
-			low += diff;
-			if (low < idlePermille * 2) diff += idlePermille * 2 - low;
+			if (low + diff < idlePermille * 2) diff = idlePermille * 2 - low;
+
 			x = (diff & 0xFFFF) | (diff << 16);
 			thr[0] = __sadd16(thr[0], x); // add diff to 0 and 1
 			thr[1] = __sadd16(thr[1], x); // add diff to 2 and 3
-			h = 2000 << 16 | 2000; // set max value
-			thr[0] = min16x2(thr[0], h); // choose the min of 2000 and 0/1
-			thr[1] = min16x2(thr[1], h); // choose the min of 2000 and 2/3
+			x = 2000 << 16 | 2000; // set max value
+			thr[0] = min16x2(thr[0], x); // choose the min of 2000 and 0/1
+			thr[1] = min16x2(thr[1], x); // choose the min of 2000 and 2/3
 #else
 			i16 low = 0x7FFF, high = 0, diff = 0;
 			for (int i = 0; i < 4; i++) {
@@ -698,9 +701,9 @@ void __not_in_flash_func(pidLoop)() {
 				if (t < low) low = t;
 				if (t > high) high = t;
 			}
+			// find largest diff to add to all such that all are >= 0 (and preferrably <= 2000)
 			if (high > 2000) diff = 2000 - high;
-			low += diff;
-			if (low < idlePermille * 2) diff += idlePermille * 2 - low;
+			if (low + diff < idlePermille * 2) diff = idlePermille * 2 - low;
 			for (int i = 0; i < 4; i++) {
 				auto &t = throttles[i];
 				t += diff;

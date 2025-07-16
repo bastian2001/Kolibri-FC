@@ -119,7 +119,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				break
 		}
 	}
-	const motorPoles = header[142]
+	const motorPoles = header[150]
 	const framesPerSecond = pidFreq / freqDiv
 	const logData: LogData = {}
 	if (flags.includes("LOG_ELRS_RAW")) {
