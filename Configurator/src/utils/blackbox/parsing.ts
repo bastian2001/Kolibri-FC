@@ -333,13 +333,11 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_MOTOR_OUTPUTS"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = framePos[f] + o
-			const throttleBytes = data.slice(p, p + 6)
-			const motors01 = leBytesToInt(throttleBytes.slice(0, 3))
-			const motors23 = leBytesToInt(throttleBytes.slice(3, 6))
-			logData.motorOutRR[f] = motors01 & 0xfff
-			logData.motorOutFR[f] = motors01 >> 12
-			logData.motorOutRL[f] = motors23 & 0xfff
-			logData.motorOutFL[f] = motors23 >> 12
+			const motors = leBytesToBigInt(data.slice(p, p + 6))
+			logData.motorOutRR[f] = Number(motors & 0xfffn)
+			logData.motorOutFR[f] = Number((motors >> 12n) & 0xfffn)
+			logData.motorOutRL[f] = Number((motors >> 24n) & 0xfffn)
+			logData.motorOutFL[f] = Number((motors >> 36n) & 0xfffn)
 		}
 	}
 	if (flags.includes("LOG_FRAMETIME")) {
@@ -495,12 +493,11 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_MOTOR_RPM"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = framePos[f] + o
-			const motors01 = leBytesToInt(data.slice(p, p + 3))
-			const motors23 = leBytesToInt(data.slice(p + 3, p + 6))
-			let rr = motors01 & 0xfff
-			let fr = motors01 >> 12
-			let rl = motors23 & 0xfff
-			let fl = motors23 >> 12
+			const motors = leBytesToBigInt(data.slice(p, p + 6))
+			let rr = Number(motors & 0xfffn)
+			let fr = Number((motors >> 12n) & 0xfffn)
+			let rl = Number((motors >> 24n) & 0xfffn)
+			let fl = Number((motors >> 36n) & 0xfffn)
 			if (rr === 0xfff) {
 				logData.rpmRR[f] = 0
 			} else {
