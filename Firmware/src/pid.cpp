@@ -656,7 +656,7 @@ void __not_in_flash_func(pidLoop)() {
 		throttles[(u8)MOTOR::FL] = tFL.geti32();
 
 		// apply idling / throttle clamping
-		if (useDynamicIdle) { // TODO make sure rpm data is valid
+		if (useDynamicIdle && escErpmFailCounter < 10) { // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
 			static i32 lastRpm[4] = {0};
 			i16 motorDiff[4] = {0};
 
