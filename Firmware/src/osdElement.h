@@ -1,6 +1,6 @@
 #include <typedefs.h>
 
-namespace ElemType {
+namespace elemType {
 	enum : u8 { // TODO find OSD elements to implement.
 		UNDEFINED,
 		// Battery info
@@ -59,8 +59,10 @@ public:
 	 * @param layer priority low to high.
 	 * @param in which profile is this element active.
 	 */
-	OsdElement(u8 ElemType = ElemType::UNDEFINED, u8 layer = 0, u8 profile = 0) {
-		// TODO Implement
+	OsdElement(u8 element = elemType::UNDEFINED, u8 layer = 0, u8 profile = 0) {
+		this->element = element;
+		this->layer = layer;
+		this->profile = profile;
 	}
 	/*
 	 * @brief Delete OSD object and remove from OSD if it already has been drawn
@@ -71,16 +73,20 @@ public:
 
 	void draw();
 	bool isScheduled(); //? maybe return timestamp to reduce if statements
-	void update();
-	void setDataPtr();
+	void updateOsdElement();
+	void setRawDataPtr();
+	u8 getElementType() const;
 
 private:
 	void clear(); // should only be necessary internally
+	u8 element;
+	u8 layer;
+	u8 profile;
 	u8 row;
 	u8 column;
 	u32 blinkMillis;
 	u32 lastUpdateMillis;
-	u8 updateRate; // Hz or 1/10Hz //TODO Decide
-	void *data; // Where to find the data
-	char *screnText; // What is displayed on screen
+	u8 updateRate; // 1/10Hz
+	void *rawDataPtr; // Where to find the data
+	char *screenText; // What is displayed on screen
 };

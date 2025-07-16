@@ -53,7 +53,7 @@ void setup() {
 	// init LEDs
 	sleep_ms(10);
 	p.recalculateClock();
-	p.neoPixelFill(0, 0, 255, true);
+	p.neoPixelFill(255, 80, 0, true);
 
 	initBlackbox();
 	initSpeaker();
@@ -93,12 +93,12 @@ void loop() {
 	osdLoop();
 	taskManagerLoop();
 	rp2040.wdt_reset();
-	if (activityTimer >= 500) {
+	if (activityTimer >= 250) {
 		static bool on = false;
 		if (on) {
-			p.neoPixelSetValue(0, 0, 0, 0, true);
+			p.neoPixelSetValue(0, 255, 0, 0, true);
 		} else {
-			p.neoPixelSetValue(0, 255, 255, 255, true);
+			p.neoPixelSetValue(0, 0, 0, 255, true);
 		}
 		on = !on;
 		activityTimer = 0;
