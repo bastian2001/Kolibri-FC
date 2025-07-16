@@ -1,7 +1,10 @@
 #include "osdElement.h"
 #include "global.h"
 
-void OsdElement::updateOsdElement() {
+void OsdElement::updateOsdElementData() {
+	if (rawDataPtr == nullptr) {
+		return; // No data to update
+	}
 
 	switch (element) {
 	case elemType::BATTERY_VOLTAGE:
@@ -10,8 +13,10 @@ void OsdElement::updateOsdElement() {
 
 	default:
 		// screenText = "ERR";
+		return;
 		break;
 	}
+	lastUpdateMillis = millis();
 }
 
 u8 OsdElement::getElementType() const {

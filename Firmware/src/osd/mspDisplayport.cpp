@@ -1,4 +1,4 @@
-#include <mspDisplayport.h>
+#include <osd/mspDisplayport.h>
 
 void initMspDisplayport() {
 	Serial3.begin(MSP_DP_SPEED);

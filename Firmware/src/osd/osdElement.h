@@ -1,5 +1,6 @@
 #include <typedefs.h>
 
+#define HZ *10
 namespace elemType {
 	enum : u8 { // TODO find OSD elements to implement.
 		UNDEFINED,
@@ -47,7 +48,7 @@ namespace elemType {
 		// Warn
 		ALARM_CRITICAL,
 		ALARM_WARNING,
-		ALARM_INFO,
+		ALARM_INFO
 	};
 }
 
@@ -63,6 +64,13 @@ public:
 		this->element = element;
 		this->layer = layer;
 		this->profile = profile;
+		updateRate = 20 HZ;
+		u8 row = 0;
+		u8 column = 0;
+		blinking = false;
+		rawDataPtr = nullptr;
+		screenText = new char[32]();
+		lastUpdateMillis = 0xFFFFFFFF; // Has not been updated yet -> max value
 	}
 	/*
 	 * @brief Delete OSD object and remove from OSD if it already has been drawn
@@ -71,9 +79,9 @@ public:
 		// TODO Clear deleted element from OSD.
 	}
 
-	void draw();
+	void drawOsdElement();
 	bool isScheduled(); //? maybe return timestamp to reduce if statements
-	void updateOsdElement();
+	void updateOsdElementData();
 	void setRawDataPtr();
 	u8 getElementType() const;
 
@@ -84,7 +92,7 @@ private:
 	u8 profile;
 	u8 row;
 	u8 column;
-	u32 blinkMillis;
+	bool blinking;
 	u32 lastUpdateMillis;
 	u8 updateRate; // 1/10Hz
 	void *rawDataPtr; // Where to find the data
