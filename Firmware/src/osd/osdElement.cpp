@@ -35,3 +35,7 @@ void OsdElement::setRefreshRate(u8 refreshRate) {
 void OsdElement::drawOsdElement() {
 	dpWriteString(3, 5, 0x00, screenText);
 }
+
+void OsdElement::setRawDataPtr(void *ptr) {
+	rawDataPtr = ptr;
+}

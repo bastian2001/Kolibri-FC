@@ -83,7 +83,7 @@ public:
 	void drawOsdElement();
 	bool isScheduled(); //? maybe return timestamp to reduce if statements
 	void updateOsdElementData();
-	void setRawDataPtr();
+	void setRawDataPtr(void *ptr);
 	u32 getRefreshMillis();
 	u8 getElementType() const;
 	/*

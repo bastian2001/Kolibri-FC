@@ -4,13 +4,7 @@ OsdHandler osdHandler;
 
 void OsdHandler::init() {
 	// TODO Read settings
-	for (int i = 0; i < MAX_OSD_ELEMENTS; ++i) {
-		elements[i] = nullptr;
-	}
-	// check OSD type
-	// if digital
-	// if analog
-	// else no OSD
+	addOsdElement(new OsdElement(elemType::BATTERY_VOLTAGE));
 }
 
 int OsdHandler::find(u8 elementType) {
@@ -48,6 +42,16 @@ void OsdHandler::osdHandlerLoop() {
 	if (duration > tasks[TASK_OSD].maxDuration) {
 		tasks[TASK_OSD].maxDuration = duration;
 	}
+}
+
+void OsdHandler::addOsdElement(OsdElement *element) {
+	for (int i = 0; i < MAX_OSD_ELEMENTS; ++i) {
+		if (elements[i] == nullptr) {
+			elements[i] = element;
+			return;
+		}
+	}
+	osdHandler.optimize();
 }
 
 void OsdHandler::optimize() {
