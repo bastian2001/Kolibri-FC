@@ -91,6 +91,7 @@ public:
 	 * @param refreshRate Refresh rate in Hz
 	 */
 	void setRefreshRate(u8 refreshRate);
+	bool updated;
 
 private:
 	void clear(); // should only be necessary internally
@@ -100,7 +101,6 @@ private:
 	u8 row;
 	u8 column;
 	bool blinking;
-	bool updated;
 	u32 lastUpdateMillis;
 	u32 refreshMillis;
 	void *rawDataPtr; // Where to find the data

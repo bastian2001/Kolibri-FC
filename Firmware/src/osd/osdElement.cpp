@@ -33,5 +33,5 @@ void OsdElement::setRefreshRate(u8 refreshRate) {
 }
 
 void OsdElement::drawOsdElement() {
-	dpWriteString(row, column, 0x00, screenText);
+	dpWriteString(3, 5, 0x00, screenText);
 }

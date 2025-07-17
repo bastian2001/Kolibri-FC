@@ -26,6 +26,8 @@
 #include "modes.h"
 #include "osd/mspDisplayport.h"
 #include "osd/osd.h"
+#include "osd/osdElement.h"
+#include "osd/osdHandler.h"
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"

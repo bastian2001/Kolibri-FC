@@ -29,6 +29,10 @@ void adcLoop() {
 			adc_select_input(PIN_ADC_VOLTAGE - 26);
 			u32 raw = adc_read();
 			adcVoltage = (raw * 3630U) / 4096U; // 36.3V full deflection, voltage divider is 11:1, and 4096 is 3.3V
+			int elemIndex = osdHandler.find(elemType::BATTERY_VOLTAGE);
+			if (elemIndex >= 0) {
+				osdHandler.elements[elemIndex]->updated = true;
+			}
 			if ((adcVoltage > emptyVoltage && pVoltage <= emptyVoltage) || (adcVoltage < 400 && pVoltage >= 400)) {
 				stopSound();
 				disableBlinking(OSDElem::TOT_VOLTAGE);
