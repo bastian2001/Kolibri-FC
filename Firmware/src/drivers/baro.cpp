@@ -173,7 +173,7 @@ void evalBaroLoop() {
 		gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
 	baroUpVel = (baroASL - lastBaroASL) * 50;
 	bbDebug3 = baroUpVel.raw >> 4;
-	baroImuUpVelFilter.update(baroUpVel);
+	baroImuUpVelFilter.update(FIX_3D ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel);
 	mspDebugSensors[1] = (fix32(baroImuUpVelFilter) * 1000).geti32();
 	u32 duration = taskTimer;
 	tasks[TASK_BAROEVAL].totalDuration += duration;
