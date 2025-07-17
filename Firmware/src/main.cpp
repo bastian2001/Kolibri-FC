@@ -18,6 +18,7 @@ void setup() {
 	rebootReason = BootReason::WATCHDOG;
 
 	Serial.println("Setup started");
+	initFixTrig();
 	initLittleFs();
 	openSettingsFile();
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
@@ -37,11 +38,11 @@ void setup() {
 		crashInfo[i] = 0;
 	}
 	rtcInit();
-	imuInit();
 	osdInit();
 	initMag();
 	initBaro();
 	initGPS();
+	imuInit();
 	initADC();
 	modesInit();
 	initSerial();

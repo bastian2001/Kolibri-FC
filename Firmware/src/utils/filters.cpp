@@ -42,14 +42,14 @@ DualPT1::DualPT1(fix32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
 }
 
 PT2::PT2(fix32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
-	fix32 omega = FIX_PI * 2 * cutoffFreq * fix32(1.5537) / sampleFreq;
+	fix32 omega = FIX_PI * 2 * 1.5537f * cutoffFreq / sampleFreq;
 	alpha = omega / (omega + 1);
 }
 
 PT2::PT2(fix32 alpha) : alpha(alpha) {}
 
 void PT2::updateCutoffFreq(fix32 cutoffFreq) {
-	fix32 omega = FIX_PI * 2 * cutoffFreq * fix32(1.5537) / sampleFreq;
+	fix32 omega = FIX_PI * 2 * 1.5537f * cutoffFreq / sampleFreq;
 	alpha = omega / (omega + 1);
 }
 
@@ -76,14 +76,14 @@ void PT2::set(fix32 value) {
 }
 
 PT3::PT3(fix32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
-	fix32 omega = FIX_PI * 2 * cutoffFreq * fix32(1.9615) / sampleFreq;
+	fix32 omega = FIX_PI * 2 * 1.9615f * cutoffFreq / sampleFreq;
 	alpha = omega / (omega + 1);
 }
 
 PT3::PT3(fix32 alpha) : alpha(alpha) {}
 
 void PT3::updateCutoffFreq(fix32 cutoffFreq) {
-	fix32 omega = FIX_PI * 2 * cutoffFreq * fix32(1.9615) / sampleFreq;
+	fix32 omega = FIX_PI * 2 * 1.9615f * cutoffFreq / sampleFreq;
 	alpha = omega / (omega + 1);
 }
 

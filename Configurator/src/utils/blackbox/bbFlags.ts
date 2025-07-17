@@ -582,13 +582,30 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				path: "baroHpa",
 				max: 1013.25,
 				min: 983,
+				decimals: 3,
 			},
 			{
 				displayNameShort: "Alt",
 				displayName: "Baro Altitude",
 				path: "baroAlt",
-				min: 0,
-				max: 255,
+				rangeFn: getAltitudeRange,
+				decimals: 2,
+			},
+			{
+				displayNameShort: "Up Vel", // TODO remove
+				displayName: "Baro Up Velocity",
+				path: "baroUpVel",
+				max: 10,
+				min: -10,
+				decimals: 2,
+			},
+			{
+				displayNameShort: "Up Accel", // TODO remove
+				displayName: "Baro Up Acceleration",
+				path: "baroUpAccel",
+				max: 10,
+				min: -10,
+				decimals: 2,
 			},
 		],
 	},
