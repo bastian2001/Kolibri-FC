@@ -3,6 +3,9 @@
 
 volatile u8 setupDone = 0b00;
 
+// TODO move
+OsdHandler osdHandler;
+
 void setup() {
 	Serial.begin(115200);
 
@@ -90,7 +93,8 @@ void loop() {
 	configuratorLoop();
 	gpsLoop();
 	magLoop();
-	osdLoop();
+	// osdLoop();
+	osdHandler.osdHandlerLoop();
 	taskManagerLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 250) {

@@ -2,7 +2,7 @@
 #include "global.h"
 
 void OsdElement::updateOsdElementData() {
-	if (rawDataPtr == nullptr) {
+	if (rawDataPtr == nullptr || !updated) {
 		return; // No data to update
 	}
 
@@ -19,6 +19,19 @@ void OsdElement::updateOsdElementData() {
 	lastUpdateMillis = millis();
 }
 
+bool OsdElement::isScheduled() {
+	return (lastUpdateMillis <= refreshMillis && updated); // If there is no change in value no point of updating
+}
+
 u8 OsdElement::getElementType() const {
 	return element;
+}
+
+void OsdElement::setRefreshRate(u8 refreshRate) {
+	refreshMillis = 1000 / refreshRate;
+	// TODO I lied it dosn't cap. Implement
+}
+
+void OsdElement::drawOsdElement() {
+	dpWriteString(row, column, 0x00, screenText);
 }

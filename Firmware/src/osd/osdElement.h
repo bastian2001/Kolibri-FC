@@ -1,3 +1,4 @@
+#pragma once
 #include <typedefs.h>
 
 #define HZ *10
@@ -64,7 +65,7 @@ public:
 		this->element = element;
 		this->layer = layer;
 		this->profile = profile;
-		updateRate = 20 HZ;
+		setRefreshRate(20);
 		u8 row = 0;
 		u8 column = 0;
 		blinking = false;
@@ -83,18 +84,25 @@ public:
 	bool isScheduled(); //? maybe return timestamp to reduce if statements
 	void updateOsdElementData();
 	void setRawDataPtr();
+	u32 getRefreshMillis();
 	u8 getElementType() const;
+	/*
+	 * @brief sets the refreshrate of the Element (automatically caps at the maximum supported by the OSD)
+	 * @param refreshRate Refresh rate in Hz
+	 */
+	void setRefreshRate(u8 refreshRate);
 
 private:
 	void clear(); // should only be necessary internally
 	u8 element;
-	u8 layer;
+	u8 layer; // TODO Implement
 	u8 profile;
 	u8 row;
 	u8 column;
 	bool blinking;
+	bool updated;
 	u32 lastUpdateMillis;
-	u8 updateRate; // 1/10Hz
+	u32 refreshMillis;
 	void *rawDataPtr; // Where to find the data
 	char *screenText; // What is displayed on screen
 };

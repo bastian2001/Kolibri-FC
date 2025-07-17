@@ -57,6 +57,7 @@
 #include <hardware/resets.h>
 #include <hardware/spi.h>
 #include <hardware/watchdog.h>
+#include <osd/osdHandler.h>
 #include <pico/stdlib.h>
 #include <string>
 

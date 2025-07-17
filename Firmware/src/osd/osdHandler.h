@@ -1,8 +1,11 @@
+#pragma once
 #include "global.h"
 #include "osdElement.h"
 #include <typedefs.h>
 
 #define MAX_OSD_ELEMENTS 256
+#define CHUNKSIZE 8
+#define MAXIMUM_TIMEOUT_MILLISECONDS 5000
 
 class OsdHandler {
 public:
@@ -10,9 +13,15 @@ public:
 	~OsdHandler() = default;
 	void init();
 	void osdHandlerLoop();
-	// void addOsdElement(OsdElement *element); //TODO unnecessary for now (no configurator side yet)
+	void addOsdElement(OsdElement *element);
 	int find(u8 elementType);
 
 private:
+	void optimize();
 	OsdElement *elements[MAX_OSD_ELEMENTS] = {nullptr};
+	u32 minTimeout;
+	u16 lastElem;
+	u8 chunk;
+	u8 lastChunk;
+	u32 lastCall;
 };
