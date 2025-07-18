@@ -79,9 +79,9 @@ void adcLoop() {
 				batBlinkingAndBeeping = true;
 			}
 			u8 voltageStr[16] = {0};
-			snprintf((char *)voltageStr, 16, "%.2f\x06", adcVoltage / 100.f);
+			snprintf((char *)voltageStr, 16, "%.2f\x06 ", adcVoltage / 100.f);
 			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);
-			snprintf((char *)voltageStr, 16, "%.2f\x06", cellVoltage / 100.f);
+			snprintf((char *)voltageStr, 16, "%.2f\x06 ", cellVoltage / 100.f);
 			updateElem(OSDElem::CELL_VOLTAGE, (char *)voltageStr);
 		} else {
 			// adc_select_input(PIN_ADC_CURRENT - 26);
