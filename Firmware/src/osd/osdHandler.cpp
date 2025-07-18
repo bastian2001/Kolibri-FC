@@ -28,7 +28,6 @@ void OsdHandler::osdHandlerLoop() {
 			elements[i]->updateOsdElementData();
 			if (elements[i]->isScheduled()) {
 				elements[i]->drawOsdElement();
-				elements[i]->updated = false;
 			}
 		}
 	}

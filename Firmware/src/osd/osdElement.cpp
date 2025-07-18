@@ -34,8 +34,14 @@ void OsdElement::setRefreshRate(u8 refreshRate) {
 
 void OsdElement::drawOsdElement() {
 	dpWriteString(3, 5, 0x00, screenText);
+	updated = false;
 }
 
 void OsdElement::setRawDataPtr(void *ptr) {
 	rawDataPtr = ptr;
+}
+
+void OsdElement::setPos(u8 row, u8 column) {
+	this->row = row;
+	this->column = column;
 }

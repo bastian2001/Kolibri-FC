@@ -11,13 +11,30 @@ class OsdHandler {
 public:
 	OsdHandler() = default;
 	~OsdHandler() = default;
+	/**
+	 * @brief Initialize the OSD handler
+	 */
 	void init();
+	/**
+	 * @brief called in loop
+	 */
 	void osdHandlerLoop();
+	/**
+	 * @brief Add osd elements to handler
+	 * @note After finishing adding elements optimize() is called. //TODO Have a way to add multiple elements without optimize() running everytime
+	 */
 	void addOsdElement(OsdElement *element);
+	/**
+	 * @brief Find a OSD element of a given type e.g. BATTERY_VOLTAGE
+	 * @return Index where the element is in the elements array.//TODO Change how this is handled in the furute
+	 */
 	int find(u8 elementType);
 	OsdElement *elements[MAX_OSD_ELEMENTS] = {nullptr};
 
 private:
+	/**
+	 * @brief Optimize the OSD element array, so osdHandlerLoop() dosn't take too long.
+	 */
 	void optimize();
 	u32 minTimeout;
 	u16 lastElem;
