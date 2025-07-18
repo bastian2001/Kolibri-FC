@@ -82,7 +82,7 @@ void adcLoop() {
 			snprintf((char *)voltageStr, 16, "%.2f\x06", adcVoltage / 100.f);
 			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);
 			snprintf((char *)voltageStr, 16, "%.2f\x06", cellVoltage / 100.f);
-			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);
+			updateElem(OSDElem::CELL_VOLTAGE, (char *)voltageStr);
 		} else {
 			// adc_select_input(PIN_ADC_CURRENT - 26);
 			// u16 raw           = adc_read();
