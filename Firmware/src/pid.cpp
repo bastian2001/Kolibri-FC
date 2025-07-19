@@ -11,7 +11,7 @@ FlightMode flightMode = FlightMode::ACRO;
  * the numbers to be converted to 64 bit before calculation.
  */
 
-i16 throttles[4];
+i16 throttles[4] __attribute__((aligned(4)));
 
 fix32 gyroScaled[3];
 
@@ -34,6 +34,11 @@ u16 dFilterCutoff;
 PT2 dFilterRoll, dFilterPitch, dFilterYaw;
 u16 gyroFilterCutoff;
 PT1 gyroFiltered[3];
+
+bool useDynamicIdle = false;
+u16 dynamicIdleRpm = 2000;
+fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
+fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07}; // TODO get good values
 
 fix32 setpointDiffCutoff = 12;
 PT1 setpointDiff[3];
@@ -235,6 +240,8 @@ void initPid() {
 	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
 	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
 	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
+	addSetting(SETTING_DYNAMIC_IDLE_EN, &useDynamicIdle, false);
+	addSetting(SETTING_DYNAMIC_IDLE_RPM, &dynamicIdleRpm, 2000);
 
 	initRateInterp();
 
@@ -648,20 +655,84 @@ void __not_in_flash_func(pidLoop)() {
 		throttles[(u8)MOTOR::FR] = tFR.geti32();
 		throttles[(u8)MOTOR::FL] = tFL.geti32();
 
-		// apply idling
-		i16 low = 0x7FFF, high = 0, diff = 0;
-		for (int i = 0; i < 4; i++) {
-			auto &t = throttles[i];
-			if (t < low) low = t;
-			if (t > high) high = t;
-		}
-		if (high > 2000) diff = 2000 - high;
-		low += diff;
-		if (low < idlePermille * 2) diff += idlePermille * 2 - low;
-		for (int i = 0; i < 4; i++) {
-			auto &t = throttles[i];
-			t += diff;
-			if (t > 2000) t = 2000;
+		// apply idling / throttle clamping
+		if (useDynamicIdle && escErpmFailCounter < 10) { // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
+			static i32 lastRpm[4] = {0};
+			i16 motorDiff[4] = {0};
+
+			for (int i = 0; i < 4; i++) {
+				auto &t = throttles[i];
+				if (t > 2000) {
+					// request to decrease all throttles
+					motorDiff[i] = 2000 - t;
+				} else if (escRpm[i] < dynamicIdleRpm * 2) {
+					// if lower than 2x idle RPM, run PID
+					// maybe request to increase all throttles
+					i16 rpmError = dynamicIdleRpm - escRpm[i];
+					dynamicIdlePids[i][P] = dynamicIdlePidGains[P] * rpmError;
+					dynamicIdlePids[i][I] += dynamicIdlePidGains[I] * rpmError;
+					if (dynamicIdlePids[i][I] < 0) dynamicIdlePids[i][I] = 0;
+					if (dynamicIdlePids[i][I] > 400) dynamicIdlePids[i][I] = 400;
+					dynamicIdlePids[i][D] = dynamicIdlePidGains[D] * (lastRpm[i] - (i32)escRpm[i]);
+					i16 minT = (dynamicIdlePids[i][P] + dynamicIdlePids[i][I] + dynamicIdlePids[i][D]).geti32();
+					if (minT > 400) minT = 400;
+					if (minT < 0) minT = 0;
+					if (minT > t) motorDiff[i] = minT - t;
+				} else {
+					dynamicIdlePids[i][I] = 0;
+					if (t < 0) motorDiff[i] = -t;
+				}
+				lastRpm[i] = escRpm[i];
+			}
+			i32 diff = 0x80000000;
+			for (int i = 0; i < 4; i++) {
+				if (motorDiff[i] > diff) diff = motorDiff[i];
+			}
+			for (int i = 0; i < 4; i++) {
+				auto &t = throttles[i];
+				t += diff;
+				if (t > 2000) t = 2000;
+			}
+		} else {
+#if __ARM_FEATURE_SIMD32
+			int16x2_t *const thr = (int16x2_t *)&throttles; // make the following code easier to read
+			i32 low = min16x2(thr[0], thr[1]); // low has the min of {0; 2} and {1; 3}, e.g. 0 and 3
+			i32 high = max16x2(thr[0], thr[1]); // high has the max of {0; 2} and {1; 3}, e.g. 1 and 2
+
+			int16x2_t x = low >> 16;
+			low = (i16)low;
+			low = min16x2(low, x); // get lower of the two low values
+			x = high >> 16;
+			high = (i16)high;
+			high = max16x2(high, x); // get the higher of the two high values
+
+			// find largest diff to add to all such that all are >= 0 (and preferrably <= 2000)
+			i32 diff = 0;
+			if (high > 2000) diff = 2000 - high; // calc the diff just like in non simd
+			if (low + diff < idlePermille * 2) diff = idlePermille * 2 - low;
+
+			x = (diff & 0xFFFF) | (diff << 16);
+			thr[0] = __sadd16(thr[0], x); // add diff to 0 and 1
+			thr[1] = __sadd16(thr[1], x); // add diff to 2 and 3
+			x = 2000 << 16 | 2000; // set max value
+			thr[0] = min16x2(thr[0], x); // choose the min of 2000 and 0/1
+			thr[1] = min16x2(thr[1], x); // choose the min of 2000 and 2/3
+#else
+			i16 low = 0x7FFF, high = 0, diff = 0;
+			for (int i = 0; i < 4; i++) {
+				auto &t = throttles[i];
+				if (t < low) low = t;
+				if (t > high) high = t;
+			}
+			// find largest diff to add to all such that all are >= 0 (and preferrably <= 2000)
+			if (high > 2000) diff = 2000 - high;
+			if (low + diff < idlePermille * 2) diff = idlePermille * 2 - low;
+			for (int i = 0; i < 4; i++) {
+				auto &t = throttles[i];
+				t += diff;
+				if (t > 2000) t = 2000;
+			}
+#endif
 		}
 
 		// send to ESCs

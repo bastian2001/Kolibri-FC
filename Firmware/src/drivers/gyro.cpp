@@ -1,4 +1,3 @@
-#include "arm_acle.h"
 #include "global.h"
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf

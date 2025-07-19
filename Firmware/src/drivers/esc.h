@@ -13,6 +13,7 @@ extern u32 escTemp[4]; // last reported temperature from the ESCs
 extern fix32 escVoltage[4]; // last reported voltage from the ESCs
 extern u32 escCurrent[4]; // last reported current from the ESCs
 extern u8 escErpmFail; // flags for failed RPM decoding
+extern u32 escErpmFailCounter; // consecutive frames with at least one broken RPM measurement, reset to 0 when all RPMs are measured correctly
 extern u16 dshotBeepTone; // tone for the ESC beeps (1-5)
 
 /// @brief Initializes the ESC communication
