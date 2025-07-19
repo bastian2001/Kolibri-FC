@@ -66,6 +66,7 @@ enum class MspFn {
 	MSP_ANALOG = 110,
 	BOXIDS = 119,
 	GET_MOTOR_3D_CONFIG = 124,
+	MSP_BATTERY_STATE = 130,
 	GET_MOTOR_CONFIG = 131,
 	UID = 160,
 	MSP_DISPLAYPORT = 182,
@@ -128,6 +129,12 @@ enum class MspFn {
 
 	// 0x418_ Receiver
 	GET_RX_STATUS = 0x4180,
+	GET_RX_MODES = 0x4181,
+	SET_RX_MODES = 0x4182,
+
+	// 0x419_ Battery
+	GET_BATTERY_SETTINGS = 0x4190,
+	SET_BATTERY_SETTINGS = 0x4191,
 
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET = 0x41F0,

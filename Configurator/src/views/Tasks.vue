@@ -64,7 +64,7 @@ export default defineComponent({
 			});
 		}
 		this.interval = setInterval(() => {
-			sendCommand('request', MspFn.TASK_STATUS);
+			sendCommand(MspFn.TASK_STATUS);
 		}, 200);
 		addOnCommandHandler(this.onCommand);
 	},

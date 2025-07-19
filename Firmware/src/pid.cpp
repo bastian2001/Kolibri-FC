@@ -645,7 +645,7 @@ void pidLoop() {
 		if (mspOverrideMotors > 1000)
 			for (int i = 0; i < 4; i++)
 				throttles[i] = 0;
-		if (ELRS->channels[9] < 1500) {
+		if (!rxModes[RxModeIndex::BEEPER].isActive()) {
 			sendThrottles(throttles);
 		} else {
 			static elapsedMillis motorBeepTimer = 0;
