@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@/msp/protocol";
+import { MspFn } from "@/msp/protocol";
 import { leBytesToInt, delay, intToLeBytes } from "@utils/utils";
 import { routes } from "./router";
 import { connect, disconnect, sendCommand, getSerialDevices, getWifiDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./msp/comm";
@@ -128,21 +128,21 @@ export default defineComponent({
 		och() {
 			this.connected = true;
 			this.configuratorLog.clearEntries();
-			sendCommand('request', MspFn.API_VERSION)
-				.then(() => sendCommand('request', MspFn.FIRMWARE_VARIANT))
+			sendCommand(MspFn.API_VERSION)
+				.then(() => sendCommand(MspFn.FIRMWARE_VARIANT))
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.FIRMWARE_VERSION))
+				.then(() => sendCommand(MspFn.FIRMWARE_VERSION))
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.BOARD_INFO))
+				.then(() => sendCommand(MspFn.BOARD_INFO))
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.BUILD_INFO))
+				.then(() => sendCommand(MspFn.BUILD_INFO))
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.GET_NAME))
+				.then(() => sendCommand(MspFn.GET_NAME))
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.STATUS))
+				.then(() => sendCommand(MspFn.STATUS))
 				.then(() => {
 					const now = Date.now();
-					sendCommand('request', MspFn.SET_RTC, MspVersion.V2, [
+					sendCommand(MspFn.SET_RTC, [
 						...intToLeBytes(Math.floor(now / 1000), 4),
 						...intToLeBytes(now % 1000, 2)
 					]);
@@ -150,7 +150,7 @@ export default defineComponent({
 				.then(() => delay(5))
 				.then(() => {
 					const offset = -new Date().getTimezoneOffset();
-					sendCommand('request', MspFn.SET_TZ_OFFSET, MspVersion.V2, [
+					sendCommand(MspFn.SET_TZ_OFFSET, [
 						...intToLeBytes(offset, 2),
 					]);
 				});

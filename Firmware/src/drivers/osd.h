@@ -37,7 +37,8 @@ enum class OSDElem : u8 {
 	HEADING,
 	HOME_DISTANCE,
 	GROUND_SPEED,
-	PLUS_CODE
+	PLUS_CODE,
+	CELL_VOLTAGE
 };
 
 void osdInit();

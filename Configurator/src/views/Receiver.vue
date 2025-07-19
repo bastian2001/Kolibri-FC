@@ -2,7 +2,7 @@
 import Channel from "@components/Channel.vue";
 import { defineComponent } from "vue";
 import { addOnCommandHandler, sendCommand, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
-import { MspFn, MspVersion } from "@/msp/protocol";
+import { MspFn } from "@/msp/protocol";
 import { Command } from "@utils/types";
 import { leBytesToInt } from "@utils/utils";
 import RxMode from "@/components/RxMode.vue";
@@ -42,10 +42,10 @@ export default defineComponent({
 	},
 	mounted() {
 		this.statusInterval = setInterval(() => {
-			sendCommand('request', MspFn.RC).catch(() => { });
+			sendCommand(MspFn.RC).catch(() => { });
 		}, 20);
 		this.channelInterval = setInterval(() => {
-			sendCommand('request', MspFn.GET_RX_STATUS).catch(() => { });
+			sendCommand(MspFn.GET_RX_STATUS).catch(() => { });
 		}, 1000);
 		this.getModes();
 		addOnConnectHandler(this.getModes);
@@ -59,7 +59,7 @@ export default defineComponent({
 	},
 	methods: {
 		getModes() {
-			sendCommand('request', MspFn.GET_RX_MODES).catch(() => { });
+			sendCommand(MspFn.GET_RX_MODES).catch(() => { });
 		},
 		saveSettings() {
 			const data: number[] = []
@@ -69,7 +69,7 @@ export default defineComponent({
 				data[index * 4 + 2] = mode.max < 0 ? mode.max + 256 : mode.max;
 				data[index * 4 + 3] = 0; // Reserved byte
 			});
-			sendCommand('request', MspFn.SET_RX_MODES, MspVersion.V2, data).catch(() => { });
+			sendCommand(MspFn.SET_RX_MODES, data).catch(() => { });
 		},
 		onCommand(command: Command) {
 			if (command.cmdType === 'response') {
@@ -98,7 +98,6 @@ export default defineComponent({
 						this.rcMsgCount = leBytesToInt(command.data.slice(14, 18));
 					} break;
 					case MspFn.GET_RX_MODES: {
-						console.log(command)
 						const modeCount = command.data.length / 4;
 						for (let i = 0; i < modeCount; i++) {
 							const offset = i * 4;
@@ -108,7 +107,7 @@ export default defineComponent({
 						}
 					} break;
 					case MspFn.SET_RX_MODES: {
-						sendCommand('request', MspFn.SAVE_SETTINGS).catch(() => { });
+						sendCommand(MspFn.SAVE_SETTINGS).catch(() => { });
 						this.getModes();
 					} break;
 				}
