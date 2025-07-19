@@ -11,24 +11,24 @@ export default defineComponent({
 	mounted() {
 		addOnCommandHandler(this.onCommand);
 		this.magPointInterval = setInterval(() => {
-			sendCommand('request', MspFn.GET_MAG_DATA);
+			sendCommand(MspFn.GET_MAG_DATA);
 		}, 50);
 		this.getGpsDataInterval = setInterval(() => {
-			sendCommand('request', MspFn.GET_GPS_ACCURACY)
+			sendCommand(MspFn.GET_GPS_ACCURACY)
 				.then(() => {
-					return sendCommand('request', MspFn.GET_GPS_MOTION);
+					return sendCommand(MspFn.GET_GPS_MOTION);
 				})
 				.catch(() => { });
 		}, 200);
 		this.gpsDataSlowInterval = setInterval(() => {
-			sendCommand('request', MspFn.GET_GPS_STATUS)
+			sendCommand(MspFn.GET_GPS_STATUS)
 				.then(() => {
-					return sendCommand('request', MspFn.GET_GPS_TIME);
+					return sendCommand(MspFn.GET_GPS_TIME);
 				})
 				.catch(() => { });
 		}, 1000);
 		this.baroDataInterval = setInterval(() => {
-			sendCommand('request', MspFn.GET_BARO_DATA);
+			sendCommand(MspFn.GET_BARO_DATA);
 		}, 100);
 	},
 	unmounted() {
@@ -179,7 +179,7 @@ export default defineComponent({
 		<canvas width="500" height="500" ref="canvasyz" style="display:inline-block; border: 1px solid white;"></canvas>
 		<canvas width="500" height="500" ref="canvaszx" style="display:inline-block; border: 1px solid white;"></canvas>
 		<br />
-		<button @click="() => sendCommand('request', MspFn.MAG_CALIBRATION)">Calibrate Magnetometer</button>
+		<button @click="() => sendCommand(MspFn.MAG_CALIBRATION)">Calibrate Magnetometer</button>
 		<br />
 		<div class="infoDiv magStatus">
 			Magnetic Heading: {{ magHeading }}°<br />

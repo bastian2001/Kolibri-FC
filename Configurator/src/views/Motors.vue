@@ -1,7 +1,7 @@
 <script lang="ts">
 import Motor from "@components/Motor.vue";
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@/msp/protocol";
+import { MspFn } from "@/msp/protocol";
 import { intToLeBytes, leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "@utils/types";
@@ -22,7 +22,7 @@ export default defineComponent({
 	},
 	mounted() {
 		this.getMotorsInterval = setInterval(() => {
-			sendCommand('request', MspFn.GET_MOTOR);
+			sendCommand(MspFn.GET_MOTOR);
 		}, 100);
 		addOnDisconnectHandler(this.stopMotors);
 		addOnCommandHandler(this.onCommand);
@@ -47,7 +47,7 @@ export default defineComponent({
 		startMotors() {
 			clearInterval(this.sendInterval);
 			this.sendInterval = setInterval(() => {
-				sendCommand('request', MspFn.SET_MOTOR, MspVersion.V2, this.throttlesU8);
+				sendCommand(MspFn.SET_MOTOR, this.throttlesU8);
 			}, 100);
 		},
 		onCommand(command: Command) {

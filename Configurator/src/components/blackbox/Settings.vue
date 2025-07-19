@@ -1,6 +1,6 @@
 <script lang="ts">
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/msp/comm';
-import { MspFn, MspVersion } from '@/msp/protocol';
+import { MspFn } from '@/msp/protocol';
 import { Command, FlagProps } from '@utils/types';
 import { defineComponent, PropType } from 'vue';
 import { leBytesToInt } from '@utils/utils';
@@ -31,8 +31,7 @@ export default defineComponent({
 			i += size;
 		}
 		this.groups = g;
-		sendCommand('request', MspFn.GET_BB_SETTINGS)
-		console.log('Requesting blackbox settings');
+		sendCommand(MspFn.GET_BB_SETTINGS)
 
 		addOnCommandHandler(this.onCommand);
 	},
@@ -57,7 +56,7 @@ export default defineComponent({
 						this.selected = sel;
 						break;
 					case MspFn.SET_BB_SETTINGS:
-						sendCommand('request', MspFn.SAVE_SETTINGS);
+						sendCommand(MspFn.SAVE_SETTINGS);
 						break;
 					case MspFn.SAVE_SETTINGS:
 						this.$emit('close');
@@ -74,7 +73,7 @@ export default defineComponent({
 				bytes[byte] |= 1 << bit;
 			}
 
-			sendCommand('request', MspFn.SET_BB_SETTINGS, MspVersion.V2, [this.divider, ...bytes]);
+			sendCommand(MspFn.SET_BB_SETTINGS, [this.divider, ...bytes]);
 		}
 	}
 })
