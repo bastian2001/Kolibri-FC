@@ -1,6 +1,6 @@
 <script lang="ts">
 import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
-import { MspFn, MspVersion } from "@/msp/protocol";
+import { MspFn } from "@/msp/protocol";
 import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
 import { delay } from "@/utils/utils";
@@ -21,7 +21,7 @@ export default defineComponent({
 			if (this.inputText) {
 				const input = this.inputText.trim();
 				if (input) {
-					sendCommand('request', MspFn.CLI_COMMAND, MspVersion.V2, [], this.inputText);
+					sendCommand(MspFn.CLI_COMMAND, this.inputText);
 					if (this.history[this.history.length - 1] !== this.inputText) {
 						this.history.push(this.inputText);
 					}
@@ -50,7 +50,7 @@ export default defineComponent({
 		},
 		onStart() {
 			this.outputLines = [''];
-			delay(10).then(() => { sendCommand('request', MspFn.CLI_INIT) });
+			delay(10).then(() => { sendCommand(MspFn.CLI_INIT) });
 			(this.$refs.cliInput as HTMLInputElement).focus();
 		},
 		navigateHistory(e: KeyboardEvent) {

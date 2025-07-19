@@ -116,14 +116,37 @@ export const enableCommands = (en: boolean) => {
 }
 
 export function sendCommand(
-	type: "request" | "response" | "error",
 	command: number,
-	version: number = MspVersion.V2,
-	data: number[] = [],
-	dataStr: string = ""
+	d:
+		| string
+		| number[]
+		| {
+				data?: string | number[]
+				version?: number
+				type?: "request" | "response" | "error"
+		  } = []
 ) {
 	if (!cmdEnabled) return new Promise((resolve: any) => resolve())
-	if (data.length === 0 && dataStr !== "") data = strToArray(dataStr)
+	let data: number[] = []
+	let version = MspVersion.V2
+	let type = "request" as "request" | "response" | "error"
+	if (typeof d === "string") {
+		data = strToArray(d)
+	} else if (Array.isArray(d)) {
+		data = d
+	} else {
+		if (typeof d.data === "string") {
+			data = strToArray(d.data)
+		} else if (Array.isArray(d.data)) {
+			data = d.data
+		}
+		if (d.version !== undefined) {
+			version = d.version
+		}
+		if (d.type !== undefined) {
+			type = d.type
+		}
+	}
 	const len = data.length
 
 	if (len > 254 && version === MspVersion.V1) version = MspVersion.V1_JUMBO
@@ -452,11 +475,11 @@ export const connect = (portToOpen: string) => {
 					console.log("TCP connected to", path)
 					readInterval = setInterval(read, 3)
 					pingInterval = setInterval(() => {
-						sendCommand("request", MspFn.CONFIGURATOR_PING).catch(() => {})
+						sendCommand(MspFn.CONFIGURATOR_PING).catch(() => {})
 						pingStarted = Date.now()
 					}, 200)
 					statusInterval = setInterval(() => {
-						sendCommand("request", MspFn.STATUS).catch(() => {})
+						sendCommand(MspFn.STATUS).catch(() => {})
 					}, 1000)
 					onConnectHandlers.forEach(h => h())
 					resolve()
@@ -476,11 +499,11 @@ export const connect = (portToOpen: string) => {
 				cmdEnabled = true
 				readInterval = setInterval(read, 50)
 				pingInterval = setInterval(() => {
-					sendCommand("request", MspFn.CONFIGURATOR_PING).catch(() => {})
+					sendCommand(MspFn.CONFIGURATOR_PING).catch(() => {})
 					pingStarted = Date.now()
 				}, 200)
 				statusInterval = setInterval(() => {
-					sendCommand("request", MspFn.STATUS).catch(() => {})
+					sendCommand(MspFn.STATUS).catch(() => {})
 				}, 1000)
 				onConnectHandlers.forEach(h => h())
 				resolve()
