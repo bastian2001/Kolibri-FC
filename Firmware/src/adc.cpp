@@ -2,14 +2,14 @@
 
 u16 adcVoltage = 0, cellVoltage = 0; // centivolts
 bool batBlinkingAndBeeping = false;
-static u16 emptyVoltageSetting = 0;
+u16 emptyVoltageSetting = 0;
 static u16 emptyVoltage = 0;
 f32 adcCurrent = 0;
 elapsedMillis adcTimer = 0;
 f32 temperature = 0;
-static u8 cellCountSetting = 0;
-static u8 batCells = 1;
-static u8 batState = 0; // 0 = no battery (USB or startup), 1 = battery found
+u8 cellCountSetting = 0;
+u8 batCells = 1;
+u8 batState = 0;
 elapsedMicros batTimer = 0;
 
 // up to 4.35V per cell + 0.1V (inclusive) for auto detection, e.g. 1S = 0-4.45V, 5S = 17.5x-21.85V, 6S = 21.85x-26.2V
@@ -73,7 +73,7 @@ void adcLoop() {
 				disableBlinking(OSDElem::CELL_VOLTAGE);
 				batBlinkingAndBeeping = false;
 			} else if (adcVoltage < emptyVoltage && !batBlinkingAndBeeping) {
-				makeSound(100, 65535, 100, 500);
+				makeSound(3000, 65535, 300, 300);
 				enableBlinking(OSDElem::TOT_VOLTAGE);
 				enableBlinking(OSDElem::CELL_VOLTAGE);
 				batBlinkingAndBeeping = true;
