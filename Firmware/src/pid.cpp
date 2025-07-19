@@ -35,10 +35,10 @@ PT2 dFilterRoll, dFilterPitch, dFilterYaw;
 u16 gyroFilterCutoff;
 PT1 gyroFiltered[3];
 
-bool useDynamicIdle = false;
-u16 dynamicIdleRpm = 2000;
+bool useDynamicIdle = true;
+u16 dynamicIdleRpm = 3000;
 fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
-fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07}; // TODO get good values
+fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07};
 
 fix32 setpointDiffCutoff = 12;
 PT1 setpointDiff[3];
@@ -64,7 +64,7 @@ fix64 vVelMaxErrorSum, vVelMinErrorSum;
 u8 maxAngle; // degrees, applied in angle mode and GPS mode
 u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
 fix32 stickToAngle;
-u16 idlePermille;
+u8 idlePermille;
 fix32 throttleScale;
 fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
 fix32 smoothChannels[4];
@@ -216,6 +216,12 @@ void initPidHVel() {
 	pidGainsHVel[FF] = 3200.f * .1f; // tilt in degrees for target acceleration of 3200m/s^2
 }
 
+void initDynIdlePids() {
+	dynamicIdlePidGains[P] = .2;
+	dynamicIdlePidGains[I] = .0015;
+	dynamicIdlePidGains[D] = .07;
+}
+
 void initPid() {
 	addArraySetting(SETTING_PID_GAINS, pidGains, &initPidGains);
 	addArraySetting(SETTING_RATE_COEFFS, rateCoeffs, &initRateCoeffs);
@@ -240,8 +246,9 @@ void initPid() {
 	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
 	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
 	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
-	addSetting(SETTING_DYNAMIC_IDLE_EN, &useDynamicIdle, false);
-	addSetting(SETTING_DYNAMIC_IDLE_RPM, &dynamicIdleRpm, 2000);
+	addSetting(SETTING_DYNAMIC_IDLE_EN, &useDynamicIdle, true);
+	addSetting(SETTING_DYNAMIC_IDLE_RPM, &dynamicIdleRpm, 3000);
+	addArraySetting(SETTING_DYNAMIC_IDLE_PIDS, dynamicIdlePidGains, &initDynIdlePids);
 
 	initRateInterp();
 

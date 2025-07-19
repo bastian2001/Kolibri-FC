@@ -860,18 +860,23 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 ifall = iFalloff.geti32();
 			buf[len++] = ifall & 0xFF;
 			buf[len++] = ifall >> 8;
+			buf[len++] = useDynamicIdle;
+			buf[len++] = idlePermille;
+			buf[len++] = dynamicIdleRpm;
+			buf[len++] = dynamicIdleRpm >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
-		}
+		} break;
 		case MspFn::SET_EXT_PID: {
-			u16 ifall = DECODE_U2((u8 *)reqPayload);
-			if (ifall > 10000) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-				break;
-			}
-			iFalloff = ifall;
+			iFalloff = DECODE_U2(reqPayload);
+			useDynamicIdle = reqPayload[2];
+			idlePermille = reqPayload[3];
+			dynamicIdleRpm = DECODE_U2(&reqPayload[4]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
 			getSetting(SETTING_IFALLOFF)->updateSettingInFile();
+			getSetting(SETTING_DYNAMIC_IDLE_EN)->updateSettingInFile();
+			getSetting(SETTING_IDLE_PERMILLE)->updateSettingInFile();
+			getSetting(SETTING_DYNAMIC_IDLE_RPM)->updateSettingInFile();
 		} break;
 		case MspFn::GET_FILTER_CONFIG: {
 			buf[len++] = gyroFilterCutoff & 0xFF;
