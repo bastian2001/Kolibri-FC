@@ -94,6 +94,7 @@ static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix3
 static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVelSetpoint, fix32 *nVelSetpoint, fix32 *targetVvel);
 static fix32 stickToTargetVvel(fix32 stickPos);
 interp_config rateInterpConfig0, rateInterpConfig1, rateInterpConfig2;
+interp_config dynIdleInterpConfig;
 
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {
@@ -139,6 +140,12 @@ static void startRateInterp() {
 	interp_set_config(interp1, 0, &rateInterpConfig2);
 	interp1->base[0] = -1 << 15;
 	interp1->base[1] = 1 << 15;
+}
+
+static void startDynIdleInterp() {
+	interp_set_config(interp1, 0, &dynIdleInterpConfig);
+	interp1->base[0] = 0 << 16;
+	interp1->base[1] = 400 << 16;
 }
 
 /**
@@ -251,6 +258,9 @@ void initPid() {
 	addArraySetting(SETTING_DYNAMIC_IDLE_PIDS, dynamicIdlePidGains, &initDynIdlePids);
 
 	initRateInterp();
+	dynIdleInterpConfig = interp_default_config();
+	interp_config_set_clamp(&dynIdleInterpConfig, true);
+	interp_config_set_signed(&dynIdleInterpConfig, true);
 
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
@@ -665,13 +675,12 @@ void __not_in_flash_func(pidLoop)() {
 		throttles[(u8)MOTOR::FR] = tFR.geti32();
 		throttles[(u8)MOTOR::FL] = tFL.geti32();
 
-		elapsedMicros x = 0;
-
 		// apply idling / throttle clamping
-		if (useDynamicIdle && escErpmFailCounter < 10) { // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
+		if (runDynIdle) {
 			static i32 lastRpm[4] = {0};
 			i32 minIncrease = INT32_MIN; // typically negative, but >0 when one channels wants to lift
 			i32 tryDecrease = 0;
+			startDynIdleInterp();
 
 			for (int i = 0; i < 4; i++) {
 				auto &t = throttles[i];
@@ -681,12 +690,12 @@ void __not_in_flash_func(pidLoop)() {
 					i32 rpmError = dynamicIdleRpm - escRpm[i];
 					dynamicIdlePids[i][P] = dynamicIdlePidGains[P] * rpmError;
 					dynamicIdlePids[i][I] += dynamicIdlePidGains[I] * rpmError;
-					if (dynamicIdlePids[i][I] < 0) dynamicIdlePids[i][I] = 0;
-					if (dynamicIdlePids[i][I] > 400) dynamicIdlePids[i][I] = 400;
+					interp1->accum[0] = dynamicIdlePids[i][I].raw;
+					dynamicIdlePids[i][I].raw = interp1->peek[0]; // clamp to 0-400
 					dynamicIdlePids[i][D] = dynamicIdlePidGains[D] * (lastRpm[i] - (i32)escRpm[i]);
 					minT = dynamicIdlePids[i][P] + dynamicIdlePids[i][I] + dynamicIdlePids[i][D];
-					if (minT > 400) minT = 400;
-					if (minT < 0) minT = 0;
+					interp1->accum[0] = minT.raw;
+					minT.raw = interp1->peek[0]; // clamp to 0-400
 				} else {
 					dynamicIdlePids[i][I] = 0;
 				}
@@ -699,11 +708,22 @@ void __not_in_flash_func(pidLoop)() {
 			}
 			i32 diff = tryDecrease;
 			if (diff < minIncrease) diff = minIncrease;
+
+#if __ARM_FEATURE_SIMD32
+			int16x2_t *const thr = (int16x2_t *)&throttles; // make the following code easier to read
+			i32 x = (diff & 0xFFFF) | (diff << 16);
+			thr[0] = __sadd16(thr[0], x); // add diff to 0 and 1
+			thr[1] = __sadd16(thr[1], x); // add diff to 2 and 3
+			x = 2000 << 16 | 2000; // set max value
+			thr[0] = min16x2(thr[0], x); // choose the min of 2000 and 0/1
+			thr[1] = min16x2(thr[1], x); // choose the min of 2000 and 2/3
+#else
 			for (int i = 0; i < 4; i++) {
 				auto &t = throttles[i];
 				t += diff;
 				if (t > 2000) t = 2000;
 			}
+#endif
 		} else {
 #if __ARM_FEATURE_SIMD32
 			int16x2_t *const thr = (int16x2_t *)&throttles; // make the following code easier to read
@@ -745,9 +765,6 @@ void __not_in_flash_func(pidLoop)() {
 			}
 #endif
 		}
-
-		u32 t = x;
-		tasks[TASK_PID].debugInfo = t;
 
 		// send to ESCs
 		sendThrottles(throttles);
