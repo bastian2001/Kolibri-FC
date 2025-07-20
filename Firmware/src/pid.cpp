@@ -11,7 +11,7 @@ FlightMode flightMode = FlightMode::ACRO;
  * the numbers to be converted to 64 bit before calculation.
  */
 
-i16 throttles[4];
+i16 throttles[4] __attribute__((aligned(4)));
 
 fix32 gyroScaled[3];
 
@@ -34,6 +34,11 @@ u16 dFilterCutoff;
 PT2 dFilterRoll, dFilterPitch, dFilterYaw;
 u16 gyroFilterCutoff;
 PT1 gyroFiltered[3];
+
+bool useDynamicIdle = true;
+u16 dynamicIdleRpm = 3000;
+fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
+fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07};
 
 fix32 setpointDiffCutoff = 12;
 PT1 setpointDiff[3];
@@ -59,7 +64,7 @@ fix64 vVelMaxErrorSum, vVelMinErrorSum;
 u8 maxAngle; // degrees, applied in angle mode and GPS mode
 u8 maxAngleBurst; // degrees, this angle is allowed for a short time, e.g. when accelerating in GPS mode (NOT used in angle mode)
 fix32 stickToAngle;
-u16 idlePermille;
+u8 idlePermille;
 fix32 throttleScale;
 fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
 fix32 smoothChannels[4];
@@ -89,6 +94,7 @@ static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix3
 static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVelSetpoint, fix32 *nVelSetpoint, fix32 *targetVvel);
 static fix32 stickToTargetVvel(fix32 stickPos);
 interp_config rateInterpConfig0, rateInterpConfig1, rateInterpConfig2;
+interp_config dynIdleInterpConfig;
 
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {
@@ -134,6 +140,12 @@ static void startRateInterp() {
 	interp_set_config(interp1, 0, &rateInterpConfig2);
 	interp1->base[0] = -1 << 15;
 	interp1->base[1] = 1 << 15;
+}
+
+static void startDynIdleInterp() {
+	interp_set_config(interp1, 0, &dynIdleInterpConfig);
+	interp1->base[0] = 0 << 16;
+	interp1->base[1] = 400 << 16;
 }
 
 /**
@@ -211,6 +223,12 @@ void initPidHVel() {
 	pidGainsHVel[FF] = 3200.f * .1f; // tilt in degrees for target acceleration of 3200m/s^2
 }
 
+void initDynIdlePids() {
+	dynamicIdlePidGains[P] = .2;
+	dynamicIdlePidGains[I] = .0015;
+	dynamicIdlePidGains[D] = .07;
+}
+
 void initPid() {
 	addArraySetting(SETTING_PID_GAINS, pidGains, &initPidGains);
 	addArraySetting(SETTING_RATE_COEFFS, rateCoeffs, &initRateCoeffs);
@@ -235,8 +253,14 @@ void initPid() {
 	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
 	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
 	addSetting(SETTING_IFALLOFF, &iFalloff, 400);
+	addSetting(SETTING_DYNAMIC_IDLE_EN, &useDynamicIdle, true);
+	addSetting(SETTING_DYNAMIC_IDLE_RPM, &dynamicIdleRpm, 3000);
+	addArraySetting(SETTING_DYNAMIC_IDLE_PIDS, dynamicIdlePidGains, &initDynIdlePids);
 
 	initRateInterp();
+	dynIdleInterpConfig = interp_default_config();
+	interp_config_set_clamp(&dynIdleInterpConfig, true);
+	interp_config_set_signed(&dynIdleInterpConfig, true);
 
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
@@ -626,9 +650,12 @@ void __not_in_flash_func(pidLoop)() {
 		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 		fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
 
-		// scale throttle from 0...1024 to idlePermille*2...2000 (DShot output is 0...2000)
-		throttle *= throttleScale; // 0...1024 => 0...2000-idlePermille*2
-		throttle += idlePermille * 2; // 0...2000-idlePermille*2 => idlePermille*2...2000
+		bool runDynIdle = useDynamicIdle && escErpmFailCounter < 10; // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
+		if (!runDynIdle) {
+			// scale throttle from 0...1024 to idlePermille*2...2000 (DShot output is 0...2000)
+			throttle *= throttleScale; // 0...1024 => 0...2000-idlePermille*2
+			throttle += idlePermille * 2; // 0...2000-idlePermille*2 => idlePermille*2...2000
+		}
 
 		// apply mixer
 		fix32 tRR, tRL, tFR, tFL;
@@ -648,20 +675,95 @@ void __not_in_flash_func(pidLoop)() {
 		throttles[(u8)MOTOR::FR] = tFR.geti32();
 		throttles[(u8)MOTOR::FL] = tFL.geti32();
 
-		// apply idling
-		i16 low = 0x7FFF, high = 0, diff = 0;
-		for (int i = 0; i < 4; i++) {
-			auto &t = throttles[i];
-			if (t < low) low = t;
-			if (t > high) high = t;
-		}
-		if (high > 2000) diff = 2000 - high;
-		low += diff;
-		if (low < idlePermille * 2) diff += idlePermille * 2 - low;
-		for (int i = 0; i < 4; i++) {
-			auto &t = throttles[i];
-			t += diff;
-			if (t > 2000) t = 2000;
+		// apply idling / throttle clamping
+		if (runDynIdle) {
+			static i32 lastRpm[4] = {0};
+			i32 minIncrease = INT32_MIN; // typically negative, but >0 when one channels wants to lift
+			i32 tryDecrease = 0;
+			startDynIdleInterp();
+
+			for (int i = 0; i < 4; i++) {
+				auto &t = throttles[i];
+				fix32 minT = 0;
+				if (escRpm[i] < dynamicIdleRpm * 2) {
+					// if lower than 2x idle RPM, run PID
+					i32 rpmError = dynamicIdleRpm - escRpm[i];
+					dynamicIdlePids[i][P] = dynamicIdlePidGains[P] * rpmError;
+					dynamicIdlePids[i][I] += dynamicIdlePidGains[I] * rpmError;
+					interp1->accum[0] = dynamicIdlePids[i][I].raw;
+					dynamicIdlePids[i][I].raw = interp1->peek[0]; // clamp to 0-400
+					dynamicIdlePids[i][D] = dynamicIdlePidGains[D] * (lastRpm[i] - (i32)escRpm[i]);
+					minT = dynamicIdlePids[i][P] + dynamicIdlePids[i][I] + dynamicIdlePids[i][D];
+					interp1->accum[0] = minT.raw;
+					minT.raw = interp1->peek[0]; // clamp to 0-400
+				} else {
+					dynamicIdlePids[i][I] = 0;
+				}
+				lastRpm[i] = escRpm[i];
+
+				i32 temp = (minT - t).geti32();
+				if (temp > minIncrease) minIncrease = temp;
+				temp = 2000 - t;
+				if (temp < tryDecrease) tryDecrease = temp;
+			}
+			i32 diff = tryDecrease;
+			if (diff < minIncrease) diff = minIncrease;
+
+#if __ARM_FEATURE_SIMD32
+			int16x2_t *const thr = (int16x2_t *)&throttles; // make the following code easier to read
+			i32 x = (diff & 0xFFFF) | (diff << 16);
+			thr[0] = __sadd16(thr[0], x); // add diff to 0 and 1
+			thr[1] = __sadd16(thr[1], x); // add diff to 2 and 3
+			x = 2000 << 16 | 2000; // set max value
+			thr[0] = min16x2(thr[0], x); // choose the min of 2000 and 0/1
+			thr[1] = min16x2(thr[1], x); // choose the min of 2000 and 2/3
+#else
+			for (int i = 0; i < 4; i++) {
+				auto &t = throttles[i];
+				t += diff;
+				if (t > 2000) t = 2000;
+			}
+#endif
+		} else {
+#if __ARM_FEATURE_SIMD32
+			int16x2_t *const thr = (int16x2_t *)&throttles; // make the following code easier to read
+			i32 low = min16x2(thr[0], thr[1]); // low has the min of {0; 2} and {1; 3}, e.g. 0 and 3
+			i32 high = max16x2(thr[0], thr[1]); // high has the max of {0; 2} and {1; 3}, e.g. 1 and 2
+
+			int16x2_t x = low >> 16;
+			low = (i16)low;
+			low = min16x2(low, x); // get lower of the two low values
+			x = high >> 16;
+			high = (i16)high;
+			high = max16x2(high, x); // get the higher of the two high values
+
+			// find largest diff to add to all such that all are >= 0 (and preferrably <= 2000)
+			i32 diff = 0;
+			if (high > 2000) diff = 2000 - high; // calc the diff just like in non simd
+			if (low + diff < idlePermille * 2) diff = idlePermille * 2 - low;
+
+			x = (diff & 0xFFFF) | (diff << 16);
+			thr[0] = __sadd16(thr[0], x); // add diff to 0 and 1
+			thr[1] = __sadd16(thr[1], x); // add diff to 2 and 3
+			x = 2000 << 16 | 2000; // set max value
+			thr[0] = min16x2(thr[0], x); // choose the min of 2000 and 0/1
+			thr[1] = min16x2(thr[1], x); // choose the min of 2000 and 2/3
+#else
+			i16 low = 0x7FFF, high = 0, diff = 0;
+			for (int i = 0; i < 4; i++) {
+				auto &t = throttles[i];
+				if (t < low) low = t;
+				if (t > high) high = t;
+			}
+			// find largest diff to add to all such that all are >= 0 (and preferrably <= 2000)
+			if (high > 2000) diff = 2000 - high;
+			if (low + diff < idlePermille * 2) diff = idlePermille * 2 - low;
+			for (int i = 0; i < 4; i++) {
+				auto &t = throttles[i];
+				t += diff;
+				if (t > 2000) t = 2000;
+			}
+#endif
 		}
 
 		// send to ESCs

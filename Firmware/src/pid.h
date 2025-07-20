@@ -46,12 +46,14 @@ extern fix64 targetLat, targetLon; // target latitude and longitude for GPS mode
 extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
 extern u16 gyroFilterCutoff; // cutoff frequency for the gyro filter (Hz)
 extern fix32 setpointDiffCutoff; // used for feedforward and I term relaxation (Hz)
-extern u16 idlePermille; // idle throttle in permille (0-1000)
+extern u8 idlePermille; // idle throttle in permille (0-1000)
 extern fix32 hvelFfFilterCutoff; // cutoff frequency for the horizontal velocity feedforward filter (Hz)
 extern fix32 hvelIRelaxFilterCutoff; // cutoff frequency for the horizontal velocity I term relax filter (Hz)
 extern fix32 hvelPushFilterCutoff; // cutoff frequency for the horizontal velocity push filter (Hz)
 extern fix32 vvelDFilterCutoff; // cutoff frequency for the vertical velocity D filter (Hz)
 extern fix32 vvelFFFilterCutoff; // cutoff frequency for the vertical velocity feedforward filter (Hz)
+extern bool useDynamicIdle; // whether to use dynamic (fix RPM) or static (fix throttle) idle
+extern u16 dynamicIdleRpm; // RPM the FC should target / not go below when the throttle is low
 
 enum class FlightMode {
 	ACRO,

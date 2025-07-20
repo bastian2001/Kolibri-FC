@@ -8,6 +8,7 @@ u32 escTemp[4] = {0};
 fix32 escVoltage[4] = {0};
 u32 escCurrent[4] = {0};
 u8 escErpmFail = 0;
+u32 escErpmFailCounter = 0;
 u16 dshotBeepTone = 1;
 
 BidirDShotX1 *escs[4];
@@ -48,12 +49,16 @@ void decodeErpm() {
 	if (!enableDShot) return;
 	tasks[TASK_ESC_RPM].runCounter++;
 	elapsedMicros taskTimer = 0;
+	escErpmFail = 0;
 	for (int m = 0; m < 4; m++) {
 		BidirDshotTelemetryType telemType = escs[m]->getTelemetryRaw((uint32_t *)&escRawTelemetry[m]);
 		u32 telemVal = BidirDShotX1::convertFromRaw(escRawTelemetry[m], telemType);
 		switch (telemType) {
 		case BidirDshotTelemetryType::ERPM:
-			escRpm[m] = telemVal;
+			if (escRpm[m] >= 0)
+				escRpm[m] = telemVal / (MOTOR_POLES / 2);
+			else
+				escErpmFail |= 1 << m;
 			break;
 		case BidirDshotTelemetryType::TEMPERATURE:
 			escTemp[m] = telemVal;
@@ -67,11 +72,13 @@ void decodeErpm() {
 		case BidirDshotTelemetryType::NO_PACKET:
 			tasks[TASK_ESC_RPM].errorCount++;
 			tasks[TASK_ESC_RPM].lastError = 1;
+			escErpmFail |= 1 << m;
 			escRawTelemetry[m] = 0;
 			break;
 		case BidirDshotTelemetryType::CHECKSUM_ERROR:
 			tasks[TASK_ESC_RPM].errorCount++;
 			tasks[TASK_ESC_RPM].lastError = 2;
+			escErpmFail |= 1 << m;
 			escRawTelemetry[m] = 0;
 			break;
 		case BidirDshotTelemetryType::STATUS:
@@ -83,6 +90,10 @@ void decodeErpm() {
 			break;
 		}
 	}
+	if (escErpmFail)
+		escErpmFailCounter++;
+	else
+		escErpmFailCounter = 0;
 	u32 duration = taskTimer;
 	tasks[TASK_ESC_RPM].totalDuration += duration;
 	if (duration > tasks[TASK_ESC_RPM].maxDuration)
