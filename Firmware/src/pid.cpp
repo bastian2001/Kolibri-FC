@@ -662,39 +662,40 @@ void __not_in_flash_func(pidLoop)() {
 		throttles[(u8)MOTOR::FR] = tFR.geti32();
 		throttles[(u8)MOTOR::FL] = tFL.geti32();
 
+		elapsedMicros x = 0;
+
 		// apply idling / throttle clamping
 		if (useDynamicIdle && escErpmFailCounter < 10) { // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
 			static i32 lastRpm[4] = {0};
-			i16 motorDiff[4] = {0};
+			i32 minIncrease = INT32_MIN; // typically negative, but >0 when one channels wants to lift
+			i32 tryDecrease = 0;
 
 			for (int i = 0; i < 4; i++) {
 				auto &t = throttles[i];
-				if (t > 2000) {
-					// request to decrease all throttles
-					motorDiff[i] = 2000 - t;
-				} else if (escRpm[i] < dynamicIdleRpm * 2) {
+				fix32 minT = 0;
+				if (escRpm[i] < dynamicIdleRpm * 2) {
 					// if lower than 2x idle RPM, run PID
-					// maybe request to increase all throttles
-					i16 rpmError = dynamicIdleRpm - escRpm[i];
+					i32 rpmError = dynamicIdleRpm - escRpm[i];
 					dynamicIdlePids[i][P] = dynamicIdlePidGains[P] * rpmError;
 					dynamicIdlePids[i][I] += dynamicIdlePidGains[I] * rpmError;
 					if (dynamicIdlePids[i][I] < 0) dynamicIdlePids[i][I] = 0;
 					if (dynamicIdlePids[i][I] > 400) dynamicIdlePids[i][I] = 400;
 					dynamicIdlePids[i][D] = dynamicIdlePidGains[D] * (lastRpm[i] - (i32)escRpm[i]);
-					i16 minT = (dynamicIdlePids[i][P] + dynamicIdlePids[i][I] + dynamicIdlePids[i][D]).geti32();
+					minT = dynamicIdlePids[i][P] + dynamicIdlePids[i][I] + dynamicIdlePids[i][D];
 					if (minT > 400) minT = 400;
 					if (minT < 0) minT = 0;
-					if (minT > t) motorDiff[i] = minT - t;
 				} else {
 					dynamicIdlePids[i][I] = 0;
-					if (t < 0) motorDiff[i] = -t;
 				}
 				lastRpm[i] = escRpm[i];
+
+				i32 temp = (minT - t).geti32();
+				if (temp > minIncrease) minIncrease = temp;
+				temp = 2000 - t;
+				if (temp < tryDecrease) tryDecrease = temp;
 			}
-			i32 diff = 0x80000000;
-			for (int i = 0; i < 4; i++) {
-				if (motorDiff[i] > diff) diff = motorDiff[i];
-			}
+			i32 diff = tryDecrease;
+			if (diff < minIncrease) diff = minIncrease;
 			for (int i = 0; i < 4; i++) {
 				auto &t = throttles[i];
 				t += diff;
@@ -741,6 +742,9 @@ void __not_in_flash_func(pidLoop)() {
 			}
 #endif
 		}
+
+		u32 t = x;
+		tasks[TASK_PID].debugInfo = t;
 
 		// send to ESCs
 		sendThrottles(throttles);

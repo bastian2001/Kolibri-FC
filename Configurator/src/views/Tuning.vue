@@ -95,7 +95,6 @@ export default defineComponent({
 						}
 						break;
 					case MspFn.GET_EXT_PID:
-						console.log(command.data)
 						this.iFalloff = leBytesToInt(command.data.slice(0, 2))
 						this.useDynamicIdle = command.data[2] !== 0
 						this.idlePercent = command.data[3] / 10
