@@ -62,7 +62,6 @@ public:
 	i8 downlinkSNR = 0; // telemetry SNR in dB
 	u16 targetPacketRate = 0; // in Hz
 	u16 actualPacketRate = 0; // in Hz
-	u32 consecutiveArmedCycles = 0; // number of cycles the switch is in the armed position, reset to 0 when disarmed
 	u32 newPacketFlag = 0; // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
 	void sendPacket(u8 cmd, const char *payload, u8 payloadLen);
 	void sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen);

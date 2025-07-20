@@ -3,7 +3,7 @@ import { defineComponent } from "vue";
 import { map, constrain } from "@utils/utils";
 
 export default defineComponent({
-	name: "Motor",
+	name: "RcChannel",
 	props: {
 		value: {
 			type: Number,

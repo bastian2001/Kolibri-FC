@@ -3,7 +3,7 @@ import { defineComponent } from 'vue';
 import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/msp/comm';
 import { useLogStore } from '@stores/logStore';
 import { leBytesToInt, delay, intToLeBytes } from '@utils/utils';
-import { MspFn, MspVersion } from '@/msp/protocol';
+import { MspFn } from '@/msp/protocol';
 import { Command } from '@utils/types';
 import { prefixZeros } from '@utils/utils';
 
@@ -26,13 +26,13 @@ export default defineComponent({
 
 
 		this.getRotationInterval = setInterval(() => {
-			sendCommand('request', MspFn.GET_ROTATION).catch(() => { });
+			sendCommand(MspFn.GET_ROTATION).catch(() => { });
 		}, 20);
 		this.pingInterval = setInterval(() => {
 			this.fcPing = getPingTime();
 		}, 1000);
 		this.rtcInterval = setInterval(() => {
-			sendCommand('request', MspFn.GET_RTC);
+			sendCommand(MspFn.GET_RTC);
 		}, 1000);
 	},
 	unmounted() {
@@ -61,7 +61,6 @@ export default defineComponent({
 			pingInterval: -1,
 			rtcInterval: -1,
 			MspFn,
-			MspVersion,
 			delay,
 			REBOOT_MODES,
 			FLIGHT_MODES,
@@ -145,16 +144,16 @@ export default defineComponent({
 			(this.$refs.xBox as HTMLDivElement).style.transform = `rotateY(${-this.attitude.roll}deg)`
 		},
 		ledOn() {
-			sendCommand('request', MspFn.SET_DEBUG_LED, MspVersion.V2, [1]);
+			sendCommand(MspFn.SET_DEBUG_LED, [1]);
 		},
 		ledOff() {
-			sendCommand('request', MspFn.SET_DEBUG_LED, MspVersion.V2, [0]);
+			sendCommand(MspFn.SET_DEBUG_LED, [0]);
 		},
 		calibrateAccel() {
-			sendCommand('request', MspFn.ACC_CALIBRATION);
+			sendCommand(MspFn.ACC_CALIBRATION);
 		},
 		playSound() {
-			sendCommand('request', MspFn.PLAY_SOUND);
+			sendCommand(MspFn.PLAY_SOUND);
 		}
 	},
 	watch: {
@@ -182,7 +181,7 @@ export default defineComponent({
 			<input type="number" step="1" min="1" max="2" placeholder="Serial Number" v-model="serialNum" />
 			<input type="number" step="1" min="9600" max="115200" placeholder="Baud Rate" v-model="baudRate" />
 			<button @click="() => {
-				sendCommand('request', MspFn.SERIAL_PASSTHROUGH, MspVersion.V2, [
+				sendCommand(MspFn.SERIAL_PASSTHROUGH, [
 					serialNum,
 					...intToLeBytes(baudRate, 4),
 				]);
@@ -195,12 +194,12 @@ export default defineComponent({
 					})
 					.then(() => enableCommands(true));
 			}">Stop Serial Passthrough</button>
-			<button @click="() => sendCommand('request', MspFn.GET_CRASH_DUMP)">Get Crash Dump</button>
-			<button @click="() => sendCommand('request', MspFn.CLEAR_CRASH_DUMP)">Clear Crash Dump</button>
+			<button @click="() => sendCommand(MspFn.GET_CRASH_DUMP)">Get Crash Dump</button>
+			<button @click="() => sendCommand(MspFn.CLEAR_CRASH_DUMP)">Clear Crash Dump</button>
 			<button @click="() =>
-				sendCommand('request', MspFn.REBOOT, MspVersion.V2, [REBOOT_MODES.FIRMWARE])">Reboot</button>
+				sendCommand(MspFn.REBOOT, [REBOOT_MODES.FIRMWARE])">Reboot</button>
 			<button @click="() =>
-				sendCommand('request', MspFn.REBOOT, MspVersion.V2, [REBOOT_MODES.BOOTLOADER_FLASH])">Bootloader</button>
+				sendCommand(MspFn.REBOOT, [REBOOT_MODES.BOOTLOADER_FLASH])">Bootloader</button>
 		</div>
 		<div class="droneStatus">Flight Mode: {{ FLIGHT_MODES[flightMode] }}, Armed: {{ armed ? 'Yes' : 'No' }},
 			Configurator Connected: {{ configuratorConnected ? 'Yes' : 'No' }}<br />

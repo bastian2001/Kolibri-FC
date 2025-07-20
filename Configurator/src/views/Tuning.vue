@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@/msp/protocol";
+import { MspFn } from "@/msp/protocol";
 import { Command } from "@utils/types";
 import { delay, getSetpointActual, intToLeBytes, leBytesToInt } from "@utils/utils";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
@@ -49,7 +49,7 @@ export default defineComponent({
 		this.onResize();
 		this.getSettings();
 		this.getRcInterval = setInterval(() => {
-			sendCommand('request', MspFn.RC);
+			sendCommand(MspFn.RC);
 		}, 1000 / 60);
 	},
 	unmounted() {
@@ -61,13 +61,13 @@ export default defineComponent({
 	},
 	methods: {
 		getSettings() {
-			sendCommand('request', MspFn.GET_PIDS)
+			sendCommand(MspFn.GET_PIDS)
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.GET_RATES))
+				.then(() => sendCommand(MspFn.GET_RATES))
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.GET_FILTER_CONFIG))
+				.then(() => sendCommand(MspFn.GET_FILTER_CONFIG))
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.GET_EXT_PID))
+				.then(() => sendCommand(MspFn.GET_EXT_PID))
 		},
 		saveSettings() {
 			const data = [];
@@ -75,7 +75,7 @@ export default defineComponent({
 				for (let i = 0; i < 5; i++)
 					data.push(...intToLeBytes(this.pids[ax][i], 2));
 
-			sendCommand('request', MspFn.SET_PIDS, MspVersion.V2, data).then(() => {
+			sendCommand(MspFn.SET_PIDS, data).then(() => {
 				this.saveTimeout = setTimeout(() => {
 					console.error('Save timeout');
 				}, 2000);
@@ -114,7 +114,7 @@ export default defineComponent({
 						data.push(this.useDynamicIdle ? 1 : 0)
 						data.push(this.idlePercent * 10)
 						data.push(...intToLeBytes(this.dynamicIdleRpm, 2))
-						sendCommand('request', MspFn.SET_EXT_PID, MspVersion.V2, data)
+						sendCommand(MspFn.SET_EXT_PID, data)
 					} break;
 					case MspFn.SET_EXT_PID: {
 						const data = [];
@@ -123,7 +123,7 @@ export default defineComponent({
 							data.push(...intToLeBytes(this.rateCoeffs[ax].max, 2));
 							data.push(...intToLeBytes(Math.round(this.rateCoeffs[ax].expo * 8192), 2));
 						}
-						sendCommand('request', MspFn.SET_RATES, MspVersion.V2, data);
+						sendCommand(MspFn.SET_RATES, data);
 					} break;
 					case MspFn.SET_RATES:
 						const data = [
@@ -139,12 +139,10 @@ export default defineComponent({
 							...intToLeBytes(this.posholdPushCutoff * 10, 2),
 							...intToLeBytes(this.gpsVelocityCutoff * 100, 2)
 						];
-						console.log('set filter config');
-						sendCommand('request', MspFn.SET_FILTER_CONFIG, MspVersion.V2, data);
+						sendCommand(MspFn.SET_FILTER_CONFIG, data);
 						break;
 					case MspFn.SET_FILTER_CONFIG: {
-						console.log('set filter config done');
-						sendCommand('request', MspFn.SAVE_SETTINGS);
+						sendCommand(MspFn.SAVE_SETTINGS);
 					} break;
 					case MspFn.SAVE_SETTINGS:
 						clearTimeout(this.saveTimeout);
@@ -223,7 +221,6 @@ export default defineComponent({
 			let max = 0;
 			for (let i = 0; i < 3; i++) {
 				let ax = this.rateCoeffs[i].max;
-				console.log(ax);
 				if (ax > max) max = ax;
 			}
 			this.scale = 500;

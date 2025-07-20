@@ -1,6 +1,6 @@
 <script lang="ts">
 import { sendCommand } from "@/msp/comm";
-import { MspFn, MspVersion } from "@/msp/protocol";
+import { MspFn } from "@/msp/protocol";
 import { defineComponent } from "vue";
 import fonts from "@/utils/fonts";
 
@@ -28,7 +28,7 @@ export default defineComponent({
 			}
 		},
 		uploadChar() {
-			sendCommand('request', MspFn.WRITE_OSD_FONT_CHARACTER, MspVersion.V2, [this.cmah, ...this.chars[this.cmah].slice(0, 54)]);
+			sendCommand(MspFn.WRITE_OSD_FONT_CHARACTER, [this.cmah, ...this.chars[this.cmah].slice(0, 54)]);
 		},
 		nextChar() {
 			this.cmah++;
@@ -40,7 +40,7 @@ export default defineComponent({
 			if (this.chars.length >= 128) {
 				for (let i = 0; i < this.chars.length; i++) {
 					setTimeout(() => {
-						sendCommand('request', MspFn.WRITE_OSD_FONT_CHARACTER, MspVersion.V2, [this.cmah, ...this.chars[this.cmah].slice(0, 54)]);
+						sendCommand(MspFn.WRITE_OSD_FONT_CHARACTER, [this.cmah, ...this.chars[this.cmah].slice(0, 54)]);
 						this.cmah++;
 					}, i * 50);
 				}

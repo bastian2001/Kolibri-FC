@@ -19,6 +19,7 @@
 
 // battery settings
 #define SETTING_EMPTY_VOLTAGE "bat_empty_voltage"
+#define SETTING_CELL_COUNT "bat_cell_count"
 
 // flight performance settings
 #define SETTING_PID_GAINS "pid_gains"

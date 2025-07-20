@@ -375,6 +375,19 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 1500 >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
+		case MspFn::MSP_BATTERY_STATE:
+			buf[len++] = batCells;
+			buf[len++] = 0; // battery capacity
+			buf[len++] = 0;
+			buf[len++] = (adcVoltage + 5) / 10; // voltage in 0.1V steps :/
+			buf[len++] = 0; // mAh drawn
+			buf[len++] = 0;
+			buf[len++] = 0; // amps in 0.01A steps
+			buf[len++] = 0;
+			buf[len++] = batState == 0 ? 4 : 0; // 4 = init, 0 = ok
+			buf[len++] = adcVoltage;
+			buf[len++] = adcVoltage >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		case MspFn::GET_MOTOR_CONFIG:
 			buf[len++] = (1000 + idlePermille) & 0xFF; // min throttle
 			buf[len++] = (1000 + idlePermille) >> 8;
@@ -790,6 +803,26 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[12], &ELRS->actualPacketRate, 2);
 			memcpy(&buf[14], &ELRS->rcMsgCount, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 18);
+		} break;
+		case MspFn::GET_RX_MODES: {
+			mspGetRxModes(serialNum, version);
+		} break;
+		case MspFn::SET_RX_MODES: {
+			mspSetRxModes(serialNum, version, reqPayload, reqLen);
+		} break;
+		case MspFn::GET_BATTERY_SETTINGS: {
+			buf[len++] = cellCountSetting;
+			buf[len++] = emptyVoltageSetting;
+			buf[len++] = emptyVoltageSetting >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
+		case MspFn::SET_BATTERY_SETTINGS: {
+			cellCountSetting = reqPayload[0];
+			emptyVoltageSetting = reqPayload[1] | ((i16)reqPayload[2] << 8);
+			openSettingsFile();
+			getSetting(SETTING_CELL_COUNT)->updateSettingInFile();
+			getSetting(SETTING_EMPTY_VOLTAGE)->updateSettingInFile();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_TZ_OFFSET: {
 			buf[0] = rtcTimezoneOffset;
