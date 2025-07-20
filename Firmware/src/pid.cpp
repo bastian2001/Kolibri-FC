@@ -640,9 +640,12 @@ void __not_in_flash_func(pidLoop)() {
 		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 		fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
 
-		// scale throttle from 0...1024 to idlePermille*2...2000 (DShot output is 0...2000)
-		throttle *= throttleScale; // 0...1024 => 0...2000-idlePermille*2
-		throttle += idlePermille * 2; // 0...2000-idlePermille*2 => idlePermille*2...2000
+		bool runDynIdle = useDynamicIdle && escErpmFailCounter < 10; // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
+		if (!runDynIdle) {
+			// scale throttle from 0...1024 to idlePermille*2...2000 (DShot output is 0...2000)
+			throttle *= throttleScale; // 0...1024 => 0...2000-idlePermille*2
+			throttle += idlePermille * 2; // 0...2000-idlePermille*2 => idlePermille*2...2000
+		}
 
 		// apply mixer
 		fix32 tRR, tRL, tFR, tFL;
