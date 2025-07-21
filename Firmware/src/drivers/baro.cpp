@@ -17,6 +17,16 @@ constexpr i32 baroScaleFactor = 7864320;
 #elifdef BARO_LPS22
 #endif
 
+enum class BaroState {
+	NOT_INIT = 0, // not inited / no baro detected yet
+	INITIALIZING, // initializing (baro detected but depending on model maybe needs more initialization steps than can be done at once)
+	MEASURING, // measuring
+	CHECK_READY, // check if baro is ready (status register) -> send back to measuring or forward to reading
+	READ_DATA, // reading (sync or async)
+	EVAL_DATA, // evaluation (calculate hPa and altitude)
+};
+BaroState baroState = BaroState::NOT_INIT;
+
 f32 baroASL = 0; // above sea level
 f32 baroPres = 0;
 volatile i32 blackboxPres = 0;
@@ -29,20 +39,11 @@ elapsedMicros baroTimer = 0;
 u32 baroTimerTimeout = 0;
 i32 pressureRaw, baroTempRaw;
 f32 lastBaroASL = 0, gpsBaroOffset = 0;
-/*
-0 = not inited / no baro detected yet
-1 = initialising (baro detected but depending on model maybe needs more initialization steps than can be done at once)
-2 = measuring
-3 = check if baro is ready (status register) -> send back to measuring or forward to reading
-4 = reading (sync or async)
-5 = evaluation (calculate hPa and altitude)
-*/
-u8 baroState = 0;
 
 void baroLoop() {
 	elapsedMicros taskTimer = 0;
 	switch (baroState) {
-	case 0: {
+	case BaroState::NOT_INIT: {
 		if (baroTimer < 5000) break;
 		baroTimer = 0;
 		// no baro detected yet
@@ -60,12 +61,12 @@ void baroLoop() {
 		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
 		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
 		if (baroBuffer[0] == 0xB1) {
-			baroState = 1;
+			baroState = BaroState::INITIALIZING;
 			baroTimerTimeout = 19000;
 		}
 #endif
 	} break;
-	case 1: {
+	case BaroState::INITIALIZING: {
 		// baro detected
 #ifdef BARO_SPL006
 		regRead(SPI_BARO, PIN_BARO_CS, 0x10, baroBuffer, 18, 0, false); // read calibration data
@@ -101,16 +102,16 @@ void baroLoop() {
 		baroBuffer[1] = 0b00000000; // clear register increment (needs to be unset when using block data update)
 		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 2, false);
 #endif
-		baroState = 2;
+		baroState = BaroState::MEASURING;
 	} break;
-	case 2:
+	case BaroState::MEASURING:
 		// baro is measuring, send to state 3 to check if data is ready
 		if (baroTimer >= baroTimerTimeout) {
 			baroTimer = 0;
-			baroState = 3;
+			baroState = BaroState::CHECK_READY;
 		}
 		break;
-	case 3: {
+	case BaroState::CHECK_READY: {
 		elapsedMicros taskTimer = 0;
 
 #ifdef BARO_SPL006
@@ -120,10 +121,10 @@ void baroLoop() {
 		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
 		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
 		if (baroBuffer[0] & (1 << 0)) {
-			baroState = 4;
+			baroState = BaroState::READ_DATA;
 			baroTimerTimeout = 19000; // baro data is available, check after a total of 19ms (slightly faster than 50Hz to allow for slight clock deviations)
 		} else {
-			baroState = 2;
+			baroState = BaroState::MEASURING;
 			baroTimerTimeout = 2000; // check for new data again after 2ms
 		}
 #endif
@@ -138,7 +139,7 @@ void baroLoop() {
 			tasks[TASK_BAROCHECK].maxDuration = duration;
 		}
 	} break;
-	case 4: {
+	case BaroState::READ_DATA: {
 		elapsedMicros taskTimer = 0;
 
 #ifdef BARO_SPL006
@@ -172,7 +173,7 @@ void baroLoop() {
 		pressureRaw >>= 8;
 		// temperature >>= 16
 #endif
-		baroState = 5;
+		baroState = BaroState::EVAL_DATA;
 
 		tasks[TASK_BAROREAD].runCounter++;
 		u32 duration = taskTimer;
@@ -184,7 +185,7 @@ void baroLoop() {
 			tasks[TASK_BAROREAD].maxDuration = duration;
 		}
 	} break;
-	case 5: {
+	case BaroState::EVAL_DATA: {
 		elapsedMicros taskTimer = 0;
 
 #ifdef BARO_SPL006
@@ -203,7 +204,7 @@ void baroLoop() {
 		else
 			gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
 		baroUpVel = (baroASL - lastBaroASL) * 50;
-		baroState = 2;
+		baroState = BaroState::MEASURING;
 
 		tasks[TASK_BAROEVAL].runCounter++;
 		u32 duration = taskTimer;
@@ -217,7 +218,7 @@ void baroLoop() {
 	} break;
 	}
 	tasks[TASK_BARO].runCounter++;
-	tasks[TASK_BARO].debugInfo = baroState;
+	tasks[TASK_BARO].debugInfo = (u8)baroState;
 	u32 duration = taskTimer;
 	tasks[TASK_BARO].totalDuration += duration;
 	if (duration < tasks[TASK_BARO].minDuration) {
