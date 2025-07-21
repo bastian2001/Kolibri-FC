@@ -299,8 +299,7 @@ void __not_in_flash_func(pidLoop)() {
 	u32 duration = taskTimerPid;
 	if (tasks[TASK_PID].maxGap < duration)
 		tasks[TASK_PID].maxGap = duration;
-	taskTimerPid = 0;
-	tasks[TASK_PID].runCounter++;
+	START_TASK(TASK_PID);
 
 	gyroFiltered[AXIS_ROLL].update(gyroScaled[AXIS_ROLL]);
 	gyroFiltered[AXIS_PITCH].update(gyroScaled[AXIS_PITCH]);
@@ -813,14 +812,7 @@ void __not_in_flash_func(pidLoop)() {
 		takeoffCounter = 0;
 		targetAngleHeading = yaw * FIX_RAD_TO_DEG;
 	}
-	duration = taskTimerPid;
-	tasks[TASK_PID].totalDuration += duration;
-	if (duration < tasks[TASK_PID].minDuration) {
-		tasks[TASK_PID].minDuration = duration;
-	}
-	if (duration > tasks[TASK_PID].maxDuration) {
-		tasks[TASK_PID].maxDuration = duration;
-	}
+	END_TASK(TASK_PID);
 	taskTimerPid = 0;
 }
 

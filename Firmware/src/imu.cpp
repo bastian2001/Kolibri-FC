@@ -172,8 +172,7 @@ void __not_in_flash_func(updateSpeeds)() {
 }
 
 void __not_in_flash_func(imuUpdate)() {
-	elapsedMicros taskTimer = 0;
-	tasks[TASK_IMU].runCounter++;
+	START_TASK(TASK_IMU);
 	u32 t0, t1, t2, t3;
 	elapsedMicros timer = 0;
 	updateFromGyro();
@@ -216,12 +215,5 @@ void __not_in_flash_func(imuUpdate)() {
 	tasks[TASK_IMU_ACCEL].runCounter++;
 	tasks[TASK_IMU_ANGLE].runCounter++;
 	tasks[TASK_IMU_SPEEDS].runCounter++;
-	u32 duration = taskTimer;
-	tasks[TASK_IMU].totalDuration += duration;
-	if (duration < tasks[TASK_IMU].minDuration) {
-		tasks[TASK_IMU].minDuration = duration;
-	}
-	if (duration > tasks[TASK_IMU].maxDuration) {
-		tasks[TASK_IMU].maxDuration = duration;
-	}
+	END_TASK(TASK_IMU);
 }

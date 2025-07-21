@@ -16,7 +16,7 @@ typedef struct task {
 	u32 minDuration; // minimum duration of the task
 	u32 maxDuration; // maximum duration of the task
 	u32 frequency; // how often the task is run in the last second
-	u32 avgDuration; // average duration of the task in the last second
+	u32 lastTotalDuration; // the total duration that this task took during the last second
 	u32 errorCount; // how often the task has thrown an error since boot
 	u32 lastError; // last error code (different for each task)
 	u32 totalDuration; // total duration the task has taken since the reset every second

@@ -777,7 +777,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				buf[i * 8 + 1] = tasks[i].minDuration;
 				buf[i * 8 + 2] = tasks[i].maxDuration;
 				buf[i * 8 + 3] = tasks[i].frequency;
-				buf[i * 8 + 4] = tasks[i].avgDuration;
+				buf[i * 8 + 4] = tasks[i].lastTotalDuration;
 				buf[i * 8 + 5] = tasks[i].errorCount;
 				buf[i * 8 + 6] = tasks[i].lastError;
 				buf[i * 8 + 7] = tasks[i].maxGap;

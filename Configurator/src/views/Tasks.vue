@@ -8,10 +8,9 @@ import { leBytesToInt } from "@utils/utils";
 const TASK_NAMES = [
 	'Loop 0',
 	'    - Speaker',
-	'    - Baro',
-	'        - Baro Check',
-	'        - Baro Read',
-	'        - Baro Eval',
+	'    - Baro Check',
+	'    - Baro Read',
+	'    - Baro Eval',
 	'    - Blackbox save',
 	'    - ELRS',
 	'    - Modes',
@@ -19,10 +18,9 @@ const TASK_NAMES = [
 	'    - Serial',
 	'    - Configurator',
 	'    - GPS',
-	'    - Magnetometer',
-	'        - Mag Check',
-	'        - Mag Read',
-	'        - Mag Eval',
+	'    - Mag Check',
+	'    - Mag Read',
+	'    - Mag Eval',
 	'    - OSD',
 	'    - Task Manager',
 	'Loop 1',
@@ -45,7 +43,8 @@ export default defineComponent({
 				name: string;
 				maxDuration: number;
 				minDuration: number;
-				avgDuration: number;
+				totalDuration: number;
+				avgDuration: number
 				frequency: number;
 				errorCount: number;
 				lastError: number;
@@ -60,6 +59,7 @@ export default defineComponent({
 				name: TASK_NAMES[i],
 				maxDuration: 0,
 				minDuration: 0,
+				totalDuration: 0,
 				avgDuration: 0,
 				frequency: 0,
 				errorCount: 0,
@@ -87,7 +87,8 @@ export default defineComponent({
 							this.tasks[i].minDuration = leBytesToInt(command.data.slice(i * 32 + 4, i * 32 + 8));
 							this.tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 32 + 8, i * 32 + 12));
 							this.tasks[i].frequency = leBytesToInt(command.data.slice(i * 32 + 12, i * 32 + 16));
-							this.tasks[i].avgDuration = leBytesToInt(command.data.slice(i * 32 + 16, i * 32 + 20));
+							this.tasks[i].totalDuration = leBytesToInt(command.data.slice(i * 32 + 16, i * 32 + 20));
+							this.tasks[i].avgDuration = this.tasks[i].totalDuration / this.tasks[i].frequency;
 							this.tasks[i].errorCount = leBytesToInt(command.data.slice(i * 32 + 20, i * 32 + 24));
 							this.tasks[i].lastError = leBytesToInt(command.data.slice(i * 32 + 24, i * 32 + 28));
 							this.tasks[i].maxGap = leBytesToInt(command.data.slice(i * 32 + 28, i * 32 + 32));
@@ -108,6 +109,7 @@ export default defineComponent({
 				<th>Min Duration</th>
 				<th>Max Duration</th>
 				<th>Avg Duration</th>
+				<th>CPU</th>
 				<th>Frequency</th>
 				<th>Error Count</th>
 				<th>Last Error</th>
@@ -120,7 +122,8 @@ export default defineComponent({
 				<td style="white-space:pre">{{ task.name }}</td>
 				<td>{{ task.minDuration }}</td>
 				<td>{{ task.maxDuration }}</td>
-				<td>{{ task.avgDuration }}</td>
+				<td>{{ task.avgDuration.toFixed(task.avgDuration < 20 ? 1 : 0) }}</td>
+				<td style="text-align: right;">{{ (task.totalDuration / 1000000 * 100).toFixed(1) }} %</td>
 				<td>{{ task.frequency }}</td>
 				<td>{{ task.errorCount }}</td>
 				<td>{{ task.lastError }}</td>
