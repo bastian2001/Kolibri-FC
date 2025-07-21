@@ -41,7 +41,6 @@ i32 pressureRaw, baroTempRaw;
 f32 lastBaroASL = 0, gpsBaroOffset = 0;
 
 void baroLoop() {
-	START_TASK(TASK_BARO);
 	switch (baroState) {
 	case BaroState::NOT_INIT: {
 		if (baroTimer < 5000) break;
@@ -112,7 +111,7 @@ void baroLoop() {
 		}
 		break;
 	case BaroState::CHECK_READY: {
-		START_TASK(TASK_BAROCHECK);
+		START_TASK(TASK_BARO_CHECK);
 #ifdef BARO_SPL006
 		baroState = 4;
 #elifdef BARO_LPS22
@@ -127,10 +126,10 @@ void baroLoop() {
 			baroTimerTimeout = 2000; // check for new data again after 2ms
 		}
 #endif
-		END_TASK(TASK_BAROCHECK);
+		END_TASK(TASK_BARO_CHECK);
 	} break;
 	case BaroState::READ_DATA: {
-		START_TASK(TASK_BAROREAD);
+		START_TASK(TASK_BARO_READ);
 #ifdef BARO_SPL006
 		regRead(SPI_BARO, PIN_BARO_CS, 0x00, baroBuffer, 6, 0, false);
 		// preserve the sign bit
@@ -163,10 +162,10 @@ void baroLoop() {
 		// temperature >>= 16
 #endif
 		baroState = BaroState::EVAL_DATA;
-		END_TASK(TASK_BAROREAD);
+		END_TASK(TASK_BARO_READ);
 	} break;
 	case BaroState::EVAL_DATA: {
-		START_TASK(TASK_BAROEVAL);
+		START_TASK(TASK_BARO_EVAL);
 #ifdef BARO_SPL006
 		baroTemp = 201 * .5f - baroTempRaw / 7864320.f * 260;
 		f32 pressureScaled = pressureRaw / 7864320.f;
@@ -184,9 +183,8 @@ void baroLoop() {
 			gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
 		baroUpVel = (baroASL - lastBaroASL) * 50;
 		baroState = BaroState::MEASURING;
-		END_TASK(TASK_BAROEVAL);
+		END_TASK(TASK_BARO_EVAL);
 	} break;
 	}
-	tasks[TASK_BARO].debugInfo = (u8)baroState;
-	END_TASK(TASK_BARO);
+	tasks[TASK_BARO_CHECK].debugInfo = (u8)baroState;
 }
