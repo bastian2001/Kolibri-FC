@@ -2,8 +2,9 @@
 
 // on drone: x = right, y = backward, z = down
 
-u32 magState = 0;
+MagState magState = MagState::NOT_INIT;
 elapsedMicros magTimer;
+u32 magTimerTimeout = 0;
 u8 magBuffer[6] = {0};
 i32 magData[3] = {0};
 
@@ -22,52 +23,9 @@ void initMag() {
 	gpio_set_function(PIN_SCL0, GPIO_FUNC_I2C);
 	gpio_pull_up(PIN_SDA0);
 	gpio_pull_up(PIN_SCL0);
-#if MAG_HARDWARE == MAG_HMC5883L
-	for (u32 tries = 0; tries < 10; tries++) {
-		magBuffer[0] = (u8)MAG_REG::ID_A;
-		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
-		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 3, false);
-		if (strncmp((char *)magBuffer, "H43", 3) == 0) {
-			Serial.println("Success!");
-			break;
-		}
-		if (tries == 9) {
-			Serial.println("Failed to find magnetometer");
-			return;
-		}
-		sleep_ms(2);
-	}
-	magBuffer[0] = (u8)MAG_REG::CONF_REGA;
-	magBuffer[1] = MAG_AVG_8 | MAG_ODR_75HZ | MAG_LOAD_FLOAT;
-	magBuffer[2] = MAG_RANGE_2_5;
-	magBuffer[3] = MAG_MODE_CONTINUOUS | MAG_MODE_HS_I2C;
-	i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 4, false);
-	i2c_set_baudrate(I2C_MAG, 3400000);
-	magState = MAG_MEASURING;
-#elif MAG_HARDWARE == MAG_QMC5883L
-	for (u32 tries = 0; tries < 10; tries++) {
-		magBuffer[0] = (u8)MAG_REG::ID;
-		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
-		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
-		if (magBuffer[0] == 0xFF)
-			break;
-		if (tries == 9) {
-			Serial.println("Failed to find magnetometer");
-			return;
-		}
-		sleep_ms(2);
-	}
-	magBuffer[0] = (u8)MAG_REG::SET_RESET;
-	magBuffer[1] = 1;
-	i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 2, false);
-	magBuffer[0] = (u8)MAG_REG::CONTROL_1;
-	magBuffer[1] = MAG_OSR_512 | MAG_RANGE_2 | MAG_ODR_200HZ | MAG_MODE_CONTINUOUS;
-	i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 2, false);
-	magState = MAG_MEASURING;
-#endif
 }
 
-u32 magStateAfterRead = MAG_PROCESS_DATA;
+MagState magStateAfterRead = MagState::PROCESS_DATA;
 float xtxMatrix[4][4] = {0};
 float xtyVector[4] = {0};
 u32 calibrationCycle = 0;
@@ -91,53 +49,91 @@ float cofactor(float matrix[4][4], i32 row, i32 col) {
 }
 
 void magLoop() {
-	elapsedMicros taskTimer = 0;
+	START_TASK(TASK_MAG);
 	switch (magState) {
-	case MAG_NOT_INIT: // not initialized
+	case MagState::NOT_INIT:
+		if (magTimer < 5000) break;
+		magTimer = 0;
+#if MAG_HARDWARE == MAG_HMC5883L
+		magBuffer[0] = (u8)MAG_REG::ID_A;
+		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
+		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 3, false);
+		if (strncmp((char *)magBuffer, "H43", 3) == 0)
+			magState = MagState::INITIALIZING;
+#elif MAG_HARDWARE == MAG_QMC5883L
+		magBuffer[0] = (u8)MAG_REG::ID;
+		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
+		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
+		if (magBuffer[0] == 0xFF)
+			magState = MagState::INITIALIZING;
+#endif
 		break;
-	case MAG_MEASURING:
+	case MagState::INITIALIZING:
+#if MAG_HARDWARE == MAG_HMC5883L
+		magBuffer[0] = (u8)MAG_REG::CONF_REGA;
+		magBuffer[1] = MAG_AVG_8 | MAG_ODR_75HZ | MAG_LOAD_FLOAT;
+		magBuffer[2] = MAG_RANGE_2_5;
+		magBuffer[3] = MAG_MODE_CONTINUOUS | MAG_MODE_HS_I2C;
+		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 4, false);
+		i2c_set_baudrate(I2C_MAG, 3400000);
+		magState = MagState::MEASURING;
+		magTimerTimeout = 13000;
+#elif MAG_HARDWARE == MAG_QMC5883L
+		magBuffer[0] = (u8)MAG_REG::SET_RESET;
+		magBuffer[1] = 1;
+		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 2, false);
+		magBuffer[0] = (u8)MAG_REG::CONTROL_1;
+		magBuffer[1] = MAG_OSR_512 | MAG_RANGE_2 | MAG_ODR_200HZ | MAG_MODE_CONTINUOUS;
+		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 2, false);
+		magState = MagState::MEASURING;
+		magTimerTimeout = 4000;
+#endif
+		break;
+	case MagState::MEASURING:
 #if MAG_HARDWARE == MAG_QMC5883L
-		if (magTimer > 4000) {
-			magState = MAG_CHECK_DATA_READY;
+		if (magTimer > magTimerTimeout) {
+			magState = MagState::CHECK_DATA_READY;
 			magTimer = 0;
 		}
 #elif MAG_HARDWARE == MAG_HMC5883L
-		if (magTimer > 13000) {
-			magState = MAG_READ_DATA;
+		if (magTimer > magTimerTimeout) {
+			magState = MagState::READ_DATA;
 			magTimer = 0;
 		}
 #endif
 		break;
-	case MAG_SOON_READY:
-		if (magTimer > 1000) {
-			magState = MAG_CHECK_DATA_READY;
-			magTimer = 0;
-		}
-		break;
-	case MAG_CHECK_DATA_READY: {
-#if MAG_HARDWARE == MAG_HMC5883L || MAG_HARDWARE == MAG_QMC5883L
+	case MagState::CHECK_DATA_READY: {
+		START_TASK(TASK_MAG_CHECK);
+#if MAG_HARDWARE == MAG_QMC5883L
 		// check every ms if data is ready
 		magBuffer[0] = (u8)MAG_REG::STATUS;
 		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
 		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
-		if (magBuffer[0] & 0x01) // data ready
-			magState = MAG_READ_DATA;
-		else // data not ready, check again in 1ms
-			magState = MAG_SOON_READY;
+		if (magBuffer[0] & 0x01) { // data ready
+			magState = MagState::READ_DATA;
+			magTimerTimeout = 4000;
+		} else { // data not ready, check again in 1ms
+			magState = MagState::MEASURING;
+			magTimerTimeout = 1000;
+		}
 #endif
+		END_TASK(TASK_MAG_CHECK);
 	} break;
-	case MAG_READ_DATA: {
+	case MagState::READ_DATA: {
+		START_TASK(TASK_MAG_READ);
 		magRunCounter++;
 #if MAG_HARDWARE == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::DATA_X_H;
 #elif MAG_HARDWARE == MAG_QMC5883L
 		magBuffer[0] = (u8)MAG_REG::DATA_X_L;
 #endif
-		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, (u8 *)magBuffer, 1, false);
-		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, (u8 *)magBuffer, 6, false);
+		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
+		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 6, false);
 		magState = magStateAfterRead;
+		END_TASK(TASK_MAG_READ);
 	} break;
-	case MAG_PROCESS_DATA: {
+	case MagState::PROCESS_DATA: {
+		START_TASK(TASK_MAG_EVAL);
 		static i32 magDataRaw[3];
 #if MAG_HARDWARE == MAG_HMC5883L
 		// TODO: can't be right: 3 permutations (odd)
@@ -169,9 +165,10 @@ void magLoop() {
 		}
 		magHeadingCorrection.update(updateVal);
 		magHeadingCorrection.rollover();
-		magState = MAG_MEASURING;
+		magState = MagState::MEASURING;
+		END_TASK(TASK_MAG_EVAL);
 	} break;
-	case MAG_CALIBRATE: {
+	case MagState::CALIBRATE: {
 		// https://www.nxp.com/docs/en/application-note/AN4248.pdf
 		i16 val[4];
 #if MAG_HARDWARE == MAG_HMC5883L
@@ -199,14 +196,14 @@ void magLoop() {
 		if (++calibrationCycle == 3000)
 #endif
 		{
-			magState = MAG_PROCESS_CALIBRATION;
+			magState = MagState::PROCESS_CALIBRATION;
 			calibrationCycle = 0;
-			magStateAfterRead = MAG_PROCESS_DATA;
+			magStateAfterRead = MagState::PROCESS_DATA;
 		} else {
-			magState = MAG_MEASURING;
+			magState = MagState::MEASURING;
 		}
 	} break;
-	case MAG_PROCESS_CALIBRATION: {
+	case MagState::PROCESS_CALIBRATION: {
 		float xtxMatrixInv[4][4];
 		float det = 0;
 		for (int step = 0; step < 4; step++) {
@@ -240,7 +237,7 @@ void magLoop() {
 		openSettingsFile();
 		getSetting(SETTING_MAG_CAL_HARD)->updateSettingInFile();
 		closeSettingsFile();
-		magState = MAG_MEASURING;
+		magState = MagState::MEASURING;
 		char data = 1;
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::MAG_CALIBRATION, lastMspVersion, &data, 1);
 		char calString[64];
@@ -248,11 +245,5 @@ void magLoop() {
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));
 	} break;
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_MAGNETOMETER].runCounter++;
-	tasks[TASK_MAGNETOMETER].totalDuration += duration;
-	if (duration < tasks[TASK_MAGNETOMETER].minDuration)
-		tasks[TASK_MAGNETOMETER].minDuration = duration;
-	if (duration > tasks[TASK_MAGNETOMETER].maxDuration)
-		tasks[TASK_MAGNETOMETER].maxDuration = duration;
+	END_TASK(TASK_MAG)
 }

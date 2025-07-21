@@ -41,7 +41,7 @@ i32 pressureRaw, baroTempRaw;
 f32 lastBaroASL = 0, gpsBaroOffset = 0;
 
 void baroLoop() {
-	elapsedMicros taskTimer = 0;
+	START_TASK(TASK_BARO);
 	switch (baroState) {
 	case BaroState::NOT_INIT: {
 		if (baroTimer < 5000) break;
@@ -112,8 +112,7 @@ void baroLoop() {
 		}
 		break;
 	case BaroState::CHECK_READY: {
-		elapsedMicros taskTimer = 0;
-
+		START_TASK(TASK_BAROCHECK);
 #ifdef BARO_SPL006
 		baroState = 4;
 #elifdef BARO_LPS22
@@ -128,20 +127,10 @@ void baroLoop() {
 			baroTimerTimeout = 2000; // check for new data again after 2ms
 		}
 #endif
-
-		tasks[TASK_BAROCHECK].runCounter++;
-		u32 duration = taskTimer;
-		tasks[TASK_BAROCHECK].totalDuration += duration;
-		if (duration < tasks[TASK_BAROCHECK].minDuration) {
-			tasks[TASK_BAROCHECK].minDuration = duration;
-		}
-		if (duration > tasks[TASK_BAROCHECK].maxDuration) {
-			tasks[TASK_BAROCHECK].maxDuration = duration;
-		}
+		END_TASK(TASK_BAROCHECK);
 	} break;
 	case BaroState::READ_DATA: {
-		elapsedMicros taskTimer = 0;
-
+		START_TASK(TASK_BAROREAD);
 #ifdef BARO_SPL006
 		regRead(SPI_BARO, PIN_BARO_CS, 0x00, baroBuffer, 6, 0, false);
 		// preserve the sign bit
@@ -174,20 +163,10 @@ void baroLoop() {
 		// temperature >>= 16
 #endif
 		baroState = BaroState::EVAL_DATA;
-
-		tasks[TASK_BAROREAD].runCounter++;
-		u32 duration = taskTimer;
-		tasks[TASK_BAROREAD].totalDuration += duration;
-		if (duration < tasks[TASK_BAROREAD].minDuration) {
-			tasks[TASK_BAROREAD].minDuration = duration;
-		}
-		if (duration > tasks[TASK_BAROREAD].maxDuration) {
-			tasks[TASK_BAROREAD].maxDuration = duration;
-		}
+		END_TASK(TASK_BAROREAD);
 	} break;
 	case BaroState::EVAL_DATA: {
-		elapsedMicros taskTimer = 0;
-
+		START_TASK(TASK_BAROEVAL);
 #ifdef BARO_SPL006
 		baroTemp = 201 * .5f - baroTempRaw / 7864320.f * 260;
 		f32 pressureScaled = pressureRaw / 7864320.f;
@@ -205,26 +184,9 @@ void baroLoop() {
 			gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
 		baroUpVel = (baroASL - lastBaroASL) * 50;
 		baroState = BaroState::MEASURING;
-
-		tasks[TASK_BAROEVAL].runCounter++;
-		u32 duration = taskTimer;
-		tasks[TASK_BAROEVAL].totalDuration += duration;
-		if (duration < tasks[TASK_BAROEVAL].minDuration) {
-			tasks[TASK_BAROEVAL].minDuration = duration;
-		}
-		if (duration > tasks[TASK_BAROEVAL].maxDuration) {
-			tasks[TASK_BAROEVAL].maxDuration = duration;
-		}
+		END_TASK(TASK_BAROEVAL);
 	} break;
 	}
-	tasks[TASK_BARO].runCounter++;
 	tasks[TASK_BARO].debugInfo = (u8)baroState;
-	u32 duration = taskTimer;
-	tasks[TASK_BARO].totalDuration += duration;
-	if (duration < tasks[TASK_BARO].minDuration) {
-		tasks[TASK_BARO].minDuration = duration;
-	}
-	if (duration > tasks[TASK_BARO].maxDuration) {
-		tasks[TASK_BARO].maxDuration = duration;
-	}
+	END_TASK(TASK_BARO);
 }

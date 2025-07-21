@@ -1,6 +1,16 @@
 #include "typedefs.h"
 #include <Arduino.h>
 
+#define START_TASK(taskname) elapsedMicros taskTimer##taskname = 0;
+#define END_TASK(taskname)                                \
+	u32 duration##taskname = taskTimer##taskname;         \
+	tasks[taskname].runCounter++;                         \
+	tasks[taskname].totalDuration += duration##taskname;  \
+	if (duration##taskname < tasks[taskname].minDuration) \
+		tasks[taskname].minDuration = duration##taskname; \
+	if (duration##taskname > tasks[taskname].maxDuration) \
+		tasks[taskname].maxDuration = duration##taskname;
+
 typedef struct task {
 	u32 runCounter; // incremented every time the task is run, reset every second
 	u32 minDuration; // minimum duration of the task
@@ -29,7 +39,10 @@ enum Tasks {
 	TASK_SERIAL,
 	TASK_CONFIGURATOR,
 	TASK_GPS,
-	TASK_MAGNETOMETER,
+	TASK_MAG,
+	TASK_MAG_CHECK,
+	TASK_MAG_READ,
+	TASK_MAG_EVAL,
 	TASK_OSD,
 	TASK_TASKMANAGER,
 	TASK_LOOP1,
