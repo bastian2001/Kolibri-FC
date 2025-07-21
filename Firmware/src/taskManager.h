@@ -28,6 +28,7 @@ extern volatile FCTask tasks[32]; // holds all the task stats
 enum Tasks {
 	TASK_LOOP0,
 	TASK_SPEAKER,
+	TASK_BARO,
 	TASK_BARO_CHECK,
 	TASK_BARO_READ,
 	TASK_BARO_EVAL,
@@ -38,6 +39,7 @@ enum Tasks {
 	TASK_SERIAL,
 	TASK_CONFIGURATOR,
 	TASK_GPS,
+	TASK_MAG,
 	TASK_MAG_CHECK,
 	TASK_MAG_READ,
 	TASK_MAG_EVAL,

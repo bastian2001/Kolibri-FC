@@ -41,6 +41,7 @@ i32 pressureRaw, baroTempRaw;
 f32 lastBaroASL = 0, gpsBaroOffset = 0;
 
 void baroLoop() {
+	START_TASK(TASK_BARO);
 	switch (baroState) {
 	case BaroState::NOT_INIT: {
 		if (baroTimer < 5000) break;
@@ -186,5 +187,6 @@ void baroLoop() {
 		END_TASK(TASK_BARO_EVAL);
 	} break;
 	}
-	tasks[TASK_BARO_CHECK].debugInfo = (u8)baroState;
+	tasks[TASK_BARO].debugInfo = (u8)baroState;
+	END_TASK(TASK_BARO);
 }

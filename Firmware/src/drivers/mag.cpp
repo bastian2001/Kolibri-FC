@@ -47,6 +47,7 @@ float cofactor(float matrix[4][4], i32 row, i32 col) {
 }
 
 void magLoop() {
+	START_TASK(TASK_MAG);
 	switch (magState) {
 	case MagState::NOT_INIT:
 		if (magTimer < 5000) break;
@@ -241,4 +242,5 @@ void magLoop() {
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));
 	} break;
 	}
+	END_TASK(TASK_MAG)
 }
