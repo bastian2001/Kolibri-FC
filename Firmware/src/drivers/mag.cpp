@@ -8,8 +8,6 @@ u32 magTimerTimeout = 0;
 u8 magBuffer[6] = {0};
 i32 magData[3] = {0};
 
-i32 magRunCounter = 0;
-
 i16 magOffset[3] = {0};
 fix32 magRight = 0, magFront = 0;
 
@@ -120,7 +118,6 @@ void magLoop() {
 	} break;
 	case MagState::READ_DATA: {
 		START_TASK(TASK_MAG_READ);
-		magRunCounter++;
 #if MAG_HARDWARE == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::DATA_X_H;
 #elif MAG_HARDWARE == MAG_QMC5883L

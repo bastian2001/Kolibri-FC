@@ -111,4 +111,3 @@ extern i16 magOffset[3]; // offset that gets subtracted from the magnetometer va
 extern fix32 magHeading; // heading in radians
 extern i32 magData[3]; // raw magnetometer data after subtracting offset
 extern fix32 magRight, magFront; // magnetometer in earth's right and rearward direction
-extern i32 magRunCounter; // counts up for each value read, to measure the compass frequency

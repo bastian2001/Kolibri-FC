@@ -29,8 +29,6 @@ void taskManagerLoop() {
 				tasks[i].runCounter = 0;
 			}
 		}
-		tasks[TASK_MAG].debugInfo = magRunCounter;
-		magRunCounter = 0;
 	}
 	u32 duration = taskTimer;
 	tasks[TASK_TASKMANAGER].totalDuration += duration;
