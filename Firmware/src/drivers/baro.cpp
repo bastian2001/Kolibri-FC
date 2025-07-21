@@ -43,6 +43,8 @@ void baroLoop() {
 	elapsedMicros taskTimer = 0;
 	switch (baroState) {
 	case 0: {
+		if (baroTimer < 5000) break;
+		baroTimer = 0;
 		// no baro detected yet
 #ifdef BARO_SPL006
 		gpio_put(PIN_BARO_CS, 0); // enable SPI by pulling CS low (datasheet page 10)
@@ -59,6 +61,7 @@ void baroLoop() {
 		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
 		if (baroBuffer[0] == 0xB1) {
 			baroState = 1;
+			baroTimerTimeout = 19000;
 		}
 #endif
 	} break;
