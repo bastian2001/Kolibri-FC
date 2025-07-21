@@ -8,8 +8,10 @@ import { leBytesToInt } from "@utils/utils";
 const TASK_NAMES = [
 	'Loop 0',
 	'    - Speaker',
-	'    - Baro Eval',
-	'    - Baro Read',
+	'    - Baro',
+	'        - Baro Check',
+	'        - Baro Read',
+	'        - Baro Eval',
 	'    - Blackbox save',
 	'    - ELRS',
 	'    - Modes',

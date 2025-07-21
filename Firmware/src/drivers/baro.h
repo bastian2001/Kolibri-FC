@@ -38,17 +38,9 @@ enum BaroRegs {
 };
 #endif
 
-/// Initializes the barometer (Goertek SPL06-007)
-void initBaro();
-
-/// Checks if a new baro value is available and reads it
-void readBaroLoop();
-
 /**
- * @brief Processes the previously read baro value
+ * @brief The main barometer loop function
  *
- * @details This function is called periodically to process the barometer data. It calculates the altitude above sea level, the vertical velocity and the pressure.
- *
- * This function can be called on another core than readBaroLoop() to split the workload.
+ * @details This function is called periodically to check for new, read and process the barometer data as well as initializing it. It calculates the altitude above sea level, the vertical velocity and the pressure.
  */
-void evalBaroLoop();
+void baroLoop();

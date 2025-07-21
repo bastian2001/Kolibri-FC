@@ -40,7 +40,6 @@ void setup() {
 	imuInit();
 	osdInit();
 	initMag();
-	initBaro();
 	initGPS();
 	initADC();
 	modesInit();
@@ -79,8 +78,7 @@ void loop() {
 	}
 	taskTimer0 = 0;
 	speakerLoop();
-	evalBaroLoop();
-	readBaroLoop(); // read after eval to prevent long execution times
+	baroLoop();
 	blackboxLoop();
 	ELRS->loop();
 	modesLoop();
