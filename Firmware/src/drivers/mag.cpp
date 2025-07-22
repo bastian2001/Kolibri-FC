@@ -242,5 +242,5 @@ void magLoop() {
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));
 	} break;
 	}
-	TASK_END(TASK_MAG)
+	TASK_END(TASK_MAG);
 }

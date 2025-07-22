@@ -2,6 +2,13 @@
 #include <Arduino.h>
 
 #define TASK_START(taskname) elapsedMicros taskTimer##taskname = 0;
+#if __ARM_FEATURE_SIMD32
+#define TASK_END(taskname)                               \
+	u32 duration##taskname = taskTimer##taskname;        \
+	tasks[taskname].runCounter++;                        \
+	tasks[taskname].totalDuration += duration##taskname; \
+	tasks[taskname].minMaxDuration = minmax16x2(duration##taskname << 16 | duration##taskname, tasks[taskname].minMaxDuration);
+#else
 #define TASK_END(taskname)                                \
 	u32 duration##taskname = taskTimer##taskname;         \
 	tasks[taskname].runCounter++;                         \
@@ -10,11 +17,17 @@
 		tasks[taskname].minDuration = duration##taskname; \
 	if (duration##taskname > tasks[taskname].maxDuration) \
 		tasks[taskname].maxDuration = duration##taskname;
+#endif
 
 typedef struct task {
 	u32 runCounter; // incremented every time the task is run, reset every second
-	u32 minDuration; // minimum duration of the task
-	u32 maxDuration; // maximum duration of the task
+	union {
+		struct {
+			i16 maxDuration; // minimum duration of the task
+			i16 minDuration; // maximum duration of the task
+		};
+		int16x2_t minMaxDuration; // 32 bit shorthand for min/max duration (min high, max low bytes) for minmax16x2 and MSP
+	};
 	u32 frequency; // how often the task is run in the last second
 	u32 lastTotalDuration; // the total duration that this task took during the last second
 	u32 errorCount; // how often the task has thrown an error since boot

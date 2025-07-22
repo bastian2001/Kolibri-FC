@@ -6,6 +6,18 @@ volatile u8 setupDone = 0b00;
 void setup() {
 	Serial.begin(115200);
 
+	// sleep_ms(3000);
+
+	// i32 temp0 = 200;
+	// i32 temp1 = 120 << 16 | 150;
+	// Serial.printf("%d %d %d\n", temp0, temp1 >> 16, (i16)temp1);
+	// i32 t = minmax16x2(temp0 << 16 | temp0, temp1);
+	// Serial.printf("%d %d\n", t >> 16, (i16)t);
+	// Serial.flush();
+	// for (;;) {
+	// 	tight_loop_contents();
+	// }
+
 	runUnitTests();
 
 	vreg_set_voltage(VREG_VOLTAGE_1_30);

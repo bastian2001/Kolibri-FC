@@ -6,9 +6,10 @@ elapsedMicros taskManagerTimer;
 void resetTasks() {
 	for (int i = 0; i < 32; i++) {
 		tasks[i].runCounter = 0;
-		tasks[i].minDuration = 0xFFFFFFFF;
-		tasks[i].maxDuration = 0;
+		tasks[i].minMaxDuration = 0x7FFF0000;
 		tasks[i].frequency = 0;
+		tasks[i].lastTotalDuration = 0;
+		tasks[i].totalDuration = 0;
 	}
 }
 

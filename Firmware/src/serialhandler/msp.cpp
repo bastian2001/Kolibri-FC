@@ -771,21 +771,19 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
 		} break;
 		case MspFn::TASK_STATUS: {
-			u32 buf[256];
+			u32 buf[224];
 			for (int i = 0; i < 32; i++) {
-				buf[i * 8 + 0] = tasks[i].debugInfo;
-				buf[i * 8 + 1] = tasks[i].minDuration;
-				buf[i * 8 + 2] = tasks[i].maxDuration;
-				buf[i * 8 + 3] = tasks[i].frequency;
-				buf[i * 8 + 4] = tasks[i].lastTotalDuration;
-				buf[i * 8 + 5] = tasks[i].errorCount;
-				buf[i * 8 + 6] = tasks[i].lastError;
-				buf[i * 8 + 7] = tasks[i].maxGap;
+				buf[i * 7 + 0] = tasks[i].debugInfo;
+				buf[i * 7 + 1] = tasks[i].minMaxDuration;
+				buf[i * 7 + 2] = tasks[i].frequency;
+				buf[i * 7 + 3] = tasks[i].lastTotalDuration;
+				buf[i * 7 + 4] = tasks[i].errorCount;
+				buf[i * 7 + 5] = tasks[i].lastError;
+				buf[i * 7 + 6] = tasks[i].maxGap;
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buf, sizeof(buf));
 			for (int i = 0; i < 32; i++) {
-				tasks[i].minDuration = 0xFFFFFFFF;
-				tasks[i].maxDuration = 0;
+				tasks[i].minMaxDuration = 0x7FFF0000;
 				tasks[i].maxGap = 0;
 			}
 		} break;

@@ -87,15 +87,15 @@ export default defineComponent({
 				switch (command.command) {
 					case MspFn.TASK_STATUS:
 						for (let i = 0; i < this.tasks.length; i++) {
-							this.tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 32, i * 32 + 4));
-							this.tasks[i].minDuration = leBytesToInt(command.data.slice(i * 32 + 4, i * 32 + 8));
-							this.tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 32 + 8, i * 32 + 12));
-							this.tasks[i].frequency = leBytesToInt(command.data.slice(i * 32 + 12, i * 32 + 16));
-							this.tasks[i].totalDuration = leBytesToInt(command.data.slice(i * 32 + 16, i * 32 + 20));
+							this.tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 28, i * 28 + 4));
+							this.tasks[i].minDuration = leBytesToInt(command.data.slice(i * 28 + 6, i * 28 + 8));
+							this.tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 28 + 4, i * 28 + 6));
+							this.tasks[i].frequency = leBytesToInt(command.data.slice(i * 28 + 8, i * 28 + 12));
+							this.tasks[i].totalDuration = leBytesToInt(command.data.slice(i * 28 + 12, i * 28 + 16));
 							this.tasks[i].avgDuration = this.tasks[i].totalDuration / this.tasks[i].frequency;
-							this.tasks[i].errorCount = leBytesToInt(command.data.slice(i * 32 + 20, i * 32 + 24));
-							this.tasks[i].lastError = leBytesToInt(command.data.slice(i * 32 + 24, i * 32 + 28));
-							this.tasks[i].maxGap = leBytesToInt(command.data.slice(i * 32 + 28, i * 32 + 32));
+							this.tasks[i].errorCount = leBytesToInt(command.data.slice(i * 28 + 16, i * 28 + 20));
+							this.tasks[i].lastError = leBytesToInt(command.data.slice(i * 28 + 20, i * 28 + 24));
+							this.tasks[i].maxGap = leBytesToInt(command.data.slice(i * 28 + 24, i * 28 + 28));
 						}
 						break;
 				}
@@ -122,7 +122,7 @@ export default defineComponent({
 			</tr>
 		</thead>
 		<tbody>
-			<tr v-for="task in tasks">
+			<tr v-for="task in tasks" :class="{ grey: task.name.startsWith('     ') }">
 				<td style="white-space:pre">{{ task.name }}</td>
 				<td>{{ task.minDuration }}</td>
 				<td>{{ task.maxDuration }}</td>
@@ -143,5 +143,9 @@ td,
 th {
 	text-align: left;
 	padding: 3px 20px;
+}
+
+.grey {
+	opacity: 0.7;
 }
 </style>
