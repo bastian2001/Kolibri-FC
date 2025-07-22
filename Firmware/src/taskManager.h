@@ -1,8 +1,8 @@
 #include "typedefs.h"
 #include <Arduino.h>
 
-#define START_TASK(taskname) elapsedMicros taskTimer##taskname = 0;
-#define END_TASK(taskname)                                \
+#define TASK_START(taskname) elapsedMicros taskTimer##taskname = 0;
+#define TASK_END(taskname)                                \
 	u32 duration##taskname = taskTimer##taskname;         \
 	tasks[taskname].runCounter++;                         \
 	tasks[taskname].totalDuration += duration##taskname;  \
@@ -32,13 +32,15 @@ enum Tasks {
 	TASK_BARO_CHECK,
 	TASK_BARO_READ,
 	TASK_BARO_EVAL,
-	TASK_BLACKBOX,
+	TASK_BLACKBOX_WRITE,
 	TASK_ELRS,
+	TASK_ELRS_MSG,
 	TASK_MODES,
 	TASK_ADC,
 	TASK_SERIAL,
 	TASK_CONFIGURATOR,
 	TASK_GPS,
+	TASK_GPS_MSG,
 	TASK_MAG,
 	TASK_MAG_CHECK,
 	TASK_MAG_READ,
@@ -54,6 +56,7 @@ enum Tasks {
 	TASK_IMU_SPEEDS,
 	TASK_ESC_RPM,
 	TASK_PID,
+	TASK_BLACKBOX
 };
 
 /// @brief resets all task stats

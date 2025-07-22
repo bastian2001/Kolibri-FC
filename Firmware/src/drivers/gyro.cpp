@@ -31,7 +31,7 @@ void gyroLoop() {
 		u32 duration = taskTimerGyro;
 		if (tasks[TASK_GYROREAD].maxGap < duration)
 			tasks[TASK_GYROREAD].maxGap = duration;
-		START_TASK(TASK_GYROREAD);
+		TASK_START(TASK_GYROREAD);
 
 		gyroInterrupts--;
 		if (gyroInterrupts > 3) {
@@ -59,8 +59,8 @@ void gyroLoop() {
 
 		gyroScaled[AXIS_PITCH] = -gyroScaled[AXIS_PITCH];
 		gyroScaled[AXIS_YAW] = -gyroScaled[AXIS_YAW];
-			
-			if (armingDisableFlags & 0x40) {
+
+		if (armingDisableFlags & 0x40) {
 			if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE) {
 				// ignore -1 (0xFFFF), as this speaks for a communication error
 				gyroCalibratedCycles++;
@@ -109,7 +109,7 @@ void gyroLoop() {
 				}
 			}
 		}
-		END_TASK(TASK_GYROREAD);
+		TASK_END(TASK_GYROREAD);
 		taskTimerGyro = 0;
 	}
 }

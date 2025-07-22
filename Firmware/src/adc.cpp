@@ -37,8 +37,7 @@ u8 adcType = 0; // 1 = voltage, 0 = current
 
 void adcLoop() {
 	if (adcTimer >= 50) {
-		elapsedMicros taskTimer = 0;
-		tasks[TASK_ADC].runCounter++;
+		TASK_START(TASK_ADC);
 		adcTimer = 0;
 		if (adcType) {
 			adc_select_input(PIN_ADC_VOLTAGE - 26);
@@ -98,13 +97,6 @@ void adcLoop() {
 			// temperature = analogReadTemp();
 		}
 		adcType = !adcType;
-		u32 duration = taskTimer;
-		tasks[TASK_ADC].totalDuration += duration;
-		if (duration < tasks[TASK_ADC].minDuration) {
-			tasks[TASK_ADC].minDuration = duration;
-		}
-		if (duration > tasks[TASK_ADC].maxDuration) {
-			tasks[TASK_ADC].maxDuration = duration;
-		}
+		TASK_END(TASK_ADC);
 	}
 }

@@ -75,7 +75,7 @@ void loop() {
 	if (duration0 > tasks[TASK_LOOP0].maxGap) {
 		tasks[TASK_LOOP0].maxGap = duration0;
 	}
-	START_TASK(TASK_LOOP0);
+	TASK_START(TASK_LOOP0);
 	speakerLoop();
 	baroLoop();
 	blackboxLoop();
@@ -100,7 +100,7 @@ void loop() {
 		}
 		activityTimer = 0;
 	}
-	END_TASK(TASK_LOOP0);
+	TASK_END(TASK_LOOP0);
 	taskTimer0 = 0;
 }
 
@@ -123,7 +123,7 @@ void loop1() {
 	if (duration > tasks[TASK_LOOP1].maxGap) {
 		tasks[TASK_LOOP1].maxGap = duration;
 	}
-	START_TASK(TASK_LOOP1);
+	TASK_START(TASK_LOOP1);
 	gyroLoop();
 
 	if (gyroUpdateFlag & 0x01) {
@@ -132,6 +132,6 @@ void loop1() {
 		decodeErpm();
 		pidLoop();
 	}
-	END_TASK(TASK_LOOP1);
+	TASK_END(TASK_LOOP1);
 	taskTimer = 0;
 }

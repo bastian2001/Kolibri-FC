@@ -47,7 +47,7 @@ void sendThrottles(const i16 throttles[4]) {
 
 void decodeErpm() {
 	if (!enableDShot) return;
-	START_TASK(TASK_ESC_RPM);
+	TASK_START(TASK_ESC_RPM);
 	escErpmFail = 0;
 	for (int m = 0; m < 4; m++) {
 		BidirDshotTelemetryType telemType = escs[m]->getTelemetryRaw((uint32_t *)&escRawTelemetry[m]);
@@ -93,5 +93,5 @@ void decodeErpm() {
 		escErpmFailCounter++;
 	else
 		escErpmFailCounter = 0;
-	END_TASK(TASK_ESC_RPM);
+	TASK_END(TASK_ESC_RPM);
 }

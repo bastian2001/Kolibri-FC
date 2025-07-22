@@ -1,7 +1,7 @@
 #include "global.h"
 __attribute__((__aligned__(4))) volatile FCTask tasks[32];
 
-elapsedMillis taskManagerTimer;
+elapsedMicros taskManagerTimer;
 
 void resetTasks() {
 	for (int i = 0; i < 32; i++) {
@@ -16,17 +16,15 @@ void initTaskManager() {
 	resetTasks();
 }
 void taskManagerLoop() {
-	START_TASK(TASK_TASKMANAGER);
-	if (taskManagerTimer >= 1000) {
+	TASK_START(TASK_TASKMANAGER);
+	if (taskManagerTimer >= 1000000) {
 		taskManagerTimer = 0;
 		for (int i = 0; i < 32; i++) {
 			tasks[i].frequency = tasks[i].runCounter;
-			if (tasks[i].runCounter > 0) {
-				tasks[i].lastTotalDuration = tasks[i].totalDuration;
-				tasks[i].totalDuration = 0;
-				tasks[i].runCounter = 0;
-			}
+			tasks[i].lastTotalDuration = tasks[i].totalDuration;
+			tasks[i].totalDuration = 0;
+			tasks[i].runCounter = 0;
 		}
 	}
-	END_TASK(TASK_TASKMANAGER);
+	TASK_END(TASK_TASKMANAGER);
 }

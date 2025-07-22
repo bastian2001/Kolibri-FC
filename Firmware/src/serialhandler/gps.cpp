@@ -71,6 +71,7 @@ void fillOpenLocationCode() {
 }
 
 void gpsLoop() {
+	TASK_START(TASK_GPS);
 	if (lastPvtMessage > 1000) {
 		// no PVT message received for 1 second
 		gpsStatus.fixType = fixTypes::FIX_NONE;
@@ -189,28 +190,37 @@ void gpsLoop() {
 		}
 	}
 	if (gpsBuffer.itemCount() >= 8) {
-		elapsedMicros taskTimer = 0;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 1;
+			TASK_END(TASK_GPS);
 			return;
 		}
 		int len = gpsBuffer[4] | (gpsBuffer[5] << 8);
 		if (len > GPS_BUF_LEN - 8) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 2;
+			TASK_END(TASK_GPS);
 			return;
 		}
 		if (gpsBuffer.itemCount() < len + 8) {
+			TASK_END(TASK_GPS);
 			return;
 		}
-		tasks[TASK_GPS].runCounter++;
 		u8 msg[len + 8];
 		gpsBuffer.copyToArray(msg, 2, len + 6);
 		u8 ck_a, ck_b;
 		gpsChecksum(msg, len + 4, &ck_a, &ck_b);
 		if (ck_a != msg[len + 4] || ck_b != msg[len + 5]) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 3;
+			TASK_END(TASK_GPS);
 			return;
 		}
+		TASK_START(TASK_GPS_MSG);
 		u8 *msgData = &msg[4];
 		// ensured that the packet is valid
 		u32 id = msg[1], classId = msg[0];
@@ -325,13 +335,7 @@ void gpsLoop() {
 		}
 		// pop the packet
 		gpsBuffer.erase(len + 8);
-		u32 duration = taskTimer;
-		tasks[TASK_GPS].totalDuration += duration;
-		if (duration < tasks[TASK_GPS].minDuration) {
-			tasks[TASK_GPS].minDuration = duration;
-		}
-		if (duration > tasks[TASK_GPS].maxDuration) {
-			tasks[TASK_GPS].maxDuration = duration;
-		}
+		TASK_END(TASK_GPS_MSG);
 	}
+	TASK_END(TASK_GPS);
 }

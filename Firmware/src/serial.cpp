@@ -26,8 +26,7 @@ void initSerial() {
 }
 
 void serialLoop() {
-	elapsedMicros taskTimer = 0;
-	tasks[TASK_SERIAL].runCounter++;
+	TASK_START(TASK_SERIAL);
 	for (int i = 0; i < 3; i++) {
 		if (serialFunctions[i] & SERIAL_DISABLED)
 			continue;
@@ -43,7 +42,7 @@ void serialLoop() {
 				rp2040.wdt_reset();
 				elapsedMicros timer = 0;
 				mspHandleByte(readChar, i);
-				taskTimer -= timer;
+				taskTimerTASK_SERIAL -= timer;
 			}
 			if (serialFunctions[i] & SERIAL_GPS) {
 				if (!gpsBuffer.isFull())
@@ -60,12 +59,5 @@ void serialLoop() {
 			}
 		}
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_SERIAL].totalDuration += duration;
-	if (duration < tasks[TASK_SERIAL].minDuration) {
-		tasks[TASK_SERIAL].minDuration = duration;
-	}
-	if (duration > tasks[TASK_SERIAL].maxDuration) {
-		tasks[TASK_SERIAL].maxDuration = duration;
-	}
+	TASK_END(TASK_SERIAL);
 }

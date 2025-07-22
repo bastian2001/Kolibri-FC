@@ -1041,7 +1041,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 }
 
 void mspHandleByte(u8 c, u8 serialNum) {
-	elapsedMicros taskTimer = 0;
+	TASK_START(TASK_CONFIGURATOR);
 	static char payloadBuf[2052] = {0}; // worst case: 2048 bytes payload + 3 bytes checksum (v2 over v1 jumbo) + 1 byte start. After the start byte, the index is reset to 0
 	static u16 payloadBufIndex = 0;
 	static u16 payloadLen = 0;
@@ -1052,8 +1052,6 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	static u32 crcV2 = 0;
 	static MspVersion msgMspVer = MspVersion::V2;
 	static MspState mspState = MspState::IDLE;
-
-	tasks[TASK_CONFIGURATOR].runCounter++;
 
 	switch (mspState) {
 	case MspState::IDLE:
@@ -1246,15 +1244,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		mspState = MspState::IDLE;
 		break;
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_CONFIGURATOR].totalDuration += duration;
-	if (duration < tasks[TASK_CONFIGURATOR].minDuration) {
-		tasks[TASK_CONFIGURATOR].minDuration = duration;
-	}
-	if (duration > tasks[TASK_CONFIGURATOR].maxDuration) {
-		tasks[TASK_CONFIGURATOR].maxDuration = duration;
-		tasks[TASK_CONFIGURATOR].debugInfo = (u32)fn;
-	}
+	TASK_END(TASK_CONFIGURATOR);
 }
 
 void printIndMessage(String msg) {

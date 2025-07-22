@@ -47,7 +47,7 @@ float cofactor(float matrix[4][4], i32 row, i32 col) {
 }
 
 void magLoop() {
-	START_TASK(TASK_MAG);
+	TASK_START(TASK_MAG);
 	switch (magState) {
 	case MagState::NOT_INIT:
 		if (magTimer < 5000) break;
@@ -101,7 +101,7 @@ void magLoop() {
 #endif
 		break;
 	case MagState::CHECK_DATA_READY: {
-		START_TASK(TASK_MAG_CHECK);
+		TASK_START(TASK_MAG_CHECK);
 #if MAG_HARDWARE == MAG_QMC5883L
 		// check every ms if data is ready
 		magBuffer[0] = (u8)MAG_REG::STATUS;
@@ -115,10 +115,10 @@ void magLoop() {
 			magTimerTimeout = 1000;
 		}
 #endif
-		END_TASK(TASK_MAG_CHECK);
+		TASK_END(TASK_MAG_CHECK);
 	} break;
 	case MagState::READ_DATA: {
-		START_TASK(TASK_MAG_READ);
+		TASK_START(TASK_MAG_READ);
 #if MAG_HARDWARE == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::DATA_X_H;
 #elif MAG_HARDWARE == MAG_QMC5883L
@@ -127,10 +127,10 @@ void magLoop() {
 		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
 		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 6, false);
 		magState = magStateAfterRead;
-		END_TASK(TASK_MAG_READ);
+		TASK_END(TASK_MAG_READ);
 	} break;
 	case MagState::PROCESS_DATA: {
-		START_TASK(TASK_MAG_EVAL);
+		TASK_START(TASK_MAG_EVAL);
 		static i32 magDataRaw[3];
 #if MAG_HARDWARE == MAG_HMC5883L
 		// TODO: can't be right: 3 permutations (odd)
@@ -163,7 +163,7 @@ void magLoop() {
 		magHeadingCorrection.update(updateVal);
 		magHeadingCorrection.rollover();
 		magState = MagState::MEASURING;
-		END_TASK(TASK_MAG_EVAL);
+		TASK_END(TASK_MAG_EVAL);
 	} break;
 	case MagState::CALIBRATE: {
 		// https://www.nxp.com/docs/en/application-note/AN4248.pdf
@@ -242,5 +242,5 @@ void magLoop() {
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));
 	} break;
 	}
-	END_TASK(TASK_MAG)
+	TASK_END(TASK_MAG)
 }
