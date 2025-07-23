@@ -9,8 +9,15 @@
 
 class OsdHandler {
 public:
-	OsdHandler() = default;
-	~OsdHandler() = default;
+	/**
+	 * @brief Get singleton instance of OsdHandler
+	 * @return Instance
+	 */
+	static OsdHandler &get() {
+		static OsdHandler osdHandler;
+		return osdHandler;
+	}
+
 	/**
 	 * @brief Initialize the OSD handler
 	 */
@@ -32,6 +39,10 @@ public:
 	OsdElement *elements[MAX_OSD_ELEMENTS] = {nullptr};
 
 private:
+	OsdHandler() = default;
+	~OsdHandler() = default;
+	OsdHandler(const OsdHandler &) = delete;
+	void operator=(const OsdHandler &) = delete;
 	/**
 	 * @brief Optimize the OSD element array, so osdHandlerLoop() dosn't take too long.
 	 */

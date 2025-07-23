@@ -3,7 +3,7 @@
 
 #define HZ *10
 namespace elemType {
-	enum : u8 { // TODO find OSD elements to implement.
+	enum class elem { // TODO find OSD elements to implement.
 		UNDEFINED,
 		// Battery info
 		BATTERY_VOLTAGE,
@@ -137,5 +137,7 @@ private:
 	u32 lastUpdateMillis;
 	u32 refreshMillis;
 	void *rawDataPtr; // Where to find the data
+	void *last;
+
 	char *screenText; // What is displayed on screen
 };

@@ -1,21 +1,27 @@
 #include "osdElement.h"
+#include "formatFunc.h"
 #include "global.h"
 
 void OsdElement::updateOsdElementData() {
 	if (rawDataPtr == nullptr || !updated) {
 		return; // No data to update
 	}
-
-	switch (element) {
-	case elemType::BATTERY_VOLTAGE:
-		snprintf(screenText, 16, "%.2f\x06", adcVoltage / 100.f); //! adcViltage is in centivolts
-		break;
-
-	default:
-		// screenText = "ERR";
-		return;
-		break;
+	if (last == nullptr) {
+		last = malloc(sizeof(rawDataPtr));
 	}
+	memcpy(last, rawDataPtr, sizeof(last));
+	if (memcmp(last, rawDataPtr, sizeof(last))) return; // No change in value
+
+		// switch (element) {
+	// case elemType::BATTERY_VOLTAGE:
+	// 	snprintf(screenText, 16, "%.2f\x06", adcVoltage / 100.f); //! adcViltage is in centivolts
+	// 	break;
+
+	// default:
+	// 	// screenText = "ERR";
+	// 	return;
+	// 	break;
+	// }
 	lastUpdateMillis = millis();
 }
 
