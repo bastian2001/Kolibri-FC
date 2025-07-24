@@ -58,6 +58,7 @@ export default defineComponent({
 			movement: 0,
 			entered: false,
 			moved: false,
+			roundToDecimal,
 			lastWheel: 0,
 		};
 	},
@@ -68,6 +69,18 @@ export default defineComponent({
 			}
 			return this.step === Math.floor(this.step);
 		},
+		displayDecimals() {
+			// derive from step
+			if (this.step === 0) return 0;
+			const stepStr = this.step.toString();
+			const decimalIndex = stepStr.indexOf('.');
+			if (decimalIndex === -1) return 0; // No decimal point, no
+			return stepStr.length - decimalIndex - 1;
+		},
+		displayNumber() {
+			const n = new Intl.NumberFormat(undefined, { minimumFractionDigits: this.displayDecimals })
+			return n.format(this.val)
+		}
 	},
 	mounted() {
 		const w = this.$refs.wrapper as HTMLDivElement;
@@ -214,7 +227,7 @@ export default defineComponent({
 <template>
 	<div class="numericInputWrapper" :class="{ entered, disabled }" ref="wrapper" :tabindex="entered ? -1 : 0">
 		<div class="numericInputDisplay" v-if="!entered">
-			{{ val.toLocaleString() }}&thinsp;{{ unit }}
+			{{ displayNumber }}&thinsp;{{ unit }}
 		</div>
 		<div v-else class="numericInputEdit" @wheel="onWheel">
 			<input type="number" class="numericInputInput" ref="input" v-model="editVal" @keydown="onKeyDown"
