@@ -91,7 +91,7 @@ void loop() {
 	gpsLoop();
 	magLoop();
 	// osdLoop();
-	osdHandler.osdHandlerLoop();
+	OsdHandler::get().osdHandlerLoop();
 	taskManagerLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 250) {

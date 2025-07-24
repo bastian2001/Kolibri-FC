@@ -35,7 +35,7 @@ public:
 	 * @brief Find a OSD element of a given type e.g. BATTERY_VOLTAGE
 	 * @return Index where the element is in the elements array.//TODO Change how this is handled in the furute
 	 */
-	int find(u8 elementType);
+	int find(ElementType elementType);
 	OsdElement *elements[MAX_OSD_ELEMENTS] = {nullptr};
 
 private:

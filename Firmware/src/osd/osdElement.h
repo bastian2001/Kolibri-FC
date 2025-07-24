@@ -2,56 +2,55 @@
 #include <typedefs.h>
 
 #define HZ *10
-namespace elemType {
-	enum class elem { // TODO find OSD elements to implement.
-		UNDEFINED,
-		// Battery info
-		BATTERY_VOLTAGE,
-		BATTERY_CELL_VOLLTAGE,
-		BATTERY_CELL_COUNT,
-		BATTERY_CURRENT,
-		BATTERY_MAH_DRAWN,
-		BATTERY_VOLTAGE_MIN,
-		// GPS info
-		GPS_LONGITUDE,
-		GPS_LATITUDE,
-		SPEED,
-		ALTITUDE,
-		HOME_DISTANCE,
-		HOME_DIRECTION,
-		// Flight info
-		FLIGHT_MODE,
-		RESCUE_STATUS,
-		// Radio info
-		RSSI_VAL,
-		LINK_QUALITY,
-		ELRS_RX_STATUS,
-		// Sensors
-		BARO_ALTITUDE,
-		ESC_TEMP_0,
-		ESC_TEMP_1,
-		ESC_TEMP_2,
-		ESC_TEMP_3,
-		ESC_TEMP_AVG,
-		IMU_ACCELERATION,
-		IMU_PITCH,
-		IMU_ROLL,
-		IMU_YAW,
-		// Stickpos
-		TX_ROLL,
-		TX_PITCH,
-		TX_YAW,
-		TX_THROTTLE,
-		// Timers
-		BAT_TIME,
-		ARM_TIME,
-		USER_TIME,
-		// Warn
-		ALARM_CRITICAL,
-		ALARM_WARNING,
-		ALARM_INFO
-	};
-}
+
+enum class ElementType : u8 { // TODO find OSD elements to implement.
+	UNDEFINED,
+	// Battery info
+	BATTERY_VOLTAGE,
+	BATTERY_CELL_VOLLTAGE,
+	BATTERY_CELL_COUNT,
+	BATTERY_CURRENT,
+	BATTERY_MAH_DRAWN,
+	BATTERY_VOLTAGE_MIN,
+	// GPS info
+	GPS_LONGITUDE,
+	GPS_LATITUDE,
+	SPEED,
+	ALTITUDE,
+	HOME_DISTANCE,
+	HOME_DIRECTION,
+	// Flight info
+	FLIGHT_MODE,
+	RESCUE_STATUS,
+	// Radio info
+	RSSI_VAL,
+	LINK_QUALITY,
+	ELRS_RX_STATUS,
+	// Sensors
+	BARO_ALTITUDE,
+	ESC_TEMP_0,
+	ESC_TEMP_1,
+	ESC_TEMP_2,
+	ESC_TEMP_3,
+	ESC_TEMP_AVG,
+	IMU_ACCELERATION,
+	IMU_PITCH,
+	IMU_ROLL,
+	IMU_YAW,
+	// Stickpos
+	TX_ROLL,
+	TX_PITCH,
+	TX_YAW,
+	TX_THROTTLE,
+	// Timers
+	BAT_TIME,
+	ARM_TIME,
+	USER_TIME,
+	// Warn
+	ALARM_CRITICAL,
+	ALARM_WARNING,
+	ALARM_INFO
+};
 
 class OsdElement {
 public:
@@ -61,7 +60,7 @@ public:
 	 * @param layer priority low to high.
 	 * @param in which profile is this element active.
 	 */
-	OsdElement(u8 element = elemType::UNDEFINED, u8 layer = 0, u8 profile = 0) {
+	OsdElement(ElementType element = ElementType::UNDEFINED, u8 layer = 0, u8 profile = 0) {
 		this->element = element;
 		this->layer = layer;
 		this->profile = profile;
@@ -113,9 +112,9 @@ public:
 	u32 getRefreshMillis();
 	/**
 	 * @brief returns the type of the element
-	 * @return the type of the element as defined in elemType
+	 * @return the type of the element as defined in ElementType
 	 */
-	u8 getElementType() const;
+	ElementType getElementType() const;
 	/**
 	 * @brief sets the refreshrate of the Element (automatically caps at the maximum supported by the OSD)
 	 * @param refreshRate Refresh rate in Hz
@@ -128,7 +127,7 @@ private:
 	 */
 	void clear(); // should only be necessary internally //TODO Check if necessary. Remove or implement.
 	bool updated;
-	u8 element;
+	ElementType element;
 	u8 layer; // TODO Implement
 	u8 profile;
 	u8 row;

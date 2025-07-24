@@ -12,7 +12,7 @@ void OsdElement::updateOsdElementData() {
 	memcpy(last, rawDataPtr, sizeof(last));
 	if (memcmp(last, rawDataPtr, sizeof(last))) return; // No change in value
 
-		// switch (element) {
+	// switch (element) {
 	// case elemType::BATTERY_VOLTAGE:
 	// 	snprintf(screenText, 16, "%.2f\x06", adcVoltage / 100.f); //! adcViltage is in centivolts
 	// 	break;
@@ -29,7 +29,7 @@ bool OsdElement::isScheduled() {
 	return (lastUpdateMillis <= refreshMillis && updated); // If there is no change in value no point of updating
 }
 
-u8 OsdElement::getElementType() const {
+ElementType OsdElement::getElementType() const {
 	return element;
 }
 

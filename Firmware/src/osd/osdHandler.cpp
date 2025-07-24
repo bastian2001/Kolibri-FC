@@ -1,13 +1,11 @@
 #include "global.h"
 
-OsdHandler osdHandler;
-
 void OsdHandler::init() {
 	// TODO Read settings
-	addOsdElement(new OsdElement(elemType::BATTERY_VOLTAGE));
+	addOsdElement(new OsdElement(ElementType::BATTERY_VOLTAGE));
 }
 
-int OsdHandler::find(u8 elementType) {
+int OsdHandler::find(ElementType elementType) {
 	for (int i = 0; i < MAX_OSD_ELEMENTS; ++i) {
 		if (elements[i]->getElementType() == elementType) {
 			return i;
@@ -24,7 +22,7 @@ void OsdHandler::osdHandlerLoop() {
 	u16 start = chunk * CHUNKSIZE;
 	u16 end = (chunk == lastChunk) ? lastElem : start + CHUNKSIZE;
 	for (int i = start; i < end; i++) {
-		if (elements[i] != nullptr && elements[i]->getElementType() != elemType::UNDEFINED) {
+		if (elements[i] != nullptr && elements[i]->getElementType() != ElementType::UNDEFINED) {
 			elements[i]->updateOsdElementData();
 			if (elements[i]->isScheduled()) {
 				elements[i]->drawOsdElement();

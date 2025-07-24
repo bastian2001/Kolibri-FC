@@ -62,4 +62,4 @@ namespace formatter {
 
 #include <map>
 
-std::map<elemType::elem, formatter::FormatFunc> formatters = {}; // TODO remove bloat
+//std::map<elemType::elem, formatter::FormatFunc> formatters = {}; // TODO remove bloat
