@@ -65,6 +65,7 @@ void setup() {
 		rp2040.wdt_reset();
 	}
 	closeSettingsFile();
+	rom_flash_flush_cache();
 }
 
 elapsedMillis activityTimer;

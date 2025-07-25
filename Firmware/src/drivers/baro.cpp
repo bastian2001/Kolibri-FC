@@ -194,7 +194,7 @@ void baroLoop() {
 			if (getI2cReadCount()) {
 				baroSubState = 5;
 				getI2cReadData(baroBuffer, 1);
-				pressureRaw = (i32)baroBuffer[0] << 16;
+				pressureRaw |= (i32)baroBuffer[0] << 16;
 				baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_H;
 				startI2cWrite(I2C_BARO_ADDR, baroBuffer, 1);
 			}
@@ -205,7 +205,7 @@ void baroLoop() {
 				baroSubState = 0;
 				baroState = BaroState::EVAL_DATA;
 				getI2cReadData(baroBuffer, 1);
-				pressureRaw = (i32)baroBuffer[0] << 24;
+				pressureRaw |= (i32)baroBuffer[0] << 24;
 				pressureRaw >>= 8;
 			}
 			break;
