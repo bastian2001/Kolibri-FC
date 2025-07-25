@@ -2,7 +2,8 @@
 
 // on drone: x = right, y = backward, z = down
 
-MagState magState = MagState::NOT_INIT;
+static MagState magState = MagState::NOT_INIT;
+static u8 magSubState = 0;
 elapsedMicros magTimer;
 u32 magTimerTimeout = 0;
 u8 magBuffer[6] = {0};
@@ -51,6 +52,7 @@ void magLoop() {
 	switch (magState) {
 	case MagState::NOT_INIT:
 		if (magTimer < 5000) break;
+		if (i2c0blocker) break;
 		magTimer = 0;
 #if MAG_HARDWARE == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::ID_A;
@@ -67,6 +69,7 @@ void magLoop() {
 #endif
 		break;
 	case MagState::INITIALIZING:
+		if (i2c0blocker) break;
 #if MAG_HARDWARE == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::CONF_REGA;
 		magBuffer[1] = MAG_AVG_8 | MAG_ODR_75HZ | MAG_LOAD_FLOAT;
@@ -90,8 +93,9 @@ void magLoop() {
 	case MagState::MEASURING:
 #if MAG_HARDWARE == MAG_QMC5883L
 		if (magTimer > magTimerTimeout) {
-			magState = MagState::CHECK_DATA_READY;
 			magTimer = 0;
+			magState = MagState::CHECK_DATA_READY;
+			magSubState = 0;
 		}
 #elif MAG_HARDWARE == MAG_HMC5883L
 		if (magTimer > magTimerTimeout) {
@@ -104,29 +108,76 @@ void magLoop() {
 		TASK_START(TASK_MAG_CHECK);
 #if MAG_HARDWARE == MAG_QMC5883L
 		// check every ms if data is ready
-		magBuffer[0] = (u8)MAG_REG::STATUS;
-		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
-		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
-		if (magBuffer[0] & 0x01) { // data ready
-			magState = MagState::READ_DATA;
-			magTimerTimeout = 4000;
-		} else { // data not ready, check again in 1ms
-			magState = MagState::MEASURING;
-			magTimerTimeout = 1000;
+		switch (magSubState) {
+		case 0:
+			if (i2c0blocker == 0) {
+				i2c0blocker = 2;
+				magSubState = 1;
+				magBuffer[0] = (u8)MAG_REG::STATUS;
+				startI2cWrite(MAG_ADDRESS, magBuffer, 1);
+			}
+			break;
+		case 1:
+			if (checkI2cWriteDone()) {
+				startI2cRead(MAG_ADDRESS, 1);
+				magSubState = 2;
+			}
+			break;
+		case 2:
+			if (getI2cReadCount()) {
+				getI2cReadData(magBuffer, 1);
+				if (magBuffer[0] & (1 << 0)) {
+					// data ready
+					magState = MagState::READ_DATA;
+					magSubState = 0;
+					magTimerTimeout = 4000;
+				} else {
+					// data not ready, check again in 1ms
+					magState = MagState::MEASURING;
+					magSubState = 0;
+					magTimerTimeout = 1000;
+				}
+				i2c0blocker = 0;
+			}
+			break;
 		}
 #endif
 		TASK_END(TASK_MAG_CHECK);
 	} break;
 	case MagState::READ_DATA: {
 		TASK_START(TASK_MAG_READ);
+		switch (magSubState) {
+		case 0:
+			if (i2c0blocker == 0) {
+				i2c0blocker = 2;
+				magSubState = 1;
 #if MAG_HARDWARE == MAG_HMC5883L
-		magBuffer[0] = (u8)MAG_REG::DATA_X_H;
+				magBuffer[0] = (u8)MAG_REG::DATA_X_H;
 #elif MAG_HARDWARE == MAG_QMC5883L
-		magBuffer[0] = (u8)MAG_REG::DATA_X_L;
+				magBuffer[0] = (u8)MAG_REG::DATA_X_L;
 #endif
-		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
-		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 6, false);
-		magState = magStateAfterRead;
+				startI2cWrite(MAG_ADDRESS, magBuffer, 1);
+			}
+			break;
+		case 1:
+			if (checkI2cWriteDone()) {
+				startI2cRead(MAG_ADDRESS, 6);
+				magSubState = 2;
+			}
+			break;
+		case 2: {
+			i8 rc = getI2cReadCount();
+			if (rc == 6) {
+				getI2cReadData(magBuffer, 6);
+				magState = magStateAfterRead;
+				magSubState = 0;
+				i2c0blocker = 0;
+			} else if (rc < 0) {
+				magSubState = 0;
+				i2c0blocker = 0;
+			}
+		} break;
+		}
 		TASK_END(TASK_MAG_READ);
 	} break;
 	case MagState::PROCESS_DATA: {
@@ -242,5 +293,6 @@ void magLoop() {
 		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));
 	} break;
 	}
+	tasks[TASK_MAG].debugInfo = (u32)magState * 10 + magSubState;
 	TASK_END(TASK_MAG);
 }

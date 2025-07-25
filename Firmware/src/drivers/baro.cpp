@@ -25,7 +25,8 @@ enum class BaroState {
 	READ_DATA, // reading (sync or async)
 	EVAL_DATA, // evaluation (calculate hPa and altitude)
 };
-BaroState baroState = BaroState::NOT_INIT;
+static BaroState baroState = BaroState::NOT_INIT;
+static u8 baroSubState = 0;
 
 f32 baroASL = 0; // above sea level
 f32 baroPres = 0;
@@ -45,6 +46,7 @@ void baroLoop() {
 	switch (baroState) {
 	case BaroState::NOT_INIT: {
 		if (baroTimer < 5000) break;
+		if (i2c0blocker) break;
 		baroTimer = 0;
 		// no baro detected yet
 #ifdef BARO_SPL006
@@ -68,6 +70,7 @@ void baroLoop() {
 	} break;
 	case BaroState::INITIALIZING: {
 		// baro detected
+		if (i2c0blocker) break;
 #ifdef BARO_SPL006
 		regRead(SPI_BARO, PIN_BARO_CS, 0x10, baroBuffer, 18, 0, false); // read calibration data
 		baroCalibration[c0] = (((u32)baroBuffer[0]) << 4) + (baroBuffer[1] >> 4);
@@ -109,6 +112,7 @@ void baroLoop() {
 		if (baroTimer >= baroTimerTimeout) {
 			baroTimer = 0;
 			baroState = BaroState::CHECK_READY;
+			baroSubState = 0;
 		}
 		break;
 	case BaroState::CHECK_READY: {
@@ -116,15 +120,36 @@ void baroLoop() {
 #ifdef BARO_SPL006
 		baroState = 4;
 #elifdef BARO_LPS22
-		baroBuffer[0] = (u8)BaroRegs::STATUS;
-		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		if (baroBuffer[0] & (1 << 0)) {
-			baroState = BaroState::READ_DATA;
-			baroTimerTimeout = 19000; // baro data is available, check after a total of 19ms (slightly faster than 50Hz to allow for slight clock deviations)
-		} else {
-			baroState = BaroState::MEASURING;
-			baroTimerTimeout = 2000; // check for new data again after 2ms
+		switch (baroSubState) {
+		case 0:
+			if (i2c0blocker == 0) {
+				i2c0blocker = 1;
+				baroSubState = 1;
+				baroBuffer[0] = (u8)BaroRegs::STATUS;
+				startI2cWrite(I2C_BARO_ADDR, baroBuffer, 1);
+			}
+			break;
+		case 1:
+			if (checkI2cWriteDone()) {
+				startI2cRead(I2C_BARO_ADDR, 1);
+				baroSubState = 2;
+			}
+			break;
+		case 2:
+			if (getI2cReadCount()) {
+				getI2cReadData(baroBuffer, 1);
+				if (baroBuffer[0] & (1 << 0)) {
+					baroState = BaroState::READ_DATA;
+					baroSubState = 0;
+					baroTimerTimeout = 19000; // baro data is available, check after a total of 19ms (slightly faster than 50Hz to allow for slight clock deviations)
+				} else {
+					baroState = BaroState::MEASURING;
+					baroSubState = 0;
+					baroTimerTimeout = 2000; // check for new data again after 2ms
+				}
+				i2c0blocker = 0;
+			}
+			break;
 		}
 #endif
 		TASK_END(TASK_BARO_CHECK);
@@ -139,30 +164,53 @@ void baroLoop() {
 		pressureRaw >>= 8;
 		temperature >>= 8;
 #elifdef BARO_LPS22
-		baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_XL;
-		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		pressureRaw = (i32)baroBuffer[0] << 8;
-		baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_L;
-		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		pressureRaw |= ((i32)baroBuffer[0]) << 16;
-		baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_H;
-		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		pressureRaw |= ((i32)baroBuffer[0]) << 24;
-		// baroBuffer[0] = (u8)BaroRegs::TEMP_OUT_L;
-		// i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		// i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		// temperature = (i32)baroBuffer[0] << 16;
-		// baroBuffer[0] = (u8)BaroRegs::TEMP_OUT_H;
-		// i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		// i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
-		// temperature |= ((i32)baroBuffer[0]) << 24;
-		pressureRaw >>= 8;
-		// temperature >>= 16
+		switch (baroSubState) {
+		case 0:
+			if (i2c0blocker == 0) {
+				i2c0blocker = 1;
+				baroSubState = 1;
+				baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_XL;
+				startI2cWrite(I2C_BARO_ADDR, baroBuffer, 1);
+			}
+			break;
+		case 1:
+		case 3:
+		case 5:
+			if (checkI2cWriteDone()) {
+				baroSubState++;
+				startI2cRead(I2C_BARO_ADDR, 1);
+			}
+			break;
+		case 2:
+			if (getI2cReadCount()) {
+				baroSubState = 3;
+				getI2cReadData(baroBuffer, 1);
+				pressureRaw = (i32)baroBuffer[0] << 8;
+				baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_L;
+				startI2cWrite(I2C_BARO_ADDR, baroBuffer, 1);
+			}
+			break;
+		case 4:
+			if (getI2cReadCount()) {
+				baroSubState = 5;
+				getI2cReadData(baroBuffer, 1);
+				pressureRaw = (i32)baroBuffer[0] << 16;
+				baroBuffer[0] = (u8)BaroRegs::PRESS_OUT_H;
+				startI2cWrite(I2C_BARO_ADDR, baroBuffer, 1);
+			}
+			break;
+		case 6:
+			if (getI2cReadCount()) {
+				i2c0blocker = 0;
+				baroSubState = 0;
+				baroState = BaroState::EVAL_DATA;
+				getI2cReadData(baroBuffer, 1);
+				pressureRaw = (i32)baroBuffer[0] << 24;
+				pressureRaw >>= 8;
+			}
+			break;
+		}
 #endif
-		baroState = BaroState::EVAL_DATA;
 		TASK_END(TASK_BARO_READ);
 	} break;
 	case BaroState::EVAL_DATA: {
@@ -187,6 +235,6 @@ void baroLoop() {
 		TASK_END(TASK_BARO_EVAL);
 	} break;
 	}
-	tasks[TASK_BARO].debugInfo = (u8)baroState;
+	tasks[TASK_BARO].debugInfo = (u32)baroState * 10 +  baroSubState;
 	TASK_END(TASK_BARO);
 }

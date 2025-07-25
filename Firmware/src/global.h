@@ -18,6 +18,7 @@
 #include "drivers/baro.h"
 #include "drivers/esc.h"
 #include "drivers/gyro.h"
+#include "drivers/i2c.h"
 #include "drivers/mag.h"
 #include "drivers/osd.h"
 #include "drivers/speaker.h"
