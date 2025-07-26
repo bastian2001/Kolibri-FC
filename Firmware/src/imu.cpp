@@ -128,7 +128,7 @@ void __not_in_flash_func(updateFromAccel)() {
 }
 
 void __not_in_flash_func(updatePitchRollValues)() {
-	startFixTrig();
+	startFixMath();
 	roll = atan2Fix(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
 	yaw = atan2Fix(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
@@ -175,56 +175,18 @@ void __not_in_flash_func(updateSpeeds)() {
 }
 
 void __not_in_flash_func(imuUpdate)() {
-	elapsedMicros taskTimer = 0;
-	tasks[TASK_IMU].runCounter++;
-	u32 t0, t1, t2, t3;
-	elapsedMicros timer = 0;
+	TASK_START(TASK_IMU);
+	TASK_START(TASK_IMU_GYRO);
 	updateFromGyro();
-	t0 = timer;
+	TASK_END(TASK_IMU_GYRO);
+	TASK_START(TASK_IMU_ACCEL);
 	updateFromAccel();
-	t1 = timer;
+	TASK_END(TASK_IMU_ACCEL);
+	TASK_START(TASK_IMU_ANGLE);
 	updatePitchRollValues();
-	t2 = timer;
+	TASK_END(TASK_IMU_ANGLE);
+	TASK_START(TASK_IMU_SPEEDS);
 	updateSpeeds();
-	t3 = timer;
-	tasks[TASK_IMU_GYRO].totalDuration += t0;
-	tasks[TASK_IMU_ACCEL].totalDuration += t1 - t0;
-	tasks[TASK_IMU_ANGLE].totalDuration += t2 - t1;
-	tasks[TASK_IMU_SPEEDS].totalDuration += t3 - t2;
-	if (t0 < tasks[TASK_IMU_GYRO].minDuration) {
-		tasks[TASK_IMU_GYRO].minDuration = t0;
-	}
-	if (t0 > tasks[TASK_IMU_GYRO].maxDuration) {
-		tasks[TASK_IMU_GYRO].maxDuration = t0;
-	}
-	if (t1 - t0 < tasks[TASK_IMU_ACCEL].minDuration) {
-		tasks[TASK_IMU_ACCEL].minDuration = t1 - t0;
-	}
-	if (t1 - t0 > tasks[TASK_IMU_ACCEL].maxDuration) {
-		tasks[TASK_IMU_ACCEL].maxDuration = t1 - t0;
-	}
-	if (t2 - t1 < tasks[TASK_IMU_ANGLE].minDuration) {
-		tasks[TASK_IMU_ANGLE].minDuration = t2 - t1;
-	}
-	if (t2 - t1 > tasks[TASK_IMU_ANGLE].maxDuration) {
-		tasks[TASK_IMU_ANGLE].maxDuration = t2 - t1;
-	}
-	if (t3 - t2 > tasks[TASK_IMU_SPEEDS].maxDuration) {
-		tasks[TASK_IMU_SPEEDS].maxDuration = t3 - t2;
-	}
-	if (t3 - t2 < tasks[TASK_IMU_SPEEDS].minDuration) {
-		tasks[TASK_IMU_SPEEDS].minDuration = t3 - t2;
-	}
-	tasks[TASK_IMU_GYRO].runCounter++;
-	tasks[TASK_IMU_ACCEL].runCounter++;
-	tasks[TASK_IMU_ANGLE].runCounter++;
-	tasks[TASK_IMU_SPEEDS].runCounter++;
-	u32 duration = taskTimer;
-	tasks[TASK_IMU].totalDuration += duration;
-	if (duration < tasks[TASK_IMU].minDuration) {
-		tasks[TASK_IMU].minDuration = duration;
-	}
-	if (duration > tasks[TASK_IMU].maxDuration) {
-		tasks[TASK_IMU].maxDuration = duration;
-	}
+	TASK_END(TASK_IMU_SPEEDS);
+	TASK_END(TASK_IMU);
 }

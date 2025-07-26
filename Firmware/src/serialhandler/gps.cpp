@@ -71,6 +71,7 @@ void fillOpenLocationCode() {
 }
 
 void gpsLoop() {
+	TASK_START(TASK_GPS);
 	if (lastPvtMessage > 1000) {
 		// no PVT message received for 1 second
 		gpsStatus.fixType = fixTypes::FIX_NONE;
@@ -189,28 +190,37 @@ void gpsLoop() {
 		}
 	}
 	if (gpsBuffer.itemCount() >= 8) {
-		elapsedMicros taskTimer = 0;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 1;
+			TASK_END(TASK_GPS);
 			return;
 		}
 		int len = gpsBuffer[4] | (gpsBuffer[5] << 8);
 		if (len > GPS_BUF_LEN - 8) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 2;
+			TASK_END(TASK_GPS);
 			return;
 		}
 		if (gpsBuffer.itemCount() < len + 8) {
+			TASK_END(TASK_GPS);
 			return;
 		}
-		tasks[TASK_GPS].runCounter++;
 		u8 msg[len + 8];
 		gpsBuffer.copyToArray(msg, 2, len + 6);
 		u8 ck_a, ck_b;
 		gpsChecksum(msg, len + 4, &ck_a, &ck_b);
 		if (ck_a != msg[len + 4] || ck_b != msg[len + 5]) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 3;
+			TASK_END(TASK_GPS);
 			return;
 		}
+		TASK_START(TASK_GPS_MSG);
 		u8 *msgData = &msg[4];
 		// ensured that the packet is valid
 		u32 id = msg[1], classId = msg[0];
@@ -297,15 +307,16 @@ void gpsLoop() {
 				updateElem(OSDElem::LONGITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
 				updateElem(OSDElem::ALTITUDE, (char *)buf);
-				fix32 gVel = fix32(3.6f) * sqrtf((eVel * eVel + nVel * nVel).getf32());
-				snprintf((char *)buf, 16, "%d\x9E ", (gVel + 0.5f).geti32());
+				startFixMath();
+				fix32 gVel = sqrtFix(eVel * eVel + nVel * nVel) * 3.6f;
+				snprintf((char *)buf, 16, "%d\x9E ", (gVel + fix32(0.5f)).geti32());
 				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
 				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());
 				updateElem(OSDElem::HEADING, (char *)buf);
 
 				fix32 distN, distE;
 				distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
-				i32 dist = sqrtf((distN * distN + distE * distE).getf32());
+				i32 dist = sqrtFix(distN * distN + distE * distE).geti32();
 				snprintf((char *)buf, 16, "\x11%d\x0C  ", dist);
 				updateElem(OSDElem::HOME_DISTANCE, (char *)buf);
 
@@ -325,13 +336,7 @@ void gpsLoop() {
 		}
 		// pop the packet
 		gpsBuffer.erase(len + 8);
-		u32 duration = taskTimer;
-		tasks[TASK_GPS].totalDuration += duration;
-		if (duration < tasks[TASK_GPS].minDuration) {
-			tasks[TASK_GPS].minDuration = duration;
-		}
-		if (duration > tasks[TASK_GPS].maxDuration) {
-			tasks[TASK_GPS].maxDuration = duration;
-		}
+		TASK_END(TASK_GPS_MSG);
 	}
+	TASK_END(TASK_GPS);
 }

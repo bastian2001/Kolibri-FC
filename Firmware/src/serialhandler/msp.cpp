@@ -375,6 +375,19 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 1500 >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
+		case MspFn::MSP_BATTERY_STATE:
+			buf[len++] = batCells;
+			buf[len++] = 0; // battery capacity
+			buf[len++] = 0;
+			buf[len++] = (adcVoltage + 5) / 10; // voltage in 0.1V steps :/
+			buf[len++] = 0; // mAh drawn
+			buf[len++] = 0;
+			buf[len++] = 0; // amps in 0.01A steps
+			buf[len++] = 0;
+			buf[len++] = batState == 0 ? 4 : 0; // 4 = init, 0 = ok
+			buf[len++] = adcVoltage;
+			buf[len++] = adcVoltage >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		case MspFn::GET_MOTOR_CONFIG:
 			buf[len++] = (1000 + idlePermille) & 0xFF; // min throttle
 			buf[len++] = (1000 + idlePermille) >> 8;
@@ -400,7 +413,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			break;
 		case MspFn::MAG_CALIBRATION:
-			magStateAfterRead = MAG_CALIBRATE;
+			magStateAfterRead = MagState::CALIBRATE;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			snprintf(buf, 32, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
 			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, buf, strlen(buf));
@@ -758,21 +771,19 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
 		} break;
 		case MspFn::TASK_STATUS: {
-			u32 buf[256];
+			u32 buf[224];
 			for (int i = 0; i < 32; i++) {
-				buf[i * 8 + 0] = tasks[i].debugInfo;
-				buf[i * 8 + 1] = tasks[i].minDuration;
-				buf[i * 8 + 2] = tasks[i].maxDuration;
-				buf[i * 8 + 3] = tasks[i].frequency;
-				buf[i * 8 + 4] = tasks[i].avgDuration;
-				buf[i * 8 + 5] = tasks[i].errorCount;
-				buf[i * 8 + 6] = tasks[i].lastError;
-				buf[i * 8 + 7] = tasks[i].maxGap;
+				buf[i * 7 + 0] = tasks[i].debugInfo;
+				buf[i * 7 + 1] = tasks[i].minMaxDuration;
+				buf[i * 7 + 2] = tasks[i].frequency;
+				buf[i * 7 + 3] = tasks[i].lastTotalDuration;
+				buf[i * 7 + 4] = tasks[i].errorCount;
+				buf[i * 7 + 5] = tasks[i].lastError;
+				buf[i * 7 + 6] = tasks[i].maxGap;
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buf, sizeof(buf));
 			for (int i = 0; i < 32; i++) {
-				tasks[i].minDuration = 0xFFFFFFFF;
-				tasks[i].maxDuration = 0;
+				tasks[i].minMaxDuration = 0x7FFF0000;
 				tasks[i].maxGap = 0;
 			}
 		} break;
@@ -790,6 +801,26 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[12], &ELRS->actualPacketRate, 2);
 			memcpy(&buf[14], &ELRS->rcMsgCount, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 18);
+		} break;
+		case MspFn::GET_RX_MODES: {
+			mspGetRxModes(serialNum, version);
+		} break;
+		case MspFn::SET_RX_MODES: {
+			mspSetRxModes(serialNum, version, reqPayload, reqLen);
+		} break;
+		case MspFn::GET_BATTERY_SETTINGS: {
+			buf[len++] = cellCountSetting;
+			buf[len++] = emptyVoltageSetting;
+			buf[len++] = emptyVoltageSetting >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
+		case MspFn::SET_BATTERY_SETTINGS: {
+			cellCountSetting = reqPayload[0];
+			emptyVoltageSetting = reqPayload[1] | ((i16)reqPayload[2] << 8);
+			openSettingsFile();
+			getSetting(SETTING_CELL_COUNT)->updateSettingInFile();
+			getSetting(SETTING_EMPTY_VOLTAGE)->updateSettingInFile();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_TZ_OFFSET: {
 			buf[0] = rtcTimezoneOffset;
@@ -860,18 +891,23 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 ifall = iFalloff.geti32();
 			buf[len++] = ifall & 0xFF;
 			buf[len++] = ifall >> 8;
+			buf[len++] = useDynamicIdle;
+			buf[len++] = idlePermille;
+			buf[len++] = dynamicIdleRpm;
+			buf[len++] = dynamicIdleRpm >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
-		}
+		} break;
 		case MspFn::SET_EXT_PID: {
-			u16 ifall = DECODE_U2((u8 *)reqPayload);
-			if (ifall > 10000) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-				break;
-			}
-			iFalloff = ifall;
+			iFalloff = DECODE_U2(reqPayload);
+			useDynamicIdle = reqPayload[2];
+			idlePermille = reqPayload[3];
+			dynamicIdleRpm = DECODE_U2(&reqPayload[4]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
 			getSetting(SETTING_IFALLOFF)->updateSettingInFile();
+			getSetting(SETTING_DYNAMIC_IDLE_EN)->updateSettingInFile();
+			getSetting(SETTING_IDLE_PERMILLE)->updateSettingInFile();
+			getSetting(SETTING_DYNAMIC_IDLE_RPM)->updateSettingInFile();
 		} break;
 		case MspFn::GET_FILTER_CONFIG: {
 			buf[len++] = gyroFilterCutoff & 0xFF;
@@ -1003,7 +1039,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 }
 
 void mspHandleByte(u8 c, u8 serialNum) {
-	elapsedMicros taskTimer = 0;
+	TASK_START(TASK_CONFIGURATOR);
 	static char payloadBuf[2052] = {0}; // worst case: 2048 bytes payload + 3 bytes checksum (v2 over v1 jumbo) + 1 byte start. After the start byte, the index is reset to 0
 	static u16 payloadBufIndex = 0;
 	static u16 payloadLen = 0;
@@ -1014,8 +1050,6 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	static u32 crcV2 = 0;
 	static MspVersion msgMspVer = MspVersion::V2;
 	static MspState mspState = MspState::IDLE;
-
-	tasks[TASK_CONFIGURATOR].runCounter++;
 
 	switch (mspState) {
 	case MspState::IDLE:
@@ -1208,15 +1242,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		mspState = MspState::IDLE;
 		break;
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_CONFIGURATOR].totalDuration += duration;
-	if (duration < tasks[TASK_CONFIGURATOR].minDuration) {
-		tasks[TASK_CONFIGURATOR].minDuration = duration;
-	}
-	if (duration > tasks[TASK_CONFIGURATOR].maxDuration) {
-		tasks[TASK_CONFIGURATOR].maxDuration = duration;
-		tasks[TASK_CONFIGURATOR].debugInfo = (u32)fn;
-	}
+	TASK_END(TASK_CONFIGURATOR);
 }
 
 void printIndMessage(String msg) {

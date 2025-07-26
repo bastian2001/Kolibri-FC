@@ -240,8 +240,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		modifier: [
 			{ displayNameShort: "RR", displayName: "Rear Right", path: "motorOutRR" },
 			{ displayNameShort: "FR", displayName: "Front Right", path: "motorOutFR" },
-			{ displayNameShort: "FL", displayName: "Front Left", path: "motorOutRL" },
-			{ displayNameShort: "RL", displayName: "Rear Left", path: "motorOutFL" },
+			{ displayNameShort: "RL", displayName: "Rear Left", path: "motorOutRL" },
+			{ displayNameShort: "FL", displayName: "Front Left", path: "motorOutFL" },
 		],
 	},
 	LOG_FRAMETIME: {
@@ -484,8 +484,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		modifier: [
 			{ displayNameShort: "RR", displayName: "Rear Right", path: "rpmRR" },
 			{ displayNameShort: "FR", displayName: "Front Right", path: "rpmFR" },
-			{ displayNameShort: "FL", displayName: "Front Left", path: "rpmRL" },
-			{ displayNameShort: "RL", displayName: "Rear Left", path: "rpmFL" },
+			{ displayNameShort: "RL", displayName: "Rear Left", path: "rpmRL" },
+			{ displayNameShort: "FL", displayName: "Front Left", path: "rpmFL" },
 		],
 	},
 	LOG_ACCEL_RAW: {

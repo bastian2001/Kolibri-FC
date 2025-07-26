@@ -4,11 +4,12 @@
 volatile u8 setupDone = 0b00;
 
 void setup() {
+	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
 
-	runUnitTests();
+	initFixMath();
 
-	vreg_set_voltage(VREG_VOLTAGE_1_30);
+	runUnitTests();
 
 	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
 		bootReason = rebootReason;
@@ -40,7 +41,6 @@ void setup() {
 	rtcInit();
 	osdInit();
 	initMag();
-	initBaro();
 	initGPS();
 	imuInit();
 	initADC();
@@ -67,21 +67,20 @@ void setup() {
 		rp2040.wdt_reset();
 	}
 	closeSettingsFile();
+	rom_flash_flush_cache();
 }
 
 elapsedMillis activityTimer;
 
 elapsedMicros taskTimer0;
 void loop() {
-	tasks[TASK_LOOP0].runCounter++;
 	u32 duration0 = taskTimer0;
 	if (duration0 > tasks[TASK_LOOP0].maxGap) {
 		tasks[TASK_LOOP0].maxGap = duration0;
 	}
-	taskTimer0 = 0;
+	TASK_START(TASK_LOOP0);
 	speakerLoop();
-	evalBaroLoop();
-	readBaroLoop(); // read after eval to prevent long execution times
+	baroLoop();
 	blackboxLoop();
 	ELRS->loop();
 	modesLoop();
@@ -104,14 +103,7 @@ void loop() {
 		}
 		activityTimer = 0;
 	}
-	duration0 = taskTimer0;
-	tasks[TASK_LOOP0].totalDuration += duration0;
-	if (duration0 > tasks[TASK_LOOP0].maxDuration) {
-		tasks[TASK_LOOP0].maxDuration = duration0;
-	}
-	if (duration0 < tasks[TASK_LOOP0].minDuration) {
-		tasks[TASK_LOOP0].minDuration = duration0;
-	}
+	TASK_END(TASK_LOOP0);
 	taskTimer0 = 0;
 }
 
@@ -130,12 +122,11 @@ elapsedMicros taskTimer = 0;
 extern PIO speakerPio;
 extern u8 speakerSm;
 void loop1() {
-	tasks[TASK_LOOP1].runCounter++;
 	u32 duration = taskTimer;
 	if (duration > tasks[TASK_LOOP1].maxGap) {
 		tasks[TASK_LOOP1].maxGap = duration;
 	}
-	taskTimer = 0;
+	TASK_START(TASK_LOOP1);
 	gyroLoop();
 
 	if (gyroUpdateFlag & 0x01) {
@@ -144,14 +135,6 @@ void loop1() {
 		decodeErpm();
 		pidLoop();
 	}
-
-	duration = taskTimer;
-	tasks[TASK_LOOP1].totalDuration += duration;
-	if (duration > tasks[TASK_LOOP1].maxDuration) {
-		tasks[TASK_LOOP1].maxDuration = duration;
-	}
-	if (duration < tasks[TASK_LOOP1].minDuration) {
-		tasks[TASK_LOOP1].minDuration = duration;
-	}
+	TASK_END(TASK_LOOP1);
 	taskTimer = 0;
 }

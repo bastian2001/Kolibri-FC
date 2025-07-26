@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { MspFn, MspVersion } from "@/msp/protocol";
+import { MspFn } from "@/msp/protocol";
 import { Command } from "@utils/types";
 import { delay, getSetpointActual, intToLeBytes, leBytesToInt } from "@utils/utils";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
@@ -36,6 +36,10 @@ export default defineComponent({
 			posholdFfCutoff: 0,
 			posholdIrelaxCutoff: 0,
 			posholdPushCutoff: 0,
+			iFalloff: 0,
+			idlePercent: 0,
+			useDynamicIdle: true,
+			dynamicIdleRpm: 0,
 		};
 	},
 	mounted() {
@@ -45,7 +49,7 @@ export default defineComponent({
 		this.onResize();
 		this.getSettings();
 		this.getRcInterval = setInterval(() => {
-			sendCommand('request', MspFn.RC);
+			sendCommand(MspFn.RC);
 		}, 1000 / 60);
 	},
 	unmounted() {
@@ -57,11 +61,13 @@ export default defineComponent({
 	},
 	methods: {
 		getSettings() {
-			sendCommand('request', MspFn.GET_PIDS)
+			sendCommand(MspFn.GET_PIDS)
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.GET_RATES))
+				.then(() => sendCommand(MspFn.GET_RATES))
 				.then(() => delay(5))
-				.then(() => sendCommand('request', MspFn.GET_FILTER_CONFIG))
+				.then(() => sendCommand(MspFn.GET_FILTER_CONFIG))
+				.then(() => delay(5))
+				.then(() => sendCommand(MspFn.GET_EXT_PID))
 		},
 		saveSettings() {
 			const data = [];
@@ -69,10 +75,10 @@ export default defineComponent({
 				for (let i = 0; i < 5; i++)
 					data.push(...intToLeBytes(this.pids[ax][i], 2));
 
-			sendCommand('request', MspFn.SET_PIDS, MspVersion.V2, data).then(() => {
+			sendCommand(MspFn.SET_PIDS, data).then(() => {
 				this.saveTimeout = setTimeout(() => {
 					console.error('Save timeout');
-				}, 500);
+				}, 2000);
 			});
 		},
 		onCommand(command: Command) {
@@ -86,22 +92,38 @@ export default defineComponent({
 									command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2),
 									false
 								);
-						} break;
+						}
+						break;
+					case MspFn.GET_EXT_PID:
+						this.iFalloff = leBytesToInt(command.data.slice(0, 2))
+						this.useDynamicIdle = command.data[2] !== 0
+						this.idlePercent = command.data[3] / 10
+						this.dynamicIdleRpm = leBytesToInt(command.data.slice(4, 6))
+						break;
 					case MspFn.GET_RATES:
 						if (command.length !== 3 * 2 * 3) break;
 						for (let ax = 0; ax < 3; ax++) {
 							this.rateCoeffs[ax].center = leBytesToInt(command.data.slice(ax * 6, ax * 6 + 2));
 							this.rateCoeffs[ax].max = leBytesToInt(command.data.slice(ax * 6 + 2, ax * 6 + 4));
 							this.rateCoeffs[ax].expo = leBytesToInt(command.data.slice(ax * 6 + 4, ax * 6 + 6)) / 8192;
-						} break;
+						}
+						break;
 					case MspFn.SET_PIDS: {
+						const data = []
+						data.push(...intToLeBytes(this.iFalloff, 2))
+						data.push(this.useDynamicIdle ? 1 : 0)
+						data.push(this.idlePercent * 10)
+						data.push(...intToLeBytes(this.dynamicIdleRpm, 2))
+						sendCommand(MspFn.SET_EXT_PID, data)
+					} break;
+					case MspFn.SET_EXT_PID: {
 						const data = [];
 						for (let ax = 0; ax < 3; ax++) {
 							data.push(...intToLeBytes(this.rateCoeffs[ax].center, 2));
 							data.push(...intToLeBytes(this.rateCoeffs[ax].max, 2));
 							data.push(...intToLeBytes(Math.round(this.rateCoeffs[ax].expo * 8192), 2));
 						}
-						sendCommand('request', MspFn.SET_RATES, MspVersion.V2, data);
+						sendCommand(MspFn.SET_RATES, data);
 					} break;
 					case MspFn.SET_RATES:
 						const data = [
@@ -117,12 +139,10 @@ export default defineComponent({
 							...intToLeBytes(this.posholdPushCutoff * 10, 2),
 							...intToLeBytes(this.gpsVelocityCutoff * 100, 2)
 						];
-						console.log('set filter config');
-						sendCommand('request', MspFn.SET_FILTER_CONFIG, MspVersion.V2, data);
+						sendCommand(MspFn.SET_FILTER_CONFIG, data);
 						break;
 					case MspFn.SET_FILTER_CONFIG: {
-						console.log('set filter config done');
-						sendCommand('request', MspFn.SAVE_SETTINGS);
+						sendCommand(MspFn.SAVE_SETTINGS);
 					} break;
 					case MspFn.SAVE_SETTINGS:
 						clearTimeout(this.saveTimeout);
@@ -201,7 +221,6 @@ export default defineComponent({
 			let max = 0;
 			for (let i = 0; i < 3; i++) {
 				let ax = this.rateCoeffs[i].max;
-				console.log(ax);
 				if (ax > max) max = ax;
 			}
 			this.scale = 500;
@@ -331,6 +350,22 @@ export default defineComponent({
 					</tr>
 				</tbody>
 			</table>
+			<br>
+			<div class="filterGrid">
+				<h4>Idling</h4>
+				<p class="inputDescription">Use Dynamic Idling</p>
+				<input type="checkbox" id="useDynIdleCheck" class="numericInput" v-model="useDynamicIdle">
+				<p class="inputDescription" v-if="!useDynamicIdle">Idle Throttle</p>
+				<NumericInput v-if="!useDynamicIdle" v-model="idlePercent" :min="2" :max="25" :step="0.1" unit="%"
+					:fix-to-steps="true" class="numericInput" />
+				<p class="inputDescription" v-if="useDynamicIdle">Idle RPM</p>
+				<NumericInput v-if="useDynamicIdle" v-model="dynamicIdleRpm" :min="1500" :max="10000" :step="100"
+					unit="RPM" class="numericInput" />
+				<h4>Advanced Settings</h4>
+				<p class="inputDescription">I term falloff before start</p>
+				<NumericInput v-model="iFalloff" :min="0" :max="2000" :step="20" unit="/s" class="numericInput" />
+				<div class="gridEnd"></div>
+			</div>
 		</div>
 		<div class="rates">
 			<h2>Rate Factors</h2>

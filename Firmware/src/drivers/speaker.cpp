@@ -61,7 +61,7 @@ const f32 WAV_SPEAKER_CLKDIV = (float)F_CPU / (256 * 44100 * 4);
 const f32 RECT_SPEAKER_CLKDIV = 132;
 dma_channel_config speakerDmaAConfig, speakerDmaBConfig;
 u8 speakerDmaAChan, speakerDmaBChan;
-volatile u8 soundState = 1; // 1: playing PWM, 2: a needs to be filled, 4: b needs to be filled
+volatile static u8 soundState = 1; // 1: playing PWM, 2: a needs to be filled, 4: b needs to be filled
 // 1KiB buffer each, thus worst case the speaker has a buffer of 1024 samples / 44.1kHz = 23ms
 u16 speakerChanAData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
 u16 speakerChanBData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
@@ -131,6 +131,7 @@ u32 totalBytes = 0;
 u8 finishedChannels = 0b00;
 u8 startSpeakerFile = true;
 void speakerLoop() {
+	TASK_START(TASK_SPEAKER);
 	if (soundState & 0b110) {
 		if (stopWavFlag) {
 			stopWavFlag = false;
@@ -153,6 +154,7 @@ void speakerLoop() {
 				startNewPwmSound = 0;
 				makeSweepSound(newPwmSoundData.startFrequency, newPwmSoundData.endFrequency, newPwmSoundData.duration, newPwmSoundData.tOnMs, newPwmSoundData.tOffMs);
 			}
+			TASK_END(TASK_SPEAKER);
 			return;
 		}
 		u32 bytesRead = 0;
@@ -196,6 +198,7 @@ void speakerLoop() {
 				pwm_set_clkdiv(sliceNum, RECT_SPEAKER_CLKDIV);
 				pwm_set_gpio_level(PIN_SPEAKER, 0);
 				soundState = 1; // done playing, switch to PWM
+				TASK_END(TASK_SPEAKER);
 				return;
 			}
 		}
@@ -206,17 +209,18 @@ void speakerLoop() {
 			finishedChannels = 0b00;
 			startSpeakerFile = false;
 		}
+		TASK_END(TASK_SPEAKER);
 		return;
 	} else if (soundState != 1) {
+		// wav playing but no reload needed
+		TASK_END(TASK_SPEAKER);
 		return;
 	}
 
-	elapsedMicros taskTimer = 0;
-	tasks[TASK_SPEAKER].runCounter++;
-	if (!beeperOn && ((ELRS->channels[9] > 1500 && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
+	if (!beeperOn && ((rxModes[RxModeIndex::BEEPER].isActive() && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
 		beeperOn = true;
 		makeSweepSound(1000, 5000, 65535, 600, 0);
-	} else if (beeperOn && (ELRS->channels[9] <= 1500 && ELRS->isLinkUp)) {
+	} else if (beeperOn && (!rxModes[RxModeIndex::BEEPER].isActive() && ELRS->isLinkUp)) {
 		beeperOn = false;
 		stopSound();
 	}
@@ -280,14 +284,7 @@ void speakerLoop() {
 			}
 		}
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_SPEAKER].totalDuration += duration;
-	if (duration < tasks[TASK_SPEAKER].minDuration) {
-		tasks[TASK_SPEAKER].minDuration = duration;
-	}
-	if (duration > tasks[TASK_SPEAKER].maxDuration) {
-		tasks[TASK_SPEAKER].maxDuration = duration;
-	}
+	TASK_END(TASK_SPEAKER);
 }
 
 bool playWav(const char *filename) {

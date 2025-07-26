@@ -64,8 +64,7 @@ void blackboxLoop() {
 	if (!bbLogging || !fsReady) {
 		return;
 	}
-	elapsedMicros taskTimer = 0;
-	tasks[TASK_BLACKBOX].runCounter++;
+	TASK_START(TASK_BLACKBOX_WRITE);
 
 	// write a normal blackbox frame
 	if (rp2040.fifo.available()) {
@@ -85,7 +84,7 @@ void blackboxLoop() {
 	}
 
 	// save a highlight frame
-	bool highlightSwitch = ELRS->channels[8] > 1500;
+	bool highlightSwitch = rxModes[(int)RxModeIndex::BB_HIGHLIGHT].isActive();
 	if (highlightSwitch != lastHighlightState && BB_WR_BUF_HAS_FREE(1)) {
 		if (highlightSwitch) {
 			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_HIGHLIGHT;
@@ -116,14 +115,7 @@ void blackboxLoop() {
 		}
 	}
 
-	u32 duration = taskTimer;
-	tasks[TASK_BLACKBOX].totalDuration += duration;
-	if (duration < tasks[TASK_BLACKBOX].minDuration) {
-		tasks[TASK_BLACKBOX].minDuration = duration;
-	}
-	if (duration > tasks[TASK_BLACKBOX].maxDuration) {
-		tasks[TASK_BLACKBOX].maxDuration = duration;
-	}
+	TASK_END(TASK_BLACKBOX_WRITE);
 }
 
 void initBlackbox() {
@@ -356,6 +348,7 @@ void writeSingleFrame() {
 	if (!fsReady || !bbLogging) {
 		return;
 	}
+	TASK_START(TASK_BLACKBOX);
 	u8 *bbBuffer = (u8 *)malloc(128);
 	if (currentBBFlags & LOG_ROLL_SETPOINT) {
 		i16 setpoint = (i16)(rollSetpoint.raw >> 12);
@@ -607,4 +600,5 @@ void writeSingleFrame() {
 			// Both FIFOs are full, we can't keep up with the logging, dropping oldest frame
 		}
 	}
+	TASK_END(TASK_BLACKBOX);
 }

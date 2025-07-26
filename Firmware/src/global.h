@@ -5,6 +5,7 @@
 #include <Adafruit_TinyUSB.h>
 #endif
 #include <Arduino.h>
+#include <arm_acle.h>
 
 #if BLACKBOX_STORAGE == SD_BB
 #include "SdFat.h"
@@ -13,9 +14,11 @@
 #include "PIO_DShot.h"
 #include "adc.h"
 #include "blackbox.h"
+#include "customSimdMath.h"
 #include "drivers/baro.h"
 #include "drivers/esc.h"
 #include "drivers/gyro.h"
+#include "drivers/i2c.h"
 #include "drivers/mag.h"
 #include "drivers/osd.h"
 #include "drivers/speaker.h"

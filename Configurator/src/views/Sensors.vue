@@ -62,7 +62,7 @@ export default defineComponent({
 		getData() {
 			this.reqSensorMsgs.forEach((mspFn, index) => {
 				setTimeout(() => {
-					sendCommand("request", mspFn);
+					sendCommand(mspFn);
 				}, index);
 			});
 		},
@@ -211,7 +211,7 @@ export default defineComponent({
 		<p>Frequency: <input type="range" v-model="frequency" min="10" max="60"> {{ frequency }} Hz</p>
 		<div class="all">
 			<SensorGraph v-for="(graph, index) in graphs" :key="graph.name" :gid="graph.name" :width="parseInt(width)"
-				@delete="(_e: Event) => {
+				@delete="() => {
 					graphs.splice(index, 1);
 				}" @mspFn="(mspFn: number[]) => {
 					graph.mspFn = mspFn;

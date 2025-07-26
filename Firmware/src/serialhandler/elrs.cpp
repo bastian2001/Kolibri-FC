@@ -43,7 +43,7 @@ ExpressLRS::~ExpressLRS() {
 }
 
 void ExpressLRS::loop() {
-	elapsedMicros taskTimer;
+	TASK_START(TASK_ELRS);
 	if (frequencyTimer >= 1000) {
 		if (rcPacketRateCounter > 20 && rcMsgCount > 300)
 			isLinkUp = true;
@@ -69,6 +69,7 @@ void ExpressLRS::loop() {
 		tasks[TASK_ELRS].lastError = ERROR_BUFFER_OVERFLOW;
 		errorFlag = true;
 		errorCount++;
+		TASK_END(TASK_ELRS);
 		return;
 	}
 	if ((!maxScan && heartbeatTimer >= 300) || heartbeatTimer >= 500) {
@@ -168,9 +169,10 @@ void ExpressLRS::loop() {
 			break;
 		}
 		if (currentTelemSensor > 5) currentTelemSensor = 0;
+		TASK_END(TASK_ELRS);
 		return;
 	}
-	taskTimer = 0;
+
 	if (maxScan > ELRS_MAX_SCAN) maxScan = ELRS_MAX_SCAN; // limit to max scan size
 	if (maxScan + msgBufIndex > 64) maxScan = 64 - msgBufIndex; // limit to packet length
 	for (int i = 0; i < maxScan; i++) {
@@ -194,16 +196,11 @@ void ExpressLRS::loop() {
 		errorCount++;
 	}
 	if (msgBufIndex >= 2 + msgBuffer[1]) {
+		TASK_START(TASK_ELRS_MSG);
 		processMessage();
+		TASK_END(TASK_ELRS_MSG);
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_ELRS].totalDuration += duration;
-	if (duration < tasks[TASK_ELRS].minDuration) {
-		tasks[TASK_ELRS].minDuration = duration;
-	}
-	if (duration > tasks[TASK_ELRS].maxDuration) {
-		tasks[TASK_ELRS].maxDuration = duration;
-	}
+	TASK_END(TASK_ELRS);
 }
 
 void ExpressLRS::processMessage() {
@@ -226,7 +223,6 @@ void ExpressLRS::processMessage() {
 	msgCount++;
 	sinceLastMessage = 0;
 	packetRateCounter++;
-	tasks[TASK_ELRS].runCounter++;
 
 	switch (msgBuffer[2]) {
 	case FRAMETYPE_RC_CHANNELS_PACKED: {
@@ -246,11 +242,6 @@ void ExpressLRS::processMessage() {
 			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
 			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
-
-		if (pChannels[4] > 1500)
-			consecutiveArmedCycles++;
-		else
-			consecutiveArmedCycles = 0;
 
 		// update as fast as possible
 		fix32 smooth[4];
@@ -384,11 +375,6 @@ void ExpressLRS::processMessage() {
 			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
 			pChannels[i] = constrain(pChannels[i], 988, 2012);
 		}
-
-		if (pChannels[4] > 1500)
-			consecutiveArmedCycles++;
-		else
-			consecutiveArmedCycles = 0;
 
 		// update as fast as possible
 		fix32 smooth[4];

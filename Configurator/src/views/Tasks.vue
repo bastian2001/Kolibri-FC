@@ -8,16 +8,23 @@ import { leBytesToInt } from "@utils/utils";
 const TASK_NAMES = [
 	'Loop 0',
 	'    - Speaker',
-	'    - Baro Eval',
-	'    - Baro Read',
+	'    - Baro',
+	'        - Baro Check',
+	'        - Baro Read',
+	'        - Baro Eval',
 	'    - Blackbox save',
 	'    - ELRS',
+	'        - ELRS Message',
 	'    - Modes',
 	'    - ADC',
 	'    - Serial',
 	'    - Configurator',
 	'    - GPS',
+	'        - GPS Message',
 	'    - Magnetometer',
+	'        - Mag Check',
+	'        - Mag Read',
+	'        - Mag Eval',
 	'    - OSD',
 	'    - Task Manager',
 	'Loop 1',
@@ -40,7 +47,8 @@ export default defineComponent({
 				name: string;
 				maxDuration: number;
 				minDuration: number;
-				avgDuration: number;
+				totalDuration: number;
+				avgDuration: number
 				frequency: number;
 				errorCount: number;
 				lastError: number;
@@ -55,6 +63,7 @@ export default defineComponent({
 				name: TASK_NAMES[i],
 				maxDuration: 0,
 				minDuration: 0,
+				totalDuration: 0,
 				avgDuration: 0,
 				frequency: 0,
 				errorCount: 0,
@@ -64,7 +73,7 @@ export default defineComponent({
 			});
 		}
 		this.interval = setInterval(() => {
-			sendCommand('request', MspFn.TASK_STATUS);
+			sendCommand(MspFn.TASK_STATUS);
 		}, 200);
 		addOnCommandHandler(this.onCommand);
 	},
@@ -78,14 +87,15 @@ export default defineComponent({
 				switch (command.command) {
 					case MspFn.TASK_STATUS:
 						for (let i = 0; i < this.tasks.length; i++) {
-							this.tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 32, i * 32 + 4));
-							this.tasks[i].minDuration = leBytesToInt(command.data.slice(i * 32 + 4, i * 32 + 8));
-							this.tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 32 + 8, i * 32 + 12));
-							this.tasks[i].frequency = leBytesToInt(command.data.slice(i * 32 + 12, i * 32 + 16));
-							this.tasks[i].avgDuration = leBytesToInt(command.data.slice(i * 32 + 16, i * 32 + 20));
-							this.tasks[i].errorCount = leBytesToInt(command.data.slice(i * 32 + 20, i * 32 + 24));
-							this.tasks[i].lastError = leBytesToInt(command.data.slice(i * 32 + 24, i * 32 + 28));
-							this.tasks[i].maxGap = leBytesToInt(command.data.slice(i * 32 + 28, i * 32 + 32));
+							this.tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 28, i * 28 + 4));
+							this.tasks[i].minDuration = leBytesToInt(command.data.slice(i * 28 + 6, i * 28 + 8));
+							this.tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 28 + 4, i * 28 + 6));
+							this.tasks[i].frequency = leBytesToInt(command.data.slice(i * 28 + 8, i * 28 + 12));
+							this.tasks[i].totalDuration = leBytesToInt(command.data.slice(i * 28 + 12, i * 28 + 16));
+							this.tasks[i].avgDuration = this.tasks[i].totalDuration / this.tasks[i].frequency;
+							this.tasks[i].errorCount = leBytesToInt(command.data.slice(i * 28 + 16, i * 28 + 20));
+							this.tasks[i].lastError = leBytesToInt(command.data.slice(i * 28 + 20, i * 28 + 24));
+							this.tasks[i].maxGap = leBytesToInt(command.data.slice(i * 28 + 24, i * 28 + 28));
 						}
 						break;
 				}
@@ -103,6 +113,7 @@ export default defineComponent({
 				<th>Min Duration</th>
 				<th>Max Duration</th>
 				<th>Avg Duration</th>
+				<th>CPU</th>
 				<th>Frequency</th>
 				<th>Error Count</th>
 				<th>Last Error</th>
@@ -111,11 +122,12 @@ export default defineComponent({
 			</tr>
 		</thead>
 		<tbody>
-			<tr v-for="task in tasks">
+			<tr v-for="task in tasks" :class="{ grey: task.name.startsWith('     ') }">
 				<td style="white-space:pre">{{ task.name }}</td>
 				<td>{{ task.minDuration }}</td>
 				<td>{{ task.maxDuration }}</td>
-				<td>{{ task.avgDuration }}</td>
+				<td>{{ task.avgDuration.toFixed(task.avgDuration < 20 ? 1 : 0) }}</td>
+				<td style="text-align: right;">{{ (task.totalDuration / 1000000 * 100).toFixed(1) }} %</td>
 				<td>{{ task.frequency }}</td>
 				<td>{{ task.errorCount }}</td>
 				<td>{{ task.lastError }}</td>
@@ -131,5 +143,9 @@ td,
 th {
 	text-align: left;
 	padding: 3px 20px;
+}
+
+.grey {
+	opacity: 0.7;
 }
 </style>

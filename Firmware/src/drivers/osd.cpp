@@ -103,8 +103,7 @@ void drawElem(u8 elem) {
 
 void osdLoop() {
 	if (osdReady) {
-		elapsedMicros taskTimer = 0;
-		tasks[TASK_OSD].runCounter++;
+		TASK_START(TASK_OSD);
 		// cycle through all drawn elements, and update one per gyro cycle
 		u8 drawIteratorStart = drawIterator;
 		while (1) {
@@ -119,16 +118,10 @@ void osdLoop() {
 			if (drawIterator == drawIteratorStart)
 				break;
 		}
-		u32 duration = taskTimer;
-		tasks[TASK_OSD].totalDuration += duration;
-		if (duration < tasks[TASK_OSD].minDuration) {
-			tasks[TASK_OSD].minDuration = duration;
-		}
-		if (duration > tasks[TASK_OSD].maxDuration) {
-			tasks[TASK_OSD].maxDuration = duration;
-		}
+		TASK_END(TASK_OSD);
 	}
 	if (osdTimer > 1000 && osdReady != 1) {
+		TASK_START(TASK_OSD);
 		// gyro likely ready, check registers
 		u8 data = 0;
 		osdTimer = 0;
@@ -145,5 +138,6 @@ void osdLoop() {
 			regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data2);
 		}
 		osdReady = (data & 0b00000011) ? 1 : 2;
+		TASK_END(TASK_OSD);
 	}
 }

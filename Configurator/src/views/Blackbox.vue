@@ -5,7 +5,7 @@ import Settings from "@components/blackbox/Settings.vue";
 import { BBLog, TraceInGraph, Command, LogData, LogDataType, TraceInternalData } from "@utils/types";
 import { constrain, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
 import { skipValues } from "@/utils/blackbox/other";
-import { MspFn, MspVersion } from "@/msp/protocol";
+import { MspFn } from "@/msp/protocol";
 import { useLogStore } from "@stores/logStore";
 import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
 import TracePlacer from "@components/blackbox/TracePlacer.vue";
@@ -162,7 +162,7 @@ export default defineComponent({
 			}
 		},
 		getFileList() {
-			sendCommand('request', MspFn.BB_FILE_LIST).catch(console.error);
+			sendCommand(MspFn.BB_FILE_LIST).catch(console.error);
 		},
 		onResize() {
 			this.domCanvas.height = this.dataViewerWrapper.clientHeight;
@@ -208,12 +208,12 @@ export default defineComponent({
 
 		},
 		formatBB() {
-			sendCommand('request', MspFn.BB_FORMAT);
+			sendCommand(MspFn.BB_FORMAT);
 		},
 		getLog(num: number): Promise<BBLog> {
 			this.binFileNumber = -1;
 
-			sendCommand('request', MspFn.BB_FILE_INIT, MspVersion.V2, [...intToLeBytes(num, 2)]);
+			sendCommand(MspFn.BB_FILE_INIT, [...intToLeBytes(num, 2)]);
 			return new Promise((resolve, reject) => {
 				this.resolveWhenReady = resolve;
 				this.rejectWrongFile = reject;
@@ -292,7 +292,7 @@ export default defineComponent({
 				.catch(console.error);
 		},
 		deleteLog() {
-			sendCommand('request', MspFn.BB_FILE_DELETE, MspVersion.V2, [this.selected]);
+			sendCommand(MspFn.BB_FILE_DELETE, [this.selected]);
 		},
 		onTouchDown(e: TouchEvent) {
 			e.preventDefault();
@@ -904,7 +904,7 @@ export default defineComponent({
 			this.loadedLog = undefined;
 			this.chunkSize = leBytesToInt(data.slice(6, 10));
 			this.totalChunks = Math.ceil(this.binFile.length / this.chunkSize);
-			sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [
+			sendCommand(MspFn.BB_FILE_DOWNLOAD, [
 				...intToLeBytes(this.binFileNumber, 2)
 			]);
 		},
@@ -916,7 +916,7 @@ export default defineComponent({
 			// first get the last chunk so that there's no timeout for the others
 			if (!this.receivedChunks[this.totalChunks - 1]) {
 				console.log('Timeouted, requesting last chunk: ' + (this.totalChunks - 1));
-				sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [
+				sendCommand(MspFn.BB_FILE_DOWNLOAD, [
 					...intToLeBytes(this.binFileNumber, 2),
 					...intToLeBytes(this.totalChunks - 1, 4),
 				]);
@@ -926,7 +926,7 @@ export default defineComponent({
 			for (let i = 0; i < this.totalChunks; i++) {
 				if (!this.receivedChunks[i]) {
 					console.log('Timeouted, requesting missing chunk: ' + i);
-					sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [
+					sendCommand(MspFn.BB_FILE_DOWNLOAD, [
 						...intToLeBytes(this.binFileNumber, 2),
 						...intToLeBytes(i, 4),
 					]);
@@ -959,7 +959,7 @@ export default defineComponent({
 				for (let i = 0; i < this.totalChunks; i++) {
 					if (!this.receivedChunks[i]) {
 						console.log('Missing chunk: ' + i);
-						sendCommand('request', MspFn.BB_FILE_DOWNLOAD, MspVersion.V2, [
+						sendCommand(MspFn.BB_FILE_DOWNLOAD, [
 							...intToLeBytes(this.binFileNumber, 2),
 							...intToLeBytes(i, 4),
 						]);
@@ -993,7 +993,7 @@ export default defineComponent({
 				infoNums[i * 2 + 1] = (this.logNums[this.logInfoPosition++].num >> 8) & 0xFF;
 			}
 			if (infoNums.length == 0) return;
-			sendCommand('request', MspFn.BB_FILE_INFO, MspVersion.V2, infoNums);
+			sendCommand(MspFn.BB_FILE_INFO, infoNums);
 		},
 		processLogInfo(data: Uint8Array) {
 			/* data of response (repeat 17 bytes for each log file):
