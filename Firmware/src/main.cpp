@@ -38,10 +38,10 @@ void setup() {
 		crashInfo[i] = 0;
 	}
 	rtcInit();
-	imuInit();
 	osdInit();
 	initMag();
 	initGPS();
+	imuInit();
 	initADC();
 	modesInit();
 	initSerial();

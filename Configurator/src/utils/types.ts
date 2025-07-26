@@ -52,6 +52,8 @@ export type LogData = {
 	baroRaw?: Uint32Array
 	baroHpa?: Float32Array
 	baroAlt?: Float32Array
+	baroUpVel?: Float32Array // TODO remove
+	baroUpAccel?: Float32Array // TODO remove
 	vvel?: Float32Array
 	hvelN?: Float32Array
 	hvelE?: Float32Array

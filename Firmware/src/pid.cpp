@@ -265,8 +265,8 @@ void initPid() {
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
 
-	stickToAngle = fix32(maxAngle) / fix32(512);
-	throttleScale = fix32(2000 - idlePermille * 2) / fix32(1024);
+	stickToAngle = fix32(maxAngle) / 512;
+	throttleScale = fix32(2000 - idlePermille * 2) / 1024;
 
 	dFilterRoll = PT2(dFilterCutoff, 3200);
 	dFilterPitch = PT2(dFilterCutoff, 3200);
@@ -317,8 +317,7 @@ void __not_in_flash_func(pidLoop)() {
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
 
-		
-		if (flightMode >= FlightMode::ANGLE) {
+				if (flightMode >= FlightMode::ANGLE) {
 			startFixMath();
 			// these will be populated below
 			fix32 targetRoll, targetPitch;
@@ -358,7 +357,7 @@ void __not_in_flash_func(pidLoop)() {
 						// navigate home
 						const fix32 targetAlt = homepointAlt + 30;
 						autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
-						if (eVelSetpoint.abs() < fix32(0.5f) && nVelSetpoint.abs() < fix32(0.5f))
+						if (eVelSetpoint.abs() < 0.5f && nVelSetpoint.abs() < 0.5f)
 							rthState = 2;
 					} break;
 					case 2: {
@@ -367,7 +366,7 @@ void __not_in_flash_func(pidLoop)() {
 						if (newState) hoverTimer = 0;
 						const fix32 targetAlt = homepointAlt + 3;
 						autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
-						if (eVelSetpoint.abs() > fix32(0.5f) || nVelSetpoint.abs() > fix32(0.5f) || vVelSetpoint.abs() > fix32(0.5f)) {
+						if (eVelSetpoint.abs() > 0.5f || nVelSetpoint.abs() > 0.5f || vVelSetpoint.abs() > 0.5f) {
 							hoverTimer = 0; // reset hover timer if we are still moving
 						} else if (hoverTimer > 3) {
 							// after 3 seconds of hovering, land
@@ -430,7 +429,7 @@ void __not_in_flash_func(pidLoop)() {
 				// same here, just more shifting
 				iRelaxFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 12);
 				iRelaxFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 12);
-				fix32 iRelaxTotal = sqrtFix((fix32)iRelaxFilterNVel * (fix32)iRelaxFilterNVel + (fix32)iRelaxFilterEVel * (fix32)iRelaxFilterEVel);
+				fix32 iRelaxTotal = sqrtFix(fix32(iRelaxFilterNVel) * fix32(iRelaxFilterNVel) + fix32(iRelaxFilterEVel) * fix32(iRelaxFilterEVel));
 				if (iRelaxTotal < 1) {
 					// low commanded acceleration: normal I gain
 					eVelErrorSum = eVelErrorSum + eVelError;
@@ -524,7 +523,7 @@ void __not_in_flash_func(pidLoop)() {
 			targetAngleHeading += newYawSetpoint / 3200;
 			if (targetAngleHeading > 180)
 				targetAngleHeading -= 360;
-			else if (targetAngleHeading < -180)
+			else if (targetAngleHeading <= -180)
 				targetAngleHeading += 360;
 			fix32 halfHeading = -targetAngleHeading * FIX_DEG_TO_RAD / 2;
 			fix32 co, si;
@@ -553,14 +552,25 @@ void __not_in_flash_func(pidLoop)() {
 			Quaternion_conjugate(&q, &currentQuatInv);
 			Quaternion_multiply(&targetQuat, &currentQuatInv, &diffQuat);
 			Quaternion_normalize(&diffQuat, &diffQuat);
+			// Ensure shortest rotation path by checking w component
+			if (diffQuat.w < 0) {
+				diffQuat.w = -diffQuat.w;
+				diffQuat.v[0] = -diffQuat.v[0];
+				diffQuat.v[1] = -diffQuat.v[1];
+				diffQuat.v[2] = -diffQuat.v[2];
+			}
 
 			// extract roll, pitch and yaw from diffQuat
 			f32 axis[3];
 			fix32 angle = Quaternion_toAxisAngle(&diffQuat, axis);
+			bbDebug1 = angle.raw;
+			bbDebug2 = axis[0] * 10000;
+			bbDebug3 = axis[1] * 10000;
+			bbDebug4 = axis[2] * 10000;
 
 			// apply P gain and limit to total 1000 deg/s
 			angle *= angleModeP;
-			if (angle > 1000) angle = 1000;
+			if (angle > FIX_DEG_TO_RAD * 1000) angle = FIX_DEG_TO_RAD * 1000;
 			rollSetpoint = -angle * axis[0] * FIX_RAD_TO_DEG;
 			pitchSetpoint = angle * axis[1] * FIX_RAD_TO_DEG;
 			yawSetpoint = -angle * axis[2] * FIX_RAD_TO_DEG;
@@ -597,8 +607,6 @@ void __not_in_flash_func(pidLoop)() {
 		if (pidBoostAxis) {
 			pidBoostFilter.update(throttle - lastThrottle);
 			fix32 boostStrength = (fix32(pidBoostFilter).abs() * 3200 - pidBoostStart) / (pidBoostFull - pidBoostStart);
-			bbDebug1 = boostStrength.raw;
-			bbDebug2 = fix32(pidBoostFilter).raw;
 			if (boostStrength > 1)
 				boostStrength = 1;
 			else if (boostStrength < 0)
@@ -853,7 +861,7 @@ static fix32 stickToTargetVvel(fix32 stickPos) {
 
 static fix32 calcThrottle(fix32 targetVvel) {
 	vVelError = targetVvel - vVel;
-	vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(targetVvel - vVelLastSetpoint).abs() < fix32(0.001f)) ? vVelError : vVelError / 2); // reduce windup during fast changes
+	vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(targetVvel - vVelLastSetpoint).abs() < 0.001f) ? vVelError : vVelError / 2); // reduce windup during fast changes
 	vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 	vVelP = pidGainsVVel[P] * vVelError;
 	vVelI = pidGainsVVel[I] * vVelErrorSum;
@@ -868,7 +876,7 @@ static fix32 calcThrottle(fix32 targetVvel) {
 	fix32 throttleFactor = cosRoll * cosPitch;
 	if (throttleFactor < 0) // quad is upside down
 		throttleFactor = 1;
-	throttleFactor = constrain(throttleFactor, fix32(0.33f), 1); // we limit the throttle increase to 3x (ca. 72° tilt), and also prevent division by zero
+	throttleFactor = constrain(throttleFactor, 0.33f, 1); // we limit the throttle increase to 3x (ca. 72° tilt), and also prevent division by zero
 	throttleFactor = fix32(1) / throttleFactor; // 1/cos(acos(...)) = 1/cos(thrust angle)
 	t = t * throttleFactor;
 	t = constrain(t, 0, 1024);

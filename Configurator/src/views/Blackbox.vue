@@ -473,8 +473,10 @@ export default defineComponent({
 						ctx.strokeStyle = trace.color;
 						ctx.lineWidth = 1 + trace.strokeWidth;
 						if (!trace.path) continue
+						const min = Math.min(trace.minValue, trace.maxValue);
+						const max = Math.max(trace.minValue, trace.maxValue);
 						// @ts-expect-error
-						const data = constrain(trace.overrideData ? trace.overrideSliceAndSkip![closestFrameSliceSkip] : frame[trace.path][0], trace.minValue, trace.maxValue);
+						const data = constrain(trace.overrideData ? trace.overrideSliceAndSkip![closestFrameSliceSkip] : frame[trace.path][0], min, max);
 						const pointY = heightOffset + heightPerGraph - (data - trace.minValue) * scale;
 						ctx.beginPath();
 						ctx.arc(frameX, pointY, 2.5 + trace.strokeWidth * 1.5, 0, Math.PI * 2);
@@ -769,6 +771,7 @@ export default defineComponent({
 					const scale = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth;
+					ctx.lineJoin = 'bevel'
 					if (!trace.strokeWidth) continue;
 					if (trace.overrideData) {
 						const overrideSlice = trace.overrideData.slice(
@@ -790,10 +793,12 @@ export default defineComponent({
 						//@ts-expect-error
 						: this.sliceAndSkip[trace.path];
 					if (!array) continue; // nothing properly selected
-					let pointY = heightOffset + heightPerGraph - (constrain(array[0], trace.minValue, trace.maxValue) - trace.minValue) * scale;
+					const min = Math.min(trace.minValue, trace.maxValue);
+					const max = Math.max(trace.minValue, trace.maxValue);
+					let pointY = heightOffset + heightPerGraph - (constrain(array[0], min, max) - trace.minValue) * scale;
 					ctx.moveTo(0, pointY);
 					for (let k = 1; k < length; k++) {
-						pointY = heightOffset + heightPerGraph - (constrain(array[k], trace.minValue, trace.maxValue) - trace.minValue) * scale;
+						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scale;
 						ctx.lineTo(k * frameWidth, pointY);
 					}
 					ctx.stroke();

@@ -294,8 +294,8 @@ void gpsLoop() {
 				gpsAcc.headAcc = DECODE_U4(&msgData[72]);
 				gpsAcc.pDop = DECODE_U2(&msgData[76]);
 				gpsStatus.flags3 = DECODE_U2(&msgData[78]);
-				eVel.update(fix32(0.001f) * gpsMotion.velE);
-				nVel.update(fix32(0.001f) * gpsMotion.velN);
+				eVelFilter.update(fix32(0.001f) * gpsMotion.velE);
+				nVelFilter.update(fix32(0.001f) * gpsMotion.velN);
 				fix64 lat64 = fix64(gpsMotion.lat) / 10000000;
 				fix64 lon64 = fix64(gpsMotion.lon) / 10000000;
 				gpsLatitudeFiltered = (gpsLatitudeFiltered * 3 + lat64) / 4;
@@ -308,7 +308,7 @@ void gpsLoop() {
 				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
 				updateElem(OSDElem::ALTITUDE, (char *)buf);
 				startFixMath();
-				fix32 gVel = fix32(3.6f) * sqrtFix((fix32)eVel * (fix32)eVel + (fix32)nVel * (fix32)nVel);
+				fix32 gVel = sqrtFix(eVel * eVel + nVel * nVel) * 3.6f;
 				snprintf((char *)buf, 16, "%d\x9E ", (gVel + fix32(0.5f)).geti32());
 				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
 				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());

@@ -748,7 +748,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::GET_BARO_DATA: {
 			i32 raw[4] = {
-				(i32)(baroASL * 1000),
+				(i32)(baroASL.raw / 66),
 				(i32)(baroPres * 1000),
 				(i32)(baroTemp * 100),
 				pressureRaw};

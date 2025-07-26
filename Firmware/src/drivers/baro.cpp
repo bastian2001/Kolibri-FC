@@ -17,6 +17,9 @@ constexpr i32 baroScaleFactor = 7864320;
 #elifdef BARO_LPS22
 #endif
 
+fix32 baroASL = 0; // above sea level
+fix32 lastBaroASL = 0, gpsBaroOffset = 0;
+PT2 baroAslFiltered(1, 50);
 enum class BaroState {
 	NOT_INIT = 0, // not inited / no baro detected yet
 	INITIALIZING, // initializing (baro detected but depending on model maybe needs more initialization steps than can be done at once)
@@ -28,10 +31,9 @@ enum class BaroState {
 static BaroState baroState = BaroState::NOT_INIT;
 static u8 baroSubState = 0;
 
-f32 baroASL = 0; // above sea level
 f32 baroPres = 0;
 volatile i32 blackboxPres = 0;
-f32 baroUpVel = 0;
+fix32 baroUpVel = 0;
 u8 baroTemp = 0;
 i32 baroCalibration[9];
 fix32 gpsBaroAlt;
@@ -39,7 +41,6 @@ static u8 baroBuffer[32] = {0};
 elapsedMicros baroTimer = 0;
 u32 baroTimerTimeout = 0;
 i32 pressureRaw, baroTempRaw;
-f32 lastBaroASL = 0, gpsBaroOffset = 0;
 
 void baroLoop() {
 	TASK_START(TASK_BARO);
@@ -225,16 +226,18 @@ void baroLoop() {
 		baroPres = pressureRaw / 40.96f;
 #endif
 		lastBaroASL = baroASL;
-		baroASL = 44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f));
+		baroASL = baroAslFiltered.update(44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f)));
 		if (gpsStatus.fixType != FIX_3D || gpsStatus.satCount < 6)
 			gpsBaroAlt = baroASL - gpsBaroOffset;
 		else
 			gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
 		baroUpVel = (baroASL - lastBaroASL) * 50;
+		baroImuUpVelFilter.update(FIX_3D ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel);
+		mspDebugSensors[1] = (fix32(baroImuUpVelFilter) * 1000).geti32();
 		baroState = BaroState::MEASURING;
 		TASK_END(TASK_BARO_EVAL);
 	} break;
 	}
-	tasks[TASK_BARO].debugInfo = (u32)baroState * 10 +  baroSubState;
+	tasks[TASK_BARO].debugInfo = (u32)baroState * 10 + baroSubState;
 	TASK_END(TASK_BARO);
 }
