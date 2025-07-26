@@ -4,22 +4,22 @@
 #pragma once
 
 class fix32;
-extern interp_config sinInterpConfig0, sinInterpConfig1;
+extern interp_config fixMathInterpConfig0, fixMathInterpConfig1;
 
-void initFixTrig();
+void initFixMath();
 /**
  * @brief prepares the interpolator for blend mode
  * @details Call this once before every sinFix/cosFix calculation batch
  */
-inline void startFixTrig() {
-	interp_set_config(interp0, 0, &sinInterpConfig0);
-	interp_set_config(interp0, 1, &sinInterpConfig1);
+inline void startFixMath() {
+	interp_set_config(interp0, 0, &fixMathInterpConfig0);
+	interp_set_config(interp0, 1, &fixMathInterpConfig1);
 }
 
 /**
  * @brief calculates the sine of a fixed point number, faster than sinf
- * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start.
- * Also call startFixTrig() once before every sinFix/cosFix calculation batch to prepare the interpolator for blend mode
+ * @details accurate to about 0.0001. Important: Call initFixMath() once at the start.
+ * Also call startFixMath() once before every sinFix/cosFix calculation batch to prepare the interpolator for blend mode
  * @param x
  * @return fix32
  */
@@ -27,7 +27,7 @@ fix32 sinFix(const fix32 x);
 
 /**
  * @brief calculates the cosine of a fixed point number, faster than cosf
- * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
+ * @details accurate to about 0.0001. Important: Call initFixMath() once at the start. Also call startFixMath() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
  * @param x radians
  * @return fix32 radians
  */
@@ -35,7 +35,7 @@ fix32 cosFix(const fix32 x);
 
 /**
  * @brief calculates the sine and cosine of a fixed point number, faster than sinf and cosf
- * @details accurate to about 0.0001. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
+ * @details accurate to about 0.0001. Important: Call initFixMath() once at the start. Also call startFixMath() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
  * @param x radians
  * @param sinOut output for sine
  * @param cosOut output for cosine
@@ -44,7 +44,7 @@ void sinCosFix(const fix32 x, fix32 &sinOut, fix32 &cosOut);
 
 /**
  * @brief calculates the atan of a fixed point number, about as fast as atanf
- * @details accurate to about +-0.00003. Important: Call initFixTrig() once at the start. Also call startFixTrig() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
+ * @details accurate to about +-0.00003. Important: Call initFixMath() once at the start. Also call startFixMath() once before every sinFix/cosFix/atanFix calculation batch to prepare the interpolator for blend mode
  *
  * @param x radians
  * @return fix32 radians
@@ -52,6 +52,8 @@ void sinCosFix(const fix32 x, fix32 &sinOut, fix32 &cosOut);
 fix32 atanFix(fix32 x);
 fix32 atan2Fix(const fix32 y, const fix32 x);
 fix32 acosFix(fix32 x);
+
+fix32 sqrtFix(fix32 x);
 
 class fix64 {
 	// 32.32 fixed point

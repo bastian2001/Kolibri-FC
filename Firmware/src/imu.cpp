@@ -43,7 +43,6 @@ void imuInit() {
 	q.v[0] = 0;
 	q.v[1] = 0;
 	q.v[2] = 0;
-	initFixTrig();
 	accelDataFiltered[0] = PT1(accelFilterCutoff, 3200);
 	accelDataFiltered[1] = PT1(accelFilterCutoff, 3200);
 	accelDataFiltered[2] = PT1(accelFilterCutoff, 3200);
@@ -120,7 +119,7 @@ void __not_in_flash_func(updateFromAccel)() {
 }
 
 void __not_in_flash_func(updatePitchRollValues)() {
-	startFixTrig();
+	startFixMath();
 	roll = atan2Fix(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
 	yaw = atan2Fix(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));

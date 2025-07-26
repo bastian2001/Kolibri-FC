@@ -4,11 +4,12 @@
 volatile u8 setupDone = 0b00;
 
 void setup() {
+	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
 
-	runUnitTests();
+	initFixMath();
 
-	vreg_set_voltage(VREG_VOLTAGE_1_30);
+	runUnitTests();
 
 	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
 		bootReason = rebootReason;

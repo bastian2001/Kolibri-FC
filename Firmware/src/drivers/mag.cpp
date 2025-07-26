@@ -203,7 +203,7 @@ void magLoop() {
 		// 1 -> 0
 		magRight = cosRoll * magData[1] + sinRoll * magData[2];
 		magFront = cosPitch * magData[0] + sinPitch * sinRoll * magData[1] - sinPitch * cosRoll * magData[2];
-		startFixTrig();
+		startFixMath();
 		magHeading = atan2Fix(-magRight, magFront) + fix32(0.05643f); // 3.25° magnetic declination in radians
 		fix32 updateVal = magHeading - fix32(yaw);
 		if (updateVal - (fix32)magHeadingCorrection > fix32(PI)) {

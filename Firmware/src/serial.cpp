@@ -29,7 +29,7 @@ void serialLoop() {
 	TASK_START(TASK_SERIAL);
 	for (int i = 0; i < 3; i++) {
 		if (serialFunctions[i] & SERIAL_DISABLED)
-			continue;
+			return;
 		Stream *serial = serials[i];
 		int available = serial->available();
 		for (int j = 0; j < available; j++) {

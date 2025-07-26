@@ -61,7 +61,7 @@ const f32 WAV_SPEAKER_CLKDIV = (float)F_CPU / (256 * 44100 * 4);
 const f32 RECT_SPEAKER_CLKDIV = 132;
 dma_channel_config speakerDmaAConfig, speakerDmaBConfig;
 u8 speakerDmaAChan, speakerDmaBChan;
-volatile u8 soundState = 1; // 1: playing PWM, 2: a needs to be filled, 4: b needs to be filled
+volatile static u8 soundState = 1; // 1: playing PWM, 2: a needs to be filled, 4: b needs to be filled
 // 1KiB buffer each, thus worst case the speaker has a buffer of 1024 samples / 44.1kHz = 23ms
 u16 speakerChanAData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
 u16 speakerChanBData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
@@ -212,6 +212,7 @@ void speakerLoop() {
 		TASK_END(TASK_SPEAKER);
 		return;
 	} else if (soundState != 1) {
+		// wav playing but no reload needed
 		TASK_END(TASK_SPEAKER);
 		return;
 	}

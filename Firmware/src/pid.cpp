@@ -317,7 +317,9 @@ void __not_in_flash_func(pidLoop)() {
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
 
+		
 		if (flightMode >= FlightMode::ANGLE) {
+			startFixMath();
 			// these will be populated below
 			fix32 targetRoll, targetPitch;
 
@@ -428,7 +430,7 @@ void __not_in_flash_func(pidLoop)() {
 				// same here, just more shifting
 				iRelaxFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 12);
 				iRelaxFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 12);
-				fix32 iRelaxTotal = sqrtf(((fix32)iRelaxFilterNVel * (fix32)iRelaxFilterNVel + (fix32)iRelaxFilterEVel * (fix32)iRelaxFilterEVel).getf32());
+				fix32 iRelaxTotal = sqrtFix((fix32)iRelaxFilterNVel * (fix32)iRelaxFilterNVel + (fix32)iRelaxFilterEVel * (fix32)iRelaxFilterEVel);
 				if (iRelaxTotal < 1) {
 					// low commanded acceleration: normal I gain
 					eVelErrorSum = eVelErrorSum + eVelError;
@@ -516,7 +518,7 @@ void __not_in_flash_func(pidLoop)() {
 			extract roll, pitch and yaw from diffQuat, then generate target angular rates
 			 */
 			Quaternion headQuat, targetRPQuat, targetQuat, diffQuat;
-			startFixTrig();
+			startFixMath();
 
 			// set headQuat
 			targetAngleHeading += newYawSetpoint / 3200;
@@ -533,7 +535,7 @@ void __not_in_flash_func(pidLoop)() {
 			headQuat.v[2] = si.getf32();
 
 			// create targetRPQuat
-			fix32 totalAngle = sqrtf((targetRoll * targetRoll + targetPitch * targetPitch).getf32());
+			fix32 totalAngle = sqrtFix(targetRoll * targetRoll + targetPitch * targetPitch);
 			f32 ratios[3] = {
 				(-targetRoll / totalAngle).getf32(),
 				(targetPitch / totalAngle).getf32(),
@@ -883,7 +885,6 @@ void distFromCoordinates(fix64 lat1, fix64 lon1, fix64 lat2, fix64 lon2, fix32 *
 		lonDiff = lonDiff + 360;
 	*distNorth = latDiff * (40075000 / 360); // in m
 	*distEast = lonDiff * (40075000 / 360); // in m
-	startFixTrig();
 	*distEast *= cosFix(fix32(lat1) * DEG_TO_RAD); // adjust for latitude
 }
 
@@ -941,7 +942,7 @@ static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVel
 	// autopilot navigation: fly to a location
 	fix32 distNorth, distEast;
 	distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, toLat, toLon, &distNorth, &distEast);
-	fix32 dist = sqrtf((distNorth * distNorth + distEast * distEast).getf32());
+	fix32 dist = sqrtFix(distNorth * distNorth + distEast * distEast);
 	fix32 angle = atan2Fix(distEast, distNorth); // in radians
 
 	// calculate velocity setpoints

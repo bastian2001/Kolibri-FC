@@ -307,7 +307,8 @@ void gpsLoop() {
 				updateElem(OSDElem::LONGITUDE, (char *)buf);
 				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
 				updateElem(OSDElem::ALTITUDE, (char *)buf);
-				fix32 gVel = fix32(3.6f) * sqrtf(((fix32)eVel * (fix32)eVel + (fix32)nVel * (fix32)nVel).getf32());
+				startFixMath();
+				fix32 gVel = fix32(3.6f) * sqrtFix((fix32)eVel * (fix32)eVel + (fix32)nVel * (fix32)nVel);
 				snprintf((char *)buf, 16, "%d\x9E ", (gVel + fix32(0.5f)).geti32());
 				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
 				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());
@@ -315,7 +316,7 @@ void gpsLoop() {
 
 				fix32 distN, distE;
 				distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
-				i32 dist = sqrtf((distN * distN + distE * distE).getf32());
+				i32 dist = sqrtFix(distN * distN + distE * distE).geti32();
 				snprintf((char *)buf, 16, "\x11%d\x0C  ", dist);
 				updateElem(OSDElem::HOME_DISTANCE, (char *)buf);
 
