@@ -15,30 +15,101 @@ int OsdHandler::find(ElementType elementType) {
 }
 
 void OsdHandler::osdHandlerLoop() {
-	if (lastCall < minTimeout) return;
-	lastCall = millis();
-	elapsedMicros taskTimer = 0;
-	tasks[TASK_OSD].runCounter++;
-	u16 start = chunk * CHUNKSIZE;
-	u16 end = (chunk == lastChunk) ? lastElem : start + CHUNKSIZE;
-	for (int i = start; i < end; i++) {
-		if (elements[i] != nullptr && elements[i]->getElementType() != ElementType::UNDEFINED) {
-			elements[i]->updateOsdElementData();
-			if (elements[i]->isScheduled()) {
-				elements[i]->drawOsdElement();
+	// lastCall <
+	enum State : u8 {
+		WAITING_FOR_OSD_CONNECTION,
+		INIT,
+		CONFIGURE_OSD,
+		DISABLED,
+		IDLE,
+		CHECK_UPDATES,
+		DRAW_ANALOG,
+		DRAW_DIGITAL
+	};
+	// TODO Move statics to object?
+	static u8 it = 0;
+	static u8 curState = State::INIT;
+	static elapsedMicros osdTimer = 0; // TODO find better name
+	static u8 nextState = State::INIT;
+
+	// ----- State machine begin -----
+	switch (curState) {
+	case State::WAITING_FOR_OSD_CONNECTION:
+		if (osdTimer > OSD_TIMEOUT) { // Wait for OSD to be ready
+			nextState = State::DISABLED;
+			break;
+		}
+		if (/*OSD ready condition*/ false) {
+			nextState = State::WAITING_FOR_OSD_CONNECTION;
+			break;
+		}
+		nextState = State::CONFIGURE_OSD;
+		// TODO configure functions
+		break;
+	case State::INIT:
+		nextState = State::WAITING_FOR_OSD_CONNECTION;
+		break;
+	case State::DISABLED:
+		//?maybe still check every now and then.
+		return;
+	case State::IDLE:
+		nextState = (lastCall > minTimeout) ? State::CHECK_UPDATES : State::IDLE;
+		break;
+	case State::CHECK_UPDATES:
+		if (elements[it]->isScheduled()) {
+			elements[it]->drawOsdElement(); //?need to rename this stuff...
+		}
+		if (it < lastElem) {
+			switch (osdtype) {
+			case OsdType::DIGITAL:
+				nextState = State::DRAW_DIGITAL;
+				break;
+			case OsdType::ANALOG:
+				nextState = State::DRAW_ANALOG;
+				break;
+			case OsdType::HYBRID: // It exists... Just in case...
+				static bool bounce;
+				nextState = bounce ? State::DRAW_ANALOG : State::DRAW_DIGITAL;
+				bounce = !bounce;
+			default:
+				nextState = State::DISABLED;
+				break;
 			}
 		}
+		break;
+	case State::DRAW_DIGITAL:
+		break;
+	case State::DRAW_ANALOG:
+		break;
+	default:
+		nextState = State::DISABLED;
 	}
-	chunk = (chunk == lastChunk) ? 0 : chunk + 1;
+	curState = nextState;
+	// ----- State machine end -----
 
-	u32 duration = taskTimer; // TODO Either replace OSD_TASK or remove it from osd.cpp
-	tasks[TASK_OSD].totalDuration += duration;
-	if (duration < tasks[TASK_OSD].minDuration) {
-		tasks[TASK_OSD].minDuration = duration;
-	}
-	if (duration > tasks[TASK_OSD].maxDuration) {
-		tasks[TASK_OSD].maxDuration = duration;
-	}
+	// if (lastCall < minTimeout) return;
+
+	// lastCall = millis();
+	// u16 start = chunk * CHUNKSIZE;
+	// u16 end = (chunk == lastChunk) ? lastElem : start + CHUNKSIZE;
+	// for (int i = start; i < end; i++) {
+	// 	if (elements[i] != nullptr && elements[i]->getElementType() != ElementType::UNDEFINED) {
+	// 		elements[i]->updateOsdElementData();
+	// 		if (elements[i]->isScheduled()) {
+	// 			elements[i]->drawOsdElement();
+	// 		}
+	// 	}
+	// }
+	// chunk = (chunk == lastChunk) ? 0 : chunk + 1;
+
+	// u32 duration = taskTimer; // TODO Either replace OSD_TASK or remove it from osd.cpp
+	// tasks[TASK_OSD].totalDuration += duration;
+	// if (duration < tasks[TASK_OSD].minDuration) {
+	// 	tasks[TASK_OSD].minDuration = duration;
+	// }
+	// if (duration > tasks[TASK_OSD].maxDuration) {
+	// 	tasks[TASK_OSD].maxDuration = duration;
+	// }
 }
 
 void OsdHandler::addOsdElement(OsdElement *element) {

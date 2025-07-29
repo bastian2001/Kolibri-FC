@@ -1,13 +1,20 @@
 #pragma once
+#include <global.h>
 #include <typedefs.h>
 
 #define HZ *10
-
+#define OSD_ELEMENT_ADV_OPT_NO_BLINK 1 << 0
+#define OSD_ELEMENT_ADV_OPT_SHOW_CELLS 1 << 1
+#define OSD_ELEMENT_ADV_OPT_UNITS_IMPERIAL 1 << 2
+#define OSD_ELEMENT_ADV_OPT_FORCE_ALLWAYS_UPDATE 1 << 3 //?may not belong here
+#define OSD_ELEMENT_ADV_OPT_NO_BOUNDS 1 << 4 //?may not belong here
+#define OSD_ELEMENT_ADV_OPT_OVERWRITE_EVERYTHING 1 << 5 //?may not belong here
+#define OSD_ELEMENT_SHORT_GPS 1 << 6
 enum class ElementType : u8 { // TODO find OSD elements to implement.
 	UNDEFINED,
 	// Battery info
 	BATTERY_VOLTAGE,
-	BATTERY_CELL_VOLLTAGE,
+	BATTERY_CELL_VOLTAGE,
 	BATTERY_CELL_COUNT,
 	BATTERY_CURRENT,
 	BATTERY_MAH_DRAWN,
@@ -60,15 +67,16 @@ public:
 	 * @param layer priority low to high.
 	 * @param in which profile is this element active.
 	 */
-	OsdElement(ElementType element = ElementType::UNDEFINED, u8 layer = 0, u8 profile = 0) {
+	OsdElement(ElementType element = ElementType::UNDEFINED, u32 advOpt = 0) {
 		this->element = element;
-		this->layer = layer;
-		this->profile = profile;
+		// this->layer = layer;
+		// this->profile = profile;
+		this->advOpt = advOpt;
 		setRefreshRate(20);
 		this->row = 0;
 		this->column = 0;
 		blinking = false;
-		rawDataPtr = nullptr;
+		// rawDataPtr = nullptr;
 		screenText = new char[32]();
 		lastUpdateMillis = 0xFFFFFFFF; // Has not been updated yet -> max value
 	}
@@ -121,6 +129,19 @@ public:
 	 */
 	void setRefreshRate(u8 refreshRate);
 
+	/**
+	 * @brief sets the maximum refresh rate of the element supported by the OSD
+	 * @param maxHz Maximum refresh rate in Hz
+	 * @note This should only be used by the OSD Handler
+	 */
+	void setMaxRefresh(u8 maxHz);
+
+	/**
+	 * @brief Sends the internal screenText over to the OSD
+	 * @note to draw the data call drawOsdElement()
+	 */
+	void pushOsdElement();
+
 private:
 	/**
 	 * @brief clears the element data
@@ -128,15 +149,18 @@ private:
 	void clear(); // should only be necessary internally //TODO Check if necessary. Remove or implement.
 	bool updated;
 	ElementType element;
-	u8 layer; // TODO Implement
-	u8 profile;
+	// u8 layer; // TODO Implement
+	// u8 profile; //? handle in osdHandler
 	u8 row;
 	u8 column;
 	bool blinking;
-	u32 lastUpdateMillis;
+	elapsedMillis lastUpdateMillis;
 	u32 refreshMillis;
-	void *rawDataPtr; // Where to find the data
-	void *last;
+	u32 advOpt;
+	u8 maxHz; // Should be set during creation by the handler
+	//?<note_001> So far data is global, if this changes implement below.
+	// void *rawDataPtr; // Where to find the data
+	// void *last;
 
 	char *screenText; // What is displayed on screen
 };

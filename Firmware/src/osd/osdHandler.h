@@ -4,6 +4,7 @@
 #include <typedefs.h>
 
 #define MAX_OSD_ELEMENTS 256
+#define OSD_TIMEOUT 60000 // Timeout in milliseconds until OSD is considered as not available
 #define CHUNKSIZE 8
 #define MAXIMUM_TIMEOUT_MILLISECONDS 5000
 
@@ -39,7 +40,9 @@ public:
 	OsdElement *elements[MAX_OSD_ELEMENTS] = {nullptr};
 
 private:
-	OsdHandler() = default;
+	OsdHandler() {
+		lastCall = 0;
+	}
 	~OsdHandler() = default;
 	OsdHandler(const OsdHandler &) = delete;
 	void operator=(const OsdHandler &) = delete;
@@ -51,7 +54,14 @@ private:
 	u16 lastElem;
 	u8 chunk;
 	u8 lastChunk;
-	u32 lastCall;
+	elapsedMillis lastCall;
+	enum OsdType : u8 {
+		NONE,
+		DIGITAL,
+		ANALOG,
+		HYBRID
+	};
+	OsdType osdtype = OsdType::NONE;
 };
 
 extern OsdHandler osdHandler;
