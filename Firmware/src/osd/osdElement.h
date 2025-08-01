@@ -3,13 +3,13 @@
 #include <typedefs.h>
 
 #define HZ *10
-#define OSD_ELEMENT_ADV_OPT_NO_BLINK 1 << 0
-#define OSD_ELEMENT_ADV_OPT_SHOW_CELLS 1 << 1
-#define OSD_ELEMENT_ADV_OPT_UNITS_IMPERIAL 1 << 2
-#define OSD_ELEMENT_ADV_OPT_FORCE_ALLWAYS_UPDATE 1 << 3 //?may not belong here
-#define OSD_ELEMENT_ADV_OPT_NO_BOUNDS 1 << 4 //?may not belong here
-#define OSD_ELEMENT_ADV_OPT_OVERWRITE_EVERYTHING 1 << 5 //?may not belong here
-#define OSD_ELEMENT_SHORT_GPS 1 << 6
+#define OSD_ELEMENT_ADV_OPT_NO_BLINK (1 << 0)
+#define OSD_ELEMENT_ADV_OPT_SHOW_CELLS (1 << 1)
+#define OSD_ELEMENT_ADV_OPT_UNITS_IMPERIAL (1 << 2)
+#define OSD_ELEMENT_ADV_OPT_FORCE_ALLWAYS_UPDATE (1 << 3) //?may not belong here
+#define OSD_ELEMENT_ADV_OPT_NO_BOUNDS (1 << 4) //?may not belong here
+#define OSD_ELEMENT_ADV_OPT_OVERWRITE_EVERYTHING (1 << 5) //?may not belong here
+#define OSD_ELEMENT_SHORT_GPS (1 << 6)
 enum class ElementType : u8 { // TODO find OSD elements to implement.
 	UNDEFINED,
 	// Battery info
@@ -57,6 +57,27 @@ enum class ElementType : u8 { // TODO find OSD elements to implement.
 	ALARM_CRITICAL,
 	ALARM_WARNING,
 	ALARM_INFO
+};
+
+union Data {
+	Data() {
+		fix32_val = 0;
+		fix64_val = 0;
+	}
+	u8 u8_val;
+	u16 u16_val;
+	u32 u32_val;
+	u64 u64_val;
+	fix32 fix32_val;
+	fix64 fix64_val;
+	i8 i8_val;
+	i16 i16_val;
+	i32 i32_val;
+	i64 i64_val;
+	bool bool_val;
+	float float_val;
+	int int_val;
+	char char_val;
 };
 
 class OsdElement {
@@ -161,6 +182,6 @@ private:
 	//?<note_001> So far data is global, if this changes implement below.
 	// void *rawDataPtr; // Where to find the data
 	// void *last;
-
+	Data val;
 	char *screenText; // What is displayed on screen
 };

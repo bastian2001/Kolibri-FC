@@ -43,8 +43,7 @@ void OsdElement::updateOsdElementData() {
 		}
 		break;
 	case ElementType::BATTERY_VOLTAGE:
-		static fix32 lastBatVoltage = 0;
-		batVoltage = (fix32)adcVoltage / (fix32)100;
+		val.fix32_val = (fix32)adcVoltage / (fix32)100;
 		if (batVoltage == lastBatVoltage) break;
 		lastBatVoltage = batVoltage;
 		if (advOpt & OSD_ELEMENT_ADV_OPT_SHOW_CELLS) {
