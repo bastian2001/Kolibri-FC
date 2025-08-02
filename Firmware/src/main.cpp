@@ -46,7 +46,6 @@ void setup() {
 	initSerial();
 	initGPS();
 
-	// init ELRS on pins 0 and 1 using Serial1 (UART0)
 	u8 elrsNum = 0;
 	for (int i = 0; i < SERIAL_COUNT; i++) {
 		if (serials[i].functions & SERIAL_CRSF) {
