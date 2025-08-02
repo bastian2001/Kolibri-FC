@@ -80,15 +80,26 @@ public:
 		// - maxWrite
 		// - available space in peripheral
 		// - available data
-		i32 c = stream->availableForWrite();
+		i32 c = writeBuffer.itemCount();
 		if (c > maxWrite) c = maxWrite;
 		if (!mutex_try_enter(&writeMutex, nullptr)) return;
-		maxWrite = writeBuffer.itemCount();
-		if (c > maxWrite) c = maxWrite;
-		if (!c) {
-			mutex_exit(&writeMutex);
-			return;
+
+		if (serialType == SerialType::UART) {
+			// special treatment: UART cannot tell how many bytes it can still send, only _that_ it can still send at least one
+			if (!c) return mutex_exit(&writeMutex);
+			while (--c) {
+				if (stream->availableForWrite())
+					stream->write(writeBuffer.pop());
+				else
+					return mutex_exit(&writeMutex);
+			}
+			return mutex_exit(&writeMutex);
 		}
+
+		maxWrite = stream->availableForWrite();
+		if (c > maxWrite) c = maxWrite;
+		if (!c) return mutex_exit(&writeMutex);
+
 		u8 buf[c];
 		writeBuffer.copyToArray(buf, 0, c);
 		writeBuffer.erase(c);
@@ -107,7 +118,7 @@ public:
 			writeBuffer.erase(c);
 			stream->write(buf, c);
 			// USB can take advantage of larger chunks, let it free the TX buffer completely before retrying any new
-			if (serialType == SerialType::USB){
+			if (serialType == SerialType::USB) {
 				stream->flush();
 			}
 		}
@@ -131,7 +142,7 @@ public:
 			}
 		} else {
 			len -= free;
-			for (; free; --free) {
+			while (--free) {
 				writeBuffer.push(*p++);
 			}
 			while (len > 0) {
@@ -145,7 +156,7 @@ public:
 				writeBuffer.erase(c);
 				stream->write(buf, c);
 				len -= c;
-				for (; c; --c) {
+				while (--c) {
 					writeBuffer.push(*p++);
 				}
 			}
