@@ -41,6 +41,7 @@
 #include "settings/settingIds.h"
 #include "taskManager.h"
 #include "unittest.h"
+#include "utils/bufferedWriter.h"
 #include "utils/filters.h"
 #include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"

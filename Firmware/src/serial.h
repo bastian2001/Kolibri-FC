@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utils/bufferedWriter.h"
 #include <Arduino.h>
 
 #define SERIAL_DISABLED (1 << 0)
@@ -12,7 +13,7 @@
 #define SERIAL_ESC_TELEM (1 << 7)
 
 typedef struct koliSerial {
-	Stream *stream;
+	BufferedWriter *stream;
 	u32 functions = 0;
 } KoliSerial;
 

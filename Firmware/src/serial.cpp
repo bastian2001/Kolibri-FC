@@ -3,10 +3,14 @@
 u8 readChar = 0;
 u32 crcLutD5[256] = {0};
 
+BufferedWriter SerialKoli(&Serial, 2048);
+BufferedWriter Serial1Koli(&Serial1, 2048);
+BufferedWriter Serial2Koli(&Serial2, 2048);
+
 KoliSerial serials[3] = {
-	{&Serial, SERIAL_MSP},
-	{&Serial1, SERIAL_CRSF},
-	{&Serial2, SERIAL_GPS},
+	{&SerialKoli, SERIAL_MSP},
+	{&Serial1Koli, SERIAL_CRSF},
+	{&Serial2Koli, SERIAL_GPS},
 };
 
 void initSerial() {
@@ -57,6 +61,7 @@ void serialLoop() {
 			if (functions & SERIAL_ESC_TELEM) {
 			}
 		}
+		serials[i].stream->loop();
 	}
 	u32 duration = taskTimer;
 	tasks[TASK_SERIAL].totalDuration += duration;
