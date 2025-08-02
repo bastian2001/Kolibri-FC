@@ -12,13 +12,15 @@
 #define SERIAL_SMARTAUDIO (1 << 6)
 #define SERIAL_ESC_TELEM (1 << 7)
 
+#define SERIAL_COUNT 3
+
 typedef struct koliSerial {
 	BufferedWriter *stream;
 	u32 functions = 0;
 } KoliSerial;
 
 // 0 = Serial (USB CDC), 1 = Serial1 = UART0, 2 = Serial2 = UART1
-extern KoliSerial serials[3];
+extern KoliSerial serials[SERIAL_COUNT];
 
 extern u32 crcLutD5[256]; // u32 is used because it is faster than u8
 #define CRC_LUT_D5_APPLY(crc, data) crc = crcLutD5[((crc) ^ (data)) & 0xFF]

@@ -106,6 +106,10 @@ public:
 			writeBuffer.copyToArray(buf, 0, c);
 			writeBuffer.erase(c);
 			stream->write(buf, c);
+			// USB can take advantage of larger chunks, let it free the TX buffer completely before retrying any new
+			if (serialType == SerialType::USB){
+				stream->flush();
+			}
 		}
 		mutex_exit(&writeMutex);
 		stream->flush();

@@ -12,34 +12,13 @@
 RingBuffer<u8> elrsBuffer(ELRS_BUFFER_SIZE);
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 
-ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
-	: elrsSerial(elrsSerial),
-	  pinTX(pinTX),
-	  pinRX(pinRX),
-	  baudrate(baudrate) {
-	elrsStream = &elrsSerial;
-	for (int i = 0; i < 3; i++) {
-		if (elrsStream == serials[i].stream->uartStream) {
-			serialNum = i;
-			break;
-		}
-	}
-	elrsSerial.end();
-	elrsSerial.setTX(pinTX);
-	elrsSerial.setRX(pinRX);
-	elrsSerial.setCTS(UART_PIN_NOT_DEFINED);
-	elrsSerial.setRTS(UART_PIN_NOT_DEFINED);
-	elrsSerial.setFIFOSize(256);
-	elrsSerial.begin(baudrate, SERIAL_8N1);
+ExpressLRS::ExpressLRS(u8 serialNum)
+	: serialNum(serialNum) {
 	interpConfig0 = interp_default_config();
 	interp_config_set_blend(&interpConfig0, 1);
 	interpConfig1 = interp_default_config();
 	interpConfig2 = interp_default_config();
 	interp_config_set_clamp(&interpConfig2, 1);
-}
-
-ExpressLRS::~ExpressLRS() {
-	elrsSerial.end();
 }
 
 void ExpressLRS::loop() {
@@ -519,7 +498,7 @@ void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
 		crc = crcLutD5[crc];
 	}
 	packet[3 + payloadLen] = crc;
-	elrsSerial.write(packet, 4 + payloadLen);
+	serials[serialNum].stream->write(packet, 4 + payloadLen);
 }
 
 void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
@@ -533,7 +512,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 		crc = crcLutD5[crc];
 	}
 	packet[5 + extPayloadLen] = crc;
-	elrsSerial.write(packet, 6 + extPayloadLen);
+	serials[serialNum].stream->write(packet, 6 + extPayloadLen);
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {

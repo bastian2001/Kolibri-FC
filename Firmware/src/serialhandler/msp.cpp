@@ -217,7 +217,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			switch (reqPayload[0]) {
 			case MSP_REBOOT_FIRMWARE:
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-				Serial.flush();
+				serials[serialNum].stream->flush();
 				rebootReason = BootReason::CMD_REBOOT;
 				sleep_ms(100);
 				rp2040.reboot();
@@ -225,7 +225,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			case MSP_REBOOT_BOOTLOADER_FLASH:
 			case MSP_REBOOT_BOOTLOADER_ROM:
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-				Serial.flush();
+				serials[serialNum].stream->flush();
 				rebootReason = BootReason::CMD_BOOTLOADER;
 				sleep_ms(100);
 				rp2040.rebootToBootloader();
@@ -482,57 +482,42 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			break;
 			break;
 		case MspFn::SERIAL_PASSTHROUGH: {
-			u8 serialNum = reqPayload[0];
+			if (reqPayload[0] >= SERIAL_COUNT)
+				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+
+			u8 fromNum = serialNum;
+			if (reqLen > 5) fromNum = reqPayload[5];
+			if (fromNum >= SERIAL_COUNT)
+				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			
+			BufferedWriter *from = serials[fromNum].stream;
+			BufferedWriter *to = serials[reqPayload[0]].stream;
 			u32 baud = DECODE_U4((u8 *)&reqPayload[1]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)reqPayload, 5);
-			Serial.flush();
+			serials[serialNum].stream->flush();
+
 			u8 plusCount = 0;
 			elapsedMillis breakoutCounter = 0;
-			switch (serialNum) {
-			case 1:
-				Serial1.end();
-				Serial1.begin(baud);
-				while (true) {
-					if (breakoutCounter > 1000 && plusCount >= 3) break;
-					if (Serial.available()) {
-						breakoutCounter = 0;
+			to->end();
+			to->begin(baud);
+			while (true) {
+				if (breakoutCounter > 1000 && plusCount >= 3) break;
+				if (from->available()) {
+					breakoutCounter = 0;
 
-						char c = Serial.read();
-						if (c == '+')
-							plusCount++;
-						else
-							plusCount = 0;
-						Serial1.write(c);
-					}
-					if (Serial1.available()) {
-						Serial.write(Serial1.read());
-						Serial.flush();
-					}
-					rp2040.wdt_reset();
+					char c = from->read();
+					if (c == '+')
+						plusCount++;
+					else
+						plusCount = 0;
+					to->write(c);
 				}
-				break;
-			case 2:
-				Serial2.end();
-				Serial2.begin(baud);
-				while (true) {
-					if (breakoutCounter > 1000 && plusCount == 3) break;
-					if (Serial.available()) {
-						breakoutCounter = 0;
-
-						char c = Serial.read();
-						if (c == '+')
-							plusCount++;
-						else
-							plusCount = 0;
-						Serial2.write(c);
-					}
-					if (Serial2.available()) {
-						Serial.write(Serial2.read());
-						Serial.flush();
-					}
-					rp2040.wdt_reset();
+				if (to->available()) {
+					from->write(to->read());
 				}
-				break;
+				from->loop();
+				to->loop();
+				rp2040.wdt_reset();
 			}
 		} break;
 		case MspFn::CLI_INIT: {

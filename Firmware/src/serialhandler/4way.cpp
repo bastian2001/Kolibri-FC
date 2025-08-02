@@ -284,12 +284,12 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 		crc = crcUpdateXmodem(crc, payload[i]);
 	}
 	crc = crcUpdateXmodem(crc, (u8)resCode);
-	Serial.write(header, 5);
-	Serial.write(payload, len);
-	Serial.write((u8)resCode);
-	Serial.write(crc >> 8);
-	Serial.write(crc & 0xFF);
-	Serial.flush();
+	serials[serialNum4Way].stream->write(header, 5);
+	serials[serialNum4Way].stream->write(payload, len);
+	serials[serialNum4Way].stream->write((u8)resCode);
+	serials[serialNum4Way].stream->write(crc >> 8);
+	serials[serialNum4Way].stream->write(crc & 0xFF);
+	serials[serialNum4Way].stream->flush();
 }
 
 uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {
