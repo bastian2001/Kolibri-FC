@@ -16,13 +16,10 @@ public:
 	/**
 	 * @brief New ExpressLRS instance
 	 *
-	 * @param elrsSerial Serial port used for telemetry output
-	 * @param baudrate Baudrate that is used to set up the serial port
-	 * @param pinTX TX pin for the serial port
-	 * @param pinRX RX pin for the serial port
+	 * @param serialNum serial number to use for sending
 	 */
-	ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX = -1, u8 pinRX = -1);
-	~ExpressLRS();
+	ExpressLRS(u8 serialNum);
+
 	/// @brief Called regularly to process incoming bytes and send telemetry
 	void loop();
 	u32 channels[16] = {0}; // raw RC channels (1000-2000 for throttle and switches, 988-2012 for other sticks)
@@ -111,12 +108,7 @@ private:
 	u8 telemBuffer[30] = {0};
 	u32 currentTelemSensor = 0;
 	u8 msgBufIndex = 0;
-	SerialUART &elrsSerial;
-	Stream *elrsStream;
-	u8 serialNum = 255;
-	const u8 pinTX;
-	const u8 pinRX;
-	const u32 baudrate;
+	const u8 serialNum;
 	elapsedMillis frequencyTimer;
 	elapsedMillis telemetryTimer;
 	elapsedMillis heartbeatTimer;

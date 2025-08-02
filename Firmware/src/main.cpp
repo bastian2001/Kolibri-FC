@@ -41,16 +41,23 @@ void setup() {
 	osdInit();
 	initMag();
 	initBaro();
-	initGPS();
 	initADC();
 	modesInit();
 	initSerial();
+	initGPS();
 
 	// init ELRS on pins 0 and 1 using Serial1 (UART0)
-	ELRS = new ExpressLRS(Serial1, 420000, PIN_TX0, PIN_RX0);
+	u8 elrsNum = 0;
+	for (int i = 0; i < SERIAL_COUNT; i++) {
+		if (serials[i].functions & SERIAL_CRSF) {
+			elrsNum = i;
+			break;
+		}
+	}
+	ELRS = new ExpressLRS(elrsNum);
 
 	// init LEDs
-	sleep_ms(10);
+	sleep_ms(1);
 	p.recalculateClock();
 	p.neoPixelFill(0, 0, 255, true);
 

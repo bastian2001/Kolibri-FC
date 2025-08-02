@@ -248,9 +248,9 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 		buffer[4] = chunkNum >> 16;
 		buffer[5] = chunkNum >> 24;
 		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 6);
-		Serial.flush();
-		while (Serial.available()) // discard any data, prevents eventual panic
-			Serial.read();
+		serials[serialNum].stream->flush();
+		while (serials[serialNum].stream->available()) // discard any data, prevents eventual panic
+			serials[serialNum].stream->read();
 		chunkNum++;
 		if (singleChunk >= 0)
 			break;

@@ -89,7 +89,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		response = "Settings saved";
 	} else if (cmd == "reboot") {
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Rebooting...", 13);
-		Serial.flush();
+		serials[lastMspSerial].stream->flush();
 		sleep_ms(100);
 		rp2040.reboot();
 	} else if (cmd == "status") {
@@ -126,7 +126,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 	} else if (cmd == "reset") {
 		if (payload == "confirm") {
 			sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Resetting settings...", 22);
-			Serial.flush();
+			serials[lastMspSerial].stream->flush();
 			sleep_ms(100);
 			closeSettingsFile();
 			LittleFS.remove("/settings.txt");
