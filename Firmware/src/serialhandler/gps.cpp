@@ -14,6 +14,7 @@ u8 currentPvtMsg[92];
 u32 newPvtMessageFlag = 0;
 u32 gpsUpdateRate;
 fix32 gpsVelocityFilterCutoff;
+BufferedWriter *gpsSerial = nullptr;
 
 int gpsSerialSpeed = 38400;
 u8 retryCounter = 0;
@@ -29,8 +30,12 @@ void gpsChecksum(const u8 *buf, int len, u8 *ck_a, u8 *ck_b) {
 }
 
 void initGPS() {
-	Serial2.setFIFOSize(1024);
-	Serial2.begin(38400);
+	for (auto &serial : serials) {
+		if (serial.functions & SERIAL_GPS) {
+			gpsSerial = serial.stream;
+			break;
+		}
+	}
 
 	placeElem(OSDElem::LATITUDE, 1, 13);
 	placeElem(OSDElem::LONGITUDE, 13, 13);
@@ -71,6 +76,7 @@ void fillOpenLocationCode() {
 }
 
 void gpsLoop() {
+	if (!gpsSerial) return;
 	TASK_START(TASK_GPS);
 	if (lastPvtMessage > 1000) {
 		// no PVT message received for 1 second
@@ -94,8 +100,8 @@ void gpsLoop() {
 		case 0: {
 			if (retryCounter++ % 2 == 0) {
 				gpsSerialSpeed = 153600 - gpsSerialSpeed;
-				Serial2.end();
-				Serial2.begin(gpsSerialSpeed);
+				gpsSerial->end();
+				gpsSerial->begin(gpsSerialSpeed);
 			}
 			u8 msgSetupUart[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_PRT,
 								 0x14, 0x00, // length 20
@@ -106,13 +112,13 @@ void gpsLoop() {
 								 0x00, 0x00, 0x00, 0x00, // flags X2, reserved U1[2]
 								 0, 0}; // checksum X1[2]
 			gpsChecksum(&msgSetupUart[2], 24, &msgSetupUart[26], &msgSetupUart[27]);
-			Serial2.write(msgSetupUart, 28);
+			gpsSerial->write(msgSetupUart, 28);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 1: {
-			Serial2.end();
-			Serial2.begin(115200);
+			gpsSerial->end();
+			gpsSerial->begin(115200);
 			u8 msgDisableGxGGA[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG,
 									0x03, 0x00, // length 3
 									NMEA_CLASS_STANDARD, // message class U1
@@ -120,35 +126,35 @@ void gpsLoop() {
 									0, // rate (0 = disable, 1+ = divider) U1
 									0, 0};
 			gpsChecksum(&msgDisableGxGGA[2], 7, &msgDisableGxGGA[9], &msgDisableGxGGA[10]);
-			Serial2.write(msgDisableGxGGA, 11);
+			gpsSerial->write(msgDisableGxGGA, 11);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 2: {
 			u8 msgDisableGxGSA[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, NMEA_CLASS_STANDARD, NMEA_ID_GSA, 0, 0, 0};
 			gpsChecksum(&msgDisableGxGSA[2], 7, &msgDisableGxGSA[9], &msgDisableGxGSA[10]);
-			Serial2.write(msgDisableGxGSA, 11);
+			gpsSerial->write(msgDisableGxGSA, 11);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 3: {
 			u8 msgDisableGxGSV[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, NMEA_CLASS_STANDARD, NMEA_ID_GSV, 0, 0, 0};
 			gpsChecksum(&msgDisableGxGSV[2], 7, &msgDisableGxGSV[9], &msgDisableGxGSV[10]);
-			Serial2.write(msgDisableGxGSV, 11);
+			gpsSerial->write(msgDisableGxGSV, 11);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 4: {
 			u8 msgDisableGxRMC[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, NMEA_CLASS_STANDARD, NMEA_ID_RMC, 0, 0, 0};
 			gpsChecksum(&msgDisableGxRMC[2], 7, &msgDisableGxRMC[9], &msgDisableGxRMC[10]);
-			Serial2.write(msgDisableGxRMC, 11);
+			gpsSerial->write(msgDisableGxRMC, 11);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 5: {
 			u8 msgDisableGxVTG[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, NMEA_CLASS_STANDARD, NMEA_ID_VTG, 0, 0, 0};
 			gpsChecksum(&msgDisableGxVTG[2], 7, &msgDisableGxVTG[9], &msgDisableGxVTG[10]);
-			Serial2.write(msgDisableGxVTG, 11);
+			gpsSerial->write(msgDisableGxVTG, 11);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
@@ -160,14 +166,14 @@ void gpsLoop() {
 									1, // rate (0 = disable, 1+ = divider) U1
 									0, 0};
 			gpsChecksum(&msgEnableNavPvt[2], 7, &msgEnableNavPvt[9], &msgEnableNavPvt[10]);
-			Serial2.write(msgEnableNavPvt, 11);
+			gpsSerial->write(msgEnableNavPvt, 11);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
 		case 7: {
 			u8 msgDisableGxGLL[] = {UBX_SYNC1, UBX_SYNC2, UBX_CLASS_CFG, UBX_ID_CFG_MSG, 0x03, 0x00, NMEA_CLASS_STANDARD, NMEA_ID_GLL, 0, 0, 0};
 			gpsChecksum(&msgDisableGxGLL[2], 7, &msgDisableGxGLL[9], &msgDisableGxGLL[10]);
-			Serial2.write(msgDisableGxGLL, 11);
+			gpsSerial->write(msgDisableGxGLL, 11);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;
@@ -180,7 +186,7 @@ void gpsLoop() {
 								  0x01, 0x00, // time system alignment (1 = GPS time) U2
 								  0x00, 0x00};
 			gpsChecksum(&msgSetNavRate[2], 10, &msgSetNavRate[12], &msgSetNavRate[13]);
-			Serial2.write(msgSetNavRate, 14);
+			gpsSerial->write(msgSetNavRate, 14);
 			gpsInitAck = false;
 			gpsInitTimer = 0;
 		} break;

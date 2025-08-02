@@ -90,7 +90,8 @@
 		"cfenv": "cpp",
 		"cinttypes": "cpp",
 		"typeinfo": "cpp",
-		"variant": "cpp"
+		"variant": "cpp",
+		"tusb_option.h": "c"
 	},
 	"files.insertFinalNewline": true
 }
