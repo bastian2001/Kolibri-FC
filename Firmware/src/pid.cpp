@@ -217,6 +217,7 @@ void initPid() {
 	addArraySetting(SETTING_PID_HVEL, pidGainsHVel, &initPidHVel);
 	addSetting(SETTING_IDLE_PERMILLE, &idlePermille, 35);
 	addSetting(SETTING_MAX_ANGLE, &maxAngle, 40);
+	addSetting(SETTING_ANGLE_MODE_P, &angleModeP, 5);
 	addSetting(SETTING_DFILTER_CUTOFF, &dFilterCutoff, 70);
 	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
 	addSetting(SETTING_SETPOINT_DIFF_CUTOFF, &setpointDiffCutoff, 12);
