@@ -2,15 +2,12 @@
 
 u8 readChar = 0;
 u32 crcLutD5[256] = {0};
-Stream *serials[3] = {
-	&Serial,
-	&Serial1,
-	&Serial2};
 
-u32 serialFunctions[3] = {
-	SERIAL_MSP,
-	SERIAL_CRSF,
-	SERIAL_GPS};
+KoliSerial serials[3] = {
+	{&Serial, SERIAL_MSP},
+	{&Serial1, SERIAL_CRSF},
+	{&Serial2, SERIAL_GPS},
+};
 
 void initSerial() {
 	for (u32 i = 0; i < 256; i++) {
@@ -29,34 +26,35 @@ void serialLoop() {
 	elapsedMicros taskTimer = 0;
 	tasks[TASK_SERIAL].runCounter++;
 	for (int i = 0; i < 3; i++) {
-		if (serialFunctions[i] & SERIAL_DISABLED)
+		u32 functions = serials[i].functions;
+		if (functions & SERIAL_DISABLED)
 			continue;
-		Stream *serial = serials[i];
+		Stream *serial = serials[i].stream;
 		int available = serial->available();
 		for (int j = 0; j < available; j++) {
 			readChar = serial->read();
-			if (serialFunctions[i] & SERIAL_CRSF) {
+			if (functions & SERIAL_CRSF) {
 				if (!elrsBuffer.isFull())
 					elrsBuffer.push(readChar);
 			}
-			if (serialFunctions[i] & SERIAL_MSP) {
+			if (functions & SERIAL_MSP) {
 				rp2040.wdt_reset();
 				elapsedMicros timer = 0;
 				mspHandleByte(readChar, i);
 				taskTimer -= timer;
 			}
-			if (serialFunctions[i] & SERIAL_GPS) {
+			if (functions & SERIAL_GPS) {
 				if (!gpsBuffer.isFull())
 					gpsBuffer.push(readChar);
 			}
-			if (serialFunctions[i] & SERIAL_4WAY) {
+			if (functions & SERIAL_4WAY) {
 				process4Way(readChar);
 			}
-			if (serialFunctions[i] & SERIAL_IRC_TRAMP) {
+			if (functions & SERIAL_IRC_TRAMP) {
 			}
-			if (serialFunctions[i] & SERIAL_SMARTAUDIO) {
+			if (functions & SERIAL_SMARTAUDIO) {
 			}
-			if (serialFunctions[i] & SERIAL_ESC_TELEM) {
+			if (functions & SERIAL_ESC_TELEM) {
 			}
 		}
 	}

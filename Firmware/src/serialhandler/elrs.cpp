@@ -19,7 +19,7 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	  baudrate(baudrate) {
 	elrsStream = &elrsSerial;
 	for (int i = 0; i < 3; i++) {
-		if (elrsStream == serials[i]) {
+		if (elrsStream == serials[i].stream) {
 			serialNum = i;
 			break;
 		}

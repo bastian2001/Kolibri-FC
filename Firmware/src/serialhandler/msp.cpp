@@ -45,7 +45,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 	bool versionHasV2 = version == MspVersion::V2 || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_CRSF;
 	bool versionHasCrsf = version == MspVersion::V2_OVER_CRSF || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF;
 	if (!versionHasV2 && fn >= MspFn::MSP_V2_FRAME) return;
-	Stream *ser = serials[serialNum];
+	Stream *ser = serials[serialNum].stream;
 
 	if (versionHasCrsf) {
 		u8 headerSize = 0;
@@ -429,7 +429,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::ENABLE_4WAY_IF:
-			begin4Way();
+			begin4Way(serialNum);
 			buf[0] = 4; // ESC count
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			break;

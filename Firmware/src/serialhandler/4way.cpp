@@ -7,6 +7,7 @@ u32 offsetPioReceive;
 u32 offsetPioTransmit;
 pio_sm_config configPioReceive;
 pio_sm_config configPioTransmit;
+u8 serialNum4Way;
 
 bool isTxEnabled = false;
 std::deque<uint8_t> escRxBuf;
@@ -226,7 +227,7 @@ uint16_t getEsc(uint8_t rx_buf[], uint16_t wait_ms) {
 	return i;
 }
 
-void begin4Way() {
+void begin4Way(u8 serialNum) {
 	if (setup4WayDone) return;
 	deinitESCs();
 	for (int i = 0; i < 4; i++) {
@@ -248,7 +249,8 @@ void begin4Way() {
 	sm_config_set_clkdiv_int_frac(&configPioTransmit, 859, 128);
 	pio_sm_init(PIO_ESC, 0, offsetPioReceive, &configPioReceive);
 	pio_sm_set_enabled(PIO_ESC, 0, true);
-	serialFunctions[0] |= SERIAL_4WAY;
+	serials[serialNum].functions |= SERIAL_4WAY;
+	serialNum4Way = serialNum;
 	setup4WayDone = true;
 }
 
@@ -262,7 +264,7 @@ void end4Way() {
 		gpio_set_function(PIN_MOTORS + i, GPIO_FUNC_NULL);
 	}
 	initESCs();
-	serialFunctions[0] &= ~SERIAL_4WAY;
+	serials[serialNum4Way].functions &= ~SERIAL_4WAY;
 	setup4WayDone = false;
 }
 
