@@ -343,10 +343,10 @@ void endLogging() {
 	}
 }
 
-void writeSingleFrame() {
+u32 writeSingleFrame() {
 	size_t bufferPos = 1;
 	if (!fsReady || !bbLogging) {
-		return;
+		return 0;
 	}
 	TASK_START(TASK_BLACKBOX);
 	u8 *bbBuffer = (u8 *)malloc(128);
@@ -601,4 +601,5 @@ void writeSingleFrame() {
 		}
 	}
 	TASK_END(TASK_BLACKBOX);
+	return durationTASK_BLACKBOX;
 }

@@ -98,7 +98,8 @@ void endLogging();
 bool clearBlackbox();
 
 /// @brief Write a single frame to the blackbox file
-void writeSingleFrame();
+/// @return u32 micros it took
+u32 writeSingleFrame();
 
 /**
  * @brief Print a log file to the configurator using MspFn::BB_FILE_DOWNLOAD

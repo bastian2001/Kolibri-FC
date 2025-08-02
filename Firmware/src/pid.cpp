@@ -317,7 +317,7 @@ void __not_in_flash_func(pidLoop)() {
 		pitchSetpoint = 0;
 		yawSetpoint = 0;
 
-				if (flightMode >= FlightMode::ANGLE) {
+		if (flightMode >= FlightMode::ANGLE) {
 			startFixMath();
 			// these will be populated below
 			fix32 targetRoll, targetPitch;
@@ -535,14 +535,21 @@ void __not_in_flash_func(pidLoop)() {
 
 			// create targetRPQuat
 			fix32 totalAngle = sqrtFix(targetRoll * targetRoll + targetPitch * targetPitch);
-			f32 ratios[3] = {
-				(-targetRoll / totalAngle).getf32(),
-				(targetPitch / totalAngle).getf32(),
+			fix32 ratios[3] = {
+				-targetRoll / totalAngle,
+				targetPitch / totalAngle,
 				0 // yaw is not set
 			};
 			if (totalAngle > maxAngle)
 				totalAngle = maxAngle;
-			Quaternion_fromAxisAngle(ratios, (totalAngle * FIX_DEG_TO_RAD).getf32(), &targetRPQuat);
+			// Quaternion_fromAxisAngle(ratios, (totalAngle * FIX_DEG_TO_RAD).getf32(), &targetRPQuat);
+			// using fix32:
+			fix32 halfTotalAngle = totalAngle * FIX_DEG_TO_RAD / 2;
+			sinCosFix(halfTotalAngle, si, co);
+			targetRPQuat.w = co.getf32();
+			targetRPQuat.v[0] = (ratios[0] * si).getf32();
+			targetRPQuat.v[1] = (ratios[1] * si).getf32();
+			targetRPQuat.v[2] = (ratios[2] * si).getf32();
 
 			// create targetQuat
 			Quaternion_multiply(&targetRPQuat, &headQuat, &targetQuat);
@@ -561,12 +568,23 @@ void __not_in_flash_func(pidLoop)() {
 			}
 
 			// extract roll, pitch and yaw from diffQuat
-			f32 axis[3];
-			fix32 angle = Quaternion_toAxisAngle(&diffQuat, axis);
-			bbDebug1 = angle.raw;
-			bbDebug2 = axis[0] * 10000;
-			bbDebug3 = axis[1] * 10000;
-			bbDebug4 = axis[2] * 10000;
+			fix32 axis[3];
+			// fix32 angle = Quaternion_toAxisAngle(&diffQuat, axis);
+			fix32 wFix = diffQuat.w;
+			fix32 angle = acosFix(wFix) * 2;
+			fix32 divider = sqrtFix(fix32(1) - wFix * wFix);
+			if (divider > 0.0001f) {
+				// Calculate the axis
+				fix32 divNew = fix32(1) / divider;
+				axis[0] = divNew * diffQuat.v[0];
+				axis[1] = divNew * diffQuat.v[1];
+				axis[2] = divNew * diffQuat.v[2];
+			} else {
+				// Arbitrary normalized axis
+				axis[0] = 1;
+				axis[1] = 0;
+				axis[2] = 0;
+			}
 
 			// apply P gain and limit to total 1000 deg/s
 			angle *= angleModeP;
@@ -789,7 +807,7 @@ void __not_in_flash_func(pidLoop)() {
 
 		// write blackbox if needed
 		if ((pidLoopCounter % bbFreqDivider) == 0 && bbFreqDivider) {
-			writeSingleFrame();
+			taskTimerTASK_PID -= writeSingleFrame();
 		}
 		pidLoopCounter++;
 	} else {

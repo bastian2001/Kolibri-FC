@@ -19,24 +19,6 @@
 		tasks[taskname].maxDuration = duration##taskname;
 #endif
 
-typedef struct task {
-	u32 runCounter; // incremented every time the task is run, reset every second
-	union {
-		struct {
-			i16 maxDuration; // minimum duration of the task
-			i16 minDuration; // maximum duration of the task
-		};
-		int16x2_t minMaxDuration; // 32 bit shorthand for min/max duration (min high, max low bytes) for minmax16x2 and MSP
-	};
-	u32 frequency; // how often the task is run in the last second
-	u32 lastTotalDuration; // the total duration that this task took during the last second
-	u32 errorCount; // how often the task has thrown an error since boot
-	u32 lastError; // last error code (different for each task)
-	u32 totalDuration; // total duration the task has taken since the reset every second
-	u32 debugInfo; // debug info (different for each task)
-	u32 maxGap; // maximum gap between two runs of the task (from end to start)
-} FCTask;
-extern volatile FCTask tasks[32]; // holds all the task stats
 
 enum Tasks {
 	TASK_LOOP0,
@@ -69,8 +51,28 @@ enum Tasks {
 	TASK_IMU_SPEEDS,
 	TASK_ESC_RPM,
 	TASK_PID,
-	TASK_BLACKBOX
+	TASK_BLACKBOX,
+	TASK_LENGTH
 };
+
+typedef struct task {
+	u32 runCounter; // incremented every time the task is run, reset every second
+	union {
+		struct {
+			i16 maxDuration; // minimum duration of the task
+			i16 minDuration; // maximum duration of the task
+		};
+		int16x2_t minMaxDuration; // 32 bit shorthand for min/max duration (min high, max low bytes) for minmax16x2 and MSP
+	};
+	u32 frequency; // how often the task is run in the last second
+	u32 lastTotalDuration; // the total duration that this task took during the last second
+	u32 errorCount; // how often the task has thrown an error since boot
+	u32 lastError; // last error code (different for each task)
+	u32 totalDuration; // total duration the task has taken since the reset every second
+	u32 debugInfo; // debug info (different for each task)
+	u32 maxGap; // maximum gap between two runs of the task (from end to start)
+} FCTask;
+extern volatile FCTask tasks[TASK_LENGTH]; // holds all the task stats
 
 /// @brief resets all task stats
 void initTaskManager();

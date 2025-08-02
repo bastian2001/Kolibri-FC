@@ -35,7 +35,8 @@ const TASK_NAMES = [
 	'        - IMU Angle',
 	'        - IMU Speeds',
 	'    - ESC RPM',
-	'    - PID, Blackbox compute',
+	'    - PID',
+	'    - Blackbox compute',
 ];
 
 export default defineComponent({
