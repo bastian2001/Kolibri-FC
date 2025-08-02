@@ -169,34 +169,8 @@ static fix32 getRateInterp(fix32 stick, u8 axis) {
 	return fix32().setRaw(interp0->peek[1]); // alpha applied between lower and upper
 }
 
-static void fillRateInterp() {
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 257; j++) {
-			fix32 stick = fix32(j - 128) / 128; // from -1 to 1
-			rateInterp[i][j] = calculateActual(stick, i);
-		}
-	}
-	startRateInterp();
-
-	elapsedMicros e;
-	i32 time = 0, time2 = 0;
-	e = 0;
-	fix32 sum = 0;
-	fix32 sum2 = 0;
-	for (fix32 i = -1; i <= 1; i += fix32(1) / 1024) {
-		sum += getRateInterp(i, AXIS_ROLL);
-	}
-	time = e;
-	e = 0;
-	for (fix32 i = -1; i <= 1; i += fix32(1) / 1024) {
-		sum2 += calculateActual(i, AXIS_ROLL);
-	}
-	time2 = e;
-	Serial.printf("Time for interp: %d us, Time for calculateActual: %d us, diff: %d us\n", time, time2, time - time2);
-	Serial.printf("Sum for interp: %.3f, Sum for calculateActual: %.3f, diff: %.3f\n", sum.getf32(), sum2.getf32(), (sum - sum2).getf32());
-}
-
 static void initRateInterp() {
+	// prepare configs
 	rateInterpConfig0 = interp_default_config();
 	interp_config_set_blend(&rateInterpConfig0, true);
 	rateInterpConfig1 = interp_default_config();
@@ -206,7 +180,14 @@ static void initRateInterp() {
 	interp_config_set_clamp(&rateInterpConfig2, true);
 	interp_config_set_shift(&rateInterpConfig2, 1);
 	interp_config_set_mask(&rateInterpConfig2, 0, 30);
-	fillRateInterp();
+
+	// fill interpolator values
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 257; j++) {
+			fix32 stick = fix32(j - 128) / 128; // from -1 to 1
+			rateInterp[i][j] = calculateActual(stick, i);
+		}
+	}
 }
 
 void initPidVVel() {
