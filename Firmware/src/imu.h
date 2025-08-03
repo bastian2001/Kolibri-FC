@@ -1,7 +1,7 @@
 #include "utils/filters.h"
-#include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"
 #include <Arduino.h>
+#include <fixedPointInt.h>
 
 extern fix32 roll, pitch, yaw; // Euler angles of the drone
 extern fix32 accelFilterCutoff; // filter frequency for the accelerometer data

@@ -35,6 +35,7 @@
 #include <NeoPixelConnect.h>
 #include <PIO_DShot.h>
 #include <elapsedMillis.h>
+#include <fixedPointInt.h>
 
 // Kolibri stuff
 #include "adc.h"
@@ -71,7 +72,6 @@
 #include "unittest.h"
 #include "utils/bufferedWriter.h"
 #include "utils/filters.h"
-#include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"
 
 #define SPI_OSD spi1 // SPI for OSD

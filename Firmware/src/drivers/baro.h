@@ -1,5 +1,6 @@
-#include "utils/fixedPointInt.h"
+#pragma once
 #include <Arduino.h>
+#include <fixedPointInt.h>
 
 extern fix32 baroASL;
 extern fix32 baroUpVel;

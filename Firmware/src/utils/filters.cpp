@@ -1,4 +1,5 @@
 #include "filters.h"
+#include <cmath>
 
 PT1::PT1(fix32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
 	if (sampleFreq <= 0 || cutoffFreq <= 0) alpha = 1;

@@ -1,6 +1,6 @@
 #pragma once
-#include "fixedPointInt.h"
 #include "typedefs.h"
+#include <fixedPointInt.h>
 
 /**
  * @brief A first order low pass filter
