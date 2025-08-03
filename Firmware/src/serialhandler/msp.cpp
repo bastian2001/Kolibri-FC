@@ -489,7 +489,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			if (reqLen > 5) fromNum = reqPayload[5];
 			if (fromNum >= SERIAL_COUNT)
 				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-			
+
 			BufferedWriter *from = serials[fromNum].stream;
 			BufferedWriter *to = serials[reqPayload[0]].stream;
 			u32 baud = DECODE_U4((u8 *)&reqPayload[1]);

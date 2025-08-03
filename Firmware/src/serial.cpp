@@ -3,6 +3,17 @@
 u8 readChar = 0;
 u32 crcLutD5[256] = {0};
 
+char serialFunctionNames[SERIAL_FUNCTION_COUNT][11] = {
+	"Disabled",
+	"CRSF",
+	"MSP",
+	"GPS",
+	"4Way",
+	"Tramp",
+	"Smartaudio",
+	"ESC Telem",
+};
+
 KoliSerial serials[SERIAL_COUNT] = {
 	{new BufferedWriter(&Serial, 2048), SERIAL_MSP},
 	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},

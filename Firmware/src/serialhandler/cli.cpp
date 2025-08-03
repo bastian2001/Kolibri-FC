@@ -26,7 +26,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 	string response = "";
 
 	if (cmd == "help") {
-		response = "set, get, save, reboot, status, gyro_calibration, print, echo, reset";
+		response = "set, get, save, reboot, status, serial, gyro_calibration, print, echo, reset";
 	} else if (cmd == "set") {
 		string key = "";
 		string value = "";
@@ -96,6 +96,37 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		response = "Firmware: " FIRMWARE_NAME " " FIRMWARE_VERSION_STRING "\n";
 		response += "UAV Name: " + uavName + "\n";
 		response += "Uptime: " + std::to_string(millis()) + " ms\n";
+	} else if (cmd == "serial") {
+		if (payload == "stats get") {
+			f32 timeSinceReset = f32(BufferedWriter::sinceReset) / 1000.f;
+			response = "Statistics since the last reset (" + std::to_string((u32)timeSinceReset) + "ms ago)\n";
+			for (int i = 0; i < SERIAL_COUNT; i++) {
+				char line[128];
+				BufferedWriter *s = serials[i].stream;
+				snprintf(line, 128, "Serial %d (%s):     TX: %7d bytes (%.2fKB/s),     RX: %7d bytes (%.2fKB/s),     ", i + 1, BufferedWriter::serialTypeNames[(u8)s->serialType], s->totalTx, s->totalTx / timeSinceReset, s->totalRx, s->totalRx / timeSinceReset);
+				response += line;
+				bool firstFunction = true;
+				for (int j = 0; j < SERIAL_FUNCTION_COUNT; j++) {
+					if (serials[i].functions & (1 << j)) {
+						if (firstFunction)
+							firstFunction = false;
+						else
+							response += ", ";
+						response += serialFunctionNames[j];
+					}
+				}
+				response += '\n';
+			}
+		} else if (payload == "stats clear") {
+			for (auto &s : serials) {
+				while (s.stream->totalRx || s.stream->totalTx) {
+					// clearing may fail in case a byte is read/written atm
+					s.stream->totalRx = 0;
+					s.stream->totalTx = 0;
+					BufferedWriter::sinceReset = 0;
+				}
+			}
+		}
 	} else if (cmd == "gyro_calibration") {
 		if (payload == "start") {
 			response = "Calibrating gyro";

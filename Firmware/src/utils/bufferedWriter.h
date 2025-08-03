@@ -3,6 +3,7 @@
 #include "typedefs.h"
 #include <Arduino.h>
 
+//! When updating this, also update the serialTypeNames array
 enum class SerialType {
 	USB,
 	UART,
@@ -74,7 +75,10 @@ public:
 		return writable;
 	}
 	int peek() { return stream->peek(); }
-	int read() { return stream->read(); }
+	int read() {
+		totalRx++;
+		return stream->read();
+	}
 	void loop(i32 maxWrite = 64) {
 		// write the lowest of
 		// - maxWrite
@@ -88,10 +92,10 @@ public:
 			// special treatment: UART cannot tell how many bytes it can still send, only _that_ it can still send at least one
 			if (!c) return mutex_exit(&writeMutex);
 			while (--c) {
-				if (stream->availableForWrite())
-					stream->write(writeBuffer.pop());
-				else
+				if (!stream->availableForWrite())
 					return mutex_exit(&writeMutex);
+				uartStream->write(writeBuffer.pop());
+				totalTx++;
 			}
 			return mutex_exit(&writeMutex);
 		}
@@ -105,6 +109,7 @@ public:
 		writeBuffer.erase(c);
 		mutex_exit(&writeMutex);
 		stream->write(buf, c);
+		totalTx += c;
 	};
 	virtual void flush() override {
 		mutex_enter_blocking(&writeMutex);
@@ -127,8 +132,10 @@ public:
 	};
 	virtual size_t write(uint8_t c) override {
 		mutex_enter_blocking(&writeMutex);
-		if (writeBuffer.isFull())
+		if (writeBuffer.isFull()) {
 			stream->write(writeBuffer.pop());
+			totalTx++;
+		}
 		writeBuffer.push(c);
 		mutex_exit(&writeMutex);
 		return 1;
@@ -155,6 +162,7 @@ public:
 				writeBuffer.copyToArray(buf, 0, c);
 				writeBuffer.erase(c);
 				stream->write(buf, c);
+				totalTx += c;
 				len -= c;
 				while (--c) {
 					writeBuffer.push(*p++);
@@ -166,6 +174,11 @@ public:
 	};
 
 	operator bool();
+
+	volatile u32 totalRx = 0;
+	volatile u32 totalTx = 0;
+	static elapsedMicros sinceReset;
+	static char serialTypeNames[3][5];
 
 private:
 	RingBuffer<u8> writeBuffer;

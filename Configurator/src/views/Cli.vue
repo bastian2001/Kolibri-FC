@@ -158,6 +158,7 @@ export default defineComponent({
 	font-size: 1rem;
 	font-weight: bolder;
 	margin: 3px 0px;
+	white-space: pre-wrap;
 }
 
 .spacer {

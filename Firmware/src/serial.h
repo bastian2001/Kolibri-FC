@@ -3,6 +3,7 @@
 #include "utils/bufferedWriter.h"
 #include <Arduino.h>
 
+//! when updating this list, also update SERIAL_FUNCTION_COUNT and serialFunctionNames
 #define SERIAL_DISABLED (1 << 0)
 #define SERIAL_CRSF (1 << 1)
 #define SERIAL_MSP (1 << 2)
@@ -13,6 +14,9 @@
 #define SERIAL_ESC_TELEM (1 << 7)
 
 #define SERIAL_COUNT 3
+#define SERIAL_FUNCTION_COUNT 8 // including DISABLED!
+
+extern char serialFunctionNames[SERIAL_FUNCTION_COUNT][11];
 
 typedef struct koliSerial {
 	BufferedWriter *stream;
