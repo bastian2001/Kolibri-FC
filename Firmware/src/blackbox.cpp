@@ -24,6 +24,24 @@ u16 bbDebug3, bbDebug4;
 
 RingBuffer<u8 *> bbFramePtrBuffer(64);
 
+typedef struct bbPrintConfig {
+	u8 serialNum;
+	bool printing;
+	MspVersion mspVer;
+	FsFile logFile;
+	i32 currentChunk;
+	u32 chunkSize;
+	u16 logNum;
+} BbPrintConfig;
+BbPrintConfig bbPrintLog = {
+	.serialNum = 255,
+	.printing = false,
+	.mspVer = MspVersion::V2,
+	.currentChunk = 0,
+	.chunkSize = 0,
+	.logNum = 0,
+};
+
 FsFile blackboxFile;
 elapsedMillis bbDuration;
 
@@ -62,6 +80,30 @@ void writeGpsToBlackbox() {
 
 void blackboxLoop() {
 	if (!bbLogging || !fsReady) {
+		if (bbPrintLog.printing) {
+			TASK_START(TASK_CONFIGURATOR);
+
+			u8 buffer[bbPrintLog.chunkSize + 6];
+			buffer[0] = bbPrintLog.logNum & 0xFF;
+			buffer[1] = bbPrintLog.logNum >> 8;
+			buffer[2] = bbPrintLog.currentChunk & 0xFF;
+			buffer[3] = bbPrintLog.currentChunk >> 8;
+			buffer[4] = bbPrintLog.currentChunk >> 16;
+			buffer[5] = bbPrintLog.currentChunk >> 24;
+			bbPrintLog.logFile.seek(bbPrintLog.currentChunk * bbPrintLog.chunkSize);
+			u32 bytesRead = bbPrintLog.logFile.read(buffer + 6, bbPrintLog.chunkSize);
+			if (bytesRead <= 0) {
+				bbPrintLog.printing = false;
+				bbPrintLog.logFile.close();
+				TASK_END(TASK_CONFIGURATOR);
+				return;
+			}
+			sendMsp(bbPrintLog.serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, bbPrintLog.mspVer, (char *)buffer, bytesRead + 6);
+			bbPrintLog.currentChunk++;
+			serials[bbPrintLog.serialNum].stream->flush();
+
+			TASK_END(TASK_CONFIGURATOR);
+		}
 		return;
 	}
 	TASK_START(TASK_BLACKBOX_WRITE);
@@ -178,6 +220,10 @@ u32 getBlackboxChunkSize(MspVersion v) {
 }
 
 void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
+	if (bbPrintLog.printing) {
+		bbPrintLog.printing = false;
+		bbPrintLog.logFile.close();
+	}
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
@@ -207,52 +253,50 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 }
 
 void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
+	if (bbPrintLog.printing) {
+		bbPrintLog.printing = false;
+		bbPrintLog.logFile.close();
+	}
 	char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-	FsFile logFile = sdCard.open(path);
+	bbPrintLog.logFile = sdCard.open(path);
 #endif
-	if (!logFile) {
+	if (!bbPrintLog.logFile) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
 		return;
 	}
 
 	u32 chunkSize = getBlackboxChunkSize(mspVer);
-
-	u8 buffer[chunkSize + 6];
-	buffer[0] = logNum & 0xFF;
-	buffer[1] = logNum >> 8;
-	u32 chunkNum = 0;
 	if (singleChunk >= 0) {
-		chunkNum = singleChunk;
-		logFile.seek(chunkNum * chunkSize);
-	}
-	size_t bytesRead = 1;
-	while (true) {
-		rp2040.wdt_reset();
-		if (chunkNum % 100 == 0)
-			p.neoPixelSetValue(0, chunkNum & 0xFF, chunkNum & 0xFF, chunkNum & 0xFF, true);
-		bytesRead = logFile.read(buffer + 6, chunkSize);
-		if (bytesRead <= 0)
-			break;
-		buffer[2] = chunkNum & 0xFF;
-		buffer[3] = chunkNum >> 8;
-		buffer[4] = chunkNum >> 16;
-		buffer[5] = chunkNum >> 24;
+		u8 buffer[chunkSize + 6];
+		buffer[0] = logNum & 0xFF;
+		buffer[1] = logNum >> 8;
+		buffer[2] = singleChunk & 0xFF;
+		buffer[3] = singleChunk >> 8;
+		buffer[4] = singleChunk >> 16;
+		buffer[5] = singleChunk >> 24;
+		bbPrintLog.logFile.seek(singleChunk * chunkSize);
+		u32 bytesRead = bbPrintLog.logFile.read(buffer + 6, chunkSize);
 		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 6);
-		serials[serialNum].stream->flush();
-		while (serials[serialNum].stream->available()) // discard any data, prevents eventual panic
-			serials[serialNum].stream->read();
-		chunkNum++;
-		if (singleChunk >= 0)
-			break;
+		return;
 	}
-	logFile.close();
+
+	bbPrintLog.printing = true;
+	bbPrintLog.currentChunk = 0;
+	bbPrintLog.mspVer = mspVer;
+	bbPrintLog.serialNum = serialNum;
+	bbPrintLog.chunkSize = chunkSize;
+	bbPrintLog.logNum = logNum;
 }
 
 void startLogging() {
 	if (!bbFlags || !fsReady || bbLogging || !bbFreqDivider)
 		return;
+	if (bbPrintLog.printing) {
+		bbPrintLog.printing = false;
+		bbPrintLog.logFile.close();
+	}
 	currentBBFlags = bbFlags;
 #if BLACKBOX_STORAGE == SD_BB
 	char path[32];
