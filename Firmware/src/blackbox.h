@@ -1,9 +1,9 @@
 #pragma once
 
-#include "elapsedMillis.h"
 #include "serialhandler/msp.h"
 #include "typedefs.h"
 #include <Arduino.h>
+#include <elapsedMillis.h>
 #define LOG_ELRS_RAW (1 << 0) // 0 bytes
 #define LOG_ROLL_SETPOINT (1 << 1) // 2 bytes
 #define LOG_PITCH_SETPOINT (1 << 2) // 2 bytes

@@ -1,17 +1,42 @@
+#pragma once
+
 #define SD_BB 0
 #define FLASH_BB 1 // not implemented yet
-#include "typedefs.h"
+
+// general C/C++ includes
+#include <string>
+
+// architecture
+#include <arm_acle.h>
+
+// Pico-SDK
+#include <hardware/adc.h>
+#include <hardware/dma.h>
+#include <hardware/i2c.h>
+#include <hardware/pio.h>
+#include <hardware/pwm.h>
+#include <hardware/resets.h>
+#include <hardware/spi.h>
+#include <hardware/watchdog.h>
+#include <pico/stdlib.h>
+
+// Arduino
 #ifdef USE_TINYUSB
 #include <Adafruit_TinyUSB.h>
 #endif
 #include <Arduino.h>
-#include <arm_acle.h>
-
+#include <EEPROM.h>
+#include <LittleFS.h>
 #if BLACKBOX_STORAGE == SD_BB
-#include "SdFat.h"
+#include <SdFat.h>
 #endif
-#include "NeoPixelConnect.h"
-#include "PIO_DShot.h"
+
+// Libraries
+#include <NeoPixelConnect.h>
+#include <PIO_DShot.h>
+#include <elapsedMillis.h>
+
+// Kolibri stuff
 #include "adc.h"
 #include "blackbox.h"
 #include "customSimdMath.h"
@@ -23,7 +48,6 @@
 #include "drivers/osd.h"
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
-#include "elapsedMillis.h"
 #include "imu.h"
 #include "modes.h"
 #include "pid.h"
@@ -43,23 +67,12 @@
 #include "settings/setting.h"
 #include "settings/settingIds.h"
 #include "taskManager.h"
+#include "typedefs.h"
 #include "unittest.h"
 #include "utils/bufferedWriter.h"
 #include "utils/filters.h"
 #include "utils/fixedPointInt.h"
 #include "utils/quaternion.h"
-#include <EEPROM.h>
-#include <LittleFS.h>
-#include <hardware/adc.h>
-#include <hardware/dma.h>
-#include <hardware/i2c.h>
-#include <hardware/pio.h>
-#include <hardware/pwm.h>
-#include <hardware/resets.h>
-#include <hardware/spi.h>
-#include <hardware/watchdog.h>
-#include <pico/stdlib.h>
-#include <string>
 
 #define SPI_OSD spi1 // SPI for OSD
 

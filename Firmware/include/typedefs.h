@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #pragma once
 // Rust just has better names for these types
 

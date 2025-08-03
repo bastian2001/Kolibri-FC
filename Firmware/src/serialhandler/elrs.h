@@ -1,8 +1,8 @@
 #pragma once
-#include "elapsedMillis.h"
 #include "hardware/interp.h"
 #include "msp.h"
 #include <Arduino.h>
+#include <elapsedMillis.h>
 #include <vector>
 using std::vector;
 
