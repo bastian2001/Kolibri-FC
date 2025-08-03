@@ -44,7 +44,7 @@ void gyroLoop() {
 		*((int16x2_t *)(bmiDataRaw + 2)) = __qsub16(*((int16x2_t *)(bmiDataRaw + 2)), *((int16x2_t *)(bmiCalibrationOffset + 2)));
 		*((int16x2_t *)(bmiDataRaw + 4)) = __qsub16(*((int16x2_t *)(bmiDataRaw + 4)), *((int16x2_t *)(bmiCalibrationOffset + 4)));
 #else
-		// warning: overflow can occur!
+		#warning overflow can occur!
 		bmiDataRaw[0] -= accelCalibrationOffset[0];
 		bmiDataRaw[1] -= accelCalibrationOffset[1];
 		bmiDataRaw[2] -= accelCalibrationOffset[2];

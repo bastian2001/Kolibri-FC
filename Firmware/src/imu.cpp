@@ -24,7 +24,7 @@ fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
 fix32 magFilterCutoff;
-DualPT1 vVelFilter(0.1, 3200), combinedAltitudeFilter(0.03, 3200);
+static DualPT1 vVelFilter(0.1, 3200), combinedAltitudeFilter(0.03, 3200);
 const fix32 &combinedAltitude = combinedAltitudeFilter.getConstRef();
 const fix32 &vVel = vVelFilter.getConstRef();
 PT1 baroImuUpVelFilter(0.2, 50), baroImuUpVelFilter2(5, 3200);
@@ -34,6 +34,7 @@ PT1 nVelFilter;
 const fix32 &eVel = eVelFilter.getConstRef();
 const fix32 &nVel = nVelFilter.getConstRef();
 fix32 vAccel;
+volatile u8 altInitState = 0;
 
 Quaternion q;
 
@@ -56,7 +57,7 @@ void imuInit() {
 	eVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
 	nVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
 	magHeadingCorrection = PT1(magFilterCutoff, MAG_HARDWARE == MAG_HMC5883L ? 75 : 200);
-	magHeadingCorrection.setRolloverParams(-PI, PI);
+	magHeadingCorrection.setRolloverParams(-FIX_PI, FIX_PI);
 
 	combinedAltitudeFilter.set(baroASL);
 }
@@ -143,6 +144,7 @@ void __not_in_flash_func(updatePitchRollValues)() {
 
 fix32 rAccel, fAccel;
 fix32 nAccel, eAccel;
+u8 lastAltInitState = 0;
 
 void __not_in_flash_func(updateSpeeds)() {
 	sinCosFix(pitch, sinPitch, cosPitch);
@@ -152,13 +154,21 @@ void __not_in_flash_func(updateSpeeds)() {
 	vAccel += sinRoll * cosPitch * *accelDataFiltered[0] * RAW_TO_M_PER_SEC2;
 	vAccel -= sinPitch * *accelDataFiltered[1] * RAW_TO_M_PER_SEC2;
 	vAccel -= 9.81f; // remove gravity
-	baroImuUpVelFilter.add(vAccel / 3200);
-	lastBaroImuUpVel = baroImuUpVelFilter2;
-	const fix32 baroImuUpAccel = baroImuUpVelFilter2.update(baroImuUpVelFilter) - lastBaroImuUpVel;
-	vVelFilter.add(baroImuUpAccel);
-	const fix32 filterVel = gpsStatus.fixType == FIX_3D ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel;
-	combinedAltitudeFilter.add(vVelFilter.update(filterVel) / 3200);
-	combinedAltitudeFilter.update(gpsBaroAlt);
+	if (altInitState > lastAltInitState) {
+		lastAltInitState = altInitState;
+		lastBaroImuUpVel = 0;
+		baroImuUpVelFilter2.set(0);
+		vVelFilter.set(0);
+		combinedAltitudeFilter.set(gpsBaroAlt);
+	} else {
+		baroImuUpVelFilter.add(vAccel / 3200);
+		lastBaroImuUpVel = baroImuUpVelFilter2;
+		const fix32 baroImuUpAccel = baroImuUpVelFilter2.update(baroImuUpVelFilter) - lastBaroImuUpVel;
+		vVelFilter.add(baroImuUpAccel);
+		const fix32 filterVel = gpsGoodQuality ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel;
+		combinedAltitudeFilter.add(vVelFilter.update(filterVel) / 3200);
+		combinedAltitudeFilter.update(gpsBaroAlt);
+	}
 	mspDebugSensors[2] = (vVel * 10000).geti32();
 
 	const fix32 rightAccel = cosRoll * *accelDataFiltered[0] - sinRoll * *accelDataFiltered[2];

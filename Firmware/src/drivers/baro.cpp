@@ -27,6 +27,7 @@ enum class BaroState {
 	CHECK_READY, // check if baro is ready (status register) -> send back to measuring or forward to reading
 	READ_DATA, // reading (sync or async)
 	EVAL_DATA, // evaluation (calculate hPa and altitude)
+	FORCE_SET_ALT, // set altitude to baro altitude (used once after boot)
 };
 static BaroState baroState = BaroState::NOT_INIT;
 static u8 baroSubState = 0;
@@ -39,7 +40,7 @@ i32 baroCalibration[9];
 fix32 gpsBaroAlt;
 static u8 baroBuffer[32] = {0};
 elapsedMicros baroTimer = 0;
-u32 baroTimerTimeout = 0;
+static u32 baroTimerTimeout = 0;
 i32 pressureRaw, baroTempRaw;
 
 void baroLoop() {
@@ -65,7 +66,6 @@ void baroLoop() {
 		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
 		if (baroBuffer[0] == 0xB1) {
 			baroState = BaroState::INITIALIZING;
-			baroTimerTimeout = 19000;
 		}
 #endif
 	} break;
@@ -105,6 +105,8 @@ void baroLoop() {
 		baroBuffer[0] = (u8)BaroRegs::CTRL_REG2;
 		baroBuffer[1] = 0b00000000; // clear register increment (needs to be unset when using block data update)
 		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 2, false);
+		baroTimerTimeout = 100000; // delay first reading
+		baroTimer = 0;
 #endif
 		baroState = BaroState::MEASURING;
 	} break;
@@ -223,19 +225,33 @@ void baroLoop() {
 		baroPres = baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
 #elifdef BARO_LPS22
 		blackboxPres = pressureRaw;
-		baroPres = pressureRaw / 40.96f;
+		baroPres = pressureRaw * (1 / 40.96f);
 #endif
 		lastBaroASL = baroASL;
 		baroASL = baroAslFiltered.update(44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f)));
-		if (gpsStatus.fixType != FIX_3D || gpsStatus.satCount < 6)
+		if (gpsGoodQuality)
 			gpsBaroAlt = baroASL - gpsBaroOffset;
 		else
 			gpsBaroOffset = baroASL - gpsMotion.alt / 1000.f;
 		baroUpVel = (baroASL - lastBaroASL) * 50;
-		baroImuUpVelFilter.update(FIX_3D ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel);
+		baroImuUpVelFilter.update(gpsGoodQuality ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel);
 		mspDebugSensors[1] = (fix32(baroImuUpVelFilter) * 1000).geti32();
-		baroState = BaroState::MEASURING;
+		baroState = altInitState ? BaroState::MEASURING : BaroState::FORCE_SET_ALT;
 		TASK_END(TASK_BARO_EVAL);
+	} break;
+	case BaroState::FORCE_SET_ALT: {
+		if (altInitState) {
+			baroState = BaroState::MEASURING;
+			break;
+		}
+		baroAslFiltered.set(44330 * (1 - powf(baroPres / 101325.f, 1 / 5.255f)));
+		baroASL = baroAslFiltered;
+		lastBaroASL = baroASL;
+		gpsBaroAlt = baroASL;
+		baroUpVel = 0;
+		baroImuUpVelFilter.set(0);
+		altInitState = 1;
+		baroState = BaroState::MEASURING;
 	} break;
 	}
 	tasks[TASK_BARO].debugInfo = (u32)baroState * 10 + baroSubState;

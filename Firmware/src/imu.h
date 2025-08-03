@@ -19,6 +19,7 @@ extern const fix32 *const accelDataFiltered[3]; // PT1 filters for the accelerom
 extern fix32 vAccel; // vertical up acceleration of the drone (m/s^2) provided by the accelerometer
 extern Quaternion q; // attitude quaternion of the drone, used to calculate the attitude angles and the heading
 extern PT1 baroImuUpVelFilter;
+extern volatile u8 altInitState; // monotonically increasing, 0 = neither baro nor GPS had their first valid alt, 1 = initialized by baro, 2 = initialized by GPS
 
 /**
  * @brief initialize the IMU

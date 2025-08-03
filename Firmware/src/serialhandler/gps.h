@@ -12,6 +12,7 @@ extern u32 newPvtMessageFlag;
 extern fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
 extern u32 gpsUpdateRate;
 extern fix32 gpsVelocityFilterCutoff;
+extern bool gpsGoodQuality; // whether the GPS data of the last frame is good
 
 /**
  * @brief initialize GPS driver
