@@ -15,6 +15,7 @@ i16 throttles[4] __attribute__((aligned(4)));
 
 fix32 gyroScaled[3];
 
+u16 pidGainsNice[3][5] = {0};
 fix32 pidGains[3][5];
 fix32 iFalloff;
 fix32 pidGainsVVel[4], pidGainsHVel[4];
@@ -98,11 +99,21 @@ interp_config dynIdleInterpConfig;
 
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {
-		pidGains[i][P].setRaw(80 << P_SHIFT);
-		pidGains[i][I].setRaw(40 << I_SHIFT);
-		pidGains[i][D].setRaw(500 << D_SHIFT);
-		pidGains[i][FF].setRaw(40 << FF_SHIFT);
-		pidGains[i][S].setRaw(0 << S_SHIFT);
+		pidGainsNice[i][0] = 80;
+		pidGainsNice[i][1] = 40;
+		pidGainsNice[i][2] = 500;
+		pidGainsNice[i][3] = 40;
+		pidGainsNice[i][4] = 0;
+	}
+}
+
+void convertPidsFromNice() {
+	for (int i = 0; i < 3; i++) {
+		pidGains[i][P].setRaw(pidGainsNice[i][0] << P_SHIFT);
+		pidGains[i][I].setRaw(pidGainsNice[i][1] << I_SHIFT);
+		pidGains[i][D].setRaw(pidGainsNice[i][2] << D_SHIFT);
+		pidGains[i][FF].setRaw(pidGainsNice[i][3] << FF_SHIFT);
+		pidGains[i][S].setRaw(pidGainsNice[i][4] << S_SHIFT);
 	}
 }
 
@@ -211,7 +222,10 @@ void initDynIdlePids() {
 }
 
 void initPid() {
-	addArraySetting(SETTING_PID_GAINS, pidGains, &initPidGains);
+	placeElem(OSDElem::IN_FLIGHT_TUNING, 15, 1);
+	enableElem(OSDElem::IN_FLIGHT_TUNING);
+
+	addArraySetting(SETTING_PID_GAINS, pidGainsNice, &initPidGains);
 	addArraySetting(SETTING_RATE_COEFFS, rateCoeffs, &initRateCoeffs);
 	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
 	addArraySetting(SETTING_PID_HVEL, pidGainsHVel, &initPidHVel);
@@ -238,6 +252,8 @@ void initPid() {
 	addSetting(SETTING_DYNAMIC_IDLE_EN, &useDynamicIdle, true);
 	addSetting(SETTING_DYNAMIC_IDLE_RPM, &dynamicIdleRpm, 3000);
 	addArraySetting(SETTING_DYNAMIC_IDLE_PIDS, dynamicIdlePidGains, &initDynIdlePids);
+
+	convertPidsFromNice();
 
 	initRateInterp();
 	dynIdleInterpConfig = interp_default_config();

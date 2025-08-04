@@ -25,7 +25,8 @@ enum {
 	FF,
 	S,
 };
-extern fix32 pidGains[3][5]; // PID gains for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
+extern u16 pidGainsNice[3][5]; // PID gains as configured for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
+extern fix32 pidGains[3][5]; // PID gains (raw, calculated) for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 extern fix32 iFalloff; // I term is reduced by this value per second
 extern fix32 pidGainsVVel[4]; // PID gains for the vertical velocity PID controller
 extern fix32 pidGainsHVel[4]; // PID gains for the horizontal velocity PID controller
@@ -64,6 +65,9 @@ enum class FlightMode {
 	LENGTH // place behind all other modes, acts as a limit for loops etc.
 };
 extern FlightMode flightMode; // currently selected flight mode (NOT whether the drone is armed)
+
+/// @brief converts nice PIDs to raw (fix32)
+void convertPidsFromNice();
 
 /**
  * @brief PID controller loop

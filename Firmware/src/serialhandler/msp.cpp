@@ -824,13 +824,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_PIDS: {
+			// copying just for future proofing, in case more things are added
 			u16 pids[3][5];
 			for (int i = 0; i < 3; i++) {
-				pids[i][0] = pidGains[i][0].raw >> P_SHIFT;
-				pids[i][1] = pidGains[i][1].raw >> I_SHIFT;
-				pids[i][2] = pidGains[i][2].raw >> D_SHIFT;
-				pids[i][3] = pidGains[i][3].raw >> FF_SHIFT;
-				pids[i][4] = pidGains[i][4].raw >> S_SHIFT;
+				pids[i][0] = pidGainsNice[i][0];
+				pids[i][1] = pidGainsNice[i][1];
+				pids[i][2] = pidGainsNice[i][2];
+				pids[i][3] = pidGainsNice[i][3];
+				pids[i][4] = pidGainsNice[i][4];
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)pids, sizeof(pids));
 		} break;
@@ -838,12 +839,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 pids[3][5];
 			memcpy(pids, reqPayload, sizeof(pids));
 			for (int i = 0; i < 3; i++) {
-				pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
-				pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
-				pidGains[i][2].setRaw(pids[i][2] << D_SHIFT);
-				pidGains[i][3].setRaw(pids[i][3] << FF_SHIFT);
-				pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
+				pidGainsNice[i][0] = pids[i][0];
+				pidGainsNice[i][1] = pids[i][1];
+				pidGainsNice[i][2] = pids[i][2];
+				pidGainsNice[i][3] = pids[i][3];
+				pidGainsNice[i][4] = pids[i][4];
 			}
+			convertPidsFromNice();
 			openSettingsFile();
 			getSetting(SETTING_PID_GAINS)->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
