@@ -99,10 +99,19 @@ void serialLoop() {
 
 	if (++currentSerial == SERIAL_COUNT) currentSerial = 0;
 	u32 functions = serials[currentSerial].functions;
-	if (!functions) return;
-
 	Stream *serial = serials[currentSerial].stream;
-	for (int c = serial->read(), i = 16; c != -1 && i; c = serial->read(), i--) {
+	if (!functions) {
+		while (serial->available())
+			serial->read(); // empty RX buf
+		TASK_END(TASK_SERIAL);
+		return;
+	}
+
+	// max 16 chars per loop, stop when no char to read
+	for (int i = 16; i; i--) {
+		int c = serial->read();
+		if (c == -1) break;
+
 		if (functions & SERIAL_CRSF) {
 			if (!elrsBuffer.isFull())
 				elrsBuffer.push(c);

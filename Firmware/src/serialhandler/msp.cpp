@@ -1085,6 +1085,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		fn = (MspFn)c;
 		if (c == (u8)MspFn::MSP_V2_FRAME) {
 			msgMspVer = MspVersion::V2_OVER_V1;
+			crcV2 = 0;
 			mspState = MspState::FLAG_V2_OVER_V1;
 		} else if (payloadLen == 255) {
 			msgMspVer = MspVersion::V1_JUMBO;
@@ -1116,25 +1117,25 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	case MspState::FLAG_V2_OVER_V1:
 		msgFlag = c;
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::CMD_LO_V2_OVER_V1;
 		break;
 	case MspState::CMD_LO_V2_OVER_V1:
 		fn = (MspFn)c;
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::CMD_HI_V2_OVER_V1;
 		break;
 	case MspState::CMD_HI_V2_OVER_V1:
 		fn = (MspFn)((u32)fn | (u32)c << 8);
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::LEN_LO_V2_OVER_V1;
 		break;
 	case MspState::LEN_LO_V2_OVER_V1:
 		payloadLen = c;
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::LEN_HI_V2_OVER_V1;
 		break;
 	case MspState::LEN_HI_V2_OVER_V1:
@@ -1144,13 +1145,13 @@ void mspHandleByte(u8 c, u8 serialNum) {
 			break;
 		}
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = payloadLen ? MspState::PAYLOAD_V2_OVER_V1 : MspState::CHECKSUM_V2_OVER_V1;
 		payloadBufIndex = 0;
 		break;
 	case MspState::PAYLOAD_V2_OVER_V1:
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		payloadBuf[payloadBufIndex++] = c;
 		if (payloadBufIndex == payloadLen)
 			mspState = MspState::CHECKSUM_V2_OVER_V1;
@@ -1173,6 +1174,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		break;
 	case MspState::TYPE_V2:
 		mspState = MspState::FLAG_V2;
+		crcV2 = 0;
 		switch (c) {
 		case '<':
 			msgType = MspMsgType::REQUEST;
@@ -1190,22 +1192,22 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		break;
 	case MspState::FLAG_V2:
 		msgFlag = c;
-		crcV2 = crcLutD5[c];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::CMD_LO_V2;
 		break;
 	case MspState::CMD_LO_V2:
 		fn = (MspFn)c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::CMD_HI_V2;
 		break;
 	case MspState::CMD_HI_V2:
 		fn = (MspFn)((u32)fn | (u32)c << 8);
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::LEN_LO_V2;
 		break;
 	case MspState::LEN_LO_V2:
 		payloadLen = c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::LEN_HI_V2;
 		break;
 	case MspState::LEN_HI_V2:
@@ -1214,11 +1216,11 @@ void mspHandleByte(u8 c, u8 serialNum) {
 			mspState = MspState::IDLE;
 			break;
 		}
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = payloadLen ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
 		break;
 	case MspState::PAYLOAD_V2:
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		payloadBuf[payloadBufIndex++] = c;
 		if (payloadBufIndex == payloadLen)
 			mspState = MspState::CHECKSUM_V2;
