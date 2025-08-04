@@ -23,7 +23,7 @@ ExpressLRS::ExpressLRS(u8 serialNum)
 
 void ExpressLRS::loop() {
 	TASK_START(TASK_ELRS);
-	if (frequencyTimer >= 1000) {
+	if (frequencyTimer >= 1000000) {
 		if (rcPacketRateCounter > 20 && rcMsgCount > 300)
 			isLinkUp = true;
 		else
@@ -51,12 +51,12 @@ void ExpressLRS::loop() {
 		TASK_END(TASK_ELRS);
 		return;
 	}
-	if ((!maxScan && heartbeatTimer >= 300) || heartbeatTimer >= 500) {
+	if ((!maxScan && heartbeatTimer >= 300000) || heartbeatTimer >= 500000) {
 		// try to send every 300 ms, and force send after reaching 500ms
 		u8 buf[2] = {0, ADDRESS_FLIGHT_CONTROLLER}; // u16 address, big endian
 		this->sendPacket(FRAMETYPE_HEARTBEAT, (char *)buf, 2);
 		heartbeatTimer = 0;
-	} else if (!maxScan && telemetryTimer >= 15) {
+	} else if (!maxScan && telemetryTimer >= 15000) {
 		// if there is no data to read and the last sensor was transmitted more than 15ms ago, send one telemetry sensor at a time
 		telemetryTimer = 0;
 		switch (currentTelemSensor++) {

@@ -109,9 +109,9 @@ private:
 	u32 currentTelemSensor = 0;
 	u8 msgBufIndex = 0;
 	const u8 serialNum;
-	elapsedMillis frequencyTimer;
-	elapsedMillis telemetryTimer;
-	elapsedMillis heartbeatTimer;
+	elapsedMicros frequencyTimer;
+	elapsedMicros telemetryTimer;
+	elapsedMicros heartbeatTimer;
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter = 0;
 	u32 crc = 0;

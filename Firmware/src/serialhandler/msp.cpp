@@ -11,7 +11,7 @@ elapsedMillis mspOverrideMotors = 1001;
 static constexpr char targetIdentifier[] = "KD04";
 static constexpr char targetFullName[] = "Kolibri Dev v0.4";
 
-elapsedMillis lastConfigPingRx = 0;
+elapsedMicros lastConfigPingRx = 0;
 bool configuratorConnected = false;
 
 i16 mspDebugSensors[4] = {0, 0, 0, 0};
@@ -20,7 +20,7 @@ u8 lastMspSerial = 0;
 MspVersion lastMspVersion = MspVersion::V2;
 
 void configuratorLoop() {
-	if (lastConfigPingRx > 1000)
+	if (lastConfigPingRx > 1000000)
 		configuratorConnected = false;
 	if (accelCalDone) {
 		accelCalDone = 0;

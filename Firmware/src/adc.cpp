@@ -5,7 +5,7 @@ bool batBlinkingAndBeeping = false;
 u16 emptyVoltageSetting = 0;
 static u16 emptyVoltage = 0;
 f32 adcCurrent = 0;
-elapsedMillis adcTimer = 0;
+elapsedMicros adcTimer = 0;
 f32 temperature = 0;
 u8 cellCountSetting = 0;
 u8 batCells = 1;
@@ -36,7 +36,7 @@ void initADC() {
 u8 adcType = 0; // 1 = voltage, 0 = current
 
 void adcLoop() {
-	if (adcTimer >= 50) {
+	if (adcTimer >= 50000) {
 		TASK_START(TASK_ADC);
 		adcTimer = 0;
 		if (adcType) {

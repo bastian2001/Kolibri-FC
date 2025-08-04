@@ -44,7 +44,7 @@ fix32 setpointDiffCutoff = 12;
 PT1 setpointDiff[3];
 fix32 lastSetpoints[3];
 i8 forceZeroVvelSetpoint = 0;
-elapsedMillis flightModeChangeTimer;
+static elapsedMicros flightModeChangeTimer;
 
 fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
 PT1 pidBoostFilter;
@@ -68,10 +68,10 @@ u8 idlePermille;
 fix32 throttleScale;
 fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
 fix32 smoothChannels[4];
-elapsedMillis burstTimer;
-elapsedMillis burstCooldown;
-u16 angleBurstTime; // milliseconds, time for which the maxAngleBurst is allowed
-u16 angleBurstCooldownTime; // milliseconds, time for which the maxAngleBurst is not allowed after the burst time
+static elapsedMicros burstTimer;
+static elapsedMicros burstCooldown;
+u32 angleBurstTime; // microseconds, time for which the maxAngleBurst is allowed
+u16 angleBurstCooldownTime; // microseconds, time for which the maxAngleBurst is not allowed after the burst time
 
 fix32 vvelDFilterCutoff;
 fix32 vvelFFFilterCutoff;
@@ -222,8 +222,8 @@ void initPid() {
 	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
 	addSetting(SETTING_SETPOINT_DIFF_CUTOFF, &setpointDiffCutoff, 12);
 	addSetting(SETTING_PID_BOOST_CUTOFF, &pidBoostCutoff, 5);
-	addSetting(SETTING_PID_BOOST_START, &pidBoostStart, 2000);
-	addSetting(SETTING_PID_BOOST_FULL, &pidBoostFull, 6000);
+	addSetting(SETTING_PID_BOOST_START, &pidBoostStart, 2000000);
+	addSetting(SETTING_PID_BOOST_FULL, &pidBoostFull, 6000000);
 	addSetting(SETTING_MAX_TARGET_HVEL, &maxTargetHvel, 12);
 	addSetting(SETTING_VVEL_FF_FILTER_CUTOFF, &vvelFFFilterCutoff, 2);
 	addSetting(SETTING_VVEL_D_FILTER_CUTOFF, &vvelDFilterCutoff, 15);
@@ -319,7 +319,7 @@ void __not_in_flash_func(pidLoop)() {
 						vVelSetpoint = 0;
 						if ((forceZeroVvelSetpoint == 1 && smoothChannels[2] > 1500) ||
 							(forceZeroVvelSetpoint == -1 && smoothChannels[2] < 1500) ||
-							flightModeChangeTimer > 2000) {
+							flightModeChangeTimer > 2000000) {
 							forceZeroVvelSetpoint = 0;
 						}
 					}
@@ -350,7 +350,7 @@ void __not_in_flash_func(pidLoop)() {
 						autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
 						if (eVelSetpoint.abs() > 0.5f || nVelSetpoint.abs() > 0.5f || vVelSetpoint.abs() > 0.5f) {
 							hoverTimer = 0; // reset hover timer if we are still moving
-						} else if (hoverTimer > 3) {
+						} else if (hoverTimer > 3000) {
 							// after 3 seconds of hovering, land
 							rthState = 3;
 						}
@@ -477,7 +477,7 @@ void __not_in_flash_func(pidLoop)() {
 						vVelSetpoint = 0;
 						if ((forceZeroVvelSetpoint == 1 && smoothChannels[2] > 1500) ||
 							(forceZeroVvelSetpoint == -1 && smoothChannels[2] < 1500) ||
-							flightModeChangeTimer > 2000) {
+							flightModeChangeTimer > 2000000) {
 							forceZeroVvelSetpoint = 0;
 						}
 					}
@@ -801,7 +801,7 @@ void __not_in_flash_func(pidLoop)() {
 		if (!rxModes[RxModeIndex::BEEPER].isActive()) {
 			sendThrottles(throttles);
 		} else {
-			static elapsedMillis motorBeepTimer = 0;
+			static elapsedMillis motorBeepTimer;
 			if (motorBeepTimer > 500)
 				motorBeepTimer = 0;
 			if (motorBeepTimer < 50) {
@@ -828,7 +828,7 @@ void __not_in_flash_func(pidLoop)() {
 
 static fix32 stickToTargetVvel(fix32 stickPos) {
 	fix32 t = stickPos - 512;
-	static elapsedMillis setAltSetpointTimer;
+	static elapsedMicros setAltSetpointTimer;
 	static u32 stickWasCentered = 0;
 
 	// deadband in center of stick
@@ -845,7 +845,7 @@ static fix32 stickToTargetVvel(fix32 stickPos) {
 		if (!stickWasCentered) {
 			setAltSetpointTimer = 0;
 			stickWasCentered = 1;
-		} else if (setAltSetpointTimer > 1000) {
+		} else if (setAltSetpointTimer > 1000000) {
 			if (stickWasCentered == 1) {
 				// set altitude setpoint 1s after throttle is centered
 				altSetpoint = combinedAltitude;
@@ -897,7 +897,7 @@ void distFromCoordinates(fix64 lat1, fix64 lon1, fix64 lat2, fix64 lon2, fix32 *
 }
 
 static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix32 *nVelSetpoint) {
-	static elapsedMillis locationSetpointTimer = 0;
+	static elapsedMicros locationSetpointTimer;
 	fix32 rightCommand = channels[0] - 1500;
 	fix32 fwdCommand = channels[1] - 1500;
 
@@ -927,7 +927,7 @@ static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix3
 		pushNorth.set(0);
 		pushEast.set(0);
 		locationSetpointTimer = 0;
-	} else if (locationSetpointTimer < 2000) {
+	} else if (locationSetpointTimer < 2000000) {
 		// stop craft within the first 2s after releasing sticks
 		targetLat = gpsLatitudeFiltered;
 		targetLon = gpsLongitudeFiltered;

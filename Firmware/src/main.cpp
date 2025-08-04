@@ -2,6 +2,7 @@
 #include "hardware/vreg.h"
 
 volatile u8 setupDone = 0b00;
+static elapsedMicros taskTimer0;
 
 void setup() {
 	vreg_set_voltage(VREG_VOLTAGE_1_30);
@@ -65,7 +66,6 @@ void setup() {
 	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");
-	extern elapsedMicros taskTimer0;
 	taskTimer0 = 0;
 	setupDone |= 0b01;
 	while (!(setupDone & 0b10)) {
@@ -75,9 +75,8 @@ void setup() {
 	rom_flash_flush_cache();
 }
 
-elapsedMillis activityTimer;
+static elapsedMicros activityTimer;
 
-elapsedMicros taskTimer0;
 void loop() {
 	u32 duration0 = taskTimer0;
 	if (duration0 > tasks[TASK_LOOP0].maxGap) {
@@ -97,7 +96,7 @@ void loop() {
 	osdLoop();
 	taskManagerLoop();
 	rp2040.wdt_reset();
-	if (activityTimer >= 500) {
+	if (activityTimer >= 500000) {
 		static bool on = false;
 		if (on) {
 			p.neoPixelSetValue(0, 0, 0, 0, true);
@@ -112,7 +111,6 @@ void loop() {
 	taskTimer0 = 0;
 }
 
-u32 *speakerRxPacket;
 void setup1() {
 	while (!(setupDone & 0b01)) {
 	}

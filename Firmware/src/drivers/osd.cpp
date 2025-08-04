@@ -2,7 +2,7 @@
 
 u8 osdReady = false;
 
-elapsedMillis osdTimer = 0;
+static elapsedMicros osdTimer = 0;
 
 u8 drawIterator = 0;
 
@@ -11,8 +11,6 @@ u8 elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can be s
 u8 elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 16 bytes for data
 
 void osdInit() {
-	osdTimer = 0;
-
 	spi_init(SPI_OSD, 8000000);
 
 	spi_set_format(SPI_OSD, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
@@ -85,7 +83,7 @@ void drawElem(u8 elem) {
 	// draw element using the elemData array
 	u16 pos = (u16)(elemPositions[elem][0] & 0x3F) + (u16)(elemPositions[elem][1] & 0x3F) * OSD_WIDTH;
 	bool blinking = elemPositions[elem][1] & 0x40;
-	bool isOff = blinking ? (osdTimer % 500 < 250) : false; // blink every 500ms
+	bool isOff = blinking ? (osdTimer % 500000 < 250000) : false; // blink every 500ms
 	for (int i = 0; i < 16; i++) {
 		if (!elemData[elem][i])
 			break;
@@ -120,7 +118,7 @@ void osdLoop() {
 		}
 		TASK_END(TASK_OSD);
 	}
-	if (osdTimer > 1000 && osdReady != 1) {
+	if (osdTimer > 1000000 && osdReady != 1) {
 		TASK_START(TASK_OSD);
 		// gyro likely ready, check registers
 		u8 data = 0;

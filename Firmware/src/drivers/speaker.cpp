@@ -1,6 +1,6 @@
 #include "global.h"
 
-elapsedMillis soundStart;
+elapsedMicros soundStart;
 u16 soundDuration = 0;
 u8 soundType = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
 u16 sweepStartFrequency = 0;
@@ -226,7 +226,7 @@ void speakerLoop() {
 	}
 	if (soundDuration > 0) {
 		u32 sinceStart = soundStart;
-		if (soundDuration != 65535 && sinceStart > soundDuration) {
+		if (soundDuration != 65535 && sinceStart > 1000 * soundDuration) {
 			stopSound();
 		} else if (soundType == 1) {
 			i32 thisCycle = sinceStart % ((u32)onTime + (u32)offTime);

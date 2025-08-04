@@ -1,7 +1,7 @@
 #include "global.h"
 
 RingBuffer<u8> gpsBuffer(1024);
-elapsedMillis gpsInitTimer;
+elapsedMicros gpsInitTimer;
 bool gpsInitAck = false;
 GpsAccuracy gpsAcc;
 struct tm gpsTime;
@@ -20,7 +20,7 @@ static bool firstGoodQuality = true;
 
 int gpsSerialSpeed = 38400;
 u8 retryCounter = 0;
-elapsedMillis lastPvtMessage = 0;
+elapsedMicros lastPvtMessage = 0;
 
 void gpsChecksum(const u8 *buf, int len, u8 *ck_a, u8 *ck_b) {
 	*ck_a = 0;
@@ -80,13 +80,13 @@ void fillOpenLocationCode() {
 void gpsLoop() {
 	if (!gpsSerial) return;
 	TASK_START(TASK_GPS);
-	if (lastPvtMessage > 1000) {
+	if (lastPvtMessage > 1000000) {
 		// no PVT message received for 1 second
 		gpsStatus.fixType = fixTypes::FIX_NONE;
 		if (gpsStatus.gpsInited) {
 			gpsStatus.gpsInited = false;
 			lastPvtMessage = 0;
-		} else if (lastPvtMessage > 30000) {
+		} else if (lastPvtMessage > 30000000) {
 			// no PVT message received for 30 seconds
 			// reinit GPS
 			gpsStatus.initStep = 0;
@@ -97,7 +97,7 @@ void gpsLoop() {
 		}
 	}
 	// UBX implementation
-	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000)) {
+	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000000)) {
 		switch (gpsStatus.initStep) {
 		case 0: {
 			if (retryCounter++ % 2 == 0) {
