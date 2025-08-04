@@ -101,11 +101,24 @@ private:
 	static constexpr u8 ADDRESS_RADIO_TRANSMITTER = 0xEA;
 	static constexpr u8 ADDRESS_CRSF_RECEIVER = 0xEC;
 	static constexpr u8 ADDRESS_CRSF_TRANSMITTER = 0xEE;
+	enum {
+		CRSF_STATE_SYNC,
+		CRSF_STATE_LEN,
+		CRSF_STATE_TYPE,
+		CRSF_STATE_EXT_DEST,
+		CRSF_STATE_EXT_SRC,
+		CRSF_STATE_PAYLOAD,
+	};
+	u8 inPayloadIndex = 0;
+	u8 inType = 0;
+	u8 inMsgLen = 0;
+	u8 inActualLen = 0;
+	u8 inExtDest = 0;
+	u8 inExtSrc = 0;
+	u8 inPayload[60]; // only actual payload, not ext src/dest
 	static interp_config interpConfig0; // used to interpolate for smooth sticks
 	static interp_config interpConfig1; // used to interpolate for smooth sticks
 	static interp_config interpConfig2; // used to clamp smoothed values
-	u8 msgBuffer[64] = {0};
-	u8 telemBuffer[30] = {0};
 	u32 currentTelemSensor = 0;
 	u8 msgBufIndex = 0;
 	const u8 serialNum;
@@ -127,6 +140,7 @@ private:
 	bool pinged = false;
 	MspVersion mspVersion = MspVersion::V2_OVER_CRSF;
 	void processMessage();
+	void parseChar(u8 c);
 	void resetMsp(bool setError = false);
 	void processMspReq(int size);
 };

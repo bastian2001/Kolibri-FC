@@ -109,7 +109,7 @@ public:
 		if (serialType == SerialType::UART) {
 			// special treatment: UART cannot tell how many bytes it can still send, only _that_ it can still send at least one
 			if (!c) return mutex_exit(&writeMutex);
-			while (--c) {
+			while (c--) {
 				if (!stream->availableForWrite())
 					return mutex_exit(&writeMutex);
 				uartStream->write(writeBuffer.pop());
@@ -163,14 +163,16 @@ public:
 		mutex_enter_blocking(&writeMutex);
 		u32 free = writeBuffer.freeSpace();
 		if (free >= len) {
-			for (; len; --len) {
+			while (len--) {
 				writeBuffer.push(*p++);
 			}
 		} else {
 			len -= free;
-			while (--free) {
+			// first fill as many into the buffer as possible
+			while (free--) {
 				writeBuffer.push(*p++);
 			}
+			// then empty the buf as much as needed into the peripheral
 			while (len > 0) {
 				i32 c = stream->availableForWrite();
 				i32 maxWrite = writeBuffer.itemCount();
@@ -178,12 +180,15 @@ public:
 				if (c > len) c = len;
 				if (!c) continue;
 				u8 buf[c];
+				// pull from internal buffer
 				writeBuffer.copyToArray(buf, 0, c);
 				writeBuffer.erase(c);
+				// write to peri
 				stream->write(buf, c);
 				totalTx += c;
 				len -= c;
-				while (--c) {
+				// refill internal buffer
+				while (c--) {
 					writeBuffer.push(*p++);
 				}
 			}

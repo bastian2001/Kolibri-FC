@@ -1100,6 +1100,10 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		break;
 	case MspState::JUMBO_LEN_HI_V1:
 		payloadLen |= ((u16)c << 8);
+		if (payloadLen > 2048) {
+			mspState = MspState::IDLE;
+			break;
+		}
 		crcV1 ^= c;
 		mspState = payloadLen ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
 		break;

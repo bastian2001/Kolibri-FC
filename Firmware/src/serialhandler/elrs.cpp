@@ -7,7 +7,7 @@
  * 30 works well enough, but if DMA is possible for receiving, the value can be decreased because the buffer will not fill up as quickly.
  */
 #define ELRS_MAX_SCAN 30
-#define ELRS_BUFFER_SIZE 600 // need to accept large bursts of MSP data
+#define ELRS_BUFFER_SIZE 600
 
 RingBuffer<u8> elrsBuffer(ELRS_BUFFER_SIZE);
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
@@ -39,7 +39,7 @@ void ExpressLRS::loop() {
 		}
 	}
 	int maxScan = elrsBuffer.itemCount();
-	if (maxScan > ELRS_BUFFER_SIZE - ELRS_MAX_SCAN) {
+	if (maxScan >= ELRS_BUFFER_SIZE) {
 		elrsBuffer.clear();
 		msgBufIndex = 0;
 		crc = 0;
@@ -59,6 +59,7 @@ void ExpressLRS::loop() {
 	} else if (!maxScan && telemetryTimer >= 15000) {
 		// if there is no data to read and the last sensor was transmitted more than 15ms ago, send one telemetry sensor at a time
 		telemetryTimer = 0;
+		u8 telemBuffer[30];
 		switch (currentTelemSensor++) {
 		case 0: {
 			// GPS (0x02)
@@ -153,13 +154,21 @@ void ExpressLRS::loop() {
 	}
 
 	if (maxScan > ELRS_MAX_SCAN) maxScan = ELRS_MAX_SCAN; // limit to max scan size
-	if (maxScan + msgBufIndex > 64) maxScan = 64 - msgBufIndex; // limit to packet length
 	for (int i = 0; i < maxScan; i++) {
 		msgBuffer[msgBufIndex] = elrsBuffer.pop();
 		if (msgBufIndex >= 2) {
 			crc ^= msgBuffer[msgBufIndex];
 			crc = crcLutD5[crc];
-		} else {
+		} else if (msgBufIndex == 1) {
+			if (msgBuffer[1] > 62) {
+				elrsBuffer.clear();
+				msgBufIndex = 0;
+				lastError = ERROR_INVALID_PKT_LEN;
+				errorFlag = true;
+				errorCount++;
+				tasks[TASK_ELRS].errorCount++;
+				tasks[TASK_ELRS].lastError = ERROR_INVALID_PKT_LEN;
+			}
 			crc = 0;
 		}
 		msgBufIndex++;
@@ -460,6 +469,9 @@ void ExpressLRS::processMessage() {
 
 	msgBufIndex = 0;
 	crc = 0;
+}
+
+void ExpressLRS::parseChar(u8 c) {
 }
 
 void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
