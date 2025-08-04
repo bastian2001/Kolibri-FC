@@ -23,7 +23,6 @@ enum class OSDReg : u8 {
 
 #define OSD_WIDTH 30
 #define OSD_HEIGHT 16
-#define OSD_MAX_ELEM 128
 
 enum class OSDElem : u8 {
 	WARNINGS,
@@ -38,7 +37,8 @@ enum class OSDElem : u8 {
 	HOME_DISTANCE,
 	GROUND_SPEED,
 	PLUS_CODE,
-	CELL_VOLTAGE
+	CELL_VOLTAGE,
+	LENGTH
 };
 
 void osdInit();

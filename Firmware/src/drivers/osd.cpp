@@ -6,9 +6,9 @@ static elapsedMicros osdTimer = 0;
 
 u8 drawIterator = 0;
 
-u8 elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 2 bytes for x and y position, the 3 MSBs of x is used as an updated flag + reserved, the 3 MSBs of y is used as a visible flag + blinking flag + reserved
+u8 elemPositions[(u8)OSDElem::LENGTH][2] = {0}; // up to LENGTH elements can be shown, each element has 2 bytes for x and y position, the 3 MSBs of x is used as an updated flag + reserved, the 3 MSBs of y is used as a visible flag + blinking flag + reserved
 
-u8 elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 16 bytes for data
+u8 elemData[(u8)OSDElem::LENGTH][16] = {0}; // up to LENGTH elements can be shown, each element has 16 bytes for data
 
 void osdInit() {
 	spi_init(SPI_OSD, 8000000);
@@ -106,7 +106,7 @@ void osdLoop() {
 		u8 drawIteratorStart = drawIterator;
 		while (1) {
 			drawIterator++;
-			if (drawIterator >= OSD_MAX_ELEM)
+			if (drawIterator >= (u8)OSDElem::LENGTH)
 				drawIterator = 0;
 			if ((elemPositions[drawIterator][0] & 0x80) && (elemPositions[drawIterator][1] & 0x80)) // if updated and enabled
 			{
