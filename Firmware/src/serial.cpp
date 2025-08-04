@@ -1,10 +1,9 @@
 #include "global.h"
 
-u8 readChar = 0;
+// u8 readChar = 0;
 u32 crcLutD5[256] = {0};
 
 char serialFunctionNames[SERIAL_FUNCTION_COUNT][11] = {
-	"Disabled",
 	"CRSF",
 	"MSP",
 	"GPS",
@@ -19,6 +18,7 @@ KoliSerial serials[SERIAL_COUNT] = {
 	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},
 	{new BufferedWriter(&Serial2, 2048), SERIAL_GPS},
 };
+static u8 currentSerial = 0;
 
 void initSerial() {
 	for (u32 i = 0; i < 256; i++) {
@@ -96,39 +96,37 @@ void initSerial() {
 
 void serialLoop() {
 	TASK_START(TASK_SERIAL);
-	for (int i = 0; i < SERIAL_COUNT; i++) {
-		u32 functions = serials[i].functions;
-		if (functions & SERIAL_DISABLED)
-			continue;
-		Stream *serial = serials[i].stream;
-		int available = serial->available();
-		for (int j = 0; j < available; j++) {
-			readChar = serial->read();
-			if (functions & SERIAL_CRSF) {
-				if (!elrsBuffer.isFull())
-					elrsBuffer.push(readChar);
-			}
-			if (functions & SERIAL_MSP) {
-				rp2040.wdt_reset();
-				elapsedMicros timer = 0;
-				mspHandleByte(readChar, i);
-				taskTimerTASK_SERIAL -= timer;
-			}
-			if (functions & SERIAL_GPS) {
-				if (!gpsBuffer.isFull())
-					gpsBuffer.push(readChar);
-			}
-			if (functions & SERIAL_4WAY) {
-				process4Way(readChar);
-			}
-			if (functions & SERIAL_IRC_TRAMP) {
-			}
-			if (functions & SERIAL_SMARTAUDIO) {
-			}
-			if (functions & SERIAL_ESC_TELEM) {
-			}
+
+	if (++currentSerial == SERIAL_COUNT) currentSerial = 0;
+	u32 functions = serials[currentSerial].functions;
+	if (!functions) return;
+
+	Stream *serial = serials[currentSerial].stream;
+	for (int c = serial->read(), i = 16; c != -1 && i; c = serial->read(), i--) {
+		if (functions & SERIAL_CRSF) {
+			if (!elrsBuffer.isFull())
+				elrsBuffer.push(c);
 		}
-		serials[i].stream->loop();
+		if (functions & SERIAL_MSP) {
+			rp2040.wdt_reset();
+			elapsedMicros timer = 0;
+			mspHandleByte(c, currentSerial);
+			taskTimerTASK_SERIAL -= timer;
+		}
+		if (functions & SERIAL_GPS) {
+			if (!gpsBuffer.isFull())
+				gpsBuffer.push(c);
+		}
+		if (functions & SERIAL_4WAY) {
+			process4Way(c);
+		}
+		if (functions & SERIAL_IRC_TRAMP) {
+		}
+		if (functions & SERIAL_SMARTAUDIO) {
+		}
+		if (functions & SERIAL_ESC_TELEM) {
+		}
 	}
+	serials[currentSerial].stream->loop();
 	TASK_END(TASK_SERIAL);
 }

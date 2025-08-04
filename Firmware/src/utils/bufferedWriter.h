@@ -67,7 +67,17 @@ public:
 	virtual void begin(unsigned long baudrate = 115200) override;
 	virtual void begin(unsigned long baudrate, uint16_t config) override;
 	virtual void end() override;
-	virtual int available() override { return stream->available(); }
+	virtual int available() override {
+		switch (serialType) {
+		case SerialType::USB:
+			return usbStream->available();
+		case SerialType::UART:
+			return uartStream->available();
+		case SerialType::PIO:
+			return pioStream->available();
+		}
+		return 0;
+	}
 	virtual int availableForWrite() override {
 		mutex_enter_blocking(&writeMutex);
 		u32 writable = writeBuffer.freeSpace();
@@ -77,7 +87,15 @@ public:
 	int peek() { return stream->peek(); }
 	int read() {
 		totalRx++;
-		return stream->read();
+		switch (serialType) {
+		case SerialType::USB:
+			return usbStream->read();
+		case SerialType::UART:
+			return uartStream->read();
+		case SerialType::PIO:
+			return pioStream->read();
+		}
+		return -1;
 	}
 	void loop(i32 maxWrite = 64) {
 		// write the lowest of
