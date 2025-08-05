@@ -57,7 +57,7 @@ void OsdHandler::osdHandlerLoop() {
 		break;
 	case State::CHECK_UPDATES:
 		if (elements[it]->isScheduled()) {
-			elements[it]->drawOsdElement(); //?need to rename this stuff...
+			elements[it]->pushOsdElement(); //?need to rename this stuff...
 		}
 		if (it < lastElem) {
 			switch (osdtype) {

@@ -56,7 +56,13 @@ enum class ElementType : u8 { // TODO find OSD elements to implement.
 	// Warn
 	ALARM_CRITICAL,
 	ALARM_WARNING,
-	ALARM_INFO
+	ALARM_INFO,
+	// HUD
+	HUD_COMPASS_HEADING,
+	HUD_ARTIFICIAL_HORIZON,
+	HUD_ASCENT_RATE,
+	HUD_ASCENT_INDICATOR,
+
 };
 
 union Data {
@@ -182,6 +188,6 @@ private:
 	//?<note_001> So far data is global, if this changes implement below.
 	// void *rawDataPtr; // Where to find the data
 	// void *last;
-	Data val;
+	Data currentVal, lastVal; // Current and last value of the element
 	char *screenText; // What is displayed on screen
 };
