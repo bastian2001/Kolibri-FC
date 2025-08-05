@@ -38,7 +38,7 @@ void setup() {
 	}
 	rtcInit();
 	imuInit();
-	osdInit();
+	OsdHandler::get().init();
 	initMspDisplayport();
 	initMag();
 	initBaro();
@@ -90,8 +90,7 @@ void loop() {
 	configuratorLoop();
 	gpsLoop();
 	magLoop();
-	// osdLoop();
-	OsdHandler::get().osdHandlerLoop();
+	OsdHandler::get().loop();
 	taskManagerLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 250) {

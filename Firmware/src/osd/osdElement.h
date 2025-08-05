@@ -10,7 +10,8 @@
 #define OSD_ELEMENT_ADV_OPT_NO_BOUNDS (1 << 4) //?may not belong here
 #define OSD_ELEMENT_ADV_OPT_OVERWRITE_EVERYTHING (1 << 5) //?may not belong here
 #define OSD_ELEMENT_SHORT_GPS (1 << 6)
-enum class ElementType : u8 { // TODO find OSD elements to implement.
+
+enum class ElementType { // TODO find OSD elements to implement.
 	UNDEFINED,
 	// Battery info
 	BATTERY_VOLTAGE,
@@ -144,7 +145,7 @@ public:
 	 * @brief returns the refresh rate in milliseconds
 	 * @return period time in milliseconds
 	 */
-	u32 getRefreshMillis();
+	u32 getRefreshMillis() const { return refreshMillis; };
 	/**
 	 * @brief returns the type of the element
 	 * @return the type of the element as defined in ElementType
@@ -168,6 +169,15 @@ public:
 	 * @note to draw the data call drawOsdElement()
 	 */
 	void pushOsdElement();
+
+	/**
+	 * @brief compare function for two OSD elements
+	 *
+	 * @param a pointer to first OSD element
+	 * @param b pointer to second OSD element
+	 * @return int 1 if a > b, -1 if a < b, 0 if equal (regarding sorting for optimize)
+	 */
+	static int compareOsdElements(const OsdElement *a, const OsdElement *b);
 
 private:
 	/**

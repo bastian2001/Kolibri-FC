@@ -1,8 +1,19 @@
 #include "global.h"
 
 void OsdHandler::init() {
+	u32 i = 0;
+	for (u32 serialFn : serialFunctions) {
+		if (serialFn == SERIAL_MSP_DISPLAYPORT) {
+			mspSerialId = i;
+			break;
+		}
+		i++;
+	}
+
 	// TODO Read settings
 	addOsdElement(new OsdElement(ElementType::BATTERY_VOLTAGE));
+
+	optimize();
 }
 
 int OsdHandler::find(ElementType elementType) {
@@ -14,26 +25,13 @@ int OsdHandler::find(ElementType elementType) {
 	return -1;
 }
 
-void OsdHandler::osdHandlerLoop() {
-	// lastCall <
-	enum State : u8 {
-		WAITING_FOR_OSD_CONNECTION,
-		INIT,
-		CONFIGURE_OSD,
-		DISABLED,
-		IDLE,
-		CHECK_UPDATES,
-		DRAW_ANALOG,
-		DRAW_DIGITAL
-	};
-	// TODO Move statics to object?
-	static u8 it = 0;
-	static u8 curState = State::INIT;
-	static elapsedMicros osdTimer = 0; // TODO find better name
-	static u8 nextState = State::INIT;
+void OsdHandler::loop() {
 
 	// ----- State machine begin -----
 	switch (curState) {
+	case State::INIT:
+		nextState = State::WAITING_FOR_OSD_CONNECTION;
+		break;
 	case State::WAITING_FOR_OSD_CONNECTION:
 		if (osdTimer > OSD_TIMEOUT) { // Wait for OSD to be ready
 			nextState = State::DISABLED;
@@ -45,9 +43,6 @@ void OsdHandler::osdHandlerLoop() {
 		}
 		nextState = State::CONFIGURE_OSD;
 		// TODO configure functions
-		break;
-	case State::INIT:
-		nextState = State::WAITING_FOR_OSD_CONNECTION;
 		break;
 	case State::DISABLED:
 		//?maybe still check every now and then.
@@ -119,7 +114,6 @@ void OsdHandler::addOsdElement(OsdElement *element) {
 			return;
 		}
 	}
-	osdHandler.optimize();
 }
 
 void OsdHandler::optimize() {
@@ -127,6 +121,8 @@ void OsdHandler::optimize() {
 	// TODO replace undefined elements with nullptr
 	// Remove Disabled Elements
 	// TODO move disabled elements to the back
+
+	qsort(elements, OSD_MAX_ELEM, sizeof(OsdElement *), (__compar_fn_t)&OsdElement::compareOsdElements);
 
 	//  Remove Gaps
 	for (u16 k = 0; k < OSD_MAX_ELEM; k++) {

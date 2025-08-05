@@ -2,6 +2,21 @@
 #include "formatFunc.h"
 #include "global.h"
 
+int OsdElement::compareOsdElements(const OsdElement *a, const OsdElement *b) {
+	if (a == nullptr && b == nullptr) return 0;
+	if (a == nullptr) return 1;
+	if (b == nullptr) return -1;
+
+	if (a->getElementType() == ElementType::UNDEFINED && a->getElementType() == ElementType::UNDEFINED) return 0;
+	if (a->getElementType() == ElementType::UNDEFINED) return 1;
+	if (b->getElementType() == ElementType::UNDEFINED) return -1;
+
+	if (a->getRefreshMillis() == b->getRefreshMillis()) return 0;
+	if (a->getRefreshMillis() > b->getRefreshMillis()) return 1;
+	if (a->getRefreshMillis() < b->getRefreshMillis()) return -1;
+	return 0;
+}
+
 void OsdElement::updateOsdElementData() {
 	//? <note_001> Implement further if data is no longer global
 	// if (rawDataPtr == nullptr || !updated) {
@@ -13,7 +28,7 @@ void OsdElement::updateOsdElementData() {
 	// memcpy(last, rawDataPtr, sizeof(last));
 	// if (memcmp(last, rawDataPtr, sizeof(last))) return; // No change in value
 	switch (element) {
-	case ElementType::ALTITUDE: // Probably dosn't need cm precision.
+	case ElementType::ALTITUDE: { // Probably dosn't need cm precision.
 		currentVal.fix32_val = combinedAltitude;
 		u8 i = 0;
 		for (; currentVal.fix32_val > 10; currentVal.fix32_val /= 10) {
@@ -22,8 +37,8 @@ void OsdElement::updateOsdElementData() {
 			i++;
 		}
 		screenText[i] = 'm';
-		break;
-	case ElementType::BATTERY_CELL_VOLTAGE:
+	} break;
+	case ElementType::BATTERY_CELL_VOLTAGE: {
 		static fix32 lastCellVoltage = 0;
 		currentVal.fix32_val = (fix32)adcVoltage / (fix32)batCells / (fix32)100;
 		if (currentVal.fix32_val == lastCellVoltage) break;
@@ -38,7 +53,7 @@ void OsdElement::updateOsdElementData() {
 		} else {
 			blinking = true;
 		}
-		break;
+	} break;
 	case ElementType::BATTERY_VOLTAGE:
 		currentVal.fix32_val = (fix32)adcVoltage / (fix32)100;
 		if (currentVal.fix32_val == lastVal.fix32_val) break;
@@ -58,9 +73,9 @@ void OsdElement::updateOsdElementData() {
 		snprintf(screenText, sizeof(screenText), "%dS", batCells);
 		break;
 	case ElementType::ARM_TIME:
-		//snprintf(screenText, sizeof(screenText), "%d", armTime); //TODO get arm time
+		// snprintf(screenText, sizeof(screenText), "%d", armTime); //TODO get arm time
 		break;
-	case ElementType::HUD_COMPASS_HEADING:
+	case ElementType::HUD_COMPASS_HEADING: {
 		currentVal.fix32_val = combinedHeading;
 		//|----S----|----W----|----N----|----E----|----S----|
 		if (currentVal.fix32_val == lastVal.fix32_val) break;
@@ -83,7 +98,7 @@ void OsdElement::updateOsdElementData() {
 		screenText[11] = 'E';
 		screenText[12] = ' ';
 		screenText[13] = 'S';
-		break;
+	} break;
 	}
 	updated = false; //? still neded?
 	lastUpdateMillis = millis();
@@ -98,7 +113,9 @@ ElementType OsdElement::getElementType() const {
 }
 
 void OsdElement::setRefreshRate(u8 refreshRate) {
-	refreshRate = refreshRate <= refreshRate ? refreshRate : maxHz;
+	if (refreshRate > maxHz) {
+		refreshRate = maxHz;
+	}
 	refreshMillis = 1000 / refreshRate;
 }
 
