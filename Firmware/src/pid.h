@@ -7,7 +7,7 @@
 
 #define P_SHIFT 11
 #define I_SHIFT 3
-#define D_SHIFT 10
+#define D_SHIFT 16
 #define FF_SHIFT 8
 #define S_SHIFT 8 // setpoint follow
 

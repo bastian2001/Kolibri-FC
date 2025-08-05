@@ -42,7 +42,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		pidConstantsNice[i][1] = pidConstants[i][1] >> 3
 		pidConstants[i][1] /= 65536
 		pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 20 + 8, i * 20 + 12))
-		pidConstantsNice[i][2] = pidConstants[i][2] >> 10
+		pidConstantsNice[i][2] = pidConstants[i][2] >> 16
 		pidConstants[i][2] /= 65536
 		pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 20 + 12, i * 20 + 16))
 		pidConstantsNice[i][3] = pidConstants[i][3] >> 8
