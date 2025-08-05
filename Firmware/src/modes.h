@@ -14,6 +14,7 @@ extern fix32 homepointAlt; // altitude of the drone when it was armed
 void mspGetRxModes(u8 serialNum, MspVersion version);
 void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16 reqLen);
 
+// explicitly numerated in case an option is being dropped => no need to change MSP command then
 namespace RxModeIndex {
 	enum {
 		ARMED = 0,
@@ -23,6 +24,10 @@ namespace RxModeIndex {
 		WAYPOINT = 4,
 		BEEPER = 5,
 		BB_HIGHLIGHT = 6,
+		TUNING_NEXT_VAR = 7,
+		TUNING_PREV_VAR = 8,
+		TUNING_INC_VAL = 9,
+		TUNING_DEC_VAL = 10,
 		LENGTH
 	};
 };

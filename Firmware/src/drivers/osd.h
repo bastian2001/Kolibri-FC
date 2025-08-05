@@ -38,6 +38,7 @@ enum class OSDElem : u8 {
 	GROUND_SPEED,
 	PLUS_CODE,
 	CELL_VOLTAGE,
+	IN_FLIGHT_TUNING,
 	LENGTH
 };
 

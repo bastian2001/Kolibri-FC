@@ -222,9 +222,6 @@ void initDynIdlePids() {
 }
 
 void initPid() {
-	placeElem(OSDElem::IN_FLIGHT_TUNING, 15, 1);
-	enableElem(OSDElem::IN_FLIGHT_TUNING);
-
 	addArraySetting(SETTING_PID_GAINS, pidGainsNice, &initPidGains);
 	addArraySetting(SETTING_RATE_COEFFS, rateCoeffs, &initRateCoeffs);
 	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
@@ -254,6 +251,15 @@ void initPid() {
 	addArraySetting(SETTING_DYNAMIC_IDLE_PIDS, dynamicIdlePidGains, &initDynIdlePids);
 
 	convertPidsFromNice();
+	for (int i = 0; i < 3; i++) {
+		const char ax[3][6] = {"ROLL", "PITCH", "YAW"};
+		const char type[5][3] = {" P", " I", " D", "FF", " S"};
+		for (int j = 0; j < 5; j++) {
+			char buf[10];
+			snprintf(buf, 10, "%s %s", ax[i], type[j]);
+			inFlightTuningParams.push_back(TunableParameter(&pidGainsNice[i][j], (u16)5, (u16)0, (u16)5000, (const char *)buf, &convertPidsFromNice));
+		}
+	}
 
 	initRateInterp();
 	dynIdleInterpConfig = interp_default_config();

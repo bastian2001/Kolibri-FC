@@ -4,6 +4,7 @@
 #define FLASH_BB 1 // not implemented yet
 
 // general C/C++ includes
+#include <list>
 #include <string>
 
 // architecture
@@ -50,6 +51,7 @@
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
 #include "imu.h"
+#include "inFlightTuning.h"
 #include "modes.h"
 #include "pid.h"
 #include "pins.h"

@@ -40,6 +40,7 @@ void setup() {
 	}
 	rtcInit();
 	osdInit();
+	inFlightTuningInit();
 	initMag();
 	imuInit();
 	initADC();
@@ -89,6 +90,7 @@ void loop() {
 	ELRS->loop();
 	modesLoop();
 	adcLoop();
+	inFlightTuningLoop();
 	serialLoop();
 	configuratorLoop();
 	gpsLoop();
