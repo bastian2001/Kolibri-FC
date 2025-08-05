@@ -105,7 +105,7 @@ public:
 		this->column = 0;
 		blinking = false;
 		// rawDataPtr = nullptr;
-		screenText = new char[32]();
+		screenText = new char[32];
 		lastUpdateMillis = 0xFFFFFFFF; // Has not been updated yet -> max value
 	}
 	/**
@@ -179,6 +179,7 @@ public:
 	 */
 	static int compareOsdElements(const OsdElement *a, const OsdElement *b);
 
+	char *screenText; // What is displayed on screen
 private:
 	/**
 	 * @brief clears the element data
@@ -194,10 +195,9 @@ private:
 	elapsedMillis lastUpdateMillis;
 	u32 refreshMillis;
 	u32 advOpt;
-	u8 maxHz; // Should be set during creation by the handler
+	u8 maxHz = 20; // Should be set during creation by the handler
 	//?<note_001> So far data is global, if this changes implement below.
 	// void *rawDataPtr; // Where to find the data
 	// void *last;
 	Data currentVal, lastVal; // Current and last value of the element
-	char *screenText; // What is displayed on screen
 };

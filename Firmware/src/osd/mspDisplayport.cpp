@@ -4,7 +4,7 @@ void initMspDisplayport() {
 	Serial3.begin(MSP_DP_SPEED);
 }
 
-void sendMspDp(u8 subcmd, const char *payload = nullptr, u8 payloadLength = 0) {
+void sendMspDp(u8 subcmd, const char *payload, u8 payloadLength) {
 	if (payload == nullptr && payloadLength > 0) return;
 	for (int i = 0; i < SERIAL_COUNT; i++) {
 		if (serialFunctions[i] & SERIAL_MSP_DISPLAYPORT) {
@@ -18,6 +18,7 @@ void sendMspDp(u8 subcmd, const char *payload = nullptr, u8 payloadLength = 0) {
 
 void onSetCanvas(u8 cols, u8 rows) {
 	sendMspDp(MspDpFn::CLEAR_SCREEN);
+	OsdHandler::get().setDigitalSize(rows, cols);
 }
 
 void dpWriteString(u8 row, u8 column, u8 attribute, const char *content) {

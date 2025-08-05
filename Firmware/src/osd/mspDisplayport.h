@@ -19,6 +19,7 @@ namespace MspDpFn {
 void mspDisplayportLoop();
 void initMspDisplayport();
 void onSetCanvas(u8 cols, u8 rows);
+void sendMspDp(u8 subcmd, const char *payload = nullptr, u8 payloadLength = 0);
 
 /*
  * @brief Writes a string to the canvas first char at x,y maximal length 29 chars

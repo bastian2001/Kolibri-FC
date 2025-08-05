@@ -54,21 +54,22 @@ void OsdElement::updateOsdElementData() {
 			blinking = true;
 		}
 	} break;
-	case ElementType::BATTERY_VOLTAGE:
-		currentVal.fix32_val = (fix32)adcVoltage / (fix32)100;
-		if (currentVal.fix32_val == lastVal.fix32_val) break;
-		lastVal.fix32_val = currentVal.fix32_val;
+	case ElementType::BATTERY_VOLTAGE: {
+		fix32 &voltage = currentVal.fix32_val;
+		voltage = (fix32)adcVoltage / 100;
+		if (voltage == lastVal.fix32_val) break;
 		if (advOpt & OSD_ELEMENT_ADV_OPT_SHOW_CELLS) {
-			snprintf(screenText, sizeof(screenText), "%fV[%d]", currentVal.fix32_val, batCells);
+			snprintf(screenText, sizeof(screenText), "%fV[%d]", voltage.getf32(), batCells);
 		} else {
-			snprintf(screenText, sizeof(screenText), "%fV", currentVal.fix32_val);
+			snprintf(screenText, 32, "%.2fV", voltage.getf32());
 		}
-		if (advOpt & OSD_ELEMENT_ADV_OPT_NO_BLINK || currentVal.fix32_val > emptyVoltageSetting) {
+		if (advOpt & OSD_ELEMENT_ADV_OPT_NO_BLINK || voltage > batCells * emptyVoltageSetting) {
 			blinking = false;
 		} else {
 			blinking = true;
 		}
-		break;
+		lastVal.fix32_val = voltage;
+	} break;
 	case ElementType::BATTERY_CELL_COUNT:
 		snprintf(screenText, sizeof(screenText), "%dS", batCells);
 		break;
@@ -124,7 +125,7 @@ void OsdElement::drawOsdElement() {
 }
 
 void OsdElement::pushOsdElement() {
-	dpWriteString(3, 5, 0x00, screenText);
+	digitalOsd.write(row, column, screenText, blinking);
 	updated = false;
 }
 

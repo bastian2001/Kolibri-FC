@@ -103,6 +103,7 @@ void drawElem(u8 elem) {
 }
 
 void osdLoop() {
+	return;
 	if (osdReady) {
 		elapsedMicros taskTimer = 0;
 		tasks[TASK_OSD].runCounter++;
