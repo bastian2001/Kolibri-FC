@@ -1,6 +1,6 @@
 #pragma once
-#include "fixedPointInt.h"
 #include "typedefs.h"
+#include <fixedPointInt.h>
 
 /**
  * @brief A first order low pass filter
@@ -29,7 +29,7 @@ public:
 	 * @param value The new value/sample to be filtered
 	 * @return fix32 The filtered value
 	 */
-	inline fix32 update(fix32 value) {
+	inline const fix32 &update(fix32 value) {
 		y = alpha * value + (fix32(1) - alpha) * y;
 		return y;
 	}
@@ -65,6 +65,8 @@ public:
 	/// @brief Get the current value of the filter
 	inline operator fix32() const { return y; }
 
+	const fix32 &getConstRef() const { return y; }
+
 private:
 	fix32 alpha = 1; // close to 0, higher = less filtering
 	fix32 y = 0;
@@ -75,11 +77,13 @@ private:
 };
 
 /**
- * @brief Uses two PT1 filters to create a PT1 filter with a better condition when using large sample frequency to cutoff frequency ratios
+ * @brief Uses two (actually three) PT1 filters to create a PT1 filter with a better condition when using large sample frequency to cutoff frequency ratios. Regular PT1 filters, due to being fix32, have precision issues when the sample frequency is much higher than the cutoff frequency.
  *
- * First PT1 has the a sample frequency of sqrt(fsam * fcut) and the normal cutoff frequency fcut
+ * pt1a filters the input signal to remove high frequency noise so that doesn't get through to pt1b (average out the input for pt1b so that no samples are ignored).
  *
- * Second PT1 has the original sample frequency and is fed with the output of the first PT1. Its cutoff frequency is sqrt(fsam * fcut)
+ * pt1b is updated at a lower rate, which is determined by the firstRatio parameter, and does the actual filtering with a low cutoff frequency.
+ *
+ * pt1c is updated at the same rate as pt1a, and smoothes out the output of pt1b to remove the temporal noise introduced by the low update rate of pt1b.
  *
  * Doesn't have advanced features like rollover
  */
@@ -88,7 +92,7 @@ public:
 	DualPT1() = default;
 	DualPT1(fix32 cutoffFreq, u32 sampleFreq);
 
-	inline fix32 update(fix32 value) {
+	inline const fix32 &update(fix32 value) {
 		pt1a.update(value);
 		if (++counter >= firstRatio) {
 			counter = 0;
@@ -111,10 +115,12 @@ public:
 	/// @brief Get the current value of the filter
 	inline operator fix32() const { return pt1c; }
 
+	const fix32 &getConstRef() const { return pt1c.getConstRef(); }
+
 private:
-	PT1 pt1a = PT1(1, 2);
-	PT1 pt1b = PT1(1, 2);
-	PT1 pt1c = PT1(1, 2);
+	PT1 pt1a = PT1(1, 2); // input filter with high sample frequency, medium cutoff frequency
+	PT1 pt1b = PT1(1, 2); // medium update rate, with actual (low) cutoff frequency
+	PT1 pt1c = PT1(1, 2); // smoothes out the data from pt1b, high sample frequency, medium-low cutoff frequency
 	u32 sampleFreq = 100;
 	u32 firstRatio = 1;
 	u32 counter = 0;
@@ -136,6 +142,7 @@ public:
 	void updateAlpha(fix32 alpha);
 	void set(fix32 value);
 	inline operator fix32() const { return y; }
+	const fix32 &getConstRef() const { return y; }
 
 private:
 	fix32 alpha = 1;
@@ -164,6 +171,7 @@ public:
 	void updateAlpha(fix32 alpha);
 	void set(fix32 value);
 	inline operator fix32() const { return y; };
+	const fix32 &getConstRef() const { return y; }
 
 private:
 	fix32 alpha = 1;

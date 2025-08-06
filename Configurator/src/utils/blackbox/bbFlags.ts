@@ -4,7 +4,7 @@ const getGyroBBRange = (file: BBLog | undefined) => {
 	if (!file) return { max: -2000, min: 2000 }
 	let maxSetpoints = [0, 0, 0]
 	for (let ax = 0; ax < 3; ax++) maxSetpoints[ax] = file.rateCoeffs[ax].max
-	const max = Math.max(...maxSetpoints) * 1.5
+	const max = Math.max(...maxSetpoints) * 1.2
 	return { max: max, min: -max }
 }
 const getAltitudeRange = (file: BBLog | undefined) => {
@@ -240,8 +240,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		modifier: [
 			{ displayNameShort: "RR", displayName: "Rear Right", path: "motorOutRR" },
 			{ displayNameShort: "FR", displayName: "Front Right", path: "motorOutFR" },
-			{ displayNameShort: "FL", displayName: "Front Left", path: "motorOutRL" },
-			{ displayNameShort: "RL", displayName: "Rear Left", path: "motorOutFL" },
+			{ displayNameShort: "RL", displayName: "Rear Left", path: "motorOutRL" },
+			{ displayNameShort: "FL", displayName: "Front Left", path: "motorOutFL" },
 		],
 	},
 	LOG_FRAMETIME: {
@@ -484,8 +484,8 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		modifier: [
 			{ displayNameShort: "RR", displayName: "Rear Right", path: "rpmRR" },
 			{ displayNameShort: "FR", displayName: "Front Right", path: "rpmFR" },
-			{ displayNameShort: "FL", displayName: "Front Left", path: "rpmRL" },
-			{ displayNameShort: "RL", displayName: "Rear Left", path: "rpmFL" },
+			{ displayNameShort: "RL", displayName: "Rear Left", path: "rpmRL" },
+			{ displayNameShort: "FL", displayName: "Front Left", path: "rpmFL" },
 		],
 	},
 	LOG_ACCEL_RAW: {
@@ -582,13 +582,30 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 				path: "baroHpa",
 				max: 1013.25,
 				min: 983,
+				decimals: 3,
 			},
 			{
 				displayNameShort: "Alt",
 				displayName: "Baro Altitude",
 				path: "baroAlt",
-				min: 0,
-				max: 255,
+				rangeFn: getAltitudeRange,
+				decimals: 2,
+			},
+			{
+				displayNameShort: "Up Vel", // TODO remove
+				displayName: "Baro Up Velocity",
+				path: "baroUpVel",
+				max: 10,
+				min: -10,
+				decimals: 2,
+			},
+			{
+				displayNameShort: "Up Accel", // TODO remove
+				displayName: "Baro Up Acceleration",
+				path: "baroUpAccel",
+				max: 10,
+				min: -10,
+				decimals: 2,
 			},
 		],
 	},

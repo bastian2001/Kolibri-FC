@@ -85,15 +85,15 @@ enum class MAG_REG {
 #define MAG_MODE_HS_I2C (0b1 << 7) // datasheet is unclear: "does not support high speed, only 400kHz", but then this bit can allegedly enable 3400kHz I2C? Even worse: 3400kHz seems to work regardless of this bit
 
 #endif
-enum MAG_STATES {
-	MAG_NOT_INIT = 0,
-	MAG_MEASURING,
-	MAG_SOON_READY,
-	MAG_CHECK_DATA_READY,
-	MAG_READ_DATA,
-	MAG_PROCESS_DATA,
-	MAG_CALIBRATE,
-	MAG_PROCESS_CALIBRATION
+enum class MagState {
+	NOT_INIT = 0,
+	INITIALIZING,
+	MEASURING,
+	CHECK_DATA_READY,
+	READ_DATA,
+	PROCESS_DATA,
+	CALIBRATE,
+	PROCESS_CALIBRATION
 };
 
 /// @brief Initializes the magnetometer
@@ -106,9 +106,8 @@ void initMag();
  */
 void magLoop();
 
-extern u32 magStateAfterRead; // set to MAG_CALIBRATE or MAG_PROCESS_DATA to start calibration or run the normal operation
+extern MagState magStateAfterRead; // set to MagState::CALIBRATE or MagState::PROCESS_DATA to start calibration or run the normal operation
 extern i16 magOffset[3]; // offset that gets subtracted from the magnetometer values
 extern fix32 magHeading; // heading in radians
 extern i32 magData[3]; // raw magnetometer data after subtracting offset
 extern fix32 magRight, magFront; // magnetometer in earth's right and rearward direction
-extern i32 magRunCounter; // counts up for each value read, to measure the compass frequency

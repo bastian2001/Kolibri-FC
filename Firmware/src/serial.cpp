@@ -1,13 +1,24 @@
 #include "global.h"
 
-u8 readChar = 0;
+// u8 readChar = 0;
 u32 crcLutD5[256] = {0};
+
+char serialFunctionNames[SERIAL_FUNCTION_COUNT][11] = {
+	"CRSF",
+	"MSP",
+	"GPS",
+	"4Way",
+	"Tramp",
+	"Smartaudio",
+	"ESC Telem",
+};
 
 KoliSerial serials[SERIAL_COUNT] = {
 	{new BufferedWriter(&Serial, 2048), SERIAL_MSP},
 	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},
 	{new BufferedWriter(&Serial2, 2048), SERIAL_GPS},
 };
+static u8 currentSerial = 0;
 
 void initSerial() {
 	for (u32 i = 0; i < 256; i++) {
@@ -84,48 +95,47 @@ void initSerial() {
 }
 
 void serialLoop() {
-	elapsedMicros taskTimer = 0;
-	tasks[TASK_SERIAL].runCounter++;
-	for (int i = 0; i < SERIAL_COUNT; i++) {
-		u32 functions = serials[i].functions;
-		if (functions & SERIAL_DISABLED)
-			continue;
-		Stream *serial = serials[i].stream;
-		int available = serial->available();
-		for (int j = 0; j < available; j++) {
-			readChar = serial->read();
-			if (functions & SERIAL_CRSF) {
-				if (!elrsBuffer.isFull())
-					elrsBuffer.push(readChar);
-			}
-			if (functions & SERIAL_MSP) {
-				rp2040.wdt_reset();
-				elapsedMicros timer = 0;
-				mspHandleByte(readChar, i);
-				taskTimer -= timer;
-			}
-			if (functions & SERIAL_GPS) {
-				if (!gpsBuffer.isFull())
-					gpsBuffer.push(readChar);
-			}
-			if (functions & SERIAL_4WAY) {
-				process4Way(readChar);
-			}
-			if (functions & SERIAL_IRC_TRAMP) {
-			}
-			if (functions & SERIAL_SMARTAUDIO) {
-			}
-			if (functions & SERIAL_ESC_TELEM) {
-			}
+	TASK_START(TASK_SERIAL);
+
+	if (++currentSerial == SERIAL_COUNT) currentSerial = 0;
+	u32 functions = serials[currentSerial].functions;
+	Stream *serial = serials[currentSerial].stream;
+	if (!functions) {
+		while (serial->available())
+			serial->read(); // empty RX buf
+		TASK_END(TASK_SERIAL);
+		return;
+	}
+
+	// max 16 chars per loop, stop when no char to read
+	for (int i = 16; i; i--) {
+		int c = serial->read();
+		if (c == -1) break;
+
+		if (functions & SERIAL_CRSF) {
+			if (!elrsBuffer.isFull())
+				elrsBuffer.push(c);
 		}
-		serials[i].stream->loop();
+		if (functions & SERIAL_MSP) {
+			rp2040.wdt_reset();
+			elapsedMicros timer = 0;
+			mspHandleByte(c, currentSerial);
+			taskTimerTASK_SERIAL -= timer;
+		}
+		if (functions & SERIAL_GPS) {
+			if (!gpsBuffer.isFull())
+				gpsBuffer.push(c);
+		}
+		if (functions & SERIAL_4WAY) {
+			process4Way(c);
+		}
+		if (functions & SERIAL_IRC_TRAMP) {
+		}
+		if (functions & SERIAL_SMARTAUDIO) {
+		}
+		if (functions & SERIAL_ESC_TELEM) {
+		}
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_SERIAL].totalDuration += duration;
-	if (duration < tasks[TASK_SERIAL].minDuration) {
-		tasks[TASK_SERIAL].minDuration = duration;
-	}
-	if (duration > tasks[TASK_SERIAL].maxDuration) {
-		tasks[TASK_SERIAL].maxDuration = duration;
-	}
+	serials[currentSerial].stream->loop();
+	TASK_END(TASK_SERIAL);
 }

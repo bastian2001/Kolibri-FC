@@ -11,7 +11,7 @@ elapsedMillis mspOverrideMotors = 1001;
 static constexpr char targetIdentifier[] = "KD04";
 static constexpr char targetFullName[] = "Kolibri Dev v0.4";
 
-elapsedMillis lastConfigPingRx = 0;
+elapsedMicros lastConfigPingRx = 0;
 bool configuratorConnected = false;
 
 i16 mspDebugSensors[4] = {0, 0, 0, 0};
@@ -20,7 +20,7 @@ u8 lastMspSerial = 0;
 MspVersion lastMspVersion = MspVersion::V2;
 
 void configuratorLoop() {
-	if (lastConfigPingRx > 1000)
+	if (lastConfigPingRx > 1000000)
 		configuratorConnected = false;
 	if (accelCalDone) {
 		accelCalDone = 0;
@@ -413,7 +413,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			break;
 		case MspFn::MAG_CALIBRATION:
-			magStateAfterRead = MAG_CALIBRATE;
+			magStateAfterRead = MagState::CALIBRATE;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			snprintf(buf, 32, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
 			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, buf, strlen(buf));
@@ -489,7 +489,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			if (reqLen > 5) fromNum = reqPayload[5];
 			if (fromNum >= SERIAL_COUNT)
 				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-			
+
 			BufferedWriter *from = serials[fromNum].stream;
 			BufferedWriter *to = serials[reqPayload[0]].stream;
 			u32 baud = DECODE_U4((u8 *)&reqPayload[1]);
@@ -733,7 +733,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::GET_BARO_DATA: {
 			i32 raw[4] = {
-				(i32)(baroASL * 1000),
+				(i32)(baroASL.raw / 66),
 				(i32)(baroPres * 1000),
 				(i32)(baroTemp * 100),
 				pressureRaw};
@@ -756,21 +756,19 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
 		} break;
 		case MspFn::TASK_STATUS: {
-			u32 buf[256];
-			for (int i = 0; i < 32; i++) {
-				buf[i * 8 + 0] = tasks[i].debugInfo;
-				buf[i * 8 + 1] = tasks[i].minDuration;
-				buf[i * 8 + 2] = tasks[i].maxDuration;
-				buf[i * 8 + 3] = tasks[i].frequency;
-				buf[i * 8 + 4] = tasks[i].avgDuration;
-				buf[i * 8 + 5] = tasks[i].errorCount;
-				buf[i * 8 + 6] = tasks[i].lastError;
-				buf[i * 8 + 7] = tasks[i].maxGap;
+			u32 buf[TASK_LENGTH * 7];
+			for (int i = 0; i < TASK_LENGTH; i++) {
+				buf[i * 7 + 0] = tasks[i].debugInfo;
+				buf[i * 7 + 1] = tasks[i].minMaxDuration;
+				buf[i * 7 + 2] = tasks[i].frequency;
+				buf[i * 7 + 3] = tasks[i].lastTotalDuration;
+				buf[i * 7 + 4] = tasks[i].errorCount;
+				buf[i * 7 + 5] = tasks[i].lastError;
+				buf[i * 7 + 6] = tasks[i].maxGap;
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buf, sizeof(buf));
-			for (int i = 0; i < 32; i++) {
-				tasks[i].minDuration = 0xFFFFFFFF;
-				tasks[i].maxDuration = 0;
+			for (int i = 0; i < TASK_LENGTH; i++) {
+				tasks[i].minMaxDuration = 0x7FFF0000;
 				tasks[i].maxGap = 0;
 			}
 		} break;
@@ -826,13 +824,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_PIDS: {
+			// copying just for future proofing, in case more things are added
 			u16 pids[3][5];
 			for (int i = 0; i < 3; i++) {
-				pids[i][0] = pidGains[i][0].raw >> P_SHIFT;
-				pids[i][1] = pidGains[i][1].raw >> I_SHIFT;
-				pids[i][2] = pidGains[i][2].raw >> D_SHIFT;
-				pids[i][3] = pidGains[i][3].raw >> FF_SHIFT;
-				pids[i][4] = pidGains[i][4].raw >> S_SHIFT;
+				pids[i][0] = pidGainsNice[i][0];
+				pids[i][1] = pidGainsNice[i][1];
+				pids[i][2] = pidGainsNice[i][2];
+				pids[i][3] = pidGainsNice[i][3];
+				pids[i][4] = pidGainsNice[i][4];
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)pids, sizeof(pids));
 		} break;
@@ -840,12 +839,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 pids[3][5];
 			memcpy(pids, reqPayload, sizeof(pids));
 			for (int i = 0; i < 3; i++) {
-				pidGains[i][0].setRaw(pids[i][0] << P_SHIFT);
-				pidGains[i][1].setRaw(pids[i][1] << I_SHIFT);
-				pidGains[i][2].setRaw(pids[i][2] << D_SHIFT);
-				pidGains[i][3].setRaw(pids[i][3] << FF_SHIFT);
-				pidGains[i][4].setRaw(pids[i][4] << S_SHIFT);
+				pidGainsNice[i][0] = pids[i][0];
+				pidGainsNice[i][1] = pids[i][1];
+				pidGainsNice[i][2] = pids[i][2];
+				pidGainsNice[i][3] = pids[i][3];
+				pidGainsNice[i][4] = pids[i][4];
 			}
+			convertPidsFromNice();
 			openSettingsFile();
 			getSetting(SETTING_PID_GAINS)->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
@@ -878,18 +878,23 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 ifall = iFalloff.geti32();
 			buf[len++] = ifall & 0xFF;
 			buf[len++] = ifall >> 8;
+			buf[len++] = useDynamicIdle;
+			buf[len++] = idlePermille;
+			buf[len++] = dynamicIdleRpm;
+			buf[len++] = dynamicIdleRpm >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
-		}
+		} break;
 		case MspFn::SET_EXT_PID: {
-			u16 ifall = DECODE_U2((u8 *)reqPayload);
-			if (ifall > 10000) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-				break;
-			}
-			iFalloff = ifall;
+			iFalloff = DECODE_U2(reqPayload);
+			useDynamicIdle = reqPayload[2];
+			idlePermille = reqPayload[3];
+			dynamicIdleRpm = DECODE_U2(&reqPayload[4]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
 			getSetting(SETTING_IFALLOFF)->updateSettingInFile();
+			getSetting(SETTING_DYNAMIC_IDLE_EN)->updateSettingInFile();
+			getSetting(SETTING_IDLE_PERMILLE)->updateSettingInFile();
+			getSetting(SETTING_DYNAMIC_IDLE_RPM)->updateSettingInFile();
 		} break;
 		case MspFn::GET_FILTER_CONFIG: {
 			buf[len++] = gyroFilterCutoff & 0xFF;
@@ -1021,7 +1026,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 }
 
 void mspHandleByte(u8 c, u8 serialNum) {
-	elapsedMicros taskTimer = 0;
+	TASK_START(TASK_CONFIGURATOR);
 	static char payloadBuf[2052] = {0}; // worst case: 2048 bytes payload + 3 bytes checksum (v2 over v1 jumbo) + 1 byte start. After the start byte, the index is reset to 0
 	static u16 payloadBufIndex = 0;
 	static u16 payloadLen = 0;
@@ -1032,8 +1037,6 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	static u32 crcV2 = 0;
 	static MspVersion msgMspVer = MspVersion::V2;
 	static MspState mspState = MspState::IDLE;
-
-	tasks[TASK_CONFIGURATOR].runCounter++;
 
 	switch (mspState) {
 	case MspState::IDLE:
@@ -1084,6 +1087,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		fn = (MspFn)c;
 		if (c == (u8)MspFn::MSP_V2_FRAME) {
 			msgMspVer = MspVersion::V2_OVER_V1;
+			crcV2 = 0;
 			mspState = MspState::FLAG_V2_OVER_V1;
 		} else if (payloadLen == 255) {
 			msgMspVer = MspVersion::V1_JUMBO;
@@ -1099,6 +1103,10 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		break;
 	case MspState::JUMBO_LEN_HI_V1:
 		payloadLen |= ((u16)c << 8);
+		if (payloadLen > 2048) {
+			mspState = MspState::IDLE;
+			break;
+		}
 		crcV1 ^= c;
 		mspState = payloadLen ? MspState::PAYLOAD_V1 : MspState::CHECKSUM_V1;
 		break;
@@ -1111,25 +1119,25 @@ void mspHandleByte(u8 c, u8 serialNum) {
 	case MspState::FLAG_V2_OVER_V1:
 		msgFlag = c;
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::CMD_LO_V2_OVER_V1;
 		break;
 	case MspState::CMD_LO_V2_OVER_V1:
 		fn = (MspFn)c;
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::CMD_HI_V2_OVER_V1;
 		break;
 	case MspState::CMD_HI_V2_OVER_V1:
 		fn = (MspFn)((u32)fn | (u32)c << 8);
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::LEN_LO_V2_OVER_V1;
 		break;
 	case MspState::LEN_LO_V2_OVER_V1:
 		payloadLen = c;
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::LEN_HI_V2_OVER_V1;
 		break;
 	case MspState::LEN_HI_V2_OVER_V1:
@@ -1139,13 +1147,13 @@ void mspHandleByte(u8 c, u8 serialNum) {
 			break;
 		}
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = payloadLen ? MspState::PAYLOAD_V2_OVER_V1 : MspState::CHECKSUM_V2_OVER_V1;
 		payloadBufIndex = 0;
 		break;
 	case MspState::PAYLOAD_V2_OVER_V1:
 		crcV1 ^= c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		payloadBuf[payloadBufIndex++] = c;
 		if (payloadBufIndex == payloadLen)
 			mspState = MspState::CHECKSUM_V2_OVER_V1;
@@ -1168,6 +1176,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		break;
 	case MspState::TYPE_V2:
 		mspState = MspState::FLAG_V2;
+		crcV2 = 0;
 		switch (c) {
 		case '<':
 			msgType = MspMsgType::REQUEST;
@@ -1185,22 +1194,22 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		break;
 	case MspState::FLAG_V2:
 		msgFlag = c;
-		crcV2 = crcLutD5[c];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::CMD_LO_V2;
 		break;
 	case MspState::CMD_LO_V2:
 		fn = (MspFn)c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::CMD_HI_V2;
 		break;
 	case MspState::CMD_HI_V2:
 		fn = (MspFn)((u32)fn | (u32)c << 8);
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::LEN_LO_V2;
 		break;
 	case MspState::LEN_LO_V2:
 		payloadLen = c;
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = MspState::LEN_HI_V2;
 		break;
 	case MspState::LEN_HI_V2:
@@ -1209,11 +1218,11 @@ void mspHandleByte(u8 c, u8 serialNum) {
 			mspState = MspState::IDLE;
 			break;
 		}
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		mspState = payloadLen ? MspState::PAYLOAD_V2 : MspState::CHECKSUM_V2;
 		break;
 	case MspState::PAYLOAD_V2:
-		crcV2 = crcLutD5[c ^ crcV2];
+		CRC_LUT_D5_APPLY(crcV2, c);
 		payloadBuf[payloadBufIndex++] = c;
 		if (payloadBufIndex == payloadLen)
 			mspState = MspState::CHECKSUM_V2;
@@ -1226,15 +1235,7 @@ void mspHandleByte(u8 c, u8 serialNum) {
 		mspState = MspState::IDLE;
 		break;
 	}
-	u32 duration = taskTimer;
-	tasks[TASK_CONFIGURATOR].totalDuration += duration;
-	if (duration < tasks[TASK_CONFIGURATOR].minDuration) {
-		tasks[TASK_CONFIGURATOR].minDuration = duration;
-	}
-	if (duration > tasks[TASK_CONFIGURATOR].maxDuration) {
-		tasks[TASK_CONFIGURATOR].maxDuration = duration;
-		tasks[TASK_CONFIGURATOR].debugInfo = (u32)fn;
-	}
+	TASK_END(TASK_CONFIGURATOR);
 }
 
 void printIndMessage(String msg) {

@@ -32,7 +32,11 @@ export default defineComponent({
 				{ name: "GPS Position Hold", min: -50, max: 50, channel: 7 },
 				{ name: "Waypoint Mode", min: -50, max: 50, channel: 8 },
 				{ name: "Beeper", min: -50, max: 50, channel: 9 },
-				{ name: "Blackbox Highlight", min: -50, max: 50, channel: 10 }
+				{ name: "Blackbox Highlight", min: -50, max: 50, channel: 10 },
+				{ name: "Tuning: Next Parameter", min: -50, max: 50, channel: 10 },
+				{ name: "Tuning: Previous Parameter", min: -50, max: 50, channel: 10 },
+				{ name: "Tuning: Increase Value", min: -50, max: 50, channel: 10 },
+				{ name: "Tuning: Decrease Value", min: -50, max: 50, channel: 10 },
 			]
 		};
 	},

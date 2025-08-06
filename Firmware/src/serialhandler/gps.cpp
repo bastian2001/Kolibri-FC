@@ -1,7 +1,7 @@
 #include "global.h"
 
 RingBuffer<u8> gpsBuffer(1024);
-elapsedMillis gpsInitTimer;
+elapsedMicros gpsInitTimer;
 bool gpsInitAck = false;
 GpsAccuracy gpsAcc;
 struct tm gpsTime;
@@ -15,10 +15,12 @@ u32 newPvtMessageFlag = 0;
 u32 gpsUpdateRate;
 fix32 gpsVelocityFilterCutoff;
 BufferedWriter *gpsSerial = nullptr;
+bool gpsGoodQuality = false;
+static bool firstGoodQuality = true;
 
 int gpsSerialSpeed = 38400;
 u8 retryCounter = 0;
-elapsedMillis lastPvtMessage = 0;
+elapsedMicros lastPvtMessage = 0;
 
 void gpsChecksum(const u8 *buf, int len, u8 *ck_a, u8 *ck_b) {
 	*ck_a = 0;
@@ -77,13 +79,14 @@ void fillOpenLocationCode() {
 
 void gpsLoop() {
 	if (!gpsSerial) return;
-	if (lastPvtMessage > 1000) {
+	TASK_START(TASK_GPS);
+	if (lastPvtMessage > 1000000) {
 		// no PVT message received for 1 second
 		gpsStatus.fixType = fixTypes::FIX_NONE;
 		if (gpsStatus.gpsInited) {
 			gpsStatus.gpsInited = false;
 			lastPvtMessage = 0;
-		} else if (lastPvtMessage > 30000) {
+		} else if (lastPvtMessage > 30000000) {
 			// no PVT message received for 30 seconds
 			// reinit GPS
 			gpsStatus.initStep = 0;
@@ -94,7 +97,7 @@ void gpsLoop() {
 		}
 	}
 	// UBX implementation
-	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000)) {
+	if (!gpsStatus.gpsInited && (gpsInitAck || gpsInitTimer > 1000000)) {
 		switch (gpsStatus.initStep) {
 		case 0: {
 			if (retryCounter++ % 2 == 0) {
@@ -195,28 +198,37 @@ void gpsLoop() {
 		}
 	}
 	if (gpsBuffer.itemCount() >= 8) {
-		elapsedMicros taskTimer = 0;
 		if (gpsBuffer[0] != UBX_SYNC1 || gpsBuffer[1] != UBX_SYNC2) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 1;
+			TASK_END(TASK_GPS);
 			return;
 		}
 		int len = gpsBuffer[4] | (gpsBuffer[5] << 8);
 		if (len > GPS_BUF_LEN - 8) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 2;
+			TASK_END(TASK_GPS);
 			return;
 		}
 		if (gpsBuffer.itemCount() < len + 8) {
+			TASK_END(TASK_GPS);
 			return;
 		}
-		tasks[TASK_GPS].runCounter++;
 		u8 msg[len + 8];
 		gpsBuffer.copyToArray(msg, 2, len + 6);
 		u8 ck_a, ck_b;
 		gpsChecksum(msg, len + 4, &ck_a, &ck_b);
 		if (ck_a != msg[len + 4] || ck_b != msg[len + 5]) {
 			gpsBuffer.pop();
+			tasks[TASK_GPS].errorCount++;
+			tasks[TASK_GPS].lastError = 3;
+			TASK_END(TASK_GPS);
 			return;
 		}
+		TASK_START(TASK_GPS_MSG);
 		u8 *msgData = &msg[4];
 		// ensured that the packet is valid
 		u32 id = msg[1], classId = msg[0];
@@ -290,55 +302,70 @@ void gpsLoop() {
 				gpsAcc.headAcc = DECODE_U4(&msgData[72]);
 				gpsAcc.pDop = DECODE_U2(&msgData[76]);
 				gpsStatus.flags3 = DECODE_U2(&msgData[78]);
-				eVel.update(fix32(0.001f) * gpsMotion.velE);
-				nVel.update(fix32(0.001f) * gpsMotion.velN);
-				static fix64 lastLat = fix64(gpsMotion.lat) / 10000000;
-				static fix64 lastLon = fix64(gpsMotion.lon) / 10000000;
-				gpsLatitudeFiltered = (gpsLatitudeFiltered * 3 + fix64(gpsMotion.lat) / 10000000) / 4;
-				gpsLongitudeFiltered = (gpsLongitudeFiltered * 3 + fix64(gpsMotion.lon) / 10000000) / 4;
-				u8 buf[16];
-				snprintf((char *)buf, 16, "\x89%.7f", gpsMotion.lat / 10000000.f);
-				updateElem(OSDElem::LATITUDE, (char *)buf);
-				snprintf((char *)buf, 16, "\x98%.7f", gpsMotion.lon / 10000000.f);
-				updateElem(OSDElem::LONGITUDE, (char *)buf);
-				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
-				updateElem(OSDElem::ALTITUDE, (char *)buf);
-				fix32 gVel = fix32(3.6f) * sqrtf(((fix32)eVel * (fix32)eVel + (fix32)nVel * (fix32)nVel).getf32());
-				snprintf((char *)buf, 16, "%d\x9E ", (gVel + fix32(0.5f)).geti32());
-				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
-				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());
-				updateElem(OSDElem::HEADING, (char *)buf);
-				f32 toRadians = 1.745329251e-9f;
-				f32 sin1 = sinf((gpsMotion.lat - startPointLat) * (toRadians / 2));
-				f32 sin2 = sinf((gpsMotion.lon - startPointLon) * (toRadians / 2));
+				fix64 lat64 = fix64(gpsMotion.lat) / 10000000;
+				fix64 lon64 = fix64(gpsMotion.lon) / 10000000;
 
-				int dist = 2 * 6371000 *
-						   asinf(sqrtf(sin1 * sin1 + cosf(gpsMotion.lat * toRadians) * cosf(startPointLat * toRadians) * sin2 * sin2));
-				snprintf((char *)buf, 16, "\x11%d\x0C  ", dist);
-				updateElem(OSDElem::HOME_DISTANCE, (char *)buf);
-				snprintf((char *)buf, 16, "\x1E\x1F%d  ", gpsStatus.satCount);
-				updateElem(OSDElem::GPS_STATUS, (char *)buf);
-				fillOpenLocationCode();
-				updateElem(OSDElem::PLUS_CODE, olcString);
-				if (gpsStatus.fixType == FIX_3D && gpsStatus.satCount >= 6) {
+				gpsGoodQuality = gpsStatus.fixType == FIX_3D &&
+								 gpsStatus.satCount >= 6 &&
+								 gpsAcc.hAcc < 20000 &&
+								 gpsAcc.vAcc < 20000;
+				if (gpsGoodQuality && firstGoodQuality) {
+					firstGoodQuality = false;
+					eVelFilter.set(fix32(0.001f) * gpsMotion.velE);
+					nVelFilter.set(fix32(0.001f) * gpsMotion.velN);
+					gpsLatitudeFiltered = lat64;
+					gpsLongitudeFiltered = lon64;
+					if (altInitState < 2) altInitState = 2;
+				} else {
+					eVelFilter.update(fix32(0.001f) * gpsMotion.velE);
+					nVelFilter.update(fix32(0.001f) * gpsMotion.velN);
+					gpsLatitudeFiltered = (gpsLatitudeFiltered * 3 + lat64) / 4;
+					gpsLongitudeFiltered = (gpsLongitudeFiltered * 3 + lon64) / 4;
+				}
+				if (gpsGoodQuality) {
 					gpsBaroAlt.setRaw(((i64)gpsMotion.alt << 16) / 1000);
 					// armingDisableFlags &= ~0x04;
-				}
-				// else
-				// 	armingDisableFlags |= 0x04;
+				} // else {
+				// armingDisableFlags |= 0x04;
+				// }
+
+				fix32 distN, distE;
+				startFixMath();
+				distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
+				i32 dist = sqrtFix(distN * distN + distE * distE).geti32();
+				fix32 gVel = sqrtFix(eVel * eVel + nVel * nVel) * 3.6f;
+
+				u8 buf[16];
+				snprintf((char *)buf, 16, "\x89%.7f", lat64.getf32());
+				updateElem(OSDElem::LATITUDE, (char *)buf);
+
+				snprintf((char *)buf, 16, "\x98%.7f", lon64.getf32());
+				updateElem(OSDElem::LONGITUDE, (char *)buf);
+
+				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
+				updateElem(OSDElem::ALTITUDE, (char *)buf);
+
+				snprintf((char *)buf, 16, "%d\x9E ", (gVel + fix32(0.5f)).geti32());
+				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
+
+				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());
+				updateElem(OSDElem::HEADING, (char *)buf);
+
+				snprintf((char *)buf, 16, "\x11%d\x0C  ", dist);
+				updateElem(OSDElem::HOME_DISTANCE, (char *)buf);
+
+				snprintf((char *)buf, 16, "\x1E\x1F%d  ", gpsStatus.satCount);
+				updateElem(OSDElem::GPS_STATUS, (char *)buf);
+
+				fillOpenLocationCode();
+				updateElem(OSDElem::PLUS_CODE, olcString);
 			} break;
 			}
 		}
 		}
 		// pop the packet
 		gpsBuffer.erase(len + 8);
-		u32 duration = taskTimer;
-		tasks[TASK_GPS].totalDuration += duration;
-		if (duration < tasks[TASK_GPS].minDuration) {
-			tasks[TASK_GPS].minDuration = duration;
-		}
-		if (duration > tasks[TASK_GPS].maxDuration) {
-			tasks[TASK_GPS].maxDuration = duration;
-		}
+		TASK_END(TASK_GPS_MSG);
 	}
+	TASK_END(TASK_GPS);
 }

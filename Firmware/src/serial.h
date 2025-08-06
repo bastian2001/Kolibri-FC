@@ -3,16 +3,19 @@
 #include "utils/bufferedWriter.h"
 #include <Arduino.h>
 
-#define SERIAL_DISABLED (1 << 0)
-#define SERIAL_CRSF (1 << 1)
-#define SERIAL_MSP (1 << 2)
-#define SERIAL_GPS (1 << 3)
-#define SERIAL_4WAY (1 << 4)
-#define SERIAL_IRC_TRAMP (1 << 5)
-#define SERIAL_SMARTAUDIO (1 << 6)
-#define SERIAL_ESC_TELEM (1 << 7)
+//! when updating this list, also update SERIAL_FUNCTION_COUNT and serialFunctionNames
+#define SERIAL_CRSF (1 << 0)
+#define SERIAL_MSP (1 << 1)
+#define SERIAL_GPS (1 << 2)
+#define SERIAL_4WAY (1 << 3)
+#define SERIAL_IRC_TRAMP (1 << 4)
+#define SERIAL_SMARTAUDIO (1 << 5)
+#define SERIAL_ESC_TELEM (1 << 6)
 
 #define SERIAL_COUNT 3
+#define SERIAL_FUNCTION_COUNT 7
+
+extern char serialFunctionNames[SERIAL_FUNCTION_COUNT][11];
 
 typedef struct koliSerial {
 	BufferedWriter *stream;
@@ -23,7 +26,7 @@ typedef struct koliSerial {
 extern KoliSerial serials[SERIAL_COUNT];
 
 extern u32 crcLutD5[256]; // u32 is used because it is faster than u8
-#define CRC_LUT_D5_APPLY(crc, data) crc = crcLutD5[((crc) ^ (data)) & 0xFF]
+#define CRC_LUT_D5_APPLY(crc, data) crc = crcLutD5[(crc) ^ (u8)(data)]
 
 /// @brief fills crcLutD5
 void initSerial();

@@ -1,7 +1,10 @@
 #include "global.h"
 bool armed = false;
-i32 startPointLat, startPointLon;
+fix64 homepointLat, homepointLon;
+fix32 homepointAlt;
+
 File modesSettingsFile;
+
 /**
  * 0: switch in armed position for >= 10 cycles
  * 1: throttle down
@@ -64,8 +67,9 @@ void modesLoop() {
 				startLogging();
 				armed = true;
 				p.neoPixelSetValue(1, 255, 255, 255, true);
-				startPointLat = gpsMotion.lat;
-				startPointLon = gpsMotion.lon;
+				homepointLat = gpsLatitudeFiltered;
+				homepointLon = gpsLongitudeFiltered;
+				homepointAlt = combinedAltitude;
 			} else if (consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
 				// the user wanted to arm, but there are some errors, so play a sound
 				u8 wavSuccess = 0;
@@ -97,45 +101,16 @@ void modesLoop() {
 
 		FlightMode newFlightMode = FlightMode::ACRO;
 		if (waypointModeActive)
-			newFlightMode = FlightMode::GPS_POS;
+			newFlightMode = FlightMode::GPS;
 		else if (gpsModeActive)
-			newFlightMode = FlightMode::GPS_VEL;
+			newFlightMode = FlightMode::GPS_WP;
 		else if (altHoldModeActive)
 			newFlightMode = FlightMode::ALT_HOLD;
 		else if (angleModeActive)
 			newFlightMode = FlightMode::ANGLE;
 
 		if (newFlightMode != flightMode) {
-			switch (newFlightMode) {
-			case FlightMode::ACRO:
-				updateElem(OSDElem::FLIGHT_MODE, "ACRO ");
-				break;
-			case FlightMode::ANGLE:
-				updateElem(OSDElem::FLIGHT_MODE, "ANGLE");
-				break;
-			case FlightMode::ALT_HOLD:
-				updateElem(OSDElem::FLIGHT_MODE, "ALT  ");
-				break;
-			case FlightMode::GPS_VEL:
-				updateElem(OSDElem::FLIGHT_MODE, "GPSV ");
-				break;
-			case FlightMode::GPS_POS:
-				updateElem(OSDElem::FLIGHT_MODE, "GPSP ");
-				break;
-			default:
-				break;
-			}
-			if (flightMode <= FlightMode::ANGLE && newFlightMode > FlightMode::ANGLE) {
-				// just switched to an altitude hold mode, make sure the quad doesn't just fall at the beginning
-				vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
-				altSetpoint = combinedAltitude;
-			}
-			if (flightMode <= FlightMode::ALT_HOLD && newFlightMode > FlightMode::ALT_HOLD) {
-				// just switched to a GPS mode, prevent suddenly flying away to the old position lock
-				targetLat = gpsLatitudeFiltered;
-				targetLon = gpsLongitudeFiltered;
-			}
-			flightMode = newFlightMode;
+			setFlightMode(newFlightMode);
 		}
 		u32 duration = taskTimer;
 		tasks[TASK_MODES].totalDuration += duration;

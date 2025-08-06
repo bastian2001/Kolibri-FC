@@ -2,13 +2,15 @@
 #include "hardware/vreg.h"
 
 volatile u8 setupDone = 0b00;
+static elapsedMicros taskTimer0;
 
 void setup() {
+	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
 
-	runUnitTests();
+	initFixMath();
 
-	vreg_set_voltage(VREG_VOLTAGE_1_30);
+	runUnitTests();
 
 	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
 		bootReason = rebootReason;
@@ -37,16 +39,15 @@ void setup() {
 		crashInfo[i] = 0;
 	}
 	rtcInit();
-	imuInit();
 	osdInit();
+	inFlightTuningInit();
 	initMag();
-	initBaro();
+	imuInit();
 	initADC();
 	modesInit();
 	initSerial();
 	initGPS();
 
-	// init ELRS on pins 0 and 1 using Serial1 (UART0)
 	u8 elrsNum = 0;
 	for (int i = 0; i < SERIAL_COUNT; i++) {
 		if (serials[i].functions & SERIAL_CRSF) {
@@ -66,32 +67,30 @@ void setup() {
 	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");
-	extern elapsedMicros taskTimer0;
 	taskTimer0 = 0;
 	setupDone |= 0b01;
 	while (!(setupDone & 0b10)) {
 		rp2040.wdt_reset();
 	}
 	closeSettingsFile();
+	rom_flash_flush_cache();
 }
 
-elapsedMillis activityTimer;
+static elapsedMicros activityTimer;
 
-elapsedMicros taskTimer0;
 void loop() {
-	tasks[TASK_LOOP0].runCounter++;
 	u32 duration0 = taskTimer0;
 	if (duration0 > tasks[TASK_LOOP0].maxGap) {
 		tasks[TASK_LOOP0].maxGap = duration0;
 	}
-	taskTimer0 = 0;
+	TASK_START(TASK_LOOP0);
 	speakerLoop();
-	evalBaroLoop();
-	readBaroLoop(); // read after eval to prevent long execution times
+	baroLoop();
 	blackboxLoop();
 	ELRS->loop();
 	modesLoop();
 	adcLoop();
+	inFlightTuningLoop();
 	serialLoop();
 	configuratorLoop();
 	gpsLoop();
@@ -99,7 +98,7 @@ void loop() {
 	osdLoop();
 	taskManagerLoop();
 	rp2040.wdt_reset();
-	if (activityTimer >= 500) {
+	if (activityTimer >= 500000) {
 		static bool on = false;
 		if (on) {
 			p.neoPixelSetValue(0, 0, 0, 0, true);
@@ -110,18 +109,10 @@ void loop() {
 		}
 		activityTimer = 0;
 	}
-	duration0 = taskTimer0;
-	tasks[TASK_LOOP0].totalDuration += duration0;
-	if (duration0 > tasks[TASK_LOOP0].maxDuration) {
-		tasks[TASK_LOOP0].maxDuration = duration0;
-	}
-	if (duration0 < tasks[TASK_LOOP0].minDuration) {
-		tasks[TASK_LOOP0].minDuration = duration0;
-	}
+	TASK_END(TASK_LOOP0);
 	taskTimer0 = 0;
 }
 
-u32 *speakerRxPacket;
 void setup1() {
 	while (!(setupDone & 0b01)) {
 	}
@@ -136,12 +127,11 @@ elapsedMicros taskTimer = 0;
 extern PIO speakerPio;
 extern u8 speakerSm;
 void loop1() {
-	tasks[TASK_LOOP1].runCounter++;
 	u32 duration = taskTimer;
 	if (duration > tasks[TASK_LOOP1].maxGap) {
 		tasks[TASK_LOOP1].maxGap = duration;
 	}
-	taskTimer = 0;
+	TASK_START(TASK_LOOP1);
 	gyroLoop();
 
 	if (gyroUpdateFlag & 0x01) {
@@ -150,14 +140,6 @@ void loop1() {
 		decodeErpm();
 		pidLoop();
 	}
-
-	duration = taskTimer;
-	tasks[TASK_LOOP1].totalDuration += duration;
-	if (duration > tasks[TASK_LOOP1].maxDuration) {
-		tasks[TASK_LOOP1].maxDuration = duration;
-	}
-	if (duration < tasks[TASK_LOOP1].minDuration) {
-		tasks[TASK_LOOP1].minDuration = duration;
-	}
+	TASK_END(TASK_LOOP1);
 	taskTimer = 0;
 }

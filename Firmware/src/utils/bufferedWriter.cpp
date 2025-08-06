@@ -1,5 +1,12 @@
 #include "global.h"
 
+char BufferedWriter::serialTypeNames[3][5] = {
+	"USB ",
+	"UART",
+	"PIO ",
+};
+elapsedMicros BufferedWriter::sinceReset = 0;
+
 void BufferedWriter::begin(unsigned long baudrate) {
 	switch (serialType) {
 	case SerialType::USB:

@@ -5,7 +5,7 @@ bool batBlinkingAndBeeping = false;
 u16 emptyVoltageSetting = 0;
 static u16 emptyVoltage = 0;
 f32 adcCurrent = 0;
-elapsedMillis adcTimer = 0;
+elapsedMicros adcTimer = 0;
 f32 temperature = 0;
 u8 cellCountSetting = 0;
 u8 batCells = 1;
@@ -36,9 +36,8 @@ void initADC() {
 u8 adcType = 0; // 1 = voltage, 0 = current
 
 void adcLoop() {
-	if (adcTimer >= 50) {
-		elapsedMicros taskTimer = 0;
-		tasks[TASK_ADC].runCounter++;
+	if (adcTimer >= 50000) {
+		TASK_START(TASK_ADC);
 		adcTimer = 0;
 		if (adcType) {
 			adc_select_input(PIN_ADC_VOLTAGE - 26);
@@ -98,13 +97,6 @@ void adcLoop() {
 			// temperature = analogReadTemp();
 		}
 		adcType = !adcType;
-		u32 duration = taskTimer;
-		tasks[TASK_ADC].totalDuration += duration;
-		if (duration < tasks[TASK_ADC].minDuration) {
-			tasks[TASK_ADC].minDuration = duration;
-		}
-		if (duration > tasks[TASK_ADC].maxDuration) {
-			tasks[TASK_ADC].maxDuration = duration;
-		}
+		TASK_END(TASK_ADC);
 	}
 }

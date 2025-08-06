@@ -1,8 +1,8 @@
 #pragma once
-#include "elapsedMillis.h"
 #include "hardware/interp.h"
 #include "msp.h"
 #include <Arduino.h>
+#include <elapsedMillis.h>
 #include <vector>
 using std::vector;
 
@@ -22,8 +22,7 @@ public:
 
 	/// @brief Called regularly to process incoming bytes and send telemetry
 	void loop();
-	u32 channels[16] = {0}; // raw RC channels (1000-2000 for throttle and switches, 988-2012 for other sticks)
-	u32 lastChannels[16] = {0}; // RC channels from the last packet (1000-2000 for throttle and switches, 988-2012 for other sticks)
+
 	/**
 	 * @brief Calculate the smoothed RC channels
 	 *
@@ -31,23 +30,21 @@ public:
 	 * @param smoothChannels Array to store the smoothed channels
 	 */
 	void getSmoothChannels(fix32 smoothChannels[4]);
+
+	u32 channels[16] = {0}; // raw RC channels (1000-2000 for switches, 988-2012 for other sticks)
+	u32 lastChannels[16] = {0}; // RC channels from the last packet (1000-2000 for switches, 988-2012 for other sticks)
+	u32 newPacketFlag = 0; // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
+
+	// custom link info
 	elapsedMicros sinceLastRCMessage; // time (µs) since the last valid RC message was received
 	elapsedMicros sinceLastMessage; // time (µs) since the last valid message was received
 	bool isLinkUp = false; // true if the link is up (300 RC messages received and 20 in the last second)
 	bool isReceiverUp = false; // true if the receiver recognized (1 message in the last second)
 	u32 msgCount = 0; // total count of any received message
 	u32 rcMsgCount = 0; // total count of received RC messages
-	u32 errorCount = 0; // total count of errors (CRC, buffer overflow, unsupported command, invalid prefix, invalid length)
-	bool errorFlag = false; // set to true whenever an error occurs
-	u8 lastError = NO_ERROR; // last error code
-	static constexpr u8 NO_ERROR = 0x00;
-	static constexpr u8 ERROR_CRC = 0x01;
-	static constexpr u8 ERROR_BUFFER_OVERFLOW = 0x02;
-	static constexpr u8 ERROR_UNSUPPORTED_COMMAND = 0x03;
-	static constexpr u8 ERROR_INVALID_PREFIX = 0x04;
-	static constexpr u8 ERROR_INVALID_LENGTH = 0x05;
-	static constexpr u8 ERROR_INVALID_PKT_LEN = 0x06;
-	static constexpr u8 ERROR_MSP_OVER_CRSF = 0x07;
+	u16 actualPacketRate = 0; // in Hz
+
+	// ELRS provided link stats
 	i16 uplinkRssi[2] = {0}; // RX RSSI values of both antennas (signed, more negative = worse)
 	u8 uplinkLinkQuality = 0; // RX packet success rate 0-100 [%]
 	i8 uplinkSNR = 0; // RX SNR in dB
@@ -58,12 +55,54 @@ public:
 	u8 downlinkLinkQuality = 0; // telemetry packet success rate 0-100 [%]
 	i8 downlinkSNR = 0; // telemetry SNR in dB
 	u16 targetPacketRate = 0; // in Hz
-	u16 actualPacketRate = 0; // in Hz
-	u32 newPacketFlag = 0; // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
+
+	// communication errors
+	u32 errorCount = 0; // total count of errors (CRC, buffer overflow, unsupported command, invalid prefix, invalid length)
+	bool errorFlag = false; // set to true whenever an error occurs
+	enum {
+		NO_ERROR,
+		ERROR_CRC,
+		ERROR_BUFFER_OVERFLOW,
+		ERROR_UNSUPPORTED_COMMAND,
+		ERROR_INVALID_LENGTH,
+		ERROR_INVALID_PKT_LEN,
+		ERROR_MSP_OVER_CRSF,
+	};
+	u8 lastError = NO_ERROR; // last error code
+
+	/**
+	 * @brief Send a packet to the receiver
+	 *
+	 * @param cmd packet type
+	 * @param payload pointer to payload, may be nullptr for zero-length packets
+	 * @param payloadLen length of the actual payload, max 60
+	 */
 	void sendPacket(u8 cmd, const char *payload, u8 payloadLen);
+	/**
+	 * @brief Send an extended packet to another device
+	 *
+	 * @param cmd packet type
+	 * @param destAddr to which device
+	 * @param srcAddr from which device
+	 * @param extPayload pointer to payload, may be nullptr for zero-length packets
+	 * @param extPayloadLen length of the actual payload, max 58
+	 */
 	void sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen);
+	/**
+	 * @brief Send an MSP message to another device
+	 *
+	 * ext src = FC, ext dest defined by who last requested anything from the FC.
+	 *
+	 * For Jumbo, report a V1 packet with the header stating 255 length, and then after the MSP function append the actual size.
+	 *
+	 * @param type MspMsgType:: object, either REQUEST, RESPONSE or ERROR
+	 * @param mspVersion 1 or 2 for V1 or V2. See description for Jumbo
+	 * @param payload pointer to fully prepared payload ((2, 5, 4 bits) header + data)
+	 * @param payloadLen length of header + data
+	 */
 	void sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen);
 
+	// possible frametypes
 	static constexpr u8 FRAMETYPE_GPS = 0x02;
 	static constexpr u8 FRAMETYPE_VARIO = 0x07;
 	static constexpr u8 FRAMETYPE_BATTERY = 0x08;
@@ -92,29 +131,58 @@ public:
 	static constexpr u8 FRAMETYPE_DISPLAYPORT_CMD = 0x7D;
 	// static constexpr u8 FRAMETYPE_ARDUPILOT_RESP = 0x80; // non-standard
 
-private:
-	static constexpr u16 powerStates[9] = {0, 10, 25, 100, 500, 1000, 2000, 250, 50};
-	static constexpr u16 packetRates[20] = {
-		4, 25, 50, 100, 100, 150, 200, 250, 333, 500, 250, 500, 500, 1000, 50, 200, 500, 1000, 1000, 1000};
-	static constexpr u8 CRSF_SYNC_BYTE = 0xC8;
+	// possible addresses (extended messages)
 	static constexpr u8 ADDRESS_FLIGHT_CONTROLLER = 0xC8;
 	static constexpr u8 ADDRESS_RADIO_TRANSMITTER = 0xEA;
 	static constexpr u8 ADDRESS_CRSF_RECEIVER = 0xEC;
 	static constexpr u8 ADDRESS_CRSF_TRANSMITTER = 0xEE;
+
+private:
+	// constants needed for encoding/decoding packets
+	static constexpr u16 powerStates[9] = {0, 10, 25, 100, 500, 1000, 2000, 250, 50};
+	static constexpr u16 packetRates[20] = {
+		4, 25, 50, 100, 100, 150, 200, 250, 333, 500, 250, 500, 500, 1000, 50, 200, 500, 1000, 1000, 1000};
+	static constexpr u8 CRSF_SYNC_BYTE = 0xC8;
+
+	// incoming packets
+	enum {
+		CRSF_STATE_SYNC,
+		CRSF_STATE_LEN,
+		CRSF_STATE_TYPE,
+		CRSF_STATE_EXT_DEST,
+		CRSF_STATE_EXT_SRC,
+		CRSF_STATE_PAYLOAD,
+		CRSF_STATE_CRC
+	};
+	u8 inMsgState = CRSF_STATE_SYNC;
+	u8 inPayloadIndex = 0;
+	u8 inType = 0;
+	u8 inMsgLen = 0;
+	u8 inActualLen = 0;
+	u8 inExtDest = 0;
+	u8 inExtSrc = 0;
+	u32 inCrc = 0;
+	bool inMsgIsExtended = false;
+	u8 inPayload[60]; // only actual payload, not ext src/dest
+	void processMessage();
+	bool parseChar(u8 c); // returns true if a packet is done
+
+	// stick smoothing
 	static interp_config interpConfig0; // used to interpolate for smooth sticks
 	static interp_config interpConfig1; // used to interpolate for smooth sticks
 	static interp_config interpConfig2; // used to clamp smoothed values
-	u8 msgBuffer[64] = {0};
-	u8 telemBuffer[30] = {0};
+
+	// telemetry and link maintenance
 	u32 currentTelemSensor = 0;
-	u8 msgBufIndex = 0;
 	const u8 serialNum;
-	elapsedMillis frequencyTimer;
-	elapsedMillis telemetryTimer;
-	elapsedMillis heartbeatTimer;
+	elapsedMicros frequencyTimer;
+	elapsedMicros telemetryTimer;
+	elapsedMicros heartbeatTimer;
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter = 0;
-	u32 crc = 0;
+	bool pinged = false;
+
+	// MSP packets (in/out)
 	u8 mspExtSrcAddr = 0;
 	u8 mspRxPayload[512] = {0};
 	u8 mspTelemSeq = 0;
@@ -124,85 +192,7 @@ private:
 	u16 mspRxPos = 0;
 	bool mspRecording = false;
 	u8 mspRxFlag = 0;
-	bool pinged = false;
 	MspVersion mspVersion = MspVersion::V2_OVER_CRSF;
-	void processMessage();
 	void resetMsp(bool setError = false);
-	void processMspReq(int size);
-};
-
-struct __attribute__((packed)) crsf_channels_10 {
-	unsigned ch0 : 10;
-	unsigned ch1 : 10;
-	unsigned ch2 : 10;
-	unsigned ch3 : 10;
-	unsigned ch4 : 10;
-	unsigned ch5 : 10;
-	unsigned ch6 : 10;
-	unsigned ch7 : 10;
-	unsigned ch8 : 10;
-	unsigned ch9 : 10;
-	unsigned ch10 : 10;
-	unsigned ch11 : 10;
-	unsigned ch12 : 10;
-	unsigned ch13 : 10;
-	unsigned ch14 : 10;
-	unsigned ch15 : 10;
-};
-
-struct __attribute__((packed)) crsf_channels_11 {
-	unsigned ch0 : 11;
-	unsigned ch1 : 11;
-	unsigned ch2 : 11;
-	unsigned ch3 : 11;
-	unsigned ch4 : 11;
-	unsigned ch5 : 11;
-	unsigned ch6 : 11;
-	unsigned ch7 : 11;
-	unsigned ch8 : 11;
-	unsigned ch9 : 11;
-	unsigned ch10 : 11;
-	unsigned ch11 : 11;
-	unsigned ch12 : 11;
-	unsigned ch13 : 11;
-	unsigned ch14 : 11;
-	unsigned ch15 : 11;
-};
-
-struct __attribute__((packed)) crsf_channels_12 {
-	unsigned ch0 : 12;
-	unsigned ch1 : 12;
-	unsigned ch2 : 12;
-	unsigned ch3 : 12;
-	unsigned ch4 : 12;
-	unsigned ch5 : 12;
-	unsigned ch6 : 12;
-	unsigned ch7 : 12;
-	unsigned ch8 : 12;
-	unsigned ch9 : 12;
-	unsigned ch10 : 12;
-	unsigned ch11 : 12;
-	unsigned ch12 : 12;
-	unsigned ch13 : 12;
-	unsigned ch14 : 12;
-	unsigned ch15 : 12;
-};
-
-struct __attribute__((packed)) crsf_channels_13 {
-	unsigned ch0 : 13;
-	unsigned ch1 : 13;
-	unsigned ch2 : 13;
-	unsigned ch3 : 13;
-	unsigned ch4 : 13;
-	unsigned ch5 : 13;
-	unsigned ch6 : 13;
-	unsigned ch7 : 13;
-	unsigned ch8 : 13;
-	unsigned ch9 : 13;
-	unsigned ch10 : 13;
-	unsigned ch11 : 13;
-	unsigned ch12 : 13;
-	unsigned ch13 : 13;
-	unsigned ch14 : 13;
-	unsigned ch15 : 13;
+	void processMspReq();
 };
