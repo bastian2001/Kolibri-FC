@@ -82,7 +82,9 @@ export default defineComponent({
 			return n.format(this.val)
 		},
 		isNumber() {
-			return !isNaN(Number(this.editText)) && !isNaN(parseFloat(this.editText))
+			let str = this.editText
+			str = str.replace(/,/g, ".")
+			return !isNaN(Number(str)) && !isNaN(parseFloat(str))
 		}
 	},
 	mounted() {
@@ -128,11 +130,15 @@ export default defineComponent({
 		};
 	},
 	methods: {
+		makeNumberGood() {
+			this.editText = this.editText.replace(/,/g, '.')
+		},
 		onWheel(e: WheelEvent) {
 			e.preventDefault();
 			if (e.timeStamp - this.lastWheel < 3) return; // Prevents double wheel events
 			this.lastWheel = e.timeStamp
 			if (this.isNumber) {
+				this.makeNumberGood();
 				let val = parseFloat(this.editText)
 				if (e.deltaY > 0) {
 					val -= this.step;
@@ -177,6 +183,7 @@ export default defineComponent({
 			} else if (e.key === 'ArrowUp') {
 				e.preventDefault();
 				if (this.isNumber) {
+					this.makeNumberGood();
 					let val = parseFloat(this.editText)
 					val += this.step;
 					if (val < this.min) val = this.min;
@@ -186,12 +193,15 @@ export default defineComponent({
 				}
 			} else if (e.key === 'ArrowDown') {
 				e.preventDefault();
-				let val = parseFloat(this.editText)
-				val -= this.step;
-				if (val < this.min) val = this.min;
-				if (val > this.max) val = this.max;
-				val = roundToDecimal(val, this.precision);
-				this.editText = val.toString()
+				if (this.isNumber) {
+					this.makeNumberGood();
+					let val = parseFloat(this.editText)
+					val -= this.step;
+					if (val < this.min) val = this.min;
+					if (val > this.max) val = this.max;
+					val = roundToDecimal(val, this.precision);
+					this.editText = val.toString()
+				}
 			}
 		},
 		saveAndExit() {

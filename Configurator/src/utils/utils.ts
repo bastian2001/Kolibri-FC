@@ -93,5 +93,7 @@ export function getSetpointActual(stickPos: number, coeffs: ActualCoeffs): numbe
 
 export function mathEval(str: string): number {
 	const mexp = new Mexp()
+	str = str.replace(/,/g, ".")
+	str = str.replace(/;/g, ",")
 	return mexp.eval(str)
 }
