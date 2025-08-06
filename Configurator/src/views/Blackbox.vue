@@ -13,7 +13,7 @@ import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
 import { parseBlackbox } from "@/utils/blackbox/parsing";
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
 import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
-import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/other";
+import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/constants";
 
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
 ];
@@ -473,8 +473,10 @@ export default defineComponent({
 						ctx.strokeStyle = trace.color;
 						ctx.lineWidth = 1 + trace.strokeWidth;
 						if (!trace.path) continue
+						const min = Math.min(trace.minValue, trace.maxValue);
+						const max = Math.max(trace.minValue, trace.maxValue);
 						// @ts-expect-error
-						const data = constrain(trace.overrideData ? trace.overrideSliceAndSkip![closestFrameSliceSkip] : frame[trace.path][0], trace.minValue, trace.maxValue);
+						const data = constrain(trace.overrideData ? trace.overrideSliceAndSkip![closestFrameSliceSkip] : frame[trace.path][0], min, max);
 						const pointY = heightOffset + heightPerGraph - (data - trace.minValue) * scale;
 						ctx.beginPath();
 						ctx.arc(frameX, pointY, 2.5 + trace.strokeWidth * 1.5, 0, Math.PI * 2);
@@ -769,6 +771,7 @@ export default defineComponent({
 					const scale = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth;
+					ctx.lineJoin = 'bevel'
 					if (!trace.strokeWidth) continue;
 					if (trace.overrideData) {
 						const overrideSlice = trace.overrideData.slice(
@@ -790,10 +793,12 @@ export default defineComponent({
 						//@ts-expect-error
 						: this.sliceAndSkip[trace.path];
 					if (!array) continue; // nothing properly selected
-					let pointY = heightOffset + heightPerGraph - (constrain(array[0], trace.minValue, trace.maxValue) - trace.minValue) * scale;
+					const min = Math.min(trace.minValue, trace.maxValue);
+					const max = Math.max(trace.minValue, trace.maxValue);
+					let pointY = heightOffset + heightPerGraph - (constrain(array[0], min, max) - trace.minValue) * scale;
 					ctx.moveTo(0, pointY);
 					for (let k = 1; k < length; k++) {
-						pointY = heightOffset + heightPerGraph - (constrain(array[k], trace.minValue, trace.maxValue) - trace.minValue) * scale;
+						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scale;
 						ctx.lineTo(k * frameWidth, pointY);
 					}
 					ctx.stroke();
@@ -965,7 +970,7 @@ export default defineComponent({
 				this.decodeBinFile();
 			}
 		},
-		async decodeBinFile() {
+		decodeBinFile() {
 			const l = parseBlackbox(this.binFile)
 			if (typeof l === 'string') {
 				this.rejectWrongFile(
@@ -1255,6 +1260,7 @@ canvas {
 .dataViewerWrapper {
 	position: relative;
 	overflow: hidden;
+	background-color: black;
 }
 
 .timelineWrapper {

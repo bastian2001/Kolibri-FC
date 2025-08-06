@@ -42,7 +42,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		pidConstantsNice[i][1] = pidConstants[i][1] >> 3
 		pidConstants[i][1] /= 65536
 		pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 20 + 8, i * 20 + 12))
-		pidConstantsNice[i][2] = pidConstants[i][2] >> 10
+		pidConstantsNice[i][2] = pidConstants[i][2] >> 16
 		pidConstants[i][2] /= 65536
 		pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 20 + 12, i * 20 + 16))
 		pidConstantsNice[i][3] = pidConstants[i][3] >> 8
@@ -119,7 +119,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				break
 		}
 	}
-	const motorPoles = header[142]
+	const motorPoles = header[150]
 	const framesPerSecond = pidFreq / freqDiv
 	const logData: LogData = {}
 	if (flags.includes("LOG_ELRS_RAW")) {
@@ -333,13 +333,11 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_MOTOR_OUTPUTS"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = framePos[f] + o
-			const throttleBytes = data.slice(p, p + 6)
-			const motors01 = leBytesToInt(throttleBytes.slice(0, 3))
-			const motors23 = leBytesToInt(throttleBytes.slice(3, 6))
-			logData.motorOutRR[f] = motors01 & 0xfff
-			logData.motorOutFR[f] = motors01 >> 12
-			logData.motorOutRL[f] = motors23 & 0xfff
-			logData.motorOutFL[f] = motors23 >> 12
+			const motors = leBytesToBigInt(data.slice(p, p + 6))
+			logData.motorOutRR[f] = Number(motors & 0xfffn)
+			logData.motorOutFR[f] = Number((motors >> 12n) & 0xfffn)
+			logData.motorOutRL[f] = Number((motors >> 24n) & 0xfffn)
+			logData.motorOutFL[f] = Number((motors >> 36n) & 0xfffn)
 		}
 	}
 	if (flags.includes("LOG_FRAMETIME")) {
@@ -359,7 +357,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_ALTITUDE"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = framePos[f] + o
-			logData.altitude[f] = leBytesToInt(data.slice(p, p + 2), true) / 16
+			logData.altitude[f] = leBytesToInt(data.slice(p, p + 2), true) / 64
 		}
 	}
 	if (flags.includes("LOG_VVEL")) {
@@ -495,12 +493,11 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const o = offsets["LOG_MOTOR_RPM"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = framePos[f] + o
-			const motors01 = leBytesToInt(data.slice(p, p + 3))
-			const motors23 = leBytesToInt(data.slice(p + 3, p + 6))
-			let rr = motors01 & 0xfff
-			let fr = motors01 >> 12
-			let rl = motors23 & 0xfff
-			let fl = motors23 >> 12
+			const motors = leBytesToBigInt(data.slice(p, p + 6))
+			let rr = Number(motors & 0xfffn)
+			let fr = Number((motors >> 12n) & 0xfffn)
+			let rl = Number((motors >> 24n) & 0xfffn)
+			let fl = Number((motors >> 36n) & 0xfffn)
 			if (rr === 0xfff) {
 				logData.rpmRR[f] = 0
 			} else {
@@ -597,12 +594,17 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		logData.baroRaw = new Uint32Array(frameCount)
 		logData.baroHpa = new Float32Array(frameCount)
 		logData.baroAlt = new Float32Array(frameCount)
+		logData.baroUpVel = new Float32Array(frameCount) // TODO remove
+		logData.baroUpAccel = new Float32Array(frameCount) // TODO remove
+		const fOffset = framesPerSecond / 50
 		const o = offsets["LOG_BARO"]
 		for (let f = 0; f < frameCount; f++) {
 			const p = framePos[f] + o
 			logData.baroRaw[f] = leBytesToInt(data.slice(p, p + 3))
 			logData.baroHpa[f] = logData.baroRaw[f] / 4096
 			logData.baroAlt[f] = 44330 * (1 - Math.pow(logData.baroHpa[f] / 1013.25, 1 / 5.255))
+			logData.baroUpVel[f] = (logData.baroAlt[f] - logData.baroAlt[Math.max(0, f - fOffset)]) * 50 // TODO remove
+			logData.baroUpAccel[f] = (logData.baroUpVel[f] - logData.baroUpVel[Math.max(0, f - fOffset)]) * 50 // TODO remove
 		}
 	}
 	if (flags.includes("LOG_DEBUG_1")) {

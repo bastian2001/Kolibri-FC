@@ -2,17 +2,15 @@
 
 u8 osdReady = 1;
 
-elapsedMillis osdTimer = 0;
+static elapsedMicros osdTimer = 0;
 
 u8 drawIterator = 0;
 
-u8 elemPositions[OSD_MAX_ELEM][2] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 2 bytes for x and y position, the 2 MSBs of x is used as an updated flag + reserved, the 2 MSBs of y is used as a visible flag + blinking flag
+u8 elemPositions[(u8)OSDElem::LENGTH][2] = {0}; // up to LENGTH elements can be shown, each element has 2 bytes for x and y position, the 3 MSBs of x is used as an updated flag + reserved, the 3 MSBs of y is used as a visible flag + blinking flag + reserved
 
-u8 elemData[OSD_MAX_ELEM][16] = {0}; // up to OSD_MAX_ELEM elements can be shown, each element has 16 bytes for data
+u8 elemData[(u8)OSDElem::LENGTH][16] = {0}; // up to LENGTH elements can be shown, each element has 16 bytes for data
 
 void osdInit() {
-	osdTimer = 0;
-
 	spi_init(SPI_OSD, 8000000);
 
 	spi_set_format(SPI_OSD, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
@@ -85,7 +83,7 @@ void drawElem(u8 elem) {
 	// draw element using the elemData array
 	u16 pos = (u16)(elemPositions[elem][0] & 0x3F) + (u16)(elemPositions[elem][1] & 0x3F) * OSD_WIDTH;
 	bool blinking = elemPositions[elem][1] & 0x40;
-	bool isOff = blinking ? (osdTimer % 500 < 250) : false; // blink every 500ms
+	bool isOff = blinking ? (osdTimer % 500000 < 250000) : false; // blink every 500ms
 	for (int i = 0; i < 16; i++) {
 		if (!elemData[elem][i])
 			break;
@@ -105,13 +103,12 @@ void drawElem(u8 elem) {
 void osdLoop() {
 	return;
 	if (osdReady) {
-		elapsedMicros taskTimer = 0;
-		tasks[TASK_OSD].runCounter++;
+		TASK_START(TASK_OSD);
 		// cycle through all drawn elements, and update one per gyro cycle
 		u8 drawIteratorStart = drawIterator;
 		while (1) {
 			drawIterator++;
-			if (drawIterator >= OSD_MAX_ELEM)
+			if (drawIterator >= (u8)OSDElem::LENGTH)
 				drawIterator = 0;
 			if ((elemPositions[drawIterator][0] & 0x80) && (elemPositions[drawIterator][1] & 0x80)) // if updated and enabled
 			{
@@ -121,16 +118,10 @@ void osdLoop() {
 			if (drawIterator == drawIteratorStart)
 				break;
 		}
-		u32 duration = taskTimer;
-		tasks[TASK_OSD].totalDuration += duration;
-		if (duration < tasks[TASK_OSD].minDuration) {
-			tasks[TASK_OSD].minDuration = duration;
-		}
-		if (duration > tasks[TASK_OSD].maxDuration) {
-			tasks[TASK_OSD].maxDuration = duration;
-		}
+		TASK_END(TASK_OSD);
 	}
-	if (osdTimer > 1000 && osdReady != 1) {
+	if (osdTimer > 1000000 && osdReady != 1) {
+		TASK_START(TASK_OSD);
 		u8 data = 0;
 		osdTimer = 0;
 		regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::STAT, &data, 1, 0, 0);
@@ -146,6 +137,7 @@ void osdLoop() {
 			regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data2);
 		}
 		osdReady = (data & 0b00000011) ? 1 : 2;
+		TASK_END(TASK_OSD);
 	}
 	mspDisplayportLoop();
 }

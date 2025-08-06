@@ -1,6 +1,6 @@
 <script lang="ts">
 import { MspFn } from "@/msp/protocol";
-import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/other";
+import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/constants";
 import { defineComponent } from "vue";
 
 type SensorTrace = {

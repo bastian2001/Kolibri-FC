@@ -1,9 +1,9 @@
 #pragma once
 
-#include "elapsedMillis.h"
 #include "serialhandler/msp.h"
 #include "typedefs.h"
 #include <Arduino.h>
+
 #define LOG_ELRS_RAW (1 << 0) // 0 bytes
 #define LOG_ROLL_SETPOINT (1 << 1) // 2 bytes
 #define LOG_PITCH_SETPOINT (1 << 2) // 2 bytes
@@ -98,7 +98,8 @@ void endLogging();
 bool clearBlackbox();
 
 /// @brief Write a single frame to the blackbox file
-void writeSingleFrame();
+/// @return u32 micros it took
+u32 writeSingleFrame();
 
 /**
  * @brief Print a log file to the configurator using MspFn::BB_FILE_DOWNLOAD

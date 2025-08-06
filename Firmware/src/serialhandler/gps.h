@@ -6,12 +6,13 @@ using std::vector;
 #define GPS_BUF_LEN 1024
 
 extern RingBuffer<u8> gpsBuffer; // GPS incoming serial buffer
-extern elapsedMillis lastPvtMessage; // time since the last PVT (position velocity time) message was received
+extern elapsedMicros lastPvtMessage; // time since the last PVT (position velocity time) message was received
 extern u8 currentPvtMsg[92];
 extern u32 newPvtMessageFlag;
 extern fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
 extern u32 gpsUpdateRate;
 extern fix32 gpsVelocityFilterCutoff;
+extern bool gpsGoodQuality; // whether the GPS data of the last frame is good
 
 /**
  * @brief initialize GPS driver

@@ -1,36 +1,96 @@
 #include "global.h"
 #include "hardware/interp.h"
 
-/* Prevent long execution time in loop() if there is a lot of data in the buffer.
- * - Lower values: more consistent execution time
- * - Higher values: more throughput (better for large MSP requests)
- * 30 works well enough, but if DMA is possible for receiving, the value can be decreased because the buffer will not fill up as quickly.
- */
-#define ELRS_MAX_SCAN 30
-#define ELRS_BUFFER_SIZE 600 // need to accept large bursts of MSP data
+struct __attribute__((packed)) crsf_channels_10 {
+	unsigned ch0 : 10;
+	unsigned ch1 : 10;
+	unsigned ch2 : 10;
+	unsigned ch3 : 10;
+	unsigned ch4 : 10;
+	unsigned ch5 : 10;
+	unsigned ch6 : 10;
+	unsigned ch7 : 10;
+	unsigned ch8 : 10;
+	unsigned ch9 : 10;
+	unsigned ch10 : 10;
+	unsigned ch11 : 10;
+	unsigned ch12 : 10;
+	unsigned ch13 : 10;
+	unsigned ch14 : 10;
+	unsigned ch15 : 10;
+};
+
+struct __attribute__((packed)) crsf_channels_11 {
+	unsigned ch0 : 11;
+	unsigned ch1 : 11;
+	unsigned ch2 : 11;
+	unsigned ch3 : 11;
+	unsigned ch4 : 11;
+	unsigned ch5 : 11;
+	unsigned ch6 : 11;
+	unsigned ch7 : 11;
+	unsigned ch8 : 11;
+	unsigned ch9 : 11;
+	unsigned ch10 : 11;
+	unsigned ch11 : 11;
+	unsigned ch12 : 11;
+	unsigned ch13 : 11;
+	unsigned ch14 : 11;
+	unsigned ch15 : 11;
+};
+
+struct __attribute__((packed)) crsf_channels_12 {
+	unsigned ch0 : 12;
+	unsigned ch1 : 12;
+	unsigned ch2 : 12;
+	unsigned ch3 : 12;
+	unsigned ch4 : 12;
+	unsigned ch5 : 12;
+	unsigned ch6 : 12;
+	unsigned ch7 : 12;
+	unsigned ch8 : 12;
+	unsigned ch9 : 12;
+	unsigned ch10 : 12;
+	unsigned ch11 : 12;
+	unsigned ch12 : 12;
+	unsigned ch13 : 12;
+	unsigned ch14 : 12;
+	unsigned ch15 : 12;
+};
+
+struct __attribute__((packed)) crsf_channels_13 {
+	unsigned ch0 : 13;
+	unsigned ch1 : 13;
+	unsigned ch2 : 13;
+	unsigned ch3 : 13;
+	unsigned ch4 : 13;
+	unsigned ch5 : 13;
+	unsigned ch6 : 13;
+	unsigned ch7 : 13;
+	unsigned ch8 : 13;
+	unsigned ch9 : 13;
+	unsigned ch10 : 13;
+	unsigned ch11 : 13;
+	unsigned ch12 : 13;
+	unsigned ch13 : 13;
+	unsigned ch14 : 13;
+	unsigned ch15 : 13;
+};
+
+#define ELRS_BUFFER_SIZE 600
+
+#define ELRS_RAISE_ERROR(code)     \
+	lastError = code;              \
+	errorFlag = true;              \
+	errorCount++;                  \
+	tasks[TASK_ELRS].errorCount++; \
+	tasks[TASK_ELRS].lastError = code;
 
 RingBuffer<u8> elrsBuffer(ELRS_BUFFER_SIZE);
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 
-ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
-	: elrsSerial(elrsSerial),
-	  pinTX(pinTX),
-	  pinRX(pinRX),
-	  baudrate(baudrate) {
-	elrsStream = &elrsSerial;
-	for (int i = 0; i < 3; i++) {
-		if (elrsStream == serials[i]) {
-			serialNum = i;
-			break;
-		}
-	}
-	elrsSerial.end();
-	elrsSerial.setTX(pinTX);
-	elrsSerial.setRX(pinRX);
-	elrsSerial.setCTS(UART_PIN_NOT_DEFINED);
-	elrsSerial.setRTS(UART_PIN_NOT_DEFINED);
-	elrsSerial.setFIFOSize(256);
-	elrsSerial.begin(baudrate, SERIAL_8N1);
+ExpressLRS::ExpressLRS(u8 serialNum)
+	: serialNum(serialNum) {
 	interpConfig0 = interp_default_config();
 	interp_config_set_blend(&interpConfig0, 1);
 	interpConfig1 = interp_default_config();
@@ -38,13 +98,11 @@ ExpressLRS::ExpressLRS(SerialUART &elrsSerial, u32 baudrate, u8 pinTX, u8 pinRX)
 	interp_config_set_clamp(&interpConfig2, 1);
 }
 
-ExpressLRS::~ExpressLRS() {
-	elrsSerial.end();
-}
-
 void ExpressLRS::loop() {
-	elapsedMicros taskTimer;
-	if (frequencyTimer >= 1000) {
+	TASK_START(TASK_ELRS);
+
+	// maintain link state
+	if (frequencyTimer >= 1000000) {
 		if (rcPacketRateCounter > 20 && rcMsgCount > 300)
 			isLinkUp = true;
 		else
@@ -59,26 +117,24 @@ void ExpressLRS::loop() {
 			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_RECEIVER, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
 		}
 	}
-	int maxScan = elrsBuffer.itemCount();
-	if (maxScan > ELRS_BUFFER_SIZE - ELRS_MAX_SCAN) {
-		elrsBuffer.clear();
-		msgBufIndex = 0;
-		crc = 0;
-		lastError = ERROR_BUFFER_OVERFLOW;
-		tasks[TASK_ELRS].errorCount++;
-		tasks[TASK_ELRS].lastError = ERROR_BUFFER_OVERFLOW;
-		errorFlag = true;
-		errorCount++;
+
+	int inBufAvail = elrsBuffer.itemCount();
+	if (inBufAvail >= ELRS_BUFFER_SIZE) {
+		ELRS_RAISE_ERROR(ERROR_BUFFER_OVERFLOW);
+		TASK_END(TASK_ELRS);
 		return;
 	}
-	if ((!maxScan && heartbeatTimer >= 300) || heartbeatTimer >= 500) {
+
+	// send heartbeat or telemetry if needed and if no data to parse
+	if ((!inBufAvail && heartbeatTimer >= 300000) || heartbeatTimer >= 500000) {
 		// try to send every 300 ms, and force send after reaching 500ms
 		u8 buf[2] = {0, ADDRESS_FLIGHT_CONTROLLER}; // u16 address, big endian
 		this->sendPacket(FRAMETYPE_HEARTBEAT, (char *)buf, 2);
 		heartbeatTimer = 0;
-	} else if (!maxScan && telemetryTimer >= 15) {
+	} else if (!inBufAvail && telemetryTimer >= 15000) {
 		// if there is no data to read and the last sensor was transmitted more than 15ms ago, send one telemetry sensor at a time
 		telemetryTimer = 0;
+		u8 telemBuffer[30];
 		switch (currentTelemSensor++) {
 		case 0: {
 			// GPS (0x02)
@@ -158,79 +214,37 @@ void ExpressLRS::loop() {
 			case FlightMode::ALT_HOLD:
 				this->sendPacket(FRAMETYPE_FLIGHTMODE, "Altitude Hold", 14);
 				break;
-			case FlightMode::GPS_VEL:
-				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS Velocity", 13);
+			case FlightMode::GPS:
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS", 4);
 				break;
-			case FlightMode::GPS_POS:
-				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS Position", 13);
+			case FlightMode::GPS_WP:
+				this->sendPacket(FRAMETYPE_FLIGHTMODE, "GPS WP", 7);
 				break;
 			}
 			break;
 		}
 		if (currentTelemSensor > 5) currentTelemSensor = 0;
+		TASK_END(TASK_ELRS);
 		return;
 	}
-	taskTimer = 0;
-	if (maxScan > ELRS_MAX_SCAN) maxScan = ELRS_MAX_SCAN; // limit to max scan size
-	if (maxScan + msgBufIndex > 64) maxScan = 64 - msgBufIndex; // limit to packet length
-	for (int i = 0; i < maxScan; i++) {
-		msgBuffer[msgBufIndex] = elrsBuffer.pop();
-		if (msgBufIndex >= 2) {
-			crc ^= msgBuffer[msgBufIndex];
-			crc = crcLutD5[crc];
-		} else {
-			crc = 0;
-		}
-		msgBufIndex++;
-		if (msgBufIndex >= 2 + msgBuffer[1]) break; // if the message is complete, stop scanning, so we don't corrupt the crc
+
+	while (inBufAvail--) {
+		if (parseChar(elrsBuffer.pop())) break; // stop when a packet is fully done to reduce maximum duration
 	}
-	if (msgBufIndex > 0 && msgBuffer[0] != CRSF_SYNC_BYTE) {
-		msgBufIndex = 0;
-		crc = 0;
-		lastError = ERROR_INVALID_PREFIX;
-		tasks[TASK_ELRS].errorCount++;
-		tasks[TASK_ELRS].lastError = ERROR_INVALID_PREFIX;
-		errorFlag = true;
-		errorCount++;
-	}
-	if (msgBufIndex >= 2 + msgBuffer[1]) {
-		processMessage();
-	}
-	u32 duration = taskTimer;
-	tasks[TASK_ELRS].totalDuration += duration;
-	if (duration < tasks[TASK_ELRS].minDuration) {
-		tasks[TASK_ELRS].minDuration = duration;
-	}
-	if (duration > tasks[TASK_ELRS].maxDuration) {
-		tasks[TASK_ELRS].maxDuration = duration;
-	}
+
+	TASK_END(TASK_ELRS);
 }
 
 void ExpressLRS::processMessage() {
-	int size = msgBuffer[1] + 2; // total CRSF packet length, including everything
-	if (crc & 0xFF) // if the crc is not 0, then the message is invalid
-	{
-		crc = 0;
-		msgBufIndex -= size;
-		// shift all the bytes in the buffer to the left by size
-		for (int i = 0; i < msgBufIndex; i++)
-			msgBuffer[i] = msgBuffer[i + size];
-		lastError = ERROR_CRC;
-		errorFlag = true;
-		errorCount++;
-		tasks[TASK_ELRS].errorCount++;
-		tasks[TASK_ELRS].lastError = ERROR_CRC;
-		return;
-	}
-
 	msgCount++;
 	sinceLastMessage = 0;
 	packetRateCounter++;
-	tasks[TASK_ELRS].runCounter++;
 
-	switch (msgBuffer[2]) {
+	if (inMsgIsExtended && inExtDest != ADDRESS_FLIGHT_CONTROLLER) return;
+
+	switch (inType) {
 	case FRAMETYPE_RC_CHANNELS_PACKED: {
-		if (size != 26) // 16 channels * 11 bits + 3 bytes header + 1 byte crc
+		if (inActualLen != 22) // 16 channels * 11 bits
 		{
 			lastError = ERROR_INVALID_LENGTH;
 			errorFlag = true;
@@ -239,7 +253,7 @@ void ExpressLRS::processMessage() {
 			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
 			break;
 		}
-		crsf_channels_11 *chs = (crsf_channels_11 *)(&msgBuffer[3]);
+		crsf_channels_11 *chs = (crsf_channels_11 *)(inPayload);
 		u32 pChannels[16] = {chs->ch0, chs->ch1, chs->ch2, chs->ch3, chs->ch4, chs->ch5, chs->ch6, chs->ch7, chs->ch8, chs->ch9, chs->ch10, chs->ch11, chs->ch12, chs->ch13, chs->ch14, chs->ch15};
 		// map pChannels to 989-2012 (?)
 		for (u8 i = 0; i < 16; i++) {
@@ -263,24 +277,21 @@ void ExpressLRS::processMessage() {
 		rcMsgCount++;
 	} break;
 	case FRAMETYPE_SUBSET_RC_CHANNELS_PACKED: {
-		u8 cfg = msgBuffer[3];
+		u8 cfg = *inPayload;
 		u8 firstChannel = cfg & 0x1F;
 		u8 res = (cfg >> 5) & 0x03;
-		u8 channelCount = (size - 5) * 8 / (res + 10);
+		u8 chanSizeBytes = inActualLen - 1;
+		u8 channelCount = chanSizeBytes * 8 / (res + 10);
 		if (firstChannel + channelCount > 16) {
-			lastError = ERROR_INVALID_LENGTH;
-			errorFlag = true;
-			errorCount++;
-			tasks[TASK_ELRS].errorCount++;
-			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
+			ELRS_RAISE_ERROR(ERROR_INVALID_LENGTH);
 			break;
 		}
 		u32 pChannels[16] = {0};
 		switch (res) {
 		case 0b00: {
 			// 10 bits
-			crsf_channels_10 chs = {0};
-			memcpy(&chs, &msgBuffer[4], size - 5);
+			crsf_channels_10 chs;
+			memcpy(&chs, &inPayload[1], chanSizeBytes);
 			pChannels[0] = chs.ch0;
 			pChannels[1] = chs.ch1;
 			pChannels[2] = chs.ch2;
@@ -300,8 +311,8 @@ void ExpressLRS::processMessage() {
 		} break;
 		case 0b01: {
 			// 11 bits
-			crsf_channels_11 chs = {0};
-			memcpy(&chs, &msgBuffer[4], size - 5);
+			crsf_channels_11 chs;
+			memcpy(&chs, &inPayload[1], chanSizeBytes);
 			pChannels[0] = chs.ch0;
 			pChannels[1] = chs.ch1;
 			pChannels[2] = chs.ch2;
@@ -321,8 +332,8 @@ void ExpressLRS::processMessage() {
 		} break;
 		case 0b10: {
 			// 12 bits
-			crsf_channels_12 chs = {0};
-			memcpy(&chs, &msgBuffer[4], size - 5);
+			crsf_channels_12 chs;
+			memcpy(&chs, &inPayload[1], chanSizeBytes);
 			pChannels[0] = chs.ch0;
 			pChannels[1] = chs.ch1;
 			pChannels[2] = chs.ch2;
@@ -342,8 +353,8 @@ void ExpressLRS::processMessage() {
 		} break;
 		case 0b11: {
 			// 13 bits
-			crsf_channels_13 chs = {0};
-			memcpy(&chs, &msgBuffer[4], size - 5);
+			crsf_channels_13 chs;
+			memcpy(&chs, &inPayload[1], chanSizeBytes);
 			pChannels[0] = chs.ch0;
 			pChannels[1] = chs.ch1;
 			pChannels[2] = chs.ch2;
@@ -396,26 +407,21 @@ void ExpressLRS::processMessage() {
 		rcMsgCount++;
 	} break;
 	case FRAMETYPE_LINK_STATISTICS: {
-		if (size != 14) // 10 info bytes + 3 bytes header + 1 byte crc
-		{
-			lastError = ERROR_INVALID_LENGTH;
-			errorFlag = true;
-			errorCount++;
-			tasks[TASK_ELRS].errorCount++;
-			tasks[TASK_ELRS].lastError = ERROR_INVALID_LENGTH;
+		if (inActualLen != 10) {
+			ELRS_RAISE_ERROR(ERROR_INVALID_LENGTH);
 			break;
 		}
-		uplinkRssi[0] = -msgBuffer[3];
-		uplinkRssi[1] = -msgBuffer[4];
-		uplinkLinkQuality = msgBuffer[5];
-		uplinkSNR = msgBuffer[6];
-		antennaSelection = msgBuffer[7];
-		packetRateIdx = msgBuffer[8];
+		uplinkRssi[0] = -inPayload[0];
+		uplinkRssi[1] = -inPayload[1];
+		uplinkLinkQuality = inPayload[2];
+		uplinkSNR = inPayload[3];
+		antennaSelection = inPayload[4];
+		packetRateIdx = inPayload[5];
 		targetPacketRate = packetRates[packetRateIdx];
-		txPower = powerStates[msgBuffer[9]];
-		downlinkRssi = -msgBuffer[10];
-		downlinkLinkQuality = msgBuffer[11];
-		downlinkSNR = msgBuffer[12];
+		txPower = powerStates[inPayload[6]];
+		downlinkRssi = -inPayload[7];
+		downlinkLinkQuality = inPayload[8];
+		downlinkSNR = inPayload[9];
 	} break;
 	case FRAMETYPE_DEVICE_PING: {
 		char buf[32] = FIRMWARE_NAME " " FIRMWARE_VERSION_STRING;
@@ -432,59 +438,113 @@ void ExpressLRS::processMessage() {
 		buf[pos++] = FIRMWARE_VERSION_PATCH;
 		buf[pos++] = 0; // config parameter count
 		buf[pos++] = 0; // parameter protocol version (0)
-		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, msgBuffer[4], ADDRESS_FLIGHT_CONTROLLER, buf, pos);
+		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, inExtSrc, ADDRESS_FLIGHT_CONTROLLER, buf, pos);
 	} break;
 	case FRAMETYPE_DEVICE_INFO: {
 		pinged = true;
 	} break;
 	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY: {
-		Serial.printf("FRAMETYPE_PARAMETER_SETTINGS_ENTRY with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
-		for (int i = 0; i < size - 6; i++) {
-			Serial.printf("%02X ", msgBuffer[5 + i]);
+		Serial.printf("FRAMETYPE_PARAMETER_SETTINGS_ENTRY with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
+		for (int i = 0; i < inActualLen; i++) {
+			Serial.printf("%02X ", inPayload[i]);
 		}
 		Serial.println();
 	} break;
 	case FRAMETYPE_PARAMETER_READ: {
-		Serial.printf("FRAMETYPE_PARAMETER_READ with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
-		for (int i = 0; i < size - 6; i++) {
-			Serial.printf("%02X ", msgBuffer[5 + i]);
+		Serial.printf("FRAMETYPE_PARAMETER_READ with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
+		for (int i = 0; i < inActualLen; i++) {
+			Serial.printf("%02X ", inPayload[i]);
 		}
 		Serial.println();
 	} break;
 	case FRAMETYPE_PARAMETER_WRITE: {
-		Serial.printf("FRAMETYPE_PARAMETER_WRITE with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
-		for (int i = 0; i < size - 6; i++) {
-			Serial.printf("%02X ", msgBuffer[5 + i]);
+		Serial.printf("FRAMETYPE_PARAMETER_WRITE with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
+		for (int i = 0; i < inActualLen; i++) {
+			Serial.printf("%02X ", inPayload[i]);
 		}
 		Serial.println();
 	} break;
 	case FRAMETYPE_COMMAND: {
-		Serial.printf("FRAMETYPE_COMMAND with ext dest %02X, ext src %02X, and %d more bytes\n", msgBuffer[3], msgBuffer[4], size - 6);
-		for (int i = 0; i < size - 6; i++) {
-			Serial.printf("%02X ", msgBuffer[5 + i]);
+		Serial.printf("FRAMETYPE_COMMAND with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
+		for (int i = 0; i < inActualLen; i++) {
+			Serial.printf("%02X ", inPayload[i]);
 		}
 		Serial.println();
 	} break;
 	case FRAMETYPE_MSP_REQ:
 	case FRAMETYPE_MSP_WRITE: {
-		this->processMspReq(size);
+		this->processMspReq();
 	} break;
 	default:
-		lastError = ERROR_UNSUPPORTED_COMMAND;
-		tasks[TASK_ELRS].errorCount++;
-		tasks[TASK_ELRS].lastError = ERROR_UNSUPPORTED_COMMAND;
-		errorFlag = true;
-		errorCount++;
-		msgBufIndex -= size;
-		crc = 0;
-		// shift all the bytes in the buffer to the left by size
-		for (int i = 0; i < msgBufIndex; i++)
-			msgBuffer[i] = msgBuffer[i + size];
-		return;
+		ELRS_RAISE_ERROR(ERROR_UNSUPPORTED_COMMAND);
+		break;
 	}
+}
 
-	msgBufIndex = 0;
-	crc = 0;
+bool ExpressLRS::parseChar(u8 c) {
+	switch (inMsgState) {
+	case CRSF_STATE_SYNC:
+		if (c == CRSF_SYNC_BYTE) {
+			inCrc = 0;
+			inPayloadIndex = 0;
+			inMsgState = CRSF_STATE_LEN;
+		}
+		break;
+	case CRSF_STATE_LEN:
+		if (c > 62) {
+			ELRS_RAISE_ERROR(ERROR_INVALID_PKT_LEN);
+			inMsgState = CRSF_STATE_SYNC;
+		} else {
+			inMsgLen = c;
+			inMsgState = CRSF_STATE_TYPE;
+		}
+		break;
+	case CRSF_STATE_TYPE:
+		inType = c;
+		CRC_LUT_D5_APPLY(inCrc, c);
+		if (c >= 0x28) {
+			inActualLen = inMsgLen - 4;
+			inMsgState = CRSF_STATE_EXT_DEST;
+			inMsgIsExtended = true;
+		} else {
+			inActualLen = inMsgLen - 2;
+			inMsgState = CRSF_STATE_PAYLOAD;
+			inMsgIsExtended = false;
+		}
+		break;
+	case CRSF_STATE_EXT_DEST:
+		inExtDest = c;
+		CRC_LUT_D5_APPLY(inCrc, c);
+		inMsgState = CRSF_STATE_EXT_SRC;
+		break;
+	case CRSF_STATE_EXT_SRC:
+		inExtSrc = c;
+		CRC_LUT_D5_APPLY(inCrc, c);
+		inMsgState = CRSF_STATE_PAYLOAD;
+		break;
+	case CRSF_STATE_PAYLOAD:
+		inPayload[inPayloadIndex++] = c;
+		CRC_LUT_D5_APPLY(inCrc, c);
+		if (inPayloadIndex == inActualLen)
+			inMsgState = CRSF_STATE_CRC;
+		break;
+	case CRSF_STATE_CRC:
+		CRC_LUT_D5_APPLY(inCrc, c);
+		inMsgState = CRSF_STATE_SYNC;
+		if (!inCrc) {
+			TASK_START(TASK_ELRS_MSG);
+			processMessage();
+			TASK_END(TASK_ELRS_MSG);
+			return true;
+		} else {
+			ELRS_RAISE_ERROR(ERROR_CRC);
+		}
+		break;
+	default:
+		inMsgState = CRSF_STATE_SYNC;
+		break;
+	}
+	return false;
 }
 
 void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
@@ -515,11 +575,10 @@ void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
 		memcpy(&packet[3], payload, payloadLen);
 	u32 crc = 0;
 	for (int i = 2; i < 3 + payloadLen; i++) {
-		crc ^= packet[i];
-		crc = crcLutD5[crc];
+		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[3 + payloadLen] = crc;
-	elrsSerial.write(packet, 4 + payloadLen);
+	serials[serialNum].stream->write(packet, 4 + payloadLen);
 }
 
 void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
@@ -529,11 +588,10 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 		memcpy(&packet[5], extPayload, extPayloadLen);
 	u32 crc = 0;
 	for (int i = 2; i < 5 + extPayloadLen; i++) {
-		crc ^= packet[i];
-		crc = crcLutD5[crc];
+		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[5 + extPayloadLen] = crc;
-	elrsSerial.write(packet, 6 + extPayloadLen);
+	serials[serialNum].stream->write(packet, 6 + extPayloadLen);
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
@@ -573,21 +631,18 @@ void ExpressLRS::resetMsp(bool setError) {
 	this->mspRxCmd = 0;
 	this->mspRxSeq = 0;
 	if (setError) {
-		this->errorCount++;
-		this->errorFlag = true;
-		this->lastError = ExpressLRS::ERROR_MSP_OVER_CRSF;
+		ELRS_RAISE_ERROR(ERROR_MSP_OVER_CRSF);
 	}
 }
 
-void ExpressLRS::processMspReq(int size) {
-	const u8 *const crsfPayload = &msgBuffer[3];
-	const u8 *const extPayload = &crsfPayload[2];
-	const u8 *const mspData = &extPayload[1];
-	const i8 crsfPacketSize = size - 4; // regular payload size = extended payload size + 2 (ext src and dest)
-	u8 minSize = 3; // ext src, dest and status byte
-	if (crsfPacketSize < minSize) return;
-
-	const u8 status = *extPayload; // first byte of payload is the status byte
+void ExpressLRS::processMspReq() {
+	const u8 *const mspData = inPayload + 1;
+	if (inActualLen < 1) {
+		// need at least status byte
+		ELRS_RAISE_ERROR(ERROR_INVALID_LENGTH);
+		return;
+	}
+	const u8 status = *inPayload; // first byte of payload is the status byte
 	const u8 isError = (status >> 7);
 	const bool isNewFrame = (status >> 4) & 0b1;
 	const u8 sequenceNo = status & 0xF;
@@ -605,7 +660,7 @@ void ExpressLRS::processMspReq(int size) {
 		const u8 headerVersion = (status >> 5) & 0b11; // 1 = V1 or V1_JUMBO, 2 = V2
 		switch (headerVersion) {
 		case 1:
-			if (extPayload[1] == 0xFF)
+			if (mspData[0] == 0xFF)
 				this->mspVersion = MspVersion::V1_JUMBO_OVER_CRSF;
 			else
 				this->mspVersion = MspVersion::V1_OVER_CRSF;
@@ -620,29 +675,29 @@ void ExpressLRS::processMspReq(int size) {
 		}
 
 		// save return address for once packet is complete
-		this->mspExtSrcAddr = msgBuffer[4];
+		this->mspExtSrcAddr = inExtSrc;
 
 		// calculate frame length
 		switch (this->mspVersion) {
 		case MspVersion::V1_OVER_CRSF:
-			minSize += 2; // 1 payload length, 1 command
-			readPos = 2;
-			if (crsfPacketSize < minSize) {
+			if (inActualLen < 3) {
+				// need at least status byte, payload len and function
 				Serial.println("Too small V1");
 				this->resetMsp(true);
 				return; // broken packet
 			}
+			readPos = 2;
 			this->mspRxPayloadLen = mspData[0];
 			this->mspRxCmd = mspData[1];
 			break;
 		case MspVersion::V1_JUMBO_OVER_CRSF:
-			minSize += 4; // 1+2 payload length, 1 command
-			readPos = 4;
-			if (crsfPacketSize < minSize) {
+			if (inActualLen < 5) {
+				// 1+2 payload length, 1 command
 				Serial.println("Too small V1 Jumbo");
 				this->resetMsp(true);
 				return; // broken packet
 			}
+			readPos = 4;
 			this->mspRxCmd = mspData[1];
 			this->mspRxPayloadLen = mspData[2] | (mspData[3] << 8);
 			if (this->mspRxPayloadLen > 512) {
@@ -652,13 +707,13 @@ void ExpressLRS::processMspReq(int size) {
 			}
 			break;
 		case MspVersion::V2_OVER_CRSF:
-			minSize += 5; // 1 flags, 2 payload length, 2 command
-			readPos = 5;
-			if (crsfPacketSize < minSize) {
+			if (inActualLen < 6) {
+				// 1 flags, 2 payload length, 2 command
 				Serial.println("Too small V2");
 				this->resetMsp(true);
 				return;
 			}
+			readPos = 5;
 			this->mspRxFlag = mspData[0];
 			this->mspRxCmd = mspData[1] | (mspData[2] << 8);
 			this->mspRxPayloadLen = mspData[3] | (mspData[4] << 8);
@@ -677,7 +732,7 @@ void ExpressLRS::processMspReq(int size) {
 	}
 	this->mspRxSeq = sequenceNo; // save the sequence number for next frame
 
-	i8 thisMspPayloadLen = size - 7 - readPos; // how much MSP payload is in this CRSF frame = total packet size minus sync, len, type, ext src, ext dest, status and CRSF CRC, then deduct start of MSP payload (readPos)
+	i8 thisMspPayloadLen = inActualLen - 1 - readPos; // how much MSP payload is in this CRSF frame = total payload size minus status, then deduct start of MSP payload (readPos)
 
 	// something is wrong
 	if (thisMspPayloadLen < 0) return this->resetMsp(true);

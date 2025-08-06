@@ -175,8 +175,7 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
                                             return None;
                                         }
                                     }
-                                    Err(e) => {
-                                        println!("  Ping to {} failed: {:?}", ip_str, e);
+                                    Err(_) => {
                                         return None;
                                     }
                                 };
@@ -200,15 +199,10 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
                                     if success {
                                         Some((hostname, ip_str))
                                     } else {
-                                        let stderr = String::from_utf8_lossy(&output.stderr);
-                                        println!("  Ping to {} failed: {}", ip_str, stderr);
                                         None
                                     }
                                 }
-                                Err(e) => {
-                                    println!("  Ping command failed for {}: {:?}", ip_str, e);
-                                    None
-                                }
+                                Err(_) => None,
                             }
                         };
 
@@ -228,11 +222,6 @@ async fn tcp_list(_state: tauri::State<'_, MyState>) -> Result<Vec<String>, Stri
         if let Some((hostname, ip)) = result {
             output.push(format!("{},{}", hostname, ip));
         }
-    }
-
-    // If we found no valid hostnames, log it
-    if output.is_empty() {
-        println!("No hostnames resolved successfully or responded to pings");
     }
 
     Ok(output)

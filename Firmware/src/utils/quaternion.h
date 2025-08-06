@@ -18,7 +18,6 @@
  * @date    2019-11-28
  */
 #pragma once
-#include "fixedPointInt.h"
 
 inline constexpr f32 QUATERNION_EPS = 1e-5;
 inline constexpr f32 ONE_MINUS_EPS = 1 - QUATERNION_EPS;

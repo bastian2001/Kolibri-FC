@@ -1,6 +1,6 @@
 #include "unittest.h"
-#include "utils/fixedPointInt.h"
 #include "ringbuffer.h"
+#include <fixedPointInt.h>
 
 u32 ExpectBase::failed = false;
 u32 ExpectBase::succeeded = false;
