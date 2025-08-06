@@ -39,6 +39,7 @@ void initGPS() {
 		}
 	}
 
+	return;
 	placeElem(OSDElem::LATITUDE, 1, 13);
 	placeElem(OSDElem::LONGITUDE, 13, 13);
 	placeElem(OSDElem::ALTITUDE, 1, 14);

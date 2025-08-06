@@ -69,8 +69,8 @@ static void updateInFlightTuningOsd() {
 }
 
 void inFlightTuningInit() {
-	placeElem(OSDElem::IN_FLIGHT_TUNING, 15, 1);
-	enableElem(OSDElem::IN_FLIGHT_TUNING);
+	// placeElem(OSDElem::IN_FLIGHT_TUNING, 15, 1);
+	// enableElem(OSDElem::IN_FLIGHT_TUNING);
 }
 
 void inFlightTuningLoop() {

@@ -175,8 +175,8 @@ void setModesInFile() {
 }
 
 void modesInit() {
-	placeElem(OSDElem::FLIGHT_MODE, 1, 2);
-	enableElem(OSDElem::FLIGHT_MODE);
+	// placeElem(OSDElem::FLIGHT_MODE, 1, 2);
+	// enableElem(OSDElem::FLIGHT_MODE);
 
 	rp2040.wdt_reset();
 

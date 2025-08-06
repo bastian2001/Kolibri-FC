@@ -8,6 +8,8 @@ void setup() {
 	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
 
+	sleep_ms(4000);
+
 	initFixMath();
 
 	runUnitTests();
@@ -20,16 +22,27 @@ void setup() {
 	rebootReason = BootReason::WATCHDOG;
 
 	Serial.println("Setup started");
+	Serial.flush();
+	p.recalculateClock();
+	p.neoPixelFill(255, 255, 255, true);
+	sleep_ms(5);
 	initLittleFs();
+	p.neoPixelFill(255, 0, 0, true);
+	sleep_ms(5);
 	openSettingsFile();
+	p.neoPixelFill(00, 255, 0, true);
+	sleep_ms(5);
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
 
 	initPid();
+	p.neoPixelFill(0, 0, 255, true);
+	sleep_ms(5);
 
 	EEPROM.begin(4096);
 	// save crash info to EEPROM
 	if (crashInfo[0] == 255) {
 		Serial.println("Crash detected");
+		Serial.flush();
 		for (int i = 0; i < 256; i++) {
 			EEPROM.write(4096 - 256 + i, (u8)crashInfo[i]);
 		}
@@ -39,13 +52,19 @@ void setup() {
 		crashInfo[i] = 0;
 	}
 	rtcInit();
+	p.neoPixelFill(255, 0, 255, true);
+	sleep_ms(5);
 	OsdHandler::get().init();
 	inFlightTuningInit();
 	initMag();
 	imuInit();
 	initADC();
 	modesInit();
+	p.neoPixelFill(0, 255, 255, true);
+	sleep_ms(5);
 	initSerial();
+	p.neoPixelFill(255, 255, 0, true);
+	sleep_ms(5);
 	initGPS();
 
 	u8 elrsNum = 0;
@@ -63,10 +82,15 @@ void setup() {
 	p.neoPixelFill(255, 80, 0, true);
 
 	initBlackbox();
+	p.neoPixelFill(50, 255, 0, true);
+	sleep_ms(5);
 	initSpeaker();
+	p.neoPixelFill(255, 255, 128, true);
+	sleep_ms(5);
 	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");
+	Serial.flush();
 	taskTimer0 = 0;
 	setupDone |= 0b01;
 	while (!(setupDone & 0b10)) {

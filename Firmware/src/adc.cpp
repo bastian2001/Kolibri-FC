@@ -23,10 +23,10 @@ void initADC() {
 	adc_gpio_init(PIN_ADC_VOLTAGE);
 	adc_gpio_init(PIN_ADC_CURRENT);
 	adc_init();
-	enableElem(OSDElem::TOT_VOLTAGE);
-	placeElem(OSDElem::TOT_VOLTAGE, 1, 1);
-	enableElem(OSDElem::CELL_VOLTAGE);
-	placeElem(OSDElem::CELL_VOLTAGE, 8, 1);
+	// enableElem(OSDElem::TOT_VOLTAGE);
+	// placeElem(OSDElem::TOT_VOLTAGE, 1, 1);
+	// enableElem(OSDElem::CELL_VOLTAGE);
+	// placeElem(OSDElem::CELL_VOLTAGE, 8, 1);
 	// enableElem(OSDElem::CURRENT);
 	// placeElem(OSDElem::CURRENT, 1, 2);
 

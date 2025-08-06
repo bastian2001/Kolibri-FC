@@ -32,5 +32,5 @@ BootReason bootReason;
 BootReason __uninitialized_ram(rebootReason);
 u64 __uninitialized_ram(powerOnResetMagicNumber);
 
-NeoPixelConnect p(PIN_LEDS, 9, PIO_LED);
+NeoPixelConnect p(PIN_LEDS, 9, PIO_LED, 2);
 std::string uavName = "";
