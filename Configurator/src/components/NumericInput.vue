@@ -1,5 +1,5 @@
 <script lang="ts">
-import { roundToDecimal } from "@/utils/utils";
+import { mathEval, roundToDecimal } from "@/utils/utils";
 import { defineComponent, PropType } from "vue";
 
 const sensitivityMap = {
@@ -42,7 +42,7 @@ export default defineComponent({
 			type: Boolean,
 			default: false,
 		},
-		decimals: {
+		precision: {
 			type: Number,
 			default: 6
 		},
@@ -54,7 +54,7 @@ export default defineComponent({
 	data() {
 		return {
 			val: 0,
-			editVal: 0,
+			editText: '0',
 			movement: 0,
 			entered: false,
 			moved: false,
@@ -80,6 +80,9 @@ export default defineComponent({
 		displayNumber() {
 			const n = new Intl.NumberFormat(undefined, { minimumFractionDigits: this.displayDecimals })
 			return n.format(this.val)
+		},
+		isNumber() {
+			return !isNaN(Number(this.editText)) && !isNaN(parseFloat(this.editText))
 		}
 	},
 	mounted() {
@@ -102,7 +105,7 @@ export default defineComponent({
 			w.onmousemove = null;
 			if (!this.moved) {
 				this.entered = true;
-				this.editVal = this.val;
+				this.editText = this.val.toString();
 				this.$nextTick(() => {
 					const input = this.$refs.input as HTMLInputElement;
 					input.focus();
@@ -116,7 +119,7 @@ export default defineComponent({
 			if (this.entered) return;
 			if (this.disabled) return;
 			this.entered = true;
-			this.editVal = this.val;
+			this.editText = this.val.toString();
 			this.$nextTick(() => {
 				const input = this.$refs.input as HTMLInputElement;
 				input.focus();
@@ -129,14 +132,18 @@ export default defineComponent({
 			e.preventDefault();
 			if (e.timeStamp - this.lastWheel < 3) return; // Prevents double wheel events
 			this.lastWheel = e.timeStamp
-			if (e.deltaY > 0) {
-				this.editVal -= this.step;
-			} else {
-				this.editVal += this.step;
+			if (this.isNumber) {
+				let val = parseFloat(this.editText)
+				if (e.deltaY > 0) {
+					val -= this.step;
+				} else {
+					val += this.step;
+				}
+				if (val < this.min) val = this.min;
+				if (val > this.max) val = this.max;
+				val = roundToDecimal(val, this.precision);
+				this.editText = val.toString()
 			}
-			if (this.editVal < this.min) this.editVal = this.min;
-			if (this.editVal > this.max) this.editVal = this.max;
-			this.editVal = roundToDecimal(this.editVal, this.decimals);
 		},
 		onMouseMove(e: MouseEvent) {
 			const sens = sensitivityMap[this.sensitivity];
@@ -159,27 +166,44 @@ export default defineComponent({
 					this.movement = 0;
 				}
 			}
-			this.val = roundToDecimal(this.val, this.decimals);
+			this.val = roundToDecimal(this.val, this.precision);
 		},
 		onKeyDown(e: KeyboardEvent) {
 			if (e.key === 'Enter') {
 				this.saveAndExit();
 			} else if (e.key === 'Escape') {
-				this.editVal = this.val;
+				this.editText = this.val.toString();
 				this.entered = false;
 			} else if (e.key === 'ArrowUp') {
 				e.preventDefault();
-				this.editVal += this.step;
-				this.editVal = roundToDecimal(this.editVal, this.decimals);
+				if (this.isNumber) {
+					let val = parseFloat(this.editText)
+					val += this.step;
+					if (val < this.min) val = this.min;
+					if (val > this.max) val = this.max;
+					val = roundToDecimal(val, this.precision);
+					this.editText = val.toString()
+				}
 			} else if (e.key === 'ArrowDown') {
 				e.preventDefault();
-				this.val -= this.step;
-				this.editVal = roundToDecimal(this.editVal, this.decimals);
+				let val = parseFloat(this.editText)
+				val -= this.step;
+				if (val < this.min) val = this.min;
+				if (val > this.max) val = this.max;
+				val = roundToDecimal(val, this.precision);
+				this.editText = val.toString()
 			}
 		},
 		saveAndExit() {
 			this.entered = false;
-			this.val = this.editVal;
+			let num
+			try {
+				num = mathEval(this.editText)
+			} catch (e) {
+				num = this.val
+			}
+			this.val = num
+			this.val = roundToDecimal(this.val, this.precision)
 			if (this.fixToSteps) {
 				if (this.min !== Number.MIN_SAFE_INTEGER) {
 					this.val = Math.round((this.val - this.min) / this.step) * this.step + this.min;
@@ -197,13 +221,13 @@ export default defineComponent({
 			immediate: true,
 			handler(newVal) {
 				this.val = newVal;
-				this.editVal = newVal;
+				this.editText = newVal.toString();
 			},
 		},
 		val: {
 			immediate: true,
 			handler(newVal) {
-				this.editVal = newVal;
+				this.editText = newVal.toString();
 				this.$emit('update:modelValue', newVal);
 			},
 		},
@@ -211,7 +235,7 @@ export default defineComponent({
 			immediate: true,
 			handler(newDis) {
 				if (newDis) {
-					this.editVal = this.modelValue
+					this.editText = this.modelValue.toString()
 					this.val = this.modelValue
 					document.exitPointerLock();
 					if (this.$refs.wrapper) (this.$refs.wrapper as HTMLDivElement).onmousemove = null;
@@ -230,7 +254,7 @@ export default defineComponent({
 			{{ displayNumber }}&thinsp;{{ unit }}
 		</div>
 		<div v-else class="numericInputEdit" @wheel="onWheel">
-			<input type="number" class="numericInputInput" ref="input" v-model="editVal" @keydown="onKeyDown"
+			<input type="text" class="numericInputInput" ref="input" v-model="editText" @keydown="onKeyDown"
 				@focusout="saveAndExit">
 		</div>
 	</div>

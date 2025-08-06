@@ -1,3 +1,4 @@
+import Mexp from "math-expression-evaluator"
 import { ActualCoeffs } from "./types"
 
 export const leBytesToInt = (bytes: number[] | Uint8Array, signed = false) => {
@@ -88,4 +89,9 @@ export function getSetpointActual(stickPos: number, coeffs: ActualCoeffs): numbe
 	const linPart = stickPos * coeffs.center
 	const expoPart = coeffs.expo * Math.pow(stickPos, 6) + (1 - coeffs.expo) * Math.pow(stickPos, 2)
 	return linPart + expoPart * Math.sign(stickPos) * (coeffs.max - coeffs.center)
+}
+
+export function mathEval(str: string): number {
+	const mexp = new Mexp()
+	return mexp.eval(str)
 }

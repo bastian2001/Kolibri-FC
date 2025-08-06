@@ -344,8 +344,8 @@ export default defineComponent({
 					<tr v-for="(ax, i) in pids">
 						<td>{{ ['Roll', 'Pitch', 'Yaw'][i] }}</td>
 						<td v-for="(_val, j) in ax">
-							<NumericInput v-model="pids[i][j]" :min="0" :max="5000" :step="1" unit=""
-								style="width: 100%" />
+							<NumericInput v-model="pids[i][j]" :min="0" :max="2000" :step="1" unit=""
+								:fix-to-steps="true" style="width: 100%" />
 						</td>
 					</tr>
 				</tbody>
