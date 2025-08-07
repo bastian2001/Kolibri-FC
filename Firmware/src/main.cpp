@@ -8,8 +8,6 @@ void setup() {
 	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
 
-	sleep_ms(4000);
-
 	initFixMath();
 
 	runUnitTests();
