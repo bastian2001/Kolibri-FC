@@ -305,10 +305,6 @@ void __not_in_flash_func(pidLoop)() {
 		tasks[TASK_PID].maxGap = duration;
 	TASK_START(TASK_PID);
 
-	gyroFiltered[AXIS_ROLL].update(gyroScaled[AXIS_ROLL]);
-	gyroFiltered[AXIS_PITCH].update(gyroScaled[AXIS_PITCH]);
-	gyroFiltered[AXIS_YAW].update(gyroScaled[AXIS_YAW]);
-
 	if (armed) {
 		fix32 stickPos[3]; // RPY stick positions, -1...+1
 		ELRS->getSmoothChannels(smoothChannels);

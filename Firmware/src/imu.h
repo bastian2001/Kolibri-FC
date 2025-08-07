@@ -15,7 +15,6 @@ extern PT1 eVelFilter; // east velocity filter, in m/s, updated by GPS and inter
 extern PT1 nVelFilter; // north velocity filter, in m/s, updated by GPS and interpolated using accelerometer data
 extern const fix32 &eVel; // east velocity of the drone (m/s) by GPS + accel (filtered)
 extern const fix32 &nVel; // north velocity of the drone (m/s) by GPS + accel (filtered)
-extern const fix32 *const accelDataFiltered[3]; // PT1 filters for the accelerometer data, raw scaling from accel
 extern fix32 vAccel; // vertical up acceleration of the drone (m/s^2) provided by the accelerometer
 extern Quaternion q; // attitude quaternion of the drone, used to calculate the attitude angles and the heading
 extern PT1 baroImuUpVelFilter;
@@ -26,8 +25,31 @@ extern volatile u8 altInitState; // monotonically increasing, 0 = neither baro n
  * @details setting start values for quaternion, attitude angles and mag filter rollover
  */
 void imuInit();
+
 /**
- * @brief update the attitude of the drone
- * @details 1. feeds gyro data into the attitude quaternion, 2. filters and feeds accelerometer values into the quaternion to prevent drift, 3. updates roll, pitch and yaw values, as well as combined heading via the filtered data, 4. updates altitude, vVel and horizontal velocities from accelerometer (and barometer) data
+ * @brief feeds gyro data into the attitude quaternion
+ * 
+ * Called at 3200Hz
  */
-void imuUpdate();
+void imuGyroUpdate();
+
+/**
+ * @brief Filters and feeds accel data into the quaternion to prevent drift
+ * 
+ * Called at 400Hz
+ */
+void imuAccelUpdate();
+
+/**
+ * @brief updates roll, pitch and yaw values, as well as combined heading via the filtered data
+ * 
+ * Called at 400Hz
+ */
+void imuUpdatePitchRoll();
+
+/**
+ * @brief updates altitude, vVel and horizontal velocities from accelerometer (and barometer) data
+ * 
+ * Called at 400Hz
+ */
+void imuUpdateSpeeds();

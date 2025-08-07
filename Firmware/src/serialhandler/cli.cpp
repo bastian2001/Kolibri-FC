@@ -130,17 +130,12 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 	} else if (cmd == "gyro_calibration") {
 		if (payload == "start") {
 			response = "Calibrating gyro";
-			gyroCalibrationOffsetTemp[0] = 0;
-			gyroCalibrationOffsetTemp[1] = 0;
-			gyroCalibrationOffsetTemp[2] = 0;
-			gyroCalibratedCycles = 0;
-			gyroCalibrationOffset[0] = 0;
-			gyroCalibrationOffset[1] = 0;
-			gyroCalibrationOffset[2] = 0;
-			armingDisableFlags |= 0x40; // disable arming, start calibration
+			startGyroCalibration();
 		} else if (payload == "get") {
 			char str[100];
-			snprintf(str, sizeof(str), "Gyro calibration data: %d %d %d", gyroCalibrationOffset[0], gyroCalibrationOffset[1], gyroCalibrationOffset[2]);
+			i16 cal[3];
+			getGyroCalibration(cal);
+			snprintf(str, sizeof(str), "Gyro calibration data: %d %d %d", cal[0], cal[1], cal[2]);
 			response = str;
 		} else {
 			response = "Invalid usage. Use 'gyro_calibration start' or 'gyro_calibration get'\n";
