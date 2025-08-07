@@ -11,18 +11,21 @@
 #define SERIAL_IRC_TRAMP (1 << 4)
 #define SERIAL_SMARTAUDIO (1 << 5)
 #define SERIAL_ESC_TELEM (1 << 6)
+#define SERIAL_MSP_DISPLAYPORT (1 << 7)
 
-#define SERIAL_COUNT 3
-#define SERIAL_FUNCTION_COUNT 7
+#define SERIAL_COUNT 4
+#define SERIAL_FUNCTION_COUNT 8
 
-extern char serialFunctionNames[SERIAL_FUNCTION_COUNT][11];
+extern SerialPIO Serial3; // Software serial for GPS, ELRS, etc. (RX2, TX2)
+
+extern char serialFunctionNames[SERIAL_FUNCTION_COUNT][20];
 
 typedef struct koliSerial {
 	BufferedWriter *stream;
-	u32 functions = 0;
+	u32 functions = 0; // OR of SERIAL_ defines, e.g. SERIAL_MSP
 } KoliSerial;
 
-// 0 = Serial (USB CDC), 1 = Serial1 = UART0, 2 = Serial2 = UART1
+// 0 = Serial (USB CDC), 1 = Serial1 = UART0, 2 = Serial2 = UART1, 3 = Software Serial
 extern KoliSerial serials[SERIAL_COUNT];
 
 extern u32 crcLutD5[256]; // u32 is used because it is faster than u8
