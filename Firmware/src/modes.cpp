@@ -101,9 +101,9 @@ void modesLoop() {
 
 		FlightMode newFlightMode = FlightMode::ACRO;
 		if (waypointModeActive)
-			newFlightMode = FlightMode::GPS;
-		else if (gpsModeActive)
 			newFlightMode = FlightMode::GPS_WP;
+		else if (gpsModeActive)
+			newFlightMode = FlightMode::GPS;
 		else if (altHoldModeActive)
 			newFlightMode = FlightMode::ALT_HOLD;
 		else if (angleModeActive)

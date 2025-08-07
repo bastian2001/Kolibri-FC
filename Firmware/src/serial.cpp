@@ -36,7 +36,7 @@ void initSerial() {
 
 	for (int i = 0; i < SERIAL_COUNT; i++) {
 		auto &serial = serials[i];
-		u32 rxFifo = 0;
+		u32 rxFifo = 4;
 		u32 baud = 115200;
 		u16 config = SERIAL_8N1;
 		mspParsers[i] = nullptr;
@@ -53,7 +53,6 @@ void initSerial() {
 			baud = 38400;
 		} else if (serial.functions & SERIAL_4WAY) {
 			rxFifo = 256;
-			baud = 115200;
 		} else if (serial.functions & SERIAL_IRC_TRAMP) {
 			rxFifo = 32;
 			baud = 9600;
