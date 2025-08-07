@@ -55,7 +55,7 @@ public:
 	};
 
 	BufferedWriter(SerialPIO *const pioStream, size_t fifoSize)
-		: stream(uartStream),
+		: stream(pioStream),
 		  usbStream(nullptr),
 		  uartStream(nullptr),
 		  pioStream(pioStream),

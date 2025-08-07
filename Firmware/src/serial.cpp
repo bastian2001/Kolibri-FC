@@ -1,9 +1,8 @@
 #include "global.h"
 
-// u8 readChar = 0;
 u32 crcLutD5[256] = {0};
 
-char serialFunctionNames[SERIAL_FUNCTION_COUNT][11] = {
+char serialFunctionNames[SERIAL_FUNCTION_COUNT][20] = {
 	"CRSF",
 	"MSP",
 	"GPS",
@@ -11,12 +10,14 @@ char serialFunctionNames[SERIAL_FUNCTION_COUNT][11] = {
 	"Tramp",
 	"Smartaudio",
 	"ESC Telem",
+	"MSP Displayport",
 };
 
 KoliSerial serials[SERIAL_COUNT] = {
 	{new BufferedWriter(&Serial, 2048), SERIAL_MSP},
 	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},
 	{new BufferedWriter(&Serial2, 2048), SERIAL_GPS},
+	{new BufferedWriter(new SerialPIO(PIN_TX2, PIN_RX2, 1024), 2048), 0},
 };
 static u8 currentSerial = 0;
 
@@ -34,21 +35,20 @@ void initSerial() {
 
 	for (int i = 0; i < SERIAL_COUNT; i++) {
 		auto &serial = serials[i];
-		u32 rxFifo = 0;
+		u32 rxFifo = 4;
 		u32 baud = 115200;
 		u16 config = SERIAL_8N1;
+
 		if (serial.functions & SERIAL_CRSF) {
 			rxFifo = 256;
 			baud = 420000;
 		} else if (serial.functions & SERIAL_MSP) {
 			rxFifo = 256;
-			baud = 115200;
 		} else if (serial.functions & SERIAL_GPS) {
 			rxFifo = 128;
 			baud = 38400;
 		} else if (serial.functions & SERIAL_4WAY) {
 			rxFifo = 256;
-			baud = 115200;
 		} else if (serial.functions & SERIAL_IRC_TRAMP) {
 			rxFifo = 32;
 			baud = 9600;
@@ -58,6 +58,9 @@ void initSerial() {
 			baud = 4800;
 		} else if (serial.functions & SERIAL_ESC_TELEM) {
 			rxFifo = 64;
+			baud = 115200;
+		} else if (serial.functions & SERIAL_MSP_DISPLAYPORT) {
+			rxFifo = 256;
 			baud = 115200;
 		}
 		u8 rxPin = 0;
@@ -97,12 +100,13 @@ void initSerial() {
 void serialLoop() {
 	TASK_START(TASK_SERIAL);
 
-	if (++currentSerial == SERIAL_COUNT) currentSerial = 0;
+	if (++currentSerial >= SERIAL_COUNT) currentSerial = 0;
 	u32 functions = serials[currentSerial].functions;
 	Stream *serial = serials[currentSerial].stream;
 	if (!functions) {
-		while (serial->available())
-			serial->read(); // empty RX buf
+		while (serial->read() != -1) { // empty RX buf
+			tight_loop_contents();
+		}
 		TASK_END(TASK_SERIAL);
 		return;
 	}
@@ -134,6 +138,8 @@ void serialLoop() {
 		if (functions & SERIAL_SMARTAUDIO) {
 		}
 		if (functions & SERIAL_ESC_TELEM) {
+		}
+		if (functions & SERIAL_MSP_DISPLAYPORT) {
 		}
 	}
 	serials[currentSerial].stream->loop();
