@@ -1057,7 +1057,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 	}
 }
 
-void MspParser::mspHandleByte(u8 c, u8 serialNum) {
+void MspParser::mspHandleByte(u8 c) {
 	TASK_START(TASK_CONFIGURATOR);
 	static char payloadBuf[2052] = {0}; // worst case: 2048 bytes payload + 3 bytes checksum (v2 over v1 jumbo) + 1 byte start. After the start byte, the index is reset to 0
 	static u16 payloadBufIndex = 0;

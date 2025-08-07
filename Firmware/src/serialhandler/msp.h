@@ -256,15 +256,14 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 
 class MspParser {
 public:
-	MspParser() = default;
+	MspParser(u8 serialNum) : serialNum(serialNum) {}
 
 	/**
-	 * @brief Process a byte from the configurator
+	 * @brief Process a byte from an MSP source
 	 *
 	 * @param c data byte
-	 * @param serialNum serial port number to send the response to
 	 */
-	void mspHandleByte(u8 c, u8 serialNum);
+	void mspHandleByte(u8 c);
 
 private:
 	char payloadBuf[2048] = {0}; // Payload buffer
@@ -277,9 +276,8 @@ private:
 	u32 crcV2 = 0; // Checksum for MSP V2 messages
 	MspState mspState = MspState::IDLE; // MSP state
 	MspVersion msgMspVer; // MSP version
+	u8 serialNum = 255;
 };
-
-void mspHandleByte(u8 c, u8 serialNum);
 
 /// @brief counter for the motor override timeout
 /// @details If the configurator is connected, it can override the motor values when this is < 1000, and it is possible to arm with an attached configurator

@@ -1,6 +1,5 @@
 #include "global.h"
 
-SerialPIO Serial3(PIN_TX2, PIN_RX2, 1024);
 u32 crcLutD5[256] = {0};
 MspParser *mspParsers[SERIAL_COUNT];
 
@@ -19,7 +18,7 @@ KoliSerial serials[SERIAL_COUNT] = {
 	{new BufferedWriter(&Serial, 2048), SERIAL_MSP},
 	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},
 	{new BufferedWriter(&Serial2, 2048), SERIAL_GPS},
-	{new BufferedWriter(&Serial3, 2048), SERIAL_MSP | SERIAL_MSP_DISPLAYPORT},
+	{new BufferedWriter(new SerialPIO(PIN_TX2, PIN_RX2, 1024), 2048), SERIAL_MSP | SERIAL_MSP_DISPLAYPORT},
 };
 static u8 currentSerial = 0;
 
@@ -48,7 +47,7 @@ void initSerial() {
 		} else if (serial.functions & SERIAL_MSP) {
 			rxFifo = 256;
 			baud = 115200;
-			mspParsers[i] = new MspParser;
+			mspParsers[i] = new MspParser(i);
 		} else if (serial.functions & SERIAL_GPS) {
 			rxFifo = 128;
 			baud = 38400;
@@ -106,12 +105,13 @@ void initSerial() {
 void serialLoop() {
 	TASK_START(TASK_SERIAL);
 
-	if (++currentSerial == SERIAL_COUNT) currentSerial = 0;
+	if (++currentSerial >= SERIAL_COUNT) currentSerial = 0;
 	u32 functions = serials[currentSerial].functions;
 	Stream *serial = serials[currentSerial].stream;
 	if (!functions) {
-		while (serial->available())
-			serial->read(); // empty RX buf
+		while (serial->read() != -1) { // empty RX buf
+			tight_loop_contents();
+		}
 		TASK_END(TASK_SERIAL);
 		return;
 	}
@@ -128,7 +128,7 @@ void serialLoop() {
 		if (functions & SERIAL_MSP) {
 			rp2040.wdt_reset();
 			elapsedMicros timer = 0;
-			if (mspParsers[i] != nullptr) mspParsers[i]->mspHandleByte(c, i);
+			if (mspParsers[currentSerial] != nullptr) mspParsers[currentSerial]->mspHandleByte(c);
 			taskTimerTASK_SERIAL -= timer;
 		}
 		if (functions & SERIAL_GPS) {
