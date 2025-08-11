@@ -41,6 +41,7 @@
 // Kolibri stuff
 #include "adc.h"
 #include "blackbox.h"
+#include "control.h"
 #include "customSimdMath.h"
 #include "drivers/baro.h"
 #include "drivers/esc.h"

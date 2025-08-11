@@ -68,7 +68,6 @@ fix32 stickToAngle;
 u8 idlePermille;
 fix32 throttleScale;
 fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
-fix32 smoothChannels[4];
 static elapsedMicros burstTimer;
 static elapsedMicros burstCooldown;
 u32 angleBurstTime; // microseconds, time for which the maxAngleBurst is allowed

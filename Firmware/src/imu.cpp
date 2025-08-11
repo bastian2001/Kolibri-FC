@@ -69,8 +69,9 @@ void imuGyroUpdate() {
 	Quaternion_normalize(&q, &q);
 }
 
-f32 orientation_vector[3];
-void imuAccelUpdate() {
+static f32 orientation_vector[3];
+static Quaternion shortest_path;
+void imuAccelUpdate1() {
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
 	// p2.y = 2*x*y*p1.x + y*y*p1.y + 2*z*y*p1.z + 2*w*z*p1.x - z*z*p1.y + w*w*p1.y - 2*x*w*p1.z - x*x*p1.y;
@@ -88,11 +89,13 @@ void imuAccelUpdate() {
 		accelVector[0] = invAccelVectorNorm * accelDataRaw[1];
 		accelVector[1] = invAccelVectorNorm * accelDataRaw[0];
 		accelVector[2] = invAccelVectorNorm * -accelDataRaw[2];
-	} else
+	} else {
 		return;
-	Quaternion shortest_path;
+	}
 	Quaternion_from_unit_vecs(orientation_vector, accelVector, &shortest_path);
+}
 
+void imuAccelUpdate2() {
 	f32 axis[3];
 	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis); // reduces effect of accel noise on attitude
 

@@ -145,16 +145,21 @@ void loop1() {
 
 		switch (imuUpdateCycle) {
 		case 0: {
-			TASK_START(TASK_IMU_ACCEL);
-			imuAccelUpdate();
-			TASK_END(TASK_IMU_ACCEL);
+			TASK_START(TASK_IMU_ACCEL1);
+			imuAccelUpdate1();
+			TASK_END(TASK_IMU_ACCEL1);
 		} break;
 		case 1: {
+			TASK_START(TASK_IMU_ACCEL2);
+			imuAccelUpdate2();
+			TASK_END(TASK_IMU_ACCEL2);
+		} break;
+		case 2: {
 			TASK_START(TASK_IMU_ANGLE);
 			imuUpdatePitchRoll();
 			TASK_END(TASK_IMU_ANGLE);
 		} break;
-		case 2: {
+		case 3: {
 			TASK_START(TASK_IMU_SPEEDS);
 			imuUpdateSpeeds();
 			TASK_END(TASK_IMU_SPEEDS);
@@ -162,6 +167,19 @@ void loop1() {
 		}
 		if (++imuUpdateCycle >= 8) imuUpdateCycle = 0;
 		TASK_END(TASK_IMU);
+
+		TASK_START(TASK_CONTROL);
+		if (flightMode == FlightMode::ACRO) {
+			runAcroMode();
+		} else {
+			static u8 controlCycle = 0;
+			switch (controlCycle) {
+			case 0:
+						}
+			if (++controlCycle >= 8) controlCycle = 0;
+		}
+
+		TASK_END(TASK_CONTROL);
 
 		decodeErpm();
 		pidLoop();

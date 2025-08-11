@@ -19,7 +19,6 @@
 		tasks[taskname].maxDuration = duration##taskname;
 #endif
 
-
 enum Tasks {
 	TASK_LOOP0,
 	TASK_SPEAKER,
@@ -46,9 +45,11 @@ enum Tasks {
 	TASK_GYROREAD,
 	TASK_IMU,
 	TASK_IMU_GYRO,
-	TASK_IMU_ACCEL,
+	TASK_IMU_ACCEL1,
+	TASK_IMU_ACCEL2,
 	TASK_IMU_ANGLE,
 	TASK_IMU_SPEEDS,
+	TASK_CONTROL,
 	TASK_ESC_RPM,
 	TASK_PID,
 	TASK_BLACKBOX,

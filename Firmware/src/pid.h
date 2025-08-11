@@ -41,7 +41,6 @@ extern fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSu
 extern fix32 altSetpoint; // altitude setpoint (m ASL)
 extern fix32 throttle; // current throttle setpoint (idlePermille*2 to 2000)
 extern PT1 gyroFiltered[3]; // gyro filter (currently PT1) deg/s
-extern fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000ish)
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u32 pidLoopCounter; // counter of PID controller loops
 extern fix64 targetLat, targetLon; // target latitude and longitude for GPS mode => (position lock)

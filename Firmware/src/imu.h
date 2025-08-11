@@ -28,28 +28,35 @@ void imuInit();
 
 /**
  * @brief feeds gyro data into the attitude quaternion
- * 
+ *
  * Called at 3200Hz
  */
 void imuGyroUpdate();
 
 /**
- * @brief Filters and feeds accel data into the quaternion to prevent drift
- * 
+ * @brief Feeds accel data into the quaternion to prevent drift
+ *
  * Called at 400Hz
  */
-void imuAccelUpdate();
+void imuAccelUpdate1();
+
+/**
+ * @brief Feeds accel data into the quaternion to prevent drift
+ *
+ * Called at 400Hz
+ */
+void imuAccelUpdate2();
 
 /**
  * @brief updates roll, pitch and yaw values, as well as combined heading via the filtered data
- * 
+ *
  * Called at 400Hz
  */
 void imuUpdatePitchRoll();
 
 /**
  * @brief updates altitude, vVel and horizontal velocities from accelerometer (and barometer) data
- * 
+ *
  * Called at 400Hz
  */
 void imuUpdateSpeeds();
