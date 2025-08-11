@@ -168,18 +168,7 @@ void loop1() {
 		if (++imuUpdateCycle >= 8) imuUpdateCycle = 0;
 		TASK_END(TASK_IMU);
 
-		TASK_START(TASK_CONTROL);
-		if (flightMode == FlightMode::ACRO) {
-			runAcroMode();
-		} else {
-			static u8 controlCycle = 0;
-			switch (controlCycle) {
-			case 0:
-						}
-			if (++controlCycle >= 8) controlCycle = 0;
-		}
-
-		TASK_END(TASK_CONTROL);
+		controlLoop();
 
 		decodeErpm();
 		pidLoop();
