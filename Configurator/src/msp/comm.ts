@@ -430,7 +430,7 @@ function handleRead(rxBuf: number[]) {
 
 const read = () => {
 	if (connectType === "serial" || connectType === "tcp") {
-		invoke(connectType == "serial" ? "serial_read" : "tcp_read")
+		invoke(connectType === "serial" ? "serial_read" : "tcp_read")
 			.then(d => {
 				handleRead(d as number[])
 			})
@@ -497,7 +497,7 @@ export const connect = (portToOpen: string) => {
 			.then(() => {
 				connectType = "serial"
 				cmdEnabled = true
-				readInterval = setInterval(read, 50)
+				readInterval = setInterval(read, 3)
 				pingInterval = setInterval(() => {
 					sendCommand(MspFn.CONFIGURATOR_PING).catch(() => {})
 					pingStarted = Date.now()
