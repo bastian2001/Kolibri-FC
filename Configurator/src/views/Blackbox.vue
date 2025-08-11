@@ -1052,6 +1052,7 @@ export default defineComponent({
 	beforeUnmount() {
 		clearTimeout(this.drawFullCanvasTimeout);
 		clearInterval(this.getChunkInterval);
+		clearInterval(this.logInfoInterval)
 		removeOnConnectHandler(this.getFileList);
 		removeOnCommandHandler(this.onCommand)
 		window.removeEventListener('resize', this.onResize);

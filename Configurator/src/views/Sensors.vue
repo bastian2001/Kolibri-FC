@@ -195,10 +195,8 @@ export default defineComponent({
 	watch: {
 		frequency: {
 			handler(newVal) {
-				if (this.fetchInterval !== -1) {
-					clearInterval(this.fetchInterval);
-					this.fetchInterval = setInterval(this.getData, 1000 / newVal);
-				}
+				clearInterval(this.fetchInterval);
+				this.fetchInterval = setInterval(this.getData, 1000 / newVal);
 			},
 			immediate: true,
 		},
