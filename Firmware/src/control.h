@@ -1,7 +1,27 @@
 #pragma once
 
-/// @brief Smoothes the sticks and applied rate cuve to them
-void runAcroMode();
+enum class FlightMode {
+	ACRO,
+	ANGLE,
+	ALT_HOLD,
+	GPS, // control the velocity of the drone
+	GPS_WP, // waypoint mode, i.e. GPS mode with automatic control, for now it just goes to the homepoint and hovers there
+	LENGTH // place behind all other modes, acts as a limit for loops etc.
+};
+extern FlightMode flightMode; // currently selected flight mode (NOT whether the drone is armed)
+
+enum {
+	ACTUAL_CENTER_SENSITIVITY, // center sensitivity for ACTUAL rates => linear part, in deg/s
+	ACTUAL_MAX_RATE, // maximum rate for ACTUAL rates => including exponential part, in deg/s
+	ACTUAL_EXPO // expo factor for ACTUAL rates, between 0 and 1
+};
+
+extern fix32 hvelFfFilterCutoff; // cutoff frequency for the horizontal velocity feedforward filter (Hz)
+extern fix32 hvelIRelaxFilterCutoff; // cutoff frequency for the horizontal velocity I term relax filter (Hz)
+extern fix32 hvelPushFilterCutoff; // cutoff frequency for the horizontal velocity push filter (Hz)
+extern fix32 vvelDFilterCutoff; // cutoff frequency for the vertical velocity D filter (Hz)
+extern fix32 vvelFFFilterCutoff; // cutoff frequency for the vertical velocity feedforward filter (Hz)
+extern fix32 vVelSetpoint;
 
 /**
  * @brief calculates the distance in meters between two GPS coordinates
@@ -32,3 +52,5 @@ void setFlightMode(FlightMode mode);
  * If runnning in acro mode, the effective rate is the PID rate. If running in angle mode or above, the control rate is 400Hz.
  */
 void controlLoop();
+
+void controlDisarmedLoop();

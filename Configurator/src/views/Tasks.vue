@@ -31,9 +31,19 @@ const TASK_NAMES = [
 	'    - Gyro Read',
 	'    - IMU',
 	'        - IMU Gyro',
-	'        - IMU Accel',
+	'        - IMU Accel 1',
+	'        - IMU Accel 2',
 	'        - IMU Angle',
 	'        - IMU Speeds',
+	'    - Control',
+	'        - Control 1',
+	'        - Control 2',
+	'        - Control 3',
+	'        - Control 4',
+	'        - Control 5',
+	'        - Control 6',
+	'        - Control 7',
+	'        - Control 8',
 	'    - ESC RPM',
 	'    - PID',
 	'    - Blackbox compute',
@@ -140,6 +150,13 @@ export default defineComponent({
 </template>
 
 <style scoped>
+th {
+	position: sticky;
+	top: 0;
+	background-color: var(--background-color);
+	z-index: 1;
+}
+
 td,
 th {
 	text-align: left;

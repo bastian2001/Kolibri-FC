@@ -5,6 +5,7 @@ import { MspFn } from "@/msp/protocol";
 import { Command } from "@utils/types";
 import { leBytesToInt } from "@utils/utils";
 import SensorGraph from "@/components/SensorGraph.vue";
+type UpdateFnType = (history: number[][], total: number) => void
 
 export default defineComponent({
 	name: "Sensors",
@@ -28,7 +29,7 @@ export default defineComponent({
 			] as {
 				name: string;
 				mspFn: number[];
-				updateFn?: (history: number[][], total: number) => void;
+				updateFn?: UpdateFnType;
 			}[],
 			gotTypes: [] as number[],
 
@@ -213,7 +214,7 @@ export default defineComponent({
 					graphs.splice(index, 1);
 				}" @mspFn="(mspFn: number[]) => {
 					graph.mspFn = mspFn;
-				}" @updateFn="(updateFn: (history: number[][], total: number) => void) => {
+				}" @updateFn="(updateFn: UpdateFnType) => {
 					graph.updateFn = updateFn;
 				}">
 			</SensorGraph>

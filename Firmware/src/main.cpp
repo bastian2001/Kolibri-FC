@@ -168,10 +168,15 @@ void loop1() {
 		if (++imuUpdateCycle >= 8) imuUpdateCycle = 0;
 		TASK_END(TASK_IMU);
 
-		controlLoop();
-
-		decodeErpm();
-		pidLoop();
+		if (armed) {
+			controlLoop();
+			decodeErpm();
+			pidLoop();
+		} else {
+			controlDisarmedLoop();
+			decodeErpm();
+			pidDisarmedLoop();
+		}
 	}
 	TASK_END(TASK_LOOP1);
 	taskTimer = 0;

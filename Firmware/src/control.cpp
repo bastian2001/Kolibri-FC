@@ -1,6 +1,6 @@
 #include "global.h"
 
-static fix32 angleModeP = 10;
+static fix32 angleModeP = 5;
 
 fix64 rthStartLat, rthStartLon;
 u8 rthState = 0, lastRthState = 255; // 0: climb, 1: navigate home, 2: descend, 3: land
@@ -19,6 +19,39 @@ static i8 forceZeroVvelSetpoint = 0;
 static elapsedMicros flightModeChangeTimer;
 
 static interp_config rateInterpConfig0, rateInterpConfig1, rateInterpConfig2;
+
+static fix32 pidGainsVVel[4]; // PID gains for the vertical velocity PID controller
+static fix32 pidGainsHVel[4]; // PID gains for the horizontal velocity PID controller
+fix32 vVelSetpoint, vVelError, vVelLastSetpoint;
+static fix32 eVelSetpoint, eVelError, nVelSetpoint, nVelError;
+static fix64 vVelErrorSum, eVelErrorSum, nVelErrorSum;
+static fix32 vVelP, vVelI, vVelD, vVelFF; // velocity PID summands
+static fix32 eVelP, eVelI, eVelD, eVelFF, nVelP, nVelI, nVelD, nVelFF; // velocity PID summands
+static fix32 altSetpoint; // altitude setpoint (m ASL)
+static fix64 targetLat, targetLon; // target latitude and longitude for GPS mode => (position lock)
+static fix32 targetAngleHeading;
+static fix64 vVelMaxErrorSum, vVelMinErrorSum;
+static fix32 maxTargetHvel; // maximum target horizontal velocity (m/s)
+fix32 vvelDFilterCutoff;
+fix32 vvelFFFilterCutoff;
+static PT1 vVelDFilter;
+static PT1 vVelFFFilter;
+fix32 hvelFfFilterCutoff;
+fix32 hvelIRelaxFilterCutoff;
+fix32 hvelPushFilterCutoff;
+static u16 hvelStickDeadband; // deadband for the horizontal velocity stick input (total stick is -512 to 512)
+static PT1 ffFilterNVel;
+static PT1 ffFilterEVel;
+static DualPT1 iRelaxFilterNVel;
+static DualPT1 iRelaxFilterEVel;
+static PT1 pushNorth;
+static PT1 pushEast;
+
+static void startRateInterp();
+static fix32 calcThrottle(fix32 targetVvel);
+static fix32 stickToTargetVvel(fix32 stickPos);
+static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVelSetpoint, fix32 *nVelSetpoint, fix32 *targetVvel);
+static void sticksToGpsSetpoint(const fix32 *sticks, fix32 *eVelSetpoint, fix32 *nVelSetpoint);
 
 /**
  * @brief Get the target rotational rate for a given stick value and axis.
@@ -54,6 +87,7 @@ static void getStickPos() {
 	stickThr = (smoothChannels[2] - 988);
 }
 
+/// @brief Smoothes the sticks and applies rate cuve to them
 static void runAcroMode() {
 	getStickPos();
 
@@ -62,6 +96,7 @@ static void runAcroMode() {
 	rollSetpoint = getRateInterp(stickPos[0], AXIS_ROLL);
 	pitchSetpoint = getRateInterp(stickPos[1], AXIS_PITCH);
 	yawSetpoint = getRateInterp(stickPos[2], AXIS_YAW);
+	throttleSetpoint = stickThr;
 }
 
 static Quaternion headQuat; // has only target heading (based on yaw, not combinedHeading)
@@ -72,7 +107,6 @@ static Quaternion targetQuat; // target roll + pitch applied onto target heading
 // extract roll, pitch and yaw from diffQuat, then generate target angular rates
 static Quaternion diffQuat;
 
-static fix32 targetAngleHeading;
 static fix32 targetRoll, targetPitch;
 
 static void runAngleMode1() {
@@ -86,9 +120,9 @@ static void runAngleMode1() {
 
 static void setAutoThrottle() {
 	// throttle stick => vertical velocity
-	vVelSetpoint = stickToTargetVvel(throttle);
+	vVelSetpoint = stickToTargetVvel(stickThr);
 	if (forceZeroVvelSetpoint) {
-		// force zero vVel until the stick crosses 1500
+		// force zero vVel until the stick crosses center
 		vVelSetpoint = 0;
 		if ((forceZeroVvelSetpoint == 1 && stickThr > 512) ||
 			(forceZeroVvelSetpoint == -1 && stickThr < 512) ||
@@ -97,7 +131,7 @@ static void setAutoThrottle() {
 		}
 	}
 	// vertical velocity => auto throttle
-	throttle = calcThrottle(vVelSetpoint);
+	throttleSetpoint = calcThrottle(vVelSetpoint);
 }
 
 static void runAngleMode2() {
@@ -108,7 +142,7 @@ static void runAngleMode2() {
 	startFixMath();
 
 	// set headQuat
-	targetAngleHeading += newYawSetpoint / 3200;
+	targetAngleHeading += newYawSetpoint / 400;
 	if (targetAngleHeading > 180)
 		targetAngleHeading -= 360;
 	else if (targetAngleHeading <= -180)
@@ -171,6 +205,7 @@ static void runAngleMode5() {
 	fix32 axis[3];
 	// fix32 angle = Quaternion_toAxisAngle(&diffQuat, axis);
 	fix32 wFix = diffQuat.w;
+	startFixMath();
 	fix32 angle = acosFix(wFix) * 2;
 	fix32 divider = sqrtFix(fix32(1) - wFix * wFix);
 	if (divider > 0.0001f) {
@@ -194,6 +229,161 @@ static void runAngleMode5() {
 	yawSetpoint = -angle * axis[2] * FIX_RAD_TO_DEG;
 }
 
+static void runGpsMode1() {
+	// GPS: sticks => target velocity => target tilt => target angular rate
+	sticksToGpsSetpoint(stickPos, &eVelSetpoint, &nVelSetpoint);
+}
+
+static void runGpsWp1() {
+	// GPS_WP: sticks do nothing, for now just fly home
+	bool newState = (rthState != lastRthState);
+	lastRthState = rthState;
+	switch (rthState) {
+	case 0: {
+		// climb to 30m above home altitude
+		const fix32 targetAlt = homepointAlt + 30;
+		autopilotNavigate(rthStartLat, rthStartLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+		if (combinedAltitude > targetAlt - 1)
+			rthState = 1;
+	} break;
+	case 1: {
+		// navigate home
+		const fix32 targetAlt = homepointAlt + 30;
+		autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+		if (eVelSetpoint.abs() < 0.5f && nVelSetpoint.abs() < 0.5f)
+			rthState = 2;
+	} break;
+	case 2: {
+		// descend to 3m above home altitude, then hover
+		static elapsedMillis hoverTimer;
+		if (newState) hoverTimer = 0;
+		const fix32 targetAlt = homepointAlt + 3;
+		autopilotNavigate(homepointLat, homepointLon, targetAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+		if (eVelSetpoint.abs() > 0.5f || nVelSetpoint.abs() > 0.5f || vVelSetpoint.abs() > 0.5f) {
+			hoverTimer = 0; // reset hover timer if we are still moving
+		} else if (hoverTimer > 3000) {
+			// after 3 seconds of hovering, land
+			rthState = 3;
+		}
+	} break;
+	case 3: {
+		static elapsedMillis landTimer;
+		static fix32 altitudes[8];
+		static u8 altIndex = 0;
+		if (newState) {
+			landTimer = 0;
+			for (int i = 0; i < 8; i++) {
+				altitudes[i] = FIX32_MAX;
+			}
+		}
+		autopilotNavigate(homepointLat, homepointLon, homepointAlt, &eVelSetpoint, &nVelSetpoint, &vVelSetpoint);
+		vVelSetpoint = -0.3f;
+		if (landTimer > 1000) {
+			landTimer = 0;
+			altitudes[altIndex++] = combinedAltitude;
+			if (altIndex >= 8) {
+				altIndex = 0;
+			}
+			fix32 minAlt = FIX32_MAX;
+			fix32 maxAlt = FIX32_MIN;
+			for (int i = 0; i < 8; i++) {
+				if (altitudes[i] < minAlt)
+					minAlt = altitudes[i];
+				else if (altitudes[i] > maxAlt)
+					maxAlt = altitudes[i];
+			}
+			if (maxAlt - minAlt < 0.5) {
+				// if the altitude is stable for 8 seconds, we can stop
+				rthState = 4;
+				vVelSetpoint = 0;
+				eVelSetpoint = 0;
+				nVelSetpoint = 0;
+			}
+		}
+	} break;
+	case 4: {
+		armed = false; // disarm after landing
+		rthState = 0;
+	}
+	}
+}
+
+static void runGpsMode3() {
+	static fix32 lastNVelSetpoint = 0;
+	static fix32 lastEVelSetpoint = 0;
+
+	eVelError = eVelSetpoint - eVel;
+	nVelError = nVelSetpoint - nVel;
+
+	// shift to get more resolution in the filter
+	// after shifting, we get a value of 0.08 for 1m/s² commanded acceleration
+	// (1m/s / 1s / 3200f/s * 256 = 0.08)
+	// assuming full 12m/s in 50ms, this gives us a value of 19.2 (0.08 * 12 * 20)
+	ffFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 8);
+	ffFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 8);
+	// same here, just more shifting
+	iRelaxFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 12);
+	iRelaxFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 12);
+	startFixMath();
+	fix32 iRelaxTotal = sqrtFix(fix32(iRelaxFilterNVel) * fix32(iRelaxFilterNVel) + fix32(iRelaxFilterEVel) * fix32(iRelaxFilterEVel));
+	if (iRelaxTotal < 1) {
+		// low commanded acceleration: normal I gain
+		eVelErrorSum = eVelErrorSum + eVelError;
+		nVelErrorSum = nVelErrorSum + nVelError;
+	} else if (iRelaxTotal > 2) {
+		// high commanded acceleration: low I gain
+		eVelErrorSum = eVelErrorSum + eVelError / 6;
+		nVelErrorSum = nVelErrorSum + nVelError / 6;
+	} else {
+		// medium commanded acceleration: interpolate I gain
+		fix32 iRelaxFactor = (iRelaxTotal - 1) / 1;
+		fix32 divider = iRelaxFactor * 5 + 1;
+		eVelErrorSum = eVelErrorSum + eVelError / divider;
+		nVelErrorSum = nVelErrorSum + nVelError / divider;
+	}
+
+	lastNVelSetpoint = nVelSetpoint;
+	lastEVelSetpoint = eVelSetpoint;
+}
+
+static void runGpsMode4() {
+	static fix32 nVelLast = 0, eVelLast = 0;
+
+	// calculate PID terms
+	eVelP = pidGainsHVel[P] * eVelError;
+	nVelP = pidGainsHVel[P] * nVelError;
+	eVelI = pidGainsHVel[I] * eVelErrorSum;
+	nVelI = pidGainsHVel[I] * nVelErrorSum;
+	eVelD = pidGainsHVel[D] * (eVelLast - eVel);
+	nVelD = pidGainsHVel[D] * (nVelLast - nVel);
+	eVelFF = (pidGainsHVel[FF] >> 8) * ffFilterEVel;
+	nVelFF = (pidGainsHVel[FF] >> 8) * ffFilterNVel;
+
+	fix32 eVelPID = eVelP + eVelI + eVelD + eVelFF;
+	fix32 nVelPID = nVelP + nVelI + nVelD + nVelFF;
+	targetRoll = eVelPID * cosHeading - nVelPID * sinHeading;
+	targetPitch = eVelPID * sinHeading + nVelPID * cosHeading;
+	if (targetRoll.abs() > maxAngle || targetPitch.abs() > maxAngle) {
+		// limit the tilt to maxAngle
+		if (burstCooldown > angleBurstCooldownTime) {
+			// restart burst timer
+			burstTimer = 0;
+		}
+		if (burstTimer < angleBurstTime) {
+			// allowed to tilt more for a short time
+			targetRoll = constrain(targetRoll, -maxAngleBurst, maxAngleBurst);
+			targetPitch = constrain(targetPitch, -maxAngleBurst, maxAngleBurst);
+			burstCooldown = 0;
+		} else {
+			// limit the tilt to maxAngle
+			targetRoll = constrain(targetRoll, -maxAngle, maxAngle);
+			targetPitch = constrain(targetPitch, -maxAngle, maxAngle);
+		}
+	}
+	nVelLast = nVel;
+	eVelLast = eVel;
+}
+
 void controlLoop() {
 	TASK_START(TASK_CONTROL);
 	if (flightMode == FlightMode::ACRO) {
@@ -201,46 +391,74 @@ void controlLoop() {
 	} else {
 		static u8 controlCycle = 0;
 		switch (controlCycle) {
-		case 0:
+		case 0: {
 			TASK_START(TASK_CONTROL_1);
+			if (flightMode == FlightMode::GPS) {
+				runGpsMode1();
+			} else if (flightMode == FlightMode::GPS_WP) {
+				runGpsWp1();
+			}
 			TASK_END(TASK_CONTROL_1);
-			break;
-		case 1:
+		} break;
+		case 1: {
 			TASK_START(TASK_CONTROL_2);
+			if (flightMode == FlightMode::GPS) {
+				setAutoThrottle();
+			} else if (flightMode == FlightMode::GPS_WP) {
+				throttle = calcThrottle(vVelSetpoint);
+			}
 			TASK_END(TASK_CONTROL_2);
-			break;
-		case 2:
+		} break;
+		case 2: {
 			TASK_START(TASK_CONTROL_3);
+			if (flightMode == FlightMode::ANGLE || flightMode == FlightMode::ALT_HOLD) {
+				runAngleMode1();
+			} else {
+				runGpsMode3();
+			}
 			TASK_END(TASK_CONTROL_3);
-			break;
-		case 3:
+		} break;
+		case 3: {
 			TASK_START(TASK_CONTROL_4);
+			if (flightMode == FlightMode::ALT_HOLD) {
+				setAutoThrottle();
+			} else if (flightMode == FlightMode::ANGLE) {
+				throttleSetpoint = stickThr;
+			} else {
+				runGpsMode4();
+			}
 			TASK_END(TASK_CONTROL_4);
-			break;
-		case 4:
+		} break;
+		case 4: {
 			TASK_START(TASK_CONTROL_5);
 			runAngleMode2();
 			TASK_END(TASK_CONTROL_5);
-			break;
-		case 5:
+		} break;
+		case 5: {
 			TASK_START(TASK_CONTROL_6);
 			runAngleMode3();
 			TASK_END(TASK_CONTROL_6);
-			break;
-		case 6:
+		} break;
+		case 6: {
 			TASK_START(TASK_CONTROL_7);
 			runAngleMode4();
 			TASK_END(TASK_CONTROL_7);
-			break;
-		case 7:
+		} break;
+		case 7: {
 			TASK_START(TASK_CONTROL_8);
 			runAngleMode5();
 			TASK_END(TASK_CONTROL_8);
-			break;
+		} break;
 		}
 		if (++controlCycle >= 8) controlCycle = 0;
 	}
 
+	TASK_END(TASK_CONTROL);
+}
+
+void controlDisarmedLoop() {
+	TASK_START(TASK_CONTROL);
+	targetAngleHeading = yaw * FIX_RAD_TO_DEG;
 	TASK_END(TASK_CONTROL);
 }
 
@@ -278,6 +496,7 @@ static fix32 stickToTargetVvel(fix32 stickPos) {
 }
 
 static fix32 calcThrottle(fix32 targetVvel) {
+	static fix32 vVelLast = 0;
 	vVelError = targetVvel - vVel;
 	vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(targetVvel - vVelLastSetpoint).abs() < 0.001f) ? vVelError : vVelError / 2); // reduce windup during fast changes
 	vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
@@ -298,6 +517,7 @@ static fix32 calcThrottle(fix32 targetVvel) {
 	throttleFactor = fix32(1) / throttleFactor; // 1/cos(acos(...)) = 1/cos(thrust angle)
 	t = t * throttleFactor;
 	t = constrain(t, 0, 1024);
+	vVelLast = vVel;
 	return t;
 }
 
@@ -314,10 +534,10 @@ void distFromCoordinates(fix64 lat1, fix64 lon1, fix64 lat2, fix64 lon2, fix32 *
 	*distEast *= cosFix(fix32(lat1) * DEG_TO_RAD); // adjust for latitude
 }
 
-static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix32 *nVelSetpoint) {
+static void sticksToGpsSetpoint(const fix32 *sticks, fix32 *eVelSetpoint, fix32 *nVelSetpoint) {
 	static elapsedMicros locationSetpointTimer;
-	fix32 rightCommand = channels[0] - 1500;
-	fix32 fwdCommand = channels[1] - 1500;
+	fix32 rightCommand = sticks[0] * 512;
+	fix32 fwdCommand = sticks[1] * 512;
 
 	// fwd/right stick deadband
 	if (fwdCommand.abs() < hvelStickDeadband)
@@ -354,6 +574,7 @@ static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix3
 	} else {
 		// lock position 2s after releasing sticks (push..., target...)
 		fix32 distNorth, distEast;
+		startFixMath();
 		distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, targetLat, targetLon, &distNorth, &distEast);
 		pushNorth.update(distNorth);
 		pushEast.update(distEast);
@@ -367,6 +588,7 @@ static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix3
 static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVelSetpoint, fix32 *nVelSetpoint, fix32 *targetVvel) {
 	// autopilot navigation: fly to a location
 	fix32 distNorth, distEast;
+	startFixMath();
 	distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, toLat, toLon, &distNorth, &distEast);
 	fix32 dist = sqrtFix(distNorth * distNorth + distEast * distEast);
 	fix32 angle = atan2Fix(distEast, distNorth); // in radians
@@ -500,18 +722,52 @@ static void initRateInterp() {
 	}
 }
 
+static void initPidVVel() {
+	pidGainsVVel[P] = 50; // additional throttle if velocity is 1m/s too low
+	pidGainsVVel[I] = .03; // increase throttle by 3200x this value, when error is 1m/s
+	pidGainsVVel[D] = 10000; // additional throttle, if accelerating by 3200m/s^2
+	pidGainsVVel[FF] = 30000;
+}
+
+static void initPidHVel() {
+	pidGainsHVel[P] = 12; // immediate target tilt in degree @ 1m/s too slow/fast
+	pidGainsHVel[I] = 1.f / 400.f; // additional tilt per 1/400th of a second @ 1m/s too slow/fast
+	pidGainsHVel[D] = 0; // tilt in degrees, if changing speed by 400m/s /s
+	pidGainsHVel[FF] = 400.f * .1f; // tilt in degrees for target acceleration of 400m/s^2
+}
+
 void initControl() {
 	// Acro mode
 	addArraySetting(SETTING_RATE_COEFFS, rateCoeffs, &initRateCoeffs);
+	initRateInterp();
+
 	// Angle Mode
 	addSetting(SETTING_MAX_ANGLE, &maxAngle, 40);
 	addSetting(SETTING_ANGLE_MODE_P, &angleModeP, 5);
+
+	// Alt hold
+	addArraySetting(SETTING_PID_VVEL, pidGainsVVel, &initPidVVel);
+	addSetting(SETTING_VVEL_FF_FILTER_CUTOFF, &vvelFFFilterCutoff, 2);
+	addSetting(SETTING_VVEL_D_FILTER_CUTOFF, &vvelDFilterCutoff, 15);
+	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
+	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
+	vVelDFilter = PT1(vvelDFilterCutoff, 400);
+	vVelFFFilter = PT1(vvelFFFilterCutoff, 400);
+
 	// GPS mode
 	addSetting(SETTING_MAX_ANGLE_BURST, &maxAngleBurst, 60);
 	addSetting(SETTING_ANGLE_BURST_TIME, &angleBurstTime, 3000);
 	addSetting(SETTING_ANGLE_BURST_COOLDOWN, &angleBurstCooldownTime, 5000);
-
-	initRateInterp();
-
-	stickToAngle = fix32(maxAngle) / 512;
+	addArraySetting(SETTING_PID_HVEL, pidGainsHVel, &initPidHVel);
+	addSetting(SETTING_MAX_TARGET_HVEL, &maxTargetHvel, 12);
+	addSetting(SETTING_HVEL_FF_FILTER_CUTOFF, &hvelFfFilterCutoff, 2);
+	addSetting(SETTING_HVEL_I_RELAX_FILTER_CUTOFF, &hvelIRelaxFilterCutoff, 0.5f);
+	addSetting(SETTING_HVEL_PUSH_FILTER_CUTOFF, &hvelPushFilterCutoff, 4);
+	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
+	ffFilterNVel = PT1(hvelFfFilterCutoff, 400);
+	ffFilterEVel = PT1(hvelFfFilterCutoff, 400);
+	iRelaxFilterNVel = DualPT1(hvelIRelaxFilterCutoff, 400);
+	iRelaxFilterEVel = DualPT1(hvelIRelaxFilterCutoff, 400);
+	pushNorth = PT1(hvelPushFilterCutoff, 400);
+	pushEast = PT1(hvelPushFilterCutoff, 400);
 }
