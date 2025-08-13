@@ -6,6 +6,15 @@ void modesLoop();
 /// @brief enables flight mode in OSD
 void modesInit();
 
+enum class DisarmReason : u8 {
+	SWITCH = 0,
+	RXLOSS = 1,
+	RTH_DONE = 2,
+	LENGTH,
+};
+
+void disarm(DisarmReason reason = DisarmReason::LENGTH);
+
 extern u32 armingDisableFlags; // each flag is 1 to prevent arming, or 0 to allow arming
 extern bool armed; // true if the drone is armed
 extern fix64 homepointLat, homepointLon; // GPS coordinates of the drone when it was armed

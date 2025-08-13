@@ -80,7 +80,8 @@ void writeGpsToBlackbox() {
 }
 
 void blackboxLoop() {
-	if (!bbLogging || !fsReady) {
+	if (!fsReady) return;
+	if (!bbLogging) {
 		if (bbPrintLog.printing) {
 			TASK_START(TASK_CONFIGURATOR);
 
@@ -148,10 +149,15 @@ void blackboxLoop() {
 	}
 
 	// write buffer
-	if (bbWriteBufferPos && !sdCard.card()->isBusy()) {
+	if (bbWriteBufferPos) {
 		u16 writeBytes = bbWriteBufferPos;
 		if (writeBytes > 512) writeBytes = 512;
-		blackboxFile.write(bbWriteBuffer, writeBytes);
+		if (!blackboxFile.write(bbWriteBuffer, writeBytes)) {
+			fsReady = false;
+			bbLogging = false;
+			TASK_END(TASK_BLACKBOX_WRITE);
+			return;
+		}
 		bbWriteBufferPos -= writeBytes;
 		if (bbWriteBufferPos) {
 			memmove(bbWriteBuffer, bbWriteBuffer + writeBytes, bbWriteBufferPos);
@@ -306,7 +312,7 @@ void startLogging() {
 	int i = 0;
 	while (file.openNext(&dir)) {
 		rp2040.wdt_reset();
-		// we want to find the highest numbered file in /blackbox
+		//  we want to find the highest numbered file in /blackbox
 		if (file.isFile()) {
 			String name;
 			char n[32];

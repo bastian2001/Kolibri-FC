@@ -20,16 +20,16 @@ u32 armingDisableFlags = 0;
 RxMode rxModes[RxModeIndex::LENGTH];
 u32 consecutiveArmedCycles = 0; // number of cycles the switch is in the armed position, reset to 0 when disarmed
 
-void disarm() {
+void disarm(DisarmReason reason) {
 	armed = false;
 	p.neoPixelSetValue(1, 0, 0, 0, true);
+	Serial.printf("Disarming for reason %d\n", (u8)reason);
 	endLogging();
 }
 
 void modesLoop() {
 	if (ELRS->newPacketFlag & (1 << 0)) {
-		elapsedMicros taskTimer = 0;
-		tasks[TASK_MODES].runCounter++;
+		TASK_START(TASK_MODES);
 
 		ELRS->newPacketFlag &= ~(1 << 0); // clear the flag
 
@@ -91,7 +91,7 @@ void modesLoop() {
 			}
 		} else if (!rxModes[RxModeIndex::ARMED].isActive()) {
 			// drone is armed, but the switch says disarm
-			disarm();
+			disarm(DisarmReason::SWITCH);
 		}
 
 		bool angleModeActive = rxModes[RxModeIndex::ANGLE].isActive();
@@ -112,16 +112,9 @@ void modesLoop() {
 		if (newFlightMode != flightMode) {
 			setFlightMode(newFlightMode);
 		}
-		u32 duration = taskTimer;
-		tasks[TASK_MODES].totalDuration += duration;
-		if (duration < tasks[TASK_MODES].minDuration) {
-			tasks[TASK_MODES].minDuration = duration;
-		}
-		if (duration > tasks[TASK_MODES].maxDuration) {
-			tasks[TASK_MODES].maxDuration = duration;
-		}
+		TASK_END(TASK_MODES);
 	} else if (ELRS->sinceLastRCMessage >= 500000 && armed) {
-		disarm();
+		disarm(DisarmReason::RXLOSS);
 	}
 }
 

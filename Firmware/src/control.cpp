@@ -303,7 +303,7 @@ static void inline runGpsWp1() {
 		}
 	} break;
 	case 4: {
-		armed = false; // disarm after landing
+		disarm(DisarmReason::RTH_DONE);
 		rthState = 0;
 	}
 	}
