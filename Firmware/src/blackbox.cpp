@@ -51,12 +51,13 @@ u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
 u32 bbWriteBufferPos = 0;
 #define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
 bool lastHighlightState = false;
-FlightMode lastSavedFlightMode = FlightMode::LENGTH;
+static FlightMode lastSavedFlightMode = FlightMode::LENGTH;
 
 void writeFlightModeToBlackbox() {
+	FlightMode fm = flightMode;
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
-	bbWriteBuffer[bbWriteBufferPos++] = (u8)flightMode;
-	lastSavedFlightMode = flightMode;
+	bbWriteBuffer[bbWriteBufferPos++] = (u8)fm;
+	lastSavedFlightMode = fm;
 }
 
 void writeElrsToBlackbox() {
