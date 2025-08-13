@@ -117,7 +117,7 @@ void initPid() {
 		for (int j = 0; j < 5; j++) {
 			char buf[10];
 			snprintf(buf, 10, "%s %s", ax[i], type[j]);
-			inFlightTuningParams.push_back(TunableParameter(&pidGainsNice[i][j], 2, 0, 5000, (const char *)buf, &convertPidsFromNice));
+			inFlightTuningParams.push_back(TunableParameter(&pidGainsNice[i][j], 2, 0, 2000, (const char *)buf, &convertPidsFromNice));
 		}
 	}
 
