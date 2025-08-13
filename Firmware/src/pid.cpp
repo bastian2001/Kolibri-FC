@@ -1,7 +1,5 @@
 #include "global.h"
 
-FlightMode flightMode = FlightMode::ACRO;
-
 /*
  * To avoid a lot of floating point math, fixed point math is used.
  * The gyro data is 16 bit, with a range of +/- 2000 degrees per second.

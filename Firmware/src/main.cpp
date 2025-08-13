@@ -24,8 +24,6 @@ void setup() {
 	openSettingsFile();
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
 
-	initPid();
-
 	EEPROM.begin(4096);
 	// save crash info to EEPROM
 	if (crashInfo[0] == 255) {
@@ -38,6 +36,9 @@ void setup() {
 	for (int i = 0; i < 256; i++) {
 		crashInfo[i] = 0;
 	}
+
+	initPid();
+	initControl();
 	rtcInit();
 	osdInit();
 	inFlightTuningInit();

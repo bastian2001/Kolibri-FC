@@ -8,7 +8,7 @@ enum class FlightMode {
 	GPS_WP, // waypoint mode, i.e. GPS mode with automatic control, for now it just goes to the homepoint and hovers there
 	LENGTH // place behind all other modes, acts as a limit for loops etc.
 };
-extern FlightMode flightMode; // currently selected flight mode (NOT whether the drone is armed)
+extern volatile FlightMode flightMode; // currently selected flight mode (NOT whether the drone is armed)
 
 enum {
 	ACTUAL_CENTER_SENSITIVITY, // center sensitivity for ACTUAL rates => linear part, in deg/s
@@ -54,3 +54,5 @@ void setFlightMode(FlightMode mode);
 void controlLoop();
 
 void controlDisarmedLoop();
+
+void initControl();

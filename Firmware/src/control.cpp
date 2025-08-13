@@ -2,6 +2,8 @@
 
 static fix32 angleModeP = 5;
 
+volatile FlightMode flightMode = FlightMode::ACRO;
+
 fix64 rthStartLat, rthStartLon;
 u8 rthState = 0, lastRthState = 255; // 0: climb, 1: navigate home, 2: descend, 3: land
 
@@ -91,7 +93,7 @@ static void getStickPos() {
 static void runAcroMode() {
 	getStickPos();
 
-	// acro is the simplest: we just need to calculate the setpoints based on the sticks, no fancy algos for althold or poshold
+	// acro is the simplest: we just need to calculate the setpoints based on the sticks
 	startRateInterp();
 	rollSetpoint = getRateInterp(stickPos[0], AXIS_ROLL);
 	pitchSetpoint = getRateInterp(stickPos[1], AXIS_PITCH);
@@ -109,7 +111,7 @@ static Quaternion diffQuat;
 
 static fix32 targetRoll, targetPitch;
 
-static void runAngleMode1() {
+static inline void runAngleMode1() {
 	getStickPos();
 
 	// angle or alt hold: sticks => target tilt => target angular rate
@@ -134,7 +136,7 @@ static void setAutoThrottle() {
 	throttleSetpoint = calcThrottle(vVelSetpoint);
 }
 
-static void runAngleMode2() {
+static inline void runAngleMode2() {
 	// calculate yaw setpoint
 	startRateInterp();
 	fix32 newYawSetpoint = getRateInterp(stickPos[2], AXIS_YAW);
@@ -157,7 +159,7 @@ static void runAngleMode2() {
 	headQuat.v[2] = si.getf32();
 }
 
-static void runAngleMode3() {
+static void inline runAngleMode3() {
 	startFixMath();
 
 	// create targetRPQuat
@@ -180,7 +182,7 @@ static void runAngleMode3() {
 	targetRPQuat.v[2] = (ratios[2] * si).getf32();
 }
 
-static void runAngleMode4() {
+static void inline runAngleMode4() {
 	// create targetQuat
 	Quaternion_multiply(&targetRPQuat, &headQuat, &targetQuat);
 
@@ -188,11 +190,10 @@ static void runAngleMode4() {
 	Quaternion currentQuatInv;
 	Quaternion_conjugate(&q, &currentQuatInv);
 	Quaternion_multiply(&targetQuat, &currentQuatInv, &diffQuat);
+	Quaternion_normalize(&diffQuat, &diffQuat);
 }
 
-static void runAngleMode5() {
-	// continuation from 4:
-	Quaternion_normalize(&diffQuat, &diffQuat);
+static void inline runAngleMode5() {
 	// Ensure shortest rotation path by checking w component
 	if (diffQuat.w < 0) {
 		diffQuat.w = -diffQuat.w;
@@ -229,12 +230,12 @@ static void runAngleMode5() {
 	yawSetpoint = -angle * axis[2] * FIX_RAD_TO_DEG;
 }
 
-static void runGpsMode1() {
+static void inline runGpsMode1() {
 	// GPS: sticks => target velocity => target tilt => target angular rate
 	sticksToGpsSetpoint(stickPos, &eVelSetpoint, &nVelSetpoint);
 }
 
-static void runGpsWp1() {
+static void inline runGpsWp1() {
 	// GPS_WP: sticks do nothing, for now just fly home
 	bool newState = (rthState != lastRthState);
 	lastRthState = rthState;
@@ -308,7 +309,7 @@ static void runGpsWp1() {
 	}
 }
 
-static void runGpsMode3() {
+static void inline runGpsMode3() {
 	static fix32 lastNVelSetpoint = 0;
 	static fix32 lastEVelSetpoint = 0;
 
@@ -317,10 +318,10 @@ static void runGpsMode3() {
 
 	// shift to get more resolution in the filter
 	// after shifting, we get a value of 0.08 for 1m/s² commanded acceleration
-	// (1m/s / 1s / 3200f/s * 256 = 0.08)
+	// (1m/s / 1s / 400f/s * 32 = 0.08)
 	// assuming full 12m/s in 50ms, this gives us a value of 19.2 (0.08 * 12 * 20)
-	ffFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 8);
-	ffFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 8);
+	ffFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 5);
+	ffFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 5);
 	// same here, just more shifting
 	iRelaxFilterNVel.update((nVelSetpoint - lastNVelSetpoint) << 12);
 	iRelaxFilterEVel.update((eVelSetpoint - lastEVelSetpoint) << 12);
@@ -346,7 +347,7 @@ static void runGpsMode3() {
 	lastEVelSetpoint = eVelSetpoint;
 }
 
-static void runGpsMode4() {
+static void inline runGpsMode4() {
 	static fix32 nVelLast = 0, eVelLast = 0;
 
 	// calculate PID terms
@@ -386,32 +387,39 @@ static void runGpsMode4() {
 
 void controlLoop() {
 	TASK_START(TASK_CONTROL);
-	if (flightMode == FlightMode::ACRO) {
+	static u8 controlCycle = 0;
+	static FlightMode lastFm = FlightMode::LENGTH;
+	FlightMode fm = flightMode;
+	if (fm != lastFm) {
+		lastFm = fm;
+		controlCycle = 0;
+	}
+
+	if (fm == FlightMode::ACRO) {
 		runAcroMode();
 	} else {
-		static u8 controlCycle = 0;
 		switch (controlCycle) {
 		case 0: {
 			TASK_START(TASK_CONTROL_1);
-			if (flightMode == FlightMode::GPS) {
+			if (fm == FlightMode::GPS) {
 				runGpsMode1();
-			} else if (flightMode == FlightMode::GPS_WP) {
+			} else if (fm == FlightMode::GPS_WP) {
 				runGpsWp1();
 			}
 			TASK_END(TASK_CONTROL_1);
 		} break;
 		case 1: {
 			TASK_START(TASK_CONTROL_2);
-			if (flightMode == FlightMode::GPS) {
+			if (fm == FlightMode::GPS) {
 				setAutoThrottle();
-			} else if (flightMode == FlightMode::GPS_WP) {
+			} else if (fm == FlightMode::GPS_WP) {
 				throttle = calcThrottle(vVelSetpoint);
 			}
 			TASK_END(TASK_CONTROL_2);
 		} break;
 		case 2: {
 			TASK_START(TASK_CONTROL_3);
-			if (flightMode == FlightMode::ANGLE || flightMode == FlightMode::ALT_HOLD) {
+			if (fm == FlightMode::ANGLE || fm == FlightMode::ALT_HOLD) {
 				runAngleMode1();
 			} else {
 				runGpsMode3();
@@ -420,9 +428,9 @@ void controlLoop() {
 		} break;
 		case 3: {
 			TASK_START(TASK_CONTROL_4);
-			if (flightMode == FlightMode::ALT_HOLD) {
+			if (fm == FlightMode::ALT_HOLD) {
 				setAutoThrottle();
-			} else if (flightMode == FlightMode::ANGLE) {
+			} else if (fm == FlightMode::ANGLE) {
 				throttleSetpoint = stickThr;
 			} else {
 				runGpsMode4();
@@ -564,6 +572,8 @@ static void sticksToGpsSetpoint(const fix32 *sticks, fix32 *eVelSetpoint, fix32 
 		*nVelSetpoint *= maxTargetHvel; // +-1 => +-12m/s
 		pushNorth.set(0);
 		pushEast.set(0);
+		targetLat = gpsLatitudeFiltered;
+		targetLon = gpsLongitudeFiltered;
 		locationSetpointTimer = 0;
 	} else if (locationSetpointTimer < 2000000) {
 		// stop craft within the first 2s after releasing sticks
