@@ -254,11 +254,13 @@ void ExpressLRS::processMessage() {
 			break;
 		}
 		crsf_channels_11 *chs = (crsf_channels_11 *)(inPayload);
-		u32 pChannels[16] = {chs->ch0, chs->ch1, chs->ch2, chs->ch3, chs->ch4, chs->ch5, chs->ch6, chs->ch7, chs->ch8, chs->ch9, chs->ch10, chs->ch11, chs->ch12, chs->ch13, chs->ch14, chs->ch15};
+		i32 pChannels[16] = {(i32)chs->ch0, (i32)chs->ch1, (i32)chs->ch2, (i32)chs->ch3, (i32)chs->ch4, (i32)chs->ch5, (i32)chs->ch6, (i32)chs->ch7, (i32)chs->ch8, (i32)chs->ch9, (i32)chs->ch10, (i32)chs->ch11, (i32)chs->ch12, (i32)chs->ch13, (i32)chs->ch14, (i32)chs->ch15};
 		// map pChannels to 989-2012 (?)
 		for (u8 i = 0; i < 16; i++) {
-			pChannels[i] = 1500 + (1023 * ((i32)pChannels[i] - 992) / 1636);
-			pChannels[i] = constrain(pChannels[i], 988, 2012);
+			pChannels[i] = pChannels[i] * 2 - 345;
+			pChannels[i] = pChannels[i] * 1023 / 3278;
+			pChannels[i] += 989;
+			pChannels[i] = constrain(pChannels[i], 989, 2012);
 		}
 
 		// update as fast as possible
