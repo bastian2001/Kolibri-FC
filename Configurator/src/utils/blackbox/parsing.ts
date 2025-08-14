@@ -4,6 +4,7 @@ import { BB_ALL_FLAGS } from "@utils/blackbox/bbFlags"
 
 const ACC_RANGES = [2, 4, 8, 16]
 const GYRO_RANGES = [2000, 1000, 500, 250, 125]
+const PID_SHIFTS = [11, 3, 16, 8, 8]
 
 export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	const header = binFile.slice(0, 256)
@@ -33,23 +34,12 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	}
 	const pidConstants: number[][] = [[], [], []]
 	const pidConstantsNice: number[][] = [[], [], []]
-	const pcBytes = header.slice(82, 142)
+	const pcBytes = header.slice(82, 112)
 	for (let i = 0; i < 3; i++) {
-		pidConstants[i][0] = leBytesToInt(pcBytes.slice(i * 20, i * 20 + 4))
-		pidConstantsNice[i][0] = pidConstants[i][0] >> 11
-		pidConstants[i][0] /= 65536
-		pidConstants[i][1] = leBytesToInt(pcBytes.slice(i * 20 + 4, i * 20 + 8))
-		pidConstantsNice[i][1] = pidConstants[i][1] >> 3
-		pidConstants[i][1] /= 65536
-		pidConstants[i][2] = leBytesToInt(pcBytes.slice(i * 20 + 8, i * 20 + 12))
-		pidConstantsNice[i][2] = pidConstants[i][2] >> 16
-		pidConstants[i][2] /= 65536
-		pidConstants[i][3] = leBytesToInt(pcBytes.slice(i * 20 + 12, i * 20 + 16))
-		pidConstantsNice[i][3] = pidConstants[i][3] >> 8
-		pidConstants[i][3] /= 65536
-		pidConstants[i][4] = leBytesToInt(pcBytes.slice(i * 20 + 16, i * 20 + 20))
-		pidConstantsNice[i][4] = pidConstants[i][4] >> 8
-		pidConstants[i][4] /= 65536
+		for (let j = 0; j < 5; j++) {
+			pidConstantsNice[i][j] = leBytesToInt(pcBytes.slice(i * 10 + j * 2, i * 10 + j * 2 + 2))
+			pidConstants[i][j] = (pidConstantsNice[i][0] << PID_SHIFTS[j]) / 65536
+		}
 	}
 	const flags: string[] = []
 	const flagSlice = header.slice(142, 150)

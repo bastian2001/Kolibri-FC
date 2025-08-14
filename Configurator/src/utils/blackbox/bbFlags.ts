@@ -763,33 +763,6 @@ export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 		requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"]],
 		exact: true,
 	},
-	GEN_MOTOR_OUTPUTS: {
-		replaces: "LOG_MOTOR_OUTPUTS",
-		requires: [
-			["GEN_THROTTLE_SETPOINT", "LOG_THROTTLE_SETPOINT"],
-			["LOG_ROLL_PID_P", "GEN_ROLL_PID_P"],
-			["LOG_ROLL_PID_I", "GEN_ROLL_PID_I"],
-			["LOG_ROLL_PID_D", "GEN_ROLL_PID_D"],
-			["LOG_ROLL_PID_FF", "GEN_ROLL_PID_FF"],
-			["LOG_ROLL_PID_S", "GEN_ROLL_PID_S"],
-			["LOG_PITCH_PID_P", "GEN_PITCH_PID_P"],
-			["LOG_PITCH_PID_I", "GEN_PITCH_PID_I"],
-			["LOG_PITCH_PID_D", "GEN_PITCH_PID_D"],
-			["LOG_PITCH_PID_FF", "GEN_PITCH_PID_FF"],
-			["LOG_PITCH_PID_S", "GEN_PITCH_PID_S"],
-			["LOG_YAW_PID_P", "GEN_YAW_PID_P"],
-			["LOG_YAW_PID_I", "GEN_YAW_PID_I"],
-			["LOG_YAW_PID_D", "GEN_YAW_PID_D"],
-			["LOG_YAW_PID_FF", "GEN_YAW_PID_FF"],
-			["LOG_YAW_PID_S", "GEN_YAW_PID_S"],
-		],
-		exact: true,
-	},
-	GEN_VVEL_SETPOINT: {
-		replaces: "LOG_VVEL_SETPOINT",
-		requires: ["LOG_ELRS_RAW"],
-		exact: false,
-	},
 	GEN_PID_SUM: {
 		replaces: "LOG_PID_SUM",
 		requires: [
@@ -809,6 +782,19 @@ export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 			["LOG_YAW_PID_FF", "GEN_YAW_PID_FF"],
 			["LOG_YAW_PID_S", "GEN_YAW_PID_S"],
 		],
+		exact: false,
+	},
+	GEN_MOTOR_OUTPUTS: {
+		replaces: "LOG_MOTOR_OUTPUTS",
+		requires: [
+			["GEN_THROTTLE_SETPOINT", "LOG_THROTTLE_SETPOINT"],
+			["GE_PID_SUM", "LOG_PID_SUM"],
+		],
 		exact: true,
+	},
+	GEN_VVEL_SETPOINT: {
+		replaces: "LOG_VVEL_SETPOINT",
+		requires: ["LOG_ELRS_RAW"],
+		exact: false,
 	},
 }

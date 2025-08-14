@@ -352,13 +352,10 @@ void startLogging() {
 		for (int i = 0; i < 3; i++)
 			rf[ax][i] = rateCoeffs[ax][i].raw;
 	blackboxFile.write((u8 *)rf, 36);
-	u8 dummy[24] = {0};
+	u8 dummy[30] = {0};
 	blackboxFile.write(dummy, 24); // reserved space for future use
-	i32 pg[3][5];
-	for (int i = 0; i < 3; i++)
-		for (int j = 0; j < 5; j++)
-			pg[i][j] = pidGainsNice[i][j];
-	blackboxFile.write((u8 *)pg, 60);
+	blackboxFile.write((u8 *)pidGainsNice, 30);
+	blackboxFile.write(dummy, 30);
 	blackboxFile.write((u8 *)&bbFlags, 8);
 	blackboxFile.write((u8)MOTOR_POLES);
 	while (blackboxFile.position() < LOG_DATA_START) {
