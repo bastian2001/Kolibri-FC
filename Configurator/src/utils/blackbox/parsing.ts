@@ -67,6 +67,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 			case 31:
 			case 32:
 			case 33:
+			case 44:
 				frameSize += 6
 				break
 			case 38:
@@ -639,6 +640,19 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 			logData.debug4[f] = leBytesToInt(data.slice(p, p + 2), true)
 		}
 	}
+	if (flags.includes("LOG_PID_SUM")) {
+		logData.pidSumRoll = new Int16Array(frameCount)
+		logData.pidSumPitch = new Int16Array(frameCount)
+		logData.pidSumYaw = new Int16Array(frameCount)
+		const o = offsets["LOG_PID_SUM"]
+		for (let f = 0; f < frameCount; f++) {
+			const p = framePos[f] + o
+			logData.pidSumRoll[f] = leBytesToInt(data.slice(p, p + 2), true)
+			logData.pidSumPitch[f] = leBytesToInt(data.slice(p + 2, p + 4), true)
+			logData.pidSumYaw[f] = leBytesToInt(data.slice(p + 4, p + 6), true)
+		}
+	}
+
 	return {
 		frameCount,
 		flags,

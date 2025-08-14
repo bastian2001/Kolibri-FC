@@ -637,6 +637,34 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		minValue: 0,
 		maxValue: 100,
 	},
+	LOG_PID_SUM: {
+		name: "PID Sum",
+		path: "",
+		unit: "",
+		modifier: [
+			{
+				displayNameShort: "Roll",
+				displayName: "Roll",
+				path: "pidSumRoll",
+				min: -1500,
+				max: 1500,
+			},
+			{
+				displayNameShort: "Pitch",
+				displayName: "Pitch",
+				path: "pidSumPitch",
+				min: -1500,
+				max: 1500,
+			},
+			{
+				displayNameShort: "Yaw",
+				displayName: "Yaw",
+				path: "pidSumYaw",
+				min: -1500,
+				max: 1500,
+			},
+		],
+	},
 }
 
 export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
@@ -761,5 +789,26 @@ export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 		replaces: "LOG_VVEL_SETPOINT",
 		requires: ["LOG_ELRS_RAW"],
 		exact: false,
+	},
+	GEN_PID_SUM: {
+		replaces: "LOG_PID_SUM",
+		requires: [
+			["LOG_ROLL_PID_P", "GEN_ROLL_PID_P"],
+			["LOG_ROLL_PID_I", "GEN_ROLL_PID_I"],
+			["LOG_ROLL_PID_D", "GEN_ROLL_PID_D"],
+			["LOG_ROLL_PID_FF", "GEN_ROLL_PID_FF"],
+			["LOG_ROLL_PID_S", "GEN_ROLL_PID_S"],
+			["LOG_PITCH_PID_P", "GEN_PITCH_PID_P"],
+			["LOG_PITCH_PID_I", "GEN_PITCH_PID_I"],
+			["LOG_PITCH_PID_D", "GEN_PITCH_PID_D"],
+			["LOG_PITCH_PID_FF", "GEN_PITCH_PID_FF"],
+			["LOG_PITCH_PID_S", "GEN_PITCH_PID_S"],
+			["LOG_YAW_PID_P", "GEN_YAW_PID_P"],
+			["LOG_YAW_PID_I", "GEN_YAW_PID_I"],
+			["LOG_YAW_PID_D", "GEN_YAW_PID_D"],
+			["LOG_YAW_PID_FF", "GEN_YAW_PID_FF"],
+			["LOG_YAW_PID_S", "GEN_YAW_PID_S"],
+		],
+		exact: true,
 	},
 }

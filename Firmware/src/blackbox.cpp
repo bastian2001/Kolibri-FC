@@ -357,7 +357,7 @@ void startLogging() {
 	i32 pg[3][5];
 	for (int i = 0; i < 3; i++)
 		for (int j = 0; j < 5; j++)
-			pg[i][j] = pidGains[i][j].raw;
+			pg[i][j] = pidGainsNice[i][j];
 	blackboxFile.write((u8 *)pg, 60);
 	blackboxFile.write((u8 *)&bbFlags, 8);
 	blackboxFile.write((u8)MOTOR_POLES);
@@ -608,6 +608,17 @@ u32 writeSingleFrame() {
 	if (currentBBFlags & LOG_DEBUG_4) {
 		bbBuffer[bufferPos++] = bbDebug4;
 		bbBuffer[bufferPos++] = bbDebug4 >> 8;
+	}
+	if (currentBBFlags & LOG_PID_SUM) {
+		i16 i = rollSum.geti32();
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
+		i = pitchSum.geti32();
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
+		i = yawSum.geti32();
+		bbBuffer[bufferPos++] = i;
+		bbBuffer[bufferPos++] = i >> 8;
 	}
 	bbBuffer[0] = bufferPos - 1;
 	bbFrameNum++;

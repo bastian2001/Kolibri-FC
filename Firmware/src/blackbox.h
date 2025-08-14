@@ -52,7 +52,8 @@
 #define LOG_DEBUG_2 (1LL << 41) // 4 bytes
 #define LOG_DEBUG_3 (1LL << 42) // 2 bytes
 #define LOG_DEBUG_4 (1LL << 43) // 2 bytes
-// 107 bytes max
+#define LOG_PID_SUM (1LL << 44) // 6 bytes
+// 113 bytes max
 
 #define LOG_HEAD_MAGIC 0
 #define LOG_HEAD_BB_VERSION 8

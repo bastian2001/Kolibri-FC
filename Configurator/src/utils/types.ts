@@ -98,6 +98,9 @@ export type LogData = {
 	debug2?: Int32Array
 	debug3?: Int16Array
 	debug4?: Int16Array
+	pidSumRoll?: Int16Array
+	pidSumPitch?: Int16Array
+	pidSumYaw?: Int16Array
 	timestamp?: Uint32Array
 }
 
