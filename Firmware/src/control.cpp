@@ -24,7 +24,8 @@ static interp_config rateInterpConfig0, rateInterpConfig1, rateInterpConfig2;
 
 static fix32 pidGainsVVel[4]; // PID gains for the vertical velocity PID controller
 static fix32 pidGainsHVel[4]; // PID gains for the horizontal velocity PID controller
-fix32 vVelSetpoint, vVelError, vVelLastSetpoint;
+fix32 vVelSetpoint;
+static fix32 vVelError, vVelLastSetpoint;
 static fix32 eVelSetpoint, eVelError, nVelSetpoint, nVelError;
 static fix64 vVelErrorSum, eVelErrorSum, nVelErrorSum;
 static fix32 vVelP, vVelI, vVelD, vVelFF; // velocity PID summands
@@ -54,6 +55,11 @@ static fix32 calcThrottle(fix32 targetVvel);
 static fix32 stickToTargetVvel(fix32 stickPos);
 static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVelSetpoint, fix32 *nVelSetpoint, fix32 *targetVvel);
 static void sticksToGpsSetpoint(const fix32 *sticks, fix32 *eVelSetpoint, fix32 *nVelSetpoint);
+
+static fix32 smoothFromThrottle, smoothToThrottle, newThrottle;
+static fix32 smoothFromRoll, smoothToRoll, newRoll;
+static fix32 smoothFromPitch, smoothToPitch, newPitch;
+static fix32 smoothFromYaw, smoothToYaw, newYaw;
 
 /**
  * @brief Get the target rotational rate for a given stick value and axis.
@@ -133,7 +139,7 @@ static void setAutoThrottle() {
 		}
 	}
 	// vertical velocity => auto throttle
-	throttleSetpoint = calcThrottle(vVelSetpoint);
+	newThrottle = calcThrottle(vVelSetpoint);
 }
 
 static inline void runAngleMode2() {
@@ -225,9 +231,9 @@ static void inline runAngleMode5() {
 	// apply P gain and limit to total 1000 deg/s
 	angle *= angleModeP;
 	if (angle > FIX_DEG_TO_RAD * 1000) angle = FIX_DEG_TO_RAD * 1000;
-	rollSetpoint = -angle * axis[0] * FIX_RAD_TO_DEG;
-	pitchSetpoint = angle * axis[1] * FIX_RAD_TO_DEG;
-	yawSetpoint = -angle * axis[2] * FIX_RAD_TO_DEG;
+	newRoll = -angle * axis[0] * FIX_RAD_TO_DEG;
+	newPitch = angle * axis[1] * FIX_RAD_TO_DEG;
+	newYaw = -angle * axis[2] * FIX_RAD_TO_DEG;
 }
 
 static void inline runGpsMode1() {
@@ -431,7 +437,7 @@ void controlLoop() {
 			if (fm == FlightMode::ALT_HOLD) {
 				setAutoThrottle();
 			} else if (fm == FlightMode::ANGLE) {
-				throttleSetpoint = stickThr;
+				newThrottle = stickThr;
 			} else {
 				runGpsMode4();
 			}
@@ -458,7 +464,24 @@ void controlLoop() {
 			TASK_END(TASK_CONTROL_8);
 		} break;
 		}
-		if (++controlCycle >= 8) controlCycle = 0;
+		if (++controlCycle >= 8) {
+			controlCycle = 0;
+			smoothFromRoll = smoothToRoll;
+			smoothFromPitch = smoothToPitch;
+			smoothFromYaw = smoothToYaw;
+			smoothFromThrottle = smoothToThrottle;
+			smoothToRoll = newRoll;
+			smoothToPitch = newPitch;
+			smoothToYaw = newYaw;
+			smoothToThrottle = newThrottle;
+		}
+		const u8 slider = controlCycle + 1;
+		const u8 invSlider = 8 - slider;
+
+		rollSetpoint = (smoothToRoll * slider + smoothFromRoll * invSlider) >> 3;
+		pitchSetpoint = (smoothToPitch * slider + smoothFromPitch * invSlider) >> 3;
+		yawSetpoint = (smoothToYaw * slider + smoothFromYaw * invSlider) >> 3;
+		throttleSetpoint = (smoothToThrottle * slider + smoothFromThrottle * invSlider) >> 3;
 	}
 
 	TASK_END(TASK_CONTROL);
