@@ -227,12 +227,17 @@ void pidLoop() {
 
 	bool runDynIdle = useDynamicIdle && escErpmFailCounter < 10; // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
 	if (runDynIdle) {
-		throttle = throttleSetpoint * fix32(2000) >> 10;
+		throttle = throttleSetpoint * (fix32(2000) >> 10);
 	} else {
 		// scale throttle from 0...1024 to idlePermille*2...2000 (DShot output is 0...2000)
 		throttle = throttleSetpoint * throttleScale; // 0...1024 => 0...2000-idlePermille*2
 		throttle += idlePermille * 2; // 0...2000-idlePermille*2 => idlePermille*2...2000
 	}
+
+	// static u8 c = 0;
+	// if (!c++) {
+	// 	Serial.printf("%d %d\n", throttleSetpoint.geti32(), throttle.geti32());
+	// }
 
 	// apply mixer
 	fix32 tRR, tRL, tFR, tFL;

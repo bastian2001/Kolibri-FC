@@ -529,11 +529,11 @@ static fix32 stickToTargetVvel(fix32 stickPos) {
 static fix32 calcThrottle(fix32 targetVvel) {
 	static fix32 vVelLast = 0;
 	vVelError = targetVvel - vVel;
-	vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(targetVvel - vVelLastSetpoint).abs() < 0.001f) ? vVelError : vVelError / 2); // reduce windup during fast changes
+	vVelErrorSum = vVelErrorSum + ((vVelFFFilter.update(targetVvel - vVelLastSetpoint).abs() < 0.001f) ? vVelError : vVelError / 2) * 8; // reduce windup during fast changes
 	vVelErrorSum = constrain(vVelErrorSum, vVelMinErrorSum, vVelMaxErrorSum);
 	vVelP = pidGainsVVel[P] * vVelError;
 	vVelI = pidGainsVVel[I] * vVelErrorSum;
-	vVelD = pidGainsVVel[D] * vVelDFilter.update(vVelLast - vVel);
+	vVelD = pidGainsVVel[D] * vVelDFilter.update(vVelLast - vVel) / 8;
 	vVelFF = pidGainsVVel[FF] * vVelFFFilter;
 	vVelLastSetpoint = targetVvel;
 	fix32 t = vVelP + vVelI + vVelD + vVelFF;
