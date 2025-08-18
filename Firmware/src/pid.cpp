@@ -225,10 +225,6 @@ void pidLoop() {
 	fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
 	fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
 
-	static u8 c = 0;
-	if (!++c) {
-		Serial.printf("%.2f\n", throttleSetpoint.getf32());
-	}
 	bool runDynIdle = useDynamicIdle && escErpmFailCounter < 10; // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
 	if (runDynIdle) {
 		throttle = throttleSetpoint * fix32(2000) >> 10;

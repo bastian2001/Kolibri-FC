@@ -1,5 +1,6 @@
 #pragma once
 
+#include "modes.h"
 #include "serialhandler/msp.h"
 #include "typedefs.h"
 #include <Arduino.h>

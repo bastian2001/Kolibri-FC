@@ -1,3 +1,6 @@
+#pragma once
+
+#include "serialhandler/msp.h"
 #include "typedefs.h"
 #include <Arduino.h>
 
@@ -7,9 +10,10 @@ void modesLoop();
 void modesInit();
 
 enum class DisarmReason : u8 {
-	SWITCH = 0,
-	RXLOSS = 1,
-	RTH_DONE = 2,
+	UNSET = 0,
+	SWITCH = 1,
+	RXLOSS = 2,
+	RTH_DONE = 3,
 	LENGTH,
 };
 

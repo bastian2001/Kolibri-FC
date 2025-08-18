@@ -1,5 +1,5 @@
 #include "global.h"
-bool armed = false;
+volatile bool armed = false;
 fix64 homepointLat, homepointLon;
 fix32 homepointAlt;
 

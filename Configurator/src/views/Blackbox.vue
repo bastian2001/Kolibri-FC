@@ -13,7 +13,7 @@ import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
 import { parseBlackbox } from "@/utils/blackbox/parsing";
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
 import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
-import { TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/constants";
+import { DISARM_REASONS, TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/constants";
 
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
 ];
@@ -73,6 +73,7 @@ export default defineComponent({
 			getChunkInterval: -1,
 			traceInternalData: [[]] as TraceInternalData[][],
 			traceInternalBackupFn: [[]] as (() => (TraceInternalData | void))[][],
+			DISARM_REASONS,
 		};
 	},
 	computed: {
@@ -1139,6 +1140,7 @@ export default defineComponent({
 				<div>
 					IMU Range: {{ loadedLog.ranges.gyro }}°/sec, ±{{ loadedLog.ranges.accel }}g
 				</div>
+				<div>Disarm Reason: {{ DISARM_REASONS[loadedLog.disarmReason] }}</div>
 				<div>
 					PID Gains:
 					<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLL PITCH&nbsp;&nbsp;&nbsp;YAW</div>
