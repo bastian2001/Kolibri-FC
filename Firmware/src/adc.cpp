@@ -11,6 +11,7 @@ u8 cellCountSetting = 0;
 u8 batCells = 1;
 u8 batState = 0;
 elapsedMicros batTimer = 0;
+u32 adcFlag = 0;
 
 // up to 4.35V per cell + 0.1V (inclusive) for auto detection, e.g. 1S = 0-4.45V, 5S = 17.5x-21.85V, 6S = 21.85x-26.2V
 
@@ -43,6 +44,7 @@ void adcLoop() {
 			adc_select_input(PIN_ADC_VOLTAGE - 26);
 			u32 raw = adc_read();
 			adcVoltage = (raw * 3630U) / 4096U; // 36.3V full deflection, voltage divider is 11:1, and 4096 is 3.3V
+			adcFlag |= 0xFFFF;
 			switch (batState) {
 			case 0: // no battery (USB or startup)
 				if (adcVoltage < 250) { // stay in setup as long as battery is below 2.5V

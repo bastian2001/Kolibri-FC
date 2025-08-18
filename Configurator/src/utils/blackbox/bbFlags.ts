@@ -665,6 +665,13 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 			},
 		],
 	},
+	LOG_VBAT: {
+		name: "Battery Voltage",
+		path: "vbat",
+		unit: "V",
+		minValue: 0,
+		maxValue: 30,
+	},
 }
 
 export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {

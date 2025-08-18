@@ -102,6 +102,7 @@ export type LogData = {
 	pidSumPitch?: Int16Array
 	pidSumYaw?: Int16Array
 	timestamp?: Uint32Array
+	vbat?: Float32Array
 }
 
 export type ActualCoeffs = {

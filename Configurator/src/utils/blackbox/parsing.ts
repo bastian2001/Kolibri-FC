@@ -70,6 +70,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				break
 			case 0: // ELRS_RAW
 			case 27: // GPS
+			case 45: // VBAT
 				break
 			default:
 				frameSize += 2
@@ -83,6 +84,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	let highlights: number[] = []
 	let gpsPos: { pos: number; frame: number }[] = []
 	let elrsPos: { pos: number; frame: number }[] = []
+	let batPos: { pos: number; frame: number }[] = []
 	while (pos < data.length) {
 		switch (data[pos]) {
 			case 0: // regular frame
@@ -104,6 +106,10 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 			case 4: // ELRS
 				elrsPos.push({ pos, frame: frameCount })
 				pos += 7
+				break
+			case 5: // VBAT
+				batPos.push({ pos, frame: frameCount })
+				pos += 3
 				break
 			default:
 				pos++
@@ -640,6 +646,21 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 			logData.pidSumRoll[f] = leBytesToInt(data.slice(p, p + 2), true)
 			logData.pidSumPitch[f] = leBytesToInt(data.slice(p + 2, p + 4), true)
 			logData.pidSumYaw[f] = leBytesToInt(data.slice(p + 4, p + 6), true)
+		}
+	}
+	if (flags.includes("LOG_VBAT")) {
+		logData.vbat = new Float32Array(frameCount)
+		const a: boolean[] = Array(frameCount).fill(false)
+		for (const b of batPos) {
+			let d = leBytesToInt(data.slice(b.pos + 1, b.pos + 3), false)
+			const f = b.frame
+			logData.vbat[f] = d / 100
+			a[f] = true
+		}
+		for (let i = 1; i < frameCount; i++) {
+			if (!a[i]) {
+				logData.vbat[i] = logData.vbat[i - 1]
+			}
 		}
 	}
 

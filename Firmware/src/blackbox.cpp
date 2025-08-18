@@ -146,6 +146,14 @@ void blackboxLoop() {
 		writeElrsToBlackbox();
 	}
 
+	// save VBat to Blackbox
+	if (adcFlag & (1 << 0) && currentBBFlags & LOG_VBAT && BB_WR_BUF_HAS_FREE(2 + 1)) {
+		adcFlag &= ~(1 << 0);
+		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_VBAT;
+		bbWriteBuffer[bbWriteBufferPos++] = adcVoltage;
+		bbWriteBuffer[bbWriteBufferPos++] = adcVoltage >> 8;
+	}
+
 	// write buffer
 	if (bbWriteBufferPos && !sdCard.card()->isBusy()) {
 		u16 writeBytes = bbWriteBufferPos;
