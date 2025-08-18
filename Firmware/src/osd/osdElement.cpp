@@ -76,29 +76,40 @@ void OsdElement::updateOsdElementData() {
 	case ElementType::ARM_TIME:
 		// snprintf(screenText, sizeof(screenText), "%d", armTime); //TODO get arm time
 		break;
+	case ElementType::GPS_LATITUDE: {
+		static fix64 gpsLat = gpsLatitudeFiltered;
+		if (gpsLat != 0) {
+			snprintf(screenText, 32, "LAT %3.6f", currentVal.fix64_val.getf64());
+		} else {
+			snprintf(screenText, 32, "LAT N/A");
+		}
+		break;
+	}
+	case ElementType::GPS_LONGITUDE: {
+		static fix64 gpsLon = gpsLongitudeFiltered;
+		if (gpsLon != 0) {
+			snprintf(screenText, 32, "LON %3.6f", currentVal.fix64_val.getf64());
+		} else {
+			snprintf(screenText, 32, "LON N/A");
+		}
+		break;
+	}
+
+	case ElementType::BATTERY_VOLTAGE_MIN: {
+		static fix32 curVoltage = 0;
+		static fix32 minVoltage = 0;
+		curVoltage = (fix32)adcVoltage / (fix32)100;
+		if (curVoltage < minVoltage) {
+			minVoltage = curVoltage;
+			snprintf(screenText, 32, "%.2fV", minVoltage.getf32());
+		} else {
+			minVoltage = (curVoltage / ((fix32)refHz * (fix32)2)) + ((minVoltage / ((fix32)refHz * (fix32)2)) * (((fix32)refHz * (fix32)2) - (fix32)1));
+			snprintf(screenText, 32, "%.2fV", minVoltage.getf32());
+		}
+
+	} break;
 	case ElementType::HUD_COMPASS_HEADING: {
-		currentVal.fix32_val = combinedHeading;
-		//|----S----|----W----|----N----|----E----|----S----|
-		if (currentVal.fix32_val == lastVal.fix32_val) break;
-		lastVal.fix32_val = currentVal.fix32_val;
-		u8 heading = (u8)((currentVal.fix32_val.getf32()) * RAD_TO_DEG);
-		screenText[0] = '0' + (heading % 10);
-		heading /= 10;
-		screenText[1] = '0' + (heading % 10);
-		heading /= 10;
-		screenText[2] = '0' + (heading % 10);
-		heading /= 10;
-		screenText[3] = '0' + (heading % 10);
-		screenText[4] = ' ';
-		screenText[5] = 'S';
-		screenText[6] = ' ';
-		screenText[7] = 'W';
-		screenText[8] = ' ';
-		screenText[9] = 'N';
-		screenText[10] = ' ';
-		screenText[11] = 'E';
-		screenText[12] = ' ';
-		screenText[13] = 'S';
+		// TODO move to hud class or implement here
 	} break;
 	}
 	updated = false; //? still neded?
@@ -117,6 +128,7 @@ void OsdElement::setRefreshRate(u8 refreshRate) {
 	if (refreshRate > maxHz) {
 		refreshRate = maxHz;
 	}
+	refHz = refreshRate;
 	refreshMillis = 1000 / refreshRate;
 }
 

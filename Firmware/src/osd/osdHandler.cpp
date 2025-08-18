@@ -4,7 +4,23 @@ void OsdHandler::init() {
 	osdType = OsdType::DIGITAL;
 
 	// TODO Read settings
-	addOsdElement(new OsdElement(ElementType::BATTERY_VOLTAGE));
+	OsdElement *elem;
+	elem = new OsdElement(ElementType::BATTERY_VOLTAGE);
+	elem->setPos(0, 5);
+	elem->setRefreshRate(20);
+	addOsdElement(elem);
+	elem = new OsdElement(ElementType::GPS_LATITUDE);
+	elem->setPos(19, 5);
+	elem->setRefreshRate(20);
+	addOsdElement(elem);
+	elem = new OsdElement(ElementType::GPS_LONGITUDE);
+	elem->setPos(20, 5);
+	elem->setRefreshRate(20);
+	addOsdElement(elem);
+	elem = new OsdElement(ElementType::BATTERY_VOLTAGE_MIN);
+	elem->setPos(1, 5);
+	elem->setRefreshRate(5);
+	addOsdElement(elem);
 
 	optimize();
 }

@@ -196,6 +196,7 @@ private:
 	u32 refreshMillis;
 	u32 advOpt;
 	u8 maxHz = 20; // Should be set during creation by the handler
+	u8 refHz = 0; // for internal use (refresh rate in Hz)
 	//?<note_001> So far data is global, if this changes implement below.
 	// void *rawDataPtr; // Where to find the data
 	// void *last;
