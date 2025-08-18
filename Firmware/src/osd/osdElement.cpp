@@ -77,7 +77,8 @@ void OsdElement::updateOsdElementData() {
 		// snprintf(screenText, sizeof(screenText), "%d", armTime); //TODO get arm time
 		break;
 	case ElementType::GPS_LATITUDE: {
-		static fix64 gpsLat = gpsLatitudeFiltered;
+		static fix64 gpsLat = 0;
+		gpsLat = gpsLatitudeFiltered;
 		if (gpsLat != 0) {
 			snprintf(screenText, 32, "LAT %3.6f", currentVal.fix64_val.getf64());
 		} else {
@@ -86,7 +87,8 @@ void OsdElement::updateOsdElementData() {
 		break;
 	}
 	case ElementType::GPS_LONGITUDE: {
-		static fix64 gpsLon = gpsLongitudeFiltered;
+		static fix64 gpsLon = 0;
+		gpsLon = gpsLongitudeFiltered;
 		if (gpsLon != 0) {
 			snprintf(screenText, 32, "LON %3.6f", currentVal.fix64_val.getf64());
 		} else {
