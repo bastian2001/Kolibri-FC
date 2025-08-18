@@ -24,7 +24,7 @@ void disarm(DisarmReason reason) {
 	armed = false;
 	p.neoPixelSetValue(1, 0, 0, 0, true);
 	Serial.printf("Disarming for reason %d\n", (u8)reason);
-	endLogging();
+	endLogging(reason);
 }
 
 void modesLoop() {

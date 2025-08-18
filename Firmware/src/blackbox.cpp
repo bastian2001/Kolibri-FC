@@ -381,7 +381,7 @@ void startLogging() {
 	frametime = 0;
 }
 
-void endLogging() {
+void endLogging(DisarmReason reason) {
 	if (!fsReady)
 		return;
 	rp2040.wdt_reset();
@@ -390,6 +390,8 @@ void endLogging() {
 		u32 duration = bbDuration;
 		blackboxFile.seek(LOG_HEAD_DURATION);
 		blackboxFile.write((u8 *)&duration, 4);
+		blackboxFile.seek(LOG_HEAD_DISARM_REASON);
+		blackboxFile.write((u8)reason);
 		blackboxFile.close();
 	}
 }
