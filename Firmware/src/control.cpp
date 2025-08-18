@@ -419,7 +419,7 @@ void controlLoop() {
 			if (fm == FlightMode::GPS) {
 				setAutoThrottle();
 			} else if (fm == FlightMode::GPS_WP) {
-				throttle = calcThrottle(vVelSetpoint);
+				newThrottle = calcThrottle(vVelSetpoint);
 			}
 			TASK_END(TASK_CONTROL_2);
 		} break;
