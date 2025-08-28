@@ -671,6 +671,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		unit: "V",
 		minValue: 0,
 		maxValue: 30,
+		decimals: 2,
 	},
 }
 
