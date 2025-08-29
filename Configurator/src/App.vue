@@ -91,7 +91,7 @@ export default defineComponent({
 						this.configuratorLog.push(`Name: ${command.dataStr}`);
 						break;
 					case MspFn.STATUS:
-						this.battery = `${(leBytesToInt(command.data.slice(0, 2)) / 100).toFixed(2)}V`;
+						this.battery = `${(leBytesToInt(command.data, 0, 2) / 100).toFixed(2)}V`;
 						break;
 					case MspFn.SET_RTC:
 						this.configuratorLog.push('RTC updated');

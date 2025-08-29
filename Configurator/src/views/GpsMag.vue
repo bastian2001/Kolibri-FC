@@ -82,12 +82,12 @@ export default defineComponent({
 						const ctxzx = canvaszx.getContext('2d');
 						if (!ctxxy || !ctxyz || !ctxzx) return;
 						const data = command.data;
-						this.magX = leBytesToInt(data.slice(0, 2), true);
-						this.magY = leBytesToInt(data.slice(2, 4), true);
-						this.magZ = leBytesToInt(data.slice(4, 6), true);
-						this.magRight = leBytesToInt(data.slice(6, 8), true);
-						this.magFront = leBytesToInt(data.slice(8, 10), true);
-						this.magHeading = leBytesToInt(data.slice(10, 12), true);
+						this.magX = leBytesToInt(data, 0, 2, true);
+						this.magY = leBytesToInt(data, 2, 2, true);
+						this.magZ = leBytesToInt(data, 4, 2, true);
+						this.magRight = leBytesToInt(data, 6, 2, true);
+						this.magFront = leBytesToInt(data, 8, 2, true);
+						this.magHeading = leBytesToInt(data, 10, 2, true);
 						//each canvas plots values from -500 to 500
 						const scale = 500 / 1000;
 						const xpx = this.magX * scale + 250;
@@ -108,27 +108,27 @@ export default defineComponent({
 						break;
 					case MspFn.GET_GPS_ACCURACY:
 						this.gpsAcc = {
-							tAcc: leBytesToInt(command.data.slice(0, 4)) * 1e-3,
-							hAcc: leBytesToInt(command.data.slice(4, 8)) * 1e-3,
-							vAcc: leBytesToInt(command.data.slice(8, 12)) * 1e-3,
-							sAcc: leBytesToInt(command.data.slice(12, 16)) * 1e-3,
-							headAcc: leBytesToInt(command.data.slice(16, 20)) * 1e-5,
-							pDop: leBytesToInt(command.data.slice(20, 24)) * 0.01
+							tAcc: leBytesToInt(command.data, 0, 4) * 1e-3,
+							hAcc: leBytesToInt(command.data, 4, 4) * 1e-3,
+							vAcc: leBytesToInt(command.data, 8, 4) * 1e-3,
+							sAcc: leBytesToInt(command.data, 12, 4) * 1e-3,
+							headAcc: leBytesToInt(command.data, 16, 4) * 1e-5,
+							pDop: leBytesToInt(command.data, 20, 4) * 0.01
 						};
 						break;
 					case MspFn.GET_GPS_MOTION:
 						this.gpsMotion = {
-							lat: leBytesToInt(command.data.slice(0, 4), true) * 1e-7,
-							lon: leBytesToInt(command.data.slice(4, 8), true) * 1e-7,
-							alt: leBytesToInt(command.data.slice(8, 12), true) * 1e-3,
-							velN: leBytesToInt(command.data.slice(12, 16), true) * 1e-3,
-							velE: leBytesToInt(command.data.slice(16, 20), true) * 1e-3,
-							velD: leBytesToInt(command.data.slice(20, 24), true) * 1e-3,
-							gSpeed: leBytesToInt(command.data.slice(24, 28), true) * 1e-3,
-							headMot: leBytesToInt(command.data.slice(28, 32), true) * 1e-5
+							lat: leBytesToInt(command.data, 0, 4, true) * 1e-7,
+							lon: leBytesToInt(command.data, 4, 4, true) * 1e-7,
+							alt: leBytesToInt(command.data, 8, 4, true) * 1e-3,
+							velN: leBytesToInt(command.data, 12, 4, true) * 1e-3,
+							velE: leBytesToInt(command.data, 16, 4, true) * 1e-3,
+							velD: leBytesToInt(command.data, 20, 4, true) * 1e-3,
+							gSpeed: leBytesToInt(command.data, 24, 4, true) * 1e-3,
+							headMot: leBytesToInt(command.data, 28, 4, true) * 1e-5
 						};
-						this.combinedAltitude = leBytesToInt(command.data.slice(32, 36), true) / 65536;
-						this.verticalVelocity = leBytesToInt(command.data.slice(36, 40), true) / 65536;
+						this.combinedAltitude = leBytesToInt(command.data, 32, 4, true) / 65536;
+						this.verticalVelocity = leBytesToInt(command.data, 36, 4, true) / 65536;
 						break;
 					case MspFn.GET_GPS_STATUS:
 						this.gpsStatus = {
@@ -138,13 +138,13 @@ export default defineComponent({
 							timeValidityFlags: command.data[3],
 							flags: command.data[4],
 							flags2: command.data[5],
-							flags3: leBytesToInt(command.data.slice(6, 8)),
+							flags3: leBytesToInt(command.data, 6, 2),
 							satCount: command.data[8]
 						};
 						break;
 					case MspFn.GET_GPS_TIME:
 						this.gpsTime = {
-							year: leBytesToInt(command.data.slice(0, 2)),
+							year: leBytesToInt(command.data, 0, 2),
 							month: command.data[2],
 							day: command.data[3],
 							hour: command.data[4],
@@ -161,10 +161,10 @@ export default defineComponent({
 						break;
 					case MspFn.GET_BARO_DATA:
 						this.baro = {
-							altitude: leBytesToInt(command.data.slice(0, 4), true) * 1e-3,
-							pressure: leBytesToInt(command.data.slice(4, 8), true) * 1e-3,
-							temperature: leBytesToInt(command.data.slice(8, 12), true) * 1e-2,
-							pressureRaw: leBytesToInt(command.data.slice(12, 16), true)
+							altitude: leBytesToInt(command.data, 0, 4, true) * 1e-3,
+							pressure: leBytesToInt(command.data, 4, 4, true) * 1e-3,
+							temperature: leBytesToInt(command.data, 8, 4, true) * 1e-2,
+							pressureRaw: leBytesToInt(command.data, 12, 4, true)
 						};
 						break;
 				}

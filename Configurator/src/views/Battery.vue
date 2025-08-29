@@ -44,13 +44,13 @@ export default defineComponent({
 					this.fcCells = command.data[0]
 					if (this.autoCellCount) this.cellCount = this.fcCells
 					this.batState = command.data[8]
-					this.voltage = leBytesToInt(command.data.slice(9, 11)) / 100
+					this.voltage = leBytesToInt(command.data, 9, 2) / 100
 					// unused: 1,2: capacity; 4,5: mAh drawn; 6,7: amps (10mA steps)
 				} break;
 				case MspFn.GET_BATTERY_SETTINGS: {
 					this.cellCount = command.data[0]
 					this.autoCellCount = this.cellCount === 0
-					this.emptyVoltage = leBytesToInt(command.data.slice(1, 3)) / 100
+					this.emptyVoltage = leBytesToInt(command.data, 1, 2) / 100
 				} break;
 				case MspFn.SET_BATTERY_SETTINGS: {
 					sendCommand(MspFn.SAVE_SETTINGS)

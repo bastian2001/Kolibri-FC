@@ -16,7 +16,7 @@ i16 throttles[4] __attribute__((aligned(4)));
 fix32 gyroScaled[3];
 
 u16 pidGainsNice[3][5] = {0};
-fix32 pidGains[3][5];
+static fix32 pidGains[3][5]; // PID gains (raw, calculated) for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 fix32 iFalloff;
 fix32 pidGainsVVel[4], pidGainsHVel[4];
 fix32 angleModeP = 10;
@@ -26,7 +26,7 @@ u8 rthState = 0, lastRthState = 255; // 0: climb, 1: navigate home, 2: descend, 
 
 fix32 rollSetpoint, pitchSetpoint, yawSetpoint, rollError, pitchError, yawError, rollLast, pitchLast, yawLast, vVelSetpoint, vVelError, vVelLast, eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast, vVelLastSetpoint;
 fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum;
-fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, vVelFF, eVelP, eVelI, eVelD, eVelFF, nVelP, nVelI, nVelD, nVelFF;
+fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, vVelP, vVelI, vVelD, vVelFF, eVelP, eVelI, eVelD, eVelFF, nVelP, nVelI, nVelD, nVelFF, rollSum, pitchSum, yawSum;
 fix32 altSetpoint;
 fix32 throttle;
 fix64 targetLat, targetLon;
@@ -677,9 +677,9 @@ void __not_in_flash_func(pidLoop)() {
 		lastThrottle = throttle;
 
 		// RPY terms
-		fix32 rollTerm = rollP + rollI + rollD + rollFF + rollS;
-		fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
-		fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
+		rollSum = rollP + rollI + rollD + rollFF + rollS;
+		pitchSum = pitchP + pitchI + pitchD + pitchFF + pitchS;
+		yawSum = yawP + yawI + yawD + yawFF + yawS;
 
 		bool runDynIdle = useDynamicIdle && escErpmFailCounter < 10; // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
 		if (runDynIdle) {
@@ -693,15 +693,15 @@ void __not_in_flash_func(pidLoop)() {
 		// apply mixer
 		fix32 tRR, tRL, tFR, tFL;
 #ifdef PROPS_OUT
-		tRR = throttle - rollTerm + pitchTerm + yawTerm;
-		tFR = throttle - rollTerm - pitchTerm - yawTerm;
-		tRL = throttle + rollTerm + pitchTerm - yawTerm;
-		tFL = throttle + rollTerm - pitchTerm + yawTerm;
+		tRR = throttle - rollSum + pitchSum + yawSum;
+		tFR = throttle - rollSum - pitchSum - yawSum;
+		tRL = throttle + rollSum + pitchSum - yawSum;
+		tFL = throttle + rollSum - pitchSum + yawSum;
 #else
-		tRR = throttle - rollTerm + pitchTerm - yawTerm;
-		tFR = throttle - rollTerm - pitchTerm + yawTerm;
-		tRL = throttle + rollTerm + pitchTerm + yawTerm;
-		tFL = throttle + rollTerm - pitchTerm - yawTerm;
+		tRR = throttle - rollSum + pitchSum - yawSum;
+		tFR = throttle - rollSum - pitchSum + yawSum;
+		tRL = throttle + rollSum + pitchSum + yawSum;
+		tFL = throttle + rollSum - pitchSum - yawSum;
 #endif
 		throttles[(u8)MOTOR::RR] = tRR.geti32();
 		throttles[(u8)MOTOR::RL] = tRL.geti32();
