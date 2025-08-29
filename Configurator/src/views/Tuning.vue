@@ -88,24 +88,21 @@ export default defineComponent({
 						if (command.length < 3 * 2 * 5) break;
 						for (let ax = 0; ax < 3; ax++) {
 							for (let i = 0; i < 5; i++)
-								this.pids[ax][i] = leBytesToInt(
-									command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2),
-									false
-								);
+								this.pids[ax][i] = leBytesToInt(command.data, ax * 10 + i * 2, + 2, false);
 						}
 						break;
 					case MspFn.GET_EXT_PID:
-						this.iFalloff = leBytesToInt(command.data.slice(0, 2))
+						this.iFalloff = leBytesToInt(command.data, 0, 2)
 						this.useDynamicIdle = command.data[2] !== 0
 						this.idlePercent = command.data[3] / 10
-						this.dynamicIdleRpm = leBytesToInt(command.data.slice(4, 6))
+						this.dynamicIdleRpm = leBytesToInt(command.data, 4, 2)
 						break;
 					case MspFn.GET_RATES:
 						if (command.length !== 3 * 2 * 3) break;
 						for (let ax = 0; ax < 3; ax++) {
-							this.rateCoeffs[ax].center = leBytesToInt(command.data.slice(ax * 6, ax * 6 + 2));
-							this.rateCoeffs[ax].max = leBytesToInt(command.data.slice(ax * 6 + 2, ax * 6 + 4));
-							this.rateCoeffs[ax].expo = leBytesToInt(command.data.slice(ax * 6 + 4, ax * 6 + 6)) / 8192;
+							this.rateCoeffs[ax].center = leBytesToInt(command.data, ax * 6, 2);
+							this.rateCoeffs[ax].max = leBytesToInt(command.data, ax * 6 + 2, 2);
+							this.rateCoeffs[ax].expo = leBytesToInt(command.data, ax * 6 + 4, 2) / 8192;
 						}
 						break;
 					case MspFn.SET_PIDS: {
@@ -150,23 +147,23 @@ export default defineComponent({
 					case MspFn.RC:
 						if (command.length < 8) break;
 						for (let i = 0; i < 4; i++) {
-							this.rc[i] = (leBytesToInt(command.data.slice(i * 2, i * 2 + 2), false) - 1500) / 512;
+							this.rc[i] = (leBytesToInt(command.data, i * 2, 2, false) - 1500) / 512;
 						}
 						this.drawSetpointCanvas();
 						break;
 					case MspFn.GET_FILTER_CONFIG:
 						if (command.length < 22) break;
-						this.gyroCutoff = leBytesToInt(command.data.slice(0, 2), false);
-						this.accelCutoff = leBytesToInt(command.data.slice(2, 4), false);
-						this.dCutoff = leBytesToInt(command.data.slice(4, 6), false);
-						this.setpointDiffCutoff = leBytesToInt(command.data.slice(6, 8), false) / 10;
-						this.magCutoff = leBytesToInt(command.data.slice(8, 10), false) / 100;
-						this.altholdFfCutoff = leBytesToInt(command.data.slice(10, 12), false) / 100;
-						this.altholdDCutoff = leBytesToInt(command.data.slice(12, 14), false) / 10;
-						this.posholdFfCutoff = leBytesToInt(command.data.slice(14, 16), false) / 100;
-						this.posholdIrelaxCutoff = leBytesToInt(command.data.slice(16, 18), false) / 100;
-						this.posholdPushCutoff = leBytesToInt(command.data.slice(18, 20), false) / 10;
-						this.gpsVelocityCutoff = leBytesToInt(command.data.slice(20, 22), false) / 100;
+						this.gyroCutoff = leBytesToInt(command.data, 0, 2, false);
+						this.accelCutoff = leBytesToInt(command.data, 2, 2, false);
+						this.dCutoff = leBytesToInt(command.data, 4, 2, false);
+						this.setpointDiffCutoff = leBytesToInt(command.data, 6, 2, false) / 10;
+						this.magCutoff = leBytesToInt(command.data, 8, 2, false) / 100;
+						this.altholdFfCutoff = leBytesToInt(command.data, 10, 2, false) / 100;
+						this.altholdDCutoff = leBytesToInt(command.data, 12, 2, false) / 10;
+						this.posholdFfCutoff = leBytesToInt(command.data, 14, 2, false) / 100;
+						this.posholdIrelaxCutoff = leBytesToInt(command.data, 16, 2, false) / 100;
+						this.posholdPushCutoff = leBytesToInt(command.data, 18, 2, false) / 10;
+						this.gpsVelocityCutoff = leBytesToInt(command.data, 20, 2, false) / 100;
 						break;
 				}
 			}

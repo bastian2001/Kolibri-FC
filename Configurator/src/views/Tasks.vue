@@ -98,15 +98,15 @@ export default defineComponent({
 				switch (command.command) {
 					case MspFn.TASK_STATUS:
 						for (let i = 0; i < this.tasks.length; i++) {
-							this.tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 28, i * 28 + 4));
-							this.tasks[i].minDuration = leBytesToInt(command.data.slice(i * 28 + 6, i * 28 + 8));
-							this.tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 28 + 4, i * 28 + 6));
-							this.tasks[i].frequency = leBytesToInt(command.data.slice(i * 28 + 8, i * 28 + 12));
-							this.tasks[i].totalDuration = leBytesToInt(command.data.slice(i * 28 + 12, i * 28 + 16));
+							this.tasks[i].debugInfo = leBytesToInt(command.data, i * 28, 4);
+							this.tasks[i].minDuration = leBytesToInt(command.data, i * 28 + 6, 2);
+							this.tasks[i].maxDuration = leBytesToInt(command.data, i * 28 + 4, 2);
+							this.tasks[i].frequency = leBytesToInt(command.data, i * 28 + 8, 4);
+							this.tasks[i].totalDuration = leBytesToInt(command.data, i * 28 + 12, 4);
 							this.tasks[i].avgDuration = this.tasks[i].totalDuration / this.tasks[i].frequency;
-							this.tasks[i].errorCount = leBytesToInt(command.data.slice(i * 28 + 16, i * 28 + 20));
-							this.tasks[i].lastError = leBytesToInt(command.data.slice(i * 28 + 20, i * 28 + 24));
-							this.tasks[i].maxGap = leBytesToInt(command.data.slice(i * 28 + 24, i * 28 + 28));
+							this.tasks[i].errorCount = leBytesToInt(command.data, i * 28 + 16, 4);
+							this.tasks[i].lastError = leBytesToInt(command.data, i * 28 + 20, 4);
+							this.tasks[i].maxGap = leBytesToInt(command.data, i * 28 + 24, 4);
 						}
 						break;
 				}

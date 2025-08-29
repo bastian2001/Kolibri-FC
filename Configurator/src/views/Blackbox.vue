@@ -113,7 +113,7 @@ export default defineComponent({
 					case MspFn.BB_FILE_LIST:
 						const nums = [];
 						for (let i = 0; i < command.data.length; i += 2) {
-							const num = leBytesToInt(command.data.slice(i, i + 2));
+							const num = leBytesToInt(command.data, i, 2);
 							nums.push(num);
 						}
 						nums.sort((a, b) => a - b);
@@ -898,12 +898,12 @@ export default defineComponent({
 				this.rejectWrongFile('Wrong init frame size: ' + data.length);
 				return;
 			}
-			this.binFileNumber = leBytesToInt(data.slice(0, 2));
-			this.binFile = new Uint8Array(leBytesToInt(data.slice(2, 6)));
+			this.binFileNumber = leBytesToInt(data, 0, 2);
+			this.binFile = new Uint8Array(leBytesToInt(data, 2, 4));
 			this.receivedChunks = [];
 			this.graphs = [[]];
 			this.loadedLog = undefined;
-			this.chunkSize = leBytesToInt(data.slice(6, 10));
+			this.chunkSize = leBytesToInt(data, 6, 4);
 			this.totalChunks = Math.ceil(this.binFile.length / this.chunkSize);
 			sendCommand(MspFn.BB_FILE_DOWNLOAD, [
 				...intToLeBytes(this.binFileNumber, 2)
@@ -941,13 +941,13 @@ export default defineComponent({
 			//bytes 2-5 are the chunk number
 			//typically 1024 bytes of binary file data, and less for the last packet
 
-			if (this.binFileNumber !== leBytesToInt(data.slice(0, 2))) {
+			if (this.binFileNumber !== leBytesToInt(data, 0, 2)) {
 				this.rejectWrongFile('Wrong file number: ' + this.binFileNumber);
 				this.binFileNumber = -1;
 				return;
 			}
 
-			const chunkNum = leBytesToInt(data.slice(2, 6));
+			const chunkNum = leBytesToInt(data, 2, 4);
 			const chunkData = data.slice(6);
 			this.receivedChunks[chunkNum] = true;
 
@@ -1005,15 +1005,15 @@ export default defineComponent({
 			 * 13-16: duration in ms
 			 */
 			for (let i = 0; i < data.length; i += 17) {
-				const fileNum = leBytesToInt(data.slice(i, i + 2));
-				// const fileSize = leBytesToInt(data.slice(i + 2, i + 6));
-				const bbVersion = leBytesToInt(data.slice(i + 6, i + 9).reverse(), false);
-				const startTime = new Date(leBytesToInt(data.slice(i + 9, i + 13), false) * 1000);
+				const fileNum = leBytesToInt(data, i, 2);
+				// const fileSize = leBytesToInt(data, i + 2, 4);
+				const bbVersion = leBytesToInt(data.slice(i + 6, i + 9).reverse(), 0, 3);
+				const startTime = new Date(leBytesToInt(data, i + 9, 4) * 1000);
 				if (bbVersion !== 1) continue;
 				//append duration of log file to logNums
 				const index = this.logNums.findIndex(n => n.num == fileNum);
 				if (index == -1) continue;
-				const duration = Math.round(leBytesToInt(data.slice(i + 13, i + 17), false) / 1000);
+				const duration = Math.round(leBytesToInt(data, i + 13, 4) / 1000);
 				this.logNums[index].text = `${this.logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
 				this.selected = fileNum;
 			}

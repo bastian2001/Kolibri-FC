@@ -424,6 +424,7 @@ void ExpressLRS::processMessage() {
 		downlinkRssi = -inPayload[7];
 		downlinkLinkQuality = inPayload[8];
 		downlinkSNR = inPayload[9];
+		newLinkStatsFlag = 0xFFFFFFFF;
 	} break;
 	case FRAMETYPE_DEVICE_PING: {
 		char buf[32] = FIRMWARE_NAME " " FIRMWARE_VERSION_STRING;

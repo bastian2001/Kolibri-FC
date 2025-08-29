@@ -77,15 +77,15 @@ export default defineComponent({
 						if (data.length < 18) break;
 						// accel comes in raw 16 bit signed
 						for (let i = 0; i < 3; i++) {
-							this.values[i] = leBytesToInt(data.slice(i * 2, i * 2 + 2), true) / 2048;
+							this.values[i] = leBytesToInt(data, i * 2, 2, true) / 2048;
 						}
 						// gyro comes in as deg/s already
 						for (let i = 3; i < 6; i++) {
-							this.values[i] = leBytesToInt(data.slice(i * 2, i * 2 + 2), true);
+							this.values[i] = leBytesToInt(data, i * 2, 2, true);
 						}
 						// mag comes in raw 16 bit signed
 						for (let i = 6; i < 9; i++) {
-							this.values[i] = leBytesToInt(data.slice(i * 2, i * 2 + 2), true);
+							this.values[i] = leBytesToInt(data, i * 2, 2, true);
 						}
 
 						this.gotTypes.push(MspFn.MSP_RAW_IMU);
@@ -97,10 +97,10 @@ export default defineComponent({
 
 						const data = command.data;
 						if (data.length < 8) break;
-						let pitch = leBytesToInt(data.slice(0, 2), true) / 8192 * 180 / Math.PI;
-						let roll = leBytesToInt(data.slice(2, 4), true) / 8192 * 180 / Math.PI;
-						let yaw = leBytesToInt(data.slice(4, 6), true) / 8192 * 180 / Math.PI;
-						let heading = leBytesToInt(data.slice(6, 8), true) / 8192 * 180 / Math.PI;
+						let pitch = leBytesToInt(data, 0, 2, true) / 8192 * 180 / Math.PI;
+						let roll = leBytesToInt(data, 2, 2, true) / 8192 * 180 / Math.PI;
+						let yaw = leBytesToInt(data, 4, 2, true) / 8192 * 180 / Math.PI;
+						let heading = leBytesToInt(data, 6, 2, true) / 8192 * 180 / Math.PI;
 						this.values[9] = roll;
 						this.values[10] = pitch;
 						this.values[11] = yaw;
@@ -115,7 +115,7 @@ export default defineComponent({
 
 						const data = command.data;
 						if (data.length < 4) break;
-						this.values[13] = leBytesToInt(data.slice(0, 4), true) / 100;
+						this.values[13] = leBytesToInt(data, 0, 4, true) / 100;
 
 						this.gotTypes.push(MspFn.MSP_ALTITUDE);
 						this.checkHistory();
@@ -126,7 +126,7 @@ export default defineComponent({
 
 						const data = command.data;
 						for (let i = 0; i < data.length / 2; i++) {
-							this.values[14 + i] = leBytesToInt(data.slice(i * 2, i * 2 + 2), true);
+							this.values[14 + i] = leBytesToInt(data, i * 2, 2, true);
 						}
 
 						this.gotTypes.push(MspFn.RC);
@@ -138,10 +138,10 @@ export default defineComponent({
 
 						const data = command.data;
 						if (data.length < 8) break;
-						this.values[22] = leBytesToInt(data.slice(0, 2), true);
-						this.values[23] = leBytesToInt(data.slice(2, 4), true);
-						this.values[24] = leBytesToInt(data.slice(4, 6), true);
-						this.values[25] = leBytesToInt(data.slice(6, 8), true);
+						this.values[22] = leBytesToInt(data, 0, 2, true);
+						this.values[23] = leBytesToInt(data, 2, 2, true);
+						this.values[24] = leBytesToInt(data, 4, 2, true);
+						this.values[25] = leBytesToInt(data, 6, 2, true);
 
 						this.gotTypes.push(MspFn.DEBUG_SENSORS);
 						this.checkHistory();

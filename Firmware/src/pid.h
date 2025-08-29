@@ -21,11 +21,10 @@ enum {
 	S,
 };
 extern u16 pidGainsNice[3][5]; // PID gains as configured for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
-extern fix32 pidGains[3][5]; // PID gains (raw, calculated) for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 extern fix32 iFalloff; // I term is reduced by this value per second
 extern fix32 rollSetpoint, pitchSetpoint, yawSetpoint; // acro setpoint (deg/s), provided by control.cpp and used by pid.cpp
 extern fix32 throttleSetpoint; // throttle value as set by the control functions (acro/angle/...)
-extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS; // acro PID summands
+extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, rollSum, pitchSum, yawSum; // acro PID summands
 extern fix32 throttle; // current throttle setpoint (idlePermille*2 to 2000)
 extern PT1 gyroFiltered[3]; // gyro filter (currently PT1) deg/s
 extern i16 throttles[4]; // throttle values for the motors (0-2000)

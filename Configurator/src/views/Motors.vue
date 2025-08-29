@@ -57,7 +57,7 @@ export default defineComponent({
 						{
 							const m: number[] = [];
 							for (let i = 0; i < 4; i++) {
-								m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
+								m.push(leBytesToInt(command.data, i * 2, 2));
 							}
 							this.motors = m;
 						}

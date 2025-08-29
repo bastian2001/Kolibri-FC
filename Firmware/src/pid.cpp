@@ -18,7 +18,7 @@ PT1 gyroFiltered[3];
 
 // PID controller config
 u16 pidGainsNice[3][5] = {0};
-fix32 pidGains[3][5];
+static fix32 pidGains[3][5]; // PID gains (raw, calculated) for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 fix32 iFalloff;
 u16 dFilterCutoff;
 u16 gyroFilterCutoff;
@@ -30,7 +30,7 @@ fix32 throttleSetpoint;
 // PID controller runtime variables
 static fix32 rollLast, pitchLast, yawLast; // rate of last PID cycle (deg/s)
 static fix64 rollErrorSum, pitchErrorSum, yawErrorSum; // I term sum for the PID controller
-fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS;
+fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, rollSum, pitchSum, yawSum;
 fix32 throttle;
 PT2 dFilterRoll, dFilterPitch, dFilterYaw;
 
@@ -221,9 +221,9 @@ void pidLoop() {
 	lastThrottle = throttle;
 
 	// RPY terms
-	fix32 rollTerm = rollP + rollI + rollD + rollFF + rollS;
-	fix32 pitchTerm = pitchP + pitchI + pitchD + pitchFF + pitchS;
-	fix32 yawTerm = yawP + yawI + yawD + yawFF + yawS;
+	rollSum = rollP + rollI + rollD + rollFF + rollS;
+	pitchSum = pitchP + pitchI + pitchD + pitchFF + pitchS;
+	yawSum = yawP + yawI + yawD + yawFF + yawS;
 
 	bool runDynIdle = useDynamicIdle && escErpmFailCounter < 10; // make sure rpm data is valid, tolerate up to 10 cycles without a valid RPM before switching to static idle
 	if (runDynIdle) {
@@ -234,23 +234,18 @@ void pidLoop() {
 		throttle += idlePermille * 2; // 0...2000-idlePermille*2 => idlePermille*2...2000
 	}
 
-	// static u8 c = 0;
-	// if (!c++) {
-	// 	Serial.printf("%d %d\n", throttleSetpoint.geti32(), throttle.geti32());
-	// }
-
 	// apply mixer
 	fix32 tRR, tRL, tFR, tFL;
 #ifdef PROPS_OUT
-	tRR = throttle - rollTerm + pitchTerm + yawTerm;
-	tFR = throttle - rollTerm - pitchTerm - yawTerm;
-	tRL = throttle + rollTerm + pitchTerm - yawTerm;
-	tFL = throttle + rollTerm - pitchTerm + yawTerm;
+	tRR = throttle - rollSum + pitchSum + yawSum;
+	tFR = throttle - rollSum - pitchSum - yawSum;
+	tRL = throttle + rollSum + pitchSum - yawSum;
+	tFL = throttle + rollSum - pitchSum + yawSum;
 #else
-	tRR = throttle - rollTerm + pitchTerm - yawTerm;
-	tFR = throttle - rollTerm - pitchTerm + yawTerm;
-	tRL = throttle + rollTerm + pitchTerm + yawTerm;
-	tFL = throttle + rollTerm - pitchTerm - yawTerm;
+	tRR = throttle - rollSum + pitchSum - yawSum;
+	tFR = throttle - rollSum - pitchSum + yawSum;
+	tRL = throttle + rollSum + pitchSum + yawSum;
+	tFL = throttle + rollSum - pitchSum - yawSum;
 #endif
 	throttles[(u8)MOTOR::RR] = tRR.geti32();
 	throttles[(u8)MOTOR::RL] = tRL.geti32();
