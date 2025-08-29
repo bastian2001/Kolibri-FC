@@ -3,7 +3,7 @@ import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/msp/
 import { MspFn } from '@/msp/protocol';
 import { Command, FlagProps } from '@utils/types';
 import { defineComponent, PropType } from 'vue';
-import { leBytesToInt } from '@utils/utils';
+import { leBytesToBigInt } from '@utils/utils';
 
 export default defineComponent({
 	name: 'BlackboxSettings',
@@ -46,12 +46,10 @@ export default defineComponent({
 					case MspFn.GET_BB_SETTINGS:
 						if (command.length !== 9) break;
 						this.divider = command.data[0];
-						const selectedBin = leBytesToInt(command.data.slice(1, 5), false);
-						const selectedBin2 = leBytesToInt(command.data.slice(5, 9), false);
+						const selectedBin = leBytesToBigInt(command.data, 1, 8, false);
 						const sel = [];
-						for (let i = 0; i < 32; i++) {
-							if (selectedBin & (1 << i)) sel.push(this.flagNames[i]);
-							if (selectedBin2 & (1 << i)) sel.push(this.flagNames[i + 32]);
+						for (let i = 0; i < 64; i++) {
+							if (selectedBin & 1n << BigInt(i)) sel.push(this.flagNames[i]);
 						}
 						this.selected = sel;
 						break;

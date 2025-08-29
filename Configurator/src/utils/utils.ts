@@ -1,28 +1,32 @@
 import Mexp from "math-expression-evaluator"
 import { ActualCoeffs } from "./types"
 
-export const leBytesToInt = (bytes: number[] | Uint8Array, signed = false) => {
+export const leBytesToInt = (bytes: number[] | Uint8Array, start: number, length: number, signed = false) => {
 	let value = 0
+	const end = start + length
 	let mul = 1
-	for (let i = 0; i < bytes.length; i++) {
+
+	for (let i = start; i < end; i++) {
 		value += bytes[i] * mul
 		mul *= 256
 	}
-	if (signed && bytes[bytes.length - 1] & 0b10000000) {
+	if (signed && bytes[end - 1] & 0b10000000) {
 		value -= mul
 	}
 	return value
 }
 
-export const leBytesToBigInt = (bytes: number[] | Uint8Array, signed = false) => {
+export const leBytesToBigInt = (bytes: number[] | Uint8Array, start: number, length: number, signed = false) => {
 	let value = 0n
-	let mul = 1n
-	for (let i = 0; i < bytes.length; i++) {
-		value += BigInt(bytes[i]) * mul
-		mul *= 256n
+	const end = start + length
+	let shift = 0n
+
+	for (let i = start; i < end; i++) {
+		value |= BigInt(bytes[i]) << shift
+		shift += 8n
 	}
-	if (signed && bytes[bytes.length - 1] & 0b10000000) {
-		value -= mul
+	if (signed) {
+		value = BigInt.asIntN(Number(shift), value)
 	}
 	return value
 }

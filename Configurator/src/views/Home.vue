@@ -75,36 +75,36 @@ export default defineComponent({
 				switch (command.command) {
 					case MspFn.MSP_ATTITUDE:
 						this.attitude = {
-							roll: -leBytesToInt(command.data.slice(0, 2), true) / 10,
-							pitch: leBytesToInt(command.data.slice(2, 4), true) / 10,
-							yaw: leBytesToInt(command.data.slice(4, 6), true),
-							heading: leBytesToInt(command.data.slice(4, 6), true)
+							roll: -leBytesToInt(command.data, 0, 2, true) / 10,
+							pitch: leBytesToInt(command.data, 2, 2, true) / 10,
+							yaw: leBytesToInt(command.data, 4, 2, true),
+							heading: leBytesToInt(command.data, 4, 2, true)
 						};
 						break;
 					case MspFn.STATUS:
 						this.armed = command.data[2] === 1;
 						this.flightMode = command.data[3];
-						this.armingDisableFlags = leBytesToInt(command.data.slice(4, 8));
+						this.armingDisableFlags = leBytesToInt(command.data, 4, 4);
 						this.configuratorConnected = command.data[8] === 1;
 						break;
 					case MspFn.GET_ROTATION:
-						let pitch = leBytesToInt(command.data.slice(0, 2), true);
+						let pitch = leBytesToInt(command.data, 0, 2, true);
 						pitch /= 8192.0;
 						pitch *= 180.0 / Math.PI;
-						let roll = leBytesToInt(command.data.slice(2, 4), true);
+						let roll = leBytesToInt(command.data, 2, 2, true);
 						roll /= 8192.0;
 						roll *= 180.0 / Math.PI;
-						let yaw = leBytesToInt(command.data.slice(4, 6), true);
+						let yaw = leBytesToInt(command.data, 4, 2, true);
 						yaw /= 8192.0;
 						yaw *= 180.0 / Math.PI;
-						let heading = leBytesToInt(command.data.slice(6, 8), true);
+						let heading = leBytesToInt(command.data, 6, 2, true);
 						heading /= 8192.0;
 						heading *= 180.0 / Math.PI;
 						this.attitude = { roll, pitch, yaw, heading };
 						break;
 					case MspFn.SERIAL_PASSTHROUGH:
 						const sPort = command.data[0];
-						const baud = leBytesToInt(command.data.slice(1, 5));
+						const baud = leBytesToInt(command.data, 1, 4);
 						this.configuratorLog.push(
 							`Serial passthrough started on Serial${sPort} with baud rate ${baud}`
 						);
@@ -128,7 +128,7 @@ export default defineComponent({
 						this.configuratorLog.push('Crash dump cleared');
 						break;
 					case MspFn.GET_RTC:
-						this.time.year = leBytesToInt(command.data.slice(0, 2));
+						this.time.year = leBytesToInt(command.data, 0, 2);
 						this.time.month = command.data[2];
 						this.time.day = command.data[3];
 						this.time.hour = command.data[4];

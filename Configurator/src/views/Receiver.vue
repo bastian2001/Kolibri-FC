@@ -84,22 +84,22 @@ export default defineComponent({
 							this.channels = new Array(channelCount).fill(1500);
 						}
 						for (let i = 0; i < 16; i++) {
-							this.channels[i] = leBytesToInt(command.data.slice(i * 2, i * 2 + 2));
+							this.channels[i] = leBytesToInt(command.data, i * 2, 2);
 						}
 					} break;
 					case MspFn.GET_RX_STATUS: {
 						this.isReceiverUp = command.data[0] > 0;
 						this.isLinkUp = command.data[1] > 0;
-						this.uplinkRssi[0] = leBytesToInt([command.data[2]], true);
-						this.uplinkRssi[1] = leBytesToInt([command.data[3]], true);
+						this.uplinkRssi[0] = leBytesToInt(command.data, 2, 1, true);
+						this.uplinkRssi[1] = leBytesToInt(command.data, 3, 1, true);
 						this.uplinkLinkQuality = command.data[4];
-						this.uplinkSnr = leBytesToInt([command.data[5]], true);
+						this.uplinkSnr = leBytesToInt(command.data, 5, 1, true);
 						this.antennaSelection = command.data[6];
 						this.packetRateIdx = command.data[7];
-						this.txPower = leBytesToInt(command.data.slice(8, 10));
-						this.targetPacketRate = leBytesToInt(command.data.slice(10, 12));
-						this.actualPacketRate = leBytesToInt(command.data.slice(12, 14));
-						this.rcMsgCount = leBytesToInt(command.data.slice(14, 18));
+						this.txPower = leBytesToInt(command.data, 8, 2);
+						this.targetPacketRate = leBytesToInt(command.data, 10, 2);
+						this.actualPacketRate = leBytesToInt(command.data, 12, 2);
+						this.rcMsgCount = leBytesToInt(command.data, 14, 4);
 					} break;
 					case MspFn.GET_RX_MODES: {
 						const modeCount = command.data.length / 4;

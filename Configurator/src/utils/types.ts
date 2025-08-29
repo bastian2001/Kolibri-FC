@@ -103,6 +103,14 @@ export type LogData = {
 	pidSumYaw?: Int16Array
 	timestamp?: Uint32Array
 	vbat?: Float32Array
+	linkRssiA?: Int16Array
+	linkRssiB?: Int16Array
+	linkLqi?: Uint8Array
+	linkSnr?: Int8Array
+	linkAntennaSel?: Uint8Array
+	linkTargetHz?: Uint16Array
+	linkActualHz?: Uint16Array
+	linkTxPow?: Uint16Array
 }
 
 export type ActualCoeffs = {

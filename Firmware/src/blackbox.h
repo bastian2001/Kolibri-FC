@@ -54,6 +54,7 @@
 #define LOG_DEBUG_4 (1LL << 43) // 2 bytes
 #define LOG_PID_SUM (1LL << 44) // 6 bytes
 #define LOG_VBAT (1LL << 45) // 0 bytes
+#define LOG_LINK_STATS (1LL << 46) // 0 bytes
 // 113 bytes max
 
 #define LOG_HEAD_MAGIC 0
@@ -75,6 +76,7 @@
 #define BB_FRAME_GPS 3 // GPS frame, i.e. PVT message
 #define BB_FRAME_RC 4 // RC frame, ELRS channels
 #define BB_FRAME_VBAT 5 // Battery frame
+#define BB_FRAME_LINK_STATS 6 // ELRS link statistics
 
 extern u64 bbFlags; // 64 bits of flags for the blackbox (LOG_ macros)
 extern volatile bool bbLogging, fsReady; // Blackbox state

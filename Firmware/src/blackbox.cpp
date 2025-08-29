@@ -53,13 +53,13 @@ u32 bbWriteBufferPos = 0;
 bool lastHighlightState = false;
 FlightMode lastSavedFlightMode = FlightMode::LENGTH;
 
-void writeFlightModeToBlackbox() {
+static void writeFlightModeToBlackbox() {
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
 	bbWriteBuffer[bbWriteBufferPos++] = (u8)flightMode;
 	lastSavedFlightMode = flightMode;
 }
 
-void writeElrsToBlackbox() {
+static void writeElrsToBlackbox() {
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_RC;
 	u64 channels = 0;
 	channels |= ELRS->channels[0];
@@ -71,11 +71,34 @@ void writeElrsToBlackbox() {
 	ELRS->newPacketFlag &= ~(1 << 1);
 }
 
-void writeGpsToBlackbox() {
+static void writeGpsToBlackbox() {
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_GPS;
 	memcpy(bbWriteBuffer + bbWriteBufferPos, currentPvtMsg, 92);
 	bbWriteBufferPos += 92;
 	newPvtMessageFlag &= ~(1 << 0);
+}
+
+static void writeVbatToBlackbox() {
+	adcFlag &= ~(1 << 0);
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_VBAT;
+	bbWriteBuffer[bbWriteBufferPos++] = adcVoltage;
+	bbWriteBuffer[bbWriteBufferPos++] = adcVoltage >> 8;
+}
+
+static void writeElrsLinkToBlackbox() {
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_LINK_STATS;
+	bbWriteBuffer[bbWriteBufferPos++] = -ELRS->uplinkRssi[0];
+	bbWriteBuffer[bbWriteBufferPos++] = -ELRS->uplinkRssi[1];
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->uplinkLinkQuality;
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->uplinkSNR;
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->antennaSelection;
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->targetPacketRate;
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->targetPacketRate >> 8;
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->actualPacketRate;
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->actualPacketRate >> 8;
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->txPower;
+	bbWriteBuffer[bbWriteBufferPos++] = ELRS->txPower >> 8;
+	ELRS->newLinkStatsFlag &= ~(1 << 0);
 }
 
 void blackboxLoop() {
@@ -148,10 +171,11 @@ void blackboxLoop() {
 
 	// save VBat to Blackbox
 	if (adcFlag & (1 << 0) && currentBBFlags & LOG_VBAT && BB_WR_BUF_HAS_FREE(2 + 1)) {
-		adcFlag &= ~(1 << 0);
-		bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_VBAT;
-		bbWriteBuffer[bbWriteBufferPos++] = adcVoltage;
-		bbWriteBuffer[bbWriteBufferPos++] = adcVoltage >> 8;
+		writeVbatToBlackbox();
+	}
+
+	if (ELRS->newLinkStatsFlag && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 + 1)) {
+		writeElrsLinkToBlackbox();
 	}
 
 	// write buffer
@@ -375,6 +399,8 @@ void startLogging() {
 	writeFlightModeToBlackbox();
 	if (currentBBFlags & LOG_GPS) writeGpsToBlackbox();
 	if (currentBBFlags & LOG_ELRS_RAW) writeElrsToBlackbox();
+	if (currentBBFlags & LOG_VBAT) writeVbatToBlackbox();
+	if (currentBBFlags & LOG_LINK_STATS) writeElrsLinkToBlackbox();
 	bbLogging = true;
 	frametime = 0;
 }
