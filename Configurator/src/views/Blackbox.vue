@@ -971,7 +971,6 @@ export default defineComponent({
 			}
 		},
 		decodeBinFile() {
-			console.log(Date.now())
 			const l = parseBlackbox(this.binFile)
 			if (typeof l === 'string') {
 				this.rejectWrongFile(
@@ -982,7 +981,6 @@ export default defineComponent({
 			fillLogWithGenFlags(l);
 			this.loadedLog = l;
 			this.resolveWhenReady(l);
-			console.log(Date.now())
 		},
 		getLogInfo() {
 			const infoNums: number[] = [];

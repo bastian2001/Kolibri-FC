@@ -8,8 +8,8 @@ u8 accelCalDone = 0;
 
 elapsedMillis mspOverrideMotors = 1001;
 
-static constexpr char targetIdentifier[] = "KD04";
-static constexpr char targetFullName[] = "Kolibri Dev v0.4";
+static constexpr char targetIdentifier[] = "KD05";
+static constexpr char targetFullName[] = "Kolibri Dev v0.5";
 
 elapsedMicros lastConfigPingRx = 0;
 bool configuratorConnected = false;
