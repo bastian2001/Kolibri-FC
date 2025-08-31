@@ -904,7 +904,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = data >> 8;
 			buf[len++] = dFilterCutoff & 0xFF;
 			buf[len++] = dFilterCutoff >> 8;
-			data = (setpointDiffCutoff * 10 + 0.5f).geti32();
+			data = (iRelaxCutoff * 10 + 0.5f).geti32();
+			buf[len++] = data & 0xFF;
+			buf[len++] = data >> 8;
+			data = (ffCutoff * 10 + 0.5f).geti32();
 			buf[len++] = data & 0xFF;
 			buf[len++] = data >> 8;
 			data = (magFilterCutoff * 100 + 0.5f).geti32();
@@ -946,28 +949,31 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			dFilterCutoff = DECODE_U2((u8 *)&reqPayload[4]);
 			getSetting(SETTING_DFILTER_CUTOFF)->updateSettingInFile();
 
-			setpointDiffCutoff = DECODE_U2((u8 *)&reqPayload[6]) / 10.0f;
-			getSetting(SETTING_SETPOINT_DIFF_CUTOFF)->updateSettingInFile();
+			iRelaxCutoff = DECODE_U2((u8 *)&reqPayload[6]) / 10.0f;
+			getSetting(SETTING_IRELAX_CUTOFF)->updateSettingInFile();
 
-			magFilterCutoff = DECODE_U2((u8 *)&reqPayload[8]) / 100.0f;
+			ffCutoff = DECODE_U2((u8 *)&reqPayload[8]) / 10.0f;
+			getSetting(SETTING_FF_CUTOFF)->updateSettingInFile();
+
+			magFilterCutoff = DECODE_U2((u8 *)&reqPayload[10]) / 100.0f;
 			getSetting(SETTING_MAG_FILTER_CUTOFF)->updateSettingInFile();
 
-			vvelFFFilterCutoff = DECODE_U2((u8 *)&reqPayload[10]) / 100.0f;
+			vvelFFFilterCutoff = DECODE_U2((u8 *)&reqPayload[12]) / 100.0f;
 			getSetting(SETTING_VVEL_FF_FILTER_CUTOFF)->updateSettingInFile();
 
-			vvelDFilterCutoff = DECODE_U2((u8 *)&reqPayload[12]) / 10.0f;
+			vvelDFilterCutoff = DECODE_U2((u8 *)&reqPayload[14]) / 10.0f;
 			getSetting(SETTING_VVEL_D_FILTER_CUTOFF)->updateSettingInFile();
 
-			hvelFfFilterCutoff = DECODE_U2((u8 *)&reqPayload[14]) / 100.0f;
+			hvelFfFilterCutoff = DECODE_U2((u8 *)&reqPayload[16]) / 100.0f;
 			getSetting(SETTING_HVEL_FF_FILTER_CUTOFF)->updateSettingInFile();
 
-			hvelIRelaxFilterCutoff = DECODE_U2((u8 *)&reqPayload[16]) / 100.0f;
+			hvelIRelaxFilterCutoff = DECODE_U2((u8 *)&reqPayload[18]) / 100.0f;
 			getSetting(SETTING_HVEL_I_RELAX_FILTER_CUTOFF)->updateSettingInFile();
 
-			hvelPushFilterCutoff = DECODE_U2((u8 *)&reqPayload[18]) / 10.0f;
+			hvelPushFilterCutoff = DECODE_U2((u8 *)&reqPayload[20]) / 10.0f;
 			getSetting(SETTING_HVEL_PUSH_FILTER_CUTOFF)->updateSettingInFile();
 
-			gpsVelocityFilterCutoff = DECODE_U2((u8 *)&reqPayload[20]) / 100.0f;
+			gpsVelocityFilterCutoff = DECODE_U2((u8 *)&reqPayload[22]) / 100.0f;
 			getSetting(SETTING_GPS_VEL_FILTER_CUTOFF)->updateSettingInFile();
 
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);

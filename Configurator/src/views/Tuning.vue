@@ -28,7 +28,8 @@ export default defineComponent({
 			gyroCutoff: 0,
 			accelCutoff: 0,
 			dCutoff: 0,
-			setpointDiffCutoff: 0,
+			iRelaxCutoff: 0,
+			ffCutoff: 0,
 			magCutoff: 0,
 			gpsVelocityCutoff: 0,
 			altholdFfCutoff: 0,
@@ -127,7 +128,8 @@ export default defineComponent({
 							...intToLeBytes(this.gyroCutoff, 2),
 							...intToLeBytes(this.accelCutoff, 2),
 							...intToLeBytes(this.dCutoff, 2),
-							...intToLeBytes(this.setpointDiffCutoff * 10, 2),
+							...intToLeBytes(this.iRelaxCutoff * 10, 2),
+							...intToLeBytes(this.ffCutoff * 10, 2),
 							...intToLeBytes(this.magCutoff * 100, 2),
 							...intToLeBytes(this.altholdFfCutoff * 100, 2),
 							...intToLeBytes(this.altholdDCutoff * 10, 2),
@@ -156,14 +158,15 @@ export default defineComponent({
 						this.gyroCutoff = leBytesToInt(command.data, 0, 2, false);
 						this.accelCutoff = leBytesToInt(command.data, 2, 2, false);
 						this.dCutoff = leBytesToInt(command.data, 4, 2, false);
-						this.setpointDiffCutoff = leBytesToInt(command.data, 6, 2, false) / 10;
-						this.magCutoff = leBytesToInt(command.data, 8, 2, false) / 100;
-						this.altholdFfCutoff = leBytesToInt(command.data, 10, 2, false) / 100;
-						this.altholdDCutoff = leBytesToInt(command.data, 12, 2, false) / 10;
-						this.posholdFfCutoff = leBytesToInt(command.data, 14, 2, false) / 100;
-						this.posholdIrelaxCutoff = leBytesToInt(command.data, 16, 2, false) / 100;
-						this.posholdPushCutoff = leBytesToInt(command.data, 18, 2, false) / 10;
-						this.gpsVelocityCutoff = leBytesToInt(command.data, 20, 2, false) / 100;
+						this.iRelaxCutoff = leBytesToInt(command.data, 6, 2, false) / 10;
+						this.ffCutoff = leBytesToInt(command.data, 8, 2, false) / 10;
+						this.magCutoff = leBytesToInt(command.data, 10, 2, false) / 100;
+						this.altholdFfCutoff = leBytesToInt(command.data, 12, 2, false) / 100;
+						this.altholdDCutoff = leBytesToInt(command.data, 14, 2, false) / 10;
+						this.posholdFfCutoff = leBytesToInt(command.data, 16, 2, false) / 100;
+						this.posholdIrelaxCutoff = leBytesToInt(command.data, 18, 2, false) / 100;
+						this.posholdPushCutoff = leBytesToInt(command.data, 20, 2, false) / 10;
+						this.gpsVelocityCutoff = leBytesToInt(command.data, 22, 2, false) / 100;
 						break;
 				}
 			}
@@ -407,9 +410,10 @@ export default defineComponent({
 				<NumericInput v-model="accelCutoff" :min="50" :max="300" :step="5" unit="Hz" class="numericInput" />
 				<p class="inputDescription" for="dCutoff">D-term filter cutoff frequency</p>
 				<NumericInput v-model="dCutoff" :min="20" :max="300" :step="5" unit="Hz" class="numericInput" />
-				<p class="inputDescription" for="setpointDiffCutoff">FF + I-term-relax filter cutoff frequency</p>
-				<NumericInput v-model="setpointDiffCutoff" :min="5" :max="30" :step=".5" unit="Hz"
-					class="numericInput" />
+				<p class="inputDescription" for="iRelaxCutoff">I-term relax filter cutoff frequency</p>
+				<NumericInput v-model="iRelaxCutoff" :min="5" :max="30" :step=".5" unit="Hz" class="numericInput" />
+				<p class="inputDescription" for="ffCutoff">FF cutoff frequency</p>
+				<NumericInput v-model="ffCutoff" :min="5" :max="30" :step=".5" unit="Hz" class="numericInput" />
 				<h4>Advanced flight modes</h4>
 				<p class="inputDescription" for="magCutoff">Magnetometer filter cutoff frequency</p>
 				<NumericInput v-model="magCutoff" :min="0.05" :max="1" :step=".01" unit="Hz" class="numericInput" />
