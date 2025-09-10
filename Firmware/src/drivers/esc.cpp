@@ -10,14 +10,22 @@ u32 escCurrent[4] = {0};
 u8 escErpmFail = 0;
 u32 escErpmFailCounter = 0;
 u16 dshotBeepTone = 1;
+static u8 motorPins[4] = {0};
 
 BidirDShotX1 *escs[4];
 
+void initMotorPins() {
+	for (int i = 0; i < 4; i++) {
+		motorPins[i] = PIN_MOTORS + 3 - i;
+	}
+}
+
 void initESCs() {
 	addSetting(SETTING_BEEP_TONE, &dshotBeepTone, 2);
+	addArraySetting(SETTING_MOTOR_PINS, motorPins, initMotorPins);
 
 	for (int i = 0; i < 4; i++) {
-		escs[3 - i] = new BidirDShotX1(PIN_MOTORS + i, 600, PIO_ESC);
+		escs[i] = new BidirDShotX1(motorPins[i], 600, PIO_ESC);
 	}
 	enableDShot = 1;
 }
@@ -27,6 +35,31 @@ void deinitESCs() {
 		delete escs[i];
 	}
 	enableDShot = 0;
+}
+
+bool updateMotorPins(const u8 newPins[4]) {
+	for (int i = 0; i < 4; i++) {
+		for (int j = i + 1; j < 4; j++) {
+			if (newPins[i] == newPins[j]) return false;
+		}
+	}
+	for (int i = 0; i < 4; i++) {
+		motorPins[i] = newPins[i];
+	}
+	for (int i = 0; i < 4; i++) {
+		delete escs[i];
+	}
+	for (int i = 0; i < 4; i++) {
+		escs[i] = new BidirDShotX1(motorPins[i], 600, PIO_ESC);
+	}
+	getSetting(SETTING_MOTOR_PINS)->updateSettingInFile();
+	return true;
+}
+
+void getMotorPins(u8 pins[4]) {
+	for (int i = 0; i < 4; i++) {
+		pins[i] = motorPins[i];
+	}
 }
 
 void sendRaw11Bit(const u16 raw[4]) {

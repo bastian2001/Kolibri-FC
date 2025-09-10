@@ -6,10 +6,11 @@ import { intToLeBytes, leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "@utils/types";
 import { sendCommand, addOnDisconnectHandler, removeOnDisconnectHandler, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
+import RemapMotors from "@/components/RemapMotors.vue";
 
 export default defineComponent({
 	name: "Motors",
-	components: { Motor },
+	components: { Motor, RemapMotors },
 	data() {
 		return {
 			motors: [1000, 1000, 1000, 1000], // current values
@@ -18,6 +19,7 @@ export default defineComponent({
 			sendInterval: -1,
 			getMotorsInterval: -1,
 			configuratorLog: useLogStore(),
+			motorRemap: false,
 		};
 	},
 	mounted() {
@@ -86,9 +88,11 @@ export default defineComponent({
 		<button @click="() => spinMotor(3)">Spin FL</button>
 		<button @click="() => stopMotors()">Stop</button>
 		<button @click="() => startMotors()">Start</button>
+		<button @click="() => { stopMotors(); motorRemap = true }">Remap</button>
 		<div class="quadPreview">
 			<Motor v-for="m in motorMapping" :throttlePct="(motors[m] - 1000) / 10" />
 		</div>
+		<RemapMotors @close="motorRemap = false" v-if="motorRemap" />
 	</div>
 </template>
 
