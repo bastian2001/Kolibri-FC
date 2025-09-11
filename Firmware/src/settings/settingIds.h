@@ -16,6 +16,7 @@
 
 // motor and ESC settings
 #define SETTING_BEEP_TONE "dshot_beep_tone"
+#define SETTING_MOTOR_PINS "motor_pins"
 
 // battery settings
 #define SETTING_EMPTY_VOLTAGE "bat_empty_voltage"
