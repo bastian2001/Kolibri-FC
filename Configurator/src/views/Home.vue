@@ -277,9 +277,8 @@ export default defineComponent({
 	top: -170px;
 	border-radius: 50%;
 	border: 5px solid #000;
-	background-image: url("/src/assets/grid.png");
-	background-size: 20px 20px;
-	image-rendering: crisp-edges;
+	background-image: url("/src/assets/grid.svg");
+	background-size: 35px 35px;
 }
 
 .zBox {
