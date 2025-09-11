@@ -23,11 +23,8 @@ export default defineComponent({
 	name: 'Home',
 	mounted() {
 		addOnCommandHandler(this.onCommand);
+		this.getRotationContinuous();
 
-
-		this.getRotationInterval = setInterval(() => {
-			sendCommand(MspFn.GET_ROTATION).catch(() => { });
-		}, 20);
 		this.pingInterval = setInterval(() => {
 			this.fcPing = getPingTime();
 		}, 1000);
@@ -40,6 +37,7 @@ export default defineComponent({
 		clearInterval(this.getRotationInterval);
 		clearInterval(this.pingInterval);
 		clearInterval(this.rtcInterval);
+		this.exiting = true
 	},
 	data() {
 		return {
@@ -48,7 +46,7 @@ export default defineComponent({
 			armed: false,
 			configuratorConnected: false,
 			fcPing: -1,
-			getRotationInterval: 0,
+			getRotationInterval: -1,
 			attitude: { roll: 0, pitch: 0, yaw: 0, heading: 0 },
 			showHeading: false,
 			serialNum: 1,
@@ -67,9 +65,35 @@ export default defineComponent({
 			ARMING_DISABLE_FLAGS,
 			prefixZeros,
 			intToLeBytes,
+			exiting: false,
 		};
 	},
 	methods: {
+		async getRotationContinuous() {
+			let counter = 0;
+			setInterval(() => { console.log(counter); counter = 0; }, 1000)
+			while (!this.exiting) {
+				try {
+					const c = await sendCommand(MspFn.GET_ROTATION)
+					let pitch = leBytesToInt(c.data, 0, 2, true)
+					pitch /= 8192.0
+					pitch *= 180.0 / Math.PI
+					let roll = leBytesToInt(c.data, 2, 2, true)
+					roll /= 8192.0
+					roll *= 180.0 / Math.PI
+					let yaw = leBytesToInt(c.data, 4, 2, true)
+					yaw /= 8192.0
+					yaw *= 180.0 / Math.PI
+					let heading = leBytesToInt(c.data, 6, 2, true)
+					heading /= 8192.0
+					heading *= 180.0 / Math.PI
+					this.attitude = { roll, pitch, yaw, heading }
+					counter++
+				} catch (e) {
+					await delay(10) // avoid hung program if sendCommand rejects immediately
+				}
+			}
+		},
 		onCommand(command: Command) {
 			if (command.cmdType === 'response') {
 				switch (command.command) {
@@ -88,19 +112,6 @@ export default defineComponent({
 						this.configuratorConnected = command.data[8] === 1;
 						break;
 					case MspFn.GET_ROTATION:
-						let pitch = leBytesToInt(command.data, 0, 2, true);
-						pitch /= 8192.0;
-						pitch *= 180.0 / Math.PI;
-						let roll = leBytesToInt(command.data, 2, 2, true);
-						roll /= 8192.0;
-						roll *= 180.0 / Math.PI;
-						let yaw = leBytesToInt(command.data, 4, 2, true);
-						yaw /= 8192.0;
-						yaw *= 180.0 / Math.PI;
-						let heading = leBytesToInt(command.data, 6, 2, true);
-						heading /= 8192.0;
-						heading *= 180.0 / Math.PI;
-						this.attitude = { roll, pitch, yaw, heading };
 						break;
 					case MspFn.SERIAL_PASSTHROUGH:
 						const sPort = command.data[0];
