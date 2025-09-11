@@ -807,6 +807,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			getSetting(SETTING_EMPTY_VOLTAGE)->updateSettingInFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
+		case MspFn::GET_MOTOR_LAYOUT: {
+			getMotorPins((u8 *)buf);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 4);
+		} break;
+		case MspFn::SET_MOTOR_LAYOUT: {
+			buf[0] = updateMotorPins((const u8 *)reqPayload);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+		} break;
 		case MspFn::GET_TZ_OFFSET: {
 			buf[0] = rtcTimezoneOffset;
 			buf[1] = rtcTimezoneOffset >> 8;

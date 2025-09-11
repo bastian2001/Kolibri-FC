@@ -85,6 +85,10 @@ export const MspFn = {
 	GET_BATTERY_SETTINGS: 0x4190,
 	SET_BATTERY_SETTINGS: 0x4191,
 
+	// 0x41A_ Motors
+	GET_MOTOR_LAYOUT: 0x41a0,
+	SET_MOTOR_LAYOUT: 0x41a1,
+
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET: 0x41f0,
 	SET_TZ_OFFSET: 0x41f1,
