@@ -35,7 +35,7 @@ export default defineComponent({
 			if (this.chars.length >= 128) {
 				for (let i = 0; i < this.chars.length; i++) {
 					try {
-						await sendCommand(MspFn.WRITE_OSD_FONT_CHARACTER, { data: [i, ...this.chars[i].slice(0, 54)], verifyFn: (req, res) => res.length === 1 && req.data[0] === res.data[0] })
+						await sendCommand(MspFn.WRITE_OSD_FONT_CHARACTER, { data: [i, ...this.chars[i].slice(0, 54)], verifyFn: (req, res) => req.command === res.command && res.length === 1 && req.data[0] === res.data[0] })
 						this.charsDone = i + 1
 						if (i + 1 >= this.chars.length) this.configuratorLog.push('Successfully uploaded OSD font')
 					} catch (er) {

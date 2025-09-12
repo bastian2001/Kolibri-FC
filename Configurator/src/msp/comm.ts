@@ -564,7 +564,7 @@ function ping() {
 		callbackData: Date.now(),
 		verifyFn: (req, res) => res.command === req.command && res.length === 1 && res.data[0] === req.data[0],
 		retries: 0,
-		timeout: 2000,
+		timeout: 1000,
 	})
 		.then(c => {
 			fcPing = Date.now() - c.callbackData
