@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
-import { leBytesToInt } from "@utils/utils";
+import { delay, leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "@utils/types";
 
@@ -10,25 +10,74 @@ export default defineComponent({
 	name: "GpsMag",
 	mounted() {
 		addOnCommandHandler(this.onCommand);
-		this.magPointInterval = setInterval(() => {
-			sendCommand(MspFn.GET_MAG_DATA);
-		}, 50);
+
+		this.getMagContinuous()
 		this.getGpsDataInterval = setInterval(() => {
 			sendCommand(MspFn.GET_GPS_ACCURACY)
-				.then(() => {
+				.then(c => {
+					this.gpsAcc = {
+						tAcc: leBytesToInt(c.data, 0, 4) * 1e-3,
+						hAcc: leBytesToInt(c.data, 4, 4) * 1e-3,
+						vAcc: leBytesToInt(c.data, 8, 4) * 1e-3,
+						sAcc: leBytesToInt(c.data, 12, 4) * 1e-3,
+						headAcc: leBytesToInt(c.data, 16, 4) * 1e-5,
+						pDop: leBytesToInt(c.data, 20, 4) * 0.01
+					};
 					return sendCommand(MspFn.GET_GPS_MOTION);
+				})
+				.then(c => {
+					this.gpsMotion = {
+						lat: leBytesToInt(c.data, 0, 4, true) * 1e-7,
+						lon: leBytesToInt(c.data, 4, 4, true) * 1e-7,
+						alt: leBytesToInt(c.data, 8, 4, true) * 1e-3,
+						velN: leBytesToInt(c.data, 12, 4, true) * 1e-3,
+						velE: leBytesToInt(c.data, 16, 4, true) * 1e-3,
+						velD: leBytesToInt(c.data, 20, 4, true) * 1e-3,
+						gSpeed: leBytesToInt(c.data, 24, 4, true) * 1e-3,
+						headMot: leBytesToInt(c.data, 28, 4, true) * 1e-5
+					};
+					this.combinedAltitude = leBytesToInt(c.data, 32, 4, true) / 65536;
+					this.verticalVelocity = leBytesToInt(c.data, 36, 4, true) / 65536;
 				})
 				.catch(() => { });
 		}, 200);
 		this.gpsDataSlowInterval = setInterval(() => {
 			sendCommand(MspFn.GET_GPS_STATUS)
-				.then(() => {
+				.then(c => {
+					this.gpsStatus = {
+						gpsInited: c.data[0] === 1,
+						initStep: c.data[1],
+						fix: c.data[2],
+						timeValidityFlags: c.data[3],
+						flags: c.data[4],
+						flags2: c.data[5],
+						flags3: leBytesToInt(c.data, 6, 2),
+						satCount: c.data[8]
+					};
 					return sendCommand(MspFn.GET_GPS_TIME);
+				})
+				.then(c => {
+					this.gpsTime = {
+						year: leBytesToInt(c.data, 0, 2),
+						month: c.data[2],
+						day: c.data[3],
+						hour: c.data[4],
+						minute: c.data[5],
+						second: c.data[6]
+					};
 				})
 				.catch(() => { });
 		}, 1000);
 		this.baroDataInterval = setInterval(() => {
-			sendCommand(MspFn.GET_BARO_DATA);
+			sendCommand(MspFn.GET_BARO_DATA)
+				.then(c => {
+					this.baro = {
+						altitude: leBytesToInt(c.data, 0, 4, true) * 1e-3,
+						pressure: leBytesToInt(c.data, 4, 4, true) * 1e-3,
+						temperature: leBytesToInt(c.data, 8, 4, true) * 1e-2,
+						pressureRaw: leBytesToInt(c.data, 12, 4, true)
+					};
+				}).catch(() => { })
 		}, 100);
 	},
 	unmounted() {
@@ -37,6 +86,7 @@ export default defineComponent({
 		clearInterval(this.getGpsDataInterval);
 		clearInterval(this.gpsDataSlowInterval);
 		clearInterval(this.baroDataInterval);
+		this.exiting = true
 	},
 	data() {
 		return {
@@ -60,9 +110,54 @@ export default defineComponent({
 			baroDataInterval: -1,
 			MspFn,
 			sendCommand,
+			exiting: false,
 		};
 	},
 	methods: {
+		async getMagContinuous() {
+			let lastCall = 0
+			while (!this.exiting) {
+				try {
+					const diff = Date.now() - lastCall
+					if (diff <= 16) await delay(16 - diff) // limit to ~60Hz
+					lastCall = Date.now()
+					const c = await sendCommand(MspFn.GET_MAG_DATA)
+					const canvasxy = this.$refs.canvasxy as HTMLCanvasElement | null;
+					const canvasyz = this.$refs.canvasyz as HTMLCanvasElement | null;
+					const canvaszx = this.$refs.canvaszx as HTMLCanvasElement | null;
+					if (!canvasxy || !canvasyz || !canvaszx) return;
+					const ctxxy = canvasxy.getContext('2d');
+					const ctxyz = canvasyz.getContext('2d');
+					const ctxzx = canvaszx.getContext('2d');
+					if (!ctxxy || !ctxyz || !ctxzx) return;
+					this.magX = leBytesToInt(c.data, 0, 2, true);
+					this.magY = leBytesToInt(c.data, 2, 2, true);
+					this.magZ = leBytesToInt(c.data, 4, 2, true);
+					this.magRight = leBytesToInt(c.data, 6, 2, true);
+					this.magFront = leBytesToInt(c.data, 8, 2, true);
+					this.magHeading = leBytesToInt(c.data, 10, 2, true);
+					//each canvas plots values from -500 to 500
+					const scale = 500 / 1000;
+					const xpx = this.magX * scale + 250;
+					const ypx = this.magY * scale + 250;
+					const zpx = this.magZ * scale + 250;
+					ctxxy.fillStyle = 'red';
+					ctxxy.beginPath();
+					ctxxy.arc(xpx, ypx, 2, 0, 2 * Math.PI);
+					ctxxy.fill();
+					ctxyz.fillStyle = 'green';
+					ctxyz.beginPath();
+					ctxyz.arc(ypx, zpx, 2, 0, 2 * Math.PI);
+					ctxyz.fill();
+					ctxzx.fillStyle = 'blue';
+					ctxzx.beginPath();
+					ctxzx.arc(zpx, xpx, 2, 0, 2 * Math.PI);
+					ctxzx.fill();
+				} catch (_) {
+					await delay(10)
+				}
+			}
+		},
 		degToDegMinSec(deg: number) {
 			const d = Math.floor(deg);
 			const m = Math.floor((deg - d) * 60);
@@ -72,100 +167,12 @@ export default defineComponent({
 		onCommand(command: Command) {
 			if (command.cmdType === 'response') {
 				switch (command.command) {
-					case MspFn.GET_MAG_DATA:
-						const canvasxy = this.$refs.canvasxy as HTMLCanvasElement | null;
-						const canvasyz = this.$refs.canvasyz as HTMLCanvasElement | null;
-						const canvaszx = this.$refs.canvaszx as HTMLCanvasElement | null;
-						if (!canvasxy || !canvasyz || !canvaszx) return;
-						const ctxxy = canvasxy.getContext('2d');
-						const ctxyz = canvasyz.getContext('2d');
-						const ctxzx = canvaszx.getContext('2d');
-						if (!ctxxy || !ctxyz || !ctxzx) return;
-						const data = command.data;
-						this.magX = leBytesToInt(data, 0, 2, true);
-						this.magY = leBytesToInt(data, 2, 2, true);
-						this.magZ = leBytesToInt(data, 4, 2, true);
-						this.magRight = leBytesToInt(data, 6, 2, true);
-						this.magFront = leBytesToInt(data, 8, 2, true);
-						this.magHeading = leBytesToInt(data, 10, 2, true);
-						//each canvas plots values from -500 to 500
-						const scale = 500 / 1000;
-						const xpx = this.magX * scale + 250;
-						const ypx = this.magY * scale + 250;
-						const zpx = this.magZ * scale + 250;
-						ctxxy.fillStyle = 'red';
-						ctxxy.beginPath();
-						ctxxy.arc(xpx, ypx, 2, 0, 2 * Math.PI);
-						ctxxy.fill();
-						ctxyz.fillStyle = 'green';
-						ctxyz.beginPath();
-						ctxyz.arc(ypx, zpx, 2, 0, 2 * Math.PI);
-						ctxyz.fill();
-						ctxzx.fillStyle = 'blue';
-						ctxzx.beginPath();
-						ctxzx.arc(zpx, xpx, 2, 0, 2 * Math.PI);
-						ctxzx.fill();
-						break;
-					case MspFn.GET_GPS_ACCURACY:
-						this.gpsAcc = {
-							tAcc: leBytesToInt(command.data, 0, 4) * 1e-3,
-							hAcc: leBytesToInt(command.data, 4, 4) * 1e-3,
-							vAcc: leBytesToInt(command.data, 8, 4) * 1e-3,
-							sAcc: leBytesToInt(command.data, 12, 4) * 1e-3,
-							headAcc: leBytesToInt(command.data, 16, 4) * 1e-5,
-							pDop: leBytesToInt(command.data, 20, 4) * 0.01
-						};
-						break;
-					case MspFn.GET_GPS_MOTION:
-						this.gpsMotion = {
-							lat: leBytesToInt(command.data, 0, 4, true) * 1e-7,
-							lon: leBytesToInt(command.data, 4, 4, true) * 1e-7,
-							alt: leBytesToInt(command.data, 8, 4, true) * 1e-3,
-							velN: leBytesToInt(command.data, 12, 4, true) * 1e-3,
-							velE: leBytesToInt(command.data, 16, 4, true) * 1e-3,
-							velD: leBytesToInt(command.data, 20, 4, true) * 1e-3,
-							gSpeed: leBytesToInt(command.data, 24, 4, true) * 1e-3,
-							headMot: leBytesToInt(command.data, 28, 4, true) * 1e-5
-						};
-						this.combinedAltitude = leBytesToInt(command.data, 32, 4, true) / 65536;
-						this.verticalVelocity = leBytesToInt(command.data, 36, 4, true) / 65536;
-						break;
-					case MspFn.GET_GPS_STATUS:
-						this.gpsStatus = {
-							gpsInited: command.data[0] === 1,
-							initStep: command.data[1],
-							fix: command.data[2],
-							timeValidityFlags: command.data[3],
-							flags: command.data[4],
-							flags2: command.data[5],
-							flags3: leBytesToInt(command.data, 6, 2),
-							satCount: command.data[8]
-						};
-						break;
-					case MspFn.GET_GPS_TIME:
-						this.gpsTime = {
-							year: leBytesToInt(command.data, 0, 2),
-							month: command.data[2],
-							day: command.data[3],
-							hour: command.data[4],
-							minute: command.data[5],
-							second: command.data[6]
-						};
-						break;
 					case MspFn.MAG_CALIBRATION:
 						if (command.data[0] === 1) {
 							this.configuratorLog.push('Magnetometer calibrated');
 						} else {
 							this.configuratorLog.push('Magnetometer calibration started');
 						}
-						break;
-					case MspFn.GET_BARO_DATA:
-						this.baro = {
-							altitude: leBytesToInt(command.data, 0, 4, true) * 1e-3,
-							pressure: leBytesToInt(command.data, 4, 4, true) * 1e-3,
-							temperature: leBytesToInt(command.data, 8, 4, true) * 1e-2,
-							pressureRaw: leBytesToInt(command.data, 12, 4, true)
-						};
 						break;
 				}
 			}
@@ -188,6 +195,7 @@ export default defineComponent({
 			Mag Right: {{ magRight }}, Mag Front: {{ magFront }}<br />
 			Combined Altitude: {{ combinedAltitude.toFixed(2) }}m<br />
 			Vertical Velocity: {{ verticalVelocity.toFixed(2) }}m/s<br />
+			#################################
 		</div>
 		<div class="gpsAcc infoDiv">
 			Time Accuracy: {{ gpsAcc.tAcc.toFixed(2) }}µs<br />

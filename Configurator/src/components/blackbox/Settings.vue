@@ -1,9 +1,10 @@
 <script lang="ts">
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from '@/msp/comm';
+import { sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
-import { Command, FlagProps } from '@utils/types';
+import { FlagProps } from '@utils/types';
 import { defineComponent, PropType } from 'vue';
 import { leBytesToBigInt } from '@utils/utils';
+import { useLogStore } from '@/stores/logStore';
 
 export default defineComponent({
 	name: 'BlackboxSettings',
@@ -31,37 +32,19 @@ export default defineComponent({
 			i += size;
 		}
 		this.groups = g;
-		sendCommand(MspFn.GET_BB_SETTINGS)
-
-		addOnCommandHandler(this.onCommand);
-	},
-	unmounted() {
-		removeOnCommandHandler(this.onCommand);
+		sendCommand(MspFn.GET_BB_SETTINGS).then(c => {
+			if (c.length !== 9) return
+			this.divider = c.data[0]
+			const selectedBin = leBytesToBigInt(c.data, 1, 8, false)
+			const sel = []
+			for (let i = 0; i < 64; i++) {
+				if (selectedBin & 1n << BigInt(i)) sel.push(this.flagNames[i])
+			}
+			this.selected = sel;
+		})
 	},
 	emits: ['close'],
 	methods: {
-		onCommand(command: Command) {
-			if (command.cmdType === 'response') {
-				switch (command.command) {
-					case MspFn.GET_BB_SETTINGS:
-						if (command.length !== 9) break;
-						this.divider = command.data[0];
-						const selectedBin = leBytesToBigInt(command.data, 1, 8, false);
-						const sel = [];
-						for (let i = 0; i < 64; i++) {
-							if (selectedBin & 1n << BigInt(i)) sel.push(this.flagNames[i]);
-						}
-						this.selected = sel;
-						break;
-					case MspFn.SET_BB_SETTINGS:
-						sendCommand(MspFn.SAVE_SETTINGS);
-						break;
-					case MspFn.SAVE_SETTINGS:
-						this.$emit('close');
-						break;
-				}
-			}
-		},
 		saveSettings() {
 			const bytes = [0, 0, 0, 0, 0, 0, 0, 0];
 			for (const name of this.selected) {
@@ -71,7 +54,12 @@ export default defineComponent({
 				bytes[byte] |= 1 << bit;
 			}
 
-			sendCommand(MspFn.SET_BB_SETTINGS, [this.divider, ...bytes]);
+			sendCommand(MspFn.SET_BB_SETTINGS, [this.divider, ...bytes])
+				.then(() => { return sendCommand(MspFn.SAVE_SETTINGS) })
+				.then(() => { return this.$emit('close') })
+				.catch(() => {
+					useLogStore().push('failed to write blackbox settings')
+				})
 		}
 	}
 })

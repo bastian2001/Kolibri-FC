@@ -478,8 +478,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::CONFIGURATOR_PING:
 			configuratorConnected = true;
 			lastConfigPingRx = 0;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			break;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, reqLen);
 			break;
 		case MspFn::SERIAL_PASSTHROUGH: {
 			if (reqPayload[0] >= SERIAL_COUNT)

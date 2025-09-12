@@ -45,8 +45,9 @@ const setCommand = (cmd: Command) => {
 	commandHandlers.forEach(handler => handler(command))
 	for (let i = pendingRequests.length - 1; i >= 0; i--) {
 		const p = pendingRequests[i]
-		if (p.verifyFn(p.req, command)) {
+		if (p.verifyFn(p.req, command, p.callbackData)) {
 			clearTimeout(p.timeoutIndex)
+			command.callbackData = p.callbackData
 			p.resolveFn(command)
 			pendingRequests.splice(i, 1)
 		}
@@ -62,24 +63,10 @@ export const removeOnCommandHandler = (handler: (command: Command) => void) => {
 	if (i > -1) commandHandlers.splice(i, 1)
 }
 
-let fcPing = -1
-
-export const getPingTime = () => {
-	return fcPing
-}
-
 addOnCommandHandler((c: Command) => {
 	if (c.cmdType === "error") {
 		console.error(structuredClone(c))
 		configuratorLog?.push("Error, see console for details.")
-	}
-	if (c.cmdType === "response") {
-		switch (c.command) {
-			case MspFn.CONFIGURATOR_PING:
-				// pong response from FC received
-				fcPing = Date.now() - pingStarted
-				break
-		}
 	}
 	if (!Object.values(MspFn).includes(c.command) && !Number.isNaN(c.command)) {
 		console.log(structuredClone(c))
@@ -111,9 +98,10 @@ const defaultVerify = (req: Command, res: Command) => {
 
 type PendingRequest = {
 	timeoutIndex: number
-	verifyFn: (req: Command, res: Command) => boolean
+	verifyFn: (req: Command, res: Command, callbackData: any) => boolean
 	resolveFn: (value: Command | PromiseLike<Command>) => void
 	req: Command
+	callbackData: any
 }
 
 const pendingRequests: PendingRequest[] = []
@@ -135,7 +123,8 @@ export async function sendCommand(
 				type?: "request" | "response" | "error"
 				retries?: number
 				timeout?: number
-				verifyFn?: (req: Command, res: Command) => boolean
+				verifyFn?: (req: Command, res: Command, callbackData?: any) => boolean
+				callbackData?: any
 		  } = []
 ): Promise<Command> {
 	return new Promise<Command>((resolve, reject) => {
@@ -146,6 +135,7 @@ export async function sendCommand(
 		let _retries = 2
 		let timeout = 700
 		let verifyFn = defaultVerify
+		let callbackData: any = undefined
 		if (typeof d === "string") {
 			data = strToArray(d)
 		} else if (Array.isArray(d)) {
@@ -169,6 +159,7 @@ export async function sendCommand(
 				timeout = d.timeout
 			}
 			if (d.verifyFn) verifyFn = d.verifyFn
+			callbackData = d.callbackData
 		}
 		const len = data.length
 		if (len > 254 && version === MspVersion.V1) version = MspVersion.V1_JUMBO
@@ -237,6 +228,7 @@ export async function sendCommand(
 							timeoutIndex: -1,
 							req: reqCmd,
 							resolveFn: resolve,
+							callbackData,
 						}
 						const timeoutIndex = setTimeout(() => {
 							const index = pendingRequests.findIndex(el => pen === el)
@@ -274,7 +266,6 @@ export const sendRaw = (data: number[], dataStr: string = "") => {
 		return new Promise((resolve: any) => resolve())
 	}
 }
-let pingStarted = 0
 let newCommand: Command = {
 	command: 65535,
 	length: 0,
@@ -525,10 +516,7 @@ export const connect = (portToOpen: string) => {
 					cmdEnabled = true
 					console.log("TCP connected to", path)
 					readInterval = setInterval(read, 3)
-					pingInterval = setInterval(() => {
-						sendCommand(MspFn.CONFIGURATOR_PING).catch(() => {})
-						pingStarted = Date.now()
-					}, 200)
+					pingInterval = setInterval(ping, 200)
 					statusInterval = setInterval(() => {
 						sendCommand(MspFn.STATUS).catch(() => {})
 					}, 1000)
@@ -549,10 +537,7 @@ export const connect = (portToOpen: string) => {
 				connectType = "serial"
 				cmdEnabled = true
 				readInterval = setInterval(read, 3)
-				pingInterval = setInterval(() => {
-					sendCommand(MspFn.CONFIGURATOR_PING).catch(() => {})
-					pingStarted = Date.now()
-				}, 200)
+				pingInterval = setInterval(ping, 200)
 				statusInterval = setInterval(() => {
 					sendCommand(MspFn.STATUS).catch(() => {})
 				}, 1000)
@@ -565,6 +550,29 @@ export const connect = (portToOpen: string) => {
 				reject(e)
 			})
 	})
+}
+
+let fcPing = -1
+let pingSeq = 0
+export const getPingTime = () => {
+	return fcPing
+}
+function ping() {
+	if (++pingSeq >= 256) pingSeq = 0
+	sendCommand(MspFn.CONFIGURATOR_PING, {
+		data: [pingSeq],
+		callbackData: Date.now(),
+		verifyFn: (req, res) => res.command === req.command && res.length === 1 && res.data[0] === req.data[0],
+		retries: 0,
+		timeout: 2000,
+	})
+		.then(c => {
+			fcPing = Date.now() - c.callbackData
+		})
+		.catch(er => {
+			console.log(er)
+			fcPing = -1
+		})
 }
 
 function onDisconnect() {

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
-import { addOnCommandHandler, removeOnCommandHandler, sendCommand } from '@/msp/comm'
+import { sendCommand } from '@/msp/comm'
 import { MspFn } from '@/msp/protocol';
-import { Command } from '@/utils/types';
 import { intToLeBytes } from '@/utils/utils';
 import { useLogStore } from '@/stores/logStore';
 
@@ -41,31 +40,16 @@ const sendMotorInterval = setInterval(() => {
 		...intToLeBytes(throttles[1], 2),
 		...intToLeBytes(throttles[2], 2),
 		...intToLeBytes(throttles[3], 2),
-	])
+	]).catch(() => { })
 }, 100)
 
-function och(command: Command) {
-	switch (command.command) {
-		case MspFn.GET_MOTOR_LAYOUT:
-			// motor pins
-			if (command.length < 4) break;
-			for (let i = 0; i < 4; i++) {
-				pins[i] = command.data[i]
-			}
-			console.log(command)
-			break;
-		case MspFn.SET_MOTOR_LAYOUT:
-			configuratorLog.push('Motor Mapping updated')
-			sendCommand(MspFn.SAVE_SETTINGS)
-			break;
-		case MspFn.SAVE_SETTINGS:
-			$emit('close')
-	}
-}
-
 window.addEventListener('keydown', onKey)
-addOnCommandHandler(och)
-sendCommand(MspFn.GET_MOTOR_LAYOUT)
+sendCommand(MspFn.GET_MOTOR_LAYOUT).then(c => {
+	if (c.length < 4) return;
+	for (let i = 0; i < 4; i++) {
+		pins[i] = c.data[i]
+	}
+}).catch(() => { })
 
 function nextBtn() {
 	if (step.value === 0) {
@@ -76,7 +60,15 @@ function nextBtn() {
 		}
 	}
 	if (step.value === 5) {
-		sendCommand(MspFn.SET_MOTOR_LAYOUT, [pins[mappedTo[0]], pins[mappedTo[1]], pins[mappedTo[2]], pins[mappedTo[3]]])
+		sendCommand(MspFn.SET_MOTOR_LAYOUT, mappedTo.map(v => pins[v]))
+			.then(() => {
+				configuratorLog.push('Motor Mapping updated')
+				return sendCommand(MspFn.SAVE_SETTINGS)
+			})
+			.then(() => {
+				$emit('close')
+			})
+			.catch(() => { })
 	}
 }
 
@@ -104,7 +96,6 @@ function onKey(e: KeyboardEvent) {
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKey)
 	clearInterval(sendMotorInterval)
-	removeOnCommandHandler(och)
 	clearInterval(spinMotorInterval)
 })
 </script>

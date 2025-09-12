@@ -3,15 +3,17 @@ import { sendCommand } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { defineComponent } from "vue";
 import fonts from "@/utils/fonts";
+import { useLogStore } from "@/stores/logStore";
 
 export default defineComponent({
 	name: "Osd",
 	data() {
 		return {
-			cmah: 0,
 			file: fonts.clarity,
 			chars: [] as number[][],
-			fonts
+			fonts,
+			configuratorLog: useLogStore(),
+			charsDone: 0,
 		};
 	},
 	methods: {
@@ -27,23 +29,22 @@ export default defineComponent({
 				}
 			}
 		},
-		uploadChar() {
-			sendCommand(MspFn.WRITE_OSD_FONT_CHARACTER, [this.cmah, ...this.chars[this.cmah].slice(0, 54)]);
-		},
-		nextChar() {
-			this.cmah++;
-		},
-		upload() {
+		async upload() {
 			this.chars = [];
-			this.cmah = 0;
 			this.decode();
 			if (this.chars.length >= 128) {
 				for (let i = 0; i < this.chars.length; i++) {
-					setTimeout(() => {
-						sendCommand(MspFn.WRITE_OSD_FONT_CHARACTER, [this.cmah, ...this.chars[this.cmah].slice(0, 54)]);
-						this.cmah++;
-					}, i * 50);
+					try {
+						await sendCommand(MspFn.WRITE_OSD_FONT_CHARACTER, { data: [i, ...this.chars[i].slice(0, 54)], verifyFn: (req, res) => res.length === 1 && req.data[0] === res.data[0] })
+						this.charsDone = i + 1
+						if (i + 1 >= this.chars.length) this.configuratorLog.push('Successfully uploaded OSD font')
+					} catch (er) {
+						this.configuratorLog.push(`There was an error uploading your font (${er}), please try again`)
+						break
+					}
 				}
+			} else {
+				this.configuratorLog.push('Please provide a full file')
 			}
 		}
 	}
@@ -54,7 +55,8 @@ export default defineComponent({
 	<div class="wrapper">
 		Paste the .mcm file here, using an ASCII character table.<br>
 		<textarea id="fontInput" cols="30" rows="10" v-model="file"></textarea>
-		<button @click="() => upload()">Upload</button>
+		<button @click="upload">Upload</button>
+		<p>Done: {{ charsDone }} / {{ chars.length }}</p>
 	</div>
 </template>
 

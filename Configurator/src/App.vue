@@ -56,9 +56,6 @@ export default defineComponent({
 				}
 			} else if (command.cmdType === 'response') {
 				switch (command.command) {
-					case MspFn.PLAY_SOUND:
-						console.log(command.data);
-						break;
 					case MspFn.SAVE_SETTINGS:
 						this.configuratorLog.push('EEPROM saved');
 				}
@@ -133,7 +130,7 @@ export default defineComponent({
 						...intToLeBytes(now % 1000, 2)
 					]);
 				})
-				.then(_ => {
+				.then(() => {
 					this.configuratorLog.push('RTC updated');
 
 					const offset = -new Date().getTimezoneOffset();
@@ -141,7 +138,7 @@ export default defineComponent({
 						...intToLeBytes(offset, 2),
 					]);
 				})
-				.then(_ => {
+				.then(() => {
 					this.configuratorLog.push('Timezone offset updated');
 				})
 				.catch(er => {
