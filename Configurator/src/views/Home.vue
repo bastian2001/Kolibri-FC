@@ -101,6 +101,12 @@ export default defineComponent({
 		onCommand(command: Command) {
 			if (command.cmdType === 'response') {
 				switch (command.command) {
+					case MspFn.ACC_CALIBRATION:
+						if (command.data[0] === 1)
+							this.configuratorLog.push('Accelerometer calibrated');
+						else
+							this.configuratorLog.push('Accelerometer calibration started');
+						break
 					case MspFn.MSP_ATTITUDE:
 						this.attitude = {
 							roll: -leBytesToInt(command.data, 0, 2, true) / 10,
@@ -132,14 +138,6 @@ export default defineComponent({
 		},
 		ledOff() {
 			sendCommand(MspFn.SET_DEBUG_LED, [0])
-		},
-		calibrateAccel() {
-			sendCommand(MspFn.ACC_CALIBRATION).then(c => {
-				if (c.data[0] === 1)
-					this.configuratorLog.push('Accelerometer calibrated');
-				else
-					this.configuratorLog.push('Accelerometer calibration started');
-			})
 		},
 		playSound() {
 			sendCommand(MspFn.PLAY_SOUND).then(c => console.log(c.data))
@@ -195,7 +193,7 @@ export default defineComponent({
 		<div>
 			<button @click="ledOn">LED On</button>
 			<button @click="ledOff">LED Off</button>
-			<button @click="calibrateAccel">Calibrate Accelerometer</button>
+			<button @click="() => sendCommand(MspFn.ACC_CALIBRATION)">Calibrate Accelerometer</button>
 			<button @click="playSound">Play Sound</button>
 			<input type="number" step="1" min="1" max="2" placeholder="Serial Number" v-model="serialNum" />
 			<input type="number" step="1" min="9600" max="115200" placeholder="Baud Rate" v-model="baudRate" />
