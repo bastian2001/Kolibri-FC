@@ -132,7 +132,7 @@ export async function sendCommand(
 		let data: number[] = []
 		let version = MspVersion.V2
 		let type = "request" as "request" | "response" | "error"
-		let _retries = 2
+		let retries = 2
 		let timeout = 700
 		let verifyFn = defaultVerify
 		let callbackData: any = undefined
@@ -153,7 +153,7 @@ export async function sendCommand(
 				type = d.type
 			}
 			if (d.retries !== undefined) {
-				_retries = d.retries
+				retries = d.retries
 			}
 			if (d.timeout !== undefined) {
 				timeout = d.timeout
@@ -219,49 +219,56 @@ export async function sendCommand(
 		if ([MspVersion.V1, MspVersion.V1_JUMBO, MspVersion.V2_OVER_V1].includes(version)) {
 			cmd.push(checksumV1)
 		}
-		if (connectType === "serial" || connectType === "tcp") {
-			if (cmdEnabled)
-				invoke(connectType + "_write", { data: cmd })
-					.then(() => {
-						const pen: PendingRequest = {
-							verifyFn,
-							timeoutIndex: -1,
-							req: reqCmd,
-							resolveFn: resolve,
-							callbackData,
-						}
-						const timeoutIndex = setTimeout(() => {
-							const index = pendingRequests.findIndex(el => pen === el)
-							if (index !== -1) {
-								pendingRequests.splice(index, 1)
+
+		const sendReq = async () => {
+			await runAsync()
+			if (connectType === "serial" || connectType === "tcp") {
+				if (cmdEnabled) {
+					invoke(connectType + "_write", { data: cmd })
+						.then(() => {
+							const pen: PendingRequest = {
+								verifyFn,
+								timeoutIndex: -1,
+								req: reqCmd,
+								resolveFn: resolve,
+								callbackData,
 							}
-							reject(CmdErrorTypes.TIMEOUT)
-						}, timeout)
-						pen.timeoutIndex = timeoutIndex
-						pendingRequests.push(pen)
-					})
-					.catch(er => {
-						reject(CmdErrorTypes.BACKEND_ERROR + ": " + er)
-					})
-			else {
-				reject(CmdErrorTypes.CMD_DISABLED)
+
+							const timeoutIndex = setTimeout(() => {
+								const index = pendingRequests.findIndex(el => pen === el)
+								if (index !== -1) {
+									pendingRequests.splice(index, 1)
+								}
+								retries--
+								if (retries >= 0) {
+									sendReq()
+								} else {
+									reject(CmdErrorTypes.TIMEOUT)
+								}
+							}, timeout)
+							pen.timeoutIndex = timeoutIndex
+							pendingRequests.push(pen)
+						})
+						.catch(er => {
+							reject(CmdErrorTypes.BACKEND_ERROR + ": " + er)
+						})
+				} else {
+					reject(CmdErrorTypes.CMD_DISABLED)
+				}
+			} else {
+				reject(CmdErrorTypes.NOT_CONNECTED)
 			}
-		} else {
-			reject(CmdErrorTypes.NOT_CONNECTED)
 		}
+		sendReq()
 	})
 }
 
 export const sendRaw = (data: number[], dataStr: string = "") => {
 	if (data.length === 0 && dataStr !== "") data = strToArray(dataStr)
 	if (connectType === "serial") {
-		return new Promise((resolve, reject) => {
-			invoke("serial_write", { data }).then(resolve).catch(reject)
-		})
+		return invoke("serial_write", { data })
 	} else if (connectType === "tcp") {
-		return new Promise((resolve, reject) => {
-			invoke("tcp_write", { data }).then(resolve).catch(reject)
-		})
+		return invoke("tcp_write", { data })
 	} else {
 		return new Promise((resolve: any) => resolve())
 	}
@@ -570,7 +577,7 @@ function ping() {
 			fcPing = Date.now() - c.callbackData
 		})
 		.catch(er => {
-			console.log(er)
+			console.log("ping " + er)
 			fcPing = -1
 		})
 }
