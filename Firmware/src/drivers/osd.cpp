@@ -100,6 +100,14 @@ void drawElem(u8 elem) {
 }
 
 void osdLoop() {
+	static bool lastPbActive = false;
+	if (pidBoostActive != lastPbActive) {
+		lastPbActive = !lastPbActive;
+		if (lastPbActive)
+			updateElem(OSDElem::PIDBOOST_INDICATOR, "PB");
+		else
+			updateElem(OSDElem::PIDBOOST_INDICATOR, "  ");
+	}
 	if (osdReady) {
 		TASK_START(TASK_OSD);
 		// cycle through all drawn elements, and update one per gyro cycle
