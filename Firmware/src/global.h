@@ -56,7 +56,6 @@
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
-#include "pioasm/speaker8bit.pio.h"
 #include "ringbuffer.h"
 #include "rtc.h"
 #include "serial.h"
