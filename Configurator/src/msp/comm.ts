@@ -100,6 +100,7 @@ type PendingRequest = {
 	timeoutIndex: number
 	verifyFn: (req: Command, res: Command, callbackData: any) => boolean
 	resolveFn: (value: Command | PromiseLike<Command>) => void
+	rejectFn: (reason: any) => void
 	req: Command
 	callbackData: any
 }
@@ -222,42 +223,39 @@ export async function sendCommand(
 
 		const sendReq = async () => {
 			await runAsync()
-			if (connectType === "serial" || connectType === "tcp") {
-				if (cmdEnabled) {
-					invoke(connectType + "_write", { data: cmd })
-						.then(() => {
-							const pen: PendingRequest = {
-								verifyFn,
-								timeoutIndex: -1,
-								req: reqCmd,
-								resolveFn: resolve,
-								callbackData,
-							}
 
-							const timeoutIndex = setTimeout(() => {
-								const index = pendingRequests.findIndex(el => pen === el)
-								if (index !== -1) {
-									pendingRequests.splice(index, 1)
-								}
-								retries--
-								if (retries >= 0) {
-									sendReq()
-								} else {
-									reject(CmdErrorTypes.TIMEOUT)
-								}
-							}, timeout)
-							pen.timeoutIndex = timeoutIndex
-							pendingRequests.push(pen)
-						})
-						.catch(er => {
-							reject(CmdErrorTypes.BACKEND_ERROR + ": " + er)
-						})
-				} else {
-					reject(CmdErrorTypes.CMD_DISABLED)
-				}
-			} else {
-				reject(CmdErrorTypes.NOT_CONNECTED)
-			}
+			if (connectType === "none") return reject(CmdErrorTypes.NOT_CONNECTED)
+			if (!cmdEnabled) return reject(CmdErrorTypes.CMD_DISABLED)
+
+			invoke(connectType + "_write", { data: cmd })
+				.then(() => {
+					const pen: PendingRequest = {
+						verifyFn,
+						timeoutIndex: -1,
+						req: reqCmd,
+						resolveFn: resolve,
+						rejectFn: reject,
+						callbackData,
+					}
+
+					const timeoutIndex = setTimeout(() => {
+						const index = pendingRequests.findIndex(el => pen === el)
+						if (index !== -1) {
+							pendingRequests.splice(index, 1)
+						}
+						retries--
+						if (retries >= 0) {
+							sendReq()
+						} else {
+							reject(CmdErrorTypes.TIMEOUT)
+						}
+					}, timeout)
+					pen.timeoutIndex = timeoutIndex
+					pendingRequests.push(pen)
+				})
+				.catch(er => {
+					reject(CmdErrorTypes.BACKEND_ERROR + ": " + er)
+				})
 		}
 		sendReq()
 	})
@@ -590,6 +588,11 @@ function onDisconnect() {
 	clearInterval(pingInterval)
 	clearInterval(statusInterval)
 	readInterval = -1
+	pendingRequests.forEach(pen => {
+		pen.rejectFn(CmdErrorTypes.NOT_CONNECTED)
+		clearTimeout(pen.timeoutIndex)
+	})
+	pendingRequests.length = 0 // clear all pending requests
 }
 
 export const disconnect = () => {
