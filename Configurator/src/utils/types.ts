@@ -207,4 +207,5 @@ export type Command = {
 	cmdType: "request" | "response" | "error"
 	flag: number
 	version: number
+	callbackData?: any
 }
