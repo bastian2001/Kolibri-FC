@@ -521,7 +521,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::CLI_INIT: {
 			// send start info
-			// const char *startInfo = "\n" FIRMWARE_VERSION_STRING "\n" targetIdentifier "" ">> ";
 			char startInfo[256] = {0};
 			snprintf(startInfo, 256, "\n" FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands\n>> ", targetIdentifier, targetFullName);
 			openSettingsFile();
