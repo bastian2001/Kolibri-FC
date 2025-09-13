@@ -1020,8 +1020,6 @@ export default defineComponent({
 
 							const reqNums = getNums(Array.from(req.data))
 							const resNums = getNums(Array.from(resBuf))
-							let str = 'Verified ' + reqNums.join(', ') + ' against ' + resNums.join(', ') + '.'
-							this.configuratorLog.push(str)
 							let success = true
 							reqNums.forEach(el => success &&= resNums.includes(el))
 							return success
