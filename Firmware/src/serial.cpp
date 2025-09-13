@@ -134,6 +134,8 @@ void serialLoop() {
 			process4Way(c);
 		}
 		if (functions & SERIAL_IRC_TRAMP) {
+			if (!trampRxBuffer.isFull())
+				trampRxBuffer.push(c);
 		}
 		if (functions & SERIAL_SMARTAUDIO) {
 		}
