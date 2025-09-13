@@ -174,7 +174,7 @@ void blackboxLoop() {
 		writeVbatToBlackbox();
 	}
 
-	if (ELRS->newLinkStatsFlag && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 + 1)) {
+	if (ELRS->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 + 1)) {
 		writeElrsLinkToBlackbox();
 	}
 
