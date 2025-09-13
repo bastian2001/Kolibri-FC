@@ -3,7 +3,7 @@ import { defineComponent } from "vue";
 import Timeline from "@components/blackbox/Timeline.vue";
 import Settings from "@components/blackbox/Settings.vue";
 import { BBLog, TraceInGraph, Command, LogData, LogDataType, TraceInternalData } from "@utils/types";
-import { constrain, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
+import { constrain, delay, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
 import { skipValues } from "@/utils/blackbox/other";
 import { MspFn } from "@/msp/protocol";
 import { useLogStore } from "@stores/logStore";
@@ -50,8 +50,6 @@ export default defineComponent({
 			resolveWhenReady: (_log: BBLog) => { },
 			rejectWrongFile: (_: string) => { },
 			showSettings: false,
-			logInfoPosition: 0,
-			logInfoInterval: -1,
 			selected: -1,
 			canvas: document.createElement("canvas"),
 			selectionCanvas: document.createElement("canvas"),
@@ -74,6 +72,7 @@ export default defineComponent({
 			traceInternalData: [[]] as TraceInternalData[][],
 			traceInternalBackupFn: [[]] as (() => (TraceInternalData | void))[][],
 			DISARM_REASONS,
+			exiting: false,
 		};
 	},
 	computed: {
@@ -110,60 +109,32 @@ export default defineComponent({
 		onCommand(command: Command) {
 			if (command.cmdType === 'response') {
 				switch (command.command) {
-					case MspFn.BB_FILE_LIST:
-						const nums = [];
-						for (let i = 0; i < command.data.length; i += 2) {
-							const num = leBytesToInt(command.data, i, 2);
-							nums.push(num);
-						}
-						nums.sort((a, b) => a - b);
-						this.logNums = nums.map(n => ({ text: '', num: n }));
-						if (!this.logNums.length) {
-							this.logNums = [{ text: 'No logs found', num: -1 }];
-							this.selected = -1;
-							return;
-						}
-						this.selected = this.logNums[0].num;
-						this.logInfoPosition = 0;
-						this.logInfoInterval = setInterval(this.getLogInfo, 100);
-						break;
-					case MspFn.BB_FILE_INFO:
-						this.processLogInfo(command.data);
-						break;
 					case MspFn.BB_FILE_DOWNLOAD:
 						this.handleFileChunk(command.data);
-						break;
-					case MspFn.BB_FILE_DELETE:
-						const index = this.logNums.findIndex(l => l.num === this.selected);
-						if (index !== -1) this.logNums.splice(index, 1);
-						this.logNums = [...this.logNums];
-						if (!this.logNums.length) {
-							this.logNums = [{ text: 'No logs found', num: -1 }];
-							this.selected = -1;
-						} else if (index >= this.logNums.length) this.selected = this.logNums[this.logNums.length - 1].num;
-						else this.selected = this.logNums[index].num;
-						break;
-					case MspFn.BB_FORMAT:
-						this.configuratorLog.push('Blackbox formatted');
-						this.logNums = [{ text: 'No logs found', num: -1 }];
-						break;
-					case MspFn.BB_FILE_INIT:
-						this.prepareFileDownload(command.data);
-						break;
-				}
-			} else if (command.cmdType === 'error') {
-				switch (command.command) {
-					case MspFn.BB_FORMAT:
-						this.configuratorLog.push('Blackbox format failed');
-						break;
-					case MspFn.BB_FILE_DELETE:
-						this.configuratorLog.push(`Deleting file ${command.data[0]} failed`);
 						break;
 				}
 			}
 		},
 		getFileList() {
-			sendCommand(MspFn.BB_FILE_LIST).catch(console.error);
+			sendCommand(MspFn.BB_FILE_LIST)
+				.then(c => {
+					const nums = [];
+					for (let i = 0; i < c.data.length; i += 2) {
+						const num = leBytesToInt(c.data, i, 2);
+						nums.push(num);
+					}
+					nums.sort((a, b) => a - b);
+					this.logNums = nums.map(n => ({ text: '', num: n }));
+					if (!this.logNums.length) {
+						this.logNums = [{ text: 'No logs found', num: -1 }];
+						this.selected = -1;
+						return;
+					}
+					this.selected = this.logNums[0].num;
+
+					this.getLogInfo()
+				})
+				.catch(console.error);
 		},
 		onResize() {
 			this.domCanvas.height = this.dataViewerWrapper.clientHeight;
@@ -209,12 +180,24 @@ export default defineComponent({
 
 		},
 		formatBB() {
-			sendCommand(MspFn.BB_FORMAT);
+			sendCommand(MspFn.BB_FORMAT, { timeout: 5000 })
+				.then(c => {
+					if (c.cmdType === 'response') {
+						this.configuratorLog.push('Blackbox formatted');
+						this.logNums = [{ text: 'No logs found', num: -1 }];
+					} else {
+						this.configuratorLog.push('Blackbox format failed');
+					}
+				})
+				.catch(er => { this.configuratorLog.push('Could not format blackbox: ' + er) })
 		},
 		getLog(num: number): Promise<BBLog> {
 			this.binFileNumber = -1;
 
-			sendCommand(MspFn.BB_FILE_INIT, [...intToLeBytes(num, 2)]);
+			sendCommand(MspFn.BB_FILE_INIT, [...intToLeBytes(num, 2)])
+				.then(this.prepareFileDownload)
+				.catch(er => { this.configuratorLog.push('Failed to download file: ' + er) })
+
 			return new Promise((resolve, reject) => {
 				this.resolveWhenReady = resolve;
 				this.rejectWrongFile = reject;
@@ -293,7 +276,34 @@ export default defineComponent({
 				.catch(console.error);
 		},
 		deleteLog() {
-			sendCommand(MspFn.BB_FILE_DELETE, [this.selected]);
+			sendCommand(MspFn.BB_FILE_DELETE, {
+				data: Array.from(intToLeBytes(this.selected, 2)),
+				timeout: 1000,
+				verifyFn: (req, res) => req.command === res.command && res.length === 2 && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2)
+			})
+				.then(c => {
+					if (c.cmdType === 'response') {
+						const num = leBytesToInt(c.data, 0, 2)
+						const index = this.logNums.findIndex(l => l.num === num);
+						if (index !== -1) this.logNums.splice(index, 1);
+						this.logNums = [...this.logNums];
+
+						const logCount = this.logNums.length
+						if (!logCount) {
+							this.logNums = [{ text: 'No logs found', num: -1 }];
+							this.selected = -1;
+						} else if (index >= logCount) {
+							this.selected = this.logNums[logCount - 1].num
+						} else {
+							this.selected = this.logNums[index].num
+						}
+					} else if (c.cmdType === 'error') {
+						this.configuratorLog.push(`Deleting file ${c.data[0]} failed on the FC side`);
+					}
+				})
+				.catch(er => {
+					this.configuratorLog.push('Failed to delete blackbox file, reason: ' + er)
+				})
 		},
 		onTouchDown(e: TouchEvent) {
 			e.preventDefault();
@@ -893,7 +903,8 @@ export default defineComponent({
 			domCtx.clearRect(0, 0, this.domCanvas.width, this.domCanvas.height);
 			domCtx.drawImage(this.canvas, 0, 0);
 		},
-		prepareFileDownload(data: Uint8Array) {
+		prepareFileDownload(command: Command) {
+			const data = command.data
 			if (data.length < 10) {
 				this.rejectWrongFile('Wrong init frame size: ' + data.length);
 				return;
@@ -983,39 +994,64 @@ export default defineComponent({
 			this.loadedLog = l;
 			this.resolveWhenReady(l);
 		},
-		getLogInfo() {
-			const infoNums: number[] = [];
-			for (let i = 0; i < 10; i++) {
-				if (this.logInfoPosition >= this.logNums.length) {
-					clearInterval(this.logInfoInterval);
-					break;
+		async getLogInfo() {
+			for (let i = 0; i < this.logNums.length && !this.exiting; i += 10) {
+				const buf: number[] = []
+				for (let j = 0; j < 10; j++) {
+					const index = i + j
+					if (index >= this.logNums.length) break
+					const num = this.logNums[index].num
+					buf.push(...intToLeBytes(num, 2))
 				}
-				infoNums[i * 2] = this.logNums[this.logInfoPosition].num & 0xFF;
-				infoNums[i * 2 + 1] = (this.logNums[this.logInfoPosition++].num >> 8) & 0xFF;
-			}
-			if (infoNums.length == 0) return;
-			sendCommand(MspFn.BB_FILE_INFO, infoNums);
-		},
-		processLogInfo(data: Uint8Array) {
-			/* data of response (repeat 17 bytes for each log file):
-			 * 0-1: file number
-			 * 2-5: file size in bytes
-			 * 6-8: version of bb file format
-			 * 9-12: time of recording start
-			 * 13-16: duration in ms
-			 */
-			for (let i = 0; i < data.length; i += 17) {
-				const fileNum = leBytesToInt(data, i, 2);
-				// const fileSize = leBytesToInt(data, i + 2, 4);
-				const bbVersion = leBytesToInt(data.slice(i + 6, i + 9).reverse(), 0, 3);
-				const startTime = new Date(leBytesToInt(data, i + 9, 4) * 1000);
-				if (bbVersion !== 1) continue;
-				//append duration of log file to logNums
-				const index = this.logNums.findIndex(n => n.num == fileNum);
-				if (index == -1) continue;
-				const duration = Math.round(leBytesToInt(data, i + 13, 4) / 1000);
-				this.logNums[index].text = `${this.logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
-				this.selected = fileNum;
+
+				try {
+					const res = await sendCommand(MspFn.BB_FILE_INFO, {
+						data: buf,
+						timeout: 1500,
+						verifyFn: (req, res) => {
+							if (req.command !== res.command) return false
+							if (res.length !== req.length * 17 / 2) return false
+							const resBuf = res.data.filter((_el, index) => index % 17 === 0 || index % 17 === 1)
+							function getNums(buf: number[]): number[] {
+								const ret: number[] = []
+								for (let i = 0; i < buf.length; i += 2)
+									ret.push(leBytesToInt(buf, i, 2))
+								return ret
+							}
+
+							const reqNums = getNums(Array.from(req.data))
+							const resNums = getNums(Array.from(resBuf))
+							let success = true
+							reqNums.forEach(el => success &&= resNums.includes(el))
+							return success
+						}
+					})
+
+					/* data of response (repeat 17 bytes for each log file):
+					* 0-1: file number
+					* 2-5: file size in bytes
+					* 6-8: version of bb file format
+					* 9-12: time of recording start
+					* 13-16: duration in ms
+					*/
+					for (let i = 0; i < res.data.length; i += 17) {
+						const info = res.data.slice(i, i + 17)
+						const fileNum = leBytesToInt(info, 0, 2);
+						// const fileSize = leBytesToInt(info, 2, 4);
+						const bbVersion = leBytesToInt(info.slice(6, 9).reverse(), 0, 3);
+						if (bbVersion !== 1) continue;
+						const startTime = new Date(leBytesToInt(info, 9, 4) * 1000);
+						//append duration of log file to logNums
+						const index = this.logNums.findIndex(n => n.num == fileNum);
+						if (index == -1) continue;
+						const duration = Math.round(leBytesToInt(info, 13, 4) / 1000);
+						this.logNums[index].text = `${this.logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
+						this.selected = fileNum;
+					}
+				} catch (er) {
+					this.configuratorLog.push('Could not load log info: ' + er)
+					await delay(10)
+				}
 			}
 		},
 	},
@@ -1053,7 +1089,6 @@ export default defineComponent({
 	beforeUnmount() {
 		clearTimeout(this.drawFullCanvasTimeout);
 		clearInterval(this.getChunkInterval);
-		clearInterval(this.logInfoInterval)
 		removeOnConnectHandler(this.getFileList);
 		removeOnCommandHandler(this.onCommand)
 		window.removeEventListener('resize', this.onResize);
@@ -1076,6 +1111,7 @@ export default defineComponent({
 			setFrameRange(0, 0);
 			setGraphs([[]]);
 		}
+		this.exiting = true
 	}
 })
 </script>
