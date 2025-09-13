@@ -52,7 +52,7 @@ static elapsedMicros flightModeChangeTimer;
 fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
 PT1 pidBoostFilter;
 fix32 lastThrottle;
-u8 pidBoostAxis = 0; // 0: off, 1: RP only, 2: RPY
+u8 pidBoostAxis = 1; // 0: off, 1: RP only, 2: RPY
 fix32 pidBoostP = 5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
 fix32 pidBoostI = 5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
 fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
@@ -91,6 +91,7 @@ DualPT1 iRelaxFilterNVel;
 DualPT1 iRelaxFilterEVel;
 PT1 pushNorth;
 PT1 pushEast;
+volatile bool pidBoostActive = false;
 
 static fix32 calcThrottle(fix32 targetVvel);
 static void sticksToGpsSetpoint(const fix32 *channels, fix32 *eVelSetpoint, fix32 *nVelSetpoint);
@@ -301,6 +302,9 @@ void initPid() {
 	iRelaxFilterEVel = DualPT1(hvelIRelaxFilterCutoff, 3200);
 	pushNorth = PT1(hvelPushFilterCutoff, 3200);
 	pushEast = PT1(hvelPushFilterCutoff, 3200);
+
+	placeElem(OSDElem::PIDBOOST_INDICATOR, 25, 12);
+	enableElem(OSDElem::PIDBOOST_INDICATOR);
 }
 
 u32 takeoffCounter = 0;
@@ -639,6 +643,7 @@ void __not_in_flash_func(pidLoop)() {
 				boostStrength = 1;
 			else if (boostStrength < 0)
 				boostStrength = 0;
+			pidBoostActive = boostStrength > 0.2; // arbitrary OSD indicator limit
 			pFactor += pidBoostP * boostStrength;
 			iFactor += pidBoostI * boostStrength;
 			dFactor += pidBoostD * boostStrength;
