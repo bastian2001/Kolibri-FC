@@ -90,19 +90,19 @@ export default defineComponent({
 					return sendCommand(MspFn.GET_FILTER_CONFIG)
 				})
 				.then(c => {
-					if (c.length < 22) throw undefined
+					if (c.length < 24) throw undefined
 					this.gyroCutoff = leBytesToInt(c.data, 0, 2, false);
 					this.accelCutoff = leBytesToInt(c.data, 2, 2, false);
 					this.dCutoff = leBytesToInt(c.data, 4, 2, false);
 					this.iRelaxCutoff = leBytesToInt(c.data, 6, 2, false) / 10;
 					this.ffCutoff = leBytesToInt(c.data, 8, 2, false) / 10;
-					this.magCutoff = leBytesToInt(c.data, 8, 2, false) / 100;
-					this.altholdFfCutoff = leBytesToInt(c.data, 10, 2, false) / 100;
-					this.altholdDCutoff = leBytesToInt(c.data, 12, 2, false) / 10;
-					this.posholdFfCutoff = leBytesToInt(c.data, 14, 2, false) / 100;
-					this.posholdIrelaxCutoff = leBytesToInt(c.data, 16, 2, false) / 100;
-					this.posholdPushCutoff = leBytesToInt(c.data, 18, 2, false) / 10;
-					this.gpsVelocityCutoff = leBytesToInt(c.data, 20, 2, false) / 100;
+					this.magCutoff = leBytesToInt(c.data, 10, 2, false) / 100;
+					this.altholdFfCutoff = leBytesToInt(c.data, 12, 2, false) / 100;
+					this.altholdDCutoff = leBytesToInt(c.data, 14, 2, false) / 10;
+					this.posholdFfCutoff = leBytesToInt(c.data, 16, 2, false) / 100;
+					this.posholdIrelaxCutoff = leBytesToInt(c.data, 18, 2, false) / 100;
+					this.posholdPushCutoff = leBytesToInt(c.data, 20, 2, false) / 10;
+					this.gpsVelocityCutoff = leBytesToInt(c.data, 22, 2, false) / 100;
 					return sendCommand(MspFn.GET_EXT_PID)
 				})
 				.then(c => {
