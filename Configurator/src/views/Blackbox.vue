@@ -1020,6 +1020,8 @@ export default defineComponent({
 
 							const reqNums = getNums(Array.from(req.data))
 							const resNums = getNums(Array.from(resBuf))
+							let str = 'Verified ' + reqNums.join(', ') + ' against ' + resNums.join(', ') + '.'
+							this.configuratorLog.push(str)
 							let success = true
 							reqNums.forEach(el => success &&= resNums.includes(el))
 							return success
@@ -1034,16 +1036,16 @@ export default defineComponent({
 					* 13-16: duration in ms
 					*/
 					for (let i = 0; i < res.data.length; i += 17) {
-						const info = res.data.slice(i, 17)
+						const info = res.data.slice(i, i + 17)
 						const fileNum = leBytesToInt(info, 0, 2);
 						// const fileSize = leBytesToInt(info, 2, 4);
 						const bbVersion = leBytesToInt(info.slice(6, 9).reverse(), 0, 3);
 						if (bbVersion !== 1) continue;
-						const startTime = new Date(leBytesToInt(res.data, 9, 4) * 1000);
+						const startTime = new Date(leBytesToInt(info, 9, 4) * 1000);
 						//append duration of log file to logNums
 						const index = this.logNums.findIndex(n => n.num == fileNum);
 						if (index == -1) continue;
-						const duration = Math.round(leBytesToInt(res.data, 13, 4) / 1000);
+						const duration = Math.round(leBytesToInt(info, 13, 4) / 1000);
 						this.logNums[index].text = `${this.logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
 						this.selected = fileNum;
 					}
