@@ -164,7 +164,23 @@ void pidLoop() {
 	if (ELRS->channels[2] > 1020) {
 		takeoffCounter++;
 	} else if (takeoffCounter < 1000) { // 1000 = ca. 0.3s
-		boostStrength = 0;
+		takeoffCounter = 0;
+	} // if the quad hasn't "taken off" yet, reset the counter
+	if (takeoffCounter < 1000) { // enable i term falloff (windup prevention) only before takeoff
+		rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign() / pidGains[0][I];
+		pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign() / pidGains[1][I];
+		yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign() / pidGains[2][I];
+	}
+
+	// PID boost / anti gravity
+	fix32 pFactor = 1, iFactor = 1, dFactor = 1;
+	if (pidBoostAxis) {
+		pidBoostFilter.update(throttle - lastThrottle);
+		fix32 boostStrength = (fix32(pidBoostFilter).abs() * 3200 - pidBoostStart) / (pidBoostFull - pidBoostStart);
+		if (boostStrength > 1)
+			boostStrength = 1;
+		else if (boostStrength < 0)
+			boostStrength = 0;
 		pidBoostActive = boostStrength > 0.2; // arbitrary OSD indicator limit
 		pFactor += pidBoostP * boostStrength;
 		iFactor += pidBoostI * boostStrength;
