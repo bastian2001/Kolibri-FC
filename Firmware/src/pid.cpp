@@ -58,6 +58,7 @@ fix32 pidBoostI = 5; // addition boost factor, e.g. when set to 2 in full effect
 fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
 fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
 fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
+volatile bool pidBoostActive = false;
 
 // Misc
 u32 pidLoopCounter = 0; // counter of PID controller loops
@@ -138,6 +139,9 @@ void initPid() {
 	setpointDiff[AXIS_YAW] = PT1(setpointDiffCutoff, 3200);
 
 	pidBoostFilter = PT1(pidBoostCutoff, 3200);
+
+	placeElem(OSDElem::PIDBOOST_INDICATOR, 25, 12);
+	enableElem(OSDElem::PIDBOOST_INDICATOR);
 }
 
 static u32 takeoffCounter = 0;
@@ -160,23 +164,8 @@ void pidLoop() {
 	if (ELRS->channels[2] > 1020) {
 		takeoffCounter++;
 	} else if (takeoffCounter < 1000) { // 1000 = ca. 0.3s
-		takeoffCounter = 0;
-	} // if the quad hasn't "taken off" yet, reset the counter
-	if (takeoffCounter < 1000) { // enable i term falloff (windup prevention) only before takeoff
-		rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign() / pidGains[0][I];
-		pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign() / pidGains[1][I];
-		yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign() / pidGains[2][I];
-	}
-
-	// PID boost / anti gravity
-	fix32 pFactor = 1, iFactor = 1, dFactor = 1;
-	if (pidBoostAxis) {
-		pidBoostFilter.update(throttle - lastThrottle);
-		fix32 boostStrength = (fix32(pidBoostFilter).abs() * 3200 - pidBoostStart) / (pidBoostFull - pidBoostStart);
-		if (boostStrength > 1)
-			boostStrength = 1;
-		else if (boostStrength < 0)
-			boostStrength = 0;
+		boostStrength = 0;
+		pidBoostActive = boostStrength > 0.2; // arbitrary OSD indicator limit
 		pFactor += pidBoostP * boostStrength;
 		iFactor += pidBoostI * boostStrength;
 		dFactor += pidBoostD * boostStrength;

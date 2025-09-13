@@ -34,6 +34,7 @@ extern fix32 setpointDiffCutoff; // used for feedforward and I term relaxation (
 extern u8 idlePermille; // idle throttle in permille (0-1000)
 extern bool useDynamicIdle; // whether to use dynamic (fix RPM) or static (fix throttle) idle
 extern u16 dynamicIdleRpm; // RPM the FC should target / not go below when the throttle is low
+extern volatile bool pidBoostActive; // shows/hides OSD PID boost indicator
 
 /// @brief converts nice PIDs to raw (fix32)
 void convertPidsFromNice();
