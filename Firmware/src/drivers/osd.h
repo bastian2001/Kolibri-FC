@@ -39,7 +39,8 @@ enum class OSDElem : u8 {
 	PLUS_CODE,
 	CELL_VOLTAGE,
 	IN_FLIGHT_TUNING,
-	LENGTH
+	PIDBOOST_INDICATOR,
+	LENGTH,
 };
 
 void osdInit();

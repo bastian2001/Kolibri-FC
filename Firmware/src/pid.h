@@ -54,6 +54,7 @@ extern fix32 vvelDFilterCutoff; // cutoff frequency for the vertical velocity D 
 extern fix32 vvelFFFilterCutoff; // cutoff frequency for the vertical velocity feedforward filter (Hz)
 extern bool useDynamicIdle; // whether to use dynamic (fix RPM) or static (fix throttle) idle
 extern u16 dynamicIdleRpm; // RPM the FC should target / not go below when the throttle is low
+extern volatile bool pidBoostActive; // shows/hides OSD PID boost indicator
 
 enum class FlightMode {
 	ACRO,
