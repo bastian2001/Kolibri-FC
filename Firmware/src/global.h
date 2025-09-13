@@ -56,7 +56,6 @@
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
-#include "pioasm/speaker8bit.pio.h"
 #include "ringbuffer.h"
 #include "rtc.h"
 #include "serial.h"
@@ -87,10 +86,10 @@
 #endif
 #define I2C_MAG i2c0 // I2C for magnetometer
 
-#define PIO_ESC pio1
-#define PIO_GYRO_SPI pio2
-#define PIO_SDIO pio0
-#define PIO_LED pio2
+#define PIO_ESC pio1 // uses all 4 SMs
+#define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
+#define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
+#define PIO_LED pio2 // 1 SM, 4 instructions
 
 #define PROPS_OUT
 

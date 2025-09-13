@@ -124,8 +124,6 @@ void setup1() {
 }
 elapsedMicros taskTimer = 0;
 
-extern PIO speakerPio;
-extern u8 speakerSm;
 void loop1() {
 	u32 duration = taskTimer;
 	if (duration > tasks[TASK_LOOP1].maxGap) {

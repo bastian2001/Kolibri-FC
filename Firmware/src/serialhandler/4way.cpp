@@ -237,12 +237,12 @@ void begin4Way(u8 serialNum) {
 	sm_config_set_in_pins(&configPioReceive, PIN_MOTORS);
 	sm_config_set_jmp_pin(&configPioReceive, PIN_MOTORS);
 	sm_config_set_in_shift(&configPioReceive, true, false, 32);
-	sm_config_set_clkdiv_int_frac(&configPioReceive, 859, 128);
+	sm_config_set_clkdiv_int_frac8(&configPioReceive, 859, 128);
 	configPioTransmit = onewire_transmit_program_get_default_config(offsetPioTransmit);
 	sm_config_set_set_pins(&configPioTransmit, PIN_MOTORS, 1);
 	sm_config_set_out_pins(&configPioTransmit, PIN_MOTORS, 1);
 	sm_config_set_out_shift(&configPioTransmit, true, false, 8);
-	sm_config_set_clkdiv_int_frac(&configPioTransmit, 859, 128);
+	sm_config_set_clkdiv_int_frac8(&configPioTransmit, 859, 128);
 	pio_sm_init(PIO_ESC, 0, offsetPioReceive, &configPioReceive);
 	pio_sm_set_enabled(PIO_ESC, 0, true);
 	serials[serialNum].functions |= SERIAL_4WAY;
