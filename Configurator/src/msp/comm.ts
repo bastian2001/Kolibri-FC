@@ -113,6 +113,20 @@ export const CmdErrorTypes = {
 	BACKEND_ERROR: "backend_error",
 }
 
+/**
+ * Sends out an MSP command to the connected client.
+ *
+ * The following defaults apply unless otherwise set:
+ * - MSP Version 2
+ * - Type: request
+ * - Retries: 2 (total 3 attempts)
+ * - Timeout: 700 ms
+ * - Verify: checks for same command as the request
+ * - Callback Data: none
+ * @param command number, choose from MspFn.xxx
+ * @param d number[] or string data, or object with data and settings for sending the command (timeout, retries, etc. customizable, all optional), default: empty data and default settings (see above)
+ * @returns Promise that resolves (with the response packet) when a packet of the same command is returned (or a packet meeting your verifyFn), rejects with a CmdErrorType.xxx
+ */
 export async function sendCommand(
 	command: number,
 	d:
