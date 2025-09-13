@@ -478,8 +478,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::CONFIGURATOR_PING:
 			configuratorConnected = true;
 			lastConfigPingRx = 0;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			break;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, reqLen);
 			break;
 		case MspFn::SERIAL_PASSTHROUGH: {
 			if (reqPayload[0] >= SERIAL_COUNT)
@@ -629,22 +628,28 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
 				FsFile logFile = sdCard.open(path);
 #endif
-				if (!logFile)
-					continue;
-				buffer[index++] = fileNum;
-				buffer[index++] = fileNum >> 8;
-				buffer[index++] = logFile.size() & 0xFF;
-				buffer[index++] = (logFile.size() >> 8) & 0xFF;
-				buffer[index++] = (logFile.size() >> 16) & 0xFF;
-				buffer[index++] = (logFile.size() >> 24) & 0xFF;
-				logFile.seek(LOG_HEAD_BB_VERSION);
-				// version, timestamp, pid and divider can directly be read from the file
-				for (int i = 0; i < 7; i++)
-					buffer[index++] = logFile.read();
-				logFile.seek(LOG_HEAD_DURATION);
-				for (int i = 0; i < 4; i++)
-					buffer[index++] = logFile.read();
-				logFile.close();
+				if (!logFile) {
+					buffer[index++] = fileNum;
+					buffer[index++] = fileNum >> 8;
+					// print all zeros to indicate broken file
+					for (int i = 0; i < 15; i++)
+						buffer[index++] = 0;
+				} else {
+					buffer[index++] = fileNum;
+					buffer[index++] = fileNum >> 8;
+					buffer[index++] = logFile.size() & 0xFF;
+					buffer[index++] = (logFile.size() >> 8) & 0xFF;
+					buffer[index++] = (logFile.size() >> 16) & 0xFF;
+					buffer[index++] = (logFile.size() >> 24) & 0xFF;
+					logFile.seek(LOG_HEAD_BB_VERSION);
+					// version, timestamp, pid and divider can directly be read from the file
+					for (int i = 0; i < 7; i++)
+						buffer[index++] = logFile.read();
+					logFile.seek(LOG_HEAD_DURATION);
+					for (int i = 0; i < 4; i++)
+						buffer[index++] = logFile.read();
+					logFile.close();
+				}
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buffer, index);
 		} break;
@@ -658,15 +663,15 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::BB_FILE_DELETE: {
 			// data just includes one byte of file number
-			u8 fileNum = reqPayload[0];
+			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 			snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
 			if (sdCard.remove(path))
 #endif
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 1);
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 2);
 			else
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 1);
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 2);
 		} break;
 		case MspFn::BB_FORMAT:
 			if (clearBlackbox())
