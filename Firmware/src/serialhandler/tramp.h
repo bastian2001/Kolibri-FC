@@ -3,5 +3,5 @@
 #include "ringbuffer.h"
 #include "typedefs.h"
 
-extern SerialOnewire SoftSerial1;
+extern SerialPioHd SoftSerial1;
 extern RingBuffer<u8> trampRxBuffer;

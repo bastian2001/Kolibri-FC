@@ -2,7 +2,6 @@
 
 // largely copied from https://github.com/raphaelcoeffic/betaflight/blob/9681929f98cfac2b3433b605bcf788ef8bacf0a2/src/main/io/vtx_tramp.c
 
-SerialOnewire SoftSerial1(PIN_TX2, 9600, PIO_HALFDUPLEX_UART);
 RingBuffer<u8> trampRxBuffer(64);
 
 static u8 trampReqBuffer[16];
@@ -220,11 +219,6 @@ void trampQueryV(void) {
 
 void trampQueryS(void) {
 	trampQuery('s');
-}
-
-bool trampInit() {
-	SoftSerial1.begin();
-	return true;
 }
 
 void trampLoop() {

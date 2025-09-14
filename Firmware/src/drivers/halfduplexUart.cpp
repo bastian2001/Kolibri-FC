@@ -1,76 +1,82 @@
 #include "global.h"
-#include "pioasm/onewire_receive.pio.h"
-#include "pioasm/onewire_transmit.pio.h"
 
-u8 SerialOnewire::transmitOffsets[NUM_PIOS];
-u8 SerialOnewire::receiveOffsets[NUM_PIOS];
-bool SerialOnewire::offsetsSet;
+u8 SerialPioHd::programOffsets[NUM_PIOS];
+bool SerialPioHd::offsetsSet;
 
-SerialOnewire::SerialOnewire(u8 pin, u32 baudrate, PIO pio, i8 sm)
-	: pin(pin),
-	  baudrate(baudrate),
-	  pio(pio),
+SerialPioHd::SerialPioHd(PIO pio, i8 sm)
+	: pio(pio),
 	  beginSm(sm) {
 	if (!offsetsSet) {
-		// somehow "static u8 transmitOffsets[] = {[0 ...(NUM_PIOS - 1)] = 255};" does not work...
+		// somehow "static u8 programOffsets[] = {[0 ...(NUM_PIOS - 1)] = 255};" does not work...
 		for (int i = 0; i < NUM_PIOS; i++) {
-			transmitOffsets[i] = 255;
-			receiveOffsets[i] = 255;
+			programOffsets[i] = 255;
 		}
 		offsetsSet = true;
 	}
 }
 
-SerialOnewire::~SerialOnewire() {
+SerialPioHd::~SerialPioHd() {
 	if (running) {
 		end();
 	}
 }
 
-int SerialOnewire::available() { return 0; }
-int SerialOnewire::read() {
+int SerialPioHd::available() {
+	return pio_sm_get_rx_fifo_level(pio, sm);
+}
+int SerialPioHd::read() {
 	if (!running) {
 		return -1;
+	}
+	if (peekVal != -1) {
+		return peekVal;
 	}
 	if (pio_sm_is_rx_fifo_empty(pio, sm)) {
 		return -1;
 	}
 	return pio_sm_get(pio, sm);
 }
-int SerialOnewire::peek() {
-	// cannot peek into PIO fifo -> maybe for later with DMA?
-	return -1;
+int SerialPioHd::peek() {
+	if (!running) {
+		return -1;
+	}
+	if (peekVal != -1) {
+		return peekVal;
+	}
+	if (pio_sm_is_rx_fifo_empty(pio, sm)) {
+		return -1;
+	}
+	return peekVal = pio_sm_get(pio, sm);
 }
 
-size_t SerialOnewire::write(uint8_t c) {
+size_t SerialPioHd::write(uint8_t c) {
 	if (!running) {
 		return 0;
 	}
-	startTx();
 	pio_sm_put_blocking(pio, sm, c);
-	endTx();
 	return 1;
 }
-size_t SerialOnewire::write(const uint8_t *buffer, size_t size) {
+size_t SerialPioHd::write(const uint8_t *buffer, size_t size) {
 	if (!running) {
 		return 0;
 	}
-	startTx();
 	for (size_t i = 0; i < size; i++) {
 		pio_sm_put_blocking(pio, sm, buffer[i]);
 		rp2040.wdt_reset();
 	}
-	endTx();
 	return size;
 }
-void SerialOnewire::flush() {
-	return; // always flushed with each write
+void SerialPioHd::flush() {
+	while (!pio_sm_is_tx_fifo_empty(pio, sm)) {
+		tight_loop_contents();
+	}
+	return;
 }
-int SerialOnewire::availableForWrite() {
-	return 0; // always flushed with each write, no byte can be buffered
+int SerialPioHd::availableForWrite() {
+	return 4 - pio_sm_get_tx_fifo_level(pio, sm);
 }
 
-void SerialOnewire::begin() {
+void SerialPioHd::begin() {
 	if (running) return;
 	if (!pio || !baudrate || pin == 255) {
 		Serial.println("Assign values to halfduplex UART first");
@@ -83,8 +89,8 @@ void SerialOnewire::begin() {
 		return;
 	}
 
-	// 16 ticks per bit
-	float clkdiv = (float)clock_get_hz(clk_sys) / (baudrate * 16);
+	// 23 ticks per bit
+	float clkdiv = (float)clock_get_hz(clk_sys) / (baudrate * 23);
 	if (clkdiv < 1 || clkdiv >= 65536) {
 		Serial.println("Invalid baudrate");
 		return;
@@ -106,20 +112,13 @@ void SerialOnewire::begin() {
 		sm = beginSm;
 	}
 
-	// check and load programs
-	if (receiveOffsets[pioIndex] == 255) {
-		if (!pio_can_add_program(pio, &onewire_receive_program)) {
+	// check and load program
+	if (programOffsets[pioIndex] == 255) {
+		if (!pio_can_add_program(pio, &halfduplex_uart_program)) {
 			Serial.println("No free instruction memory available");
 			return;
 		}
-		receiveOffsets[pioIndex] = pio_add_program(pio, &onewire_receive_program);
-	}
-	if (transmitOffsets[pioIndex] == 255) {
-		if (!pio_can_add_program(pio, &onewire_transmit_program)) {
-			Serial.println("No free instruction memory available");
-			return;
-		}
-		transmitOffsets[pioIndex] = pio_add_program(pio, &onewire_transmit_program);
+		programOffsets[pioIndex] = pio_add_program(pio, &halfduplex_uart_program);
 	}
 
 	// set up GPIO
@@ -127,43 +126,35 @@ void SerialOnewire::begin() {
 	pio_gpio_init(pio, pin);
 
 	// set up configs
-	rxConfig = onewire_receive_program_get_default_config(receiveOffsets[pioIndex]);
-	sm_config_set_set_pins(&rxConfig, pin, 1);
-	sm_config_set_in_pins(&rxConfig, pin);
-	sm_config_set_jmp_pin(&rxConfig, pin);
-	sm_config_set_in_shift(&rxConfig, true, false, 32);
-	sm_config_set_clkdiv(&rxConfig, clkdiv);
-	txConfig = onewire_transmit_program_get_default_config(transmitOffsets[pioIndex]);
-	sm_config_set_set_pins(&txConfig, pin, 1);
-	sm_config_set_out_pins(&txConfig, pin, 1);
-	sm_config_set_out_shift(&txConfig, true, false, 8);
-	sm_config_set_clkdiv(&txConfig, clkdiv);
+	pioConfig = halfduplex_uart_program_get_default_config(programOffsets[pioIndex]);
+	sm_config_set_set_pins(&pioConfig, pin, 1);
+	sm_config_set_out_pins(&pioConfig, pin, 1);
+	sm_config_set_in_pins(&pioConfig, pin);
+	sm_config_set_jmp_pin(&pioConfig, pin);
+	sm_config_set_in_shift(&pioConfig, true, false, 32);
+	sm_config_set_clkdiv(&pioConfig, clkdiv);
 
 	// set up state machine
-	pio_sm_init(pio, sm, receiveOffsets[pioIndex], &rxConfig);
+	pio_sm_init(pio, sm, programOffsets[pioIndex], &pioConfig);
 	pio_sm_set_enabled(pio, sm, true);
 }
-void SerialOnewire::begin(u8 pin, u32 baudrate, PIO pio, i8 sm) {
+void SerialPioHd::begin(unsigned long baudrate) {
 	if (running) return;
 
-	this->pin = pin;
 	this->baudrate = baudrate;
-	this->pio = pio;
-	this->sm = sm;
 	begin();
 }
-void SerialOnewire::end() {}
-
-void SerialOnewire::startTx() {
-	pio_sm_set_config(PIO_ESC, 0, &txConfig);
-	pio_sm_exec(PIO_ESC, 0, pio_encode_jmp(transmitOffsets[pioIndex]));
+void SerialPioHd::begin(unsigned long baudrate, uint16_t _config) {
+	begin(baudrate);
 }
-void SerialOnewire::endTx() {
-	while (pio_sm_is_tx_fifo_empty(pio, sm)) {
-		tight_loop_contents();
-	}
-	while (pio_sm_get_pc(PIO_ESC, 0) != transmitOffsets[pioIndex] + 2) {
-	}
-	pio_sm_set_config(PIO_ESC, 0, &rxConfig);
-	pio_sm_exec(PIO_ESC, 0, pio_encode_jmp(receiveOffsets[pioIndex]));
+void SerialPioHd::end() {}
+
+SerialPioHd::operator bool() {
+	return running;
+}
+
+bool SerialPioHd::setPin(u8 pin) {
+	if (running) return false;
+	this->pin = pin;
+	return true;
 }

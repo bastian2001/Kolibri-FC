@@ -18,6 +18,7 @@ KoliSerial serials[SERIAL_COUNT] = {
 	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},
 	{new BufferedWriter(&Serial2, 2048), SERIAL_GPS},
 	{new BufferedWriter(new SerialPIO(PIN_TX2, PIN_RX2, 1024), 2048), 0},
+	{new BufferedWriter(new SerialPioHd(PIO_HALFDUPLEX_UART), 2048), SERIAL_IRC_TRAMP},
 };
 static u8 currentSerial = 0;
 
@@ -50,11 +51,11 @@ void initSerial() {
 		} else if (serial.functions & SERIAL_4WAY) {
 			rxFifo = 256;
 		} else if (serial.functions & SERIAL_IRC_TRAMP) {
-			rxFifo = 32;
+			rxFifo = 0;
 			baud = 9600;
 		} else if (serial.functions & SERIAL_SMARTAUDIO) {
 			config = SERIAL_8N2;
-			rxFifo = 32;
+			rxFifo = 0;
 			baud = 4800;
 		} else if (serial.functions & SERIAL_ESC_TELEM) {
 			rxFifo = 64;
@@ -78,6 +79,9 @@ void initSerial() {
 			rxPin = PIN_RX2;
 			txPin = PIN_TX2;
 			break;
+		case 4:
+			rxPin = txPin = PIN_TX2;
+			break;
 		}
 		switch (serial.stream->serialType) {
 		case SerialType::USB:
@@ -92,8 +96,12 @@ void initSerial() {
 			delete serial.stream;
 			serial.stream = new BufferedWriter(new SerialPIO(txPin, rxPin, rxFifo), 2048);
 			break;
+		case SerialType::PIO_HD:
+			serial.stream->hdStream->setPin(txPin);
+			break;
 		}
-		serial.stream->begin(baud, config);
+		if (serial.functions)
+			serial.stream->begin(baud, config);
 	}
 }
 
