@@ -22,6 +22,8 @@ u8 trampCurPitmode = 0;
 u32 trampConfFreq = 0;
 u16 trampConfPower = 0;
 
+static u8 trampSerialNum = 255;
+
 const u16 vtx58FreqTable[5][8] =
 	{
 		{5865, 5845, 5825, 5805, 5785, 5765, 5745, 5725}, // Boscam A
@@ -51,7 +53,13 @@ static i8 trampReceivePos = 0;
 trampStatus_e trampStatus = TRAMP_STATUS_OFFLINE;
 
 void trampWriteBuf(u8 *buf) {
-	SoftSerial1.write(buf, 16);
+	serials[trampSerialNum].stream->write(buf, 16);
+	Serial.println("Sending ");
+
+	for (int i = 0; i < 16; i++) {
+		Serial.printf("%02X ", buf[i]);
+	}
+	Serial.println();
 }
 
 u8 trampChecksum(u8 *trampBuf) {
@@ -113,6 +121,10 @@ char trampHandleResponse() {
 	switch (respCode) {
 	case 'r': {
 		uint16_t min_freq = trampRespBuffer[2] | (trampRespBuffer[3] << 8);
+		for (int i = 0; i < 16; i++) {
+			Serial.printf("%02X ", trampRespBuffer[i]);
+		}
+		Serial.println();
 		if (min_freq != 0) {
 			trampRFFreqMin = min_freq;
 			trampRFFreqMax = trampRespBuffer[4] | (trampRespBuffer[5] << 8);
@@ -125,6 +137,10 @@ char trampHandleResponse() {
 
 	case 'v': {
 		uint16_t freq = trampRespBuffer[2] | (trampRespBuffer[3] << 8);
+		for (int i = 0; i < 16; i++) {
+			Serial.printf("%02X ", trampRespBuffer[i]);
+		}
+		Serial.println();
 		if (freq != 0) {
 			trampCurFreq = freq;
 			trampCurConfigPower = trampRespBuffer[4] | (trampRespBuffer[5] << 8);
@@ -138,6 +154,10 @@ char trampHandleResponse() {
 	} break;
 
 	case 's': {
+		for (int i = 0; i < 16; i++) {
+			Serial.printf("%02X ", trampRespBuffer[i]);
+		}
+		Serial.println();
 		uint16_t temp = (int16_t)(trampRespBuffer[6] | (trampRespBuffer[7] << 8));
 		if (temp != 0) {
 			trampCurTemp = temp;
@@ -165,6 +185,7 @@ static bool trampIsValidResponseCode(uint8_t code) {
 static char trampReceive() {
 	while (!trampRxBuffer.isEmpty()) {
 		uint8_t c = trampRxBuffer.pop();
+		Serial.printf("Got %d %c\n", c, c);
 		trampRespBuffer[trampReceivePos++] = c;
 
 		switch (trampReceiveState) {
@@ -219,6 +240,15 @@ void trampQueryV(void) {
 
 void trampQueryS(void) {
 	trampQuery('s');
+}
+
+void trampInit() {
+	for (int i = 0; i < SERIAL_COUNT; i++) {
+		if (serials[i].functions & SERIAL_IRC_TRAMP) {
+			trampSerialNum = i;
+			break;
+		}
+	}
 }
 
 void trampLoop() {

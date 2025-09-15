@@ -3,5 +3,8 @@
 #include "ringbuffer.h"
 #include "typedefs.h"
 
-extern SerialPioHd SoftSerial1;
 extern RingBuffer<u8> trampRxBuffer;
+
+void trampInit();
+
+void trampLoop();
