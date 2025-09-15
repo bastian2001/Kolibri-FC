@@ -46,6 +46,7 @@ void setup() {
 	initADC();
 	modesInit();
 	initSerial();
+	trampInit();
 	initGPS();
 
 	u8 elrsNum = 0;
@@ -97,6 +98,7 @@ void loop() {
 	magLoop();
 	osdLoop();
 	taskManagerLoop();
+	trampLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500000) {
 		static bool on = false;

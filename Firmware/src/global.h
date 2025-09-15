@@ -45,6 +45,7 @@
 #include "drivers/baro.h"
 #include "drivers/esc.h"
 #include "drivers/gyro.h"
+#include "drivers/halfduplexUart.h"
 #include "drivers/i2c.h"
 #include "drivers/mag.h"
 #include "drivers/osd.h"
@@ -56,6 +57,7 @@
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
+#include "pioasm/halfduplex_uart.pio.h"
 #include "ringbuffer.h"
 #include "rtc.h"
 #include "serial.h"
@@ -64,6 +66,7 @@
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
+#include "serialhandler/tramp.h"
 #include "settings/arraySetting.h"
 #include "settings/littleFs.h"
 #include "settings/setting.h"
@@ -90,6 +93,8 @@
 #define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
 #define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
 #define PIO_LED pio2 // 1 SM, 4 instructions
+#define PIO_HALFDUPLEX_UART pio2 // 1 SM, 19 instructions
+// Total usage of pio2: 3 SMs (assuming one UART) and 28 of 32 instructions
 
 #define PROPS_OUT
 

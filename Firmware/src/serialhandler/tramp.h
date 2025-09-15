@@ -1,0 +1,10 @@
+#include "Arduino.h"
+#include "drivers/halfduplexUart.h"
+#include "ringbuffer.h"
+#include "typedefs.h"
+
+extern RingBuffer<u8> trampRxBuffer;
+
+void trampInit();
+
+void trampLoop();
