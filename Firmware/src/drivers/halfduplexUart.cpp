@@ -29,12 +29,14 @@ int SerialPioHd::read() {
 		return -1;
 	}
 	if (peekVal != -1) {
-		return peekVal;
+		int i = peekVal;
+		peekVal = -1;
+		return i;
 	}
 	if (pio_sm_is_rx_fifo_empty(pio, sm)) {
 		return -1;
 	}
-	return pio_sm_get(pio, sm);
+	return pio_sm_get(pio, sm) >> 24;
 }
 int SerialPioHd::peek() {
 	if (!running) {
@@ -46,7 +48,7 @@ int SerialPioHd::peek() {
 	if (pio_sm_is_rx_fifo_empty(pio, sm)) {
 		return -1;
 	}
-	return peekVal = pio_sm_get(pio, sm);
+	return peekVal = pio_sm_get(pio, sm) >> 24;
 }
 
 size_t SerialPioHd::write(uint8_t c) {
@@ -88,6 +90,7 @@ void SerialPioHd::begin() {
 		Serial.println("Invalid PIO instance");
 		return;
 	}
+	Serial.printf("PIO index: %d\n", pioIndex);
 
 	// 23 ticks per bit
 	float clkdiv = (float)clock_get_hz(clk_sys) / (baudrate * 23);
@@ -111,6 +114,7 @@ void SerialPioHd::begin() {
 		pio_sm_claim(pio, beginSm);
 		sm = beginSm;
 	}
+	Serial.printf("sm: %d\n", sm);
 
 	// check and load program
 	if (programOffsets[pioIndex] == 255) {
@@ -120,9 +124,13 @@ void SerialPioHd::begin() {
 		}
 		programOffsets[pioIndex] = pio_add_program(pio, &halfduplex_uart_program);
 	}
+	Serial.printf("offset: %d\n", programOffsets[pioIndex]);
+	Serial.printf("pin: %d\n", pin);
 
 	// set up GPIO
 	gpio_set_pulls(pin, true, false);
+	gpio_init(pin);
+	gpio_put(pin, true); // set high for once the output is enabled
 	pio_gpio_init(pio, pin);
 
 	// set up configs
@@ -131,12 +139,16 @@ void SerialPioHd::begin() {
 	sm_config_set_out_pins(&pioConfig, pin, 1);
 	sm_config_set_in_pins(&pioConfig, pin);
 	sm_config_set_jmp_pin(&pioConfig, pin);
-	sm_config_set_in_shift(&pioConfig, true, false, 32);
+	sm_config_set_in_shift(&pioConfig, true, false, 8);
+	sm_config_set_out_shift(&pioConfig, true, false, 8);
 	sm_config_set_clkdiv(&pioConfig, clkdiv);
 
 	// set up state machine
 	pio_sm_init(pio, sm, programOffsets[pioIndex], &pioConfig);
 	pio_sm_set_enabled(pio, sm, true);
+	pio_sm_set_clkdiv(pio, sm, clkdiv);
+
+	running = true;
 }
 void SerialPioHd::begin(unsigned long baudrate) {
 	if (running) return;
@@ -151,6 +163,10 @@ void SerialPioHd::end() {}
 
 SerialPioHd::operator bool() {
 	return running;
+}
+
+int SerialPioHd::getPc() {
+	return pio_sm_get_pc(pio, sm) - programOffsets[pioIndex];
 }
 
 bool SerialPioHd::setPin(u8 pin) {

@@ -23,7 +23,6 @@ KoliSerial serials[SERIAL_COUNT] = {
 static u8 currentSerial = 0;
 
 void initSerial() {
-	sleep_ms(4000);
 	for (u32 i = 0; i < 256; i++) {
 		u32 crc = i;
 		for (u32 j = 0; j < 8; j++) {

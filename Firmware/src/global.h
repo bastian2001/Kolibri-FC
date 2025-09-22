@@ -140,6 +140,23 @@ extern std::string uavName;
 #define str(a) #a
 #define FIRMWARE_VERSION_STRING xstr(FIRMWARE_VERSION_MAJOR) "." xstr(FIRMWARE_VERSION_MINOR) "." xstr(FIRMWARE_VERSION_PATCH) RELEASE_SUFFIX
 
+#ifdef PRINT_DEBUG
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTSLN(x) \
+	Serial.printf("%15s:%3d: %s\n", __FILE__, __LINE__, x);
+#define DEBUG_PRINTLN(x)                             \
+	Serial.printf("%15s:%3d: ", __FILE__, __LINE__); \
+	Serial.println(x);
+#define DEBUG_PRINTF(x, ...)                         \
+	Serial.printf("%15s:%3d: ", __FILE__, __LINE__); \
+	Serial.printf(x, __VA_ARGS__)
+#endif
+#ifndef PRINT_DEBUG
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTSLN(x)
+#define DEBUG_PRINTF(x, ...)
+#endif
+
 enum class MOTOR : u8 {
 	RR = 0,
 	FR,

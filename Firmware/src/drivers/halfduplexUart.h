@@ -29,6 +29,7 @@ public:
 	 */
 	virtual void begin(unsigned long baudrate, uint16_t _config) override;
 	virtual void end() override;
+	int getPc();
 
 	bool setPin(u8 pin);
 

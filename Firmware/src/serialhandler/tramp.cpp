@@ -5,241 +5,140 @@
 RingBuffer<u8> trampRxBuffer(64);
 
 static u8 trampReqBuffer[16];
-static u8 trampRespBuffer[16];
 
-u32 trampRFFreqMin;
-u32 trampRFFreqMax;
-u32 trampRFPowerMax;
+static u32 trampMinFreq;
+static u32 trampMaxFreq;
+static u32 trampMaxPwr;
 
-u32 trampCurFreq = 0;
-u8 trampCurBand = 0;
-u8 trampCurChan = 0;
-u16 trampCurPower = 0; // Actual transmitting power
-u16 trampCurConfigPower = 0; // Configured transmitting power
-i16 trampCurTemp = 0;
-u8 trampCurPitmode = 0;
+static u32 trampCurFreq = 0;
+static u8 trampCurBand = 0;
+static u8 trampCurChan = 0;
+static u16 trampCurPower = 0; // Actual transmitting power
+static u16 trampCurConfigPower = 0; // Configured transmitting power
+static i16 trampCurTemp = 0;
+static bool trampCurPitmode = 0;
 
-u32 trampConfFreq = 0;
-u16 trampConfPower = 0;
+static u32 trampConfFreq = 5917;
+static u16 trampConfPower = 25;
 
 static u8 trampSerialNum = 255;
+static elapsedMicros trampLastSend = 0;
 
-const u16 vtx58FreqTable[5][8] =
-	{
-		{5865, 5845, 5825, 5805, 5785, 5765, 5745, 5725}, // Boscam A
-		{5733, 5752, 5771, 5790, 5809, 5828, 5847, 5866}, // Boscam B
-		{5705, 5685, 5665, 5645, 5885, 5905, 5925, 5945}, // Boscam E
-		{5740, 5760, 5780, 5800, 5820, 5840, 5860, 5880}, // FatShark
-		{5658, 5695, 5732, 5769, 5806, 5843, 5880, 5917}, // RaceBand
+static const u16 vtx58FreqTable[5][8] = {
+	{5865, 5845, 5825, 5805, 5785, 5765, 5745, 5725}, // Boscam A
+	{5733, 5752, 5771, 5790, 5809, 5828, 5847, 5866}, // Boscam B
+	{5705, 5685, 5665, 5645, 5885, 5905, 5925, 5945}, // Boscam E
+	{5740, 5760, 5780, 5800, 5820, 5840, 5860, 5880}, // FatShark
+	{5658, 5695, 5732, 5769, 5806, 5843, 5880, 5917}, // RaceBand
 };
 
-typedef enum {
-	TRAMP_STATUS_BAD_DEVICE = -1,
-	TRAMP_STATUS_OFFLINE = 0,
-	TRAMP_STATUS_ONLINE,
-	TRAMP_STATUS_SET_FREQ_PW,
-	TRAMP_STATUS_CHECK_FREQ_PW
-} trampStatus_e;
+enum class TrampStatus {
+	OFFLINE = 0,
+	INIT_GET_SETTINGS,
+	ONLINE_CHECK,
+	ONLINE_SETTINGS,
+	ONLINE_TEMP,
+	SET_FREQ,
+	CHECK_FREQ,
+	SET_PWR,
+	CHECK_PWR,
+	SET_PITMODE,
+	CHECK_PITMODE,
+};
 
-typedef enum {
-	S_WAIT_LEN = 0, // Waiting for a packet len
-	S_WAIT_CODE, // Waiting for a response code
-	S_DATA, // Waiting for rest of the packet.
-} trampReceiveState_e;
+enum class TrampReceiveState {
+	SYNC = 0, // waiting for sync byte (0x0F)
+	CMD, // waiting for command byte
+	DATA, // receiving data (bytes 2-13 (0-indexed))
+	CHECKSUM, // waiting for checksum (byte 14 (0-indexed))
+	END, // waiting for end byte (byte 15 (0-indexed))
+};
 
-static trampReceiveState_e trampReceiveState = S_WAIT_LEN;
-static i8 trampReceivePos = 0;
+enum class TrampCommand : u8 {
+	INIT = 'r',
+	SET_FREQ = 'F',
+	SET_PWR = 'P',
+	SET_PITMODE = 'I',
+	GET_SETTINGS = 'v',
+	GET_TEMP = 's',
+};
 
-trampStatus_e trampStatus = TRAMP_STATUS_OFFLINE;
+static TrampStatus trampStatus = TrampStatus::OFFLINE;
 
-void trampWriteBuf(u8 *buf) {
+static void trampWriteBuf(u8 *buf) {
 	serials[trampSerialNum].stream->write(buf, 16);
-	Serial.println("Sending ");
-
-	for (int i = 0; i < 16; i++) {
-		Serial.printf("%02X ", buf[i]);
-	}
-	Serial.println();
 }
 
-u8 trampChecksum(u8 *trampBuf) {
+static u8 trampCalcChecksum(u8 *trampBuf) {
 	uint8_t cksum = 0;
-
-	for (int i = 1; i < 14; i++)
+	for (int i = 0; i < 13; i++)
 		cksum += trampBuf[i];
-
 	return cksum;
 }
 
-void trampCmdU16(u8 cmd, u16 param) {
+static void trampSendCmd(TrampCommand cmd, u16 param = 0) {
 	memset(trampReqBuffer, 0, ARRAYLEN(trampReqBuffer));
 	trampReqBuffer[0] = 15;
-	trampReqBuffer[1] = cmd;
+	trampReqBuffer[1] = (u8)cmd;
 	trampReqBuffer[2] = param & 0xff;
 	trampReqBuffer[3] = (param >> 8) & 0xff;
-	trampReqBuffer[14] = trampChecksum(trampReqBuffer);
+	trampReqBuffer[14] = trampCalcChecksum(trampReqBuffer + 1);
 	trampWriteBuf(trampReqBuffer);
+	trampLastSend = 0;
 }
 
-void trampSetFreq(u16 freq) {
-	trampConfFreq = freq;
-}
-
-void trampSendFreq(u16 freq) {
-	trampCmdU16('F', freq);
-}
-
-void trampSetBandChan(u8 band, u8 chan) {
-	trampSetFreq(vtx58FreqTable[band - 1][chan - 1]);
-}
-
-void trampSetRFPower(u16 level) {
-	trampConfPower = level;
-}
-
-void trampSendRFPower(u16 level) {
-	trampCmdU16('P', level);
-}
-
-// return false if error
-bool trampCommitChanges() {
-	if (trampStatus != TRAMP_STATUS_ONLINE)
-		return false;
-
-	trampStatus = TRAMP_STATUS_SET_FREQ_PW;
-	return true;
-}
-
-void trampSetPitmode(uint8_t onoff) {
-	trampCmdU16('I', onoff ? 0 : 1);
-}
-
-// returns completed response code
-char trampHandleResponse() {
-	uint8_t respCode = trampRespBuffer[1];
-
-	switch (respCode) {
-	case 'r': {
-		uint16_t min_freq = trampRespBuffer[2] | (trampRespBuffer[3] << 8);
-		for (int i = 0; i < 16; i++) {
-			Serial.printf("%02X ", trampRespBuffer[i]);
+static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
+	Serial.printf("%d %02X %c\n", (u8)cmd, (u8)cmd, (u8)cmd);
+	switch (cmd) {
+	case TrampCommand::INIT: {
+		trampMinFreq = DECODE_U2(data);
+		trampMaxFreq = DECODE_U2(data + 2);
+		trampMaxPwr = DECODE_U2(data + 4);
+		if (trampStatus == TrampStatus::OFFLINE) {
+			trampStatus = TrampStatus::INIT_GET_SETTINGS;
+		} else if (trampStatus == TrampStatus::ONLINE_CHECK) {
+			trampStatus = TrampStatus::ONLINE_SETTINGS;
 		}
-		Serial.println();
-		if (min_freq != 0) {
-			trampRFFreqMin = min_freq;
-			trampRFFreqMax = trampRespBuffer[4] | (trampRespBuffer[5] << 8);
-			trampRFPowerMax = trampRespBuffer[6] | (trampRespBuffer[7] << 8);
-			return 'r';
-		}
-
-		// throw bytes echoed from tx to rx in bidirectional mode away
-	} break;
-
-	case 'v': {
-		uint16_t freq = trampRespBuffer[2] | (trampRespBuffer[3] << 8);
-		for (int i = 0; i < 16; i++) {
-			Serial.printf("%02X ", trampRespBuffer[i]);
-		}
-		Serial.println();
-		if (freq != 0) {
-			trampCurFreq = freq;
-			trampCurConfigPower = trampRespBuffer[4] | (trampRespBuffer[5] << 8);
-			trampCurPitmode = trampRespBuffer[7];
-			trampCurPower = trampRespBuffer[8] | (trampRespBuffer[9] << 8);
-			// vtx58_Freq2Bandchan(trampCurFreq, &trampCurBand, &trampCurChan);
-			return 'v';
-		}
-
-		// throw bytes echoed from tx to rx in bidirectional mode away
-	} break;
-
-	case 's': {
-		for (int i = 0; i < 16; i++) {
-			Serial.printf("%02X ", trampRespBuffer[i]);
-		}
-		Serial.println();
-		uint16_t temp = (int16_t)(trampRespBuffer[6] | (trampRespBuffer[7] << 8));
-		if (temp != 0) {
-			trampCurTemp = temp;
-			return 's';
-		}
-	} break;
-	}
-
-	return 0;
-}
-
-static void trampResetReceiver() {
-	trampReceiveState = S_WAIT_LEN;
-	trampReceivePos = 0;
-}
-
-static bool trampIsValidResponseCode(uint8_t code) {
-	if (code == 'r' || code == 'v' || code == 's')
+		Serial.printf("Got Init Message: Min: %d, Max: %d, MaxPwr: %d\n", trampMinFreq, trampMaxFreq, trampMaxPwr);
 		return true;
-	else
-		return false;
-}
-
-// returns completed response code or 0
-static char trampReceive() {
-	while (!trampRxBuffer.isEmpty()) {
-		uint8_t c = trampRxBuffer.pop();
-		Serial.printf("Got %d %c\n", c, c);
-		trampRespBuffer[trampReceivePos++] = c;
-
-		switch (trampReceiveState) {
-		case S_WAIT_LEN:
-			if (c == 0x0F) {
-				trampReceiveState = S_WAIT_CODE;
-			} else {
-				trampReceivePos = 0;
-			}
-			break;
-
-		case S_WAIT_CODE:
-			if (trampIsValidResponseCode(c)) {
-				trampReceiveState = S_DATA;
-			} else {
-				trampResetReceiver();
-			}
-			break;
-
-		case S_DATA:
-			if (trampReceivePos == 16) {
-				uint8_t cksum = trampChecksum(trampRespBuffer);
-
-				trampResetReceiver();
-
-				if ((trampRespBuffer[14] == cksum) && (trampRespBuffer[15] == 0)) {
-					return trampHandleResponse();
+	} break;
+	case TrampCommand::GET_SETTINGS: {
+		trampCurFreq = DECODE_U2(data);
+		trampCurConfigPower = DECODE_U2(data + 2);
+		trampCurPitmode = data[6] > 0;
+		trampCurPower = DECODE_U2(data + 6);
+		trampCurBand = 255;
+		trampCurChan = 255;
+		for (int band = 0; band < 5; band++) {
+			for (int chan = 0; chan < 8; chan++) {
+				if (vtx58FreqTable[band][chan] == trampCurFreq) {
+					trampCurBand = band;
+					trampCurChan = chan;
 				}
 			}
-			break;
-
-		default:
-			trampResetReceiver();
 		}
+		if (trampStatus == TrampStatus::INIT_GET_SETTINGS) {
+			trampStatus = TrampStatus::ONLINE_CHECK;
+		} else if (trampStatus == TrampStatus::ONLINE_SETTINGS) {
+			if (trampCurFreq != trampConfFreq)
+				trampStatus = TrampStatus::SET_FREQ;
+			else if (trampCurConfigPower != trampConfPower)
+				trampStatus = TrampStatus::SET_PWR;
+			else
+				trampStatus = TrampStatus::ONLINE_TEMP;
+		}
+		DEBUG_PRINTF("Got Settings Message: Freq: %d, Pit: %d, ConfPwr: %d, Pwr: %d\n", trampCurFreq, trampCurPitmode, trampCurConfigPower, trampCurPower);
+		return true;
+	} break;
+	case TrampCommand::GET_TEMP: {
+		trampCurTemp = DECODE_U2(data);
+		if (trampStatus == TrampStatus::ONLINE_TEMP) {
+			trampStatus = TrampStatus::ONLINE_CHECK;
+		}
+		DEBUG_PRINTF("Tramp Temp: %d\n", trampCurTemp);
+	} break;
 	}
-
-	return 0;
-}
-
-void trampQuery(uint8_t cmd) {
-	trampResetReceiver();
-	trampCmdU16(cmd, 0);
-}
-
-void trampQueryR(void) {
-	trampQuery('r');
-}
-
-void trampQueryV(void) {
-	trampQuery('v');
-}
-
-void trampQueryS(void) {
-	trampQuery('s');
+	return false;
 }
 
 void trampInit() {
@@ -252,96 +151,111 @@ void trampInit() {
 }
 
 void trampLoop() {
-	uint32_t currentTimeUs = micros();
-	static uint32_t lastQueryTimeUs = 0;
+	if (trampSerialNum == 255) return;
 
-#ifdef TRAMP_DEBUG
-	static uint16_t debugFreqReqCounter = 0;
-	static uint16_t debugPowReqCounter = 0;
-#endif
+	TASK_START(TASK_TRAMP);
 
-	if (trampStatus == TRAMP_STATUS_BAD_DEVICE)
-		return;
+	static TrampReceiveState rxState = TrampReceiveState::SYNC;
+	static u8 rxBuf[13];
+	static u8 *const dataBuf = rxBuf + 1;
+	static TrampCommand &cmd = ((TrampCommand *)rxBuf)[0];
+	static u32 dataIndex = 0;
+	bool newMsg = false;
 
-	char replyCode = trampReceive();
-
-#ifdef TRAMP_DEBUG
-	debug[0] = trampStatus;
-#endif
-
-	switch (replyCode) {
-	case 'r':
-		if (trampStatus <= TRAMP_STATUS_OFFLINE)
-			trampStatus = TRAMP_STATUS_ONLINE;
-		break;
-
-	case 'v':
-		if (trampStatus == TRAMP_STATUS_CHECK_FREQ_PW)
-			trampStatus = TRAMP_STATUS_SET_FREQ_PW;
-		break;
-	}
-
-	switch (trampStatus) {
-
-	case TRAMP_STATUS_OFFLINE:
-	case TRAMP_STATUS_ONLINE:
-		if (currentTimeUs - lastQueryTimeUs > 1000 * 1000) { // 1s
-
-			if (trampStatus == TRAMP_STATUS_OFFLINE)
-				trampQueryR();
-			else {
-				static unsigned int cnt = 0;
-				if (((cnt++) & 1) == 0)
-					trampQueryV();
-				else
-					trampQueryS();
+	// RX state machine
+	for (int i = 0; i < 10 && !trampRxBuffer.isEmpty(); i++) {
+		u8 c = trampRxBuffer.pop();
+		switch (rxState) {
+		case TrampReceiveState::SYNC:
+			if (c == 0x0F) rxState = TrampReceiveState::CMD;
+			break;
+		case TrampReceiveState::CMD:
+			cmd = (TrampCommand)c;
+			rxState = TrampReceiveState::DATA;
+			dataIndex = 0;
+			break;
+		case TrampReceiveState::DATA:
+			dataBuf[dataIndex++] = c;
+			if (dataIndex == 12) rxState = TrampReceiveState::CHECKSUM;
+			break;
+		case TrampReceiveState::CHECKSUM:
+			if (trampCalcChecksum(rxBuf) == c)
+				rxState = TrampReceiveState::END;
+			else
+				rxState = TrampReceiveState::SYNC;
+			break;
+		case TrampReceiveState::END:
+			if (c == 0) {
+				newMsg = trampHandleMessage(cmd, dataBuf);
 			}
-
-			lastQueryTimeUs = currentTimeUs;
+			rxState = TrampReceiveState::SYNC;
 		}
-		break;
-
-	case TRAMP_STATUS_SET_FREQ_PW: {
-		bool done = true;
-		if (trampConfFreq != trampCurFreq) {
-			trampSendFreq(trampConfFreq);
-#ifdef TRAMP_DEBUG
-			debugFreqReqCounter++;
-#endif
-			done = false;
-		} else if (trampConfPower != trampCurConfigPower) {
-			trampSendRFPower(trampConfPower);
-#ifdef TRAMP_DEBUG
-			debugPowReqCounter++;
-#endif
-			done = false;
-		}
-
-		if (!done) {
-			trampStatus = TRAMP_STATUS_CHECK_FREQ_PW;
-
-			// delay next status query by 300ms
-			lastQueryTimeUs = currentTimeUs + 300 * 1000;
-		} else {
-			// everything has been done, let's return to original state
-			trampStatus = TRAMP_STATUS_ONLINE;
-		}
-	} break;
-
-	case TRAMP_STATUS_CHECK_FREQ_PW:
-		if (currentTimeUs - lastQueryTimeUs > 200 * 1000) {
-			trampQueryV();
-			lastQueryTimeUs = currentTimeUs;
-		}
-		break;
-
-	default:
-		break;
 	}
 
-#ifdef TRAMP_DEBUG
-	debug[1] = debugFreqReqCounter;
-	debug[2] = debugPowReqCounter;
-	debug[3] = 0;
-#endif
+	if (trampLastSend > 500000) {
+		DEBUG_PRINTF("Tramp Status: %d\n", (u8)trampStatus);
+		switch (trampStatus) {
+		case TrampStatus::OFFLINE:
+		case TrampStatus::ONLINE_CHECK:
+			trampSendCmd(TrampCommand::INIT);
+			break;
+		case TrampStatus::ONLINE_SETTINGS:
+		case TrampStatus::INIT_GET_SETTINGS:
+		case TrampStatus::CHECK_FREQ:
+		case TrampStatus::CHECK_PWR:
+		case TrampStatus::CHECK_PITMODE:
+			trampSendCmd(TrampCommand::GET_SETTINGS);
+			break;
+		case TrampStatus::ONLINE_TEMP:
+			trampSendCmd(TrampCommand::GET_TEMP);
+			break;
+		case TrampStatus::SET_FREQ:
+			trampSendCmd(TrampCommand::SET_FREQ, trampConfFreq);
+			trampStatus = TrampStatus::CHECK_FREQ;
+			break;
+		case TrampStatus::SET_PWR:
+			trampSendCmd(TrampCommand::SET_PWR, trampConfPower);
+			trampStatus = TrampStatus::CHECK_PWR;
+			break;
+		case TrampStatus::SET_PITMODE:
+			trampSendCmd(TrampCommand::SET_PITMODE, 1); // 1: no pit mode, 0: pit mode
+			trampStatus = TrampStatus::CHECK_PITMODE;
+			break;
+		}
+	}
+
+	TASK_END(TASK_TRAMP);
 }
+
+// void trampSetFreq(u16 freq) {
+// 	trampConfFreq = freq;
+// }
+
+// void trampSendFreq(u16 freq) {
+// 	trampCmdU16('F', freq);
+// }
+
+// void trampSetBandChan(u8 band, u8 chan) {
+// 	trampSetFreq(vtx58FreqTable[band - 1][chan - 1]);
+// }
+
+// void trampSetRFPower(u16 level) {
+// 	trampConfPower = level;
+// }
+
+// void trampSendRFPower(u16 level) {
+// 	trampCmdU16('P', level);
+// }
+
+// // return false if error
+// bool trampCommitChanges() {
+// 	if (trampStatus != TRAMP_STATUS_ONLINE)
+// 		return false;
+
+// 	trampStatus = TRAMP_STATUS_SET_FREQ_PW;
+// 	return true;
+// }
+
+// void trampSetPitmode(uint8_t onoff) {
+// 	trampCmdU16('I', onoff ? 0 : 1);
+// }

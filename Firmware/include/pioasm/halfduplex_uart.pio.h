@@ -28,7 +28,7 @@ static const uint16_t halfduplex_uart_program_instructions[] = {
 	0x0087, //  8: jmp    y--, 7
 	0x00cc, //  9: jmp    pin, 12
 	0xa0c3, // 10: mov    isr, null
-	0x1404, // 11: jmp    4                      [20]
+	0x1401, // 11: jmp    1                      [20]
 	0x8020, // 12: push   block
 	0x0604, // 13: jmp    4                      [6]
 	0xf281, // 14: set    pindirs, 1             [18]
