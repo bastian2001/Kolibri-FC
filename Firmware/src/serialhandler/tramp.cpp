@@ -1,8 +1,6 @@
 #include "global.h"
 
-// largely copied from https://github.com/raphaelcoeffic/betaflight/blob/9681929f98cfac2b3433b605bcf788ef8bacf0a2/src/main/io/vtx_tramp.c
-
-RingBuffer<u8> trampRxBuffer(64);
+RingBuffer<u8> trampRxBuffer(32);
 
 static u8 trampReqBuffer[16];
 
@@ -11,8 +9,8 @@ static u32 trampMaxFreq;
 static u32 trampMaxPwr;
 
 static u32 trampCurFreq = 0;
-static u8 trampCurBand = 0;
-static u8 trampCurChan = 0;
+static u8 trampCurBand = 255;
+static u8 trampCurChan = 255;
 static u16 trampCurPower = 0; // Actual transmitting power
 static u16 trampCurConfigPower = 0; // Configured transmitting power
 static i16 trampCurTemp = 0;
@@ -88,7 +86,6 @@ static void trampSendCmd(TrampCommand cmd, u16 param = 0) {
 }
 
 static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
-	Serial.printf("%d %02X %c\n", (u8)cmd, (u8)cmd, (u8)cmd);
 	switch (cmd) {
 	case TrampCommand::INIT: {
 		trampMinFreq = DECODE_U2(data);
@@ -99,13 +96,12 @@ static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
 		} else if (trampStatus == TrampStatus::ONLINE_CHECK) {
 			trampStatus = TrampStatus::ONLINE_SETTINGS;
 		}
-		Serial.printf("Got Init Message: Min: %d, Max: %d, MaxPwr: %d\n", trampMinFreq, trampMaxFreq, trampMaxPwr);
 		return true;
 	} break;
 	case TrampCommand::GET_SETTINGS: {
 		trampCurFreq = DECODE_U2(data);
 		trampCurConfigPower = DECODE_U2(data + 2);
-		trampCurPitmode = data[6] > 0;
+		trampCurPitmode = data[5] > 0;
 		trampCurPower = DECODE_U2(data + 6);
 		trampCurBand = 255;
 		trampCurChan = 255;
@@ -126,16 +122,26 @@ static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
 				trampStatus = TrampStatus::SET_PWR;
 			else
 				trampStatus = TrampStatus::ONLINE_TEMP;
+		} else if (trampStatus == TrampStatus::CHECK_FREQ) {
+			if (trampCurFreq != trampConfFreq)
+				trampStatus = TrampStatus::SET_FREQ;
+			else
+				trampStatus = TrampStatus::ONLINE_CHECK;
+		} else if (trampStatus == TrampStatus::CHECK_PWR) {
+			if (trampCurConfigPower != trampConfPower)
+				trampStatus = TrampStatus::SET_PWR;
+			else
+				trampStatus = TrampStatus::ONLINE_CHECK;
+		} else if (trampStatus == TrampStatus::CHECK_PITMODE) {
+			trampStatus = TrampStatus::ONLINE_CHECK;
 		}
-		DEBUG_PRINTF("Got Settings Message: Freq: %d, Pit: %d, ConfPwr: %d, Pwr: %d\n", trampCurFreq, trampCurPitmode, trampCurConfigPower, trampCurPower);
 		return true;
 	} break;
 	case TrampCommand::GET_TEMP: {
-		trampCurTemp = DECODE_U2(data);
+		trampCurTemp = DECODE_I2(data + 4);
 		if (trampStatus == TrampStatus::ONLINE_TEMP) {
 			trampStatus = TrampStatus::ONLINE_CHECK;
 		}
-		DEBUG_PRINTF("Tramp Temp: %d\n", trampCurTemp);
 	} break;
 	}
 	return false;
@@ -148,12 +154,15 @@ void trampInit() {
 			break;
 		}
 	}
+
+	addSetting(SETTING_VTX_FREQ, &trampConfFreq, 5917);
+	addSetting(SETTING_VTX_POWER, &trampConfPower, 25);
 }
 
 void trampLoop() {
 	if (trampSerialNum == 255) return;
 
-	TASK_START(TASK_TRAMP);
+	TASK_START(TASK_VTX);
 
 	static TrampReceiveState rxState = TrampReceiveState::SYNC;
 	static u8 rxBuf[13];
@@ -193,7 +202,6 @@ void trampLoop() {
 	}
 
 	if (trampLastSend > 500000) {
-		DEBUG_PRINTF("Tramp Status: %d\n", (u8)trampStatus);
 		switch (trampStatus) {
 		case TrampStatus::OFFLINE:
 		case TrampStatus::ONLINE_CHECK:
@@ -218,44 +226,12 @@ void trampLoop() {
 			trampStatus = TrampStatus::CHECK_PWR;
 			break;
 		case TrampStatus::SET_PITMODE:
-			trampSendCmd(TrampCommand::SET_PITMODE, 1); // 1: no pit mode, 0: pit mode
+			trampSendCmd(TrampCommand::SET_PITMODE, 0);
 			trampStatus = TrampStatus::CHECK_PITMODE;
 			break;
 		}
 	}
+	tasks[TASK_VTX].debugInfo = (u32)trampStatus;
 
-	TASK_END(TASK_TRAMP);
+	TASK_END(TASK_VTX);
 }
-
-// void trampSetFreq(u16 freq) {
-// 	trampConfFreq = freq;
-// }
-
-// void trampSendFreq(u16 freq) {
-// 	trampCmdU16('F', freq);
-// }
-
-// void trampSetBandChan(u8 band, u8 chan) {
-// 	trampSetFreq(vtx58FreqTable[band - 1][chan - 1]);
-// }
-
-// void trampSetRFPower(u16 level) {
-// 	trampConfPower = level;
-// }
-
-// void trampSendRFPower(u16 level) {
-// 	trampCmdU16('P', level);
-// }
-
-// // return false if error
-// bool trampCommitChanges() {
-// 	if (trampStatus != TRAMP_STATUS_ONLINE)
-// 		return false;
-
-// 	trampStatus = TRAMP_STATUS_SET_FREQ_PW;
-// 	return true;
-// }
-
-// void trampSetPitmode(uint8_t onoff) {
-// 	trampCmdU16('I', onoff ? 0 : 1);
-// }

@@ -1,9 +1,9 @@
 #include "global.h"
 
 char BufferedWriter::serialTypeNames[4][12] = {
-	"USB       ",
-	"UART      ",
-	"PIO       ",
+	"USB        ",
+	"UART       ",
+	"PIO        ",
 	"PIO Half-D.",
 };
 elapsedMicros BufferedWriter::sinceReset = 0;

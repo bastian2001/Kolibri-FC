@@ -90,7 +90,6 @@ void SerialPioHd::begin() {
 		Serial.println("Invalid PIO instance");
 		return;
 	}
-	Serial.printf("PIO index: %d\n", pioIndex);
 
 	// 23 ticks per bit
 	float clkdiv = (float)clock_get_hz(clk_sys) / (baudrate * 23);
@@ -114,7 +113,6 @@ void SerialPioHd::begin() {
 		pio_sm_claim(pio, beginSm);
 		sm = beginSm;
 	}
-	Serial.printf("sm: %d\n", sm);
 
 	// check and load program
 	if (programOffsets[pioIndex] == 255) {
@@ -124,8 +122,6 @@ void SerialPioHd::begin() {
 		}
 		programOffsets[pioIndex] = pio_add_program(pio, &halfduplex_uart_program);
 	}
-	Serial.printf("offset: %d\n", programOffsets[pioIndex]);
-	Serial.printf("pin: %d\n", pin);
 
 	// set up GPIO
 	gpio_set_pulls(pin, true, false);

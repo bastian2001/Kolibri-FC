@@ -51,6 +51,12 @@
 #define SETTING_ANGLE_BURST_COOLDOWN "poshold_angle_cooldown_time"
 #define SETTING_HVEL_STICK_DEADBAND "poshold_hvel_stick_deadband"
 
+// VTX settings
+#define SETTING_VTX_FREQ "vtx_frequency"
+#define SETTING_VTX_POWER "vtx_power_mw"
+#define SETTING_VTX_BAND "vtx_band"
+#define SETTING_VTX_CHAN "vtx_channel"
+
 // general settings
 #define SETTING_UAV_NAME "uav_name"
 #define SETTING_TIMEZONE_OFFSET "timezone_offset_mins"

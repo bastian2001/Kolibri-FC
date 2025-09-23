@@ -101,8 +101,8 @@
 #define ARRAYLEN(arr) (sizeof(arr) / sizeof(arr[0])) // Get the length of an array
 
 extern ExpressLRS *ELRS; // global ELRS instance
-#define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((u8 *)(buf) + 1) << 8)) // Decode 2 bytes from a buffer into a 16-bit unsigned integer
-#define DECODE_I2(buf) ((*(buf) & 0xFF) + ((*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer
+#define DECODE_U2(buf) ((*(buf) & 0xFF) + ((u16)(*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit unsigned integer
+#define DECODE_I2(buf) ((*(buf) & 0xFF) + ((i16)(*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer
 u32 DECODE_U4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit unsigned integer
 i32 DECODE_I4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit signed integer
 f32 DECODE_R4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit float
