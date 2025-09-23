@@ -18,7 +18,7 @@ KoliSerial serials[SERIAL_COUNT] = {
 	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},
 	{new BufferedWriter(&Serial2, 2048), SERIAL_GPS},
 	{new BufferedWriter(new SerialPIO(PIN_TX2, PIN_RX2, 1024), 2048), 0},
-	{new BufferedWriter(new SerialPioHd(PIO_HALFDUPLEX_UART), 2048), SERIAL_IRC_TRAMP},
+	{new BufferedWriter(new SerialPioHdx(PIO_HALFDUPLEX_UART), 2048), SERIAL_IRC_TRAMP},
 };
 static u8 currentSerial = 0;
 
@@ -96,8 +96,8 @@ void initSerial() {
 			delete serial.stream;
 			serial.stream = new BufferedWriter(new SerialPIO(txPin, rxPin, rxFifo), 2048);
 			break;
-		case SerialType::PIO_HD:
-			serial.stream->hdStream->setPin(txPin);
+		case SerialType::PIO_HDX:
+			serial.stream->hdxStream->setPin(txPin);
 			break;
 		}
 		if (serial.functions)

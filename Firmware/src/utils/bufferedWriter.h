@@ -9,7 +9,7 @@ enum class SerialType {
 	USB,
 	UART,
 	PIO,
-	PIO_HD,
+	PIO_HDX,
 };
 
 class BufferedWriter : public HardwareSerial {
@@ -22,7 +22,7 @@ public:
 #endif
 	SerialUART *const uartStream;
 	SerialPIO *const pioStream;
-	SerialPioHd *const hdStream;
+	SerialPioHdx *const hdxStream;
 	const SerialType serialType;
 
 #ifdef USE_TINYUSB
@@ -31,7 +31,7 @@ public:
 		  usbStream(usbStream),
 		  uartStream(nullptr),
 		  pioStream(nullptr),
-		  hdStream(nullptr),
+		  hdxStream(nullptr),
 		  serialType(SerialType::USB),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
@@ -42,7 +42,7 @@ public:
 		  usbStream(usbStream),
 		  uartStream(nullptr),
 		  pioStream(nullptr),
-		  hdStream(nullptr),
+		  hdxStream(nullptr),
 		  serialType(SerialType::USB),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
@@ -54,7 +54,7 @@ public:
 		  usbStream(nullptr),
 		  uartStream(uartStream),
 		  pioStream(nullptr),
-		  hdStream(nullptr),
+		  hdxStream(nullptr),
 		  serialType(SerialType::UART),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
@@ -65,19 +65,19 @@ public:
 		  usbStream(nullptr),
 		  uartStream(nullptr),
 		  pioStream(pioStream),
-		  hdStream(nullptr),
+		  hdxStream(nullptr),
 		  serialType(SerialType::PIO),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
 	};
 
-	BufferedWriter(SerialPioHd *const hdStream, size_t fifoSize)
-		: stream(hdStream),
+	BufferedWriter(SerialPioHdx *const hdxStream, size_t fifoSize)
+		: stream(hdxStream),
 		  usbStream(nullptr),
 		  uartStream(nullptr),
 		  pioStream(nullptr),
-		  hdStream(hdStream),
-		  serialType(SerialType::PIO_HD),
+		  hdxStream(hdxStream),
+		  serialType(SerialType::PIO_HDX),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
 	};
@@ -205,7 +205,7 @@ public:
 	volatile u32 totalRx = 0;
 	volatile u32 totalTx = 0;
 	static elapsedMicros sinceReset;
-	static char serialTypeNames[4][12];
+	static char serialTypeNames[4][8];
 
 private:
 	RingBuffer<u8> writeBuffer;

@@ -1,9 +1,9 @@
 #include "global.h"
 
-u8 SerialPioHd::programOffsets[NUM_PIOS];
-bool SerialPioHd::offsetsSet;
+u8 SerialPioHdx::programOffsets[NUM_PIOS];
+bool SerialPioHdx::offsetsSet;
 
-SerialPioHd::SerialPioHd(PIO pio, i8 sm)
+SerialPioHdx::SerialPioHdx(PIO pio, i8 sm)
 	: pio(pio),
 	  beginSm(sm) {
 	if (!offsetsSet) {
@@ -15,16 +15,16 @@ SerialPioHd::SerialPioHd(PIO pio, i8 sm)
 	}
 }
 
-SerialPioHd::~SerialPioHd() {
+SerialPioHdx::~SerialPioHdx() {
 	if (running) {
 		end();
 	}
 }
 
-int SerialPioHd::available() {
+int SerialPioHdx::available() {
 	return pio_sm_get_rx_fifo_level(pio, sm);
 }
-int SerialPioHd::read() {
+int SerialPioHdx::read() {
 	if (!running) {
 		return -1;
 	}
@@ -38,7 +38,7 @@ int SerialPioHd::read() {
 	}
 	return pio_sm_get(pio, sm) >> 24;
 }
-int SerialPioHd::peek() {
+int SerialPioHdx::peek() {
 	if (!running) {
 		return -1;
 	}
@@ -51,14 +51,14 @@ int SerialPioHd::peek() {
 	return peekVal = pio_sm_get(pio, sm) >> 24;
 }
 
-size_t SerialPioHd::write(uint8_t c) {
+size_t SerialPioHdx::write(uint8_t c) {
 	if (!running) {
 		return 0;
 	}
 	pio_sm_put_blocking(pio, sm, c);
 	return 1;
 }
-size_t SerialPioHd::write(const uint8_t *buffer, size_t size) {
+size_t SerialPioHdx::write(const uint8_t *buffer, size_t size) {
 	if (!running) {
 		return 0;
 	}
@@ -68,17 +68,17 @@ size_t SerialPioHd::write(const uint8_t *buffer, size_t size) {
 	}
 	return size;
 }
-void SerialPioHd::flush() {
+void SerialPioHdx::flush() {
 	while (!pio_sm_is_tx_fifo_empty(pio, sm)) {
 		tight_loop_contents();
 	}
 	return;
 }
-int SerialPioHd::availableForWrite() {
+int SerialPioHdx::availableForWrite() {
 	return 4 - pio_sm_get_tx_fifo_level(pio, sm);
 }
 
-void SerialPioHd::begin() {
+void SerialPioHdx::begin() {
 	if (running) return;
 	if (!pio || !baudrate || pin == 255) {
 		Serial.println("Assign values to halfduplex UART first");
@@ -146,26 +146,26 @@ void SerialPioHd::begin() {
 
 	running = true;
 }
-void SerialPioHd::begin(unsigned long baudrate) {
+void SerialPioHdx::begin(unsigned long baudrate) {
 	if (running) return;
 
 	this->baudrate = baudrate;
 	begin();
 }
-void SerialPioHd::begin(unsigned long baudrate, uint16_t _config) {
+void SerialPioHdx::begin(unsigned long baudrate, uint16_t _config) {
 	begin(baudrate);
 }
-void SerialPioHd::end() {}
+void SerialPioHdx::end() {}
 
-SerialPioHd::operator bool() {
+SerialPioHdx::operator bool() {
 	return running;
 }
 
-int SerialPioHd::getPc() {
+int SerialPioHdx::getPc() {
 	return pio_sm_get_pc(pio, sm) - programOffsets[pioIndex];
 }
 
-bool SerialPioHd::setPin(u8 pin) {
+bool SerialPioHdx::setPin(u8 pin) {
 	if (running) return false;
 	this->pin = pin;
 	return true;

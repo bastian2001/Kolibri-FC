@@ -2,11 +2,11 @@
 #include "Arduino.h"
 #include "typedefs.h"
 
-class SerialPioHd : public HardwareSerial {
+class SerialPioHdx : public HardwareSerial {
 public:
-	SerialPioHd() = delete;
-	SerialPioHd(PIO pio, i8 sm = -1);
-	~SerialPioHd();
+	SerialPioHdx() = delete;
+	SerialPioHdx(PIO pio, i8 sm = -1);
+	~SerialPioHdx();
 
 	// from Stream
 	virtual int available() override;

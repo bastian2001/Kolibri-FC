@@ -1,10 +1,10 @@
 #include "global.h"
 
-char BufferedWriter::serialTypeNames[4][12] = {
-	"USB        ",
-	"UART       ",
-	"PIO        ",
-	"PIO Half-D.",
+char BufferedWriter::serialTypeNames[4][8] = {
+	"USB    ",
+	"UART   ",
+	"PIO    ",
+	"PIO HDx",
 };
 elapsedMicros BufferedWriter::sinceReset = 0;
 
@@ -19,8 +19,8 @@ void BufferedWriter::begin(unsigned long baudrate) {
 	case SerialType::PIO:
 		pioStream->begin(baudrate);
 		break;
-	case SerialType::PIO_HD:
-		hdStream->begin(baudrate);
+	case SerialType::PIO_HDX:
+		hdxStream->begin(baudrate);
 		break;
 	}
 }
@@ -35,8 +35,8 @@ void BufferedWriter::begin(unsigned long baudrate, uint16_t config) {
 	case SerialType::PIO:
 		pioStream->begin(baudrate, config);
 		break;
-	case SerialType::PIO_HD:
-		hdStream->begin(baudrate, config); // config unused
+	case SerialType::PIO_HDX:
+		hdxStream->begin(baudrate, config); // config unused
 		break;
 	}
 }
@@ -51,8 +51,8 @@ void BufferedWriter::end() {
 	case SerialType::PIO:
 		pioStream->end();
 		break;
-	case SerialType::PIO_HD:
-		hdStream->end();
+	case SerialType::PIO_HDX:
+		hdxStream->end();
 		break;
 	}
 }
@@ -65,8 +65,8 @@ BufferedWriter::operator bool() {
 		return (bool)(*uartStream);
 	case SerialType::PIO:
 		return (bool)(*pioStream);
-	case SerialType::PIO_HD:
-		return (bool)(*hdStream);
+	case SerialType::PIO_HDX:
+		return (bool)(*hdxStream);
 	}
 	return false;
 }
