@@ -22,6 +22,23 @@ static u16 trampConfPower = 25;
 static u8 trampSerialNum = 255;
 static elapsedMicros trampLastSend = 0;
 
+static bool awaitingResponse = false;
+static u32 noResponseCounter = 0;
+static elapsedMicros responseTimer = 0;
+
+/**
+ * @brief MSP updated flags for Tramp
+ *
+ * - Bit 0: Status updated
+ *
+ * - Bit 1: Init fetched (capabilities)
+ *
+ * - Bit 2: Settings fetched
+ *
+ * - Bit 3: No Response updated
+ */
+static u32 trampUpdatedFields = 0x00000000;
+
 static const u16 vtx58FreqTable[5][8] = {
 	{5865, 5845, 5825, 5805, 5785, 5765, 5745, 5725}, // Boscam A
 	{5733, 5752, 5771, 5790, 5809, 5828, 5847, 5866}, // Boscam B
@@ -201,11 +218,25 @@ void trampLoop() {
 		}
 	}
 
+	if (newMsg) {
+		awaitingResponse = false;
+		noResponseCounter = 0;
+	} else if (awaitingResponse && responseTimer > 400000) {
+		// timeout
+		awaitingResponse = false;
+		if (++noResponseCounter >= 10) {
+			// after 10 failed attempts
+			trampStatus = TrampStatus::OFFLINE;
+		}
+	}
+
 	if (trampLastSend > 500000) {
+		bool response = false;
 		switch (trampStatus) {
 		case TrampStatus::OFFLINE:
 		case TrampStatus::ONLINE_CHECK:
 			trampSendCmd(TrampCommand::INIT);
+			response = true;
 			break;
 		case TrampStatus::ONLINE_SETTINGS:
 		case TrampStatus::INIT_GET_SETTINGS:
@@ -213,9 +244,11 @@ void trampLoop() {
 		case TrampStatus::CHECK_PWR:
 		case TrampStatus::CHECK_PITMODE:
 			trampSendCmd(TrampCommand::GET_SETTINGS);
+			response = true;
 			break;
 		case TrampStatus::ONLINE_TEMP:
 			trampSendCmd(TrampCommand::GET_TEMP);
+			response = true;
 			break;
 		case TrampStatus::SET_FREQ:
 			trampSendCmd(TrampCommand::SET_FREQ, trampConfFreq);
@@ -229,9 +262,70 @@ void trampLoop() {
 			trampSendCmd(TrampCommand::SET_PITMODE, 0);
 			trampStatus = TrampStatus::CHECK_PITMODE;
 			break;
+		default:
+			trampStatus = TrampStatus::OFFLINE;
+			break;
+		}
+		trampUpdatedFields |= 1 << 0;
+
+		if (response) {
+			awaitingResponse = true;
+			responseTimer = 0;
 		}
 	}
 	tasks[TASK_VTX].debugInfo = (u32)trampStatus;
 
 	TASK_END(TASK_VTX);
+}
+
+void writeU32ToBuf(u8 *buf, u32 val) {
+	buf[0] = val;
+	buf[1] = val >> 8;
+	buf[2] = val >> 16;
+	buf[3] = val >> 24;
+}
+
+void writeU16ToBuf(u8 *buf, u16 val) {
+	buf[0] = val;
+	buf[1] = val >> 8;
+}
+
+u8 sendTrampUpdateMsg(u8 *buf) {
+	u8 index = 0;
+	writeU32ToBuf(buf + index, trampUpdatedFields);
+	index += 4;
+	buf[index++] = (u8)trampStatus;
+	writeU16ToBuf(buf + index, trampMinFreq);
+	index += 2;
+	writeU16ToBuf(buf + index, trampMaxFreq);
+	index += 2;
+	writeU16ToBuf(buf + index, trampMaxPwr);
+	index += 2;
+	buf[index++] = trampCurBand;
+	buf[index++] = trampCurChan;
+	writeU16ToBuf(buf, trampCurFreq);
+	index += 2;
+	buf[index++] = trampCurPitmode;
+	writeU16ToBuf(buf, trampCurPower);
+	index += 2;
+	writeU16ToBuf(buf, trampCurConfigPower);
+	index += 2;
+	writeU16ToBuf(buf, trampCurTemp);
+	index += 2;
+	writeU16ToBuf(buf, noResponseCounter);
+	index += 2;
+
+	trampUpdatedFields = 0;
+
+	return index;
+}
+
+u8 sendTrampConfigMsg(u8 *buf) {
+	u8 index = 0;
+	writeU16ToBuf(buf + index, trampConfFreq);
+	index += 2;
+	writeU16ToBuf(buf + index, trampConfPower);
+	index += 2;
+
+	return index;
 }
