@@ -29,13 +29,13 @@ static elapsedMicros responseTimer = 0;
 /**
  * @brief MSP updated flags for Tramp
  *
- * - Bit 0: Status updated
+ * - Bit 0: Capabilities updated
  *
- * - Bit 1: Init fetched (capabilities)
+ * - Bit 1: Settings fetched
  *
- * - Bit 2: Settings fetched
+ * - Bit 2: No Response updated
  *
- * - Bit 3: No Response updated
+ * - Bit 3: Status updated
  */
 static u32 trampUpdatedFields = 0x00000000;
 
@@ -113,6 +113,8 @@ static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
 		} else if (trampStatus == TrampStatus::ONLINE_CHECK) {
 			trampStatus = TrampStatus::ONLINE_SETTINGS;
 		}
+		trampUpdatedFields |= 1 << 3;
+		trampUpdatedFields |= 1 << 0;
 		return true;
 	} break;
 	case TrampCommand::GET_SETTINGS: {
@@ -152,6 +154,8 @@ static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
 		} else if (trampStatus == TrampStatus::CHECK_PITMODE) {
 			trampStatus = TrampStatus::ONLINE_CHECK;
 		}
+		trampUpdatedFields |= 1 << 3;
+		trampUpdatedFields |= 1 << 1;
 		return true;
 	} break;
 	case TrampCommand::GET_TEMP: {
@@ -159,6 +163,8 @@ static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
 		if (trampStatus == TrampStatus::ONLINE_TEMP) {
 			trampStatus = TrampStatus::ONLINE_CHECK;
 		}
+		trampUpdatedFields |= 1 << 3;
+		trampUpdatedFields |= 1 << 2;
 	} break;
 	}
 	return false;
@@ -227,6 +233,7 @@ void trampLoop() {
 		if (++noResponseCounter >= 10) {
 			// after 10 failed attempts
 			trampStatus = TrampStatus::OFFLINE;
+			trampUpdatedFields |= 1 << 3;
 		}
 	}
 
@@ -253,20 +260,23 @@ void trampLoop() {
 		case TrampStatus::SET_FREQ:
 			trampSendCmd(TrampCommand::SET_FREQ, trampConfFreq);
 			trampStatus = TrampStatus::CHECK_FREQ;
+			trampUpdatedFields |= 1 << 3;
 			break;
 		case TrampStatus::SET_PWR:
 			trampSendCmd(TrampCommand::SET_PWR, trampConfPower);
 			trampStatus = TrampStatus::CHECK_PWR;
+			trampUpdatedFields |= 1 << 3;
 			break;
 		case TrampStatus::SET_PITMODE:
 			trampSendCmd(TrampCommand::SET_PITMODE, 0);
 			trampStatus = TrampStatus::CHECK_PITMODE;
+			trampUpdatedFields |= 1 << 3;
 			break;
 		default:
 			trampStatus = TrampStatus::OFFLINE;
+			trampUpdatedFields |= 1 << 3;
 			break;
 		}
-		trampUpdatedFields |= 1 << 0;
 
 		if (response) {
 			awaitingResponse = true;
@@ -278,19 +288,19 @@ void trampLoop() {
 	TASK_END(TASK_VTX);
 }
 
-void writeU32ToBuf(u8 *buf, u32 val) {
+void writeU32ToBuf(char *buf, u32 val) {
 	buf[0] = val;
 	buf[1] = val >> 8;
 	buf[2] = val >> 16;
 	buf[3] = val >> 24;
 }
 
-void writeU16ToBuf(u8 *buf, u16 val) {
+void writeU16ToBuf(char *buf, u16 val) {
 	buf[0] = val;
 	buf[1] = val >> 8;
 }
 
-u8 sendTrampUpdateMsg(u8 *buf) {
+u8 sendTrampUpdateMsg(char *buf) {
 	u8 index = 0;
 	writeU32ToBuf(buf + index, trampUpdatedFields);
 	index += 4;
@@ -303,16 +313,16 @@ u8 sendTrampUpdateMsg(u8 *buf) {
 	index += 2;
 	buf[index++] = trampCurBand;
 	buf[index++] = trampCurChan;
-	writeU16ToBuf(buf, trampCurFreq);
+	writeU16ToBuf(buf + index, trampCurFreq);
 	index += 2;
 	buf[index++] = trampCurPitmode;
-	writeU16ToBuf(buf, trampCurPower);
+	writeU16ToBuf(buf + index, trampCurPower);
 	index += 2;
-	writeU16ToBuf(buf, trampCurConfigPower);
+	writeU16ToBuf(buf + index, trampCurConfigPower);
 	index += 2;
-	writeU16ToBuf(buf, trampCurTemp);
+	writeU16ToBuf(buf + index, trampCurTemp);
 	index += 2;
-	writeU16ToBuf(buf, noResponseCounter);
+	writeU16ToBuf(buf + index, noResponseCounter);
 	index += 2;
 
 	trampUpdatedFields = 0;
@@ -320,7 +330,7 @@ u8 sendTrampUpdateMsg(u8 *buf) {
 	return index;
 }
 
-u8 sendTrampConfigMsg(u8 *buf) {
+u8 sendTrampConfigMsg(char *buf) {
 	u8 index = 0;
 	writeU16ToBuf(buf + index, trampConfFreq);
 	index += 2;

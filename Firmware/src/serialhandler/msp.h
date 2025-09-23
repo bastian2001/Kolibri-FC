@@ -136,6 +136,10 @@ enum class MspFn {
 	GET_MOTOR_LAYOUT = 0x41A0,
 	SET_MOTOR_LAYOUT = 0x41A1,
 
+	// 0x41B_ VTX
+	GET_VTX_CURRENT_STATE = 0x41B0,
+	GET_VTX_CONFIG = 0x41B1,
+
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET = 0x41F0,
 	SET_TZ_OFFSET = 0x41F1,
