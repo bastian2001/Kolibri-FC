@@ -268,7 +268,7 @@ void trampLoop() {
 			trampUpdatedFields |= 1 << 3;
 			break;
 		case TrampStatus::SET_PITMODE:
-			trampSendCmd(TrampCommand::SET_PITMODE, 0);
+			trampSendCmd(TrampCommand::SET_PITMODE, 1);
 			trampStatus = TrampStatus::CHECK_PITMODE;
 			trampUpdatedFields |= 1 << 3;
 			break;
