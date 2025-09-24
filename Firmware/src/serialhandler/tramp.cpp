@@ -187,6 +187,12 @@ void trampInit() {
 	addSetting(SETTING_VTX_BAND, &trampConfBand, 4);
 	addSetting(SETTING_VTX_CHAN, &trampConfChan, 0);
 	addSetting(SETTING_VTX_FREQ_DIRECT, &trampUseFreq, false);
+
+	inFlightTuningParams.push_back(TunableParameter(&trampConfFreq, 1, 5000, 6000, "VTX FREQ"));
+	inFlightTuningParams.push_back(TunableParameter(&trampConfPower, 25, 0, 10000, "VTX PWR"));
+	inFlightTuningParams.push_back(TunableParameter(&trampConfBand, 1, 0, 4, "VTX BAND"));
+	inFlightTuningParams.push_back(TunableParameter(&trampConfChan, 1, 0, 7, "VTX CHAN"));
+	inFlightTuningParams.push_back(TunableParameter((u8 *)&trampUseFreq, 1, 0, 1, "FR OR B/C"));
 }
 
 void trampLoop() {
