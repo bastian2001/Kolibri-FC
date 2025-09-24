@@ -4,7 +4,9 @@ import { addOnConnectHandler, removeOnConnectHandler, sendCommand } from '@/msp/
 import { MspFn } from '@/msp/protocol';
 import { delay, intToLeBytes, leBytesToInt } from '@/utils/utils';
 import NumericInput from '@/components/NumericInput.vue';
+import { useLogStore } from '@/stores/logStore';
 
+const configuratorLog = useLogStore()
 const trampStatus = ref(0)
 const trampUpdatedFields = ref(0)
 const trampMinFreq = ref(0)
@@ -95,35 +97,47 @@ watch(setCmd, async () => {
 	sendingConfig = false
 	sendCommand(MspFn.SET_VTX_CONFIG, setCmd.value).catch(() => { })
 })
+
+function saveSettings() {
+	sendCommand(MspFn.VTX_APPLY_CONFIG)
+		.then(() => sendCommand(MspFn.SAVE_SETTINGS))
+		.catch(() => configuratorLog.push("Failed to apply VTX settings"))
+}
 </script>
 
 <template>
 	<div class="wrapper">
 		<div class="main">
-			<h2 class="center">Frequency</h2>
 			<div class="freqSettings">
-				<div class="setBandChan" :class="{ dim: trampUseFreq }" @click="() => { trampUseFreq = false }">
-					<h4>Set Band/Channel</h4>
-					<table>
-						<tr>
-							<th></th>
-							<th v-for="i in 8">{{ i }}</th>
-						</tr>
-						<tr v-for="(band, i) of VTX58_FREQ_TABLE">
-							<td>{{ BAND_NAMES[i] }}</td>
-							<td v-for="(chan, j) of band" class="clickable"
-								@click="() => { trampConfBand = i, trampConfChan = j }"
-								:class="{ highlight: i === trampConfBand && j === trampConfChan }">{{ chan }}
-							</td>
-						</tr>
-					</table>
-				</div>
-				<div class="setFreqDirect" :class="{ dim: !trampUseFreq }" @click="() => { trampUseFreq = true }">
-					<h4>Set Frequency directly</h4>
-					<NumericInput v-model="trampConfFreq" :min="5000" :max="6000" />
+				<h2 class="center">Frequency</h2>
+				<div class="freqChoices">
+					<div class="setBandChan" :class="{ dim: trampUseFreq }" @click="() => { trampUseFreq = false }">
+						<h4>Set Band/Channel</h4>
+						<table>
+							<tr>
+								<th></th>
+								<th v-for="i in 8">{{ i }}</th>
+							</tr>
+							<tr v-for="(band, i) of VTX58_FREQ_TABLE">
+								<td>{{ BAND_NAMES[i] }}</td>
+								<td v-for="(chan, j) of band" class="clickable"
+									@click="() => { trampConfBand = i, trampConfChan = j }"
+									:class="{ highlight: i === trampConfBand && j === trampConfChan }">{{ chan }}
+								</td>
+							</tr>
+						</table>
+					</div>
+					<div class="setFreqDirect" :class="{ dim: !trampUseFreq }" @click="() => { trampUseFreq = true }">
+						<h4>Set Frequency directly</h4>
+						<NumericInput v-model="trampConfFreq" :min="5000" :max="6000" unit="MHz" />
+					</div>
 				</div>
 			</div>
-			<div class="powerSettings"></div>
+			<div class="powerSettings">
+				<h2 class="center">Power</h2>
+				<NumericInput v-model="trampConfPower" unit="mW" />
+			</div>
+			<button class="saveBtn" @click="() => { saveSettings() }">Save Settings</button>
 		</div>
 		<div class="status">
 			<h2>Status</h2>
@@ -177,21 +191,26 @@ h4 {
 .main {
 	flex-grow: 5;
 	padding: 1rem;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2rem;
 }
 
 .center {
 	text-align: center;
 }
 
-.freqSettings {
+.freqChoices {
 	display: flex;
 	flex-direction: row;
 	justify-content: center;
 	gap: 2rem;
 }
 
-.freqSettings>div {
+.freqChoices>div {
 	min-height: 100%;
+	box-sizing: border-box;
 	background-color: var(--background-light);
 	padding: 1rem;
 	border-radius: 1rem;
@@ -248,5 +267,20 @@ td {
 
 .show {
 	visibility: visible;
+}
+
+.saveBtn {
+	float: right;
+	background-color: transparent;
+	border: 1px solid var(--border-green);
+	border-radius: 5px;
+	padding: 0.5rem 1rem;
+	font-size: 1rem;
+	color: var(--text-color);
+	transition: background-color 0.2s ease-out;
+}
+
+.saveBtn:hover {
+	background-color: #fff1;
 }
 </style>

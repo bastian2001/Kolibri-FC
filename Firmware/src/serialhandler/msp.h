@@ -140,6 +140,7 @@ enum class MspFn {
 	GET_VTX_CURRENT_STATE = 0x41B0,
 	GET_VTX_CONFIG = 0x41B1,
 	SET_VTX_CONFIG = 0x41B2,
+	VTX_APPLY_CONFIG = 0x41B3,
 
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET = 0x41F0,

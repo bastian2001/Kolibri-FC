@@ -831,6 +831,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			setTrampConfig(reqPayload);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
+		case MspFn::VTX_APPLY_CONFIG: {
+			applyTrampConfig();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
 		case MspFn::GET_TZ_OFFSET: {
 			buf[0] = rtcTimezoneOffset;
 			buf[1] = rtcTimezoneOffset >> 8;

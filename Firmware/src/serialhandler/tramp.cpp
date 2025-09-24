@@ -362,3 +362,12 @@ void setTrampConfig(const char *buf) {
 	trampConfBand = *buf++;
 	trampConfChan = *buf++;
 }
+
+void applyTrampConfig() {
+	openSettingsFile();
+	getSetting(SETTING_VTX_FREQ)->updateSettingInFile();
+	getSetting(SETTING_VTX_POWER)->updateSettingInFile();
+	getSetting(SETTING_VTX_BAND)->updateSettingInFile();
+	getSetting(SETTING_VTX_CHAN)->updateSettingInFile();
+	getSetting(SETTING_VTX_FREQ_DIRECT)->updateSettingInFile();
+}
