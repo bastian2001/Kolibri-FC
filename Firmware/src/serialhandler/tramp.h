@@ -12,3 +12,5 @@ void trampLoop();
 u8 sendTrampUpdateMsg(char *buf);
 
 u8 sendTrampConfigMsg(char *buf);
+
+void setTrampConfig(const char *buf);

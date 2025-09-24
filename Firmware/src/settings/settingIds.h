@@ -56,6 +56,7 @@
 #define SETTING_VTX_POWER "vtx_power_mw"
 #define SETTING_VTX_BAND "vtx_band"
 #define SETTING_VTX_CHAN "vtx_channel"
+#define SETTING_VTX_FREQ_DIRECT "vtx_use_freq"
 
 // general settings
 #define SETTING_UAV_NAME "uav_name"

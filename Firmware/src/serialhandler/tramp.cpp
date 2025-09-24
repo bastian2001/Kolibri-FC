@@ -16,8 +16,11 @@ static u16 trampCurConfigPower = 0; // Configured transmitting power
 static i16 trampCurTemp = 0;
 static bool trampCurPitmode = 0;
 
-static u32 trampConfFreq = 5917;
+static bool trampUseFreq = false;
+static u32 trampConfFreq = 5658;
 static u16 trampConfPower = 25;
+static u8 trampConfBand = 4;
+static u8 trampConfChan = 0;
 
 static u8 trampSerialNum = 255;
 static elapsedMicros trampLastSend = 0;
@@ -132,17 +135,18 @@ static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
 				}
 			}
 		}
+		u16 targetFreq = trampUseFreq ? trampConfFreq : vtx58FreqTable[trampConfBand][trampConfChan];
 		if (trampStatus == TrampStatus::INIT_GET_SETTINGS) {
 			trampStatus = TrampStatus::ONLINE_CHECK;
 		} else if (trampStatus == TrampStatus::ONLINE_SETTINGS) {
-			if (trampCurFreq != trampConfFreq)
+			if (trampCurFreq != targetFreq)
 				trampStatus = TrampStatus::SET_FREQ;
 			else if (trampCurConfigPower != trampConfPower)
 				trampStatus = TrampStatus::SET_PWR;
 			else
 				trampStatus = TrampStatus::ONLINE_TEMP;
 		} else if (trampStatus == TrampStatus::CHECK_FREQ) {
-			if (trampCurFreq != trampConfFreq)
+			if (trampCurFreq != targetFreq)
 				trampStatus = TrampStatus::SET_FREQ;
 			else
 				trampStatus = TrampStatus::ONLINE_CHECK;
@@ -178,8 +182,11 @@ void trampInit() {
 		}
 	}
 
-	addSetting(SETTING_VTX_FREQ, &trampConfFreq, 5917);
+	addSetting(SETTING_VTX_FREQ, &trampConfFreq, 5658);
 	addSetting(SETTING_VTX_POWER, &trampConfPower, 25);
+	addSetting(SETTING_VTX_BAND, &trampConfBand, 4);
+	addSetting(SETTING_VTX_CHAN, &trampConfChan, 0);
+	addSetting(SETTING_VTX_FREQ_DIRECT, &trampUseFreq, false);
 }
 
 void trampLoop() {
@@ -258,7 +265,10 @@ void trampLoop() {
 			response = true;
 			break;
 		case TrampStatus::SET_FREQ:
-			trampSendCmd(TrampCommand::SET_FREQ, trampConfFreq);
+			if (trampUseFreq)
+				trampSendCmd(TrampCommand::SET_FREQ, trampConfFreq);
+			else
+				trampSendCmd(TrampCommand::SET_FREQ, vtx58FreqTable[trampConfBand][trampConfChan]);
 			trampStatus = TrampStatus::CHECK_FREQ;
 			trampUpdatedFields |= 1 << 3;
 			break;
@@ -332,10 +342,23 @@ u8 sendTrampUpdateMsg(char *buf) {
 
 u8 sendTrampConfigMsg(char *buf) {
 	u8 index = 0;
+	buf[index++] = trampUseFreq;
 	writeU16ToBuf(buf + index, trampConfFreq);
 	index += 2;
 	writeU16ToBuf(buf + index, trampConfPower);
 	index += 2;
+	buf[index++] = trampConfBand;
+	buf[index++] = trampConfChan;
 
 	return index;
+}
+
+void setTrampConfig(const char *buf) {
+	trampUseFreq = *buf++;
+	trampConfFreq = DECODE_U2(buf);
+	buf += 2;
+	trampConfPower = DECODE_U2(buf);
+	buf += 2;
+	trampConfBand = *buf++;
+	trampConfChan = *buf++;
 }

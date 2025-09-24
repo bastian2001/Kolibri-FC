@@ -92,6 +92,7 @@ export const MspFn = {
 	// 0x41B_ VTX
 	GET_VTX_CURRENT_STATE: 0x41b0,
 	GET_VTX_CONFIG: 0x41b1,
+	SET_VTX_CONFIG: 0x41b2,
 
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET: 0x41f0,
