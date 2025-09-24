@@ -1,0 +1,41 @@
+; Halfduplex UART (Onewire Serial)
+; operates at 23 clock ticks per bit
+; automatically switches to TX when data is present in the TX FIFO
+; automatically switches to RX when line is pulled low
+
+.program halfduplex_uart
+
+mov x, ~null
+
+.wrap_target
+check_tx:
+pull noblock ; pulls either X (=-1) or TX FIFO
+mov y, osr
+jmp x!=y, start_tx ; compares X to Y, if different: got data => start TX
+check_rx:
+set pindirs, 0 ; in case the last action was TX, switch to input
+jmp pin, check_tx ; pin high: jump out to do RX
+
+start_rx:
+set y, 7 [30] ; wait 1.5 bit times, avg delay from check-loop: 3.5
+; => 30 (set delay) + 1 (set) + 3.5 (avg delay) = 34.5 ticks = 1.5 bit times
+read_bit:
+in pins, 1 [21]
+jmp y--, read_bit
+jmp pin, push_byte ; only push if stop bit is properly set
+mov isr, null ; discard byte
+jmp check_tx [20] ; switch to TX first to prevent constant LOW from stopping TX queue
+push_byte:
+push block
+jmp check_rx [6] ; reduced delay to leave room for slight clock deviations
+
+
+start_tx:
+set pindirs, 1 [18] ; TX stop bit delay moved here so the other side has some time to switch from TX to RX
+; stop bit duration : 18 (set pindirs delay) + 1 (set pindirs) + 1 (set pins) + 3 (check_tx time) = 23
+set pins, 0 [22] ; start bit
+write_bit:
+out pins, 1 [21] ; 8 data bits
+jmp !osre, write_bit
+set pins, 1 ; stop bit
+.wrap

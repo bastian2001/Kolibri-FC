@@ -25,6 +25,7 @@ const TASK_NAMES = [
 	'        - Mag Read',
 	'        - Mag Eval',
 	'    - OSD',
+	'    - VTX',
 	'    - Task Manager',
 	'Loop 1',
 	'    - Gyro Read',
