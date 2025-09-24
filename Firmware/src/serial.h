@@ -13,10 +13,8 @@
 #define SERIAL_ESC_TELEM (1 << 6)
 #define SERIAL_MSP_DISPLAYPORT (1 << 7)
 
-#define SERIAL_COUNT 4
+#define SERIAL_COUNT 5
 #define SERIAL_FUNCTION_COUNT 8
-
-extern SerialPIO Serial3; // Software serial for GPS, ELRS, etc. (RX2, TX2)
 
 extern char serialFunctionNames[SERIAL_FUNCTION_COUNT][20];
 

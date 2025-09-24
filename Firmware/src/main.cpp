@@ -46,6 +46,7 @@ void setup() {
 	initADC();
 	modesInit();
 	initSerial();
+	trampInit();
 	initGPS();
 
 	u8 elrsNum = 0;
@@ -97,6 +98,7 @@ void loop() {
 	magLoop();
 	osdLoop();
 	taskManagerLoop();
+	trampLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500000) {
 		static bool on = false;
@@ -124,8 +126,6 @@ void setup1() {
 }
 elapsedMicros taskTimer = 0;
 
-extern PIO speakerPio;
-extern u8 speakerSm;
 void loop1() {
 	u32 duration = taskTimer;
 	if (duration > tasks[TASK_LOOP1].maxGap) {

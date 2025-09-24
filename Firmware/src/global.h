@@ -45,6 +45,7 @@
 #include "drivers/baro.h"
 #include "drivers/esc.h"
 #include "drivers/gyro.h"
+#include "drivers/halfduplexUart.h"
 #include "drivers/i2c.h"
 #include "drivers/mag.h"
 #include "drivers/osd.h"
@@ -56,7 +57,7 @@
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
-#include "pioasm/speaker8bit.pio.h"
+#include "pioasm/halfduplex_uart.pio.h"
 #include "ringbuffer.h"
 #include "rtc.h"
 #include "serial.h"
@@ -65,6 +66,7 @@
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
+#include "serialhandler/tramp.h"
 #include "settings/arraySetting.h"
 #include "settings/littleFs.h"
 #include "settings/setting.h"
@@ -87,18 +89,20 @@
 #endif
 #define I2C_MAG i2c0 // I2C for magnetometer
 
-#define PIO_ESC pio1
-#define PIO_GYRO_SPI pio2
-#define PIO_SDIO pio0
-#define PIO_LED pio2
+#define PIO_ESC pio1 // uses all 4 SMs
+#define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
+#define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
+#define PIO_LED pio2 // 1 SM, 4 instructions
+#define PIO_HALFDUPLEX_UART pio2 // 1 SM, 19 instructions
+// Total usage of pio2: 3 SMs (assuming one UART) and 28 of 32 instructions
 
 #define PROPS_OUT
 
 #define ARRAYLEN(arr) (sizeof(arr) / sizeof(arr[0])) // Get the length of an array
 
 extern ExpressLRS *ELRS; // global ELRS instance
-#define DECODE_U2(buf) ((*(buf) & 0xFF) + (*((u8 *)(buf) + 1) << 8)) // Decode 2 bytes from a buffer into a 16-bit unsigned integer
-#define DECODE_I2(buf) ((*(buf) & 0xFF) + ((*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer
+#define DECODE_U2(buf) ((*(buf) & 0xFF) + ((u16)(*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit unsigned integer
+#define DECODE_I2(buf) ((*(buf) & 0xFF) + ((i16)(*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer
 u32 DECODE_U4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit unsigned integer
 i32 DECODE_I4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit signed integer
 f32 DECODE_R4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit float
@@ -135,6 +139,23 @@ extern std::string uavName;
 #define xstr(a) str(a)
 #define str(a) #a
 #define FIRMWARE_VERSION_STRING xstr(FIRMWARE_VERSION_MAJOR) "." xstr(FIRMWARE_VERSION_MINOR) "." xstr(FIRMWARE_VERSION_PATCH) RELEASE_SUFFIX
+
+#ifdef PRINT_DEBUG
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTSLN(x) \
+	Serial.printf("%15s:%3d: %s\n", __FILE__, __LINE__, x);
+#define DEBUG_PRINTLN(x)                             \
+	Serial.printf("%15s:%3d: ", __FILE__, __LINE__); \
+	Serial.println(x);
+#define DEBUG_PRINTF(x, ...)                         \
+	Serial.printf("%15s:%3d: ", __FILE__, __LINE__); \
+	Serial.printf(x, __VA_ARGS__)
+#endif
+#ifndef PRINT_DEBUG
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTSLN(x)
+#define DEBUG_PRINTF(x, ...)
+#endif
 
 enum class MOTOR : u8 {
 	RR = 0,
