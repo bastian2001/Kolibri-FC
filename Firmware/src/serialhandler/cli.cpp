@@ -126,6 +126,8 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 					BufferedWriter::sinceReset = 0;
 				}
 			}
+		} else {
+			response = "Requires the following format: serial <subcmd> [arguments]\nwhere subcmd is one of the following: stats\nstats: arguments: get, clean\n";
 		}
 	} else if (cmd == "gyro_calibration") {
 		if (payload == "start") {

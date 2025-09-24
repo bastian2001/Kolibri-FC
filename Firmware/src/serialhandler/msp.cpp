@@ -520,7 +520,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::CLI_INIT: {
 			// send start info
-			// const char *startInfo = "\n" FIRMWARE_VERSION_STRING "\n" targetIdentifier "" ">> ";
 			char startInfo[256] = {0};
 			snprintf(startInfo, 256, "\n" FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands\n>> ", targetIdentifier, targetFullName);
 			openSettingsFile();
@@ -818,6 +817,22 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::SET_MOTOR_LAYOUT: {
 			buf[0] = updateMotorPins((const u8 *)reqPayload);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+		} break;
+		case MspFn::GET_VTX_CURRENT_STATE: {
+			u8 len = sendTrampUpdateMsg(buf);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
+		case MspFn::GET_VTX_CONFIG: {
+			u8 len = sendTrampConfigMsg(buf);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
+		case MspFn::SET_VTX_CONFIG: {
+			setTrampConfig(reqPayload);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
+		case MspFn::VTX_APPLY_CONFIG: {
+			applyTrampConfig();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_TZ_OFFSET: {
 			buf[0] = rtcTimezoneOffset;

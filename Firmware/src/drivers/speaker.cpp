@@ -53,7 +53,7 @@ RTTTLSong songToPlay;
 
 #define FREQ_TO_WRAP(freq) (2000000 / freq)
 
-u8 speakerSm, sliceNum;
+u8 sliceNum;
 FsFile speakerFile;
 u32 speakerDataSize = 0;
 u32 speakerCounter = 0;
