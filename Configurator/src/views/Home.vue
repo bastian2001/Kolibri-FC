@@ -7,9 +7,9 @@ import { MspFn } from '@/msp/protocol';
 import { Command } from '@utils/types';
 import { prefixZeros } from '@utils/utils';
 
-const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
+const FLIGHT_MODES = ['Acro', 'Angle', 'Altitude Hold', 'GPS Hold', 'Waypoint'];
 const ARMING_DISABLE_FLAGS = [
-	'Arming switch not armed',
+	'Arming switch',
 	'Throttle up',
 	'No GPS fix',
 	'Configurator attached',
@@ -27,7 +27,7 @@ export default defineComponent({
 
 		this.pingInterval = setInterval(() => {
 			this.fcPing = getPingTime();
-		}, 1000);
+		}, 200);
 		this.rtcInterval = setInterval(() => {
 			sendCommand(MspFn.GET_RTC).then(c => {
 				this.time.year = leBytesToInt(c.data, 0, 2);
@@ -51,7 +51,6 @@ export default defineComponent({
 			flightMode: 0,
 			armingDisableFlags: 0,
 			armed: false,
-			configuratorConnected: false,
 			fcPing: -1,
 			getRotationInterval: -1,
 			attitude: { roll: 0, pitch: 0, yaw: 0, heading: 0 },
@@ -119,7 +118,6 @@ export default defineComponent({
 						this.armed = command.data[2] === 1;
 						this.flightMode = command.data[3];
 						this.armingDisableFlags = leBytesToInt(command.data, 4, 4);
-						this.configuratorConnected = command.data[8] === 1;
 						break;
 					case MspFn.REBOOT:
 						this.configuratorLog.push('Rebooting');
@@ -189,7 +187,7 @@ export default defineComponent({
 })
 </script>
 <template>
-	<div>
+	<div class="wrapper">
 		<div>
 			<button @click="ledOn">LED On</button>
 			<button @click="ledOff">LED Off</button>
@@ -211,8 +209,7 @@ export default defineComponent({
 			<button @click="reboot">Reboot</button>
 			<button @click="rebootBootloader">Bootloader</button>
 		</div>
-		<div class="droneStatus">Flight Mode: {{ FLIGHT_MODES[flightMode] }}, Armed: {{ armed ? 'Yes' : 'No' }},
-			Configurator Connected: {{ configuratorConnected ? 'Yes' : 'No' }}<br />
+		<div class="droneStatus">Flight Mode: {{ FLIGHT_MODES[flightMode] }}, {{ armed ? 'Armed' : 'Disarmed' }}<br />
 			Arming Disabled Flags:<br />
 			{{
 				ARMING_DISABLE_FLAGS
@@ -222,7 +219,7 @@ export default defineComponent({
 					.join(', ')
 			}}
 		</div>
-		<div>Ping: {{ fcPing }} ms</div>
+		<div>Ping: {{ fcPing === -1 ? 'Error' : fcPing + ' ms' }}</div>
 		<div>
 			Time: {{ prefixZeros(time.year, 4) }}-{{ prefixZeros(time.month, 2) }}-{{ prefixZeros(time.day, 2) }}
 			{{ prefixZeros(time.hour, 2) }}:{{ prefixZeros(time.minute, 2) }}:{{ prefixZeros(time.second, 2) }}
@@ -262,6 +259,11 @@ export default defineComponent({
 </template>
 
 <style scoped>
+.wrapper {
+	padding: 1rem 0px;
+	box-sizing: border-box;
+}
+
 .drone3DPreview {
 	width: 500px;
 	height: 500px;
