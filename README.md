@@ -2,6 +2,18 @@
 
 I wanted to have some fun designing my own flight controller in both hardware and software. [This project of mine](https://github.com/bastian2001/Hardware-DShot-on-RP2040) ([superseded](https://github.com/bastian2001/pico-bidir-dshot/)) served as a proof of concept (and mostly minimal example) that the RP2040 is capable of driving DShot through the PIO (Programmable IO) hardware.
 
+Main software features:
+
+-   Configurator
+-   Acro and angle modes
+-   altitude and position hold modes (working, but need to be tuned)
+-   ELRS
+-   GPS (UBlox) and Compass (HMC5883 + QMC5883L)
+-   Bidirectional DShot 4800 (tested up to 1200)
+-   Variable frequency beeper with WAV support
+-   SD-Blackbox incl. viewer
+-   Barometer (Goertek SPL06-001 + STM LPS22HB)
+
 The PCB is in its fifth testing revision, which includes (hardware features):
 
 -   3-8S input voltage
@@ -14,17 +26,8 @@ The PCB is in its fifth testing revision, which includes (hardware features):
 -   Gemini 2.4GHz ELRS receiver with 4 additional PWM outputs
 -   Speaker driver up to VBat
 
-Main software features:
-
--   Configurator
--   Acro and angle modes
--   altitude and position hold modes (working, but need to be tuned)
--   ELRS
--   GPS (UBlox) and Compass (HMC5883 + QMC5883L)
--   Bidirectional DShot 4800 (tested up to 1200)
--   Variable frequency beeper with WAV support
--   SD-Blackbox incl. viewer
--   Barometer (Goertek SPL06-001 + STM LPS22HB)
+> [!NOTE]
+> The PCB now lives in [its own repo](https://github.com/bastian2001/Kolibri-FC-Hardware)
 
 Future shit:
 
