@@ -598,6 +598,7 @@ function onDisconnect() {
 	onDisconnectHandlers.forEach(h => h())
 	connectType = "none"
 	cmdEnabled = false
+	fcPing = -1
 	clearInterval(readInterval)
 	clearInterval(pingInterval)
 	clearInterval(statusInterval)

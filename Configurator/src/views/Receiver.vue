@@ -153,9 +153,18 @@ export default defineComponent({
 
 <style scoped>
 #rxWrapper {
-	margin: 1rem auto;
-	width: 90vw;
-	max-width: 200vh;
+	padding: 1rem 5% 0px 5%;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+.header {
+	width: 100%;
 }
 
 .saveBtn {
@@ -181,20 +190,30 @@ export default defineComponent({
 	flex-direction: row;
 	justify-content: space-between;
 	gap: 3rem;
+	overflow: hidden;
+}
+
+#rxFlex>* {
+	box-sizing: border-box;
 }
 
 #rxChannels {
 	min-width: 500px;
 	flex-grow: 1;
+	height: 100%;
+	box-sizing: border-box;
 }
 
 #rxSettings {
 	min-width: 200px;
 	flex-grow: 1;
+	height: 100%;
 }
 
 #rxModes {
 	min-width: 500px;
 	flex-grow: 1;
+	height: 100%;
+	overflow: auto;
 }
 </style>

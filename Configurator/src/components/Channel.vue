@@ -30,13 +30,14 @@ export default defineComponent({
 
 <style scoped>
 .channelOuter {
-	height: 1.4rem;
+	height: 1.6rem;
 	margin: 0.5rem 0px;
 	position: relative;
 	border-radius: 3px;
 	width: 100%;
-	border: 1px solid white;
+	border: .1rem solid white;
 	background-color: #444;
+	box-sizing: border-box;
 }
 
 .channelValue {
