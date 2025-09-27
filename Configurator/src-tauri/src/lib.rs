@@ -11,7 +11,7 @@ use tauri::command;
 fn acquire_mutex_with_timeout<T>(
     mutex: &Mutex<T>,
     timeout_ms: u64,
-) -> Result<MutexGuard<T>, String> {
+) -> Result<MutexGuard<'_, T>, String> {
     // First, try to acquire without waiting
     match mutex.try_lock() {
         Ok(guard) => return Ok(guard),

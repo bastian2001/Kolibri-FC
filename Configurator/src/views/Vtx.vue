@@ -114,17 +114,21 @@ function saveSettings() {
 					<div class="setBandChan" :class="{ dim: trampUseFreq }" @click="() => { trampUseFreq = false }">
 						<h4>Set Band/Channel</h4>
 						<table>
-							<tr>
-								<th></th>
-								<th v-for="i in 8">{{ i }}</th>
-							</tr>
-							<tr v-for="(band, i) of VTX58_FREQ_TABLE">
-								<td>{{ BAND_NAMES[i] }}</td>
-								<td v-for="(chan, j) of band" class="clickable"
-									@click="() => { trampConfBand = i, trampConfChan = j }"
-									:class="{ highlight: i === trampConfBand && j === trampConfChan }">{{ chan }}
-								</td>
-							</tr>
+							<thead>
+								<tr>
+									<th></th>
+									<th v-for="i in 8">{{ i }}</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr v-for="(band, i) of VTX58_FREQ_TABLE">
+									<td>{{ BAND_NAMES[i] }}</td>
+									<td v-for="(chan, j) of band" class="clickable"
+										@click="() => { trampConfBand = i, trampConfChan = j }"
+										:class="{ highlight: i === trampConfBand && j === trampConfChan }">{{ chan }}
+									</td>
+								</tr>
+							</tbody>
 						</table>
 					</div>
 					<div class="setFreqDirect" :class="{ dim: !trampUseFreq }" @click="() => { trampUseFreq = true }">
