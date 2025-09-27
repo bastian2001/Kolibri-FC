@@ -144,6 +144,9 @@ export default defineComponent({
 				.catch(er => {
 					this.configuratorLog.push('Could not connect: ' + er)
 				})
+		},
+		confScroll(e: WheelEvent) {
+			(this.$refs.logDiv as HTMLDivElement).scrollBy({ top: e.deltaY > 0 ? 15 : -15 })
 		}
 	},
 });
@@ -173,7 +176,7 @@ export default defineComponent({
 			<div v-if="connected" class="battery">
 				<p>Battery: {{ battery }}</p>
 			</div>
-			<div class="log" ref="logDiv">
+			<div class="log" ref="logDiv" @wheel.prevent="confScroll">
 				<p v-for="l in configuratorLog.getEntries()">{{ l }}</p>
 			</div>
 		</div>
@@ -206,10 +209,13 @@ export default defineComponent({
 	flex-direction: row;
 	align-items: center;
 	border-bottom: 3px solid var(--border-blue);
+	background-color: var(--background-light);
 }
 
 .kolibriLogo {
 	height: 3rem;
+	flex-grow: 0;
+	background-color: black;
 }
 
 .space {
@@ -252,7 +258,7 @@ export default defineComponent({
 	flex-grow: 1;
 	min-width: 250px;
 	margin-left: 1rem;
-	background-color: var(--background-light);
+	background-color: var(--background-blue);
 	height: 3rem;
 	padding: 0 0.5rem;
 	color: var(--text-color);
@@ -283,6 +289,8 @@ export default defineComponent({
 	color: var(--text-color);
 	text-decoration: none;
 	background-color: var(--background-blue);
+	height: 100%;
+	box-sizing: border-box;
 }
 
 .navElement.currentPage {
@@ -295,10 +303,8 @@ export default defineComponent({
 	padding: 0;
 }
 
-.navElement.grow {
+.grow {
 	flex-grow: 1;
-	height: 100%;
-	box-sizing: border-box;
 }
 
 .pageContent {

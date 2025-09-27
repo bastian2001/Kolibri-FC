@@ -472,7 +472,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = (u8)(armingDisableFlags >> 8);
 			buf[len++] = (u8)(armingDisableFlags >> 16);
 			buf[len++] = (u8)(armingDisableFlags >> 24);
-			buf[len++] = (u8)(configuratorConnected & 0xFF);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::CONFIGURATOR_PING:
