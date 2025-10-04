@@ -238,6 +238,7 @@ static void inline runAngleMode5() {
 
 static void inline runGpsMode1() {
 	// GPS: sticks => target velocity => target tilt => target angular rate
+	getStickPos();
 	sticksToGpsSetpoint(stickPos, &eVelSetpoint, &nVelSetpoint);
 }
 
