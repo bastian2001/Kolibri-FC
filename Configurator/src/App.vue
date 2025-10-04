@@ -14,8 +14,8 @@ export default defineComponent({
 		delay(150).then(this.listDevices);
 		disconnect();
 
-		addOnConnectHandler(this.och);
-		addOnDisconnectHandler(this.odh);
+		addOnConnectHandler(this.onConnect);
+		addOnDisconnectHandler(this.onDisconnect);
 		addOnCommandHandler(this.onCommand)
 
 		this.configuratorLog.$subscribe(() => {
@@ -29,8 +29,8 @@ export default defineComponent({
 	unmounted() {
 		clearInterval(this.listInterval);
 		this.disconnect();
-		removeOnConnectHandler(this.och);
-		removeOnDisconnectHandler(this.odh);
+		removeOnConnectHandler(this.onConnect);
+		removeOnDisconnectHandler(this.onDisconnect);
 		removeOnCommandHandler(this.onCommand);
 	},
 	data() {
@@ -56,52 +56,6 @@ export default defineComponent({
 				}
 			} else if (command.cmdType === 'response') {
 				switch (command.command) {
-					case MspFn.API_VERSION:
-						this.configuratorLog.push(
-							`Protocol: ${command.data[0]}, API: ${command.data[1]}.${command.data[2]}`
-						);
-						break;
-					case MspFn.FIRMWARE_VARIANT:
-						this.configuratorLog.push(`Firmware: ${command.dataStr}`);
-						if (command.dataStr !== 'KOLI') {
-							this.configuratorLog.push(
-								`This configurator is only compatible with Kolibri firmware, disconnecting...`
-							);
-							this.disconnect();
-						}
-						break;
-					case MspFn.FIRMWARE_VERSION:
-						this.configuratorLog.push(`Version: ${command.data[0]}.${command.data[1]}.${command.data[2]}`);
-						break;
-					case MspFn.BOARD_INFO:
-						this.configuratorLog.push(
-							`Board: ${command.dataStr.substring(0, 4)} => ${command.dataStr.substring(
-								9,
-								9 + command.data[8]
-							)}`
-						);
-						break;
-					case MspFn.BUILD_INFO:
-						const date = command.dataStr.substring(0, 11);
-						const time = command.dataStr.substring(11, 19);
-						const githash = command.dataStr.substring(19);
-						this.configuratorLog.push(`Firmware released: ${date} ${time} (Git: #${githash})`);
-						break;
-					case MspFn.GET_NAME:
-						this.configuratorLog.push(`Name: ${command.dataStr}`);
-						break;
-					case MspFn.STATUS:
-						this.battery = `${(leBytesToInt(command.data.slice(0, 2)) / 100).toFixed(2)}V`;
-						break;
-					case MspFn.SET_RTC:
-						this.configuratorLog.push('RTC updated');
-						break;
-					case MspFn.SET_TZ_OFFSET:
-						this.configuratorLog.push('Timezone offset updated');
-						break;
-					case MspFn.PLAY_SOUND:
-						console.log(command.data);
-						break;
 					case MspFn.SAVE_SETTINGS:
 						this.configuratorLog.push('EEPROM saved');
 				}
@@ -122,38 +76,77 @@ export default defineComponent({
 			this.serialDevices = getSerialDevices();
 			this.wifiDevices = getWifiDevices();
 		},
-		odh() {
+		onDisconnect() {
 			this.connected = false;
 		},
-		och() {
+		onConnect() {
 			this.connected = true;
 			this.configuratorLog.clearEntries();
 			sendCommand(MspFn.API_VERSION)
-				.then(() => sendCommand(MspFn.FIRMWARE_VARIANT))
-				.then(() => delay(5))
-				.then(() => sendCommand(MspFn.FIRMWARE_VERSION))
-				.then(() => delay(5))
-				.then(() => sendCommand(MspFn.BOARD_INFO))
-				.then(() => delay(5))
-				.then(() => sendCommand(MspFn.BUILD_INFO))
-				.then(() => delay(5))
-				.then(() => sendCommand(MspFn.GET_NAME))
-				.then(() => delay(5))
-				.then(() => sendCommand(MspFn.STATUS))
-				.then(() => {
+				.then(c => {
+					this.configuratorLog.push(
+						`Protocol: ${c.data[0]}, API: ${c.data[1]}.${c.data[2]}`
+					);
+					return sendCommand(MspFn.FIRMWARE_VARIANT)
+				})
+				.then(c => {
+					this.configuratorLog.push(`Firmware: ${c.dataStr}`);
+					if (c.dataStr !== 'KOLI') {
+						this.disconnect();
+						throw 'This configurator is only compatible with Kolibri firmware.'
+					}
+					return sendCommand(MspFn.FIRMWARE_VERSION)
+				})
+				.then(c => {
+					this.configuratorLog.push(`Version: ${c.data[0]}.${c.data[1]}.${c.data[2]}`);
+					return sendCommand(MspFn.BOARD_INFO)
+				})
+				.then(c => {
+					this.configuratorLog.push(
+						`Board: ${c.dataStr.substring(0, 4)} => ${c.dataStr.substring(
+							9,
+							9 + c.data[8]
+						)}`
+					);
+					return sendCommand(MspFn.BUILD_INFO)
+				})
+				.then(c => {
+					const date = c.dataStr.substring(0, 11);
+					const time = c.dataStr.substring(11, 19);
+					const githash = c.dataStr.substring(19);
+					this.configuratorLog.push(`Firmware released: ${date} ${time} (Git: #${githash})`);
+					return sendCommand(MspFn.GET_NAME)
+				})
+				.then(c => {
+					this.configuratorLog.push(`Name: ${c.dataStr}`);
+					return sendCommand(MspFn.STATUS)
+				})
+				.then(c => {
+					this.battery = `${(leBytesToInt(c.data, 0, 2) / 100).toFixed(2)}V`;
+
 					const now = Date.now();
-					sendCommand(MspFn.SET_RTC, [
+					return sendCommand(MspFn.SET_RTC, [
 						...intToLeBytes(Math.floor(now / 1000), 4),
 						...intToLeBytes(now % 1000, 2)
 					]);
 				})
-				.then(() => delay(5))
 				.then(() => {
+					this.configuratorLog.push('RTC updated');
+
 					const offset = -new Date().getTimezoneOffset();
-					sendCommand(MspFn.SET_TZ_OFFSET, [
+					return sendCommand(MspFn.SET_TZ_OFFSET, [
 						...intToLeBytes(offset, 2),
 					]);
-				});
+				})
+				.then(() => {
+					this.configuratorLog.push('Timezone offset updated');
+				})
+				.catch(er => {
+					this.configuratorLog.push('Could not connect: ' + er)
+				})
+		},
+		confScroll(e: WheelEvent) {
+			(this.$refs.logDiv as HTMLDivElement).scrollBy({ top: e.deltaY > 0 ? 15 : -15 })
 		}
 	},
 });
@@ -183,7 +176,7 @@ export default defineComponent({
 			<div v-if="connected" class="battery">
 				<p>Battery: {{ battery }}</p>
 			</div>
-			<div class="log" ref="logDiv">
+			<div class="log" ref="logDiv" @wheel.prevent="confScroll">
 				<p v-for="l in configuratorLog.getEntries()">{{ l }}</p>
 			</div>
 		</div>
@@ -216,10 +209,13 @@ export default defineComponent({
 	flex-direction: row;
 	align-items: center;
 	border-bottom: 3px solid var(--border-blue);
+	background-color: var(--background-light);
 }
 
 .kolibriLogo {
 	height: 3rem;
+	flex-grow: 0;
+	background-color: black;
 }
 
 .space {
@@ -262,7 +258,7 @@ export default defineComponent({
 	flex-grow: 1;
 	min-width: 250px;
 	margin-left: 1rem;
-	background-color: var(--background-light);
+	background-color: var(--background-blue);
 	height: 3rem;
 	padding: 0 0.5rem;
 	color: var(--text-color);
@@ -293,6 +289,8 @@ export default defineComponent({
 	color: var(--text-color);
 	text-decoration: none;
 	background-color: var(--background-blue);
+	height: 100%;
+	box-sizing: border-box;
 }
 
 .navElement.currentPage {
@@ -305,10 +303,8 @@ export default defineComponent({
 	padding: 0;
 }
 
-.navElement.grow {
+.grow {
 	flex-grow: 1;
-	height: 100%;
-	box-sizing: border-box;
 }
 
 .pageContent {

@@ -98,7 +98,19 @@ export type LogData = {
 	debug2?: Int32Array
 	debug3?: Int16Array
 	debug4?: Int16Array
+	pidSumRoll?: Int16Array
+	pidSumPitch?: Int16Array
+	pidSumYaw?: Int16Array
 	timestamp?: Uint32Array
+	vbat?: Float32Array
+	linkRssiA?: Int16Array
+	linkRssiB?: Int16Array
+	linkLqi?: Uint8Array
+	linkSnr?: Int8Array
+	linkAntennaSel?: Uint8Array
+	linkTargetHz?: Uint16Array
+	linkActualHz?: Uint16Array
+	linkTxPow?: Uint16Array
 }
 
 export type ActualCoeffs = {
@@ -195,4 +207,5 @@ export type Command = {
 	cmdType: "request" | "response" | "error"
 	flag: number
 	version: number
+	callbackData?: any
 }

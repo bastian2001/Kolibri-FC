@@ -144,15 +144,6 @@ uint8_t pioRead() {
 	return data;
 }
 
-void delayWhileRead(uint16_t ms) {
-	elapsedMillis x = 0;
-	do {
-		if (pio_sm_get_rx_fifo_level(PIO_ESC, 0)) {
-			escRxBuf.push_back(pio_sm_get(PIO_ESC, 0) >> 24);
-		}
-		rp2040.wdt_reset();
-	} while (x < ms);
-}
 void delayMicrosWhileRead(uint16_t us) {
 	elapsedMicros x = 0;
 	do {
@@ -161,6 +152,9 @@ void delayMicrosWhileRead(uint16_t us) {
 		}
 		rp2040.wdt_reset();
 	} while (x < us);
+}
+void delayWhileRead(uint32_t ms) {
+	return delayMicrosWhileRead(ms * 1000);
 }
 
 uint16_t byteCrc4Way(uint8_t data, uint16_t crc) {
@@ -222,7 +216,9 @@ uint16_t getEsc(uint8_t rx_buf[], uint16_t wait_ms) {
 	while (pioAvailable()) {
 		rx_buf[i] = pioRead();
 		i++;
-		delayMicrosWhileRead(500);
+		rp2040.wdt_reset();
+		if (!pioAvailable())
+			delayMicrosWhileRead(1000);
 	}
 	return i;
 }
@@ -241,12 +237,12 @@ void begin4Way(u8 serialNum) {
 	sm_config_set_in_pins(&configPioReceive, PIN_MOTORS);
 	sm_config_set_jmp_pin(&configPioReceive, PIN_MOTORS);
 	sm_config_set_in_shift(&configPioReceive, true, false, 32);
-	sm_config_set_clkdiv_int_frac(&configPioReceive, 859, 128);
+	sm_config_set_clkdiv_int_frac8(&configPioReceive, 859, 128);
 	configPioTransmit = onewire_transmit_program_get_default_config(offsetPioTransmit);
 	sm_config_set_set_pins(&configPioTransmit, PIN_MOTORS, 1);
 	sm_config_set_out_pins(&configPioTransmit, PIN_MOTORS, 1);
 	sm_config_set_out_shift(&configPioTransmit, true, false, 8);
-	sm_config_set_clkdiv_int_frac(&configPioTransmit, 859, 128);
+	sm_config_set_clkdiv_int_frac8(&configPioTransmit, 859, 128);
 	pio_sm_init(PIO_ESC, 0, offsetPioReceive, &configPioReceive);
 	pio_sm_set_enabled(PIO_ESC, 0, true);
 	serials[serialNum].functions |= SERIAL_4WAY;
@@ -382,7 +378,6 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 			changePin(PIN_MOTORS + payload[0]);
 			u8 bootInit[] = {0, 0, 0, 0, 0, 0, 0, 0, 0x0D, 'B', 'L', 'H', 'e', 'l', 'i', 0xF4, 0x7D};
 			sendEsc(bootInit, 17, false);
-			delayWhileRead(50);
 			u8 rxSize = getEsc(buf, 200);
 			if (rxSize && buf[rxSize - 1] == (u8)BlRes::SUCCESS) {
 				buf[0] = buf[5]; // Device Signature2?
@@ -414,10 +409,6 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 			buf[0] = (u8)BlCmd::READ_FLASH_SIL;
 			buf[1] = payload[0];
 			sendEsc(buf, 2);
-			if (payload[0])
-				delayWhileRead(payload[0]);
-			else
-				delayWhileRead(256);
 			rxSize = getEsc(buf, 500);
 			if (rxSize) {
 				u16 rxCrc = 0;
@@ -450,7 +441,6 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 		buf[2] = address >> 8;
 		buf[3] = address & 0xFF;
 		sendEsc(buf, 4);
-		delayWhileRead(50);
 		u16 rxSize = getEsc(buf, 100);
 		if (buf[0] != (u8)BlRes::SUCCESS) {
 			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_GENERAL_ERROR);
@@ -463,7 +453,6 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 		sendEsc(buf, 4);
 		delayWhileRead(5);
 		sendEsc(payload, len);
-		delayWhileRead(5);
 		rxSize = getEsc(buf, 200);
 		if (buf[0] != (u8)BlRes::SUCCESS) {
 			send4WayResponse(cmd, address, nullptr, 1, Res4Way::NACK_GENERAL_ERROR);
@@ -472,7 +461,6 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 		buf[0] = (u8)BlCmd::PROG_FLASH;
 		buf[1] = 1;
 		sendEsc(buf, 2);
-		delayWhileRead(30);
 		rxSize = getEsc(buf, 100);
 		if (buf[0] == (u8)BlRes::SUCCESS)
 			send4WayResponse(cmd, address);
@@ -518,7 +506,6 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 		buf[0] = (u8)BlCmd::ERASE_FLASH;
 		buf[1] = 0x01;
 		sendEsc(buf, 2);
-		delayWhileRead(50);
 		getEsc(rx, 100);
 		if (rx[0] != (u8)BlRes::SUCCESS)
 			ack = (u8)Res4Way::NACK_GENERAL_ERROR;

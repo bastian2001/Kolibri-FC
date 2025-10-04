@@ -16,6 +16,7 @@
 
 // motor and ESC settings
 #define SETTING_BEEP_TONE "dshot_beep_tone"
+#define SETTING_MOTOR_PINS "motor_pins"
 
 // battery settings
 #define SETTING_EMPTY_VOLTAGE "bat_empty_voltage"
@@ -49,6 +50,13 @@
 #define SETTING_ANGLE_BURST_TIME "poshold_angle_burst_time"
 #define SETTING_ANGLE_BURST_COOLDOWN "poshold_angle_cooldown_time"
 #define SETTING_HVEL_STICK_DEADBAND "poshold_hvel_stick_deadband"
+
+// VTX settings
+#define SETTING_VTX_FREQ "vtx_frequency"
+#define SETTING_VTX_POWER "vtx_power_mw"
+#define SETTING_VTX_BAND "vtx_band"
+#define SETTING_VTX_CHAN "vtx_channel"
+#define SETTING_VTX_FREQ_DIRECT "vtx_use_freq"
 
 // general settings
 #define SETTING_UAV_NAME "uav_name"

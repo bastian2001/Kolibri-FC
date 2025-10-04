@@ -1,4 +1,5 @@
 #pragma once
+#include "drivers/halfduplexUart.h"
 #include "ringbuffer.h"
 #include "typedefs.h"
 #include <Arduino.h>
@@ -7,7 +8,8 @@
 enum class SerialType {
 	USB,
 	UART,
-	PIO
+	PIO,
+	PIO_HDX,
 };
 
 class BufferedWriter : public HardwareSerial {
@@ -20,6 +22,7 @@ public:
 #endif
 	SerialUART *const uartStream;
 	SerialPIO *const pioStream;
+	SerialPioHdx *const hdxStream;
 	const SerialType serialType;
 
 #ifdef USE_TINYUSB
@@ -28,6 +31,7 @@ public:
 		  usbStream(usbStream),
 		  uartStream(nullptr),
 		  pioStream(nullptr),
+		  hdxStream(nullptr),
 		  serialType(SerialType::USB),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
@@ -38,6 +42,7 @@ public:
 		  usbStream(usbStream),
 		  uartStream(nullptr),
 		  pioStream(nullptr),
+		  hdxStream(nullptr),
 		  serialType(SerialType::USB),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
@@ -49,6 +54,7 @@ public:
 		  usbStream(nullptr),
 		  uartStream(uartStream),
 		  pioStream(nullptr),
+		  hdxStream(nullptr),
 		  serialType(SerialType::UART),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
@@ -59,7 +65,19 @@ public:
 		  usbStream(nullptr),
 		  uartStream(nullptr),
 		  pioStream(pioStream),
+		  hdxStream(nullptr),
 		  serialType(SerialType::PIO),
+		  writeBuffer(fifoSize) {
+		mutex_init(&writeMutex);
+	};
+
+	BufferedWriter(SerialPioHdx *const hdxStream, size_t fifoSize)
+		: stream(hdxStream),
+		  usbStream(nullptr),
+		  uartStream(nullptr),
+		  pioStream(nullptr),
+		  hdxStream(hdxStream),
+		  serialType(SerialType::PIO_HDX),
 		  writeBuffer(fifoSize) {
 		mutex_init(&writeMutex);
 	};
@@ -187,7 +205,7 @@ public:
 	volatile u32 totalRx = 0;
 	volatile u32 totalTx = 0;
 	static elapsedMicros sinceReset;
-	static char serialTypeNames[3][5];
+	static char serialTypeNames[4][8];
 
 private:
 	RingBuffer<u8> writeBuffer;

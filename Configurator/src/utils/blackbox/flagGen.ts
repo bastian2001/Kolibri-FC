@@ -158,13 +158,9 @@ export function fillLogWithGenFlags(log: BBLog) {
 				case "GEN_ROLL_PID_I":
 					{
 						let rollI = 0
-						let takeoffCounter = 0
 						log.logData.pidRollI = new Float32Array(frameCount)
 						for (let i = 0; i < frameCount; i++) {
 							rollI += log.logData.setpointRoll![i] - log.logData.gyroRawRoll![i]
-							if (log.logData.setpointThrottle![i] > 1020) takeoffCounter += log.frequencyDivider
-							else if (takeoffCounter < 1000) takeoffCounter = 0
-							if (takeoffCounter < 1000) rollI *= Math.pow(log.pidConstants[0][6], log.frequencyDivider)
 							log.logData.pidRollI[i] = rollI * log.pidConstants[0][1]
 						}
 					}
@@ -172,13 +168,9 @@ export function fillLogWithGenFlags(log: BBLog) {
 				case "GEN_PITCH_PID_I":
 					{
 						let pitchI = 0
-						let takeoffCounter = 0
 						log.logData.pidPitchI = new Float32Array(frameCount)
 						for (let i = 0; i < frameCount; i++) {
 							pitchI += log.logData.setpointPitch![i] - log.logData.gyroRawPitch![i]
-							if (log.logData.setpointThrottle![i] > 1020) takeoffCounter += log.frequencyDivider
-							else if (takeoffCounter < 1000) takeoffCounter = 0
-							if (takeoffCounter < 1000) pitchI *= Math.pow(log.pidConstants[1][6], log.frequencyDivider)
 							log.logData.pidPitchI[i] = pitchI * log.pidConstants[1][1]
 						}
 					}
@@ -186,15 +178,36 @@ export function fillLogWithGenFlags(log: BBLog) {
 				case "GEN_YAW_PID_I":
 					{
 						let yawI = 0
-						let takeoffCounter = 0
 						log.logData.pidYawI = new Float32Array(frameCount)
 						for (let i = 0; i < frameCount; i++) {
 							yawI += log.logData.setpointYaw![i] - log.logData.gyroRawYaw![i]
-							if (log.logData.setpointThrottle![i] > 1020) takeoffCounter += log.frequencyDivider
-							else if (takeoffCounter < 1000) takeoffCounter = 0
-							if (takeoffCounter < 1000) yawI *= Math.pow(log.pidConstants[2][6], log.frequencyDivider)
 							log.logData.pidYawI[i] = yawI * log.pidConstants[2][1]
 						}
+					}
+					break
+				case "GEN_PID_SUM":
+					log.logData.pidSumRoll = new Int16Array(frameCount)
+					log.logData.pidSumPitch = new Int16Array(frameCount)
+					log.logData.pidSumYaw = new Int16Array(frameCount)
+					for (let i = 0; i < frameCount; i++) {
+						log.logData.pidSumRoll[i] =
+							log.logData.pidRollP![i] +
+							log.logData.pidRollI![i] +
+							log.logData.pidRollD![i] +
+							log.logData.pidRollFF![i] +
+							log.logData.pidRollS![i]
+						log.logData.pidSumPitch[i] =
+							log.logData.pidPitchP![i] +
+							log.logData.pidPitchI![i] +
+							log.logData.pidPitchD![i] +
+							log.logData.pidPitchFF![i] +
+							log.logData.pidPitchS![i]
+						log.logData.pidSumYaw[i] =
+							log.logData.pidYawP![i] +
+							log.logData.pidYawI![i] +
+							log.logData.pidYawD![i] +
+							log.logData.pidYawFF![i] +
+							log.logData.pidYawS![i]
 					}
 					break
 				case "GEN_MOTOR_OUTPUTS":
@@ -203,32 +216,17 @@ export function fillLogWithGenFlags(log: BBLog) {
 					log.logData.motorOutRL = new Uint16Array(frameCount)
 					log.logData.motorOutFL = new Uint16Array(frameCount)
 					for (let i = 0; i < frameCount; i++) {
-						const rollTerm =
-							log.logData.pidRollP![i] +
-							log.logData.pidRollI![i] +
-							log.logData.pidRollD![i] +
-							log.logData.pidRollFF![i] +
-							log.logData.pidRollS![i]
-						const pitchTerm =
-							log.logData.pidPitchP![i] +
-							log.logData.pidPitchI![i] +
-							log.logData.pidPitchD![i] +
-							log.logData.pidPitchFF![i] +
-							log.logData.pidPitchS![i]
-						const yawTerm =
-							log.logData.pidYawP![i] +
-							log.logData.pidYawI![i] +
-							log.logData.pidYawD![i] +
-							log.logData.pidYawFF![i] +
-							log.logData.pidYawS![i]
+						const rollSum = log.logData.pidSumRoll![i]
+						const pitchSum = log.logData.pidSumPitch![i]
+						const yawSum = log.logData.pidSumYaw![i]
 						log.logData.motorOutRR[i] =
-							(log.logData.setpointThrottle![i] - 1000) * 2 - rollTerm + pitchTerm + yawTerm
+							(log.logData.setpointThrottle![i] - 1000) * 2 - rollSum + pitchSum + yawSum
 						log.logData.motorOutFR[i] =
-							(log.logData.setpointThrottle![i] - 1000) * 2 - rollTerm - pitchTerm - yawTerm
+							(log.logData.setpointThrottle![i] - 1000) * 2 - rollSum - pitchSum - yawSum
 						log.logData.motorOutRL[i] =
-							(log.logData.setpointThrottle![i] - 1000) * 2 + rollTerm + pitchTerm - yawTerm
+							(log.logData.setpointThrottle![i] - 1000) * 2 + rollSum + pitchSum - yawSum
 						log.logData.motorOutFL[i] =
-							(log.logData.setpointThrottle![i] - 1000) * 2 + rollTerm - pitchTerm + yawTerm
+							(log.logData.setpointThrottle![i] - 1000) * 2 + rollSum - pitchSum + yawSum
 						log.logData.motorOutRR[i] = map(log.logData.motorOutRR[i], 0, 2000, 50, 2000)
 						log.logData.motorOutFR[i] = map(log.logData.motorOutFR[i], 0, 2000, 50, 2000)
 						log.logData.motorOutRL[i] = map(log.logData.motorOutRL[i], 0, 2000, 50, 2000)

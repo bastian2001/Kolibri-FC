@@ -637,6 +637,110 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 		minValue: 0,
 		maxValue: 100,
 	},
+	LOG_PID_SUM: {
+		name: "PID Sum",
+		path: "",
+		unit: "",
+		modifier: [
+			{
+				displayNameShort: "Roll",
+				displayName: "Roll",
+				path: "pidSumRoll",
+				min: -1500,
+				max: 1500,
+			},
+			{
+				displayNameShort: "Pitch",
+				displayName: "Pitch",
+				path: "pidSumPitch",
+				min: -1500,
+				max: 1500,
+			},
+			{
+				displayNameShort: "Yaw",
+				displayName: "Yaw",
+				path: "pidSumYaw",
+				min: -1500,
+				max: 1500,
+			},
+		],
+	},
+	LOG_VBAT: {
+		name: "Battery Voltage",
+		path: "vbat",
+		unit: "V",
+		minValue: 0,
+		maxValue: 30,
+		decimals: 2,
+	},
+	LOG_LINK_STATS: {
+		name: "Link Statistics",
+		path: "",
+		unit: "",
+		modifier: [
+			{
+				displayNameShort: "RSSI A",
+				displayName: "RSSI Antenna A",
+				path: "linkRssiA",
+				min: -120,
+				max: 0,
+				unit: "dBm",
+			},
+			{
+				displayNameShort: "RSSI B",
+				displayName: "RSSI Antenna B",
+				path: "linkRssiB",
+				min: -120,
+				max: 0,
+				unit: "dBm",
+			},
+			{
+				displayNameShort: "LQI",
+				displayName: "LQI",
+				path: "linkLqi",
+				min: 0,
+				max: 100,
+				unit: "%",
+			},
+			{
+				displayNameShort: "SNR",
+				displayName: "SNR",
+				path: "linkSnr",
+				min: -20,
+				max: 40,
+				unit: "dB",
+			},
+			{
+				displayNameShort: "Antenna",
+				displayName: "Used Antenna",
+				path: "linkAntennaSel",
+				min: 0,
+				max: 1,
+			},
+			{
+				displayNameShort: "Target Hz",
+				displayName: "Target Packet Rate",
+				path: "linkTargetHz",
+				min: 0,
+				max: 1000,
+			},
+			{
+				displayNameShort: "Actual Hz",
+				displayName: "Actual Packet Rate",
+				path: "linkActualHz",
+				min: 0,
+				max: 1000,
+			},
+			{
+				displayNameShort: "TX Power",
+				displayName: "TX Power",
+				path: "linkTxPow",
+				min: 0,
+				max: 1000,
+				unit: "mW",
+			},
+		],
+	},
 }
 
 export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
@@ -735,10 +839,9 @@ export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 		requires: [["LOG_YAW_SETPOINT", "GEN_YAW_SETPOINT"]],
 		exact: true,
 	},
-	GEN_MOTOR_OUTPUTS: {
-		replaces: "LOG_MOTOR_OUTPUTS",
+	GEN_PID_SUM: {
+		replaces: "LOG_PID_SUM",
 		requires: [
-			["GEN_THROTTLE_SETPOINT", "LOG_THROTTLE_SETPOINT"],
 			["LOG_ROLL_PID_P", "GEN_ROLL_PID_P"],
 			["LOG_ROLL_PID_I", "GEN_ROLL_PID_I"],
 			["LOG_ROLL_PID_D", "GEN_ROLL_PID_D"],
@@ -754,6 +857,14 @@ export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 			["LOG_YAW_PID_D", "GEN_YAW_PID_D"],
 			["LOG_YAW_PID_FF", "GEN_YAW_PID_FF"],
 			["LOG_YAW_PID_S", "GEN_YAW_PID_S"],
+		],
+		exact: false,
+	},
+	GEN_MOTOR_OUTPUTS: {
+		replaces: "LOG_MOTOR_OUTPUTS",
+		requires: [
+			["GEN_THROTTLE_SETPOINT", "LOG_THROTTLE_SETPOINT"],
+			["GE_PID_SUM", "LOG_PID_SUM"],
 		],
 		exact: true,
 	},

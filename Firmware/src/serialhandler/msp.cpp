@@ -8,8 +8,8 @@ u8 accelCalDone = 0;
 
 elapsedMillis mspOverrideMotors = 1001;
 
-static constexpr char targetIdentifier[] = "KD04";
-static constexpr char targetFullName[] = "Kolibri Dev v0.4";
+static constexpr char targetIdentifier[] = "KD05";
+static constexpr char targetFullName[] = "Kolibri Dev v0.5";
 
 elapsedMicros lastConfigPingRx = 0;
 bool configuratorConnected = false;
@@ -504,14 +504,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = (u8)(armingDisableFlags >> 8);
 			buf[len++] = (u8)(armingDisableFlags >> 16);
 			buf[len++] = (u8)(armingDisableFlags >> 24);
-			buf[len++] = (u8)(configuratorConnected & 0xFF);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::CONFIGURATOR_PING:
 			configuratorConnected = true;
 			lastConfigPingRx = 0;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			break;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, reqLen);
 			break;
 		case MspFn::SERIAL_PASSTHROUGH: {
 			if (reqPayload[0] >= SERIAL_COUNT)
@@ -554,7 +552,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::CLI_INIT: {
 			// send start info
-			// const char *startInfo = "\n" FIRMWARE_VERSION_STRING "\n" targetIdentifier "" ">> ";
 			char startInfo[256] = {0};
 			snprintf(startInfo, 256, "\n" FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands\n>> ", targetIdentifier, targetFullName);
 			openSettingsFile();
@@ -661,22 +658,28 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
 				FsFile logFile = sdCard.open(path);
 #endif
-				if (!logFile)
-					continue;
-				buffer[index++] = fileNum;
-				buffer[index++] = fileNum >> 8;
-				buffer[index++] = logFile.size() & 0xFF;
-				buffer[index++] = (logFile.size() >> 8) & 0xFF;
-				buffer[index++] = (logFile.size() >> 16) & 0xFF;
-				buffer[index++] = (logFile.size() >> 24) & 0xFF;
-				logFile.seek(LOG_HEAD_BB_VERSION);
-				// version, timestamp, pid and divider can directly be read from the file
-				for (int i = 0; i < 7; i++)
-					buffer[index++] = logFile.read();
-				logFile.seek(LOG_HEAD_DURATION);
-				for (int i = 0; i < 4; i++)
-					buffer[index++] = logFile.read();
-				logFile.close();
+				if (!logFile) {
+					buffer[index++] = fileNum;
+					buffer[index++] = fileNum >> 8;
+					// print all zeros to indicate broken file
+					for (int i = 0; i < 15; i++)
+						buffer[index++] = 0;
+				} else {
+					buffer[index++] = fileNum;
+					buffer[index++] = fileNum >> 8;
+					buffer[index++] = logFile.size() & 0xFF;
+					buffer[index++] = (logFile.size() >> 8) & 0xFF;
+					buffer[index++] = (logFile.size() >> 16) & 0xFF;
+					buffer[index++] = (logFile.size() >> 24) & 0xFF;
+					logFile.seek(LOG_HEAD_BB_VERSION);
+					// version, timestamp, pid and divider can directly be read from the file
+					for (int i = 0; i < 7; i++)
+						buffer[index++] = logFile.read();
+					logFile.seek(LOG_HEAD_DURATION);
+					for (int i = 0; i < 4; i++)
+						buffer[index++] = logFile.read();
+					logFile.close();
+				}
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buffer, index);
 		} break;
@@ -690,15 +693,15 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::BB_FILE_DELETE: {
 			// data just includes one byte of file number
-			u8 fileNum = reqPayload[0];
+			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 			snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
 			if (sdCard.remove(path))
 #endif
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 1);
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 2);
 			else
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 1);
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 2);
 		} break;
 		case MspFn::BB_FORMAT:
 			if (clearBlackbox())
@@ -837,6 +840,30 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			openSettingsFile();
 			getSetting(SETTING_CELL_COUNT)->updateSettingInFile();
 			getSetting(SETTING_EMPTY_VOLTAGE)->updateSettingInFile();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
+		case MspFn::GET_MOTOR_LAYOUT: {
+			getMotorPins((u8 *)buf);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 4);
+		} break;
+		case MspFn::SET_MOTOR_LAYOUT: {
+			buf[0] = updateMotorPins((const u8 *)reqPayload);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+		} break;
+		case MspFn::GET_VTX_CURRENT_STATE: {
+			u8 len = sendTrampUpdateMsg(buf);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
+		case MspFn::GET_VTX_CONFIG: {
+			u8 len = sendTrampConfigMsg(buf);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+		} break;
+		case MspFn::SET_VTX_CONFIG: {
+			setTrampConfig(reqPayload);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
+		case MspFn::VTX_APPLY_CONFIG: {
+			applyTrampConfig();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_TZ_OFFSET: {

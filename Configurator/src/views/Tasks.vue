@@ -1,8 +1,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
+import { sendCommand, } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
-import { Command } from "@utils/types";
 import { leBytesToInt } from "@utils/utils";
 
 const TASK_NAMES = [
@@ -26,6 +25,7 @@ const TASK_NAMES = [
 	'        - Mag Read',
 	'        - Mag Eval',
 	'    - OSD',
+	'    - VTX',
 	'    - Task Manager',
 	'Loop 1',
 	'    - Gyro Read',
@@ -74,35 +74,25 @@ export default defineComponent({
 			});
 		}
 		this.interval = setInterval(() => {
-			sendCommand(MspFn.TASK_STATUS);
+			sendCommand(MspFn.TASK_STATUS)
+				.then(c => {
+					for (let i = 0; i < this.tasks.length; i++) {
+						this.tasks[i].debugInfo = leBytesToInt(c.data, i * 28, 4);
+						this.tasks[i].minDuration = leBytesToInt(c.data, i * 28 + 6, 2);
+						this.tasks[i].maxDuration = leBytesToInt(c.data, i * 28 + 4, 2);
+						this.tasks[i].frequency = leBytesToInt(c.data, i * 28 + 8, 4);
+						this.tasks[i].totalDuration = leBytesToInt(c.data, i * 28 + 12, 4);
+						this.tasks[i].avgDuration = this.tasks[i].totalDuration / this.tasks[i].frequency;
+						this.tasks[i].errorCount = leBytesToInt(c.data, i * 28 + 16, 4);
+						this.tasks[i].lastError = leBytesToInt(c.data, i * 28 + 20, 4);
+						this.tasks[i].maxGap = leBytesToInt(c.data, i * 28 + 24, 4);
+					}
+				}).catch(() => { })
 		}, 200);
-		addOnCommandHandler(this.onCommand);
 	},
 	unmounted() {
 		clearInterval(this.interval);
-		removeOnCommandHandler(this.onCommand);
 	},
-	methods: {
-		onCommand(command: Command) {
-			if (command.cmdType === 'response') {
-				switch (command.command) {
-					case MspFn.TASK_STATUS:
-						for (let i = 0; i < this.tasks.length; i++) {
-							this.tasks[i].debugInfo = leBytesToInt(command.data.slice(i * 28, i * 28 + 4));
-							this.tasks[i].minDuration = leBytesToInt(command.data.slice(i * 28 + 6, i * 28 + 8));
-							this.tasks[i].maxDuration = leBytesToInt(command.data.slice(i * 28 + 4, i * 28 + 6));
-							this.tasks[i].frequency = leBytesToInt(command.data.slice(i * 28 + 8, i * 28 + 12));
-							this.tasks[i].totalDuration = leBytesToInt(command.data.slice(i * 28 + 12, i * 28 + 16));
-							this.tasks[i].avgDuration = this.tasks[i].totalDuration / this.tasks[i].frequency;
-							this.tasks[i].errorCount = leBytesToInt(command.data.slice(i * 28 + 16, i * 28 + 20));
-							this.tasks[i].lastError = leBytesToInt(command.data.slice(i * 28 + 20, i * 28 + 24));
-							this.tasks[i].maxGap = leBytesToInt(command.data.slice(i * 28 + 24, i * 28 + 28));
-						}
-						break;
-				}
-			}
-		}
-	}
 })
 </script>
 <template>

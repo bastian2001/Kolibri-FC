@@ -8,6 +8,16 @@ static std::list<TunableParameter>::iterator currentParameter;
 static i8 lastSelectState = 0;
 static i8 lastAdjustState = 0;
 
+TunableParameter::TunableParameter(u8 *valPtr, u32 step, u8 min, u8 max, const char *name, void (*onChange)())
+	: onChangeFn(onChange),
+	  valPtr(valPtr),
+	  step({.integer = step}),
+	  type(VariableType::U8),
+	  min({.integer = min}),
+	  max({.integer = max}) {
+	strncpy(this->name, name, 16);
+}
+
 TunableParameter::TunableParameter(u16 *valPtr, u32 step, u16 min, u16 max, const char *name, void (*onChange)())
 	: onChangeFn(onChange),
 	  valPtr(valPtr),
@@ -18,8 +28,26 @@ TunableParameter::TunableParameter(u16 *valPtr, u32 step, u16 min, u16 max, cons
 	strncpy(this->name, name, 16);
 }
 
+TunableParameter::TunableParameter(u32 *valPtr, u32 step, u32 min, u32 max, const char *name, void (*onChange)())
+	: onChangeFn(onChange),
+	  valPtr(valPtr),
+	  step({.integer = step}),
+	  type(VariableType::U32),
+	  min({.integer = min}),
+	  max({.integer = max}) {
+	strncpy(this->name, name, 16);
+}
+
 void TunableParameter::increase() {
 	switch (this->type) {
+	case VariableType::U8: {
+		i32 val = *(u8 *)valPtr;
+		val += step.integer;
+		if (val > max.integer || val < min.integer) {
+			val = max.integer;
+		}
+		*(u8 *)valPtr = val;
+	} break;
 	case VariableType::U16: {
 		i32 val = *(u16 *)valPtr;
 		val += step.integer;
@@ -28,12 +56,28 @@ void TunableParameter::increase() {
 		}
 		*(u16 *)valPtr = val;
 	} break;
+	case VariableType::U32: {
+		i32 val = *(u32 *)valPtr;
+		val += step.integer;
+		if (val > max.integer || val < min.integer) {
+			val = max.integer;
+		}
+		*(u32 *)valPtr = val;
+	} break;
 	}
 
 	if (onChangeFn != nullptr) onChangeFn();
 }
 void TunableParameter::decrease() {
 	switch (this->type) {
+	case VariableType::U8: {
+		i32 val = *(u8 *)valPtr;
+		val -= step.integer;
+		if (val > max.integer || val < min.integer) {
+			val = max.integer;
+		}
+		*(u8 *)valPtr = val;
+	} break;
 	case VariableType::U16: {
 		i32 val = *(u16 *)valPtr;
 		val -= step.integer;
@@ -42,14 +86,30 @@ void TunableParameter::decrease() {
 		}
 		*(u16 *)valPtr = val;
 	} break;
+	case VariableType::U32: {
+		i32 val = *(u32 *)valPtr;
+		val -= step.integer;
+		if (val > max.integer || val < min.integer) {
+			val = max.integer;
+		}
+		*(u32 *)valPtr = val;
+	} break;
 	}
 
 	if (onChangeFn != nullptr) onChangeFn();
 }
 void TunableParameter::getValueString(char *str) {
 	switch (this->type) {
+	case VariableType::U8: {
+		i32 val = *(u8 *)valPtr;
+		snprintf(str, 16, "%d", val);
+	} break;
 	case VariableType::U16: {
 		i32 val = *(u16 *)valPtr;
+		snprintf(str, 16, "%d", val);
+	} break;
+	case VariableType::U32: {
+		i32 val = *(u32 *)valPtr;
 		snprintf(str, 16, "%d", val);
 	} break;
 	}
@@ -74,6 +134,8 @@ void inFlightTuningInit() {
 }
 
 void inFlightTuningLoop() {
+	if (!(ELRS->newPacketFlag & (1 << 2)))
+		ELRS->newPacketFlag &= ~(1 << 2);
 	i8 newSelectState = 0;
 	if (rxModes[RxModeIndex::TUNING_NEXT_VAR].isActive()) newSelectState = 1;
 	if (rxModes[RxModeIndex::TUNING_PREV_VAR].isActive()) newSelectState = -1;

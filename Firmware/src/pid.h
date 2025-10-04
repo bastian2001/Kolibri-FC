@@ -26,7 +26,6 @@ enum {
 	S,
 };
 extern u16 pidGainsNice[3][5]; // PID gains as configured for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
-extern fix32 pidGains[3][5]; // PID gains (raw, calculated) for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 extern fix32 iFalloff; // I term is reduced by this value per second
 extern fix32 pidGainsVVel[4]; // PID gains for the vertical velocity PID controller
 extern fix32 pidGainsHVel[4]; // PID gains for the horizontal velocity PID controller
@@ -35,7 +34,7 @@ extern fix32 rollError, pitchError, yawError; // acro rate error (deg/s)
 extern fix32 rollLast, pitchLast, yawLast; // acro rate of last PID cycle (deg/s)
 extern fix32 vVelSetpoint, vVelError, vVelLast; // vertical velocity PID states
 extern fix32 eVelSetpoint, eVelError, eVelLast, nVelSetpoint, nVelError, nVelLast; // horizontal velocity PID states
-extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS; // acro PID summands
+extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, rollSum, pitchSum, yawSum; // acro PID summands
 extern fix32 vVelP, vVelI, vVelD, eVelP, eVelI, eVelD, nVelP, nVelI, nVelD; // velocity PID summands
 extern fix64 rollErrorSum, pitchErrorSum, yawErrorSum, vVelErrorSum, eVelErrorSum, nVelErrorSum; // I term sum for the PID controller
 extern fix32 altSetpoint; // altitude setpoint (m ASL)
@@ -55,6 +54,7 @@ extern fix32 vvelDFilterCutoff; // cutoff frequency for the vertical velocity D 
 extern fix32 vvelFFFilterCutoff; // cutoff frequency for the vertical velocity feedforward filter (Hz)
 extern bool useDynamicIdle; // whether to use dynamic (fix RPM) or static (fix throttle) idle
 extern u16 dynamicIdleRpm; // RPM the FC should target / not go below when the throttle is low
+extern volatile bool pidBoostActive; // shows/hides OSD PID boost indicator
 
 enum class FlightMode {
 	ACRO,
