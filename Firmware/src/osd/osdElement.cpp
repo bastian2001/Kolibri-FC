@@ -74,77 +74,42 @@ void OsdElement::updateOsdElementData() {
 		snprintf(screenText, sizeof(screenText), "%dS", batCells);
 		break;
 	case ElementType::ARM_TIME: {
-		static elapsedMillis armTime = 0;
-		static u32 armedSeconds = 0;
-		if (!armed) {
-			armTime = 0;
-			armedSeconds = 0;
-		}
-		while (armTime > 1000) { // should usually only run once, but just in case this element has < 1Hz update rate
-			armTime -= 1000;
-			armedSeconds++;
-		}
+		u32 armedSeconds = armed ? armedTimer / 1000 : 0;
 
-		// TODO solve leadingg zero Problem ;)
 		if (armedSeconds >= 3600) {
-			if ((armedSeconds % 60) < 10) {
-				if ((armedSeconds / 60) % 60 < 10) {
-					snprintf(screenText, 32, "ARM:%d:0%d:0%d", (armedSeconds / 3600), (armedSeconds / 60) % 60, armedSeconds % 60); // hh:mm:ss
-				} else {
-					snprintf(screenText, 32, "ARM:%d:%d:0%d", (armedSeconds / 3600), (armedSeconds / 60) % 60, armedSeconds % 60); // hh:mm:ss
-				}
-			} else {
-				if ((armedSeconds / 60) % 60 < 10) {
-					snprintf(screenText, 32, "ARM:%d:0%d:%d", (armedSeconds / 3600), (armedSeconds / 60) % 60, armedSeconds % 60); // hh:mm:ss
-				} else {
-					snprintf(screenText, 32, "ARM:%d:%d:%d", (armedSeconds / 3600), (armedSeconds / 60) % 60, armedSeconds % 60); // hh:mm:ss
-				}
-			}
+			snprintf(screenText, 32, "\x9c%d:%02d:%02d", (armedSeconds / 3600) % 3600, (armedSeconds / 60) % 60, armedSeconds % 60); // hh:mm:ss // for the rnu
 		} else {
-			if ((armedSeconds % 60) < 10) {
-				if ((armedSeconds / 60) % 60 < 10) {
-					snprintf(screenText, 32, "ARM-0%d:0%d", (armedSeconds / 60) % 60, armedSeconds % 60); // mm:ss
-				} else {
-					snprintf(screenText, 32, "ARM-%d:0%d", (armedSeconds / 60) % 60, armedSeconds % 60); // mm:ss
-				}
-			} else {
-				if ((armedSeconds / 60) % 60 < 10) {
-					snprintf(screenText, 32, "ARM-0%d:%d", (armedSeconds / 60) % 60, armedSeconds % 60); // mm:ss
-				} else {
-					snprintf(screenText, 32, "ARM-%d:%d", (armedSeconds / 60) % 60, armedSeconds % 60); // mm:ss
-				}
-			}
+			snprintf(screenText, 32, "\x9c%d:%02d", (armedSeconds / 60) % 60, armedSeconds % 60); // mm:ss
 		}
 		break;
 	}
 	case ElementType::GPS_LATITUDE: {
 		static fix64 gpsLat = gpsLatitudeFiltered;
 		if (gpsLat != 0) {
-			snprintf(screenText, 32, "LAT %3.6f", currentVal.fix64_val.getf64());
+			snprintf(screenText, 32, "\x89 %3.6f", currentVal.fix64_val.getf64());
 		} else {
-			snprintf(screenText, 32, "LAT N/A");
+			snprintf(screenText, 32, "\x89 N/A");
 		}
 		break;
 	}
 	case ElementType::GPS_LONGITUDE: {
 		static fix64 gpsLon = gpsLongitudeFiltered;
 		if (gpsLon != 0) {
-			snprintf(screenText, 32, "LON %3.6f", currentVal.fix64_val.getf64());
+			snprintf(screenText, 32, "\x98 %3.6f", currentVal.fix64_val.getf64());
 		} else {
-			snprintf(screenText, 32, "LON N/A");
+			snprintf(screenText, 32, "\x98 N/A");
 		}
 		break;
 	}
 
 	case ElementType::BATTERY_VOLTAGE_MIN: {
-		static fix32 curVoltage = 0;
 		static fix32 minVoltage = 0;
-		curVoltage = (fix32)adcVoltage / (fix32)100;
+		fix32 curVoltage = (fix32)adcVoltage / 100;
 		if (curVoltage < minVoltage) {
 			minVoltage = curVoltage;
 			snprintf(screenText, 32, "%.2fV", minVoltage.getf32());
 		} else {
-			minVoltage = (curVoltage / ((fix32)refHz * (fix32)2)) + ((minVoltage / ((fix32)refHz * (fix32)2)) * (((fix32)refHz * (fix32)2) - (fix32)1));
+			minVoltage = (curVoltage / ((fix32)refHz * 2)) + ((minVoltage / ((fix32)refHz * 2)) * (((fix32)refHz * 2) - 1));
 			snprintf(screenText, 32, "%.2fV", minVoltage.getf32());
 		}
 		break;
