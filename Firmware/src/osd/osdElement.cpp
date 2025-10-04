@@ -73,16 +73,23 @@ void OsdElement::updateOsdElementData() {
 	case ElementType::BATTERY_CELL_COUNT:
 		snprintf(screenText, sizeof(screenText), "%dS", batCells);
 		break;
-	case ElementType::ARM_TIME:
-		// snprintf(screenText, sizeof(screenText), "%d", armTime); //TODO get arm time
+	case ElementType::ARM_TIME: {
+		u32 armedSeconds = armed ? armedTimer / 1000 : 0;
+
+		if (armedSeconds >= 3600) {
+			snprintf(screenText, 32, "\x9c%d:%02d:%02d", (armedSeconds / 3600) % 3600, (armedSeconds / 60) % 60, armedSeconds % 60); // hh:mm:ss // for the rnu
+		} else {
+			snprintf(screenText, 32, "\x9c%d:%02d", (armedSeconds / 60) % 60, armedSeconds % 60); // mm:ss
+		}
 		break;
+	}
 	case ElementType::GPS_LATITUDE: {
 		static fix64 gpsLat = 0;
 		gpsLat = gpsLatitudeFiltered;
 		if (gpsLat != 0) {
-			snprintf(screenText, 32, "LAT %3.6f", currentVal.fix64_val.getf64());
+			snprintf(screenText, 32, "\x89 %3.6f", currentVal.fix64_val.getf64());
 		} else {
-			snprintf(screenText, 32, "LAT N/A");
+			snprintf(screenText, 32, "\x89 N/A");
 		}
 		break;
 	}
@@ -90,26 +97,73 @@ void OsdElement::updateOsdElementData() {
 		static fix64 gpsLon = 0;
 		gpsLon = gpsLongitudeFiltered;
 		if (gpsLon != 0) {
-			snprintf(screenText, 32, "LON %3.6f", currentVal.fix64_val.getf64());
+			snprintf(screenText, 32, "\x98 %3.6f", currentVal.fix64_val.getf64());
 		} else {
-			snprintf(screenText, 32, "LON N/A");
+			snprintf(screenText, 32, "\x98 N/A");
 		}
 		break;
 	}
 
 	case ElementType::BATTERY_VOLTAGE_MIN: {
-		static fix32 curVoltage = 0;
 		static fix32 minVoltage = 0;
-		curVoltage = (fix32)adcVoltage / (fix32)100;
+		fix32 curVoltage = (fix32)adcVoltage / 100;
 		if (curVoltage < minVoltage) {
 			minVoltage = curVoltage;
 			snprintf(screenText, 32, "%.2fV", minVoltage.getf32());
 		} else {
-			minVoltage = (curVoltage / ((fix32)refHz * (fix32)2)) + ((minVoltage / ((fix32)refHz * (fix32)2)) * (((fix32)refHz * (fix32)2) - (fix32)1));
+			minVoltage = (curVoltage / ((fix32)refHz * 2)) + ((minVoltage / ((fix32)refHz * 2)) * (((fix32)refHz * 2) - 1));
 			snprintf(screenText, 32, "%.2fV", minVoltage.getf32());
 		}
-
-	} break;
+		break;
+	}
+	case ElementType::FLIGHT_MODE: {
+		FlightMode fm = flightMode;
+		switch (fm) {
+		case FlightMode::ACRO: {
+			snprintf(screenText, 32, "ACRO");
+			break;
+		}
+		case FlightMode::ANGLE: {
+			snprintf(screenText, 32, "ANGL");
+			break;
+		}
+		case FlightMode::ALT_HOLD: {
+			snprintf(screenText, 32, "AHLD");
+			break;
+		}
+		default: {
+			snprintf(screenText, 32, "UKWN"); // should never hapen, but just in case "unknown" is a thing.
+			break;
+		}
+		}
+	}
+	case ElementType::LINK_QUALITY: { // atual package rate : percentage of valid packages
+		u8 sr = ELRS->uplinkLinkQuality;
+		u8 pr = ELRS->actualPacketRate;
+		snprintf(screenText, 32, "%i:%i%", pr, sr);
+		break;
+	}
+	case ElementType::SPEED: {
+		i32 rawSpeed = gpsMotion.gSpeed;
+		if (rawSpeed < 0) rawSpeed *= -1;
+		f32 kph = rawSpeed * (f32)3.6;
+		// f32 mph = rawSpeed * (f32)2.236936; for the uncivilized
+		sniprintf(screenText, 32, "%.1fkm/h", kph);
+		// sniprintf(screenText, 32, "%.1fmph", mph);
+		break;
+	}
+	case ElementType::IMU_PITCH: {
+		snprintf(screenText, 32, "P:%f", pitch.getf32()); // TODO is this angle or angular momentum?
+		break;
+	}
+	case ElementType::IMU_ROLL: {
+		snprintf(screenText, 32, "R:%f", roll.getf32());
+		break;
+	}
+	case ElementType::IMU_YAW: {
+		snprintf(screenText, 32, "Y:%f", yaw.getf32());
+		break;
+	}
 	case ElementType::HUD_COMPASS_HEADING: {
 		// TODO move to hud class or implement here
 	} break;

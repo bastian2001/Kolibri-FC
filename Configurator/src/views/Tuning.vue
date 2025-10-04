@@ -1,10 +1,10 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import { MspFn } from "@/msp/protocol";
-import { Command } from "@utils/types";
 import { delay, getSetpointActual, intToLeBytes, leBytesToInt } from "@utils/utils";
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
+import { sendCommand, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
 import NumericInput from "@/components/NumericInput.vue";
+import { useLogStore } from "@/stores/logStore";
 
 export default defineComponent({
 	name: "Tuning",
@@ -19,11 +19,9 @@ export default defineComponent({
 				{ center: 0, max: 0, expo: 0 },
 				{ center: 0, max: 0, expo: 0 }
 			],
-			saveTimeout: -1,
 			rateCanvas: document.createElement('canvas'),
 			setpointCanvas: document.createElement('canvas'),
 			rc: [0, 0, 0, 0],
-			getRcInterval: -1,
 			scale: 500,
 			gyroCutoff: 0,
 			accelCutoff: 0,
@@ -40,34 +38,78 @@ export default defineComponent({
 			idlePercent: 0,
 			useDynamicIdle: true,
 			dynamicIdleRpm: 0,
+			configuratorLog: useLogStore(),
+			exiting: false,
 		};
 	},
 	mounted() {
-		addOnCommandHandler(this.onCommand);
+		this.getRcContinuous()
 		addOnConnectHandler(this.getSettings);
 		window.addEventListener('resize', this.onResize);
 		this.onResize();
 		this.getSettings();
-		this.getRcInterval = setInterval(() => {
-			sendCommand(MspFn.RC);
-		}, 1000 / 60);
+
 	},
 	unmounted() {
-		removeOnCommandHandler(this.onCommand);
 		removeOnConnectHandler(this.getSettings);
 		window.removeEventListener('resize', this.onResize);
-		clearTimeout(this.saveTimeout);
-		clearInterval(this.getRcInterval);
 	},
 	methods: {
+		async getRcContinuous() {
+			while (!this.exiting) {
+				try {
+					const c = await sendCommand(MspFn.RC)
+					if (c.length < 8) throw undefined
+					for (let i = 0; i < 4; i++) {
+						this.rc[i] = (leBytesToInt(c.data, i * 2, 2, false) - 1500) / 512;
+					}
+					this.drawSetpointCanvas();
+				} catch (_) {
+					await delay(10) // avoid hung program if sendCommand rejects immediately
+				}
+			}
+		},
 		getSettings() {
 			sendCommand(MspFn.GET_PIDS)
-				.then(() => delay(5))
-				.then(() => sendCommand(MspFn.GET_RATES))
-				.then(() => delay(5))
-				.then(() => sendCommand(MspFn.GET_FILTER_CONFIG))
-				.then(() => delay(5))
-				.then(() => sendCommand(MspFn.GET_EXT_PID))
+				.then(c => {
+					if (c.length < 3 * 2 * 5) throw undefined
+					for (let ax = 0; ax < 3; ax++) {
+						for (let i = 0; i < 5; i++)
+							this.pids[ax][i] = leBytesToInt(c.data, ax * 10 + i * 2, + 2, false);
+					}
+					return sendCommand(MspFn.GET_RATES)
+				})
+				.then(c => {
+					if (c.length !== 3 * 2 * 3) throw undefined
+					for (let ax = 0; ax < 3; ax++) {
+						this.rateCoeffs[ax].center = leBytesToInt(c.data, ax * 6, 2);
+						this.rateCoeffs[ax].max = leBytesToInt(c.data, ax * 6 + 2, 2);
+						this.rateCoeffs[ax].expo = leBytesToInt(c.data, ax * 6 + 4, 2) / 8192;
+					}
+					return sendCommand(MspFn.GET_FILTER_CONFIG)
+				})
+				.then(c => {
+					if (c.length < 22) throw undefined
+					this.gyroCutoff = leBytesToInt(c.data, 0, 2, false);
+					this.accelCutoff = leBytesToInt(c.data, 2, 2, false);
+					this.dCutoff = leBytesToInt(c.data, 4, 2, false);
+					this.setpointDiffCutoff = leBytesToInt(c.data, 6, 2, false) / 10;
+					this.magCutoff = leBytesToInt(c.data, 8, 2, false) / 100;
+					this.altholdFfCutoff = leBytesToInt(c.data, 10, 2, false) / 100;
+					this.altholdDCutoff = leBytesToInt(c.data, 12, 2, false) / 10;
+					this.posholdFfCutoff = leBytesToInt(c.data, 14, 2, false) / 100;
+					this.posholdIrelaxCutoff = leBytesToInt(c.data, 16, 2, false) / 100;
+					this.posholdPushCutoff = leBytesToInt(c.data, 18, 2, false) / 10;
+					this.gpsVelocityCutoff = leBytesToInt(c.data, 20, 2, false) / 100;
+					return sendCommand(MspFn.GET_EXT_PID)
+				})
+				.then(c => {
+					this.iFalloff = leBytesToInt(c.data, 0, 2)
+					this.useDynamicIdle = c.data[2] !== 0
+					this.idlePercent = c.data[3] / 10
+					this.dynamicIdleRpm = leBytesToInt(c.data, 4, 2)
+				})
+				.catch(() => { })
 		},
 		saveSettings() {
 			const data = [];
@@ -75,101 +117,47 @@ export default defineComponent({
 				for (let i = 0; i < 5; i++)
 					data.push(...intToLeBytes(this.pids[ax][i], 2));
 
-			sendCommand(MspFn.SET_PIDS, data).then(() => {
-				this.saveTimeout = setTimeout(() => {
-					console.error('Save timeout');
-				}, 2000);
-			});
-		},
-		onCommand(command: Command) {
-			if (command.cmdType === 'response') {
-				switch (command.command) {
-					case MspFn.GET_PIDS:
-						if (command.length < 3 * 2 * 5) break;
-						for (let ax = 0; ax < 3; ax++) {
-							for (let i = 0; i < 5; i++)
-								this.pids[ax][i] = leBytesToInt(
-									command.data.slice(ax * 10 + i * 2, ax * 10 + i * 2 + 2),
-									false
-								);
-						}
-						break;
-					case MspFn.GET_EXT_PID:
-						this.iFalloff = leBytesToInt(command.data.slice(0, 2))
-						this.useDynamicIdle = command.data[2] !== 0
-						this.idlePercent = command.data[3] / 10
-						this.dynamicIdleRpm = leBytesToInt(command.data.slice(4, 6))
-						break;
-					case MspFn.GET_RATES:
-						if (command.length !== 3 * 2 * 3) break;
-						for (let ax = 0; ax < 3; ax++) {
-							this.rateCoeffs[ax].center = leBytesToInt(command.data.slice(ax * 6, ax * 6 + 2));
-							this.rateCoeffs[ax].max = leBytesToInt(command.data.slice(ax * 6 + 2, ax * 6 + 4));
-							this.rateCoeffs[ax].expo = leBytesToInt(command.data.slice(ax * 6 + 4, ax * 6 + 6)) / 8192;
-						}
-						break;
-					case MspFn.SET_PIDS: {
-						const data = []
-						data.push(...intToLeBytes(this.iFalloff, 2))
-						data.push(this.useDynamicIdle ? 1 : 0)
-						data.push(this.idlePercent * 10)
-						data.push(...intToLeBytes(this.dynamicIdleRpm, 2))
-						sendCommand(MspFn.SET_EXT_PID, data)
-					} break;
-					case MspFn.SET_EXT_PID: {
-						const data = [];
-						for (let ax = 0; ax < 3; ax++) {
-							data.push(...intToLeBytes(this.rateCoeffs[ax].center, 2));
-							data.push(...intToLeBytes(this.rateCoeffs[ax].max, 2));
-							data.push(...intToLeBytes(Math.round(this.rateCoeffs[ax].expo * 8192), 2));
-						}
-						sendCommand(MspFn.SET_RATES, data);
-					} break;
-					case MspFn.SET_RATES:
-						const data = [
-							...intToLeBytes(this.gyroCutoff, 2),
-							...intToLeBytes(this.accelCutoff, 2),
-							...intToLeBytes(this.dCutoff, 2),
-							...intToLeBytes(this.setpointDiffCutoff * 10, 2),
-							...intToLeBytes(this.magCutoff * 100, 2),
-							...intToLeBytes(this.altholdFfCutoff * 100, 2),
-							...intToLeBytes(this.altholdDCutoff * 10, 2),
-							...intToLeBytes(this.posholdFfCutoff * 100, 2),
-							...intToLeBytes(this.posholdIrelaxCutoff * 100, 2),
-							...intToLeBytes(this.posholdPushCutoff * 10, 2),
-							...intToLeBytes(this.gpsVelocityCutoff * 100, 2)
-						];
-						sendCommand(MspFn.SET_FILTER_CONFIG, data);
-						break;
-					case MspFn.SET_FILTER_CONFIG: {
-						sendCommand(MspFn.SAVE_SETTINGS);
-					} break;
-					case MspFn.SAVE_SETTINGS:
-						clearTimeout(this.saveTimeout);
-						break;
-					case MspFn.RC:
-						if (command.length < 8) break;
-						for (let i = 0; i < 4; i++) {
-							this.rc[i] = (leBytesToInt(command.data.slice(i * 2, i * 2 + 2), false) - 1500) / 512;
-						}
-						this.drawSetpointCanvas();
-						break;
-					case MspFn.GET_FILTER_CONFIG:
-						if (command.length < 22) break;
-						this.gyroCutoff = leBytesToInt(command.data.slice(0, 2), false);
-						this.accelCutoff = leBytesToInt(command.data.slice(2, 4), false);
-						this.dCutoff = leBytesToInt(command.data.slice(4, 6), false);
-						this.setpointDiffCutoff = leBytesToInt(command.data.slice(6, 8), false) / 10;
-						this.magCutoff = leBytesToInt(command.data.slice(8, 10), false) / 100;
-						this.altholdFfCutoff = leBytesToInt(command.data.slice(10, 12), false) / 100;
-						this.altholdDCutoff = leBytesToInt(command.data.slice(12, 14), false) / 10;
-						this.posholdFfCutoff = leBytesToInt(command.data.slice(14, 16), false) / 100;
-						this.posholdIrelaxCutoff = leBytesToInt(command.data.slice(16, 18), false) / 100;
-						this.posholdPushCutoff = leBytesToInt(command.data.slice(18, 20), false) / 10;
-						this.gpsVelocityCutoff = leBytesToInt(command.data.slice(20, 22), false) / 100;
-						break;
-				}
-			}
+			sendCommand(MspFn.SET_PIDS, data)
+				.then(() => {
+					const data = []
+					data.push(...intToLeBytes(this.iFalloff, 2))
+					data.push(this.useDynamicIdle ? 1 : 0)
+					data.push(this.idlePercent * 10)
+					data.push(...intToLeBytes(this.dynamicIdleRpm, 2))
+					return sendCommand(MspFn.SET_EXT_PID, data)
+					// this.saveTimeout = setTimeout(() => {
+					// 	console.error('Save timeout');
+					// }, 2000);
+				})
+				.then(() => {
+					const data = [];
+					for (let ax = 0; ax < 3; ax++) {
+						data.push(...intToLeBytes(this.rateCoeffs[ax].center, 2));
+						data.push(...intToLeBytes(this.rateCoeffs[ax].max, 2));
+						data.push(...intToLeBytes(Math.round(this.rateCoeffs[ax].expo * 8192), 2));
+					}
+					return sendCommand(MspFn.SET_RATES, data);
+				})
+				.then(() => {
+					const data = [
+						...intToLeBytes(this.gyroCutoff, 2),
+						...intToLeBytes(this.accelCutoff, 2),
+						...intToLeBytes(this.dCutoff, 2),
+						...intToLeBytes(this.setpointDiffCutoff * 10, 2),
+						...intToLeBytes(this.magCutoff * 100, 2),
+						...intToLeBytes(this.altholdFfCutoff * 100, 2),
+						...intToLeBytes(this.altholdDCutoff * 10, 2),
+						...intToLeBytes(this.posholdFfCutoff * 100, 2),
+						...intToLeBytes(this.posholdIrelaxCutoff * 100, 2),
+						...intToLeBytes(this.posholdPushCutoff * 10, 2),
+						...intToLeBytes(this.gpsVelocityCutoff * 100, 2)
+					];
+					return sendCommand(MspFn.SET_FILTER_CONFIG, data);
+				})
+				.then(() => {
+					return sendCommand(MspFn.SAVE_SETTINGS);
+				})
+				.catch(er => { this.configuratorLog.push('Error saving settings: ' + er) })
 		},
 		onResize() {
 			const domCanvas = this.$refs.rateCanvas as HTMLCanvasElement;
@@ -265,7 +253,7 @@ export default defineComponent({
 			ctx.textAlign = 'left'
 			ctx.fillText((-this.scale).toString() + ' °/s', canvas.width / 2 + 5, canvas.height - 5);
 			ctx.lineWidth = 2;
-			const colors = ['#f77', '#7f7', '#77f'];
+			const colors = ['#f33', '#3f3', '#33f'];
 
 			// draw all 3 rate curves
 			for (let i = 0; i < 3; i++) {
@@ -275,7 +263,7 @@ export default defineComponent({
 				for (let j = -50; j <= 50; j++) {
 					const val = getSetpointActual(j / 50, this.rateCoeffs[i]);
 					const x = canvas.width * (j + 50) / 100;
-					const y = canvas.height / 2 - canvas.height * val / (this.scale * 2);
+					const y = canvas.height / 2 - canvas.height * val / (this.scale * 2) + i * 2 - 2;
 					if (j === -50)
 						ctx.moveTo(x, y);
 					else
@@ -290,13 +278,13 @@ export default defineComponent({
 			if (!ctx) return;
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			//draw all 3 setpoints as dots
-			const colors = ['#f99', '#9f9', '#99f'];
+			const colors = ['#f66', '#6f6', '#66f'];
 			const rcMap = [0, 1, 3]
 			for (let i = 0; i < 3; i++) {
 				ctx.fillStyle = colors[i];
 				const setpoint = getSetpointActual(this.rc[rcMap[i]], this.rateCoeffs[i]);
 				const x = canvas.width * (this.rc[rcMap[i]] + 1) / 2;
-				const y = canvas.height / 2 - canvas.height * setpoint / this.scale / 2;
+				const y = canvas.height / 2 - canvas.height * setpoint / this.scale / 2 + i * 2 - 2;
 				ctx.beginPath();
 				ctx.arc(x, y, 7, 0, Math.PI * 2);
 				ctx.fill();

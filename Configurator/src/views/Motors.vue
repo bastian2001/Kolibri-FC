@@ -4,12 +4,12 @@ import { defineComponent } from "vue";
 import { MspFn } from "@/msp/protocol";
 import { intToLeBytes, leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
-import { Command } from "@utils/types";
-import { sendCommand, addOnDisconnectHandler, removeOnDisconnectHandler, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
+import { sendCommand, addOnDisconnectHandler, removeOnDisconnectHandler } from "@/msp/comm";
+import RemapMotors from "@/components/RemapMotors.vue";
 
 export default defineComponent({
 	name: "Motors",
-	components: { Motor },
+	components: { Motor, RemapMotors },
 	data() {
 		return {
 			motors: [1000, 1000, 1000, 1000], // current values
@@ -18,20 +18,22 @@ export default defineComponent({
 			sendInterval: -1,
 			getMotorsInterval: -1,
 			configuratorLog: useLogStore(),
+			motorRemap: false,
 		};
 	},
 	mounted() {
 		this.getMotorsInterval = setInterval(() => {
-			sendCommand(MspFn.GET_MOTOR);
+			sendCommand(MspFn.GET_MOTOR).then(c => {
+				for (let i = 0; i < 4; i++)
+					this.motors[i] = leBytesToInt(c.data, i * 2, 2)
+			}).catch(() => { })
 		}, 100);
 		addOnDisconnectHandler(this.stopMotors);
-		addOnCommandHandler(this.onCommand);
 	},
 	unmounted() {
 		clearInterval(this.getMotorsInterval);
 		clearInterval(this.sendInterval);
 		removeOnDisconnectHandler(this.stopMotors);
-		removeOnCommandHandler(this.onCommand);
 	},
 	methods: {
 		spinMotor(motor: number) {
@@ -47,24 +49,9 @@ export default defineComponent({
 		startMotors() {
 			clearInterval(this.sendInterval);
 			this.sendInterval = setInterval(() => {
-				sendCommand(MspFn.SET_MOTOR, this.throttlesU8);
+				sendCommand(MspFn.SET_MOTOR, this.throttlesU8).catch(() => { })
 			}, 100);
 		},
-		onCommand(command: Command) {
-			if (command.cmdType === 'response') {
-				switch (command.command) {
-					case MspFn.GET_MOTOR:
-						{
-							const m: number[] = [];
-							for (let i = 0; i < 4; i++) {
-								m.push(leBytesToInt(command.data.slice(i * 2, i * 2 + 2)));
-							}
-							this.motors = m;
-						}
-						break;
-				}
-			}
-		}
 	},
 	computed: {
 		throttlesU8() {
@@ -86,9 +73,11 @@ export default defineComponent({
 		<button @click="() => spinMotor(3)">Spin FL</button>
 		<button @click="() => stopMotors()">Stop</button>
 		<button @click="() => startMotors()">Start</button>
+		<button @click="() => { stopMotors(); motorRemap = true }">Remap</button>
 		<div class="quadPreview">
 			<Motor v-for="m in motorMapping" :throttlePct="(motors[m] - 1000) / 10" />
 		</div>
+		<RemapMotors @close="motorRemap = false" v-if="motorRemap" />
 	</div>
 </template>
 

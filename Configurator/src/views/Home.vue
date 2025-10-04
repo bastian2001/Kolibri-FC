@@ -7,9 +7,9 @@ import { MspFn } from '@/msp/protocol';
 import { Command } from '@utils/types';
 import { prefixZeros } from '@utils/utils';
 
-const FLIGHT_MODES = ['ACRO', 'ANGLE', 'ALT_HOLD', 'GPS_VEL', 'GPS_POS'];
+const FLIGHT_MODES = ['Acro', 'Angle', 'Altitude Hold', 'GPS Hold', 'Waypoint'];
 const ARMING_DISABLE_FLAGS = [
-	'Arming switch not armed',
+	'Arming switch',
 	'Throttle up',
 	'No GPS fix',
 	'Configurator attached',
@@ -23,16 +23,20 @@ export default defineComponent({
 	name: 'Home',
 	mounted() {
 		addOnCommandHandler(this.onCommand);
+		this.getRotationContinuous();
 
-
-		this.getRotationInterval = setInterval(() => {
-			sendCommand(MspFn.GET_ROTATION).catch(() => { });
-		}, 20);
 		this.pingInterval = setInterval(() => {
 			this.fcPing = getPingTime();
-		}, 1000);
+		}, 200);
 		this.rtcInterval = setInterval(() => {
-			sendCommand(MspFn.GET_RTC);
+			sendCommand(MspFn.GET_RTC).then(c => {
+				this.time.year = leBytesToInt(c.data, 0, 2);
+				this.time.month = c.data[2];
+				this.time.day = c.data[3];
+				this.time.hour = c.data[4];
+				this.time.minute = c.data[5];
+				this.time.second = c.data[6];
+			}).catch(() => { })
 		}, 1000);
 	},
 	unmounted() {
@@ -40,15 +44,15 @@ export default defineComponent({
 		clearInterval(this.getRotationInterval);
 		clearInterval(this.pingInterval);
 		clearInterval(this.rtcInterval);
+		this.exiting = true
 	},
 	data() {
 		return {
 			flightMode: 0,
 			armingDisableFlags: 0,
 			armed: false,
-			configuratorConnected: false,
 			fcPing: -1,
-			getRotationInterval: 0,
+			getRotationInterval: -1,
 			attitude: { roll: 0, pitch: 0, yaw: 0, heading: 0 },
 			showHeading: false,
 			serialNum: 1,
@@ -67,73 +71,57 @@ export default defineComponent({
 			ARMING_DISABLE_FLAGS,
 			prefixZeros,
 			intToLeBytes,
+			exiting: false,
 		};
 	},
 	methods: {
+		async getRotationContinuous() {
+			while (!this.exiting) {
+				try {
+					const c = await sendCommand(MspFn.GET_ROTATION)
+					let pitch = leBytesToInt(c.data, 0, 2, true)
+					pitch /= 8192.0
+					pitch *= 180.0 / Math.PI
+					let roll = leBytesToInt(c.data, 2, 2, true)
+					roll /= 8192.0
+					roll *= 180.0 / Math.PI
+					let yaw = leBytesToInt(c.data, 4, 2, true)
+					yaw /= 8192.0
+					yaw *= 180.0 / Math.PI
+					let heading = leBytesToInt(c.data, 6, 2, true)
+					heading /= 8192.0
+					heading *= 180.0 / Math.PI
+					this.attitude = { roll, pitch, yaw, heading }
+				} catch (_) {
+					await delay(10) // avoid hung program if sendCommand rejects immediately
+				}
+			}
+		},
 		onCommand(command: Command) {
 			if (command.cmdType === 'response') {
 				switch (command.command) {
+					case MspFn.ACC_CALIBRATION:
+						if (command.data[0] === 1)
+							this.configuratorLog.push('Accelerometer calibrated');
+						else
+							this.configuratorLog.push('Accelerometer calibration started');
+						break
 					case MspFn.MSP_ATTITUDE:
 						this.attitude = {
-							roll: -leBytesToInt(command.data.slice(0, 2), true) / 10,
-							pitch: leBytesToInt(command.data.slice(2, 4), true) / 10,
-							yaw: leBytesToInt(command.data.slice(4, 6), true),
-							heading: leBytesToInt(command.data.slice(4, 6), true)
+							roll: -leBytesToInt(command.data, 0, 2, true) / 10,
+							pitch: leBytesToInt(command.data, 2, 2, true) / 10,
+							yaw: leBytesToInt(command.data, 4, 2, true),
+							heading: leBytesToInt(command.data, 4, 2, true)
 						};
 						break;
 					case MspFn.STATUS:
 						this.armed = command.data[2] === 1;
 						this.flightMode = command.data[3];
-						this.armingDisableFlags = leBytesToInt(command.data.slice(4, 8));
-						this.configuratorConnected = command.data[8] === 1;
-						break;
-					case MspFn.GET_ROTATION:
-						let pitch = leBytesToInt(command.data.slice(0, 2), true);
-						pitch /= 8192.0;
-						pitch *= 180.0 / Math.PI;
-						let roll = leBytesToInt(command.data.slice(2, 4), true);
-						roll /= 8192.0;
-						roll *= 180.0 / Math.PI;
-						let yaw = leBytesToInt(command.data.slice(4, 6), true);
-						yaw /= 8192.0;
-						yaw *= 180.0 / Math.PI;
-						let heading = leBytesToInt(command.data.slice(6, 8), true);
-						heading /= 8192.0;
-						heading *= 180.0 / Math.PI;
-						this.attitude = { roll, pitch, yaw, heading };
-						break;
-					case MspFn.SERIAL_PASSTHROUGH:
-						const sPort = command.data[0];
-						const baud = leBytesToInt(command.data.slice(1, 5));
-						this.configuratorLog.push(
-							`Serial passthrough started on Serial${sPort} with baud rate ${baud}`
-						);
-						disconnect();
-						break;
-					case MspFn.GET_CRASH_DUMP:
-						console.log(command.data);
-						break;
-					case MspFn.ACC_CALIBRATION:
-						if (command.data[0] === 1) this.configuratorLog.push('Accelerometer calibrated');
-						else this.configuratorLog.push('Accelerometer calibration started');
+						this.armingDisableFlags = leBytesToInt(command.data, 4, 4);
 						break;
 					case MspFn.REBOOT:
 						this.configuratorLog.push('Rebooting');
 						disconnect();
-						break;
-					case MspFn.GET_CRASH_DUMP:
-						this.configuratorLog.push('See console for crash dump');
-						break;
-					case MspFn.CLEAR_CRASH_DUMP:
-						this.configuratorLog.push('Crash dump cleared');
-						break;
-					case MspFn.GET_RTC:
-						this.time.year = leBytesToInt(command.data.slice(0, 2));
-						this.time.month = command.data[2];
-						this.time.day = command.data[3];
-						this.time.hour = command.data[4];
-						this.time.minute = command.data[5];
-						this.time.second = command.data[6];
 						break;
 				}
 			}
@@ -144,17 +132,44 @@ export default defineComponent({
 			(this.$refs.xBox as HTMLDivElement).style.transform = `rotateY(${-this.attitude.roll}deg)`
 		},
 		ledOn() {
-			sendCommand(MspFn.SET_DEBUG_LED, [1]);
+			sendCommand(MspFn.SET_DEBUG_LED, [1])
 		},
 		ledOff() {
-			sendCommand(MspFn.SET_DEBUG_LED, [0]);
-		},
-		calibrateAccel() {
-			sendCommand(MspFn.ACC_CALIBRATION);
+			sendCommand(MspFn.SET_DEBUG_LED, [0])
 		},
 		playSound() {
-			sendCommand(MspFn.PLAY_SOUND);
-		}
+			sendCommand(MspFn.PLAY_SOUND).then(c => console.log(c.data))
+		},
+		startPassthrough() {
+			sendCommand(MspFn.SERIAL_PASSTHROUGH, [
+				this.serialNum,
+				...intToLeBytes(this.baudRate, 4),
+			]).then(c => {
+				const sPort = c.data[0];
+				const baud = leBytesToInt(c.data, 1, 4);
+				this.configuratorLog.push(
+					`Serial passthrough started on Serial${sPort} with baud rate ${baud}`
+				);
+				disconnect();
+			})
+		},
+		getCrashDump() {
+			sendCommand(MspFn.GET_CRASH_DUMP).then(c => {
+				this.configuratorLog.push('See console for crash dump');
+				console.log(c.data);
+			})
+		},
+		clearCrashDump() {
+			sendCommand(MspFn.CLEAR_CRASH_DUMP).then(() => {
+				this.configuratorLog.push('Crash dump cleared');
+			})
+		},
+		reboot() {
+			sendCommand(MspFn.REBOOT, [REBOOT_MODES.FIRMWARE])
+		},
+		rebootBootloader() {
+			sendCommand(MspFn.REBOOT, [REBOOT_MODES.BOOTLOADER_FLASH])
+		},
 	},
 	watch: {
 		attitude: {
@@ -172,20 +187,15 @@ export default defineComponent({
 })
 </script>
 <template>
-	<div>
+	<div class="wrapper">
 		<div>
 			<button @click="ledOn">LED On</button>
 			<button @click="ledOff">LED Off</button>
-			<button @click="calibrateAccel">Calibrate Accelerometer</button>
+			<button @click="() => sendCommand(MspFn.ACC_CALIBRATION)">Calibrate Accelerometer</button>
 			<button @click="playSound">Play Sound</button>
 			<input type="number" step="1" min="1" max="2" placeholder="Serial Number" v-model="serialNum" />
 			<input type="number" step="1" min="9600" max="115200" placeholder="Baud Rate" v-model="baudRate" />
-			<button @click="() => {
-				sendCommand(MspFn.SERIAL_PASSTHROUGH, [
-					serialNum,
-					...intToLeBytes(baudRate, 4),
-				]);
-			}">Start Serial Passthrough</button>
+			<button @click="startPassthrough">Start Serial Passthrough</button>
 			<button @click="() => {
 				enableCommands(false);
 				sendRaw([], '+++')
@@ -194,15 +204,12 @@ export default defineComponent({
 					})
 					.then(() => enableCommands(true));
 			}">Stop Serial Passthrough</button>
-			<button @click="() => sendCommand(MspFn.GET_CRASH_DUMP)">Get Crash Dump</button>
-			<button @click="() => sendCommand(MspFn.CLEAR_CRASH_DUMP)">Clear Crash Dump</button>
-			<button @click="() =>
-				sendCommand(MspFn.REBOOT, [REBOOT_MODES.FIRMWARE])">Reboot</button>
-			<button @click="() =>
-				sendCommand(MspFn.REBOOT, [REBOOT_MODES.BOOTLOADER_FLASH])">Bootloader</button>
+			<button @click="getCrashDump">Get Crash Dump</button>
+			<button @click="clearCrashDump">Clear Crash Dump</button>
+			<button @click="reboot">Reboot</button>
+			<button @click="rebootBootloader">Bootloader</button>
 		</div>
-		<div class="droneStatus">Flight Mode: {{ FLIGHT_MODES[flightMode] }}, Armed: {{ armed ? 'Yes' : 'No' }},
-			Configurator Connected: {{ configuratorConnected ? 'Yes' : 'No' }}<br />
+		<div class="droneStatus">Flight Mode: {{ FLIGHT_MODES[flightMode] }}, {{ armed ? 'Armed' : 'Disarmed' }}<br />
 			Arming Disabled Flags:<br />
 			{{
 				ARMING_DISABLE_FLAGS
@@ -212,7 +219,7 @@ export default defineComponent({
 					.join(', ')
 			}}
 		</div>
-		<div>Ping: {{ fcPing }} ms</div>
+		<div>Ping: {{ fcPing === -1 ? 'Error' : fcPing + ' ms' }}</div>
 		<div>
 			Time: {{ prefixZeros(time.year, 4) }}-{{ prefixZeros(time.month, 2) }}-{{ prefixZeros(time.day, 2) }}
 			{{ prefixZeros(time.hour, 2) }}:{{ prefixZeros(time.minute, 2) }}:{{ prefixZeros(time.second, 2) }}
@@ -252,6 +259,11 @@ export default defineComponent({
 </template>
 
 <style scoped>
+.wrapper {
+	padding: 1rem 0px;
+	box-sizing: border-box;
+}
+
 .drone3DPreview {
 	width: 500px;
 	height: 500px;
@@ -266,9 +278,8 @@ export default defineComponent({
 	top: -170px;
 	border-radius: 50%;
 	border: 5px solid #000;
-	background-image: url("/src/assets/grid.png");
-	background-size: 20px 20px;
-	image-rendering: crisp-edges;
+	background-image: url("/src/assets/grid.svg");
+	background-size: 35px 35px;
 }
 
 .zBox {

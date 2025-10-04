@@ -1,8 +1,8 @@
 <script lang="ts">
 import NumericInput from "@/components/NumericInput.vue";
-import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
+import { addOnConnectHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
-import { Command } from "@/utils/types";
+import { useLogStore } from "@/stores/logStore";
 import { intToLeBytes, leBytesToInt } from "@/utils/utils";
 import { defineComponent } from "vue";
 
@@ -22,43 +22,31 @@ export default defineComponent({
 	},
 	mounted() {
 		this.getBatStateInterval = setInterval(this.getBatState, 100);
-		addOnCommandHandler(this.onCommand)
 		addOnConnectHandler(this.getBatSettings)
 		this.getBatSettings()
 	},
 	unmounted() {
 		clearInterval(this.getBatStateInterval)
-		removeOnCommandHandler(this.onCommand)
 		removeOnConnectHandler(this.getBatSettings)
 	},
 	methods: {
 		getBatState() {
 			sendCommand(MspFn.MSP_BATTERY_STATE)
+				.then(c => {
+					this.fcCells = c.data[0]
+					if (this.autoCellCount) this.cellCount = this.fcCells
+					this.batState = c.data[8]
+					this.voltage = leBytesToInt(c.data, 9, 2) / 100
+					// unused: 1,2: capacity; 4,5: mAh drawn; 6,7: amps (10mA steps)
+				})
 		},
 		getBatSettings() {
 			sendCommand(MspFn.GET_BATTERY_SETTINGS)
-		},
-		onCommand(command: Command) {
-			switch (command.command) {
-				case MspFn.MSP_BATTERY_STATE: {
-					this.fcCells = command.data[0]
-					if (this.autoCellCount) this.cellCount = this.fcCells
-					this.batState = command.data[8]
-					this.voltage = leBytesToInt(command.data.slice(9, 11)) / 100
-					// unused: 1,2: capacity; 4,5: mAh drawn; 6,7: amps (10mA steps)
-				} break;
-				case MspFn.GET_BATTERY_SETTINGS: {
-					this.cellCount = command.data[0]
+				.then(c => {
+					this.cellCount = c.data[0]
 					this.autoCellCount = this.cellCount === 0
-					this.emptyVoltage = leBytesToInt(command.data.slice(1, 3)) / 100
-				} break;
-				case MspFn.SET_BATTERY_SETTINGS: {
-					sendCommand(MspFn.SAVE_SETTINGS)
-				} break;
-				case MspFn.SAVE_SETTINGS: {
-					this.getBatSettings();
-				} break;
-			}
+					this.emptyVoltage = leBytesToInt(c.data, 1, 2) / 100
+				})
 		},
 		saveSettings() {
 			const data = [
@@ -66,6 +54,13 @@ export default defineComponent({
 				...intToLeBytes(this.emptyVoltage * 100, 2)
 			]
 			sendCommand(MspFn.SET_BATTERY_SETTINGS, data)
+				.then(() => {
+					return sendCommand(MspFn.SAVE_SETTINGS)
+				})
+				.then(this.getBatSettings)
+				.catch(() => {
+					useLogStore().push('Failed to write battery settings')
+				})
 		}
 	},
 	computed: {

@@ -21,6 +21,13 @@ void OsdHandler::init() {
 	elem->setPos(1, 5);
 	elem->setRefreshRate(5);
 	addOsdElement(elem);
+	elem = new OsdElement(ElementType::ARM_TIME);
+	elem->setPos(3, 5);
+	elem->setRefreshRate(5);
+	elem = new OsdElement(ElementType::FLIGHT_MODE);
+	elem->setPos(2, 5);
+	elem->setRefreshRate(5);
+	addOsdElement(elem);
 
 	optimize();
 }

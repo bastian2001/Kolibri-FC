@@ -1,10 +1,9 @@
 <script lang="ts">
 import Channel from "@components/Channel.vue";
 import { defineComponent } from "vue";
-import { addOnCommandHandler, sendCommand, removeOnCommandHandler, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
+import { sendCommand, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
-import { Command } from "@utils/types";
-import { leBytesToInt } from "@utils/utils";
+import { delay, leBytesToInt } from "@utils/utils";
 import RxMode from "@/components/RxMode.vue";
 
 export default defineComponent({
@@ -24,7 +23,7 @@ export default defineComponent({
 			rcMsgCount: 0,
 			channels: new Array(16).fill(1500),
 			channelInterval: -1,
-			statusInterval: -1,
+			exiting: false,
 			rxModes: [
 				{ name: "Armed", min: -50, max: 50, channel: 4 },
 				{ name: "Angle Mode", min: -50, max: 50, channel: 5 },
@@ -45,25 +44,62 @@ export default defineComponent({
 		RxMode,
 	},
 	mounted() {
-		this.statusInterval = setInterval(() => {
-			sendCommand(MspFn.RC).catch(() => { });
-		}, 20);
+		this.getRcContinuous()
 		this.channelInterval = setInterval(() => {
-			sendCommand(MspFn.GET_RX_STATUS).catch(() => { });
+			sendCommand(MspFn.GET_RX_STATUS)
+				.then(c => {
+					this.isReceiverUp = c.data[0] > 0;
+					this.isLinkUp = c.data[1] > 0;
+					this.uplinkRssi[0] = leBytesToInt(c.data, 2, 1, true);
+					this.uplinkRssi[1] = leBytesToInt(c.data, 3, 1, true);
+					this.uplinkLinkQuality = c.data[4];
+					this.uplinkSnr = leBytesToInt(c.data, 5, 1, true);
+					this.antennaSelection = c.data[6];
+					this.packetRateIdx = c.data[7];
+					this.txPower = leBytesToInt(c.data, 8, 2);
+					this.targetPacketRate = leBytesToInt(c.data, 10, 2);
+					this.actualPacketRate = leBytesToInt(c.data, 12, 2);
+					this.rcMsgCount = leBytesToInt(c.data, 14, 4);
+				})
+				.catch(() => { });
 		}, 1000);
 		this.getModes();
 		addOnConnectHandler(this.getModes);
-		addOnCommandHandler(this.onCommand);
 	},
 	unmounted() {
-		clearInterval(this.statusInterval);
 		clearInterval(this.channelInterval);
 		removeOnConnectHandler(this.getModes);
-		removeOnCommandHandler(this.onCommand);
+		this.exiting = true
 	},
 	methods: {
+		async getRcContinuous() {
+			while (!this.exiting) {
+				try {
+					const c = await sendCommand(MspFn.RC)
+					const channelCount = c.data.length / 2;
+					if (channelCount !== this.channels.length) {
+						this.channels = new Array(channelCount).fill(1500);
+					}
+					for (let i = 0; i < 16; i++) {
+						this.channels[i] = leBytesToInt(c.data, i * 2, 2);
+					}
+				} catch (_) {
+					await delay(10) // avoid hung program if sendCommand rejects immediately
+				}
+			}
+		},
 		getModes() {
-			sendCommand(MspFn.GET_RX_MODES).catch(() => { });
+			sendCommand(MspFn.GET_RX_MODES)
+				.then(c => {
+					const modeCount = c.data.length / 4;
+					for (let i = 0; i < modeCount; i++) {
+						const offset = i * 4;
+						this.rxModes[i].channel = c.data[offset] > 127 ? c.data[offset] - 256 : c.data[offset];
+						this.rxModes[i].min = c.data[offset + 1] > 127 ? c.data[offset + 1] - 256 : c.data[offset + 1];
+						this.rxModes[i].max = c.data[offset + 2] > 127 ? c.data[offset + 2] - 256 : c.data[offset + 2];
+					}
+				})
+				.catch(() => { });
 		},
 		saveSettings() {
 			const data: number[] = []
@@ -73,49 +109,10 @@ export default defineComponent({
 				data[index * 4 + 2] = mode.max < 0 ? mode.max + 256 : mode.max;
 				data[index * 4 + 3] = 0; // Reserved byte
 			});
-			sendCommand(MspFn.SET_RX_MODES, data).catch(() => { });
-		},
-		onCommand(command: Command) {
-			if (command.cmdType === 'response') {
-				switch (command.command) {
-					case MspFn.RC: {
-						const channelCount = command.data.length / 2;
-						if (channelCount !== this.channels.length) {
-							this.channels = new Array(channelCount).fill(1500);
-						}
-						for (let i = 0; i < 16; i++) {
-							this.channels[i] = leBytesToInt(command.data.slice(i * 2, i * 2 + 2));
-						}
-					} break;
-					case MspFn.GET_RX_STATUS: {
-						this.isReceiverUp = command.data[0] > 0;
-						this.isLinkUp = command.data[1] > 0;
-						this.uplinkRssi[0] = leBytesToInt([command.data[2]], true);
-						this.uplinkRssi[1] = leBytesToInt([command.data[3]], true);
-						this.uplinkLinkQuality = command.data[4];
-						this.uplinkSnr = leBytesToInt([command.data[5]], true);
-						this.antennaSelection = command.data[6];
-						this.packetRateIdx = command.data[7];
-						this.txPower = leBytesToInt(command.data.slice(8, 10));
-						this.targetPacketRate = leBytesToInt(command.data.slice(10, 12));
-						this.actualPacketRate = leBytesToInt(command.data.slice(12, 14));
-						this.rcMsgCount = leBytesToInt(command.data.slice(14, 18));
-					} break;
-					case MspFn.GET_RX_MODES: {
-						const modeCount = command.data.length / 4;
-						for (let i = 0; i < modeCount; i++) {
-							const offset = i * 4;
-							this.rxModes[i].channel = command.data[offset] > 127 ? command.data[offset] - 256 : command.data[offset];
-							this.rxModes[i].min = command.data[offset + 1] > 127 ? command.data[offset + 1] - 256 : command.data[offset + 1];
-							this.rxModes[i].max = command.data[offset + 2] > 127 ? command.data[offset + 2] - 256 : command.data[offset + 2];
-						}
-					} break;
-					case MspFn.SET_RX_MODES: {
-						sendCommand(MspFn.SAVE_SETTINGS).catch(() => { });
-						this.getModes();
-					} break;
-				}
-			}
+			sendCommand(MspFn.SET_RX_MODES, data)
+				.then(() => { return sendCommand(MspFn.SAVE_SETTINGS) })
+				.then(this.getModes)
+				.catch(() => { });
 		},
 	}
 })
@@ -156,9 +153,18 @@ export default defineComponent({
 
 <style scoped>
 #rxWrapper {
-	margin: 1rem auto;
-	width: 90vw;
-	max-width: 200vh;
+	padding: 1rem 5% 0px 5%;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+.header {
+	width: 100%;
 }
 
 .saveBtn {
@@ -184,20 +190,30 @@ export default defineComponent({
 	flex-direction: row;
 	justify-content: space-between;
 	gap: 3rem;
+	overflow: hidden;
+}
+
+#rxFlex>* {
+	box-sizing: border-box;
 }
 
 #rxChannels {
 	min-width: 500px;
 	flex-grow: 1;
+	height: 100%;
+	box-sizing: border-box;
 }
 
 #rxSettings {
 	min-width: 200px;
 	flex-grow: 1;
+	height: 100%;
 }
 
 #rxModes {
 	min-width: 500px;
 	flex-grow: 1;
+	height: 100%;
+	overflow: auto;
 }
 </style>

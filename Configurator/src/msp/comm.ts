@@ -36,34 +36,22 @@ runAsync().then(() => {
 	configuratorLog = useLogStore() // defer calling this until after pinia is ready
 })
 
-let command: Command = {
-	command: NaN,
-	length: 0,
-	data: new Uint8Array(),
-	dataStr: "",
-	cmdType: "request",
-	flag: 0,
-	version: MspVersion.V2,
-}
-
 let connectType = "none" as "none" | "serial" | "tcp"
 
 const commandHandlers: ((command: Command) => void)[] = []
 
-export const setCommand = (cmd: Command) => {
-	command.command = cmd.command
-	command.length = cmd.length
-	command.data = cmd.data
-	command.dataStr = cmd.dataStr
-	command.cmdType = cmd.cmdType
-	command.flag = cmd.flag
-	command.version = cmd.version
-
+const setCommand = (cmd: Command) => {
+	const command = structuredClone(cmd)
 	commandHandlers.forEach(handler => handler(command))
-}
-
-export const getCommand = () => {
-	return command
+	for (let i = pendingRequests.length - 1; i >= 0; i--) {
+		const p = pendingRequests[i]
+		if (p.verifyFn(p.req, command, p.callbackData)) {
+			clearTimeout(p.timeoutIndex)
+			command.callbackData = p.callbackData
+			p.resolveFn(command)
+			pendingRequests.splice(i, 1)
+		}
+	}
 }
 
 export const addOnCommandHandler = (handler: (command: Command) => void) => {
@@ -75,24 +63,10 @@ export const removeOnCommandHandler = (handler: (command: Command) => void) => {
 	if (i > -1) commandHandlers.splice(i, 1)
 }
 
-let fcPing = -1
-
-export const getPingTime = () => {
-	return fcPing
-}
-
 addOnCommandHandler((c: Command) => {
 	if (c.cmdType === "error") {
 		console.error(structuredClone(c))
 		configuratorLog?.push("Error, see console for details.")
-	}
-	if (c.cmdType === "response") {
-		switch (c.command) {
-			case MspFn.CONFIGURATOR_PING:
-				// pong response from FC received
-				fcPing = Date.now() - pingStarted
-				break
-		}
 	}
 	if (!Object.values(MspFn).includes(c.command) && !Number.isNaN(c.command)) {
 		console.log(structuredClone(c))
@@ -100,6 +74,9 @@ addOnCommandHandler((c: Command) => {
 	}
 })
 
+function arrayToStr(ar: number[] | Uint8Array) {
+	return String.fromCharCode(...ar)
+}
 function strToArray(str: string) {
 	const data = []
 	for (let i = 0; i < str.length; i++) {
@@ -115,7 +92,42 @@ export const enableCommands = (en: boolean) => {
 	cmdEnabled = en
 }
 
-export function sendCommand(
+const defaultVerify = (req: Command, res: Command) => {
+	return req.command === res.command
+}
+
+type PendingRequest = {
+	timeoutIndex: number
+	verifyFn: (req: Command, res: Command, callbackData: any) => boolean
+	resolveFn: (value: Command | PromiseLike<Command>) => void
+	rejectFn: (reason: any) => void
+	req: Command
+	callbackData: any
+}
+
+const pendingRequests: PendingRequest[] = []
+export const CmdErrorTypes = {
+	CMD_DISABLED: "cmd_disabled",
+	TIMEOUT: "timeout",
+	NOT_CONNECTED: "not_connected",
+	BACKEND_ERROR: "backend_error",
+}
+
+/**
+ * Sends out an MSP command to the connected client.
+ *
+ * The following defaults apply unless otherwise set:
+ * - MSP Version 2
+ * - Type: request
+ * - Retries: 2 (total 3 attempts)
+ * - Timeout: 700 ms
+ * - Verify: checks for same command as the request
+ * - Callback Data: none
+ * @param command number, choose from MspFn.xxx
+ * @param d number[] or string data, or object with data and settings for sending the command (timeout, retries, etc. customizable, all optional), default: empty data and default settings (see above)
+ * @returns Promise that resolves (with the response packet) when a packet of the same command is returned (or a packet meeting your verifyFn), rejects with a CmdErrorType.xxx
+ */
+export async function sendCommand(
 	command: number,
 	d:
 		| string
@@ -124,106 +136,155 @@ export function sendCommand(
 				data?: string | number[]
 				version?: number
 				type?: "request" | "response" | "error"
+				retries?: number
+				timeout?: number
+				verifyFn?: (req: Command, res: Command, callbackData?: any) => boolean
+				callbackData?: any
 		  } = []
-) {
-	if (!cmdEnabled) return new Promise((resolve: any) => resolve())
-	let data: number[] = []
-	let version = MspVersion.V2
-	let type = "request" as "request" | "response" | "error"
-	if (typeof d === "string") {
-		data = strToArray(d)
-	} else if (Array.isArray(d)) {
-		data = d
-	} else {
-		if (typeof d.data === "string") {
-			data = strToArray(d.data)
-		} else if (Array.isArray(d.data)) {
-			data = d.data
+): Promise<Command> {
+	return new Promise<Command>((resolve, reject) => {
+		// sanitize input
+		let data: number[] = []
+		let version = MspVersion.V2
+		let type = "request" as "request" | "response" | "error"
+		let retries = 2
+		let timeout = 700
+		let verifyFn = defaultVerify
+		let callbackData: any = undefined
+		if (typeof d === "string") {
+			data = strToArray(d)
+		} else if (Array.isArray(d)) {
+			data = d
+		} else {
+			if (typeof d.data === "string") {
+				data = strToArray(d.data)
+			} else if (Array.isArray(d.data)) {
+				data = d.data
+			}
+			if (d.version !== undefined) {
+				version = d.version
+			}
+			if (d.type !== undefined) {
+				type = d.type
+			}
+			if (d.retries !== undefined) {
+				retries = d.retries
+			}
+			if (d.timeout !== undefined) {
+				timeout = d.timeout
+			}
+			if (d.verifyFn) verifyFn = d.verifyFn
+			callbackData = d.callbackData
 		}
-		if (d.version !== undefined) {
-			version = d.version
+		const len = data.length
+		if (len > 254 && version === MspVersion.V1) version = MspVersion.V1_JUMBO
+		const reqCmd: Command = {
+			cmdType: type,
+			command,
+			data: new Uint8Array(data),
+			dataStr: arrayToStr(data),
+			flag: 0,
+			length: len,
+			version,
 		}
-		if (d.type !== undefined) {
-			type = d.type
+
+		const typeLut = {
+			request: 60,
+			response: 62,
+			error: 33,
 		}
-	}
-	const len = data.length
+		const cmd = [charToInt("$"), charToInt(version === MspVersion.V2 ? "X" : "M"), typeLut[type]]
+		switch (version) {
+			case MspVersion.V1_JUMBO:
+				cmd.push(0xff)
+				cmd.push(command & 0xff)
+				cmd.push(len & 0xff, len >> 8)
+				break
+			case MspVersion.V1:
+				cmd.push(len & 0xff)
+				cmd.push(command & 0xff)
+				break
+			case MspVersion.V2:
+				cmd.push(0)
+				cmd.push(command & 0xff, command >> 8)
+				cmd.push(len & 0xff, len >> 8)
+				break
+			case MspVersion.V2_OVER_V1:
+				cmd.push((len + 6) & 0xff) // V1 len
+				cmd.push(0xff) //  V2 trigger
+				cmd.push(0) // V2 flag
+				cmd.push(command & 0xff, command >> 8) // V2 command
+				cmd.push(len & 0xff, len >> 8) // V2 len
+				break
+		}
+		cmd.push(...data)
+		const crcV2StartLut = {
+			[MspVersion.V2]: 3,
+			[MspVersion.V2_OVER_V1]: 5,
+			[MspVersion.V1]: 0x7fffffff, // such that slice returns empty array
+			[MspVersion.V1_JUMBO]: 0x7fffffff, // such that slice returns empty array
+		}
 
-	if (len > 254 && version === MspVersion.V1) version = MspVersion.V1_JUMBO
+		let checksumV1 = cmd.slice(3).reduce((a, b) => a ^ b, 0),
+			checksumV2 = cmd.slice(crcV2StartLut[version]).reduce(crc8DvbS2, 0)
+		if ([MspVersion.V2, MspVersion.V2_OVER_V1].includes(version)) {
+			cmd.push(checksumV2)
+			checksumV1 ^= checksumV2
+		}
+		if ([MspVersion.V1, MspVersion.V1_JUMBO, MspVersion.V2_OVER_V1].includes(version)) {
+			cmd.push(checksumV1)
+		}
 
-	const typeLut = {
-		request: 60,
-		response: 62,
-		error: 33,
-	}
-	const cmd = [charToInt("$"), charToInt(version === MspVersion.V2 ? "X" : "M"), typeLut[type]]
-	switch (version) {
-		case MspVersion.V1_JUMBO:
-			cmd.push(0xff)
-			cmd.push(command & 0xff)
-			cmd.push(len & 0xff, len >> 8)
-			break
-		case MspVersion.V1:
-			cmd.push(len & 0xff)
-			cmd.push(command & 0xff)
-			break
-		case MspVersion.V2:
-			cmd.push(0)
-			cmd.push(command & 0xff, command >> 8)
-			cmd.push(len & 0xff, len >> 8)
-			break
-		case MspVersion.V2_OVER_V1:
-			cmd.push((len + 6) & 0xff) // V1 len
-			cmd.push(0xff) //  V2 trigger
-			cmd.push(0) // V2 flag
-			cmd.push(command & 0xff, command >> 8) // V2 command
-			cmd.push(len & 0xff, len >> 8) // V2 len
-			break
-	}
-	cmd.push(...data)
-	const crcV2StartLut = {
-		[MspVersion.V2]: 3,
-		[MspVersion.V2_OVER_V1]: 5,
-		[MspVersion.V1]: 0x7fffffff, // such that slice returns empty array
-		[MspVersion.V1_JUMBO]: 0x7fffffff, // such that slice returns empty array
-	}
+		const sendReq = async () => {
+			await runAsync()
 
-	let checksumV1 = cmd.slice(3).reduce((a, b) => a ^ b, 0),
-		checksumV2 = cmd.slice(crcV2StartLut[version]).reduce(crc8DvbS2, 0)
-	if ([MspVersion.V2, MspVersion.V2_OVER_V1].includes(version)) {
-		cmd.push(checksumV2)
-		checksumV1 ^= checksumV2
-	}
-	if ([MspVersion.V1, MspVersion.V1_JUMBO, MspVersion.V2_OVER_V1].includes(version)) {
-		cmd.push(checksumV1)
-	}
-	if (connectType === "serial") {
-		return new Promise((resolve, reject) => {
-			invoke("serial_write", { data: cmd }).then(resolve).catch(reject)
-		})
-	} else if (connectType === "tcp") {
-		return new Promise((resolve, reject) => {
-			invoke("tcp_write", { data: cmd }).then(resolve).catch(reject)
-		})
-	} else {
-		return new Promise((resolve: any) => resolve())
-	}
+			if (connectType === "none") return reject(CmdErrorTypes.NOT_CONNECTED)
+			if (!cmdEnabled) return reject(CmdErrorTypes.CMD_DISABLED)
+
+			invoke(connectType + "_write", { data: cmd })
+				.then(() => {
+					const pen: PendingRequest = {
+						verifyFn,
+						timeoutIndex: -1,
+						req: reqCmd,
+						resolveFn: resolve,
+						rejectFn: reject,
+						callbackData,
+					}
+
+					const timeoutIndex = setTimeout(() => {
+						const index = pendingRequests.findIndex(el => pen === el)
+						if (index !== -1) {
+							pendingRequests.splice(index, 1)
+						}
+						retries--
+						if (retries >= 0) {
+							sendReq()
+						} else {
+							reject(CmdErrorTypes.TIMEOUT)
+						}
+					}, timeout)
+					pen.timeoutIndex = timeoutIndex
+					pendingRequests.push(pen)
+				})
+				.catch(er => {
+					reject(CmdErrorTypes.BACKEND_ERROR + ": " + er)
+				})
+		}
+		sendReq()
+	})
 }
+
 export const sendRaw = (data: number[], dataStr: string = "") => {
 	if (data.length === 0 && dataStr !== "") data = strToArray(dataStr)
 	if (connectType === "serial") {
-		return new Promise((resolve, reject) => {
-			invoke("serial_write", { data }).then(resolve).catch(reject)
-		})
+		return invoke("serial_write", { data })
 	} else if (connectType === "tcp") {
-		return new Promise((resolve, reject) => {
-			invoke("tcp_write", { data }).then(resolve).catch(reject)
-		})
+		return invoke("tcp_write", { data })
 	} else {
 		return new Promise((resolve: any) => resolve())
 	}
 }
-let pingStarted = 0
 let newCommand: Command = {
 	command: 65535,
 	length: 0,
@@ -474,10 +535,7 @@ export const connect = (portToOpen: string) => {
 					cmdEnabled = true
 					console.log("TCP connected to", path)
 					readInterval = setInterval(read, 3)
-					pingInterval = setInterval(() => {
-						sendCommand(MspFn.CONFIGURATOR_PING).catch(() => {})
-						pingStarted = Date.now()
-					}, 200)
+					pingInterval = setInterval(ping, 200)
 					statusInterval = setInterval(() => {
 						sendCommand(MspFn.STATUS).catch(() => {})
 					}, 1000)
@@ -498,10 +556,7 @@ export const connect = (portToOpen: string) => {
 				connectType = "serial"
 				cmdEnabled = true
 				readInterval = setInterval(read, 3)
-				pingInterval = setInterval(() => {
-					sendCommand(MspFn.CONFIGURATOR_PING).catch(() => {})
-					pingStarted = Date.now()
-				}, 200)
+				pingInterval = setInterval(ping, 200)
 				statusInterval = setInterval(() => {
 					sendCommand(MspFn.STATUS).catch(() => {})
 				}, 1000)
@@ -516,14 +571,43 @@ export const connect = (portToOpen: string) => {
 	})
 }
 
+let fcPing = -1
+let pingSeq = 0
+export const getPingTime = () => {
+	return fcPing
+}
+function ping() {
+	if (++pingSeq >= 256) pingSeq = 0
+	sendCommand(MspFn.CONFIGURATOR_PING, {
+		data: [pingSeq],
+		callbackData: Date.now(),
+		verifyFn: (req, res) => res.command === req.command && res.length === 1 && res.data[0] === req.data[0],
+		retries: 0,
+		timeout: 1000,
+	})
+		.then(c => {
+			fcPing = Date.now() - c.callbackData
+		})
+		.catch(er => {
+			console.log("ping " + er)
+			fcPing = -1
+		})
+}
+
 function onDisconnect() {
 	onDisconnectHandlers.forEach(h => h())
 	connectType = "none"
 	cmdEnabled = false
+	fcPing = -1
 	clearInterval(readInterval)
 	clearInterval(pingInterval)
 	clearInterval(statusInterval)
 	readInterval = -1
+	pendingRequests.forEach(pen => {
+		pen.rejectFn(CmdErrorTypes.NOT_CONNECTED)
+		clearTimeout(pen.timeoutIndex)
+	})
+	pendingRequests.length = 0 // clear all pending requests
 }
 
 export const disconnect = () => {

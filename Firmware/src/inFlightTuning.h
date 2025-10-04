@@ -24,7 +24,9 @@ union tuningComboVar {
 
 class TunableParameter {
 public:
+	TunableParameter(u8 *valPtr, u32 step, u8 min, u8 max, const char *name, void (*onChange)() = nullptr);
 	TunableParameter(u16 *valPtr, u32 step, u16 min, u16 max, const char *name, void (*onChange)() = nullptr);
+	TunableParameter(u32 *valPtr, u32 step, u32 min, u32 max, const char *name, void (*onChange)() = nullptr);
 
 	void increase();
 	void decrease();

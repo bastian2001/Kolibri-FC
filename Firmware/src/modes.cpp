@@ -2,6 +2,7 @@
 bool armed = false;
 fix64 homepointLat, homepointLon;
 fix32 homepointAlt;
+elapsedMillis armedTimer;
 
 File modesSettingsFile;
 
@@ -66,6 +67,7 @@ void modesLoop() {
 				// arm the drone
 				startLogging();
 				armed = true;
+				armedTimer = 0;
 				p.neoPixelSetValue(1, 255, 255, 255, true);
 				homepointLat = gpsLatitudeFiltered;
 				homepointLon = gpsLongitudeFiltered;

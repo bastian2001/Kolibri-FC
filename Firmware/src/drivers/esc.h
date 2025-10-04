@@ -23,6 +23,18 @@ void initESCs();
 void deinitESCs();
 
 /**
+ * @brief set a new set of motor pins
+ *
+ * @param newPins array of new pins
+ * @return true if everything worked out
+ * @return false if there was an error (same pin twice)
+ */
+bool updateMotorPins(const u8 newPins[4]);
+
+/// @brief writes the current motor pins into the provided buffer
+void getMotorPins(u8 pins[4]);
+
+/**
  * @brief Sends throttles to all four ESCs
  *
  * @details Telemetry bit is not set
