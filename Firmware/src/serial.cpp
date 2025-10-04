@@ -18,8 +18,8 @@ KoliSerial serials[SERIAL_COUNT] = {
 	{new BufferedWriter(&Serial, 2048), SERIAL_MSP},
 	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},
 	{new BufferedWriter(&Serial2, 2048), SERIAL_GPS},
-	{new BufferedWriter(new SerialPIO(PIN_TX2, PIN_RX2, 1024), 2048), 0},
-	{new BufferedWriter(new SerialPioHdx(PIO_HALFDUPLEX_UART), 2048), SERIAL_IRC_TRAMP},
+	{new BufferedWriter(new SerialPIO(PIN_TX2, PIN_RX2, 1024), 2048), SERIAL_MSP | SERIAL_MSP_DISPLAYPORT},
+	{new BufferedWriter(new SerialPioHdx(PIO_HALFDUPLEX_UART), 2048), 0},
 };
 static u8 currentSerial = 0;
 
