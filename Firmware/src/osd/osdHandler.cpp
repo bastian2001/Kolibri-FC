@@ -48,7 +48,14 @@ void OsdHandler::setDigitalSize(u8 rows, u8 cols) {
 }
 
 void OsdHandler::loop() {
-	elapsedMicros taskTimer = 0;
+	TASK_START(TASK_OSD);
+
+	static elapsedMillis x = 0;
+	if (x > 20) {
+		x = 0;
+		sendMspDp(MspDpFn::HEARTBEAT);
+	}
+
 	// ----- State machine begin -----
 	State nextState = curState;
 	switch (curState) {
@@ -116,15 +123,7 @@ void OsdHandler::loop() {
 	// }
 	// chunk = (chunk == lastChunk) ? 0 : chunk + 1;
 
-	u32 duration = taskTimer; // TODO Either replace OSD_TASK or remove it from osd.cpp
-	tasks[TASK_OSD].runCounter++;
-	tasks[TASK_OSD].totalDuration += duration;
-	if (duration < tasks[TASK_OSD].minDuration) {
-		tasks[TASK_OSD].minDuration = duration;
-	}
-	if (duration > tasks[TASK_OSD].maxDuration) {
-		tasks[TASK_OSD].maxDuration = duration;
-	}
+	TASK_END(TASK_OSD);
 }
 
 void OsdHandler::addOsdElement(OsdElement *element) {
