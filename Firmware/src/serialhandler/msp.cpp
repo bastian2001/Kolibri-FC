@@ -408,8 +408,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::ACC_CALIBRATION:
-			accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
-			armingDisableFlags |= 0x40;
+			startAccelCalibration();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			break;
 		case MspFn::MAG_CALIBRATION:

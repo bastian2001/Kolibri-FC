@@ -24,8 +24,6 @@ void setup() {
 	openSettingsFile();
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
 
-	initPid();
-
 	EEPROM.begin(4096);
 	// save crash info to EEPROM
 	if (crashInfo[0] == 255) {
@@ -38,6 +36,9 @@ void setup() {
 	for (int i = 0; i < 256; i++) {
 		crashInfo[i] = 0;
 	}
+
+	initPid();
+	initControl();
 	rtcInit();
 	osdInit();
 	inFlightTuningInit();
@@ -136,9 +137,47 @@ void loop1() {
 
 	if (gyroUpdateFlag & 0x01) {
 		gyroUpdateFlag &= ~0x01;
-		imuUpdate();
-		decodeErpm();
-		pidLoop();
+
+		static u8 imuUpdateCycle = 0;
+		TASK_START(TASK_IMU);
+		TASK_START(TASK_IMU_GYRO);
+		imuGyroUpdate();
+		TASK_END(TASK_IMU_GYRO);
+
+		switch (imuUpdateCycle) {
+		case 0: {
+			TASK_START(TASK_IMU_ACCEL1);
+			imuAccelUpdate1();
+			TASK_END(TASK_IMU_ACCEL1);
+		} break;
+		case 1: {
+			TASK_START(TASK_IMU_ACCEL2);
+			imuAccelUpdate2();
+			TASK_END(TASK_IMU_ACCEL2);
+		} break;
+		case 2: {
+			TASK_START(TASK_IMU_ANGLE);
+			imuUpdatePitchRoll();
+			TASK_END(TASK_IMU_ANGLE);
+		} break;
+		case 3: {
+			TASK_START(TASK_IMU_SPEEDS);
+			imuUpdateSpeeds();
+			TASK_END(TASK_IMU_SPEEDS);
+		} break;
+		}
+		if (++imuUpdateCycle >= 8) imuUpdateCycle = 0;
+		TASK_END(TASK_IMU);
+
+		if (armed) {
+			controlLoop();
+			decodeErpm();
+			pidLoop();
+		} else {
+			controlDisarmedLoop();
+			decodeErpm();
+			pidDisarmedLoop();
+		}
 	}
 	TASK_END(TASK_LOOP1);
 	taskTimer = 0;
