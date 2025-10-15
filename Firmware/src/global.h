@@ -4,6 +4,7 @@
 #define FLASH_BB 1 // not implemented yet
 
 // general C/C++ includes
+#include <deque>
 #include <list>
 #include <string>
 
