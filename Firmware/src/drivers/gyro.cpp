@@ -2,27 +2,28 @@
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 
-u32 gyroLastState = 0;
+static u32 gyroCalibratedCycles = 0; // counts up the cycles for the gyro calibration, calibration is done if the value is 2000
+static i16 bmiCalibrationOffset[6] __attribute__((aligned(4))) = {0};
+static i16 *gyroCalibrationOffset = bmiCalibrationOffset + 3; // offset that gets subtracted from the gyro values
+static i16 *accelCalibrationOffset = bmiCalibrationOffset; // offset that gets subtracted from the accelerometer values
+static i32 gyroCalibrationOffsetTemp[3] = {0}; // temporary offset that gets added to the gyro values during calibration
+static i32 accelCalibrationOffsetTemp[3] = {0};
+static u16 accelCalibrationCycles = 0; // counts down the cycles for the accelerometer calibration, calibration is done if the value is 0
 
-u32 gyroCalibratedCycles = 0;
-i16 bmiCalibrationOffset[6] __attribute__((aligned(4))) = {0};
-i16 *gyroCalibrationOffset = bmiCalibrationOffset + 3;
-i16 *accelCalibrationOffset = bmiCalibrationOffset;
-i32 gyroCalibrationOffsetTemp[3] = {0};
-i32 accelCalibrationOffsetTemp[3] = {0};
-u16 accelCalibrationCycles = 0;
-
-volatile i16 bmiDataRaw[6] __attribute__((aligned(4))) = {0};
+static volatile i16 bmiDataRaw[6] __attribute__((aligned(4))) = {0};
 volatile i16 *gyroDataRaw = bmiDataRaw + 3;
 volatile i16 *accelDataRaw = bmiDataRaw;
 
-volatile u8 spiSm = 0;
-volatile u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
-volatile u32 gyroDmaRxData[14] = {0};
-volatile const u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg::ACC_X_LSB) << 23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+static PT1 accelDataFilter[3];
+const fix32 *const accelDataFiltered[3] = {&accelDataFilter[0].getConstRef(), &accelDataFilter[1].getConstRef(), &accelDataFilter[2].getConstRef()};
+
+static volatile u8 spiSm = 0;
+static volatile u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
+static volatile u32 gyroDmaRxData[14] = {0};
+static volatile const u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg::ACC_X_LSB) << 23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 u32 gyroUpdateFlag = 0;
-volatile u8 gyroInterrupts = 0;
-elapsedMicros taskTimerGyro = 0;
+static volatile u8 gyroInterrupts = 0;
+static elapsedMicros taskTimerGyro = 0;
 
 extern const u8 bmi270_config_file[8192];
 
@@ -44,7 +45,7 @@ void gyroLoop() {
 		*((int16x2_t *)(bmiDataRaw + 2)) = __qsub16(*((int16x2_t *)(bmiDataRaw + 2)), *((int16x2_t *)(bmiCalibrationOffset + 2)));
 		*((int16x2_t *)(bmiDataRaw + 4)) = __qsub16(*((int16x2_t *)(bmiDataRaw + 4)), *((int16x2_t *)(bmiCalibrationOffset + 4)));
 #else
-		#warning overflow can occur!
+#warning overflow can occur!
 		bmiDataRaw[0] -= accelCalibrationOffset[0];
 		bmiDataRaw[1] -= accelCalibrationOffset[1];
 		bmiDataRaw[2] -= accelCalibrationOffset[2];
@@ -59,6 +60,13 @@ void gyroLoop() {
 
 		gyroScaled[AXIS_PITCH] = -gyroScaled[AXIS_PITCH];
 		gyroScaled[AXIS_YAW] = -gyroScaled[AXIS_YAW];
+
+		gyroFiltered[AXIS_ROLL].update(gyroScaled[AXIS_ROLL]);
+		gyroFiltered[AXIS_PITCH].update(gyroScaled[AXIS_PITCH]);
+		gyroFiltered[AXIS_YAW].update(gyroScaled[AXIS_YAW]);
+		accelDataFilter[0].update(accelDataRaw[0]);
+		accelDataFilter[1].update(accelDataRaw[1]);
+		accelDataFilter[2].update(accelDataRaw[2]);
 
 		if (armingDisableFlags & 0x40) {
 			if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE) {
@@ -144,6 +152,12 @@ void gyroDmaInterrupt() {
 
 int gyroInit() {
 	addPointerSetting(SETTING_ACC_CAL, accelCalibrationOffset, 3);
+
+	addSetting(SETTING_ACC_FILTER_CUTOFF, &accelFilterCutoff, 100);
+
+	accelDataFilter[0] = PT1(accelFilterCutoff, 3200);
+	accelDataFilter[1] = PT1(accelFilterCutoff, 3200);
+	accelDataFilter[2] = PT1(accelFilterCutoff, 3200);
 
 	armingDisableFlags |= 0x40;
 
@@ -268,6 +282,28 @@ int gyroInit() {
 	gpio_set_irq_enabled_with_callback(PIN_GYRO_INT1, GPIO_IRQ_EDGE_RISE, true, &gyroGpioInterrupt);
 
 	return 0;
+}
+
+void startGyroCalibration() {
+	gyroCalibrationOffsetTemp[0] = 0;
+	gyroCalibrationOffsetTemp[1] = 0;
+	gyroCalibrationOffsetTemp[2] = 0;
+	gyroCalibratedCycles = 0;
+	gyroCalibrationOffset[0] = 0;
+	gyroCalibrationOffset[1] = 0;
+	gyroCalibrationOffset[2] = 0;
+	armingDisableFlags |= 0x40; // disable arming, start calibration
+}
+
+void getGyroCalibration(i16 cal[3]) {
+	cal[0] = gyroCalibrationOffset[0];
+	cal[1] = gyroCalibrationOffset[1];
+	cal[2] = gyroCalibrationOffset[2];
+}
+
+void startAccelCalibration() {
+	accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
+	armingDisableFlags |= 0x40;
 }
 
 // config file needs to be uploaded to the BMI270 before it can be used

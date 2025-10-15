@@ -141,6 +141,7 @@ export type BBLog = {
 	isExact: boolean
 	motorPoles: number
 	duration: number
+	disarmReason: number
 }
 
 export type TraceInGraph = {

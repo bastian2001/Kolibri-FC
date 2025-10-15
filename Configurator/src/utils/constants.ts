@@ -11,3 +11,5 @@ export const TRACE_COLORS_FOR_BLACK_BACKGROUND = [
 	"bisque",
 	"lightpink",
 ]
+
+export const DISARM_REASONS = ["Unset", "Switch", "RX Loss", "RTH Done", "Unknown"]

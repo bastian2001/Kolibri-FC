@@ -51,12 +51,13 @@ u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
 u32 bbWriteBufferPos = 0;
 #define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
 bool lastHighlightState = false;
-FlightMode lastSavedFlightMode = FlightMode::LENGTH;
+static FlightMode lastSavedFlightMode = FlightMode::LENGTH;
 
 static void writeFlightModeToBlackbox() {
+	FlightMode fm = flightMode;
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
-	bbWriteBuffer[bbWriteBufferPos++] = (u8)flightMode;
-	lastSavedFlightMode = flightMode;
+	bbWriteBuffer[bbWriteBufferPos++] = (u8)fm;
+	lastSavedFlightMode = fm;
 }
 
 static void writeElrsToBlackbox() {
@@ -102,7 +103,8 @@ static void writeElrsLinkToBlackbox() {
 }
 
 void blackboxLoop() {
-	if (!bbLogging || !fsReady) {
+	if (!fsReady) return;
+	if (!bbLogging) {
 		if (bbPrintLog.printing) {
 			TASK_START(TASK_CONFIGURATOR);
 
@@ -174,15 +176,21 @@ void blackboxLoop() {
 		writeVbatToBlackbox();
 	}
 
+	// save ELRS link statistics
 	if (ELRS->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 + 1)) {
 		writeElrsLinkToBlackbox();
 	}
 
 	// write buffer
-	if (bbWriteBufferPos && !sdCard.card()->isBusy()) {
+	if (bbWriteBufferPos) {
 		u16 writeBytes = bbWriteBufferPos;
 		if (writeBytes > 512) writeBytes = 512;
-		blackboxFile.write(bbWriteBuffer, writeBytes);
+		if (!blackboxFile.write(bbWriteBuffer, writeBytes)) {
+			fsReady = false;
+			bbLogging = false;
+			TASK_END(TASK_BLACKBOX_WRITE);
+			return;
+		}
 		bbWriteBufferPos -= writeBytes;
 		if (bbWriteBufferPos) {
 			memmove(bbWriteBuffer, bbWriteBuffer + writeBytes, bbWriteBufferPos);
@@ -337,7 +345,7 @@ void startLogging() {
 	int i = 0;
 	while (file.openNext(&dir)) {
 		rp2040.wdt_reset();
-		// we want to find the highest numbered file in /blackbox
+		//  we want to find the highest numbered file in /blackbox
 		if (file.isFile()) {
 			String name;
 			char n[32];
@@ -405,7 +413,7 @@ void startLogging() {
 	frametime = 0;
 }
 
-void endLogging() {
+void endLogging(DisarmReason reason) {
 	if (!fsReady)
 		return;
 	rp2040.wdt_reset();
@@ -414,6 +422,8 @@ void endLogging() {
 		u32 duration = bbDuration;
 		blackboxFile.seek(LOG_HEAD_DURATION);
 		blackboxFile.write((u8 *)&duration, 4);
+		blackboxFile.seek(LOG_HEAD_DISARM_REASON);
+		blackboxFile.write((u8)reason);
 		blackboxFile.close();
 	}
 }

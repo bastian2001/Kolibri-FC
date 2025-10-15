@@ -71,13 +71,9 @@ enum class GyroReg : u8 {
  * @details gyro data, and by extension the PID loop, is the most time-sensitive task. it gets priority, and once the data is read, the flag is set to FFFFFFFF so that other tasks know it's safe to run without impacting the gyro data or PID loop.
  */
 extern u32 gyroUpdateFlag;
-extern u16 accelCalibrationCycles; /// counts down the cycles for the accelerometer calibration, calibration is done if the value is 0
-extern u32 gyroCalibratedCycles; /// counts up the cycles for the gyro calibration, calibration is done if the value is 2000
-extern i32 gyroCalibrationOffsetTemp[3]; /// temporary offset that gets added to the gyro values during calibration
-extern i16 *gyroCalibrationOffset; /// offset that gets subtracted from the gyro values
-extern i16 *accelCalibrationOffset; /// offset that gets subtracted from the accelerometer values
 extern volatile i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of bmiDataRaw
 extern volatile i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of bmiDataRaw
+extern const fix32 *const accelDataFiltered[3]; // PT1 filters for the accelerometer data, raw scaling from accel
 
 /// @brief Initializes the gyro (Bosch BMI270)
 /// @return 0 on success, 1 on failure
@@ -94,3 +90,9 @@ void gyroGetData(i16 *buf);
 
 /// @brief checks for new gyro data, sets off the read and PID tasks
 void gyroLoop();
+
+void startGyroCalibration();
+
+void getGyroCalibration(i16 cal[3]);
+
+void startAccelCalibration();
