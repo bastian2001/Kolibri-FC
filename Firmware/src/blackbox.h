@@ -1,5 +1,6 @@
 #pragma once
 
+#include "modes.h"
 #include "serialhandler/msp.h"
 #include "typedefs.h"
 #include <Arduino.h>
@@ -68,6 +69,7 @@
 #define LOG_HEAD_PID_GAINS 82
 #define LOG_HEAD_LOGGED_FIELDS 142
 #define LOG_HEAD_MOTOR_POLES 150
+#define LOG_HEAD_DISARM_REASON 151
 #define LOG_DATA_START 256
 
 #define BB_FRAME_NORMAL 0 // normal frame, i.e. gyro, setpoints, pid, etc.
@@ -92,7 +94,7 @@ void initBlackbox();
 void startLogging();
 
 /// @brief Stop logging and close the file
-void endLogging();
+void endLogging(DisarmReason reason = DisarmReason::LENGTH);
 
 /**
  * @brief Delete all blackbox files

@@ -256,7 +256,7 @@ export default defineComponent({
 			ctx.textAlign = 'left'
 			ctx.fillText((-this.scale).toString() + ' °/s', canvas.width / 2 + 5, canvas.height - 5);
 			ctx.lineWidth = 2;
-			const colors = ['#f77', '#7f7', '#77f'];
+			const colors = ['#f33', '#3f3', '#33f'];
 
 			// draw all 3 rate curves
 			for (let i = 0; i < 3; i++) {
@@ -266,7 +266,7 @@ export default defineComponent({
 				for (let j = -50; j <= 50; j++) {
 					const val = getSetpointActual(j / 50, this.rateCoeffs[i]);
 					const x = canvas.width * (j + 50) / 100;
-					const y = canvas.height / 2 - canvas.height * val / (this.scale * 2);
+					const y = canvas.height / 2 - canvas.height * val / (this.scale * 2) + i * 2 - 2;
 					if (j === -50)
 						ctx.moveTo(x, y);
 					else
@@ -281,13 +281,13 @@ export default defineComponent({
 			if (!ctx) return;
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			//draw all 3 setpoints as dots
-			const colors = ['#f99', '#9f9', '#99f'];
+			const colors = ['#f66', '#6f6', '#66f'];
 			const rcMap = [0, 1, 3]
 			for (let i = 0; i < 3; i++) {
 				ctx.fillStyle = colors[i];
 				const setpoint = getSetpointActual(this.rc[rcMap[i]], this.rateCoeffs[i]);
 				const x = canvas.width * (this.rc[rcMap[i]] + 1) / 2;
-				const y = canvas.height / 2 - canvas.height * setpoint / this.scale / 2;
+				const y = canvas.height / 2 - canvas.height * setpoint / this.scale / 2 + i * 2 - 2;
 				ctx.beginPath();
 				ctx.arc(x, y, 7, 0, Math.PI * 2);
 				ctx.fill();

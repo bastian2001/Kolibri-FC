@@ -14,20 +14,18 @@
 constexpr f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
 constexpr f32 FRAME_TIME = 1. / 3200;
 constexpr f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
-constexpr f32 ANGLE_CHANGE_LIMIT = .0002;
+constexpr f32 ANGLE_CHANGE_LIMIT = .0005;
 constexpr fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 fix32 accelFilterCutoff;
-PT1 accelDataFilter[3];
-const fix32 *const accelDataFiltered[3] = {&accelDataFilter[0].getConstRef(), &accelDataFilter[1].getConstRef(), &accelDataFilter[2].getConstRef()};
 fix32 roll, pitch, yaw;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
 fix32 magFilterCutoff;
-static DualPT1 vVelFilter(0.1, 3200), combinedAltitudeFilter(0.03, 3200);
+static DualPT1 vVelFilter(0.1, 400), combinedAltitudeFilter(0.03, 400);
 const fix32 &combinedAltitude = combinedAltitudeFilter.getConstRef();
 const fix32 &vVel = vVelFilter.getConstRef();
-PT1 baroImuUpVelFilter(0.2, 50), baroImuUpVelFilter2(5, 3200);
+PT1 baroImuUpVelFilter(0.2, 50), baroImuUpVelFilter2(5, 400);
 fix32 lastBaroImuUpVel;
 PT1 eVelFilter;
 PT1 nVelFilter;
@@ -39,7 +37,6 @@ volatile u8 altInitState = 0;
 Quaternion q;
 
 void imuInit() {
-	addSetting(SETTING_ACC_FILTER_CUTOFF, &accelFilterCutoff, 100);
 	addSetting(SETTING_GPS_VEL_FILTER_CUTOFF, &gpsVelocityFilterCutoff, 0.2f);
 	addSetting(SETTING_GPS_UPDATE_RATE, &gpsUpdateRate, 20);
 	addSetting(SETTING_MAG_FILTER_CUTOFF, &magFilterCutoff, 0.02f);
@@ -51,9 +48,6 @@ void imuInit() {
 	q.v[0] = 0;
 	q.v[1] = 0;
 	q.v[2] = 0;
-	accelDataFilter[0] = PT1(accelFilterCutoff, 3200);
-	accelDataFilter[1] = PT1(accelFilterCutoff, 3200);
-	accelDataFilter[2] = PT1(accelFilterCutoff, 3200);
 	eVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
 	nVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
 	magHeadingCorrection = PT1(magFilterCutoff, MAG_HARDWARE == MAG_HMC5883L ? 75 : 200);
@@ -62,7 +56,7 @@ void imuInit() {
 	combinedAltitudeFilter.set(baroASL);
 }
 
-void __not_in_flash_func(updateFromGyro)() {
+void imuGyroUpdate() {
 	// quaternion of all 3 axis rotations combined
 
 	f32 all[] = {-gyroDataRaw[1] * RAW_TO_HALF_ANGLE, -gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
@@ -75,13 +69,9 @@ void __not_in_flash_func(updateFromGyro)() {
 	Quaternion_normalize(&q, &q);
 }
 
-f32 orientation_vector[3];
-void __not_in_flash_func(updateFromAccel)() {
-	// filter accel data
-	accelDataFilter[0].update(accelDataRaw[0]);
-	accelDataFilter[1].update(accelDataRaw[1]);
-	accelDataFilter[2].update(accelDataRaw[2]);
-
+static f32 orientation_vector[3];
+static Quaternion shortest_path;
+void imuAccelUpdate1() {
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
 	// p2.y = 2*x*y*p1.x + y*y*p1.y + 2*z*y*p1.z + 2*w*z*p1.x - z*z*p1.y + w*w*p1.y - 2*x*w*p1.z - x*x*p1.y;
@@ -99,11 +89,13 @@ void __not_in_flash_func(updateFromAccel)() {
 		accelVector[0] = invAccelVectorNorm * accelDataRaw[1];
 		accelVector[1] = invAccelVectorNorm * accelDataRaw[0];
 		accelVector[2] = invAccelVectorNorm * -accelDataRaw[2];
-	} else
+	} else {
 		return;
-	Quaternion shortest_path;
+	}
 	Quaternion_from_unit_vecs(orientation_vector, accelVector, &shortest_path);
+}
 
+void imuAccelUpdate2() {
 	f32 axis[3];
 	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis); // reduces effect of accel noise on attitude
 
@@ -128,7 +120,7 @@ void __not_in_flash_func(updateFromAccel)() {
 	Quaternion_normalize(&q, &q);
 }
 
-void __not_in_flash_func(updatePitchRollValues)() {
+void imuUpdatePitchRoll() {
 	startFixMath();
 	roll = atan2Fix(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
@@ -146,7 +138,7 @@ fix32 rAccel, fAccel;
 fix32 nAccel, eAccel;
 u8 lastAltInitState = 0;
 
-void __not_in_flash_func(updateSpeeds)() {
+void imuUpdateSpeeds() {
 	sinCosFix(pitch, sinPitch, cosPitch);
 	sinCosFix(roll, sinRoll, cosRoll);
 	sinCosFix(combinedHeading, sinHeading, cosHeading);
@@ -161,12 +153,12 @@ void __not_in_flash_func(updateSpeeds)() {
 		vVelFilter.set(0);
 		combinedAltitudeFilter.set(gpsBaroAlt);
 	} else {
-		baroImuUpVelFilter.add(vAccel / 3200);
+		baroImuUpVelFilter.add(vAccel / 400);
 		lastBaroImuUpVel = baroImuUpVelFilter2;
 		const fix32 baroImuUpAccel = baroImuUpVelFilter2.update(baroImuUpVelFilter) - lastBaroImuUpVel;
 		vVelFilter.add(baroImuUpAccel);
 		const fix32 filterVel = gpsGoodQuality ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel;
-		combinedAltitudeFilter.add(vVelFilter.update(filterVel) / 3200);
+		combinedAltitudeFilter.add(vVelFilter.update(filterVel) / 400);
 		combinedAltitudeFilter.update(gpsBaroAlt);
 	}
 	mspDebugSensors[2] = (vVel * 10000).geti32();
@@ -180,23 +172,6 @@ void __not_in_flash_func(updateSpeeds)() {
 	nAccel = northAccel;
 	eAccel = eastAccel;
 
-	eVelFilter.add(eastAccel * RAW_TO_M_PER_SEC2 / 3200);
-	nVelFilter.add(northAccel * RAW_TO_M_PER_SEC2 / 3200);
-}
-
-void __not_in_flash_func(imuUpdate)() {
-	TASK_START(TASK_IMU);
-	TASK_START(TASK_IMU_GYRO);
-	updateFromGyro();
-	TASK_END(TASK_IMU_GYRO);
-	TASK_START(TASK_IMU_ACCEL);
-	updateFromAccel();
-	TASK_END(TASK_IMU_ACCEL);
-	TASK_START(TASK_IMU_ANGLE);
-	updatePitchRollValues();
-	TASK_END(TASK_IMU_ANGLE);
-	TASK_START(TASK_IMU_SPEEDS);
-	updateSpeeds();
-	TASK_END(TASK_IMU_SPEEDS);
-	TASK_END(TASK_IMU);
+	eVelFilter.add(eastAccel * RAW_TO_M_PER_SEC2 / 400);
+	nVelFilter.add(northAccel * RAW_TO_M_PER_SEC2 / 400);
 }

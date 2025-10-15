@@ -24,6 +24,7 @@ Format: offset+length: description
 -   82+60: PID gains (fix32[3][5], 16.16 bits, first dimension is the axis, second dimension is PID: P, I, D, FF, S)
 -   142+8: enabled blackbox fields (uint64_t, bitmask, 0 = disabled, 1 = enabled)
 -   150+1: motor pole count
+-   151+1: Disarm reason
 -   rest filled with 0x00
 
 ### Blackbox Fields

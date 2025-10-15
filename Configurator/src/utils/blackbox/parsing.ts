@@ -43,6 +43,9 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	}
 	const flags: string[] = []
 	const flagSlice = header.slice(142, 150)
+	const motorPoles = header[150]
+	const disarmReason = header[151]
+
 	let frameSize = 0
 	const offsets: { [key: string]: number } = {}
 	for (let j = 0; j < 64; j++) {
@@ -122,7 +125,6 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				break
 		}
 	}
-	const motorPoles = header[150]
 	const framesPerSecond = pidFreq / freqDiv
 	const logData: LogData = {}
 	if (flags.includes("LOG_ELRS_RAW")) {
@@ -725,5 +727,6 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		flightModes,
 		highlights,
 		duration,
+		disarmReason,
 	}
 }
