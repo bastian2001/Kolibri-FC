@@ -206,3 +206,4 @@ void OsdElement::setPos(u8 row, u8 column) {
 	this->row = row;
 	this->column = column;
 }
+

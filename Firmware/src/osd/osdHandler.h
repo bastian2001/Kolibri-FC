@@ -67,6 +67,28 @@ private:
 	 * @brief Optimize the OSD element array, so osdHandlerLoop() dosn't take too long.
 	 */
 	void optimize();
+
+	struct ElemConfig;
+	/**
+	 * @brief splits a saved word from eeprom to a stuct with the information
+	 * @param 32bit Word from eeprom
+	 * @return ElemConfic struct with information to configure a element for the OSD
+	 */
+	ElemConfig getParams(u32 inWord);
+
+	/**
+	 * @brief reads OSD configuration from eeprom.
+	 * @param outArr pointer to array, where the output words will be sent to
+	 */
+	void readConfigFromLittleFs(u32 *outArr);
+
+	/**
+	 * @brief writes OSD configuration to eeprom.
+	 * @param inArr pointer to array, where the input words are stored
+	 */
+	void writeConfigToLittleFs(u32 *inArr);
+
+	void setDefaultConfig();
 	u32 minTimeout;
 	u16 lastElem;
 	u8 chunk;
@@ -83,4 +105,12 @@ private:
 	};
 	OsdType osdType = OsdType::NONE;
 	bool digitalResponse = false;
+
+	u32 config[MAX_OSD_ELEMENTS];
+	struct ElemConfig {
+		ElementType type;
+		u8 refreshRate;
+		u8 x;
+		u8 y;
+	};
 };
