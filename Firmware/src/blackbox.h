@@ -79,6 +79,7 @@
 #define BB_FRAME_RC 4 // RC frame, ELRS channels
 #define BB_FRAME_VBAT 5 // Battery frame
 #define BB_FRAME_LINK_STATS 6 // ELRS link statistics
+#define BB_FRAME_ABV_SYNC 83 // ASCII 'S' => start of "SYNC"
 
 extern u64 bbFlags; // 64 bits of flags for the blackbox (LOG_ macros)
 extern volatile bool bbLogging, fsReady; // Blackbox state

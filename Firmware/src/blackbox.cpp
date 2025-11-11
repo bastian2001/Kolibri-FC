@@ -45,19 +45,64 @@ BbPrintConfig bbPrintLog = {
 FsFile blackboxFile;
 elapsedMillis bbDuration;
 
-u32 bbFrameNum = 0;
+i32 bbFrameNum = 0;
 elapsedMicros frametime;
 u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
 u32 bbWriteBufferPos = 0;
 #define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
 bool lastHighlightState = false;
 static FlightMode lastSavedFlightMode = FlightMode::LENGTH;
+static i32 lastSyncedFrame = INT32_MIN;
 
 static void writeFlightModeToBlackbox() {
 	FlightMode fm = flightMode;
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
 	bbWriteBuffer[bbWriteBufferPos++] = (u8)fm;
 	lastSavedFlightMode = fm;
+}
+
+/**
+ * @brief replaces every SYN with SYN! and sends it off to the blackbox buffer
+ *
+ * @param buf buffer that needs to be escaped
+ * @param len (net) length of the buffer buf
+ */
+static void writeToBlackboxWithEscape(const u8 *buf, size_t len) {
+	bool foundSyn = false;
+	const size_t maxScan = len - 2;
+	for (int i = 0; i < maxScan; i++) {
+		// broad filtering, faster than memcpy
+		if (buf[i] != 'S')
+			continue;
+
+		if (buf[i + 1] == 'Y' && buf[i + 2] == 'N') {
+			foundSyn = true;
+			break;
+		}
+	}
+	if (foundSyn) {
+		int i = 0;
+		for (; i < maxScan;) {
+			if (buf[i] != 'S' || buf[i + 1] != 'Y' || buf[i + 2] != 'N') {
+				bbWriteBuffer[bbWriteBufferPos++] = buf[i++];
+			} else {
+				// SYN detected, write SYN!
+				bbWriteBuffer[bbWriteBufferPos++] = 'S';
+				bbWriteBuffer[bbWriteBufferPos++] = 'Y';
+				bbWriteBuffer[bbWriteBufferPos++] = 'N';
+				bbWriteBuffer[bbWriteBufferPos++] = '!';
+				i += 3;
+			}
+		}
+		for (; i < len; i++) {
+			// SYN can not happen here
+			bbWriteBuffer[bbWriteBufferPos++] = buf[i];
+		}
+	} else {
+		// did not find SYN anywhere, just write raw
+		memcpy(bbWriteBuffer + bbWriteBufferPos, buf, len);
+		bbWriteBufferPos += len;
+	}
 }
 
 static void writeElrsToBlackbox() {
@@ -67,15 +112,13 @@ static void writeElrsToBlackbox() {
 	channels |= ELRS->channels[1] << 12;
 	channels |= (u64)ELRS->channels[2] << 24;
 	channels |= (u64)ELRS->channels[3] << 36;
-	memcpy(bbWriteBuffer + bbWriteBufferPos, &channels, 6);
-	bbWriteBufferPos += 6;
+	writeToBlackboxWithEscape((u8 *)&channels, 6);
 	ELRS->newPacketFlag &= ~(1 << 1);
 }
 
 static void writeGpsToBlackbox() {
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_GPS;
-	memcpy(bbWriteBuffer + bbWriteBufferPos, currentPvtMsg, 92);
-	bbWriteBufferPos += 92;
+	writeToBlackboxWithEscape(currentPvtMsg, 92);
 	newPvtMessageFlag &= ~(1 << 0);
 }
 
@@ -88,17 +131,19 @@ static void writeVbatToBlackbox() {
 
 static void writeElrsLinkToBlackbox() {
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_LINK_STATS;
-	bbWriteBuffer[bbWriteBufferPos++] = -ELRS->uplinkRssi[0];
-	bbWriteBuffer[bbWriteBufferPos++] = -ELRS->uplinkRssi[1];
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->uplinkLinkQuality;
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->uplinkSNR;
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->antennaSelection;
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->targetPacketRate;
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->targetPacketRate >> 8;
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->actualPacketRate;
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->actualPacketRate >> 8;
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->txPower;
-	bbWriteBuffer[bbWriteBufferPos++] = ELRS->txPower >> 8;
+	u8 buf[11];
+	buf[0] = -ELRS->uplinkRssi[0];
+	buf[1] = -ELRS->uplinkRssi[1];
+	buf[2] = ELRS->uplinkLinkQuality;
+	buf[3] = ELRS->uplinkSNR;
+	buf[4] = ELRS->antennaSelection;
+	buf[5] = ELRS->targetPacketRate;
+	buf[6] = ELRS->targetPacketRate >> 8;
+	buf[7] = ELRS->actualPacketRate;
+	buf[8] = ELRS->actualPacketRate >> 8;
+	buf[9] = ELRS->txPower;
+	buf[10] = ELRS->txPower >> 8;
+	writeToBlackboxWithEscape(buf, 11);
 	ELRS->newLinkStatsFlag &= ~(1 << 0);
 }
 
@@ -137,10 +182,22 @@ void blackboxLoop() {
 	if (rp2040.fifo.available()) {
 		u8 *frame = (u8 *)rp2040.fifo.pop();
 		u8 &len = frame[0];
-		if (BB_WR_BUF_HAS_FREE(len + 1)) {
+		i32 frameIndex;
+		memcpy(&frameIndex, &frame[1], 4);
+		bool needsSync = frameIndex >= lastSyncedFrame + 100;
+		size_t spaceNeeded = len + (needsSync ? 9 : 1);
+		if (BB_WR_BUF_HAS_FREE(spaceNeeded)) {
+			if (needsSync) {
+				bbWriteBuffer[bbWriteBufferPos++] = 'S';
+				bbWriteBuffer[bbWriteBufferPos++] = 'Y';
+				bbWriteBuffer[bbWriteBufferPos++] = 'N';
+				bbWriteBuffer[bbWriteBufferPos++] = 'C';
+				memcpy(bbWriteBuffer + bbWriteBufferPos, &frameIndex, 4);
+				bbWriteBufferPos += 4;
+				lastSyncedFrame = frameIndex;
+			}
 			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_NORMAL;
-			memcpy(bbWriteBuffer + bbWriteBufferPos, frame + 1, len);
-			bbWriteBufferPos += len;
+			writeToBlackboxWithEscape(frame + 5, len);
 		}
 		free(frame);
 	}
@@ -398,11 +455,13 @@ void startLogging() {
 	blackboxFile.write(dummy, 30);
 	blackboxFile.write((u8 *)&bbFlags, 8);
 	blackboxFile.write((u8)MOTOR_POLES);
+	blackboxFile.write(100); // one sync sequence every x frames. Set to 0 to indicate that ABV is disabled
 	while (blackboxFile.position() < LOG_DATA_START) {
 		blackboxFile.write((u8)0);
 	}
 	bbDuration = 0;
 	bbFrameNum = 0;
+	lastSyncedFrame = INT32_MIN;
 	bbWriteBufferPos = 0;
 	writeFlightModeToBlackbox();
 	if (currentBBFlags & LOG_GPS) writeGpsToBlackbox();
@@ -429,7 +488,7 @@ void endLogging(DisarmReason reason) {
 }
 
 u32 writeSingleFrame() {
-	size_t bufferPos = 1;
+	size_t bufferPos = 5;
 	if (!fsReady || !bbLogging) {
 		return 0;
 	}
@@ -661,7 +720,8 @@ u32 writeSingleFrame() {
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}
-	bbBuffer[0] = bufferPos - 1;
+	bbBuffer[0] = bufferPos - 5;
+	memcpy(&bbBuffer[1], &bbFrameNum, 4);
 	bbFrameNum++;
 	if (bbFramePtrBuffer.isEmpty()) {
 		if (!rp2040.fifo.push_nb((u32)bbBuffer)) {
@@ -693,7 +753,7 @@ u32 writeSingleFrame() {
 		} else {
 			free(bbBuffer);
 			bbFrameNum--;
-			// Both FIFOs are full, we can't keep up with the logging, dropping oldest frame
+			// Both FIFOs are full, we can't keep up with the logging, dropping newest frame
 		}
 	}
 	TASK_END(TASK_BLACKBOX);

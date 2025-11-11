@@ -6,9 +6,60 @@ const ACC_RANGES = [2, 4, 8, 16]
 const GYRO_RANGES = [2000, 1000, 500, 250, 125]
 const PID_SHIFTS = [11, 3, 16, 8, 8]
 
+export function unescapeBlackbox(withEscapedParts: Uint8Array): Uint8Array {
+	const out = new Uint8Array(withEscapedParts.length)
+	let outIndex = 0
+	let synIndex = 0
+	const S = "S".charCodeAt(0)
+	const Y = "Y".charCodeAt(0)
+	const N = "N".charCodeAt(0)
+	const EX = "!".charCodeAt(0)
+	const C = "C".charCodeAt(0)
+	for (let i = 0; i < withEscapedParts.length; i++) {
+		const b = withEscapedParts[i]
+		if (synIndex === 0) {
+			out[outIndex++] = b
+			if (b === S) synIndex = 1
+			continue
+		}
+
+		switch (synIndex) {
+			case 1:
+				out[outIndex++] = b
+				if (b === Y) synIndex = 2
+				else if (b === S) synIndex = 1
+				else synIndex = 0
+				break
+			case 2:
+				out[outIndex++] = b
+				if (b === N) synIndex = 3
+				else if (b === S) synIndex = 1
+				else synIndex = 0
+				break
+			case 3:
+				switch (b) {
+					case EX:
+						// ignore the ! in SYN!
+						break
+					case C:
+						// keep SYNC fully
+						out[outIndex++] = b
+						break
+					default:
+						console.log("weird shit's going on")
+						out[outIndex++] = b
+						break
+				}
+				synIndex = 0
+				break
+		}
+	}
+	return out.slice(0, outIndex)
+}
+
 export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	const header = binFile.slice(0, 256)
-	const data = binFile.slice(256)
+	const data = unescapeBlackbox(binFile.slice(256))
 	const magic = leBytesToBigInt(header, 0, 8)
 	if (magic !== 0x0001494c4f4bdfdcn) {
 		return magic.toString(16)
@@ -81,6 +132,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				break
 		}
 	}
+	console.log(frameSize)
 	let pos = 0
 	let frameCount = 0
 	let framePos: number[] = []
@@ -120,7 +172,11 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				elrsLinkPos.push({ pos, frame: frameCount })
 				pos += 12
 				break
+			case 83: // SYNC
+				pos += 8
+				break
 			default:
+				console.log("invalid frame found")
 				pos++
 				break
 		}
