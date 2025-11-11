@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import Timeline from "@components/blackbox/Timeline.vue";
 import Settings from "@components/blackbox/Settings.vue";
-import { BBLog, TraceInGraph, Command, LogData, LogDataType, TraceInternalData } from "@utils/types";
+import { BBLog, TraceInGraph, Command, LogData, TypedArray, TraceInternalData } from "@utils/types";
 import { constrain, delay, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
 import { skipValues } from "@/utils/blackbox/other";
 import { MspFn } from "@/msp/protocol";
@@ -53,7 +53,7 @@ export default defineComponent({
 			selected: -1,
 			canvas: document.createElement("canvas"),
 			selectionCanvas: document.createElement("canvas"),
-			sliceAndSkip: {} as LogData,
+			// sliceAndSkip: {} as LogData,
 			skipValue: 0,
 			trackingStartX: -1,  // -1 = idle, -2 = move window, 0+ = selection
 			trackingEndX: 0,
@@ -76,15 +76,15 @@ export default defineComponent({
 		};
 	},
 	computed: {
-		dataSlice(): LogData {
-			if (!this.loadedLog) return {}
-			const slice: LogData = {}
-			for (const key in this.loadedLog.logData) {
-				// @ts-expect-error
-				slice[key] = (this.loadedLog.logData[key] as unknown as LogDataType)?.slice(this.startFrame, this.endFrame + 1)
-			}
-			return slice
-		},
+		// dataSlice(): LogData {
+		// 	if (!this.loadedLog) return {}
+		// 	const slice: LogData = {}
+		// 	for (const key in this.loadedLog.logData) {
+		// 		// @ts-expect-error
+		// 		slice[key] = (this.loadedLog.logData[key] as unknown as TypedArray)?.slice(this.startFrame, this.endFrame + 1)
+		// 	}
+		// 	return slice
+		// },
 		dataViewerWrapper(): HTMLDivElement {
 			return this.$refs.dataViewerWrapper as HTMLDivElement;
 		},
@@ -93,11 +93,11 @@ export default defineComponent({
 		},
 	},
 	watch: {
-		dataSlice: {
-			handler() {
-				this.drawCanvas();
-			}
-		},
+		// dataSlice: {
+		// 	handler() {
+		// 		this.drawCanvas();
+		// 	}
+		// },
 		graphs: {
 			handler() {
 				this.drawCanvas();
@@ -700,26 +700,30 @@ export default defineComponent({
 			 * each graph has a set of traces
 			 * the whole drawing board has 1% of the height of free space on the top and bottom, as well as 2% oh the height of free space between each graph, no free space left and right
 			 * each trace has a range, which represents the top and bottom on the graph for that trace
-			 * a modifier appears for some flags, like motor outputs to define one specific motor for example
+			 * a modifier appears for some flags, like motor outputs, to define one specific motor for example
 			 */
 			const height = this.dataViewerWrapper.clientHeight;
 			const width = this.dataViewerWrapper.clientWidth;
-			if (Object.keys(this.dataSlice).length === 0 || this.startFrame === this.endFrame) return;
-			this.sliceAndSkip = {}
+			if (Object.keys(this.loadedLog.logData).length === 0 || this.startFrame >= this.endFrame + 2) return;
+
+			// find out whether to skip some frames for performance reasons
 			this.skipValue = 1;
-			//@ts-expect-error
-			let length = this.dataSlice[Object.keys(this.dataSlice)[0]].length;
-			const everyNth = Math.floor(length / width);
+			// let length = this.dataSlice[Object.keys(this.dataSlice)[0]].length;
+			let span = this.startFrame - this.endFrame;
+			const everyNth = Math.floor(span / width);
 			if (everyNth > 2 && allowShortening) {
 				this.skipValue = everyNth;
-				this.sliceAndSkip = skipValues(this.dataSlice, everyNth);
+				// this.sliceAndSkip = skipValues(this.dataSlice, everyNth);
 				clearTimeout(this.drawFullCanvasTimeout);
 				this.drawFullCanvasTimeout = setTimeout(() => this.drawCanvas(false), 250);
-			} else {
-				this.sliceAndSkip = this.dataSlice;
 			}
+			//  else {
+			// 	this.sliceAndSkip = this.dataSlice;
+			// }
+
+			// draw duration bar
 			const pixelsPerSec =
-				(this.dataViewerWrapper.clientWidth * this.loadedLog.framesPerSecond) / (length - 1);
+				(this.dataViewerWrapper.clientWidth * this.loadedLog.framesPerSecond) / span;
 			//filter out all the ones that don't fit
 			let durations = DURATION_BAR_RASTER.filter(el => {
 				const seconds = this.decodeDuration(el);
@@ -751,14 +755,16 @@ export default defineComponent({
 				ctx.fillText(barDuration, 16 + barLength / 2, 35);
 			}
 
-			//@ts-expect-error
-			length = this.sliceAndSkip[Object.keys(this.sliceAndSkip)[0]].length;
+			// length = this.sliceAndSkip[Object.keys(this.sliceAndSkip)[0]].length;
 
-			const frameWidth = width / (length - 1);
+			const frameWidth = width / span;
 			const numGraphs = this.graphs.length;
 			const heightPerGraph = (height - this.dataViewerWrapper.clientHeight * 0.02 * numGraphs) / numGraphs;
 			let heightOffset = 0.01 * this.dataViewerWrapper.clientHeight;
 			for (let i = 0; i < numGraphs; i++) {
+				const graph = this.graphs[i];
+
+				// draw the graph outline
 				ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
 				ctx.lineWidth = 1;
 				ctx.beginPath();
@@ -774,48 +780,56 @@ export default defineComponent({
 				ctx.lineTo(width, heightOffset + heightPerGraph / 2);
 				ctx.stroke();
 
-				const graph = this.graphs[i];
+				// draw each trace
 				const numTraces = graph.length;
 				for (let j = 0; j < numTraces; j++) {
 					const trace = graph[j];
 					const range = trace.maxValue - trace.minValue;
-					const scale = heightPerGraph / range;
+					const scaleY = heightPerGraph / range;
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth;
 					ctx.lineJoin = 'bevel'
 					if (!trace.strokeWidth) continue;
-					if (trace.overrideData) {
-						const overrideSlice = trace.overrideData.slice(
-							Math.max(0, Math.min(this.startFrame, this.endFrame)),
-							Math.max(0, Math.max(this.startFrame, this.endFrame)) + 1
-						);
-						if (everyNth > 2 && allowShortening) {
-							const len = Math.ceil(overrideSlice.length / everyNth);
-							trace.overrideSliceAndSkip = new Float32Array(len);
-							let j = 0;
-							for (let i = 0; i < len; i += 1, j += everyNth) {
-								trace.overrideSliceAndSkip[i] = overrideSlice[j];
-							}
-						} else trace.overrideSliceAndSkip = overrideSlice;
-					}
-					ctx.beginPath();
-					const array: LogDataType | Float32Array = trace.overrideData
-						? trace.overrideSliceAndSkip
-						//@ts-expect-error
-						: this.sliceAndSkip[trace.path];
+
+					// filters
+					// if (trace.overrideData) {
+					// 	const overrideSlice = trace.overrideData.slice(
+					// 		Math.floor(this.startFrame),
+					// 		Math.floor(this.endFrame + this.skipValue)
+					// 	);
+					// 	// if (this.skipValue != 1) {
+					// 	// 	const len = Math.ceil(overrideSlice.length / everyNth);
+					// 	// 	trace.overrideSliceAndSkip = new Float32Array(len);
+					// 	// 	let j = 0;
+					// 	// 	for (let i = 0; i < len; i += 1, j += everyNth) {
+					// 	// 		trace.overrideSliceAndSkip[i] = overrideSlice[j];
+					// 	// 	}
+					// 	// } else trace.overrideSliceAndSkip = overrideSlice;
+					// }
+
+					// get array to draw and bounds
+					// @ts-expect-error
+					const array: TypedArray = trace.overrideData || this.loadedLog.logData[trace.path];
 					if (!array) continue; // nothing properly selected
 					const min = Math.min(trace.minValue, trace.maxValue);
 					const max = Math.max(trace.minValue, trace.maxValue);
-					let pointY = heightOffset + heightPerGraph - (constrain(array[0], min, max) - trace.minValue) * scale;
-					ctx.moveTo(0, pointY);
-					for (let k = 1; k < length; k++) {
-						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scale;
-						ctx.lineTo(k * frameWidth, pointY);
+					let pointY = heightOffset + heightPerGraph - (constrain(array[0], min, max) - trace.minValue) * scaleY;
+
+					// actually draw the trace
+					ctx.beginPath();
+					let k = Math.floor(this.startFrame)
+					ctx.moveTo(frameWidth * (k - this.startFrame), pointY);
+					k += this.skipValue
+					for (; k < this.endFrame; k += this.skipValue) {
+						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
+						ctx.lineTo(frameWidth * (k - this.startFrame), pointY);
 					}
 					ctx.stroke();
 				}
 				heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
 			}
+
+			// draw highlights as vertical lines
 			for (const h of this.loadedLog.highlights) {
 				if (h < this.startFrame || h > this.endFrame) continue;
 				const highlightX = (h - this.startFrame) * width / (this.endFrame - this.startFrame);
@@ -826,6 +840,8 @@ export default defineComponent({
 				ctx.lineTo(highlightX, height);
 				ctx.stroke();
 			}
+
+			// draw flight mode changes
 			const visibleFms: { from?: number, to: number, x: number }[] = [];
 			let currentFm: number | undefined = undefined;
 			let exitFm: number | undefined = undefined;
@@ -835,7 +851,7 @@ export default defineComponent({
 				currentFm = f.fm;
 				if (frame <= this.endFrame) exitFm = currentFm;
 				if (frame < this.startFrame || frame > this.endFrame) continue;
-				const x = (frame - this.startFrame) * width / (this.endFrame - this.startFrame);
+				const x = (frame - this.startFrame) * frameWidth;
 				visibleFms.push({ from: prev, to: currentFm, x });
 			}
 			for (const f in visibleFms) {
@@ -887,6 +903,8 @@ export default defineComponent({
 					ctx.fillText(text, 10, height * 0.99 - 12.5);
 				}
 			}
+
+			// update canvas
 			this.domCanvas.getContext('2d')?.clearRect(0, 0, this.dataViewerWrapper.clientWidth, this.dataViewerWrapper.clientHeight);
 			this.domCanvas.getContext('2d')?.drawImage(this.canvas, 0, 0);
 		},

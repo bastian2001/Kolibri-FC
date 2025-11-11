@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
-import { GenFlagProps, FlagProps, BBLog, LogDataType } from "@utils/types";
+import { GenFlagProps, FlagProps, BBLog, TypedArray } from "@utils/types";
 import { delay } from "@/utils/utils";
 import { skipValues } from "@/utils/blackbox/other";
 
@@ -158,7 +158,7 @@ export default defineComponent({
 			if (!this.loadedLog) return;
 			const ctx = this.osCanvas.getContext('2d') as CanvasRenderingContext2D;
 			ctx.clearRect(0, 0, this.osCanvas.width, this.osCanvas.height);
-			let drawArray: number[] | LogDataType = [];
+			let drawArray: number[] | TypedArray = [];
 			if (traceName === 'LOG_MOTOR_OUTPUTS') {
 				for (let i = 0; i < this.loadedLog.frameCount; i++) {
 					let avg = this.loadedLog.logData.motorOutRR![i];
@@ -182,13 +182,13 @@ export default defineComponent({
 					const everyNth = Math.floor(this.loadedLog.frameCount / this.canvas.width);
 					const skipped = skipValues(this.loadedLog.logData, everyNth)
 					// @ts-expect-error
-					drawArray = skipped[this.flagProps[traceName].path] as LogDataType;
+					drawArray = skipped[this.flagProps[traceName].path] as TypedArray;
 					delay(500).then(() => {
 						this.fullDraw(false);
 					});
 				} else {
 					// @ts-expect-error
-					drawArray = this.loadedLog.logData[this.flagProps[traceName].path] as LogDataType;
+					drawArray = this.loadedLog.logData[this.flagProps[traceName].path] as TypedArray;
 				}
 			}
 			const scaleX = this.canvas.width / drawArray.length;

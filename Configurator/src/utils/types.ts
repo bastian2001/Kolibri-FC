@@ -1,10 +1,11 @@
-export type LogDataType =
-	| Uint8Array
+export type TypedArray =
 	| Int8Array
-	| Uint16Array
+	| Uint8Array
+	| Uint8ClampedArray
 	| Int16Array
-	| Uint32Array
+	| Uint16Array
 	| Int32Array
+	| Uint32Array
 	| Float32Array
 	| Float64Array
 
@@ -156,7 +157,7 @@ export type TraceInGraph = {
 	decimals: number
 	displayName: string
 	overrideData?: Float32Array
-	overrideSliceAndSkip?: Float32Array
+	// overrideSliceAndSkip?: Float32Array
 	hasSetData: boolean
 }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { BBLog, FlagProps, GenFlagProps, LogDataType, TraceInGraph, TraceInternalData } from '@utils/types';
+import { BBLog, FlagProps, GenFlagProps, TypedArray, TraceInGraph, TraceInternalData } from '@utils/types';
 import { defineComponent, PropType } from 'vue';
 
 function getBinomialCoeff(n: number, k: number) {
@@ -160,7 +160,7 @@ export default defineComponent({
 		applyFilter() {
 			if (this.filteringOn && this.flagName) {
 				// @ts-expect-error
-				const array = this.loadedLog.logData[this.path] as LogDataType;
+				const array = this.loadedLog.logData[this.path] as TypedArray;
 				switch (this.filterType) {
 					case 'pt1':
 						{

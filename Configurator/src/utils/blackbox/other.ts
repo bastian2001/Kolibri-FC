@@ -1,11 +1,11 @@
-import { LogData, LogDataType } from "@utils/types"
+import { LogData, TypedArray } from "@utils/types"
 
 export function skipValues(slice: LogData, everyNth: number): LogData {
 	if (!everyNth) everyNth = 1
 	const skipped: LogData = {}
 	for (const key in slice) {
 		// @ts-expect-error
-		const input = slice[key] as LogDataType | number[]
+		const input = slice[key] as TypedArray | number[]
 		let output
 		if (input instanceof Array) {
 			output = input.filter((_, i) => i % everyNth === 0)
