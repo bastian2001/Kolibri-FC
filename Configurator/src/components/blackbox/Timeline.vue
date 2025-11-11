@@ -53,7 +53,7 @@ export default defineComponent({
 				this.mouseUp();
 				return;
 			}
-			const frame = Math.round((e.offsetX / this.canvas.width) * this.loadedLog.frameCount);
+			const frame = (e.offsetX / this.canvas.width) * this.loadedLog.frameCount
 			let sf = this.startFrame;
 			let ef = this.endFrame;
 			if (this.currentlyTracking === 'start') {
@@ -84,7 +84,7 @@ export default defineComponent({
 				this.currentlyTracking = 'end';
 			} else if (e.offsetX > startFrameX && e.offsetX < endFrameX) {
 				this.currentlyTracking = 'move';
-				this.downAtFrame = Math.round((e.offsetX / this.canvas.width) * this.loadedLog.frameCount);
+				this.downAtFrame = (e.offsetX / this.canvas.width) * this.loadedLog.frameCount;
 				this.startFrameOnDown = this.startFrame;
 				this.endFrameOnDown = this.endFrame;
 			} else {

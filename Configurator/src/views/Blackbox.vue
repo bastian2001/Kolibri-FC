@@ -2,9 +2,8 @@
 import { defineComponent } from "vue";
 import Timeline from "@components/blackbox/Timeline.vue";
 import Settings from "@components/blackbox/Settings.vue";
-import { BBLog, TraceInGraph, Command, LogData, TypedArray, TraceInternalData } from "@utils/types";
+import { BBLog, TraceInGraph, Command, TypedArray, TraceInternalData } from "@utils/types";
 import { constrain, delay, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
-import { skipValues } from "@/utils/blackbox/other";
 import { MspFn } from "@/msp/protocol";
 import { useLogStore } from "@stores/logStore";
 import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
@@ -98,6 +97,16 @@ export default defineComponent({
 		// 		this.drawCanvas();
 		// 	}
 		// },
+		startFrame: {
+			handler() {
+				this.drawCanvas();
+			}
+		},
+		endFrame: {
+			handler() {
+				this.drawCanvas();
+			}
+		},
 		graphs: {
 			handler() {
 				this.drawCanvas();
@@ -437,18 +446,16 @@ export default defineComponent({
 		onMouseMove(e: MouseEvent) {
 			if (!this.loadedLog) return;
 			if (e.buttons !== 1) {
+				// more than left button or no left button => treated as released
+
 				this.onMouseUp();
-				// highlight all points on the current frame
 				const domCanvas = this.domCanvas;
 				const domCtx = domCanvas.getContext('2d') as CanvasRenderingContext2D;
 				domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
 				domCtx.drawImage(this.canvas, 0, 0);
-				// @ts-expect-error
-				const length = this.sliceAndSkip[Object.keys(this.sliceAndSkip)[0]].length as number;
-				const closestFrameSliceSkip = Math.round(
-					(e.offsetX / domCanvas.width) * (length - 1)
-				);
-				const closestFrameNum = this.startFrame + closestFrameSliceSkip * this.skipValue;
+				const span = this.endFrame - this.startFrame
+				const closestFrameNum = Math.round(span * e.offsetX / domCanvas.width + this.startFrame);
+
 				//draw vertical line
 				const highlightCanvas = document.createElement('canvas');
 				highlightCanvas.width = domCanvas.width;
@@ -459,21 +466,22 @@ export default defineComponent({
 				ctx.beginPath();
 				const height = this.dataViewerWrapper.clientHeight * 0.98; //1% free space top and bottom
 				const width = this.dataViewerWrapper.clientWidth;
-				const frameWidth = width / (length - 1);
-				const frameX = closestFrameSliceSkip * frameWidth;
+				const frameWidth = width / span;
+				const frameX = (closestFrameNum - this.startFrame) * frameWidth;
 				ctx.moveTo(frameX, 0);
 				ctx.lineTo(frameX, highlightCanvas.height);
 				ctx.stroke();
+
 				//iterate over all graphs and draw the points
 				const numGraphs = this.graphs.length;
 				const heightPerGraph =
 					(height - this.dataViewerWrapper.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
 				let heightOffset = 0.01 * this.dataViewerWrapper.clientHeight;
-				const frame: LogData = {} // contains arrays with length 1 to reduce the amount of types
-				for (const key in this.sliceAndSkip) {
-					// @ts-expect-error
-					frame[key] = this.sliceAndSkip[key].slice(closestFrameSliceSkip, closestFrameSliceSkip + 1);
-				}
+				// const frame: LogData = {} // contains arrays with length 1 to reduce the amount of types
+				// for (const key in this.sliceAndSkip) {
+				// 	// @ts-expect-error
+				// 	frame[key] = this.sliceAndSkip[key].slice(closestFrameSliceSkip, closestFrameSliceSkip + 1);
+				// }
 				for (let i = 0; i < numGraphs; i++) {
 					const graph = this.graphs[i];
 					const numTraces = graph.length;
@@ -487,7 +495,8 @@ export default defineComponent({
 						const min = Math.min(trace.minValue, trace.maxValue);
 						const max = Math.max(trace.minValue, trace.maxValue);
 						// @ts-expect-error
-						const data = constrain(trace.overrideData ? trace.overrideSliceAndSkip![closestFrameSliceSkip] : frame[trace.path][0], min, max);
+						const array = trace.overrideData || this.loadedLog.logData[trace.path]
+						const data = constrain(array[closestFrameNum], min, max);
 						const pointY = heightOffset + heightPerGraph - (data - trace.minValue) * scale;
 						ctx.beginPath();
 						ctx.arc(frameX, pointY, 2.5 + trace.strokeWidth * 1.5, 0, Math.PI * 2);
@@ -495,6 +504,7 @@ export default defineComponent({
 					}
 					heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
 				}
+
 				//write down frame number, time in s after start and values next to the cursor at the top
 				let t = (closestFrameNum / this.loadedLog!.framesPerSecond).toFixed(3)
 				if (this.loadedLog!.logData.timestamp) t = (this.loadedLog!.logData.timestamp[closestFrameNum] / 1e6).toFixed(4)
@@ -506,12 +516,11 @@ export default defineComponent({
 					for (let j = 0; j < numTraces; j++) {
 						const trace = graph[j];
 						if (!trace.path) continue;
-						let value: number | string = trace.overrideData
-							? trace.overrideSliceAndSkip![closestFrameSliceSkip]
-							//@ts-expect-error
-							: frame[trace.path][0] as number;
-						value = trace.states ? trace.states[value] || value : value.toFixed(trace.decimals)
-						valueTexts.push(trace.displayName + ': ' + value + ' ' + trace.unit);
+						// @ts-expect-error
+						const array = trace.overrideData || this.loadedLog.logData[trace.path]
+						const value = array[closestFrameNum]
+						const valueStr = trace.states ? (trace.states[value] || (value as number).toString()) : (value as number).toFixed(trace.decimals)
+						valueTexts.push(trace.displayName + ': ' + valueStr + ' ' + trace.unit);
 					}
 				}
 				const textHeight = 14;
@@ -592,11 +601,14 @@ export default defineComponent({
 				domCtx.drawImage(highlightCanvas, 0, 0);
 				return;
 			}
-			if (this.trackingStartX === -1) return;
+
+			// from here on only if left clicked:
+			if (this.trackingStartX === -1) return; // left clicked and idle (should not really happen unless you click left + right and the release right for example)
 			if (this.trackingStartX === -2) {
-				const ratio = (this.startStartFrame - this.startEndFrame) / this.domCanvas.width;
+				// move blackbox window
+				const ratio = (this.startStartFrame - this.startEndFrame) / this.domCanvas.width; // frames per pixel
 				const diff = e.offsetX - this.firstX;
-				let deltaFrames = Math.floor(diff * ratio);
+				let deltaFrames = diff * ratio;
 				if (this.startEndFrame + deltaFrames > this.loadedLog!.frameCount - 1)
 					deltaFrames = this.loadedLog!.frameCount - 1 - this.startEndFrame;
 				if (this.startStartFrame + deltaFrames < 0) deltaFrames = -this.startStartFrame;
@@ -604,6 +616,7 @@ export default defineComponent({
 				this.endFrame = this.startEndFrame + deltaFrames;
 				return;
 			}
+			// selection active (trackingStartX >= 0 and clicked)
 			this.trackingEndX = e.clientX;
 			this.drawSelection(this.trackingStartX, this.trackingEndX);
 		},
@@ -637,9 +650,9 @@ export default defineComponent({
 				this.trackingEndX = p;
 			}
 			const nStart =
-				this.startFrame + Math.floor((this.endFrame - this.startFrame) * (this.trackingStartX / this.domCanvas.width));
+				this.startFrame + (this.endFrame - this.startFrame) * (this.trackingStartX / this.domCanvas.width);
 			const nEnd =
-				this.startFrame + Math.floor((this.endFrame - this.startFrame) * (this.trackingEndX / this.domCanvas.width));
+				this.startFrame + (this.endFrame - this.startFrame) * (this.trackingEndX / this.domCanvas.width);
 			this.startFrame = Math.min(nStart, nEnd);
 			this.endFrame = Math.max(nStart, nEnd);
 			this.trackingStartX = -1;
@@ -709,7 +722,7 @@ export default defineComponent({
 			// find out whether to skip some frames for performance reasons
 			this.skipValue = 1;
 			// let length = this.dataSlice[Object.keys(this.dataSlice)[0]].length;
-			let span = this.startFrame - this.endFrame;
+			let span = this.endFrame - this.startFrame;
 			const everyNth = Math.floor(span / width);
 			if (everyNth > 2 && allowShortening) {
 				this.skipValue = everyNth;
@@ -813,17 +826,19 @@ export default defineComponent({
 					if (!array) continue; // nothing properly selected
 					const min = Math.min(trace.minValue, trace.maxValue);
 					const max = Math.max(trace.minValue, trace.maxValue);
-					let pointY = heightOffset + heightPerGraph - (constrain(array[0], min, max) - trace.minValue) * scaleY;
 
 					// actually draw the trace
 					ctx.beginPath();
 					let k = Math.floor(this.startFrame)
+					let pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
 					ctx.moveTo(frameWidth * (k - this.startFrame), pointY);
 					k += this.skipValue
 					for (; k < this.endFrame; k += this.skipValue) {
 						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
 						ctx.lineTo(frameWidth * (k - this.startFrame), pointY);
 					}
+					pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
+					ctx.lineTo(frameWidth * (k - this.startFrame), pointY);
 					ctx.stroke();
 				}
 				heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
@@ -1186,8 +1201,8 @@ export default defineComponent({
 				<div>Frames per Second: {{ loadedLog.framesPerSecond }} Hz</div>
 				<div style="white-space: pre">Flags: {{'\n - ' +
 					loadedLog.flags
-						.filter(n => n.startsWith('LOG_'))
-						.map(el => BB_ALL_FLAGS[el].name)
+						.filter((n: string) => n.startsWith('LOG_'))
+						.map((el: string) => BB_ALL_FLAGS[el].name)
 						.join('\n - ')}}
 				</div>
 				<div>File Size: {{ (loadedLog.rawFile.length / 1000).toFixed(1) }} KB</div>
@@ -1251,7 +1266,7 @@ export default defineComponent({
 		<div class="timelineWrapper">
 			<Timeline :loadedLog="loadedLog" :flagProps="BB_ALL_FLAGS" :genFlagProps="BB_GEN_FLAGS"
 				:startFrame="startFrame" :endFrame="endFrame"
-				@update="(sf, ef) => { startFrame = Math.min(sf, ef); endFrame = Math.max(sf, ef) }" />
+				@update="(sf: number, ef: number) => { startFrame = Math.min(sf, ef); endFrame = Math.max(sf, ef) }" />
 		</div>
 	</div>
 
