@@ -130,6 +130,14 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				break
 		}
 	}
+
+	const frameLoadingStatus = new Uint8Array(frameCount)
+	frameLoadingStatus.fill(0)
+
+	// TODO idea for getting highlights and fm changes: one additional byte in the sync frame that has flags for a FM change and a highlight
+	// TODO idea for getting ELRS and GPS: configurator requests ELRS for e.g. frame 120. PC sends request with needed sync(s) for frame 100 and FC responds with ELRS and "valid from frame x to frame y" after having searched the next ELRS
+	// TODO when configurator requests frame, send bitmap alongside the requested frame number to indicate what data is wanted. Then maybe also send the index of the 2nd last sync, not just the last sync
+
 	const framesPerSecond = pidFreq / freqDiv
 	const logData: LogData = {}
 	if (flags.includes("LOG_ELRS_RAW")) {
@@ -460,10 +468,14 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		motorPoles
 	)
 
+	frameLoadingStatus.fill(0xff)
+	frameLoadingStatus.fill(0x0, 80, 120)
+
 	return {
 		frameCount,
 		flags,
 		logData,
+		frameLoadingStatus,
 		version,
 		startTime,
 		ranges,
@@ -892,6 +904,10 @@ function parseFrames(
 			logData.pidSumPitch![f] = leBytesToInt(frameData, p + 2, 2, true)
 			logData.pidSumYaw![f] = leBytesToInt(frameData, p + 4, 2, true)
 		})
+	}
+
+	for (const f of frameNumbers) {
+		frameLoadingStatus[f] |= 0b1
 	}
 }
 

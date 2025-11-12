@@ -322,6 +322,7 @@ export default defineComponent({
 				this.trace.displayName = this.currentModifier?.displayName || '';
 				this.trace.minValue = this.minValue;
 				this.trace.maxValue = this.maxValue;
+				this.trace.loadedBitmask = this.currentNormalizedFlag?.loadedBitmask || 0xFFFF;
 				if (this.trace.displayName)
 					this.trace.displayName = this.currentNormalizedFlag?.name + ' ' + this.trace.displayName;
 				else this.trace.displayName = this.currentNormalizedFlag?.name || '';

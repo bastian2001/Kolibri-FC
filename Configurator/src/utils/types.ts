@@ -123,6 +123,7 @@ export type ActualCoeffs = {
 export type BBLog = {
 	frameCount: number
 	flightModes: { fm: number; frame: number }[]
+	frameLoadingStatus: Uint8Array
 	highlights: number[]
 	rawFile: Uint8Array
 	flags: string[]
@@ -153,11 +154,11 @@ export type TraceInGraph = {
 	maxValue: number
 	id: number
 	unit: string
+	loadedBitmask: number
 	states?: string[]
 	decimals: number
 	displayName: string
 	overrideData?: Float32Array
-	// overrideSliceAndSkip?: Float32Array
 	hasSetData: boolean
 }
 
@@ -176,6 +177,7 @@ export type TraceInternalData = {
 export type FlagProps = {
 	name: string
 	path: string
+	loadedBitmask: number
 	minValue?: number
 	maxValue?: number
 	rangeFn?: (file: BBLog | undefined) => { max: number; min: number }

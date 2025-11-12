@@ -57,6 +57,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ELRS_RAW: {
 		name: "ELRS Raw",
 		path: "",
+		loadedBitmask: 0b10,
 		minValue: 988,
 		maxValue: 2012,
 		unit: "µs",
@@ -86,18 +87,21 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ROLL_SETPOINT: {
 		name: "Roll Setpoint",
 		path: "setpointRoll",
+		loadedBitmask: 0b1,
 		rangeFn: getGyroBBRange,
 		unit: "°/sec",
 	},
 	LOG_PITCH_SETPOINT: {
 		name: "Pitch Setpoint",
 		path: "setpointPitch",
+		loadedBitmask: 0b1,
 		rangeFn: getGyroBBRange,
 		unit: "°/sec",
 	},
 	LOG_THROTTLE_SETPOINT: {
 		name: "Throttle Setpoint",
 		path: "setpointThrottle",
+		loadedBitmask: 0b1,
 		minValue: 1000,
 		maxValue: 2000,
 		unit: "µs",
@@ -105,30 +109,35 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_YAW_SETPOINT: {
 		name: "Yaw Setpoint",
 		path: "setpointYaw",
+		loadedBitmask: 0b1,
 		rangeFn: getGyroBBRange,
 		unit: "°/sec",
 	},
 	LOG_ROLL_GYRO_RAW: {
 		name: "Roll Gyro Raw",
 		path: "gyroRawRoll",
+		loadedBitmask: 0b1,
 		rangeFn: getGyroBBRange,
 		unit: "°/sec",
 	},
 	LOG_PITCH_GYRO_RAW: {
 		name: "Pitch Gyro Raw",
 		path: "gyroRawPitch",
+		loadedBitmask: 0b1,
 		rangeFn: getGyroBBRange,
 		unit: "°/sec",
 	},
 	LOG_YAW_GYRO_RAW: {
 		name: "Yaw Gyro Raw",
 		path: "gyroRawYaw",
+		loadedBitmask: 0b1,
 		rangeFn: getGyroBBRange,
 		unit: "°/sec",
 	},
 	LOG_ROLL_PID_P: {
 		name: "Roll PID P",
 		path: "pidRollP",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -136,6 +145,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ROLL_PID_I: {
 		name: "Roll PID I",
 		path: "pidRollI",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -143,6 +153,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ROLL_PID_D: {
 		name: "Roll PID D",
 		path: "pidRollD",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -150,6 +161,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ROLL_PID_FF: {
 		name: "Roll PID FF",
 		path: "pidRollFF",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -157,6 +169,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ROLL_PID_S: {
 		name: "Roll PID S",
 		path: "pidRollS",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -164,6 +177,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_PITCH_PID_P: {
 		name: "Pitch PID P",
 		path: "pidPitchP",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -171,6 +185,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_PITCH_PID_I: {
 		name: "Pitch PID I",
 		path: "pidPitchI",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -178,6 +193,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_PITCH_PID_D: {
 		name: "Pitch PID D",
 		path: "pidPitchD",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -185,6 +201,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_PITCH_PID_FF: {
 		name: "Pitch PID FF",
 		path: "pidPitchFF",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -192,6 +209,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_PITCH_PID_S: {
 		name: "Pitch PID S",
 		path: "pidPitchS",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -199,6 +217,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_YAW_PID_P: {
 		name: "Yaw PID P",
 		path: "pidYawP",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -206,6 +225,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_YAW_PID_I: {
 		name: "Yaw PID I",
 		path: "pidYawI",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -213,6 +233,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_YAW_PID_D: {
 		name: "Yaw PID D",
 		path: "pidYawD",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -220,6 +241,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_YAW_PID_FF: {
 		name: "Yaw PID FF",
 		path: "pidYawFF",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -227,6 +249,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_YAW_PID_S: {
 		name: "Yaw PID S",
 		path: "pidYawS",
+		loadedBitmask: 0b1,
 		minValue: -1500,
 		maxValue: 1500,
 		unit: "",
@@ -234,6 +257,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_MOTOR_OUTPUTS: {
 		name: "Motor Outputs",
 		path: "",
+		loadedBitmask: 0b1,
 		minValue: 0,
 		maxValue: 2000,
 		unit: "",
@@ -247,6 +271,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_FRAMETIME: {
 		name: "Frametime",
 		path: "frametime",
+		loadedBitmask: 0b1,
 		minValue: 0,
 		maxValue: 1000,
 		unit: "µs",
@@ -254,6 +279,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ALTITUDE: {
 		name: "Altitude",
 		path: "altitude",
+		loadedBitmask: 0b1,
 		rangeFn: getAltitudeRange,
 		decimals: 2,
 		unit: "m",
@@ -261,6 +287,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_VVEL: {
 		name: "Vertical Velocity",
 		path: "vvel",
+		loadedBitmask: 0b1,
 		minValue: -10,
 		maxValue: 10,
 		decimals: 2,
@@ -269,6 +296,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_GPS: {
 		name: "GPS",
 		path: "",
+		loadedBitmask: 0b100,
 		minValue: 0,
 		maxValue: 100,
 		unit: "",
@@ -457,6 +485,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ATT_ROLL: {
 		name: "Roll Angle",
 		path: "rollAngle",
+		loadedBitmask: 0b1,
 		minValue: -180,
 		maxValue: 180,
 		unit: "°",
@@ -464,6 +493,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ATT_PITCH: {
 		name: "Pitch Angle",
 		path: "pitchAngle",
+		loadedBitmask: 0b1,
 		minValue: -180,
 		maxValue: 180,
 		unit: "°",
@@ -471,6 +501,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ATT_YAW: {
 		name: "Yaw Angle",
 		path: "yawAngle",
+		loadedBitmask: 0b1,
 		minValue: -180,
 		maxValue: 180,
 		unit: "°",
@@ -478,6 +509,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_MOTOR_RPM: {
 		name: "Motor RPM",
 		path: "",
+		loadedBitmask: 0b1,
 		minValue: 0,
 		maxValue: 50000,
 		unit: "rpm",
@@ -491,6 +523,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ACCEL_RAW: {
 		name: "Accel Raw",
 		path: "",
+		loadedBitmask: 0b1,
 		minValue: -40,
 		maxValue: 40,
 		unit: "m/s²",
@@ -504,6 +537,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_ACCEL_FILTERED: {
 		name: "Accel Filtered",
 		path: "",
+		loadedBitmask: 0b1,
 		minValue: -40,
 		maxValue: 40,
 		unit: "m/s²",
@@ -517,6 +551,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_VERTICAL_ACCEL: {
 		name: "Vertical Accel",
 		path: "accelVertical",
+		loadedBitmask: 0b1,
 		minValue: -40,
 		maxValue: 40,
 		unit: "m/s²",
@@ -525,6 +560,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_VVEL_SETPOINT: {
 		name: "vVel Setpoint",
 		path: "setpointVvel",
+		loadedBitmask: 0b1,
 		minValue: -10,
 		maxValue: 10,
 		decimals: 2,
@@ -533,6 +569,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_MAG_HEADING: {
 		name: "Mag Heading",
 		path: "magHeading",
+		loadedBitmask: 0b1,
 		minValue: -180,
 		maxValue: 180,
 		unit: "°",
@@ -540,6 +577,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_COMBINED_HEADING: {
 		name: "Combined Heading",
 		path: "combinedHeading",
+		loadedBitmask: 0b1,
 		minValue: -180,
 		maxValue: 180,
 		unit: "°",
@@ -547,6 +585,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_HVEL: {
 		name: "Hor. Velocity",
 		path: "",
+		loadedBitmask: 0b1,
 		minValue: -15,
 		maxValue: 15,
 		unit: "m/s",
@@ -567,6 +606,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_BARO: {
 		name: "Barometer",
 		path: "",
+		loadedBitmask: 0b1,
 		unit: "",
 		modifier: [
 			{
@@ -612,6 +652,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_DEBUG_1: {
 		name: "Debug 1",
 		path: "debug1",
+		loadedBitmask: 0b1,
 		unit: "",
 		minValue: 0,
 		maxValue: 100,
@@ -619,6 +660,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_DEBUG_2: {
 		name: "Debug 2",
 		path: "debug2",
+		loadedBitmask: 0b1,
 		unit: "",
 		minValue: 0,
 		maxValue: 100,
@@ -626,6 +668,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_DEBUG_3: {
 		name: "Debug 3",
 		path: "debug3",
+		loadedBitmask: 0b1,
 		unit: "",
 		minValue: 0,
 		maxValue: 100,
@@ -633,6 +676,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_DEBUG_4: {
 		name: "Debug 4",
 		path: "debug4",
+		loadedBitmask: 0b1,
 		unit: "",
 		minValue: 0,
 		maxValue: 100,
@@ -640,6 +684,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_PID_SUM: {
 		name: "PID Sum",
 		path: "",
+		loadedBitmask: 0b1,
 		unit: "",
 		modifier: [
 			{
@@ -668,6 +713,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_VBAT: {
 		name: "Battery Voltage",
 		path: "vbat",
+		loadedBitmask: 0b1000,
 		unit: "V",
 		minValue: 0,
 		maxValue: 30,
@@ -676,6 +722,7 @@ export const BB_ALL_FLAGS: { [key: string]: FlagProps } = {
 	LOG_LINK_STATS: {
 		name: "Link Statistics",
 		path: "",
+		loadedBitmask: 0b10000,
 		unit: "",
 		modifier: [
 			{
@@ -864,7 +911,7 @@ export const BB_GEN_FLAGS: { [key: string]: GenFlagProps } = {
 		replaces: "LOG_MOTOR_OUTPUTS",
 		requires: [
 			["GEN_THROTTLE_SETPOINT", "LOG_THROTTLE_SETPOINT"],
-			["GE_PID_SUM", "LOG_PID_SUM"],
+			["GEN_PID_SUM", "LOG_PID_SUM"],
 		],
 		exact: true,
 	},

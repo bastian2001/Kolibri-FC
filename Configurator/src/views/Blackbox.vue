@@ -156,6 +156,7 @@ export default defineComponent({
 		addTrace(graphIndex: number) {
 			const defaultTrace: TraceInGraph = {
 				color: 'transparent',
+				loadedBitmask: 0xFFFF,
 				maxValue: 10,
 				minValue: 0,
 				strokeWidth: 1,
@@ -439,7 +440,41 @@ export default defineComponent({
 				domCtx.clearRect(0, 0, domCanvas.width, domCanvas.height);
 				domCtx.drawImage(this.canvas, 0, 0);
 				const span = this.endFrame - this.startFrame
-				const closestFrameNum = Math.round(span * e.offsetX / domCanvas.width + this.startFrame);
+				let cursorPosAsFrame = span * e.offsetX / domCanvas.width + this.startFrame
+				let closestFrameNum = Math.round(cursorPosAsFrame)
+				if (closestFrameNum < this.startFrame) closestFrameNum = Math.ceil(this.startFrame)
+				if (closestFrameNum > this.endFrame) closestFrameNum = Math.floor(this.endFrame)
+				if (!(this.loadedLog.frameLoadingStatus[closestFrameNum] & 0b1)) {
+					// closest frame cannot be drawn, search for closest frame with data
+					let distUp = undefined as number | undefined
+					for (let i = closestFrameNum; i <= this.endFrame; i++) {
+						if (this.loadedLog.frameLoadingStatus[i] & 0b1) {
+							distUp = i - cursorPosAsFrame
+							break
+						}
+					}
+					let distDown = undefined as number | undefined
+					for (let i = closestFrameNum; i >= this.startFrame; i--) {
+						if (this.loadedLog.frameLoadingStatus[i] & 0b1) {
+							distDown = cursorPosAsFrame - i
+							break
+						}
+					}
+					if (distUp !== undefined && distDown !== undefined) {
+						if (distUp < distDown) {
+							closestFrameNum = Math.round(cursorPosAsFrame + distUp)
+						} else {
+							closestFrameNum = Math.round(cursorPosAsFrame - distDown)
+						}
+					} else if (distUp !== undefined) {
+						closestFrameNum = Math.round(cursorPosAsFrame + distUp)
+					} else if (distDown !== undefined) {
+						closestFrameNum = Math.round(cursorPosAsFrame - distDown)
+					} else {
+						// cannot find fitting frame
+						return
+					}
+				}
 
 				//draw vertical line
 				const highlightCanvas = document.createElement('canvas');
@@ -772,6 +807,7 @@ export default defineComponent({
 					const trace = graph[j];
 					const range = trace.maxValue - trace.minValue;
 					const scaleY = heightPerGraph / range;
+					const bitmask = trace.loadedBitmask
 					ctx.strokeStyle = trace.color;
 					ctx.lineWidth = trace.strokeWidth;
 					ctx.lineJoin = 'bevel'
@@ -787,15 +823,29 @@ export default defineComponent({
 					// actually draw the trace
 					ctx.beginPath();
 					let k = Math.floor(this.startFrame)
+					for (; k > 0; k--) {
+						// reverse until last valid point that is <= startFrame
+						if ((this.loadedLog.frameLoadingStatus[k] & bitmask) === bitmask) break;
+					}
 					let pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
 					ctx.moveTo(frameWidth * (k - this.startFrame), pointY);
 					k += this.skipValue
 					for (; k < this.endFrame; k += this.skipValue) {
+						for (; k < this.loadedLog.frameCount - 1; k++) {
+							// fast forward to first valid point after adding skipValue, stop at last frame to get at least a 0
+							if ((this.loadedLog.frameLoadingStatus[k] & bitmask) === bitmask) break;
+						}
 						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
 						ctx.lineTo(frameWidth * (k - this.startFrame), pointY);
 					}
-					pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
-					ctx.lineTo(frameWidth * (k - this.startFrame), pointY);
+					// draw last point
+					for (; k < this.loadedLog.frameCount - 1; k++) {
+						if ((this.loadedLog.frameLoadingStatus[k] & bitmask) === bitmask) break;
+					}
+					if (k < this.loadedLog.frameCount) {
+						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
+						ctx.lineTo(frameWidth * (k - this.startFrame), pointY);
+					}
 					ctx.stroke();
 				}
 				heightOffset += heightPerGraph + 0.02 * this.dataViewerWrapper.clientHeight;
