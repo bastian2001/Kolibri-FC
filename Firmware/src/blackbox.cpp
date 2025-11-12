@@ -53,12 +53,14 @@ u32 bbWriteBufferPos = 0;
 bool lastHighlightState = false;
 static FlightMode lastSavedFlightMode = FlightMode::LENGTH;
 static i32 lastSyncedFrame = INT32_MIN;
+static u8 fmHighlightFlag = 0; // used for SYNC. bit 0 set to indicate HL, bit 1 set to indicate FM change in the last 100 frames
 
 static void writeFlightModeToBlackbox() {
 	FlightMode fm = flightMode;
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
 	bbWriteBuffer[bbWriteBufferPos++] = (u8)fm;
 	lastSavedFlightMode = fm;
+	fmHighlightFlag |= 0b10;
 }
 
 /**
@@ -185,16 +187,18 @@ void blackboxLoop() {
 		i32 frameIndex;
 		memcpy(&frameIndex, &frame[1], 4);
 		bool needsSync = frameIndex >= lastSyncedFrame + 100;
-		size_t spaceNeeded = len + (needsSync ? 9 : 1);
+		size_t spaceNeeded = len + (needsSync ? 10 : 1);
 		if (BB_WR_BUF_HAS_FREE(spaceNeeded)) {
 			if (needsSync) {
 				bbWriteBuffer[bbWriteBufferPos++] = 'S';
 				bbWriteBuffer[bbWriteBufferPos++] = 'Y';
 				bbWriteBuffer[bbWriteBufferPos++] = 'N';
 				bbWriteBuffer[bbWriteBufferPos++] = 'C';
+				bbWriteBuffer[bbWriteBufferPos++] = fmHighlightFlag;
 				memcpy(bbWriteBuffer + bbWriteBufferPos, &frameIndex, 4);
 				bbWriteBufferPos += 4;
 				lastSyncedFrame = frameIndex;
+				fmHighlightFlag = 0;
 			}
 			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_NORMAL;
 			writeToBlackboxWithEscape(frame + 5, len);
@@ -216,6 +220,7 @@ void blackboxLoop() {
 		} else {
 			lastHighlightState = false;
 		}
+		fmHighlightFlag |= 0b01;
 	}
 
 	// save GPS PVT message

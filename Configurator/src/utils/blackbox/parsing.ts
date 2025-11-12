@@ -91,6 +91,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	let elrsPos: { pos: number; frame: number }[] = []
 	let batPos: { pos: number; frame: number }[] = []
 	let elrsLinkPos: { pos: number; frame: number }[] = []
+	let syncs: { frame: number; pos: number; ctrlByte: number }[] = []
 	while (pos < data.length) {
 		switch (data[pos]) {
 			case 0: // regular frame
@@ -122,7 +123,14 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				pos += 12
 				break
 			case 83: // SYNC
-				pos += 8
+				{
+					const frame = leBytesToInt(data, pos + 5, 4, false)
+					syncs.push({ frame, pos, ctrlByte: data[pos + 4] })
+					if (data[pos + 4]) {
+						console.log("some data: ", data[pos + 4], " in front of frame ", frame)
+					}
+					pos += 9
+				}
 				break
 			default:
 				console.log("invalid frame found")
@@ -437,6 +445,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		flags,
 		logData,
 		offsets,
+		syncs,
 		frameLoadingStatus,
 		version,
 		startTime,
