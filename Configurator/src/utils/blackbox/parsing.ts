@@ -475,6 +475,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		frameCount,
 		flags,
 		logData,
+		offsets,
 		frameLoadingStatus,
 		version,
 		startTime,

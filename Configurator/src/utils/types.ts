@@ -123,6 +123,7 @@ export type ActualCoeffs = {
 export type BBLog = {
 	frameCount: number
 	flightModes: { fm: number; frame: number }[]
+	offsets: { [key: string]: number }
 	frameLoadingStatus: Uint8Array
 	highlights: number[]
 	rawFile: Uint8Array
