@@ -161,6 +161,9 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		elrsToFrame[elrsPos.length - 1] = frameCount - 1
 
 		parseElrs(logData, elrsData, elrsFromFrame, elrsToFrame)
+		frameLoadingStatus.forEach((v, i) => {
+			frameLoadingStatus[i] = v |= 0b10
+		})
 	}
 	if (flags.includes("LOG_ROLL_SETPOINT")) {
 		logData.setpointRoll = new Float32Array(frameCount)
@@ -272,70 +275,25 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		logData.gpsHeadAcc = new Float32Array(frameCount)
 		logData.gpsPDop = new Float32Array(frameCount)
 		logData.gpsFlags3 = new Uint16Array(frameCount)
-		const gpsData = new Uint8Array(92)
-		const exclude: number[] = []
-		for (const g of gpsPos) {
-			gpsData.set(data.slice(g.pos, g.pos + 92), 0)
-			const f = g.frame
-			exclude.push(f)
-			logData.gpsYear[f] = leBytesToInt(gpsData, 4, 2)
-			logData.gpsMonth[f] = gpsData[6]
-			logData.gpsDay[f] = gpsData[7]
-			logData.gpsHour[f] = gpsData[8]
-			logData.gpsMinute[f] = gpsData[9]
-			logData.gpsSecond[f] = gpsData[10]
-			logData.gpsTimeValidityFlags[f] = gpsData[11]
-			logData.gpsTAcc[f] = leBytesToInt(gpsData, 12, 4)
-			logData.gpsNs[f] = leBytesToInt(gpsData, 16, 4, true)
-			logData.gpsFixType[f] = gpsData[20]
-			logData.gpsFlags[f] = gpsData[21]
-			logData.gpsFlags2[f] = gpsData[22]
-			logData.gpsSatCount[f] = gpsData[23]
-			logData.gpsLon[f] = leBytesToInt(gpsData, 24, 4, true) / 10000000
-			logData.gpsLat[f] = leBytesToInt(gpsData, 28, 4, true) / 10000000
-			logData.gpsAlt[f] = leBytesToInt(gpsData, 36, 4, true) / 1000
-			logData.gpsHAcc[f] = leBytesToInt(gpsData, 40, 4) / 1000
-			logData.gpsVAcc[f] = leBytesToInt(gpsData, 44, 4) / 1000
-			logData.gpsVelN[f] = leBytesToInt(gpsData, 48, 4, true) / 1000
-			logData.gpsVelE[f] = leBytesToInt(gpsData, 52, 4, true) / 1000
-			logData.gpsVelD[f] = leBytesToInt(gpsData, 56, 4, true) / 1000
-			logData.gpsGSpeed[f] = leBytesToInt(gpsData, 60, 4, true) / 1000
-			logData.gpsHeadMot[f] = leBytesToInt(gpsData, 64, 4, true) / 100000
-			logData.gpsSAcc[f] = leBytesToInt(gpsData, 68, 4) / 1000
-			logData.gpsHeadAcc[f] = leBytesToInt(gpsData, 72, 4) / 100000
-			logData.gpsPDop[f] = leBytesToInt(gpsData, 76, 2) / 100
-			logData.gpsFlags3[f] = leBytesToInt(gpsData, 78, 2)
+
+		const gpsData = new Uint8Array(gpsPos.length * 92)
+		gpsPos.forEach((v, i) => {
+			const p = v.pos
+			gpsData.set(data.slice(p, p + 92), i * 92)
+		})
+		const gpsFrom = new Uint32Array(gpsPos.length)
+		const gpsTo = new Uint32Array(gpsPos.length)
+		for (let i = 0; i < gpsPos.length - 1; i++) {
+			gpsFrom[i] = gpsPos[i].frame
+			gpsTo[i] = gpsPos[i + 1].frame - 1
 		}
-		for (let i = 1; i < frameCount; i++) {
-			if (exclude.includes(i)) continue
-			logData.gpsYear[i] = logData.gpsYear[i - 1]
-			logData.gpsMonth[i] = logData.gpsMonth[i - 1]
-			logData.gpsDay[i] = logData.gpsDay[i - 1]
-			logData.gpsHour[i] = logData.gpsHour[i - 1]
-			logData.gpsMinute[i] = logData.gpsMinute[i - 1]
-			logData.gpsSecond[i] = logData.gpsSecond[i - 1]
-			logData.gpsTimeValidityFlags[i] = logData.gpsTimeValidityFlags[i - 1]
-			logData.gpsTAcc[i] = logData.gpsTAcc[i - 1]
-			logData.gpsNs[i] = logData.gpsNs[i - 1]
-			logData.gpsFixType[i] = logData.gpsFixType[i - 1]
-			logData.gpsFlags[i] = logData.gpsFlags[i - 1]
-			logData.gpsFlags2[i] = logData.gpsFlags2[i - 1]
-			logData.gpsSatCount[i] = logData.gpsSatCount[i - 1]
-			logData.gpsLon[i] = logData.gpsLon[i - 1]
-			logData.gpsLat[i] = logData.gpsLat[i - 1]
-			logData.gpsAlt[i] = logData.gpsAlt[i - 1]
-			logData.gpsHAcc[i] = logData.gpsHAcc[i - 1]
-			logData.gpsVAcc[i] = logData.gpsVAcc[i - 1]
-			logData.gpsVelN[i] = logData.gpsVelN[i - 1]
-			logData.gpsVelE[i] = logData.gpsVelE[i - 1]
-			logData.gpsVelD[i] = logData.gpsVelD[i - 1]
-			logData.gpsGSpeed[i] = logData.gpsGSpeed[i - 1]
-			logData.gpsHeadMot[i] = logData.gpsHeadMot[i - 1]
-			logData.gpsSAcc[i] = logData.gpsSAcc[i - 1]
-			logData.gpsHeadAcc[i] = logData.gpsHeadAcc[i - 1]
-			logData.gpsPDop[i] = logData.gpsPDop[i - 1]
-			logData.gpsFlags3[i] = logData.gpsFlags3[i - 1]
-		}
+		gpsFrom[gpsPos.length - 1] = gpsPos[gpsPos.length - 1].frame
+		gpsTo[gpsPos.length - 1] = frameCount - 1
+
+		parseGps(logData, gpsData, gpsFrom, gpsTo)
+		frameLoadingStatus.forEach((v, i) => {
+			frameLoadingStatus[i] = v |= 0b100
+		})
 	}
 	if (flags.includes("LOG_ATT_ROLL")) {
 		logData.rollAngle = new Float32Array(frameCount)
@@ -420,6 +378,9 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		vTo[batPos.length - 1] = frameCount - 1
 
 		parseVbat(logData, vData, vFrom, vTo)
+		frameLoadingStatus.forEach((v, i) => {
+			frameLoadingStatus[i] = v |= 0b1000
+		})
 	}
 	if (flags.includes("LOG_LINK_STATS")) {
 		logData.linkRssiA = new Int16Array(frameCount)
@@ -446,6 +407,9 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		lTo[elrsLinkPos.length - 1] = frameCount - 1
 
 		parseLinkStats(logData, lData, lFrom, lTo)
+		frameLoadingStatus.forEach((v, i) => {
+			frameLoadingStatus[i] = v |= 0b10000
+		})
 	}
 
 	const frameData = new Uint8Array(frameCount * frameSize)
@@ -467,9 +431,6 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		framesPerSecond,
 		motorPoles
 	)
-
-	frameLoadingStatus.fill(0xff)
-	frameLoadingStatus.fill(0x0, 80, 120)
 
 	return {
 		frameCount,
@@ -939,7 +900,7 @@ function parseVbat(logData: LogData, vData: Uint8Array, vFromFrame: Uint32Array,
 		const v = leBytesToInt(vData, i * 2, 2, false) / 100
 
 		for (; f <= vToFrame[i]; f++) {
-			logData.vbat![i] = v
+			logData.vbat![f] = v
 		}
 	}
 }
@@ -966,6 +927,69 @@ function parseLinkStats(logData: LogData, lData: Uint8Array, lFromFrame: Uint32A
 			logData.linkTargetHz![f] = linkTargetHz
 			logData.linkActualHz![f] = linkActualHz
 			logData.linkTxPow![f] = linkTxPow
+		}
+	}
+}
+
+function parseGps(logData: LogData, gpsData: Uint8Array, gpsFromFrame: Uint32Array, gpsToFrame: Uint32Array) {
+	for (let i = 0; i < gpsFromFrame.length; i++) {
+		let f = gpsFromFrame[i]
+		let d = gpsData.slice(i * 92, i * 92 + 92)
+		const gpsYear = leBytesToInt(d, 4, 2)
+		const gpsMonth = d[6]
+		const gpsDay = d[7]
+		const gpsHour = d[8]
+		const gpsMinute = d[9]
+		const gpsSecond = d[10]
+		const gpsTimeValidityFlags = d[11]
+		const gpsTAcc = leBytesToInt(d, 12, 4)
+		const gpsNs = leBytesToInt(d, 16, 4, true)
+		const gpsFixType = d[20]
+		const gpsFlags = d[21]
+		const gpsFlags2 = d[22]
+		const gpsSatCount = d[23]
+		const gpsLon = leBytesToInt(d, 24, 4, true) / 10000000
+		const gpsLat = leBytesToInt(d, 28, 4, true) / 10000000
+		const gpsAlt = leBytesToInt(d, 36, 4, true) / 1000
+		const gpsHAcc = leBytesToInt(d, 40, 4) / 1000
+		const gpsVAcc = leBytesToInt(d, 44, 4) / 1000
+		const gpsVelN = leBytesToInt(d, 48, 4, true) / 1000
+		const gpsVelE = leBytesToInt(d, 52, 4, true) / 1000
+		const gpsVelD = leBytesToInt(d, 56, 4, true) / 1000
+		const gpsGSpeed = leBytesToInt(d, 60, 4, true) / 1000
+		const gpsHeadMot = leBytesToInt(d, 64, 4, true) / 100000
+		const gpsSAcc = leBytesToInt(d, 68, 4) / 1000
+		const gpsHeadAcc = leBytesToInt(d, 72, 4) / 100000
+		const gpsPDop = leBytesToInt(d, 76, 2) / 100
+		const gpsFlags3 = leBytesToInt(d, 78, 2)
+		for (; f <= gpsToFrame[i]; f++) {
+			logData.gpsYear![f] = gpsYear
+			logData.gpsMonth![f] = gpsMonth
+			logData.gpsDay![f] = gpsDay
+			logData.gpsHour![f] = gpsHour
+			logData.gpsMinute![f] = gpsMinute
+			logData.gpsSecond![f] = gpsSecond
+			logData.gpsTimeValidityFlags![f] = gpsTimeValidityFlags
+			logData.gpsTAcc![f] = gpsTAcc
+			logData.gpsNs![f] = gpsNs
+			logData.gpsFixType![f] = gpsFixType
+			logData.gpsFlags![f] = gpsFlags
+			logData.gpsFlags2![f] = gpsFlags2
+			logData.gpsSatCount![f] = gpsSatCount
+			logData.gpsLon![f] = gpsLon
+			logData.gpsLat![f] = gpsLat
+			logData.gpsAlt![f] = gpsAlt
+			logData.gpsHAcc![f] = gpsHAcc
+			logData.gpsVAcc![f] = gpsVAcc
+			logData.gpsVelN![f] = gpsVelN
+			logData.gpsVelE![f] = gpsVelE
+			logData.gpsVelD![f] = gpsVelD
+			logData.gpsGSpeed![f] = gpsGSpeed
+			logData.gpsHeadMot![f] = gpsHeadMot
+			logData.gpsSAcc![f] = gpsSAcc
+			logData.gpsHeadAcc![f] = gpsHeadAcc
+			logData.gpsPDop![f] = gpsPDop
+			logData.gpsFlags3![f] = gpsFlags3
 		}
 	}
 }
