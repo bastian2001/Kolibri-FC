@@ -1212,6 +1212,7 @@ export default defineComponent({
 						.join('\n - ')}}
 				</div>
 				<div>File Size: {{ (loadedLog.rawFile.length / 1000).toFixed(1) }} KB</div>
+				<div>Bytes per Frame: {{ loadedLog.frameSize }}</div>
 				<div>
 					IMU Range: {{ loadedLog.ranges.gyro }}°/sec, ±{{ loadedLog.ranges.accel }}g
 				</div>

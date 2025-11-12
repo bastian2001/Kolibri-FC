@@ -81,7 +81,6 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				break
 		}
 	}
-	console.log(frameSize)
 	let pos = 0
 	let frameCount = 0
 	let framePos: number[] = []
@@ -457,6 +456,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		framesPerSecond,
 		rawFile: binFile,
 		isExact: true,
+		frameSize,
 		pidConstantsNice,
 		motorPoles,
 		flightModes,

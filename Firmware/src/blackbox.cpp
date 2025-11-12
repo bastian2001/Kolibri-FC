@@ -321,6 +321,12 @@ u32 getBlackboxChunkSize(MspVersion v) {
 	}
 }
 
+void printFastFileInit(u8 serialNum, MspVersion version, u16 fileNum, u8 subCmd, const char *reqPayload, u16 reqLen) {
+}
+
+void printFastDataReq(u8 serialNum, MspVersion version, u16 sequenceNum, u16 fileNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
+}
+
 void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	if (bbPrintLog.printing) {
 		bbPrintLog.printing = false;

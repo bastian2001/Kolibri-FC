@@ -122,6 +122,31 @@ u32 writeSingleFrame();
 void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk);
 
 /**
+ * @brief sends init data out to a connected MSP device
+ * 
+ * @param serialNum MSP device port to send data to
+ * @param version MSP version to use
+ * @param fileNum file to open and use
+ * @param subCmd 0 = get header + info, 1 = get syncs (param startpos), 2 = get HL + FM (param prev sync)
+ * @param reqPayload depends on subcmd: none; 4 byte startpos in file; 4 byte sync pos in file => search from there to next sync and send out all HL and FM changes
+ * @param reqLen 0 for subcmd 0, 4 for sumcmd 1 and 2
+ */
+void printFastFileInit(u8 serialNum, MspVersion version, u16 fileNum, u8 subCmd, const char *reqPayload, u16 reqLen);
+
+/**
+ * @brief sends data of frames to a connected MSP device
+ * 
+ * @param serialNum MSP device port to send data to
+ * @param version MSP version to use
+ * @param sequenceNum 2 byte incrementing number that is just echoed to the PC to know what the response holds
+ * @param fileNum file to open and use
+ * @param frameSize size of one frame in bytes so the FC knows how much to skip for each frame
+ * @param reqPayload requested data
+ * @param reqLen length of data request, multiple of 9
+ */
+void printFastDataReq(u8 serialNum, MspVersion version, u16 sequenceNum, u16 fileNum, u8 frameSize, const char *reqPayload, u16 reqLen);
+
+/**
  * @brief Print the file number, the file size and the chunk size
  *
  * @param serialNum serial number of the device

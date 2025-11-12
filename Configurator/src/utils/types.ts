@@ -142,6 +142,7 @@ export type BBLog = {
 	pidConstants: number[][]
 	pidConstantsNice: number[][]
 	framesPerSecond: number
+	frameSize: number
 	isExact: boolean
 	motorPoles: number
 	duration: number
