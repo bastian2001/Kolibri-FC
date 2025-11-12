@@ -354,7 +354,7 @@ export default defineComponent({
 			if (this.touchMode === 'move') {
 				const diff = touches[0].clientX - this.touchStartX;
 				const ratio = (this.startStartFrame - this.startEndFrame) / this.domCanvas.width;
-				let deltaFrames = Math.floor(diff * ratio);
+				let deltaFrames = diff * ratio
 				if (this.startEndFrame + deltaFrames > this.loadedLog!.frameCount - 1)
 					deltaFrames = this.loadedLog!.frameCount - 1 - this.startEndFrame;
 				if (this.startStartFrame + deltaFrames < 0) deltaFrames = -this.startStartFrame;
@@ -362,19 +362,18 @@ export default defineComponent({
 				this.endFrame = this.startEndFrame + deltaFrames;
 			}
 			if (this.touchMode === 'zoom') {
-				let span = Math.round(
-					((this.frame1 - this.frame0) * this.domCanvas.width) / (e.touches[1].clientX - e.touches[0].clientX)
-				);
-				if (span < 0) span = this.loadedLog.frameCount - 1;
+				let span = (this.frame1 - this.frame0) * this.domCanvas.width / (e.touches[1].clientX - e.touches[0].clientX)
+
+				if (span <= 0) span = this.loadedLog.frameCount - 1;
 				if (span >= this.loadedLog.frameCount - 1) {
 					this.startFrame = 0;
 					this.endFrame = this.loadedLog.frameCount - 1;
 					return;
 				}
-				const frameCenter = Math.round((this.frame0 + this.frame1) / 2);
+				const frameCenter = (this.frame0 + this.frame1) / 2
 				const centerPos = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-				this.startFrame = frameCenter - Math.round(span * (centerPos / this.domCanvas.width));
-				this.endFrame = frameCenter + Math.round(span * (1 - centerPos / this.domCanvas.width));
+				this.startFrame = frameCenter - span * (centerPos / this.domCanvas.width)
+				this.endFrame = frameCenter + span * (1 - centerPos / this.domCanvas.width)
 				if (this.startFrame < 0) {
 					this.endFrame -= this.startFrame;
 					this.startFrame = 0;
