@@ -52,7 +52,6 @@ export default defineComponent({
 			selected: -1,
 			canvas: document.createElement("canvas"),
 			selectionCanvas: document.createElement("canvas"),
-			// sliceAndSkip: {} as LogData,
 			skipValue: 0,
 			trackingStartX: -1,  // -1 = idle, -2 = move window, 0+ = selection
 			trackingEndX: 0,
@@ -75,15 +74,6 @@ export default defineComponent({
 		};
 	},
 	computed: {
-		// dataSlice(): LogData {
-		// 	if (!this.loadedLog) return {}
-		// 	const slice: LogData = {}
-		// 	for (const key in this.loadedLog.logData) {
-		// 		// @ts-expect-error
-		// 		slice[key] = (this.loadedLog.logData[key] as unknown as TypedArray)?.slice(this.startFrame, this.endFrame + 1)
-		// 	}
-		// 	return slice
-		// },
 		dataViewerWrapper(): HTMLDivElement {
 			return this.$refs.dataViewerWrapper as HTMLDivElement;
 		},
@@ -92,11 +82,6 @@ export default defineComponent({
 		},
 	},
 	watch: {
-		// dataSlice: {
-		// 	handler() {
-		// 		this.drawCanvas();
-		// 	}
-		// },
 		startFrame: {
 			handler() {
 				this.drawCanvas();
@@ -477,11 +462,6 @@ export default defineComponent({
 				const heightPerGraph =
 					(height - this.dataViewerWrapper.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
 				let heightOffset = 0.01 * this.dataViewerWrapper.clientHeight;
-				// const frame: LogData = {} // contains arrays with length 1 to reduce the amount of types
-				// for (const key in this.sliceAndSkip) {
-				// 	// @ts-expect-error
-				// 	frame[key] = this.sliceAndSkip[key].slice(closestFrameSliceSkip, closestFrameSliceSkip + 1);
-				// }
 				for (let i = 0; i < numGraphs; i++) {
 					const graph = this.graphs[i];
 					const numTraces = graph.length;
@@ -669,8 +649,8 @@ export default defineComponent({
 				if (visibleFrames < 10) visibleFrames = 10;
 				this.startFrame = grabFrame - visibleFrames * leftPct;
 				this.endFrame = this.startFrame + visibleFrames;
-				this.startFrame = Math.round(this.startFrame);
-				this.endFrame = Math.round(this.endFrame);
+				this.startFrame = this.startFrame;
+				this.endFrame = this.endFrame;
 				visibleFrames = this.endFrame - this.startFrame;
 				if (this.startFrame < 0) {
 					this.startFrame = 0;
@@ -692,7 +672,7 @@ export default defineComponent({
 			if (moveBy < 0 && moveBy > -1) moveBy = -1;
 			if (moveBy > visibleFrames * 0.3) moveBy = visibleFrames * 0.3;
 			if (moveBy < -visibleFrames * 0.3) moveBy = -visibleFrames * 0.3;
-			moveBy = Math.round(moveBy);
+			moveBy = moveBy;
 			if (this.startFrame + moveBy < 0) moveBy = -this.startFrame;
 			if (this.endFrame + moveBy > this.loadedLog.frameCount - 1) moveBy = this.loadedLog.frameCount - 1 - this.endFrame;
 			this.startFrame += moveBy;
@@ -721,18 +701,13 @@ export default defineComponent({
 
 			// find out whether to skip some frames for performance reasons
 			this.skipValue = 1;
-			// let length = this.dataSlice[Object.keys(this.dataSlice)[0]].length;
 			let span = this.endFrame - this.startFrame;
 			const everyNth = Math.floor(span / width);
 			if (everyNth > 2 && allowShortening) {
 				this.skipValue = everyNth;
-				// this.sliceAndSkip = skipValues(this.dataSlice, everyNth);
 				clearTimeout(this.drawFullCanvasTimeout);
 				this.drawFullCanvasTimeout = setTimeout(() => this.drawCanvas(false), 250);
 			}
-			//  else {
-			// 	this.sliceAndSkip = this.dataSlice;
-			// }
 
 			// draw duration bar
 			const pixelsPerSec =
@@ -768,8 +743,6 @@ export default defineComponent({
 				ctx.fillText(barDuration, 16 + barLength / 2, 35);
 			}
 
-			// length = this.sliceAndSkip[Object.keys(this.sliceAndSkip)[0]].length;
-
 			const frameWidth = width / span;
 			const numGraphs = this.graphs.length;
 			const heightPerGraph = (height - this.dataViewerWrapper.clientHeight * 0.02 * numGraphs) / numGraphs;
@@ -803,22 +776,6 @@ export default defineComponent({
 					ctx.lineWidth = trace.strokeWidth;
 					ctx.lineJoin = 'bevel'
 					if (!trace.strokeWidth) continue;
-
-					// filters
-					// if (trace.overrideData) {
-					// 	const overrideSlice = trace.overrideData.slice(
-					// 		Math.floor(this.startFrame),
-					// 		Math.floor(this.endFrame + this.skipValue)
-					// 	);
-					// 	// if (this.skipValue != 1) {
-					// 	// 	const len = Math.ceil(overrideSlice.length / everyNth);
-					// 	// 	trace.overrideSliceAndSkip = new Float32Array(len);
-					// 	// 	let j = 0;
-					// 	// 	for (let i = 0; i < len; i += 1, j += everyNth) {
-					// 	// 		trace.overrideSliceAndSkip[i] = overrideSlice[j];
-					// 	// 	}
-					// 	// } else trace.overrideSliceAndSkip = overrideSlice;
-					// }
 
 					// get array to draw and bounds
 					// @ts-expect-error
