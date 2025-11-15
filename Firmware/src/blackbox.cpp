@@ -511,40 +511,31 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 				switch (fileBuf[readPos]) {
 				case BB_FRAME_NORMAL:
 					searchSize = frameSize + 1;
-					if (frameCount >= 3730) printfIndMessage("frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					frameCount++;
 					break;
 				case BB_FRAME_FLIGHTMODE:
 					searchSize = BB_FRAMESIZE_FLIGHTMODE;
-					if (frameCount >= 3730) printfIndMessage("FM1: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_HIGHLIGHT:
 					searchSize = BB_FRAMESIZE_HIGHLIGHT;
-					if (frameCount >= 3730) printfIndMessage("HL2: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_GPS:
 					searchSize = BB_FRAMESIZE_GPS;
-					if (frameCount >= 3730) printfIndMessage("GPS3: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_RC:
 					searchSize = BB_FRAMESIZE_RC;
-					if (frameCount >= 3730) printfIndMessage("ELRS4: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_VBAT:
 					searchSize = BB_FRAMESIZE_VBAT;
-					if (frameCount >= 3730) printfIndMessage("VBAT5: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_LINK_STATS:
 					searchSize = BB_FRAMESIZE_LINK_STATS;
-					if (frameCount >= 3730) printfIndMessage("LINK6: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_ABV_SYNC: // shouldn't happen
 					searchSize = BB_FRAMESIZE_SYNC;
-					if (frameCount >= 3730) printfIndMessage("SYNC83: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				default:
 					searchSize = 1;
-					if (frameCount >= 3730) printfIndMessage("WTF%c, %d: frameCount: %d, pos: %d", fileBuf[readPos],fileBuf[readPos], frameCount, lastSp + readPos);
 					break;
 				}
 				frameProgress = 1;
@@ -593,7 +584,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		u32 startPos = DECODE_U4((u8 *)reqPayload);
 		u8 frameSize = reqPayload[4];
 		u8 syncFreq = reqPayload[5];
-		const u32 jumpAfterSync = syncFreq * frameSize + BB_FRAMESIZE_SYNC; // no guarantee about elrs etc. so not adding any of that here
+		const u32 jumpAfterSync = syncFreq * (frameSize + 1) + BB_FRAMESIZE_SYNC; // no guarantee about elrs etc. so not adding any of that here
 		const u32 maxSyncs = (chunkSize - 8) / 9; // per sync: pos (4), frame (4), status(1)
 		u8 buf[maxSyncs * 9 + 7];
 		buf[0] = logNum & 0xFF;
