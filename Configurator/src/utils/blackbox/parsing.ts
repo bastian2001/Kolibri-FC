@@ -98,6 +98,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	while (pos < data.length) {
 		switch (data[pos]) {
 			case 0: // regular frame
+				if (frameCount >= 3730) console.log(frameCount, pos + 256)
 				framePos[frameCount++] = pos + 1
 				pos += frameSize + 1
 				break

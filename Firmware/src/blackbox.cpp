@@ -424,6 +424,8 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 	bbPrintLog.serialNum = serialNum;
 	bbPrintLog.chunkSize = chunkSize;
 
+	printfIndMessage("fast file init for file %d with subcmd %d", logNum, subCmd);
+
 	switch (subCmd) {
 	case 0: {
 #if BLACKBOX_STORAGE == SD_BB
@@ -437,6 +439,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		u32 size = file.size();
 		memcpy(&b[3], &size, 4);
 		memcpy(&b[7], &chunkSize, 4);
+		file.seek(0);
 		file.read(&b[32], 256);
 		u8 &frameSize = b[32 + 153];
 
@@ -444,6 +447,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		for (int i = 0; i < 8; i++) {
 			fileBuf[i] = 0; // zero out the array to ensure no invalid sync read at the very end of the file
 		}
+		printfIndMessage("file has size %d, starting to read at %d", size, size - 1024);
 		u32 syncPos = 0xFFFFFFFFU;
 		u32 syncFrame = 0;
 		for (i32 searchPos = size - 1024; searchPos > 256 - 1024; searchPos -= 1024) {
@@ -461,12 +465,13 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 
 			// get 1024 bytes so we have 1032 to read through to find a sync
 			file.seek(searchPos);
+			printfIndMessage("seeked to %d, now reading %d bytes to find a SYNC", searchPos, readSize);
 			file.read(fileBuf, readSize);
 
 			// read through the bytes and find sync
 			for (i32 pos = readSize - 1; pos >= 0; pos--) {
 				if (fileBuf[pos] == 'S' && fileBuf[pos + 1] == 'Y' && fileBuf[pos + 2] == 'N' && fileBuf[pos + 3] == 'C') {
-					syncPos = pos;
+					syncPos = searchPos + pos;
 					// TODO SYNC is also escaped. needs to be unescaped
 					syncFrame = DECODE_U4(&fileBuf[pos + 5]);
 					break;
@@ -477,18 +482,22 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			}
 		}
 
+		printfIndMessage("found last sync at pos %d with frameNum %d", syncPos, syncFrame);
+
 		// search for last frame
-		u8 fileBuf[1024];
 		u32 readPos = 0;
 		i32 bytesReadable = 0;
 		u32 frameCount = syncFrame;
 		u8 searchSize = 9;
 		u8 frameProgress = 9;
 		u8 synProgress = 0;
+		u32 lastSp = 0;
 		for (int searchPos = syncPos + BB_FRAMESIZE_SYNC; searchPos < size; searchPos++) {
 			if (!bytesReadable) {
 				rp2040.wdt_reset();
 				file.seek(searchPos);
+				lastSp = searchPos;
+				printfIndMessage("seeking pos %d, currently frameCount = %d", searchPos, frameCount);
 				bytesReadable = file.read(fileBuf, 1024);
 				if (bytesReadable <= 0) {
 					break;
@@ -501,32 +510,41 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 				synProgress = 0;
 				switch (fileBuf[readPos]) {
 				case BB_FRAME_NORMAL:
-					searchSize = frameSize;
+					searchSize = frameSize + 1;
+					if (frameCount >= 3730) printfIndMessage("frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					frameCount++;
 					break;
 				case BB_FRAME_FLIGHTMODE:
 					searchSize = BB_FRAMESIZE_FLIGHTMODE;
+					if (frameCount >= 3730) printfIndMessage("FM1: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_HIGHLIGHT:
 					searchSize = BB_FRAMESIZE_HIGHLIGHT;
+					if (frameCount >= 3730) printfIndMessage("HL2: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_GPS:
 					searchSize = BB_FRAMESIZE_GPS;
+					if (frameCount >= 3730) printfIndMessage("GPS3: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_RC:
 					searchSize = BB_FRAMESIZE_RC;
+					if (frameCount >= 3730) printfIndMessage("ELRS4: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_VBAT:
 					searchSize = BB_FRAMESIZE_VBAT;
+					if (frameCount >= 3730) printfIndMessage("VBAT5: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_LINK_STATS:
 					searchSize = BB_FRAMESIZE_LINK_STATS;
+					if (frameCount >= 3730) printfIndMessage("LINK6: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				case BB_FRAME_ABV_SYNC: // shouldn't happen
 					searchSize = BB_FRAMESIZE_SYNC;
+					if (frameCount >= 3730) printfIndMessage("SYNC83: frameCount: %d, pos: %d", frameCount, lastSp + readPos);
 					break;
 				default:
 					searchSize = 1;
+					if (frameCount >= 3730) printfIndMessage("WTF%c, %d: frameCount: %d, pos: %d", fileBuf[readPos],fileBuf[readPos], frameCount, lastSp + readPos);
 					break;
 				}
 				frameProgress = 1;
@@ -562,7 +580,9 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			bytesReadable--;
 			readPos++;
 		}
-		memcpy(&b[10], &frameCount, 4);
+		printfIndMessage("final frame count: %d", frameCount);
+		memcpy(&b[11], &frameCount, 4);
+		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_FILE_INIT, mspVer, (char *)b, 288);
 	} break;
 	case 1: {
 		if (reqLen != 6)
@@ -629,11 +649,10 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_FILE_INIT, mspVer, (char *)buf, syncCount * 9 + 7);
 	} break;
 	case 2: {
-		if (reqLen < 2)
+		if (reqLen < 1)
 			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Improper use of fast file init subCmd 2", strlen("Improper use of fast file init subCmd 2"));
 
 		u8 frameSize = reqPayload[0];
-		u8 syncFreq = reqPayload[1];
 		u8 b[1024];
 		b[0] = logNum & 0xFF;
 		b[1] = logNum >> 8;
@@ -650,7 +669,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		u32 bufPos = 3;
 
 		for (u32 i = 0; i < syncCount; i++) {
-			u32 filePos = DECODE_U4((u8 *)&reqPayload[2 + i * 4]);
+			u32 filePos = DECODE_U4((u8 *)&reqPayload[1 + i * 4]);
 			file.seek(filePos);
 			u8 finding = 0;
 
@@ -961,7 +980,7 @@ void startLogging() {
 	}
 	bbDuration = 0;
 	bbFrameNum = 0;
-	writtenFrameNum = 100;
+	writtenFrameNum = 0;
 	bbWriteBufferPos = 0;
 	lastSyncPos = 0;
 	writeFlightModeToBlackbox();

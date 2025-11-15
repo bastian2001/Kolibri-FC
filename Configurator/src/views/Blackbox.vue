@@ -270,6 +270,11 @@ export default defineComponent({
 				})
 				.catch(console.error);
 		},
+		openLogFast() {
+			sendCommand(MspFn.BB_FAST_FILE_INIT, {
+				data: [...intToLeBytes(this.selected, 2), 0]
+			}).then(console.log).catch(console.error)
+		},
 		deleteLog() {
 			sendCommand(MspFn.BB_FILE_DELETE, {
 				data: Array.from(intToLeBytes(this.selected, 2)),
@@ -1161,6 +1166,7 @@ export default defineComponent({
 				<option v-for="log in logNums" :value="log.num">{{ log.text || log.num }}</option>
 			</select>
 			<button @click="openLog" :disabled="selected === -1">Open</button>
+			<button @click="openLogFast" :disabled="selected === -1">Open Fast</button>
 			<button @click="deleteLog" :disabled="selected === -1">Delete</button>
 			<button @click="formatBB">Format</button>
 			<button @click="openLogFromFile">Open from file</button>
