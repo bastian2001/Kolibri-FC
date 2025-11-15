@@ -41,12 +41,10 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 			pidConstants[i][j] = (pidConstantsNice[i][0] << PID_SHIFTS[j]) / 65536
 		}
 	}
+
 	const flags: string[] = []
 	const flagSlice = header.slice(142, 150)
-	const motorPoles = header[150]
-	const disarmReason = header[151]
-
-	let frameSize = 0
+	let offset = 0
 	const offsets: { [key: string]: number } = {}
 	for (let j = 0; j < 64; j++) {
 		const byteNum = Math.floor(j / 8)
@@ -54,22 +52,22 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		const flagIsSet = flagSlice[byteNum] & (1 << bitNum)
 		if (!flagIsSet || !Object.keys(BB_ALL_FLAGS)[j]) continue
 		flags.push(Object.keys(BB_ALL_FLAGS)[j])
-		offsets[Object.keys(BB_ALL_FLAGS)[j]] = frameSize
+		offsets[Object.keys(BB_ALL_FLAGS)[j]] = offset
 		switch (j) {
 			case 23:
 			case 31:
 			case 32:
 			case 33:
 			case 44:
-				frameSize += 6
+				offset += 6
 				break
 			case 38:
 			case 40:
 			case 41:
-				frameSize += 4
+				offset += 4
 				break
 			case 39:
-				frameSize += 3
+				offset += 3
 				break
 			case 0: // ELRS_RAW
 			case 27: // GPS
@@ -77,10 +75,16 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 			case 46: // LINK_STATS
 				break
 			default:
-				frameSize += 2
+				offset += 2
 				break
 		}
 	}
+
+	const motorPoles = header[150]
+	const disarmReason = header[151]
+	const syncFrequency = header[152]
+	const frameSize = header[153]
+
 	let pos = 0
 	let frameCount = 0
 	let framePos: number[] = []
@@ -128,7 +132,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 					if (data[pos + 4]) {
 						console.log("some data: ", data[pos + 4], " in front of frame ", frame)
 					}
-					pos += 9
+					pos += 13
 				}
 				break
 			default:
@@ -445,6 +449,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		logData,
 		offsets,
 		syncs,
+		syncFrequency,
 		frameLoadingStatus,
 		version,
 		startTime,
@@ -475,8 +480,13 @@ function unescapeBlackbox(withEscapedParts: Uint8Array): Uint8Array {
 	const N = "N".charCodeAt(0)
 	const EX = "!".charCodeAt(0)
 	const C = "C".charCodeAt(0)
+	let syncDeadtime = 0
 	for (let i = 0; i < withEscapedParts.length; i++) {
 		const b = withEscapedParts[i]
+		if (syncDeadtime) {
+			out[outIndex++] = b
+			continue
+		}
 		if (synIndex === 0) {
 			out[outIndex++] = b
 			if (b === S) synIndex = 1
@@ -504,6 +514,7 @@ function unescapeBlackbox(withEscapedParts: Uint8Array): Uint8Array {
 					case C:
 						// keep SYNC fully
 						out[outIndex++] = b
+						syncDeadtime = 9
 						break
 					default:
 						console.log("weird shit's going on")

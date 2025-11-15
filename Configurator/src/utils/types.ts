@@ -125,6 +125,7 @@ export type BBLog = {
 	flightModes: { fm: number; frame: number }[]
 	offsets: { [key: string]: number }
 	syncs: { frame: number; pos: number; ctrlByte: number }[]
+	syncFrequency: number
 	frameLoadingStatus: Uint8Array
 	highlights: number[]
 	rawFile: Uint8Array

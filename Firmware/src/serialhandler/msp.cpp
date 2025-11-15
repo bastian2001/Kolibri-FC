@@ -690,7 +690,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				break;
 			}
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
-			u8 subCmd = reqPayload[2]; 
+			u8 subCmd = reqPayload[2];
 			printFastFileInit(serialNum, version, fileNum, subCmd, reqPayload + 3, reqLen - 3);
 		} break;
 		case MspFn::BB_FAST_DATA_REQ: {
@@ -712,6 +712,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[2]);
 			u8 frameSize = reqPayload[4];
 			printFastDataReq(serialNum, version, sequenceNum, fileNum, frameSize, reqPayload + 5, reqLen - 5);
+		} break;
+		case MspFn::BB_CLOSE_FILE: {
+			bbClosePrintFile(serialNum, version);
 		} break;
 		case MspFn::GET_GPS_STATUS:
 			buf[0] = gpsStatus.gpsInited;

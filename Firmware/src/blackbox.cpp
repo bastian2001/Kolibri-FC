@@ -26,6 +26,7 @@ RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 typedef struct bbPrintConfig {
 	u8 serialNum;
+	bool open;
 	bool printing;
 	MspVersion mspVer;
 	FsFile logFile;
@@ -35,6 +36,7 @@ typedef struct bbPrintConfig {
 } BbPrintConfig;
 BbPrintConfig bbPrintLog = {
 	.serialNum = 255,
+	.open = false,
 	.printing = false,
 	.mspVer = MspVersion::V2,
 	.currentChunk = 0,
@@ -52,16 +54,9 @@ u32 bbWriteBufferPos = 0;
 #define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
 bool lastHighlightState = false;
 static FlightMode lastSavedFlightMode = FlightMode::LENGTH;
-static i32 lastSyncedFrame = INT32_MIN;
+static u32 writtenFrameNum = 0;
+static u32 lastSyncPos = 0;
 static u8 fmHighlightFlag = 0; // used for SYNC. bit 0 set to indicate HL, bit 1 set to indicate FM change in the last 100 frames
-
-static void writeFlightModeToBlackbox() {
-	FlightMode fm = flightMode;
-	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
-	bbWriteBuffer[bbWriteBufferPos++] = (u8)fm;
-	lastSavedFlightMode = fm;
-	fmHighlightFlag |= 0b10;
-}
 
 /**
  * @brief replaces every SYN with SYN! and sends it off to the blackbox buffer
@@ -105,6 +100,68 @@ static void writeToBlackboxWithEscape(const u8 *buf, size_t len) {
 		memcpy(bbWriteBuffer + bbWriteBufferPos, buf, len);
 		bbWriteBufferPos += len;
 	}
+}
+
+/**
+ * @brief unescapes a byte array into a new array
+ *
+ * @param in input array
+ * @param out output array
+ * @param inputLen total length of input buffer
+ * @param outputLen target (maximum) length of output
+ * @param usedInputLen the amount of bytes that were used will be written in here, set to nullptr to ignore
+ * @return actual output length
+ */
+static size_t unescapeBytes(u8 *in, u8 *out, size_t inputLen, size_t outputLen, size_t *usedInputLen = nullptr) {
+	u8 synState = 0;
+	size_t o = 0;
+	size_t i = 0;
+	for (; i < inputLen && o < outputLen; i++) {
+		u8 &c = in[i];
+		if (!synState) {
+			out[o] = c;
+			if (c == 'S') synState = 1;
+			continue;
+		}
+
+		switch (synState) {
+		case 1:
+			out[o] = c;
+			if (c == 'Y')
+				synState = 2;
+			else
+				synState = 0;
+			break;
+		case 2:
+			out[o] = c;
+			if (c == 'N')
+				synState = 3;
+			else
+				synState = 0;
+			break;
+		case 3:
+			if (c == '!') {
+				synState = 0;
+			} else if (c == 'C') {
+				synState = 0;
+				out[o] = c;
+			} else {
+				// should not occur
+				synState = 0;
+				out[o] = c;
+			}
+		}
+	}
+	if (usedInputLen != nullptr) *usedInputLen = i;
+	return o;
+}
+
+static void writeFlightModeToBlackbox() {
+	FlightMode fm = flightMode;
+	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
+	bbWriteBuffer[bbWriteBufferPos++] = (u8)fm;
+	lastSavedFlightMode = fm;
+	fmHighlightFlag |= 0b10;
 }
 
 static void writeElrsToBlackbox() {
@@ -166,7 +223,6 @@ void blackboxLoop() {
 			u32 bytesRead = bbPrintLog.logFile.read(buffer + 6, bbPrintLog.chunkSize);
 			if (bytesRead <= 0) {
 				bbPrintLog.printing = false;
-				bbPrintLog.logFile.close();
 				TASK_END(TASK_CONFIGURATOR);
 				return;
 			}
@@ -184,24 +240,28 @@ void blackboxLoop() {
 	if (rp2040.fifo.available()) {
 		u8 *frame = (u8 *)rp2040.fifo.pop();
 		u8 &len = frame[0];
-		i32 frameIndex;
-		memcpy(&frameIndex, &frame[1], 4);
-		bool needsSync = frameIndex >= lastSyncedFrame + 100;
-		size_t spaceNeeded = len + (needsSync ? 10 : 1);
+		// i32 frameIndex;
+		// memcpy(&frameIndex, &frame[1], 4);
+		bool needsSync = (writtenFrameNum % 100) == 0;
+		size_t spaceNeeded = (len + (needsSync ? 10 : 1)) * 4 / 3;
 		if (BB_WR_BUF_HAS_FREE(spaceNeeded)) {
 			if (needsSync) {
+				u32 thisSyncPos = blackboxFile.position() + bbWriteBufferPos;
 				bbWriteBuffer[bbWriteBufferPos++] = 'S';
 				bbWriteBuffer[bbWriteBufferPos++] = 'Y';
 				bbWriteBuffer[bbWriteBufferPos++] = 'N';
 				bbWriteBuffer[bbWriteBufferPos++] = 'C';
-				bbWriteBuffer[bbWriteBufferPos++] = fmHighlightFlag;
-				memcpy(bbWriteBuffer + bbWriteBufferPos, &frameIndex, 4);
-				bbWriteBufferPos += 4;
-				lastSyncedFrame = frameIndex;
+				u8 buf[9];
+				buf[0] = fmHighlightFlag;
 				fmHighlightFlag = 0;
+				memcpy(&buf[1], &writtenFrameNum, 4);
+				memcpy(&buf[5], &lastSyncPos, 4);
+				lastSyncPos = thisSyncPos;
+				writeToBlackboxWithEscape(buf, 9);
 			}
 			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_NORMAL;
 			writeToBlackboxWithEscape(frame + 5, len);
+			writtenFrameNum++;
 		}
 		free(frame);
 	}
@@ -224,12 +284,12 @@ void blackboxLoop() {
 	}
 
 	// save GPS PVT message
-	if (newPvtMessageFlag & (1 << 0) && currentBBFlags & LOG_GPS && BB_WR_BUF_HAS_FREE(92 + 1)) {
+	if (newPvtMessageFlag & (1 << 0) && currentBBFlags & LOG_GPS && BB_WR_BUF_HAS_FREE(92 * 4 / 3 + 1)) {
 		writeGpsToBlackbox();
 	}
 
 	// save ELRS joysticks
-	if (ELRS->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 + 1)) {
+	if (ELRS->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
 		writeElrsToBlackbox();
 	}
 
@@ -239,7 +299,7 @@ void blackboxLoop() {
 	}
 
 	// save ELRS link statistics
-	if (ELRS->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 + 1)) {
+	if (ELRS->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
 		writeElrsLinkToBlackbox();
 	}
 
@@ -321,23 +381,402 @@ u32 getBlackboxChunkSize(MspVersion v) {
 	}
 }
 
-void printFastFileInit(u8 serialNum, MspVersion version, u16 fileNum, u8 subCmd, const char *reqPayload, u16 reqLen) {
+/**
+ * @brief opens a log file into bbPrintLog.logFile if provided logNum differs
+ * @return true if a file is open afterwards
+ */
+static bool openLogFileIfDiffNum(u16 logNum) {
+	if (bbPrintLog.open && bbPrintLog.logNum != logNum) {
+		bbPrintLog.printing = false;
+		bbPrintLog.open = false;
+		bbPrintLog.logFile.close();
+	}
+
+	if (!bbPrintLog.open) {
+		char path[32];
+#if BLACKBOX_STORAGE == SD_BB
+		snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
+		bbPrintLog.logFile = sdCard.open(path);
+#endif
+		if (!bbPrintLog.logFile) {
+			return false;
+		}
+
+		bbPrintLog.open = true;
+		bbPrintLog.logNum = logNum;
+	}
+	return true;
 }
 
-void printFastDataReq(u8 serialNum, MspVersion version, u16 sequenceNum, u16 fileNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
+void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen) {
+	if (!fsReady || bbLogging) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		return;
+	}
+	if (!openLogFileIfDiffNum(logNum)) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "File not found", strlen("File not found"));
+		return;
+	}
+	u32 chunkSize = getBlackboxChunkSize(mspVer);
+	bbPrintLog.printing = false;
+	bbPrintLog.currentChunk = 0;
+	bbPrintLog.mspVer = mspVer;
+	bbPrintLog.serialNum = serialNum;
+	bbPrintLog.chunkSize = chunkSize;
+
+	switch (subCmd) {
+	case 0: {
+#if BLACKBOX_STORAGE == SD_BB
+		FsFile &file = bbPrintLog.logFile;
+#endif
+
+		u8 b[288];
+		b[0] = logNum & 0xFF;
+		b[1] = logNum >> 8;
+		b[2] = subCmd;
+		u32 size = file.size();
+		memcpy(&b[3], &size, 4);
+		memcpy(&b[7], &chunkSize, 4);
+		file.read(&b[32], 256);
+		u8 &frameSize = b[32 + 153];
+
+		u8 fileBuf[1024 + 8]; // 1024 bytes to read, +8 to check for sync crossing 1024-boundaries (sync size 9 bytes)
+		for (int i = 0; i < 8; i++) {
+			fileBuf[i] = 0; // zero out the array to ensure no invalid sync read at the very end of the file
+		}
+		u32 syncPos = 0xFFFFFFFFU;
+		u32 syncFrame = 0;
+		for (i32 searchPos = size - 1024; searchPos > 256 - 1024; searchPos -= 1024) {
+			u32 readSize = 1024;
+			if (searchPos < 256) { // do not read into header (unescaped and useless anyway)
+				i32 temp = searchPos;
+				searchPos = 256;
+				readSize -= searchPos - temp;
+			}
+
+			// shift the first 8 bytes of the last search position to the end so we can always search for a 9 byte sync phrase (sync is 13 byte but we only need the first 9 of it)
+			for (int i = 0; i < 8; i++) {
+				fileBuf[readSize + i] = fileBuf[i];
+			}
+
+			// get 1024 bytes so we have 1032 to read through to find a sync
+			file.seek(searchPos);
+			file.read(fileBuf, readSize);
+
+			// read through the bytes and find sync
+			for (i32 pos = readSize - 1; pos >= 0; pos--) {
+				if (fileBuf[pos] == 'S' && fileBuf[pos + 1] == 'Y' && fileBuf[pos + 2] == 'N' && fileBuf[pos + 3] == 'C') {
+					syncPos = pos;
+					// TODO SYNC is also escaped. needs to be unescaped
+					syncFrame = DECODE_U4(&fileBuf[pos + 5]);
+					break;
+				}
+			}
+			if (syncPos != 0xFFFFFFFFU) {
+				break;
+			}
+		}
+
+		// search for last frame
+		u8 fileBuf[1024];
+		u32 readPos = 0;
+		i32 bytesReadable = 0;
+		u32 frameCount = syncFrame;
+		u8 searchSize = 9;
+		u8 frameProgress = 9;
+		u8 synProgress = 0;
+		for (int searchPos = syncPos + BB_FRAMESIZE_SYNC; searchPos < size; searchPos++) {
+			if (!bytesReadable) {
+				rp2040.wdt_reset();
+				file.seek(searchPos);
+				bytesReadable = file.read(fileBuf, 1024);
+				if (bytesReadable <= 0) {
+					break;
+				}
+				readPos = 0;
+			}
+
+			if (frameProgress == searchSize) {
+				// beginning of new frame
+				synProgress = 0;
+				switch (fileBuf[readPos]) {
+				case BB_FRAME_NORMAL:
+					searchSize = frameSize;
+					frameCount++;
+					break;
+				case BB_FRAME_FLIGHTMODE:
+					searchSize = BB_FRAMESIZE_FLIGHTMODE;
+					break;
+				case BB_FRAME_HIGHLIGHT:
+					searchSize = BB_FRAMESIZE_HIGHLIGHT;
+					break;
+				case BB_FRAME_GPS:
+					searchSize = BB_FRAMESIZE_GPS;
+					break;
+				case BB_FRAME_RC:
+					searchSize = BB_FRAMESIZE_RC;
+					break;
+				case BB_FRAME_VBAT:
+					searchSize = BB_FRAMESIZE_VBAT;
+					break;
+				case BB_FRAME_LINK_STATS:
+					searchSize = BB_FRAMESIZE_LINK_STATS;
+					break;
+				case BB_FRAME_ABV_SYNC: // shouldn't happen
+					searchSize = BB_FRAMESIZE_SYNC;
+					break;
+				default:
+					searchSize = 1;
+					break;
+				}
+				frameProgress = 1;
+			} else {
+				u8 u = fileBuf[readPos];
+				bool fp = true;
+				switch (synProgress) {
+				case 0:
+					if (u == 'S')
+						synProgress = 1;
+					break;
+				case 1:
+					if (u == 'Y')
+						synProgress = 2;
+					else
+						synProgress = 0;
+					break;
+				case 2:
+					if (u == 'N')
+						synProgress = 3;
+					else
+						synProgress = 0;
+					break;
+				case 3:
+					if (u == '!')
+						fp = false;
+					synProgress = 0;
+					break;
+				}
+				if (fp)
+					frameProgress++;
+			}
+			bytesReadable--;
+			readPos++;
+		}
+		memcpy(&b[10], &frameCount, 4);
+	} break;
+	case 1: {
+		if (reqLen != 6)
+			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Improper use of fast file init subCmd 1", strlen("Improper use of fast file init subCmd 1"));
+#if BLACKBOX_STORAGE == SD_BB
+		FsFile &file = bbPrintLog.logFile;
+#endif
+		u32 startPos = DECODE_U4((u8 *)reqPayload);
+		u8 frameSize = reqPayload[4];
+		u8 syncFreq = reqPayload[5];
+		const u32 jumpAfterSync = syncFreq * frameSize + BB_FRAMESIZE_SYNC; // no guarantee about elrs etc. so not adding any of that here
+		const u32 maxSyncs = (chunkSize - 8) / 9; // per sync: pos (4), frame (4), status(1)
+		u8 buf[maxSyncs * 9 + 7];
+		buf[0] = logNum & 0xFF;
+		buf[1] = logNum >> 8;
+		buf[2] = subCmd;
+		memcpy(&buf[3], &startPos, 4);
+		u8 inBuf[1024];
+		u32 syncCount = 0;
+		file.seek(startPos);
+		i32 maxReadNext = file.read(inBuf + 512, 512);
+		if (maxReadNext < 0) {
+			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
+		}
+
+		for (bool doneAllSyncs = false; !doneAllSyncs;) {
+			memcpy(inBuf, inBuf + 512, maxReadNext);
+			i32 maxRead = maxReadNext;
+			if (maxRead < BB_FRAMESIZE_SYNC) {
+				// file end reached
+				break;
+			}
+			maxReadNext = file.read(inBuf + 512, 512);
+			if (maxReadNext < 0) {
+				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
+			}
+			// overwrite leftover data with 0 to prevent accidental SYNC finding, once end of file is reached
+			for (int i = 512 + maxReadNext; i < 1024; i++) {
+				inBuf[i] = 0;
+			}
+
+			// actually find SYNC
+			for (int i = 0; i < maxRead; i++) {
+				if (inBuf[i] != 'S') continue;
+				if (inBuf[i + 1] == 'Y' && inBuf[i + 2] == 'N' && inBuf[i + 3] == 'C') {
+					u32 syncPos = file.position() - maxReadNext - maxRead + i;
+					u8 syncBuf[5];
+					unescapeBytes(&inBuf[i + 4], syncBuf, 500, 5);
+					u8 syncFlags = syncBuf[0];
+					u32 syncFrame = DECODE_U4(&syncBuf[1]);
+					u32 bufPos = syncCount * 9 + 7;
+					memcpy(&buf[bufPos], &syncPos, 4);
+					memcpy(&buf[bufPos + 4], &syncFrame, 4);
+					buf[bufPos + 8] = syncFlags;
+					syncCount++;
+					if (syncCount >= maxSyncs) {
+						doneAllSyncs = true;
+						break;
+					}
+				}
+			}
+		}
+
+		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_FILE_INIT, mspVer, (char *)buf, syncCount * 9 + 7);
+	} break;
+	case 2: {
+		if (reqLen < 2)
+			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Improper use of fast file init subCmd 2", strlen("Improper use of fast file init subCmd 2"));
+
+		u8 frameSize = reqPayload[0];
+		u8 syncFreq = reqPayload[1];
+		u8 b[1024];
+		b[0] = logNum & 0xFF;
+		b[1] = logNum >> 8;
+		b[2] = subCmd;
+
+		// search from startPos up to the next SYNC and report ALL found HLs and FM changes. Format: u8: count of total occurences until next sync, then an array of 5 byte structs: u32 frameNum, u8 flag. Where flag is of the following format: bit0-bit3: FM change: 0xF = no change, anything lower is the new FM. bit 4: HL indicator, bit5-7 reserved. Repeat this u8 + struct[] thing until all are done. flags can contain data for both, a HL and FM change, but they do not need to be merged.
+		// reqData contains a bunch of the previously reported sync positions. These HAVE TO be actual starts of SYNC sequences
+
+#if BLACKBOX_STORAGE == SD_BB
+		FsFile &file = bbPrintLog.logFile;
+#endif
+
+		const u32 syncCount = (reqLen - 2) / 4;
+		u32 bufPos = 3;
+
+		for (u32 i = 0; i < syncCount; i++) {
+			u32 filePos = DECODE_U4((u8 *)&reqPayload[2 + i * 4]);
+			file.seek(filePos);
+			u8 finding = 0;
+
+			u8 inBuf[1024];
+			i32 readable = file.read(inBuf, 1024);
+			u32 readPos = 0;
+			u32 frameNum = 0;
+			u32 lastFlag = 0xFFFFFFFFUL;
+			u8 dummy[256];
+			if (readable < 0) {
+				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
+			}
+
+			u32 bufPosBackup = bufPos;
+			bufPos++;
+			for (bool foundNextSync = false; !foundNextSync;) {
+				if (bufPos > chunkSize - 5) break;
+
+				// read one (any frametype) frame at a time, and read 512 bytes again if more bytes are needed by that frametype than are readable.
+
+				// shift and refill if needed
+				if (readable - readPos < 512) {
+					memmove(inBuf, &inBuf[readPos], 1024 - readPos);
+					memset(&inBuf[1024 - readPos], 0, readPos);
+					i32 newBytes = file.read(&inBuf[1024 - readPos], readPos);
+					readable -= readPos;
+					readPos = 0;
+					if (newBytes < 0) break; // error
+					readable += newBytes;
+				}
+
+				switch (inBuf[readPos++]) {
+				case BB_FRAME_NORMAL: {
+					frameNum++;
+					u32 used = 0;
+					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
+					if (act != frameSize) {
+						// TODO error
+					}
+					readPos += used;
+				} break;
+				case BB_FRAME_FLIGHTMODE: {
+					if (lastFlag == frameNum) {
+						// can overwrite, does not need to, we skip it for now
+					}
+					memcpy(&b[bufPos], &frameNum, 4);
+					b[bufPos + 4] = inBuf[readPos] & 0xF;
+					bufPos += 5;
+					lastFlag = frameNum;
+					finding++;
+					readPos++;
+				} break;
+				case BB_FRAME_HIGHLIGHT: {
+					if (lastFlag == frameNum) {
+						// can overwrite, does not need to, we skip it for now
+					}
+					memcpy(&b[bufPos], &frameNum, 4);
+					b[bufPos + 4] = 0x1F;
+					bufPos += 5;
+					lastFlag = frameNum;
+					finding++;
+				} break;
+				case BB_FRAME_GPS: {
+					u32 used = 0;
+					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
+					if (act != BB_FRAMESIZE_GPS - 1) {
+						// TODO error
+					}
+					readPos += used;
+				} break;
+				case BB_FRAME_RC: {
+					u32 used = 0;
+					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_RC - 1, &used);
+					if (act != BB_FRAMESIZE_GPS - 1) {
+						// TODO error
+					}
+					readPos += used;
+				} break;
+				case BB_FRAME_VBAT: {
+					readPos += BB_FRAMESIZE_VBAT - 1;
+				} break;
+				case BB_FRAME_LINK_STATS: {
+					u32 used = 0;
+					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
+					if (act != BB_FRAMESIZE_LINK_STATS - 1) {
+						// TODO error
+					}
+					readPos += used;
+				} break;
+				case BB_FRAME_ABV_SYNC: {
+					u32 used = 0;
+					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_SYNC - 1, &used);
+					if (act != BB_FRAMESIZE_SYNC - 1) {
+						// TODO error
+					}
+					frameNum = DECODE_U4(&dummy[5]);
+					readPos += used;
+				} break;
+				}
+			}
+			b[bufPosBackup] = finding;
+			if (bufPos > chunkSize - 5) break;
+		}
+		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_FILE_INIT, mspVer, (char *)b, bufPos);
+	} break;
+	default:
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "invalid subCmd", strlen("invalid subCmd"));
+		break;
+	}
+}
+
+void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
+	if (!fsReady || bbLogging) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+	}
+	if (!openLogFileIfDiffNum(logNum)) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "File not found", strlen("File not found"));
+	}
 }
 
 void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
-	if (bbPrintLog.printing) {
-		bbPrintLog.printing = false;
-		bbPrintLog.logFile.close();
+	if (!fsReady || bbLogging) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_INIT, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		return;
 	}
-	char path[32];
-#if BLACKBOX_STORAGE == SD_BB
-	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-	FsFile logFile = sdCard.open(path);
-#endif
-	if (!logFile) {
+	if (!openLogFileIfDiffNum(logNum)) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_INIT, mspVer, "File not found", strlen("File not found"));
 		return;
 	}
@@ -346,7 +785,7 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	u8 b[10];
 	b[0] = logNum & 0xFF;
 	b[1] = logNum >> 8;
-	u32 size = logFile.size();
+	u32 size = bbPrintLog.logFile.size();
 	b[2] = size & 0xFF;
 	b[3] = (size >> 8) & 0xFF;
 	b[4] = (size >> 16) & 0xFF;
@@ -357,20 +796,20 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	b[8] = (chunkSize >> 16) & 0xFF;
 	b[9] = (chunkSize >> 24) & 0xFF;
 	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_INIT, mspVer, (char *)b, 10);
-	logFile.close();
+
+	bbPrintLog.printing = false;
+	bbPrintLog.currentChunk = 0;
+	bbPrintLog.mspVer = mspVer;
+	bbPrintLog.serialNum = serialNum;
+	bbPrintLog.chunkSize = chunkSize;
 }
 
 void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
-	if (bbPrintLog.printing) {
-		bbPrintLog.printing = false;
-		bbPrintLog.logFile.close();
+	if (!fsReady || bbLogging) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		return;
 	}
-	char path[32];
-#if BLACKBOX_STORAGE == SD_BB
-	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-	bbPrintLog.logFile = sdCard.open(path);
-#endif
-	if (!bbPrintLog.logFile) {
+	if (!openLogFileIfDiffNum(logNum)) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
 		return;
 	}
@@ -395,14 +834,62 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 	bbPrintLog.mspVer = mspVer;
 	bbPrintLog.serialNum = serialNum;
 	bbPrintLog.chunkSize = chunkSize;
-	bbPrintLog.logNum = logNum;
+}
+
+void bbClosePrintFile(u8 serialNum, MspVersion mspVer) {
+	if (!fsReady || bbLogging) {
+		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_CLOSE_FILE, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		return;
+	}
+	if (bbPrintLog.open) {
+		bbPrintLog.open = false;
+		bbPrintLog.printing = false;
+		bbPrintLog.logFile.close();
+	}
+	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_CLOSE_FILE, mspVer);
+}
+
+static u8 getFrameSizeFromFlags() {
+	u8 frameSize = 0;
+	for (int i = 0; i < 47; i++) {
+		// continue if unset
+		if (!(bbFlags & (1ULL << i))) continue;
+
+		switch (i) {
+		case 23:
+		case 31:
+		case 32:
+		case 33:
+		case 44:
+			frameSize += 6;
+			break;
+		case 38:
+		case 40:
+		case 41:
+			frameSize += 4;
+			break;
+		case 39:
+			frameSize += 3;
+			break;
+		case 0: // ELRS_RAW
+		case 27: // GPS
+		case 45: // VBAT
+		case 46: // LINK_STATS
+			break;
+		default:
+			frameSize += 2;
+			break;
+		}
+	}
+	return frameSize;
 }
 
 void startLogging() {
 	if (!bbFlags || !fsReady || bbLogging || !bbFreqDivider)
 		return;
-	if (bbPrintLog.printing) {
+	if (bbPrintLog.open) {
 		bbPrintLog.printing = false;
+		bbPrintLog.open = false;
 		bbPrintLog.logFile.close();
 	}
 	currentBBFlags = bbFlags;
@@ -466,14 +953,17 @@ void startLogging() {
 	blackboxFile.write(dummy, 30);
 	blackboxFile.write((u8 *)&bbFlags, 8);
 	blackboxFile.write((u8)MOTOR_POLES);
-	blackboxFile.write(100); // one sync sequence every x frames. Set to 0 to indicate that ABV is disabled
+	blackboxFile.write((u8)0); // disarm reason, will be filled at the end
+	blackboxFile.write((u8)100); // one sync sequence every x frames. Set to 0 to indicate that ABV is disabled
+	blackboxFile.write(getFrameSizeFromFlags());
 	while (blackboxFile.position() < LOG_DATA_START) {
 		blackboxFile.write((u8)0);
 	}
 	bbDuration = 0;
 	bbFrameNum = 0;
-	lastSyncedFrame = INT32_MIN;
+	writtenFrameNum = 100;
 	bbWriteBufferPos = 0;
+	lastSyncPos = 0;
 	writeFlightModeToBlackbox();
 	if (currentBBFlags & LOG_GPS) writeGpsToBlackbox();
 	if (currentBBFlags & LOG_ELRS_RAW) writeElrsToBlackbox();
