@@ -428,8 +428,6 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 	bbPrintLog.serialNum = serialNum;
 	bbPrintLog.chunkSize = chunkSize;
 
-	printfIndMessage("fast file init for file %d with subcmd %d", logNum, subCmd);
-
 	switch (subCmd) {
 	case 0: {
 #if BLACKBOX_STORAGE == SD_BB
@@ -840,14 +838,12 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 
 		while (elrsReq != elrsCompleted || gpsReq != gpsCompleted || vbatReq != vbatCompleted || linkStatsReq != linkStatsCompleted) {
 			rp2040.wdt_reset();
-			printfIndMessage("seeking %d", nextSyncPos);
 			if (nextSyncPos == 0xFFFFFFFFUL)
 				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 1 while reading file", strlen("Error 1 while reading file"));
 			if (nextSyncPos == 0) {
 				nextSyncPos = 256;
 				frameNum = 0;
 			}
-			printfIndMessage("actually seeking %d", nextSyncPos);
 			file.seek(nextSyncPos);
 			nextSyncPos = 0xFFFFFFFFUL;
 
@@ -1002,13 +998,10 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					if (nextSyncPos != 0xFFFFFFFFUL && framePos != 0 && (elrsReq != elrsFound || gpsReq != gpsFound || vbatReq != vbatFound || linkStatsReq != linkStatsFound)) {
 						// if we found the frame, but not all ELRS/GPS/... stuff, go back, else store the next jump point
 						goBack = true;
-						printfIndMessage("goBack");
 					} else if (nextSyncPos == 0xFFFFFFFFUL) {
 						nextSyncPos = DECODE_U4(&dummy[3 /*YNC*/ + 1 /*flag*/ + 4 /*frame number*/]);
-						printfIndMessage("found SYNC around %d with nextSyncPos %d", (u32)file.position() - readable + readPos - 1, nextSyncPos);
 					}
 					frameNum = DECODE_U4(&dummy[4]);
-					printfIndMessage("it has frameNum %d", frameNum);
 					readPos += used;
 				} break;
 				}

@@ -13,6 +13,7 @@ import { parseBlackbox, parseBlackboxHeader, parseElrs, parseFrames, parseGps, p
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
 import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
 import { DISARM_REASONS, TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/constants";
+import { isBigIntLiteral } from "typescript";
 
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
 ];
@@ -71,6 +72,7 @@ export default defineComponent({
 			traceInternalBackupFn: [[]] as (() => (TraceInternalData | void))[][],
 			DISARM_REASONS,
 			exiting: false,
+			sequenceNum: 0,
 		};
 	},
 	computed: {
@@ -270,6 +272,160 @@ export default defineComponent({
 				})
 				.catch(console.error);
 		},
+		getSyncPosOfFrame(frame: number, log: BBLog): number {
+			if (frame > log.frameCount || frame < 0) return 0
+			let syncIndex = Math.floor(frame / log.syncFrequency)
+			if (syncIndex >= log.syncs.length) syncIndex = log.syncs.length - 1
+
+			let sync = log.syncs[syncIndex]
+			if (sync.frame < frame) {
+				for (let i = syncIndex; i < log.syncs.length; i++) {
+					if ((log.syncs[i + 1]?.frame || Number.MAX_SAFE_INTEGER) > frame) {
+						syncIndex = i
+						break
+					}
+				}
+			} else if (sync.frame > frame) {
+				for (let i = syncIndex - 1; i >= 0; i--) {
+					if (log.syncs[i].frame <= frame) {
+						syncIndex = i
+						break
+					}
+				}
+			}
+			return syncIndex
+		},
+		getFrames(frames: Uint32Array, flags: Uint8Array, log: BBLog): { len: number, done: Promise<void> } {
+			if (frames.length != flags.length)
+				return { len: 0, done: Promise.reject() }
+			const maxReqCount = frames.length
+			const reqData = new Uint8Array(this.chunkSize)
+			let i = 0
+			reqData.set([...intToLeBytes(this.sequenceNum, 2), ...intToLeBytes(this.selected, 2), log.frameSize], 0)
+			let resSize = 2
+			let frameReq = 0
+			const frameOffsets = new Uint32Array(maxReqCount)
+			let elrsReq = 0
+			const elrsOffsets = new Uint32Array(maxReqCount)
+			let gpsReq = 0
+			const gpsOffsets = new Uint32Array(maxReqCount)
+			let vbatReq = 0
+			const vbatOffsets = new Uint32Array(maxReqCount)
+			let linkStatsReq = 0
+			const linkStatsOffsets = new Uint32Array(maxReqCount)
+			for (; i < maxReqCount; i++) {
+				const pos = 5 + i * 9
+				const fr = frames[i]
+				const fl = flags[i]
+				if (pos + 9 > this.chunkSize) break; // ensure we don't overflow the req buffer
+
+				const resFrameLength =
+					((fl & 0b00001) ? log.frameSize : 0) +
+					((fl & 0b00010) ? 14 : 0) +
+					((fl & 0b00100) ? 100 : 0) +
+					((fl & 0b01000) ? 19 : 0) +
+					((fl & 0b10000) ? 10 : 0);
+
+				if (resFrameLength + resSize > this.chunkSize) break; // ensure we don't overflow the res buffer
+
+				reqData.set(intToLeBytes(fr, 4), pos)
+				reqData[pos + 4] = fl
+				reqData.set(intToLeBytes(this.getSyncPosOfFrame(fr, log), 4), pos + 5)
+
+				if (fl & 0b00001) {
+					frameOffsets[frameReq++] = resSize
+					resSize += log.frameSize
+				}
+				if (fl & 0b00010) {
+					elrsOffsets[elrsReq++] = resSize
+					resSize += 14
+				}
+				if (fl & 0b00100) {
+					gpsOffsets[gpsReq++] = resSize
+					resSize += 100
+				}
+				if (fl & 0b01000) {
+					vbatOffsets[vbatReq++] = resSize
+					resSize += 19
+				}
+				if (fl & 0b10000) {
+					linkStatsOffsets[linkStatsReq++] = resSize
+					resSize += 10
+				}
+			}
+
+			return {
+				len: i,
+				done: new Promise<void>((res, rej) => {
+					sendCommand(MspFn.BB_FAST_DATA_REQ, {
+						data: Array.from(reqData.slice(0, 5 + i * 9)),
+						timeout: 1500,
+						callbackData: this.sequenceNum++,
+						verifyFn: (req, res, cb) => {
+							return res.cmdType === 'response'
+								&& req.command === res.command
+								&& leBytesToInt(res.data, 0, 2) === cb
+						}
+					}).then(c => {
+						if (c.data.length != resSize) throw 'incorrect length of response ' + c.data.length + " instead of " + resSize
+						const data = c.data
+
+						// parse frames
+						const frameBuf = new Uint8Array(frameReq * log.frameSize)
+						for (let i = 0; i < frameReq; i++) {
+							frameBuf.set(data.slice(frameOffsets[i], frameOffsets[i] + log.frameSize), i * log.frameSize)
+						}
+						parseFrames(log.logData, frameBuf, frames, log.frameLoadingStatus, log.offsets, log.frameSize, log.flags, log.framesPerSecond, log.motorPoles)
+
+						// parse ELRS
+						const elrsBuf = new Uint8Array(elrsReq * 6)
+						const elrsFrom = new Uint32Array(elrsReq)
+						const elrsTo = new Uint32Array(elrsReq)
+						for (let i = 0; i < elrsReq; i++) {
+							elrsFrom[i] = leBytesToInt(data, elrsOffsets[i], 4)
+							elrsTo[i] = leBytesToInt(data, elrsOffsets[i] + 4, 4)
+							elrsBuf.set(data.slice(elrsOffsets[i] + 8, elrsOffsets[i] + 14), i * 6)
+						}
+						parseElrs(log.logData, log.frameLoadingStatus, elrsBuf, elrsFrom, elrsTo)
+
+						// parse GPS
+						const gpsBuf = new Uint8Array(gpsReq * 92)
+						const gpsFrom = new Uint32Array(gpsReq)
+						const gpsTo = new Uint32Array(gpsReq)
+						for (let i = 0; i < gpsReq; i++) {
+							gpsFrom[i] = leBytesToInt(data, gpsOffsets[i], 4)
+							gpsTo[i] = leBytesToInt(data, gpsOffsets[i] + 4, 4)
+							gpsBuf.set(data.slice(gpsOffsets[i] + 8, gpsOffsets[i] + 100), i * 92)
+						}
+						parseGps(log.logData, log.frameLoadingStatus, gpsBuf, gpsFrom, gpsTo)
+
+						// parse VBat
+						const vbatBuf = new Uint8Array(vbatReq * 2)
+						const vbatFrom = new Uint32Array(vbatReq)
+						const vbatTo = new Uint32Array(vbatReq)
+						for (let i = 0; i < vbatReq; i++) {
+							vbatFrom[i] = leBytesToInt(data, vbatOffsets[i], 4)
+							vbatTo[i] = leBytesToInt(data, vbatOffsets[i] + 4, 4)
+							vbatBuf.set(data.slice(vbatOffsets[i] + 8, vbatOffsets[i] + 10), i * 2)
+						}
+						parseVbat(log.logData, log.frameLoadingStatus, vbatBuf, vbatFrom, vbatTo)
+
+						// parse Link Stats
+						const linkStatsBuf = new Uint8Array(linkStatsReq * 11)
+						const linkStatsFrom = new Uint32Array(linkStatsReq)
+						const linkStatsTo = new Uint32Array(linkStatsReq)
+						for (let i = 0; i < linkStatsReq; i++) {
+							linkStatsFrom[i] = leBytesToInt(data, linkStatsOffsets[i], 4)
+							linkStatsTo[i] = leBytesToInt(data, linkStatsOffsets[i] + 4, 4)
+							linkStatsBuf.set(data.slice(linkStatsOffsets[i] + 8, linkStatsOffsets[i] + 19), i * 11)
+						}
+						parseLinkStats(log.logData, log.frameLoadingStatus, linkStatsBuf, linkStatsFrom, linkStatsTo)
+
+						res()
+					}).catch(rej)
+				})
+			}
+		},
 		async openLogFast() {
 			try {
 				let c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
@@ -293,6 +449,7 @@ export default defineComponent({
 					this.configuratorLog.push(log)
 					return
 				}
+				log.rawFile = header
 				log.fileSize = fileSize
 				log.frameCount = frameCount
 				resizeTypedArrays(log.logData, frameCount)
@@ -306,7 +463,6 @@ export default defineComponent({
 					c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
 						data: [...intToLeBytes(this.selected, 2), 1, ...intToLeBytes(syncStart, 4), frameSize, log.syncFrequency],
 						timeout: 1500,
-						retries: 0,
 						verifyFn: (req, res) => {
 							return res.cmdType === 'response'
 								&& req.command === res.command
@@ -362,65 +518,19 @@ export default defineComponent({
 					}
 				}
 
-				reqData = [0, 0, ...intToLeBytes(this.selected, 2), frameSize];
-				reqData.push(...intToLeBytes(0, 4), 0x1F, ...intToLeBytes(syncs[0].pos, 4))
-				reqData.push(...intToLeBytes(log.frameCount - 1, 4), 0x1F, ...intToLeBytes(syncs[syncs.length - 1].pos, 4))
-				c = await sendCommand(MspFn.BB_FAST_DATA_REQ, {
-					data: reqData,
-					timeout: 1500,
-					verifyFn: (req, res) => {
-						return res.cmdType === 'response' && req.command === res.command && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2)
-					}
-				})
-
-				const data = c.data.slice(2)
-				const frameOffset = 0;
-				const frameBuffer = new Uint8Array(frameSize * 2)
-				const frames = new Uint32Array([0, log.frameCount - 1])
-				const elrsOffset = frameSize
-				const elrsBuffer = new Uint8Array(6 * 2)
-				const elrsFrom = new Uint32Array(2)
-				const elrsTo = new Uint32Array(2)
-				const gpsOffset = elrsOffset + 6 + 8
-				const gpsBuffer = new Uint8Array(92 * 2)
-				const gpsFrom = new Uint32Array(2)
-				const gpsTo = new Uint32Array(2)
-				const vbatOffset = gpsOffset + 92 + 8
-				const vbatBuffer = new Uint8Array(2 * 2)
-				const vbatFrom = new Uint32Array(2)
-				const vbatTo = new Uint32Array(2)
-				const linkStatsOffset = vbatOffset + 2 + 8
-				const linkStatsBuffer = new Uint8Array(11 * 2)
-				const linkStatsFrom = new Uint32Array(2)
-				const linkStatsTo = new Uint32Array(2)
-				const batchSize = linkStatsOffset + 11 + 8
-				if (data.length != batchSize * 2) {
-					this.configuratorLog.push("incorrect returned length")
-					return
+				const frames = new Uint32Array([0, frameCount - 1])
+				const flags = new Uint8Array([0x1F, 0x1F])
+				const result = this.getFrames(frames, flags, log)
+				if (result.len === 0) {
+					this.configuratorLog.push("could not fit a single frame into a request")
 				}
-
-				for (let i = 0; i < 2; i++) {
-					const pos = i * batchSize
-					frameBuffer.set(data.slice(pos + frameOffset, pos + elrsOffset), i * frameSize)
-					elrsBuffer.set(data.slice(pos + elrsOffset + 8, pos + gpsOffset), i * 6)
-					gpsBuffer.set(data.slice(pos + gpsOffset + 8, pos + vbatOffset), i * 92)
-					vbatBuffer.set(data.slice(pos + vbatOffset + 8, pos + linkStatsOffset), i * 2)
-					linkStatsBuffer.set(data.slice(pos + linkStatsOffset + 8, pos + batchSize), i * 11)
-					elrsFrom[i] = leBytesToInt(data, pos + elrsOffset, 4)
-					elrsTo[i] = leBytesToInt(data, pos + elrsOffset + 4, 4)
-					gpsFrom[i] = leBytesToInt(data, pos + gpsOffset, 4)
-					gpsTo[i] = leBytesToInt(data, pos + gpsOffset + 4, 4)
-					vbatFrom[i] = leBytesToInt(data, pos + vbatOffset, 4)
-					vbatTo[i] = leBytesToInt(data, pos + vbatOffset + 4, 4)
-					linkStatsFrom[i] = leBytesToInt(data, pos + linkStatsOffset, 4)
-					linkStatsTo[i] = leBytesToInt(data, pos + linkStatsOffset + 4, 4)
+				await result.done
+				if (result.len === 1) {
+					const frames = new Uint32Array([frameCount - 1])
+					const flags = new Uint8Array([0x1F])
+					const result = this.getFrames(frames, flags, log)
+					await result.done
 				}
-
-				parseFrames(log.logData, frameBuffer, frames, log.frameLoadingStatus, log.offsets, frameSize, log.flags, log.framesPerSecond, log.motorPoles)
-				parseElrs(log.logData, log.frameLoadingStatus, elrsBuffer, elrsFrom, elrsTo)
-				parseGps(log.logData, log.frameLoadingStatus, gpsBuffer, gpsFrom, gpsTo)
-				parseVbat(log.logData, log.frameLoadingStatus, vbatBuffer, vbatFrom, vbatTo)
-				parseLinkStats(log.logData, log.frameLoadingStatus, linkStatsBuffer, linkStatsFrom, linkStatsTo)
 
 				this.loadedLog = log
 
