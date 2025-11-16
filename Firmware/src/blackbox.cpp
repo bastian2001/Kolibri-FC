@@ -812,8 +812,8 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 			(frameReq ? frameSize : 0) +
 			(elrsReq ? sizeof(elrsBuffer) : 0) +
 			(gpsReq ? sizeof(gpsBuffer) : 0) +
-			(vbatReq ? sizeof(linkStatsBuffer) : 0) +
-			(linkStatsReq ? sizeof(vbatBuffer) : 0);
+			(vbatReq ? sizeof(vbatBuffer) : 0) +
+			(linkStatsReq ? sizeof(linkStatsBuffer) : 0);
 		if (bufPos + totalSize > getBlackboxChunkSize(mspVer)) break;
 		u32 elrsFrame = 0, gpsFrame = 0, vbatFrame = 0, linkStatsFrame = 0;
 		u32 suggestedSyncPos = DECODE_U4((u8 *)&reqPayload[i + 5]);
@@ -821,6 +821,8 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		u32 framePos = 0;
 		bool searchingBackwards = true;
 		u32 frameNum = 0;
+		memset(frameBuffer, 0, frameSize);
+		printfIndMessage("now searching for frame %d", reqFrame);
 
 		/*
 		 * EVERYTHING ALWAYS UNESCAPED
@@ -890,17 +892,23 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					u32 used = 0;
 					u32 act = 0;
 					if (frameNum >= reqFrame && searchingBackwards) {
-						unescapeBytes(&inBuf[readPos], frameBuffer, readable - readPos, frameSize, &used);
+						act = unescapeBytes(&inBuf[readPos], frameBuffer, readable - readPos, frameSize, &used);
 						framePos = file.position() - readable + readPos - 1;
+						if (frameNum > 1700)
+							printfIndMessage("read %d (max %d) => act %d (should be %d) bytes from %06X into frameBuffer for frame %d", used, readable - readPos, act, frameSize, framePos, frameNum);
 
 						if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound) {
 							// if the frame is the last thing we find, just continue searching
 							searchingBackwards = false;
+							if (frameNum > 1700)
+								printfIndMessage("keep going forward");
 						} else {
 							goBack = true;
+							if (frameNum > 1700)
+								printfIndMessage("now go back");
 						}
 					} else {
-						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
+						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
 					}
 					if (act != frameSize) {
 						// TODO error

@@ -211,6 +211,7 @@ export default defineComponent({
 					const reader = new FileReader();
 					reader.onload = () => {
 						const str = reader.result as string;
+						this.callStop()
 						try {
 							const data = JSON.parse(str);
 							if (data.version[0] !== 0) {
@@ -265,6 +266,7 @@ export default defineComponent({
 			this.loadedLog.rawFile = raw;
 		},
 		openLog() {
+			this.callStop()
 			this.getLog(this.selected)
 				.then(data => {
 					this.startFrame = 0;
@@ -360,7 +362,7 @@ export default defineComponent({
 				done: new Promise<void>((res, rej) => {
 					sendCommand(MspFn.BB_FAST_DATA_REQ, {
 						data: Array.from(reqData.slice(0, 5 + i * 9)),
-						timeout: 20000,
+						timeout: 2000,
 						retries: 0,
 						callbackData: this.sequenceNum++,
 						verifyFn: (req, res, cb) => {
@@ -371,8 +373,6 @@ export default defineComponent({
 					}).then(async c => {
 						if (c.data.length != resSize) throw 'incorrect length of response ' + c.data.length + " instead of " + resSize
 						const data = c.data
-						console.log(c.data)
-						await delay(1000)
 
 						// parse frames
 						const frameBuf = new Uint8Array(frameReq * log.frameSize)
@@ -381,8 +381,6 @@ export default defineComponent({
 						}
 						frames = frames.slice(0, frameReq)
 						parseFrames(log.logData, frameBuf, frames, log.frameLoadingStatus, log.offsets, log.frameSize, log.flags, log.framesPerSecond, log.motorPoles)
-						console.log(frameOffsets, frameBuf, frameReq, frames)
-						await delay(1000);
 
 						// parse ELRS
 						const elrsBuf = new Uint8Array(elrsReq * 6)
@@ -394,8 +392,6 @@ export default defineComponent({
 							elrsBuf.set(data.slice(elrsOffsets[i] + 8, elrsOffsets[i] + 14), i * 6)
 						}
 						parseElrs(log.logData, log.frameLoadingStatus, elrsBuf, elrsFrom, elrsTo)
-						console.log("elrs", elrsBuf, elrsFrom, elrsTo)
-						await delay(1000);
 
 						// parse GPS
 						const gpsBuf = new Uint8Array(gpsReq * 92)
@@ -407,8 +403,6 @@ export default defineComponent({
 							gpsBuf.set(data.slice(gpsOffsets[i] + 8, gpsOffsets[i] + 100), i * 92)
 						}
 						parseGps(log.logData, log.frameLoadingStatus, gpsBuf, gpsFrom, gpsTo)
-						console.log("gps", gpsBuf, gpsFrom, gpsTo)
-						await delay(1000);
 
 						// parse VBat
 						const vbatBuf = new Uint8Array(vbatReq * 2)
@@ -420,8 +414,6 @@ export default defineComponent({
 							vbatBuf.set(data.slice(vbatOffsets[i] + 8, vbatOffsets[i] + 10), i * 2)
 						}
 						parseVbat(log.logData, log.frameLoadingStatus, vbatBuf, vbatFrom, vbatTo)
-						console.log("vbat", vbatBuf, vbatFrom, vbatTo)
-						await delay(1000);
 
 						// parse Link Stats
 						const linkStatsBuf = new Uint8Array(linkStatsReq * 11)
@@ -433,11 +425,9 @@ export default defineComponent({
 							linkStatsBuf.set(data.slice(linkStatsOffsets[i] + 8, linkStatsOffsets[i] + 19), i * 11)
 						}
 						parseLinkStats(log.logData, log.frameLoadingStatus, linkStatsBuf, linkStatsFrom, linkStatsTo)
-						console.log("link", linkStatsOffsets, linkStatsBuf, linkStatsFrom, linkStatsTo)
-						await delay(1000);
 
 						console.log("got frames ", frames)
-						res()
+						console.log(frameOffsets, data, frameBuf, frames)
 					}).catch(rej)
 				})
 			}
@@ -454,6 +444,7 @@ export default defineComponent({
 
 				if (leBytesToInt(c.data, 0, 2) !== this.selected)
 					return
+				this.callStop()
 				const header = c.data.slice(32)
 				const meta = c.data.slice(0, 32)
 				const fileSize = leBytesToInt(meta, 3, 4)
@@ -583,13 +574,6 @@ export default defineComponent({
 			const fc = this.loadedLog.frameCount
 			const accuracy = new Uint32Array(fc)
 			accuracy.fill(0x7FFFFFFF)
-			// let lMin = Math.floor(this.startFrame)
-			// if (lMin < 0) lMin = 0
-			// let lMax = Math.floor(this.endFrame + 1)
-			// if (lMax > fc) lMax = fc
-			// let forMin = this.startFrame
-			// let forMax = this.endFrame
-			// let localAcc = accuracy.slice(lMin, lMax)
 
 			const ls = this.loadedLog.frameLoadingStatus
 
@@ -670,11 +654,12 @@ export default defineComponent({
 						})
 						pendingFrames = pendingFrames.filter(v => f.indexOf(v) === -1);
 						console.log(pendingFrames)
+						this.drawCanvas()
 					} catch (e) {
 						pendingFrames = pendingFrames.filter(v => f.indexOf(v) === -1);
 						console.log(pendingFrames)
 						console.error(e)
-						await delay(30000)
+						await delay(500)
 						continue
 					}
 				}
