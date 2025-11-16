@@ -822,6 +822,9 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		bool searchingBackwards = true;
 		u32 frameNum = 0;
 
+		printfIndMessage("getting frame %d at sync pos 0x%06X %d, frameReq: %d, elrsReq: %d, gpsReq: %d, vbatReq: %d, linkStatsReq: %d", reqFrame, suggestedSyncPos, suggestedSyncPos, frameReq, elrsReq, gpsReq, vbatReq, linkStatsReq);
+		serials[0].stream->flush();
+
 		/*
 		 * EVERYTHING ALWAYS UNESCAPED
 		 *
@@ -838,6 +841,8 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 
 		while (elrsReq != elrsCompleted || gpsReq != gpsCompleted || vbatReq != vbatCompleted || linkStatsReq != linkStatsCompleted) {
 			rp2040.wdt_reset();
+			printfIndMessage("while, %06X", nextSyncPos);
+			serials[0].stream->flush();
 			if (nextSyncPos == 0xFFFFFFFFUL)
 				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 1 while reading file", strlen("Error 1 while reading file"));
 			if (nextSyncPos == 0) {
@@ -855,12 +860,17 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 
 			for (bool goBack = false; !goBack;) {
 				// read one (any frametype) frame at a time, and read 512 bytes again if more bytes are needed by that frametype than are readable.
+				printfIndMessage("for, %06X, readPos %d, readable %d, filepos %06X, frameNum %d, found: fr %d elrs %d gps %d vbat %d stats %d; completed: elrs %d gps %d vbat %d stats %d", nextSyncPos, readPos, readable, (u32)file.position(), frameNum, framePos != 0, elrsFound, gpsFound, vbatFound, linkStatsFound, elrsCompleted, gpsCompleted, vbatCompleted, linkStatsCompleted);
+				serials[0].stream->flush();
+				sleep_ms(35);
+				rp2040.wdt_reset();
 
 				// shift and refill if needed
 				if (readable - readPos < 512) {
 					memmove(inBuf, &inBuf[readPos], 1024 - readPos);
 					memset(&inBuf[1024 - readPos], 0, readPos);
 					i32 newBytes = file.read(&inBuf[1024 - readPos], readPos);
+					rp2040.wdt_reset();
 					readable -= readPos;
 					readPos = 0;
 					if (newBytes < 0)
@@ -897,6 +907,8 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 						} else {
 							goBack = true;
 						}
+						printfIndMessage("found frame %d, pos 0x%06X", frameNum, framePos);
+						serials[0].stream->flush();
 					} else {
 						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
 					}
@@ -914,15 +926,19 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 				case BB_FRAME_GPS: {
 					u32 used = 0;
 					u32 act = 0;
-					if (frameNum >= gpsFrame && frameNum <= reqFrame) {
+					if (frameNum >= gpsFrame && frameNum <= reqFrame && gpsReq) {
 						unescapeBytes(&inBuf[readPos], &gpsBuffer[8], readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
 						memcpy(gpsBuffer, &frameNum, 4);
 						gpsFound = true;
+						printfIndMessage("found GPS at frame %d", frameNum);
+						serials[0].stream->flush();
 						gpsFrame = frameNum;
 					} else {
 						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
-						if (gpsFound && !gpsCompleted) {
+						if (gpsFound && !gpsCompleted && !searchingBackwards) {
 							u32 u = frameNum - 1;
+							printfIndMessage("completed GPS until frame %d", u);
+							serials[0].stream->flush();
 							memcpy(&gpsBuffer[4], &u, 4);
 							gpsCompleted = true;
 						}
@@ -935,15 +951,19 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 				case BB_FRAME_RC: {
 					u32 used = 0;
 					u32 act = 0;
-					if (frameNum >= elrsFrame && frameNum <= reqFrame) {
+					if (frameNum >= elrsFrame && frameNum <= reqFrame && elrsReq) {
 						unescapeBytes(&inBuf[readPos], &elrsBuffer[8], readable - readPos, BB_FRAMESIZE_RC - 1, &used);
 						memcpy(elrsBuffer, &frameNum, 4);
+						printfIndMessage("found ELRS at frame %d", frameNum);
+						serials[0].stream->flush();
 						elrsFound = true;
 						elrsFrame = frameNum;
 					} else {
 						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_RC - 1, &used);
-						if (elrsFound && !elrsCompleted) {
+						if (elrsFound && !elrsCompleted && !searchingBackwards) {
 							u32 u = frameNum - 1;
+							printfIndMessage("completed ELRS until frame %d", u);
+							serials[0].stream->flush();
 							memcpy(&elrsBuffer[4], &u, 4);
 							elrsCompleted = true;
 						}
@@ -954,16 +974,20 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					readPos += used;
 				} break;
 				case BB_FRAME_VBAT: {
-					if (frameNum >= vbatFrame && frameNum <= reqFrame) {
+					if (frameNum >= vbatFrame && frameNum <= reqFrame && vbatReq) {
 						memcpy(&vbatBuffer[8], &inBuf[readPos], 2);
 						memcpy(vbatBuffer, &frameNum, 4);
 						vbatFound = true;
 						vbatFrame = frameNum;
+						printfIndMessage("found VBAT at frame %d", frameNum);
+						serials[0].stream->flush();
 					} else {
-						if (vbatFound && !vbatCompleted) {
+						if (vbatFound && !vbatCompleted && !searchingBackwards) {
 							u32 u = frameNum - 1;
 							memcpy(&vbatBuffer[4], &u, 4);
 							vbatCompleted = true;
+							printfIndMessage("completed VBAT until frame %d", u);
+							serials[0].stream->flush();
 						}
 					}
 					readPos += BB_FRAMESIZE_VBAT - 1;
@@ -971,17 +995,22 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 				case BB_FRAME_LINK_STATS: {
 					u32 used = 0;
 					u32 act = 0;
-					if (frameNum >= linkStatsFrame && frameNum <= reqFrame) {
+					if (frameNum >= linkStatsFrame && frameNum <= reqFrame && linkStatsReq) {
 						unescapeBytes(&inBuf[readPos], &linkStatsBuffer[8], readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
-						memcpy(linkStatsBuffer, &linkStatsBuffer, 4);
+						memcpy(linkStatsBuffer, &frameNum, 4);
 						linkStatsFound = true;
 						linkStatsFrame = frameNum;
+						printfIndMessage("found Link Stats at frame %d", frameNum);
+						serials[0].stream->flush();
 					} else {
 						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
-						if (linkStatsFound && !linkStatsCompleted) {
+						if (linkStatsFound && !linkStatsCompleted && !searchingBackwards) {
 							u32 u = frameNum - 1;
 							memcpy(&linkStatsBuffer[4], &u, 4);
 							linkStatsCompleted = true;
+							printfIndMessage("completed Link Stats until frame %d", u);
+							serials[0].stream->flush();
+							sleep_ms(30);
 						}
 					}
 					if (act != BB_FRAMESIZE_LINK_STATS - 1) {
@@ -995,24 +1024,37 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					if (act != BB_FRAMESIZE_SYNC - 1) {
 						// TODO error
 					}
-					if (nextSyncPos != 0xFFFFFFFFUL && framePos != 0 && (elrsReq != elrsFound || gpsReq != gpsFound || vbatReq != vbatFound || linkStatsReq != linkStatsFound)) {
+					printfIndMessage("found SYNC, frameNum %d, found: fr %d elrs %d gps %d vbat %d stats %d; completed: elrs %d gps %d vbat %d stats %d; backwards: %d, framePos 0x%06X", frameNum, framePos != 0, elrsFound, gpsFound, vbatFound, linkStatsFound, elrsCompleted, gpsCompleted, vbatCompleted, linkStatsCompleted, searchingBackwards, framePos);
+					printfIndMessage("%d, %d %d %d %d %d %d", elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound && framePos != 0 && searchingBackwards, elrsReq == elrsFound, gpsReq == gpsFound, vbatReq == vbatFound, linkStatsReq == linkStatsFound, framePos != 0, searchingBackwards);
+					serials[0].stream->flush();
+					frameNum = DECODE_U4(&dummy[4]);
+
+					if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound && framePos != 0 && searchingBackwards) {
+						// if we found all we need, go forward to the frame and proceed from there
+						searchingBackwards = false;
+						nextSyncPos = framePos;
+						frameNum = reqFrame;
+						goBack = true;
+						printfIndMessage("found all, proceed forward");
+						serials[0].stream->flush();
+					} else if (nextSyncPos != 0xFFFFFFFFUL && framePos != 0 && (elrsReq != elrsFound || gpsReq != gpsFound || vbatReq != vbatFound || linkStatsReq != linkStatsFound)) {
 						// if we found the frame, but not all ELRS/GPS/... stuff, go back, else store the next jump point
 						goBack = true;
+						printfIndMessage("go back regularly");
+						serials[0].stream->flush();
 					} else if (nextSyncPos == 0xFFFFFFFFUL) {
 						nextSyncPos = DECODE_U4(&dummy[3 /*YNC*/ + 1 /*flag*/ + 4 /*frame number*/]);
+						printfIndMessage("initial sync to get framenum");
+						serials[0].stream->flush();
 					}
-					frameNum = DECODE_U4(&dummy[4]);
 					readPos += used;
 				} break;
 				}
-
-				if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound && framePos != 0 && searchingBackwards) {
-					searchingBackwards = false;
-					nextSyncPos = framePos;
-					frameNum = reqFrame;
-					goBack = true;
-				}
 				if (elrsReq == elrsCompleted && gpsReq == gpsCompleted && vbatReq == vbatCompleted && linkStatsReq == linkStatsCompleted) {
+					printfIndMessage("found everything");
+					serials[0].stream->flush();
+					sleep_ms(40);
+					rp2040.wdt_reset();
 					goBack = true; // will exit
 				}
 			}
@@ -1039,6 +1081,9 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 			bufPos += sizeof(linkStatsBuffer);
 		}
 	}
+	printfIndMessage("sending back response of size %d bytes", bufPos);
+	serials[0].stream->flush();
+	sleep_ms(40);
 	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_DATA_REQ, mspVer, (char *)buf, bufPos);
 }
 

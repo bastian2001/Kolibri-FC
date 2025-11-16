@@ -6,7 +6,7 @@ import { BBLog, TraceInGraph, Command, TypedArray, TraceInternalData } from "@ut
 import { constrain, delay, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
 import { MspFn } from "@/msp/protocol";
 import { useLogStore } from "@stores/logStore";
-import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
+import { addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler, sendCommand } from "@/msp/comm";
 import TracePlacer from "@components/blackbox/TracePlacer.vue";
 import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
 import { parseBlackbox, parseBlackboxHeader, parseElrs, parseFrames, parseGps, parseLinkStats, parseVbat, resizeTypedArrays } from "@/utils/blackbox/parsing";
@@ -72,6 +72,7 @@ export default defineComponent({
 			DISARM_REASONS,
 			exiting: false,
 			sequenceNum: 0,
+			stopFetchingFrames: undefined as (() => void) | undefined,
 		};
 	},
 	computed: {
@@ -292,9 +293,10 @@ export default defineComponent({
 					}
 				}
 			}
-			return syncIndex
+			return log.syncs[syncIndex].pos
 		},
 		getFrames(frames: Uint32Array, log: BBLog): { len: number, done: Promise<void> } {
+			console.log("trying frames ", frames)
 			const maxReqCount = frames.length
 			const reqData = new Uint8Array(this.chunkSize)
 			let i = 0
@@ -313,7 +315,7 @@ export default defineComponent({
 			for (; i < maxReqCount; i++) {
 				const pos = 5 + i * 9
 				const fr = frames[i]
-				const fl = 0x1F ^ log.frameLoadingStatus[i]
+				const fl = 0x1F ^ log.frameLoadingStatus[fr]
 				if (pos + 9 > this.chunkSize) break; // ensure we don't overflow the req buffer
 
 				const resFrameLength =
@@ -343,36 +345,44 @@ export default defineComponent({
 				}
 				if (fl & 0b01000) {
 					vbatOffsets[vbatReq++] = resSize
-					resSize += 19
+					resSize += 10
 				}
 				if (fl & 0b10000) {
 					linkStatsOffsets[linkStatsReq++] = resSize
-					resSize += 10
+					resSize += 19
 				}
 			}
+
+			console.log(Array.from(reqData.slice(0, 5 + i * 9)))
 
 			return {
 				len: i,
 				done: new Promise<void>((res, rej) => {
 					sendCommand(MspFn.BB_FAST_DATA_REQ, {
 						data: Array.from(reqData.slice(0, 5 + i * 9)),
-						timeout: 1500,
+						timeout: 20000,
+						retries: 0,
 						callbackData: this.sequenceNum++,
 						verifyFn: (req, res, cb) => {
 							return res.cmdType === 'response'
 								&& req.command === res.command
 								&& leBytesToInt(res.data, 0, 2) === cb
 						}
-					}).then(c => {
+					}).then(async c => {
 						if (c.data.length != resSize) throw 'incorrect length of response ' + c.data.length + " instead of " + resSize
 						const data = c.data
+						console.log(c.data)
+						await delay(1000)
 
 						// parse frames
 						const frameBuf = new Uint8Array(frameReq * log.frameSize)
 						for (let i = 0; i < frameReq; i++) {
 							frameBuf.set(data.slice(frameOffsets[i], frameOffsets[i] + log.frameSize), i * log.frameSize)
 						}
+						frames = frames.slice(0, frameReq)
 						parseFrames(log.logData, frameBuf, frames, log.frameLoadingStatus, log.offsets, log.frameSize, log.flags, log.framesPerSecond, log.motorPoles)
+						console.log(frameOffsets, frameBuf, frameReq, frames)
+						await delay(1000);
 
 						// parse ELRS
 						const elrsBuf = new Uint8Array(elrsReq * 6)
@@ -384,6 +394,8 @@ export default defineComponent({
 							elrsBuf.set(data.slice(elrsOffsets[i] + 8, elrsOffsets[i] + 14), i * 6)
 						}
 						parseElrs(log.logData, log.frameLoadingStatus, elrsBuf, elrsFrom, elrsTo)
+						console.log("elrs", elrsBuf, elrsFrom, elrsTo)
+						await delay(1000);
 
 						// parse GPS
 						const gpsBuf = new Uint8Array(gpsReq * 92)
@@ -395,6 +407,8 @@ export default defineComponent({
 							gpsBuf.set(data.slice(gpsOffsets[i] + 8, gpsOffsets[i] + 100), i * 92)
 						}
 						parseGps(log.logData, log.frameLoadingStatus, gpsBuf, gpsFrom, gpsTo)
+						console.log("gps", gpsBuf, gpsFrom, gpsTo)
+						await delay(1000);
 
 						// parse VBat
 						const vbatBuf = new Uint8Array(vbatReq * 2)
@@ -406,6 +420,8 @@ export default defineComponent({
 							vbatBuf.set(data.slice(vbatOffsets[i] + 8, vbatOffsets[i] + 10), i * 2)
 						}
 						parseVbat(log.logData, log.frameLoadingStatus, vbatBuf, vbatFrom, vbatTo)
+						console.log("vbat", vbatBuf, vbatFrom, vbatTo)
+						await delay(1000);
 
 						// parse Link Stats
 						const linkStatsBuf = new Uint8Array(linkStatsReq * 11)
@@ -417,7 +433,10 @@ export default defineComponent({
 							linkStatsBuf.set(data.slice(linkStatsOffsets[i] + 8, linkStatsOffsets[i] + 19), i * 11)
 						}
 						parseLinkStats(log.logData, log.frameLoadingStatus, linkStatsBuf, linkStatsFrom, linkStatsTo)
+						console.log("link", linkStatsOffsets, linkStatsBuf, linkStatsFrom, linkStatsTo)
+						await delay(1000);
 
+						console.log("got frames ", frames)
 						res()
 					}).catch(rej)
 				})
@@ -531,10 +550,138 @@ export default defineComponent({
 
 				this.startFrame = 0;
 				this.endFrame = frameCount - 1;
+
+				this.graphs = [[]]
+
+				this.startFetchingFrames()
 			} catch (e) {
 				console.error(e)
 				this.configuratorLog.push("something failed while opening the log, maybe this helps narrow it down: " + (e as string).toString())
 			}
+		},
+		adjustAccuracy(frame: number, accuracy: Uint32Array) {
+			const fc = accuracy.length
+			let br = 0
+			accuracy[frame] = 0
+			for (let diff = 1; diff < fc; diff++) {
+				if (frame + diff < fc && accuracy[frame + diff] > diff) accuracy[frame + diff] = diff
+				else br |= 1
+				if (frame - diff >= 0 && accuracy[frame - diff] > diff) accuracy[frame - diff] = diff
+				else br |= 2
+				if (br === 3) break
+			}
+		},
+		startFetchingFrames() {
+			if (!this.loadedLog) return
+			if (this.stopFetchingFrames !== undefined) return
+			let stop = false
+			this.stopFetchingFrames = function () {
+				stop = true
+				this.stopFetchingFrames = undefined
+			}
+
+			const fc = this.loadedLog.frameCount
+			const accuracy = new Uint32Array(fc)
+			accuracy.fill(0x7FFFFFFF)
+			// let lMin = Math.floor(this.startFrame)
+			// if (lMin < 0) lMin = 0
+			// let lMax = Math.floor(this.endFrame + 1)
+			// if (lMax > fc) lMax = fc
+			// let forMin = this.startFrame
+			// let forMax = this.endFrame
+			// let localAcc = accuracy.slice(lMin, lMax)
+
+			const ls = this.loadedLog.frameLoadingStatus
+
+			let pendingFrames: number[] = []
+
+			for (let i = 0; i < fc; i++) {
+				if (ls[i] & 0b00001) {
+					// if frame is loaded, reduce the accuracy number
+					// accuracy is an indicator for how far the next valid frame is away
+					this.adjustAccuracy(i, accuracy)
+				}
+			}
+
+			const spawnFetcherInstance = async () => {
+				while (true) {
+					if (!this.loadedLog) {
+						await delay(20)
+						continue
+					}
+					if (stop) {
+						return
+					}
+
+					// get frames to fetch
+					const frames = new Uint32Array(20)
+					const acc = new Uint32Array(20)
+					let best = 1
+					let fetching = 0
+					let settleDownFirst = false
+					for (let i = 0; i < accuracy.length; i++) {
+						const a = accuracy[i]
+						if (settleDownFirst) {
+							if (a === 0) {
+								settleDownFirst = false
+							}
+							continue
+						}
+						if (a < best) {
+							continue
+						}
+						if (fetching < 20) {
+							if ((accuracy[i + 1] || 1) <= a) {
+								if (pendingFrames.indexOf(i) !== -1) {
+									continue
+								}
+								frames[fetching] = i
+								acc[fetching] = a
+								fetching++
+								settleDownFirst = true
+							}
+							continue
+						}
+						for (let j = 0; j < 20; j++) {
+
+						}
+					}
+
+					// fetch
+					if (!fetching) {
+						await delay(20)
+						continue
+					}
+					let f = frames.slice(0, fetching).sort()
+					const result = this.getFrames(f, this.loadedLog)
+
+					// mark frames as pending
+					f = f.slice(0, result.len)
+					pendingFrames.push(...f)
+					console.log(pendingFrames)
+
+					try {
+						// wait for fetched
+						await result.done
+
+						// mark frames as fetched or just remove from pending
+						f.forEach(frame => {
+							this.adjustAccuracy(frame, accuracy)
+						})
+						pendingFrames = pendingFrames.filter(v => f.indexOf(v) === -1);
+						console.log(pendingFrames)
+					} catch (e) {
+						pendingFrames = pendingFrames.filter(v => f.indexOf(v) === -1);
+						console.log(pendingFrames)
+						console.error(e)
+						await delay(30000)
+						continue
+					}
+				}
+			}
+
+			// for (let i = 0; i < 3; i++)
+			spawnFetcherInstance()
 		},
 		deleteLog() {
 			sendCommand(MspFn.BB_FILE_DELETE, {
@@ -1359,10 +1506,14 @@ export default defineComponent({
 				}
 			}
 		},
+		callStop() {
+			if (this.stopFetchingFrames) this.stopFetchingFrames()
+		},
 	},
 	mounted() {
 		this.getFileList()
 		addOnConnectHandler(this.getFileList);
+		addOnDisconnectHandler(this.callStop)
 		window.addEventListener('resize', this.onResize);
 		this.domCanvas.addEventListener('touchstart', this.onTouchDown, { passive: false });
 		this.domCanvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
@@ -1395,8 +1546,10 @@ export default defineComponent({
 		clearTimeout(this.drawFullCanvasTimeout);
 		clearInterval(this.getChunkInterval);
 		removeOnConnectHandler(this.getFileList);
+		removeOnDisconnectHandler(this.callStop)
 		removeOnCommandHandler(this.onCommand)
 		window.removeEventListener('resize', this.onResize);
+		this.callStop()
 
 		saveLog(this.loadedLog);
 		if (this.loadedLog) {
