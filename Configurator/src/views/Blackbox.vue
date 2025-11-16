@@ -13,7 +13,6 @@ import { parseBlackbox, parseBlackboxHeader, parseElrs, parseFrames, parseGps, p
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
 import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
 import { DISARM_REASONS, TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/constants";
-import { isBigIntLiteral } from "typescript";
 
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
 ];
@@ -295,9 +294,7 @@ export default defineComponent({
 			}
 			return syncIndex
 		},
-		getFrames(frames: Uint32Array, flags: Uint8Array, log: BBLog): { len: number, done: Promise<void> } {
-			if (frames.length != flags.length)
-				return { len: 0, done: Promise.reject() }
+		getFrames(frames: Uint32Array, log: BBLog): { len: number, done: Promise<void> } {
 			const maxReqCount = frames.length
 			const reqData = new Uint8Array(this.chunkSize)
 			let i = 0
@@ -316,7 +313,7 @@ export default defineComponent({
 			for (; i < maxReqCount; i++) {
 				const pos = 5 + i * 9
 				const fr = frames[i]
-				const fl = flags[i]
+				const fl = 0x1F ^ log.frameLoadingStatus[i]
 				if (pos + 9 > this.chunkSize) break; // ensure we don't overflow the req buffer
 
 				const resFrameLength =
@@ -519,16 +516,14 @@ export default defineComponent({
 				}
 
 				const frames = new Uint32Array([0, frameCount - 1])
-				const flags = new Uint8Array([0x1F, 0x1F])
-				const result = this.getFrames(frames, flags, log)
+				const result = this.getFrames(frames, log)
 				if (result.len === 0) {
 					this.configuratorLog.push("could not fit a single frame into a request")
 				}
 				await result.done
 				if (result.len === 1) {
 					const frames = new Uint32Array([frameCount - 1])
-					const flags = new Uint8Array([0x1F])
-					const result = this.getFrames(frames, flags, log)
+					const result = this.getFrames(frames, log)
 					await result.done
 				}
 
