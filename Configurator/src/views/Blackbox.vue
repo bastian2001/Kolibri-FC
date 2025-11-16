@@ -428,6 +428,7 @@ export default defineComponent({
 
 						console.log("got frames ", frames)
 						console.log(frameOffsets, data, frameBuf, frames)
+						res()
 					}).catch(rej)
 				})
 			}

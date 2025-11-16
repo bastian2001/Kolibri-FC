@@ -822,7 +822,9 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		bool searchingBackwards = true;
 		u32 frameNum = 0;
 		memset(frameBuffer, 0, frameSize);
-		printfIndMessage("now searching for frame %d", reqFrame);
+		// printfIndMessage("now searching for frame %d, %d", reqFrame, whichFrameTypes);
+		// serials[0].stream->loop(1024);
+		// sleep_ms(80);
 
 		/*
 		 * EVERYTHING ALWAYS UNESCAPED
@@ -838,7 +840,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		FsFile &file = bbPrintLog.logFile;
 #endif
 
-		while (elrsReq != elrsCompleted || gpsReq != gpsCompleted || vbatReq != vbatCompleted || linkStatsReq != linkStatsCompleted) {
+		while (elrsReq != elrsCompleted || gpsReq != gpsCompleted || vbatReq != vbatCompleted || linkStatsReq != linkStatsCompleted || (framePos == 0 && frameReq)) {
 			rp2040.wdt_reset();
 			if (nextSyncPos == 0xFFFFFFFFUL)
 				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 1 while reading file", strlen("Error 1 while reading file"));
@@ -894,18 +896,15 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					if (frameNum >= reqFrame && searchingBackwards) {
 						act = unescapeBytes(&inBuf[readPos], frameBuffer, readable - readPos, frameSize, &used);
 						framePos = file.position() - readable + readPos - 1;
-						if (frameNum > 1700)
-							printfIndMessage("read %d (max %d) => act %d (should be %d) bytes from %06X into frameBuffer for frame %d", used, readable - readPos, act, frameSize, framePos, frameNum);
+						// printfIndMessage("read %d (max %d) => act %d (should be %d) bytes from %06X into frameBuffer for frame %d", used, readable - readPos, act, frameSize, framePos, frameNum);
 
 						if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound) {
 							// if the frame is the last thing we find, just continue searching
 							searchingBackwards = false;
-							if (frameNum > 1700)
-								printfIndMessage("keep going forward");
+							// printfIndMessage("keep going forward");
 						} else {
 							goBack = true;
-							if (frameNum > 1700)
-								printfIndMessage("now go back");
+							// printfIndMessage("now go back");
 						}
 					} else {
 						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
