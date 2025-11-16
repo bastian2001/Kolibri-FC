@@ -1,4 +1,4 @@
-import { ActualCoeffs, BBLog, LogData } from "@utils/types"
+import { BBLog, LogData, TypedArray } from "@utils/types"
 import { leBytesToBigInt, leBytesToInt } from "@utils/utils"
 import { BB_ALL_FLAGS } from "@utils/blackbox/bbFlags"
 
@@ -6,53 +6,83 @@ const ACC_RANGES = [2, 4, 8, 16]
 const GYRO_RANGES = [2000, 1000, 500, 250, 125]
 const PID_SHIFTS = [11, 3, 16, 8, 8]
 
-export function parseBlackbox(binFile: Uint8Array): BBLog | string {
-	const header = binFile.slice(0, 256)
-	const data = unescapeBlackbox(binFile.slice(256))
+export function resizeTypedArrays(obj: { [key: string]: TypedArray }, newLength: number): void {
+	for (const key in obj) {
+		const arr = obj[key]
+		const ctor = arr.constructor as { new (length: number): TypedArray }
+		obj[key] = new ctor(newLength)
+	}
+}
+
+export function parseBlackboxHeader(header: Uint8Array): BBLog | string {
+	const bbLog: BBLog = {
+		disarmReason: 0,
+		duration: 0,
+		fileSize: 0,
+		flags: [],
+		flightModes: [],
+		frameCount: 0,
+		frameLoadingStatus: new Uint8Array(0),
+		frameSize: 0,
+		framesPerSecond: 0,
+		frequencyDivider: 0,
+		highlights: [],
+		isExact: true,
+		logData: {},
+		motorPoles: 0,
+		offsets: {},
+		pidConstants: [[], [], []],
+		pidConstantsNice: [[], [], []],
+		pidFrequency: 0,
+		ranges: { gyro: 0, accel: 0 },
+		rateCoeffs: [],
+		startTime: new Date(),
+		syncFrequency: 0,
+		syncs: [],
+		version: new Uint8Array(0),
+	}
+
 	const magic = leBytesToBigInt(header, 0, 8)
 	if (magic !== 0x0001494c4f4bdfdcn) {
 		return magic.toString(16)
 	}
-	const version = header.slice(8, 11)
-	const startTime = new Date(leBytesToInt(header, 11, 4) * 1000)
-	const duration = leBytesToInt(header, 15, 4) / 1000 // in seconds
-	const pidFreq = [3200][header[19]]
-	const freqDiv = header[20]
+	bbLog.version = header.slice(8, 11)
+	bbLog.startTime = new Date(leBytesToInt(header, 11, 4) * 1000)
+	bbLog.duration = leBytesToInt(header, 15, 4) / 1000 // in seconds
+	bbLog.pidFrequency = [3200][header[19]]
+	bbLog.frequencyDivider = header[20]
 	const rangeByte = header[21]
-	const ranges = {
+	bbLog.ranges = {
 		gyro: GYRO_RANGES[(rangeByte >> 2) & 0b111],
 		accel: ACC_RANGES[rangeByte & 0b11],
 	}
-	const rateCoeffs: ActualCoeffs[] = []
 	const rfBytes = header.slice(22, 58)
 	for (let i = 0; i < 3; i++) {
-		rateCoeffs[i] = {
+		bbLog.rateCoeffs[i] = {
 			center: leBytesToInt(rfBytes, i * 12, 4) / 65536,
 			max: leBytesToInt(rfBytes, i * 12 + 4, 4) / 65536,
 			expo: leBytesToInt(rfBytes, i * 12 + 8, 4) / 65536,
 		}
 	}
-	const pidConstants: number[][] = [[], [], []]
-	const pidConstantsNice: number[][] = [[], [], []]
+
 	const pcBytes = header.slice(82, 112)
 	for (let i = 0; i < 3; i++) {
 		for (let j = 0; j < 5; j++) {
-			pidConstantsNice[i][j] = leBytesToInt(pcBytes, i * 10 + j * 2, 2)
-			pidConstants[i][j] = (pidConstantsNice[i][0] << PID_SHIFTS[j]) / 65536
+			bbLog.pidConstantsNice[i][j] = leBytesToInt(pcBytes, i * 10 + j * 2, 2)
+			bbLog.pidConstants[i][j] = (bbLog.pidConstantsNice[i][0] << PID_SHIFTS[j]) / 65536
 		}
 	}
 
-	const flags: string[] = []
 	const flagSlice = header.slice(142, 150)
 	let offset = 0
-	const offsets: { [key: string]: number } = {}
+	const flags = bbLog.flags
 	for (let j = 0; j < 64; j++) {
 		const byteNum = Math.floor(j / 8)
 		const bitNum = j % 8
 		const flagIsSet = flagSlice[byteNum] & (1 << bitNum)
 		if (!flagIsSet || !Object.keys(BB_ALL_FLAGS)[j]) continue
 		flags.push(Object.keys(BB_ALL_FLAGS)[j])
-		offsets[Object.keys(BB_ALL_FLAGS)[j]] = offset
+		bbLog.offsets[Object.keys(BB_ALL_FLAGS)[j]] = offset
 		switch (j) {
 			case 23:
 			case 31:
@@ -80,21 +110,232 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		}
 	}
 
-	const motorPoles = header[150]
-	const disarmReason = header[151]
-	const syncFrequency = header[152]
-	const frameSize = header[153]
+	bbLog.motorPoles = header[150]
+	bbLog.disarmReason = header[151]
+	bbLog.syncFrequency = header[152]
+	bbLog.frameSize = header[153]
+	bbLog.framesPerSecond = bbLog.pidFrequency / bbLog.frequencyDivider
 
+	const logData = bbLog.logData
+	if (flags.includes("LOG_ROLL_SETPOINT")) {
+		logData.setpointRoll = new Float32Array(0)
+	}
+	if (flags.includes("LOG_PITCH_SETPOINT")) {
+		logData.setpointPitch = new Float32Array(0)
+	}
+	if (flags.includes("LOG_THROTTLE_SETPOINT")) {
+		logData.setpointThrottle = new Float32Array(0)
+	}
+	if (flags.includes("LOG_YAW_SETPOINT")) {
+		logData.setpointYaw = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ROLL_GYRO_RAW")) {
+		logData.gyroRawRoll = new Float32Array(0)
+	}
+	if (flags.includes("LOG_PITCH_GYRO_RAW")) {
+		logData.gyroRawPitch = new Float32Array(0)
+	}
+	if (flags.includes("LOG_YAW_GYRO_RAW")) {
+		logData.gyroRawYaw = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ROLL_PID_P")) {
+		logData.pidRollP = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ROLL_PID_I")) {
+		logData.pidRollI = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ROLL_PID_D")) {
+		logData.pidRollD = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ROLL_PID_FF")) {
+		logData.pidRollFF = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ROLL_PID_S")) {
+		logData.pidRollS = new Float32Array(0)
+	}
+	if (flags.includes("LOG_PITCH_PID_P")) {
+		logData.pidPitchP = new Float32Array(0)
+	}
+	if (flags.includes("LOG_PITCH_PID_I")) {
+		logData.pidPitchI = new Float32Array(0)
+	}
+	if (flags.includes("LOG_PITCH_PID_D")) {
+		logData.pidPitchD = new Float32Array(0)
+	}
+	if (flags.includes("LOG_PITCH_PID_FF")) {
+		logData.pidPitchFF = new Float32Array(0)
+	}
+	if (flags.includes("LOG_PITCH_PID_S")) {
+		logData.pidPitchS = new Float32Array(0)
+	}
+	if (flags.includes("LOG_YAW_PID_P")) {
+		logData.pidYawP = new Float32Array(0)
+	}
+	if (flags.includes("LOG_YAW_PID_I")) {
+		logData.pidYawI = new Float32Array(0)
+	}
+	if (flags.includes("LOG_YAW_PID_D")) {
+		logData.pidYawD = new Float32Array(0)
+	}
+	if (flags.includes("LOG_YAW_PID_FF")) {
+		logData.pidYawFF = new Float32Array(0)
+	}
+	if (flags.includes("LOG_YAW_PID_S")) {
+		logData.pidYawS = new Float32Array(0)
+	}
+	if (flags.includes("LOG_MOTOR_OUTPUTS")) {
+		logData.motorOutRR = new Uint16Array(0)
+		logData.motorOutFR = new Uint16Array(0)
+		logData.motorOutRL = new Uint16Array(0)
+		logData.motorOutFL = new Uint16Array(0)
+	}
+	if (flags.includes("LOG_FRAMETIME")) {
+		logData.frametime = new Uint16Array(0)
+		logData.timestamp = new Uint32Array(0)
+	}
+	if (flags.includes("LOG_ALTITUDE")) {
+		logData.altitude = new Float32Array(0)
+	}
+	if (flags.includes("LOG_VVEL")) {
+		logData.vvel = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ATT_ROLL")) {
+		logData.rollAngle = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ATT_PITCH")) {
+		logData.pitchAngle = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ATT_YAW")) {
+		logData.yawAngle = new Float32Array(0)
+	}
+	if (flags.includes("LOG_MOTOR_RPM")) {
+		logData.rpmRR = new Float32Array(0)
+		logData.rpmFR = new Float32Array(0)
+		logData.rpmRL = new Float32Array(0)
+		logData.rpmFL = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ACCEL_RAW")) {
+		logData.accelRawX = new Float32Array(0)
+		logData.accelRawY = new Float32Array(0)
+		logData.accelRawZ = new Float32Array(0)
+	}
+	if (flags.includes("LOG_ACCEL_FILTERED")) {
+		logData.accelFilteredX = new Float32Array(0)
+		logData.accelFilteredY = new Float32Array(0)
+		logData.accelFilteredZ = new Float32Array(0)
+	}
+	if (flags.includes("LOG_VERTICAL_ACCEL")) {
+		logData.accelVertical = new Float32Array(0)
+	}
+	if (flags.includes("LOG_VVEL_SETPOINT")) {
+		logData.setpointVvel = new Float32Array(0)
+	}
+	if (flags.includes("LOG_MAG_HEADING")) {
+		logData.magHeading = new Float32Array(0)
+	}
+	if (flags.includes("LOG_COMBINED_HEADING")) {
+		logData.combinedHeading = new Float32Array(0)
+	}
+	if (flags.includes("LOG_HVEL")) {
+		logData.hvelN = new Float32Array(0)
+		logData.hvelE = new Float32Array(0)
+	}
+	if (flags.includes("LOG_BARO")) {
+		logData.baroRaw = new Uint32Array(0)
+		logData.baroHpa = new Float32Array(0)
+		logData.baroAlt = new Float32Array(0)
+		logData.baroUpVel = new Float32Array(0) // TODO remove
+		logData.baroUpAccel = new Float32Array(0) // TODO remove
+	}
+	if (flags.includes("LOG_DEBUG_1")) {
+		logData.debug1 = new Int32Array(0)
+	}
+	if (flags.includes("LOG_DEBUG_2")) {
+		logData.debug2 = new Int32Array(0)
+	}
+	if (flags.includes("LOG_DEBUG_3")) {
+		logData.debug3 = new Int16Array(0)
+	}
+	if (flags.includes("LOG_DEBUG_4")) {
+		logData.debug4 = new Int16Array(0)
+	}
+	if (flags.includes("LOG_PID_SUM")) {
+		logData.pidSumRoll = new Int16Array(0)
+		logData.pidSumPitch = new Int16Array(0)
+		logData.pidSumYaw = new Int16Array(0)
+	}
+
+	if (flags.includes("LOG_ELRS_RAW")) {
+		logData.elrsRoll = new Uint16Array(0)
+		logData.elrsPitch = new Uint16Array(0)
+		logData.elrsThrottle = new Uint16Array(0)
+		logData.elrsYaw = new Uint16Array(0)
+	}
+	if (flags.includes("LOG_GPS")) {
+		logData.gpsYear = new Uint16Array(0)
+		logData.gpsMonth = new Uint8Array(0)
+		logData.gpsDay = new Uint8Array(0)
+		logData.gpsHour = new Uint8Array(0)
+		logData.gpsMinute = new Uint8Array(0)
+		logData.gpsSecond = new Uint8Array(0)
+		logData.gpsTimeValidityFlags = new Uint8Array(0)
+		logData.gpsTAcc = new Uint32Array(0)
+		logData.gpsNs = new Uint32Array(0)
+		logData.gpsFixType = new Uint8Array(0)
+		logData.gpsFlags = new Uint8Array(0)
+		logData.gpsFlags2 = new Uint8Array(0)
+		logData.gpsSatCount = new Uint8Array(0)
+		logData.gpsLon = new Float64Array(0)
+		logData.gpsLat = new Float64Array(0)
+		logData.gpsAlt = new Float32Array(0)
+		logData.gpsHAcc = new Float32Array(0)
+		logData.gpsVAcc = new Float32Array(0)
+		logData.gpsVelN = new Float32Array(0)
+		logData.gpsVelE = new Float32Array(0)
+		logData.gpsVelD = new Float32Array(0)
+		logData.gpsGSpeed = new Float32Array(0)
+		logData.gpsHeadMot = new Float32Array(0)
+		logData.gpsSAcc = new Float32Array(0)
+		logData.gpsHeadAcc = new Float32Array(0)
+		logData.gpsPDop = new Float32Array(0)
+		logData.gpsFlags3 = new Uint16Array(0)
+	}
+	if (flags.includes("LOG_VBAT")) {
+		logData.vbat = new Float32Array(0)
+	}
+	if (flags.includes("LOG_LINK_STATS")) {
+		logData.linkRssiA = new Int16Array(0)
+		logData.linkRssiB = new Int16Array(0)
+		logData.linkLqi = new Uint8Array(0)
+		logData.linkSnr = new Int8Array(0)
+		logData.linkAntennaSel = new Uint8Array(0)
+		logData.linkTargetHz = new Uint16Array(0)
+		logData.linkActualHz = new Uint16Array(0)
+		logData.linkTxPow = new Uint16Array(0)
+	}
+
+	return bbLog
+}
+
+export function parseBlackbox(binFile: Uint8Array): BBLog | string {
+	const header = binFile.slice(0, 256)
+	const data = unescapeBlackbox(binFile.slice(256))
+
+	const bbLog = parseBlackboxHeader(header)
+	if (typeof bbLog === "string") return bbLog
+	const frameSize = bbLog.frameSize
+	bbLog.fileSize = binFile.length
+
+	// count frames, mark special positions
 	let pos = 0
 	let frameCount = 0
 	let framePos: number[] = []
-	let flightModes: { fm: number; frame: number }[] = []
-	let highlights: number[] = []
+	let flightModes = bbLog.flightModes
+	let highlights = bbLog.highlights
 	let gpsPos: { pos: number; frame: number }[] = []
 	let elrsPos: { pos: number; frame: number }[] = []
 	let batPos: { pos: number; frame: number }[] = []
 	let elrsLinkPos: { pos: number; frame: number }[] = []
-	let syncs: { frame: number; pos: number; ctrlByte: number }[] = []
 	while (pos < data.length) {
 		switch (data[pos]) {
 			case 0: // regular frame
@@ -128,10 +369,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 			case 83: // SYNC
 				{
 					const frame = leBytesToInt(data, pos + 5, 4, false)
-					syncs.push({ frame, pos, ctrlByte: data[pos + 4] })
-					if (data[pos + 4]) {
-						console.log("some data: ", data[pos + 4], " in front of frame ", frame)
-					}
+					bbLog.syncs.push({ frame, pos, ctrlByte: data[pos + 4] })
 					pos += 13
 				}
 				break
@@ -141,22 +379,20 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				break
 		}
 	}
+	bbLog.frameCount = frameCount
 
-	const frameLoadingStatus = new Uint8Array(frameCount)
-	frameLoadingStatus.fill(0)
+	// use frameCount and resize all data holders
+	const logData = bbLog.logData
+	resizeTypedArrays(logData, frameCount)
+	bbLog.frameLoadingStatus = new Uint8Array(frameCount)
+	bbLog.frameLoadingStatus.fill(0)
 
 	// TODO idea for getting highlights and fm changes: one additional byte in the sync frame that has flags for a FM change and a highlight
 	// TODO idea for getting ELRS and GPS: configurator requests ELRS for e.g. frame 120. PC sends request with needed sync(s) for frame 100 and FC responds with ELRS and "valid from frame x to frame y" after having searched the next ELRS
 	// TODO when configurator requests frame, send bitmap alongside the requested frame number to indicate what data is wanted. Then maybe also send the index of the 2nd last sync, not just the last sync
 
-	const framesPerSecond = pidFreq / freqDiv
-	const logData: LogData = {}
+	const flags = bbLog.flags
 	if (flags.includes("LOG_ELRS_RAW")) {
-		logData.elrsRoll = new Uint16Array(frameCount)
-		logData.elrsPitch = new Uint16Array(frameCount)
-		logData.elrsThrottle = new Uint16Array(frameCount)
-		logData.elrsYaw = new Uint16Array(frameCount)
-
 		const elrsData = new Uint8Array(elrsPos.length * 6)
 		elrsPos.forEach((v, i) => {
 			const p = v.pos
@@ -171,122 +407,12 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		elrsFromFrame[elrsPos.length - 1] = elrsPos[elrsPos.length - 1].frame
 		elrsToFrame[elrsPos.length - 1] = frameCount - 1
 
-		parseElrs(logData, elrsData, elrsFromFrame, elrsToFrame)
-		frameLoadingStatus.forEach((v, i) => {
-			frameLoadingStatus[i] = v |= 0b10
+		parseElrs(logData, bbLog.frameLoadingStatus, elrsData, elrsFromFrame, elrsToFrame)
+		bbLog.frameLoadingStatus.forEach((v, i) => {
+			bbLog.frameLoadingStatus[i] = v |= 0b10
 		})
 	}
-	if (flags.includes("LOG_ROLL_SETPOINT")) {
-		logData.setpointRoll = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_PITCH_SETPOINT")) {
-		logData.setpointPitch = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_THROTTLE_SETPOINT")) {
-		logData.setpointThrottle = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_YAW_SETPOINT")) {
-		logData.setpointYaw = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ROLL_GYRO_RAW")) {
-		logData.gyroRawRoll = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_PITCH_GYRO_RAW")) {
-		logData.gyroRawPitch = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_YAW_GYRO_RAW")) {
-		logData.gyroRawYaw = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ROLL_PID_P")) {
-		logData.pidRollP = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ROLL_PID_I")) {
-		logData.pidRollI = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ROLL_PID_D")) {
-		logData.pidRollD = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ROLL_PID_FF")) {
-		logData.pidRollFF = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ROLL_PID_S")) {
-		logData.pidRollS = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_PITCH_PID_P")) {
-		logData.pidPitchP = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_PITCH_PID_I")) {
-		logData.pidPitchI = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_PITCH_PID_D")) {
-		logData.pidPitchD = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_PITCH_PID_FF")) {
-		logData.pidPitchFF = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_PITCH_PID_S")) {
-		logData.pidPitchS = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_YAW_PID_P")) {
-		logData.pidYawP = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_YAW_PID_I")) {
-		logData.pidYawI = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_YAW_PID_D")) {
-		logData.pidYawD = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_YAW_PID_FF")) {
-		logData.pidYawFF = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_YAW_PID_S")) {
-		logData.pidYawS = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_MOTOR_OUTPUTS")) {
-		logData.motorOutRR = new Uint16Array(frameCount)
-		logData.motorOutFR = new Uint16Array(frameCount)
-		logData.motorOutRL = new Uint16Array(frameCount)
-		logData.motorOutFL = new Uint16Array(frameCount)
-	}
-	if (flags.includes("LOG_FRAMETIME")) {
-		logData.frametime = new Uint16Array(frameCount)
-		logData.timestamp = new Uint32Array(frameCount)
-	}
-	if (flags.includes("LOG_ALTITUDE")) {
-		logData.altitude = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_VVEL")) {
-		logData.vvel = new Float32Array(frameCount)
-	}
 	if (flags.includes("LOG_GPS")) {
-		logData.gpsYear = new Uint16Array(frameCount)
-		logData.gpsMonth = new Uint8Array(frameCount)
-		logData.gpsDay = new Uint8Array(frameCount)
-		logData.gpsHour = new Uint8Array(frameCount)
-		logData.gpsMinute = new Uint8Array(frameCount)
-		logData.gpsSecond = new Uint8Array(frameCount)
-		logData.gpsTimeValidityFlags = new Uint8Array(frameCount)
-		logData.gpsTAcc = new Uint32Array(frameCount)
-		logData.gpsNs = new Uint32Array(frameCount)
-		logData.gpsFixType = new Uint8Array(frameCount)
-		logData.gpsFlags = new Uint8Array(frameCount)
-		logData.gpsFlags2 = new Uint8Array(frameCount)
-		logData.gpsSatCount = new Uint8Array(frameCount)
-		logData.gpsLon = new Float64Array(frameCount)
-		logData.gpsLat = new Float64Array(frameCount)
-		logData.gpsAlt = new Float32Array(frameCount)
-		logData.gpsHAcc = new Float32Array(frameCount)
-		logData.gpsVAcc = new Float32Array(frameCount)
-		logData.gpsVelN = new Float32Array(frameCount)
-		logData.gpsVelE = new Float32Array(frameCount)
-		logData.gpsVelD = new Float32Array(frameCount)
-		logData.gpsGSpeed = new Float32Array(frameCount)
-		logData.gpsHeadMot = new Float32Array(frameCount)
-		logData.gpsSAcc = new Float32Array(frameCount)
-		logData.gpsHeadAcc = new Float32Array(frameCount)
-		logData.gpsPDop = new Float32Array(frameCount)
-		logData.gpsFlags3 = new Uint16Array(frameCount)
-
 		const gpsData = new Uint8Array(gpsPos.length * 92)
 		gpsPos.forEach((v, i) => {
 			const p = v.pos
@@ -301,79 +427,12 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		gpsFrom[gpsPos.length - 1] = gpsPos[gpsPos.length - 1].frame
 		gpsTo[gpsPos.length - 1] = frameCount - 1
 
-		parseGps(logData, gpsData, gpsFrom, gpsTo)
-		frameLoadingStatus.forEach((v, i) => {
-			frameLoadingStatus[i] = v |= 0b100
+		parseGps(logData, bbLog.frameLoadingStatus, gpsData, gpsFrom, gpsTo)
+		bbLog.frameLoadingStatus.forEach((v, i) => {
+			bbLog.frameLoadingStatus[i] = v |= 0b100
 		})
 	}
-	if (flags.includes("LOG_ATT_ROLL")) {
-		logData.rollAngle = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ATT_PITCH")) {
-		logData.pitchAngle = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ATT_YAW")) {
-		logData.yawAngle = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_MOTOR_RPM")) {
-		logData.rpmRR = new Float32Array(frameCount)
-		logData.rpmFR = new Float32Array(frameCount)
-		logData.rpmRL = new Float32Array(frameCount)
-		logData.rpmFL = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ACCEL_RAW")) {
-		logData.accelRawX = new Float32Array(frameCount)
-		logData.accelRawY = new Float32Array(frameCount)
-		logData.accelRawZ = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_ACCEL_FILTERED")) {
-		logData.accelFilteredX = new Float32Array(frameCount)
-		logData.accelFilteredY = new Float32Array(frameCount)
-		logData.accelFilteredZ = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_VERTICAL_ACCEL")) {
-		logData.accelVertical = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_VVEL_SETPOINT")) {
-		logData.setpointVvel = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_MAG_HEADING")) {
-		logData.magHeading = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_COMBINED_HEADING")) {
-		logData.combinedHeading = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_HVEL")) {
-		logData.hvelN = new Float32Array(frameCount)
-		logData.hvelE = new Float32Array(frameCount)
-	}
-	if (flags.includes("LOG_BARO")) {
-		logData.baroRaw = new Uint32Array(frameCount)
-		logData.baroHpa = new Float32Array(frameCount)
-		logData.baroAlt = new Float32Array(frameCount)
-		logData.baroUpVel = new Float32Array(frameCount) // TODO remove
-		logData.baroUpAccel = new Float32Array(frameCount) // TODO remove
-	}
-	if (flags.includes("LOG_DEBUG_1")) {
-		logData.debug1 = new Int32Array(frameCount)
-	}
-	if (flags.includes("LOG_DEBUG_2")) {
-		logData.debug2 = new Int32Array(frameCount)
-	}
-	if (flags.includes("LOG_DEBUG_3")) {
-		logData.debug3 = new Int16Array(frameCount)
-	}
-	if (flags.includes("LOG_DEBUG_4")) {
-		logData.debug4 = new Int16Array(frameCount)
-	}
-	if (flags.includes("LOG_PID_SUM")) {
-		logData.pidSumRoll = new Int16Array(frameCount)
-		logData.pidSumPitch = new Int16Array(frameCount)
-		logData.pidSumYaw = new Int16Array(frameCount)
-	}
 	if (flags.includes("LOG_VBAT")) {
-		logData.vbat = new Float32Array(frameCount)
-
 		const vData = new Uint8Array(batPos.length * 2)
 		batPos.forEach((v, i) => {
 			const p = v.pos
@@ -388,21 +447,12 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		vFrom[batPos.length - 1] = batPos[batPos.length - 1].frame
 		vTo[batPos.length - 1] = frameCount - 1
 
-		parseVbat(logData, vData, vFrom, vTo)
-		frameLoadingStatus.forEach((v, i) => {
-			frameLoadingStatus[i] = v |= 0b1000
+		parseVbat(logData, bbLog.frameLoadingStatus, vData, vFrom, vTo)
+		bbLog.frameLoadingStatus.forEach((v, i) => {
+			bbLog.frameLoadingStatus[i] = v |= 0b1000
 		})
 	}
 	if (flags.includes("LOG_LINK_STATS")) {
-		logData.linkRssiA = new Int16Array(frameCount)
-		logData.linkRssiB = new Int16Array(frameCount)
-		logData.linkLqi = new Uint8Array(frameCount)
-		logData.linkSnr = new Int8Array(frameCount)
-		logData.linkAntennaSel = new Uint8Array(frameCount)
-		logData.linkTargetHz = new Uint16Array(frameCount)
-		logData.linkActualHz = new Uint16Array(frameCount)
-		logData.linkTxPow = new Uint16Array(frameCount)
-
 		const lData = new Uint8Array(elrsLinkPos.length * 11)
 		elrsLinkPos.forEach((v, i) => {
 			const p = v.pos
@@ -417,9 +467,9 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		lFrom[elrsLinkPos.length - 1] = elrsLinkPos[elrsLinkPos.length - 1].frame
 		lTo[elrsLinkPos.length - 1] = frameCount - 1
 
-		parseLinkStats(logData, lData, lFrom, lTo)
-		frameLoadingStatus.forEach((v, i) => {
-			frameLoadingStatus[i] = v |= 0b10000
+		parseLinkStats(logData, bbLog.frameLoadingStatus, lData, lFrom, lTo)
+		bbLog.frameLoadingStatus.forEach((v, i) => {
+			bbLog.frameLoadingStatus[i] = v |= 0b10000
 		})
 	}
 
@@ -435,40 +485,16 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		logData,
 		frameData,
 		frameNumbers,
-		frameLoadingStatus,
-		offsets,
+		bbLog.frameLoadingStatus,
+		bbLog.offsets,
 		frameSize,
 		flags,
-		framesPerSecond,
-		motorPoles
+		bbLog.framesPerSecond,
+		bbLog.motorPoles
 	)
 
-	return {
-		frameCount,
-		flags,
-		logData,
-		offsets,
-		syncs,
-		syncFrequency,
-		frameLoadingStatus,
-		version,
-		startTime,
-		ranges,
-		pidFrequency: pidFreq,
-		frequencyDivider: freqDiv,
-		rateCoeffs,
-		pidConstants,
-		framesPerSecond,
-		rawFile: binFile,
-		isExact: true,
-		frameSize,
-		pidConstantsNice,
-		motorPoles,
-		flightModes,
-		highlights,
-		duration,
-		disarmReason,
-	}
+	bbLog.rawFile = binFile
+	return bbLog
 }
 
 function unescapeBlackbox(withEscapedParts: Uint8Array): Uint8Array {
@@ -528,7 +554,7 @@ function unescapeBlackbox(withEscapedParts: Uint8Array): Uint8Array {
 	return out.slice(0, outIndex)
 }
 
-function parseFrames(
+export function parseFrames(
 	logData: LogData,
 	frameData: Uint8Array,
 	frameNumbers: Uint32Array,
@@ -893,7 +919,13 @@ function parseFrames(
 	}
 }
 
-function parseElrs(logData: LogData, elrsData: Uint8Array, elrsFromFrame: Uint32Array, elrsToFrame: Uint32Array) {
+export function parseElrs(
+	logData: LogData,
+	frameLoadingStatus: Uint8Array,
+	elrsData: Uint8Array,
+	elrsFromFrame: Uint32Array,
+	elrsToFrame: Uint32Array
+) {
 	for (let i = 0; i < elrsFromFrame.length; i++) {
 		let f = elrsFromFrame[i]
 		let d = leBytesToBigInt(elrsData, i * 6, 6, false)
@@ -910,22 +942,36 @@ function parseElrs(logData: LogData, elrsData: Uint8Array, elrsFromFrame: Uint32
 			logData.elrsPitch![f] = p
 			logData.elrsThrottle![f] = t
 			logData.elrsYaw![f] = y
+			frameLoadingStatus[f] |= 0b10
 		}
 	}
 }
 
-function parseVbat(logData: LogData, vData: Uint8Array, vFromFrame: Uint32Array, vToFrame: Uint32Array) {
+export function parseVbat(
+	logData: LogData,
+	frameLoadingStatus: Uint8Array,
+	vData: Uint8Array,
+	vFromFrame: Uint32Array,
+	vToFrame: Uint32Array
+) {
 	for (let i = 0; i < vFromFrame.length; i++) {
 		let f = vFromFrame[i]
 		const v = leBytesToInt(vData, i * 2, 2, false) / 100
 
 		for (; f <= vToFrame[i]; f++) {
 			logData.vbat![f] = v
+			frameLoadingStatus[f] |= 0b1000
 		}
 	}
 }
 
-function parseLinkStats(logData: LogData, lData: Uint8Array, lFromFrame: Uint32Array, lToFrame: Uint32Array) {
+export function parseLinkStats(
+	logData: LogData,
+	frameLoadingStatus: Uint8Array,
+	lData: Uint8Array,
+	lFromFrame: Uint32Array,
+	lToFrame: Uint32Array
+) {
 	for (let i = 0; i < lFromFrame.length; i++) {
 		let f = lFromFrame[i]
 		let d = lData.slice(i * 11, i * 11 + 11)
@@ -947,11 +993,18 @@ function parseLinkStats(logData: LogData, lData: Uint8Array, lFromFrame: Uint32A
 			logData.linkTargetHz![f] = linkTargetHz
 			logData.linkActualHz![f] = linkActualHz
 			logData.linkTxPow![f] = linkTxPow
+			frameLoadingStatus[f] |= 0b10000
 		}
 	}
 }
 
-function parseGps(logData: LogData, gpsData: Uint8Array, gpsFromFrame: Uint32Array, gpsToFrame: Uint32Array) {
+export function parseGps(
+	logData: LogData,
+	frameLoadingStatus: Uint8Array,
+	gpsData: Uint8Array,
+	gpsFromFrame: Uint32Array,
+	gpsToFrame: Uint32Array
+) {
 	for (let i = 0; i < gpsFromFrame.length; i++) {
 		let f = gpsFromFrame[i]
 		let d = gpsData.slice(i * 92, i * 92 + 92)
@@ -1010,6 +1063,7 @@ function parseGps(logData: LogData, gpsData: Uint8Array, gpsFromFrame: Uint32Arr
 			logData.gpsHeadAcc![f] = gpsHeadAcc
 			logData.gpsPDop![f] = gpsPDop
 			logData.gpsFlags3![f] = gpsFlags3
+			frameLoadingStatus[f] |= 0b100
 		}
 	}
 }

@@ -9,7 +9,7 @@ import { useLogStore } from "@stores/logStore";
 import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
 import TracePlacer from "@components/blackbox/TracePlacer.vue";
 import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
-import { parseBlackbox } from "@/utils/blackbox/parsing";
+import { parseBlackbox, parseBlackboxHeader, parseElrs, parseFrames, parseGps, parseLinkStats, parseVbat, resizeTypedArrays } from "@/utils/blackbox/parsing";
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
 import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
 import { DISARM_REASONS, TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/constants";
@@ -238,7 +238,7 @@ export default defineComponent({
 			input.click();
 		},
 		exportLog(type: 'kbb' | 'json' = 'kbb') {
-			if (!this.loadedLog) return;
+			if (!this.loadedLog?.rawFile) return;
 			let blob: Blob;
 			// temporarily convert rawFile to Array to prevent having an object as the rawFile
 			const raw = this.loadedLog.rawFile;
@@ -270,10 +270,166 @@ export default defineComponent({
 				})
 				.catch(console.error);
 		},
-		openLogFast() {
-			sendCommand(MspFn.BB_FAST_FILE_INIT, {
-				data: [...intToLeBytes(this.selected, 2), 0]
-			}).then(console.log).catch(console.error)
+		async openLogFast() {
+			try {
+				let c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
+					data: [...intToLeBytes(this.selected, 2), 0],
+					timeout: 1500,
+					verifyFn: (req, res) => {
+						return res.cmdType === 'response' && req.command === res.command && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2) && req.data[2] === res.data[2]
+					}
+				})
+
+				if (leBytesToInt(c.data, 0, 2) !== this.selected)
+					return
+				const header = c.data.slice(32)
+				const meta = c.data.slice(0, 32)
+				const fileSize = leBytesToInt(meta, 3, 4)
+				this.chunkSize = leBytesToInt(meta, 7, 4)
+				const frameCount = leBytesToInt(meta, 11, 4)
+
+				const log = parseBlackboxHeader(header)
+				if (typeof log === 'string') {
+					this.configuratorLog.push(log)
+					return
+				}
+				log.fileSize = fileSize
+				log.frameCount = frameCount
+				resizeTypedArrays(log.logData, frameCount)
+				log.frameLoadingStatus = new Uint8Array(frameCount)
+				log.frameLoadingStatus.fill(0)
+				const frameSize = log.frameSize
+
+				const syncs = log.syncs
+
+				for (let syncStart = 256; syncStart < fileSize;) {
+					c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
+						data: [...intToLeBytes(this.selected, 2), 1, ...intToLeBytes(syncStart, 4), frameSize, log.syncFrequency],
+						timeout: 1500,
+						retries: 0,
+						verifyFn: (req, res) => {
+							return res.cmdType === 'response'
+								&& req.command === res.command
+								&& leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2)
+								&& req.data[2] === res.data[2]
+								&& leBytesToInt(req.data, 3, 4) === leBytesToInt(res.data, 3, 4)
+						}
+					})
+
+					if (c.data.length < 16) // less than 1 sync
+						break
+
+					for (let i = 7; i < c.data.length; i += 9) {
+						const pos = leBytesToInt(c.data, i, 4)
+						const frame = leBytesToInt(c.data, i + 4, 4)
+						const ctrlByte = c.data[i + 8]
+						syncs.push({ frame, pos, ctrlByte })
+						syncStart = pos + 13 + (frameSize + 1) * log.syncFrequency
+					}
+
+				}
+
+				let reqData = [...intToLeBytes(this.selected, 2), 2, frameSize]
+				syncs.forEach((s, i) => {
+					if (!s.ctrlByte) return
+					let pos = syncs[i - 1]?.pos
+					if (i === 0) pos = 256
+					reqData.push(...intToLeBytes(pos, 4))
+				})
+				reqData.push(...intToLeBytes(syncs[syncs.length - 1]?.pos || 256, 4))
+
+				c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
+					data: reqData,
+					timeout: 1500,
+					verifyFn: (req, res) => {
+						return res.cmdType === 'response' && req.command === res.command && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2) && req.data[2] === res.data[2]
+					}
+				})
+
+				for (let i = 3; i < c.data.length;) {
+					let findings = c.data[i++]
+					for (let j = 0; j < findings; j++) {
+						const pos = i + j * 5
+						i += 5
+						const frame = leBytesToInt(c.data, pos, 4)
+						const flag = c.data[pos + 4]
+						const hl = flag & 0x10
+						const fm = flag & 0x0F
+						if (hl) log.highlights.push(frame)
+						if (fm !== 0x0F) {
+							log.flightModes.push({ fm, frame })
+						}
+					}
+				}
+
+				reqData = [0, 0, ...intToLeBytes(this.selected, 2), frameSize];
+				reqData.push(...intToLeBytes(0, 4), 0x1F, ...intToLeBytes(syncs[0].pos, 4))
+				reqData.push(...intToLeBytes(log.frameCount - 1, 4), 0x1F, ...intToLeBytes(syncs[syncs.length - 1].pos, 4))
+				c = await sendCommand(MspFn.BB_FAST_DATA_REQ, {
+					data: reqData,
+					timeout: 1500,
+					verifyFn: (req, res) => {
+						return res.cmdType === 'response' && req.command === res.command && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2)
+					}
+				})
+
+				const data = c.data.slice(2)
+				const frameOffset = 0;
+				const frameBuffer = new Uint8Array(frameSize * 2)
+				const frames = new Uint32Array([0, log.frameCount - 1])
+				const elrsOffset = frameSize
+				const elrsBuffer = new Uint8Array(6 * 2)
+				const elrsFrom = new Uint32Array(2)
+				const elrsTo = new Uint32Array(2)
+				const gpsOffset = elrsOffset + 6 + 8
+				const gpsBuffer = new Uint8Array(92 * 2)
+				const gpsFrom = new Uint32Array(2)
+				const gpsTo = new Uint32Array(2)
+				const vbatOffset = gpsOffset + 92 + 8
+				const vbatBuffer = new Uint8Array(2 * 2)
+				const vbatFrom = new Uint32Array(2)
+				const vbatTo = new Uint32Array(2)
+				const linkStatsOffset = vbatOffset + 2 + 8
+				const linkStatsBuffer = new Uint8Array(11 * 2)
+				const linkStatsFrom = new Uint32Array(2)
+				const linkStatsTo = new Uint32Array(2)
+				const batchSize = linkStatsOffset + 11 + 8
+				if (data.length != batchSize * 2) {
+					this.configuratorLog.push("incorrect returned length")
+					return
+				}
+
+				for (let i = 0; i < 2; i++) {
+					const pos = i * batchSize
+					frameBuffer.set(data.slice(pos + frameOffset, pos + elrsOffset), i * frameSize)
+					elrsBuffer.set(data.slice(pos + elrsOffset + 8, pos + gpsOffset), i * 6)
+					gpsBuffer.set(data.slice(pos + gpsOffset + 8, pos + vbatOffset), i * 92)
+					vbatBuffer.set(data.slice(pos + vbatOffset + 8, pos + linkStatsOffset), i * 2)
+					linkStatsBuffer.set(data.slice(pos + linkStatsOffset + 8, pos + batchSize), i * 11)
+					elrsFrom[i] = leBytesToInt(data, pos + elrsOffset, 4)
+					elrsTo[i] = leBytesToInt(data, pos + elrsOffset + 4, 4)
+					gpsFrom[i] = leBytesToInt(data, pos + gpsOffset, 4)
+					gpsTo[i] = leBytesToInt(data, pos + gpsOffset + 4, 4)
+					vbatFrom[i] = leBytesToInt(data, pos + vbatOffset, 4)
+					vbatTo[i] = leBytesToInt(data, pos + vbatOffset + 4, 4)
+					linkStatsFrom[i] = leBytesToInt(data, pos + linkStatsOffset, 4)
+					linkStatsTo[i] = leBytesToInt(data, pos + linkStatsOffset + 4, 4)
+				}
+
+				parseFrames(log.logData, frameBuffer, frames, log.frameLoadingStatus, log.offsets, frameSize, log.flags, log.framesPerSecond, log.motorPoles)
+				parseElrs(log.logData, log.frameLoadingStatus, elrsBuffer, elrsFrom, elrsTo)
+				parseGps(log.logData, log.frameLoadingStatus, gpsBuffer, gpsFrom, gpsTo)
+				parseVbat(log.logData, log.frameLoadingStatus, vbatBuffer, vbatFrom, vbatTo)
+				parseLinkStats(log.logData, log.frameLoadingStatus, linkStatsBuffer, linkStatsFrom, linkStatsTo)
+
+				this.loadedLog = log
+
+				this.startFrame = 0;
+				this.endFrame = frameCount - 1;
+			} catch (e) {
+				console.error(e)
+				this.configuratorLog.push("something failed while opening the log, maybe this helps narrow it down: " + (e as string).toString())
+			}
 		},
 		deleteLog() {
 			sendCommand(MspFn.BB_FILE_DELETE, {
@@ -1217,7 +1373,7 @@ export default defineComponent({
 						.map((el: string) => BB_ALL_FLAGS[el].name)
 						.join('\n - ')}}
 				</div>
-				<div>File Size: {{ (loadedLog.rawFile.length / 1000).toFixed(1) }} KB</div>
+				<div>File Size: {{ (loadedLog.fileSize / 1000).toFixed(1) }} KB</div>
 				<div>Bytes per Frame: {{ loadedLog.frameSize }}</div>
 				<div>
 					IMU Range: {{ loadedLog.ranges.gyro }}°/sec, ±{{ loadedLog.ranges.accel }}g

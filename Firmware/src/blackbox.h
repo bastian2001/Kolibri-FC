@@ -81,11 +81,11 @@
 #define BB_FRAME_RC 4 // RC frame, ELRS channels
 #define BB_FRAME_VBAT 5 // Battery frame
 #define BB_FRAME_LINK_STATS 6 // ELRS link statistics
-#define BB_FRAME_ABV_SYNC 83 // ASCII 'S' => start of "SYNC"
-#define BB_FRAME_ABV_RESERVED_1 89 // 'Y'
-#define BB_FRAME_ABV_RESERVED_2 78 // 'N'
-#define BB_FRAME_ABV_RESERVED_3 67 // 'C'
-#define BB_FRAME_ABV_RESERVED_4 33 // '!'
+#define BB_FRAME_SYNC 83 // ASCII 'S' => start of "SYNC"
+#define BB_FRAME_RESERVED_1 89 // 'Y'
+#define BB_FRAME_RESERVED_2 78 // 'N'
+#define BB_FRAME_RESERVED_3 67 // 'C'
+#define BB_FRAME_RESERVED_4 33 // '!'
 
 #define BB_FRAMESIZE_FLIGHTMODE 2
 #define BB_FRAMESIZE_HIGHLIGHT 1

@@ -127,8 +127,9 @@ export type BBLog = {
 	syncs: { frame: number; pos: number; ctrlByte: number }[]
 	syncFrequency: number
 	frameLoadingStatus: Uint8Array
+	fileSize: number
 	highlights: number[]
-	rawFile: Uint8Array
+	rawFile?: Uint8Array
 	flags: string[]
 	logData: LogData
 	version: Uint8Array

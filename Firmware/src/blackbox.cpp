@@ -119,23 +119,25 @@ static size_t unescapeBytes(u8 *in, u8 *out, size_t inputLen, size_t outputLen, 
 	for (; i < inputLen && o < outputLen; i++) {
 		u8 &c = in[i];
 		if (!synState) {
-			out[o] = c;
+			out[o++] = c;
 			if (c == 'S') synState = 1;
 			continue;
 		}
 
 		switch (synState) {
 		case 1:
-			out[o] = c;
+			out[o++] = c;
 			if (c == 'Y')
 				synState = 2;
-			else
+			else if (c != 'S')
 				synState = 0;
 			break;
 		case 2:
-			out[o] = c;
+			out[o++] = c;
 			if (c == 'N')
 				synState = 3;
+			else if (c == 'S')
+				synState = 1;
 			else
 				synState = 0;
 			break;
@@ -144,16 +146,18 @@ static size_t unescapeBytes(u8 *in, u8 *out, size_t inputLen, size_t outputLen, 
 				synState = 0;
 			} else if (c == 'C') {
 				synState = 0;
-				out[o] = c;
+				out[o++] = c;
+			} else if (c != 'S') {
+				synState = 1;
 			} else {
 				// should not occur
 				synState = 0;
-				out[o] = c;
+				out[o++] = c;
 			}
 		}
 	}
 	if (usedInputLen != nullptr) *usedInputLen = i;
-	return o;
+	return o++;
 }
 
 static void writeFlightModeToBlackbox() {
@@ -447,7 +451,6 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		for (int i = 0; i < 8; i++) {
 			fileBuf[i] = 0; // zero out the array to ensure no invalid sync read at the very end of the file
 		}
-		printfIndMessage("file has size %d, starting to read at %d", size, size - 1024);
 		u32 syncPos = 0xFFFFFFFFU;
 		u32 syncFrame = 0;
 		for (i32 searchPos = size - 1024; searchPos > 256 - 1024; searchPos -= 1024) {
@@ -465,7 +468,6 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 
 			// get 1024 bytes so we have 1032 to read through to find a sync
 			file.seek(searchPos);
-			printfIndMessage("seeked to %d, now reading %d bytes to find a SYNC", searchPos, readSize);
 			file.read(fileBuf, readSize);
 
 			// read through the bytes and find sync
@@ -482,8 +484,6 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			}
 		}
 
-		printfIndMessage("found last sync at pos %d with frameNum %d", syncPos, syncFrame);
-
 		// search for last frame
 		u32 readPos = 0;
 		i32 bytesReadable = 0;
@@ -497,7 +497,6 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 				rp2040.wdt_reset();
 				file.seek(searchPos);
 				lastSp = searchPos;
-				printfIndMessage("seeking pos %d, currently frameCount = %d", searchPos, frameCount);
 				bytesReadable = file.read(fileBuf, 1024);
 				if (bytesReadable <= 0) {
 					break;
@@ -531,7 +530,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 				case BB_FRAME_LINK_STATS:
 					searchSize = BB_FRAMESIZE_LINK_STATS;
 					break;
-				case BB_FRAME_ABV_SYNC: // shouldn't happen
+				case BB_FRAME_SYNC: // shouldn't happen
 					searchSize = BB_FRAMESIZE_SYNC;
 					break;
 				default:
@@ -571,13 +570,12 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			bytesReadable--;
 			readPos++;
 		}
-		printfIndMessage("final frame count: %d", frameCount);
 		memcpy(&b[11], &frameCount, 4);
 		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_FILE_INIT, mspVer, (char *)b, 288);
 	} break;
 	case 1: {
 		if (reqLen != 6)
-			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Improper use of fast file init subCmd 1", strlen("Improper use of fast file init subCmd 1"));
+			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Incorrect usage of fast file init subCmd 1", strlen("Incorrect usage of fast file init subCmd 1"));
 #if BLACKBOX_STORAGE == SD_BB
 		FsFile &file = bbPrintLog.logFile;
 #endif
@@ -600,12 +598,14 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		}
 
 		for (bool doneAllSyncs = false; !doneAllSyncs;) {
-			memcpy(inBuf, inBuf + 512, maxReadNext);
+			memcpy(inBuf, inBuf + 512, 512);
 			i32 maxRead = maxReadNext;
 			if (maxRead < BB_FRAMESIZE_SYNC) {
 				// file end reached
 				break;
 			}
+
+			rp2040.wdt_reset();
 			maxReadNext = file.read(inBuf + 512, 512);
 			if (maxReadNext < 0) {
 				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
@@ -642,7 +642,6 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 	case 2: {
 		if (reqLen < 1)
 			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Improper use of fast file init subCmd 2", strlen("Improper use of fast file init subCmd 2"));
-
 		u8 frameSize = reqPayload[0];
 		u8 b[1024];
 		b[0] = logNum & 0xFF;
@@ -656,11 +655,12 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		FsFile &file = bbPrintLog.logFile;
 #endif
 
-		const u32 syncCount = (reqLen - 2) / 4;
+		const u32 syncCount = (reqLen - 1) / 4;
 		u32 bufPos = 3;
 
 		for (u32 i = 0; i < syncCount; i++) {
 			u32 filePos = DECODE_U4((u8 *)&reqPayload[1 + i * 4]);
+			rp2040.wdt_reset();
 			file.seek(filePos);
 			u8 finding = 0;
 
@@ -675,8 +675,8 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			}
 
 			u32 bufPosBackup = bufPos;
-			bufPos++;
-			for (bool foundNextSync = false; !foundNextSync;) {
+			b[bufPos++] = 0;
+			for (u8 foundNextSync = 0; foundNextSync < 2;) {
 				if (bufPos > chunkSize - 5) break;
 
 				// read one (any frametype) frame at a time, and read 512 bytes again if more bytes are needed by that frametype than are readable.
@@ -690,6 +690,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 					readPos = 0;
 					if (newBytes < 0) break; // error
 					readable += newBytes;
+					if (readable <= 0) break; // file over, treat identical to finding sync
 				}
 
 				switch (inBuf[readPos++]) {
@@ -734,7 +735,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 				case BB_FRAME_RC: {
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_RC - 1, &used);
-					if (act != BB_FRAMESIZE_GPS - 1) {
+					if (act != BB_FRAMESIZE_RC - 1) {
 						// TODO error
 					}
 					readPos += used;
@@ -750,13 +751,14 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 					}
 					readPos += used;
 				} break;
-				case BB_FRAME_ABV_SYNC: {
+				case BB_FRAME_SYNC: {
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_SYNC - 1, &used);
 					if (act != BB_FRAMESIZE_SYNC - 1) {
 						// TODO error
 					}
-					frameNum = DECODE_U4(&dummy[5]);
+					foundNextSync++;
+					frameNum = DECODE_U4(&dummy[4]);
 					readPos += used;
 				} break;
 				}
@@ -775,10 +777,276 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
 	if (!fsReady || bbLogging) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		return;
 	}
 	if (!openLogFileIfDiffNum(logNum)) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "File not found", strlen("File not found"));
+		return;
 	}
+	if (reqLen % 9 != 0) {
+		return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "Incorrect Fast Data Request parameters", strlen("Incorrect Fast Data Request parameters"));
+	}
+
+	u8 elrsBuffer[8 + BB_FRAMESIZE_RC - 1];
+	u8 gpsBuffer[8 + BB_FRAMESIZE_GPS - 1];
+	u8 vbatBuffer[8 + BB_FRAMESIZE_VBAT - 1];
+	u8 linkStatsBuffer[8 + BB_FRAMESIZE_LINK_STATS - 1];
+	u8 frameBuffer[frameSize];
+	u8 buf[1024];
+	u8 dummy[frameSize > 92 ? frameSize : 92];
+	u8 inBuf[1024];
+	memset(buf, 0, 1024);
+	buf[0] = sequenceNum;
+	buf[1] = sequenceNum >> 8;
+	u32 bufPos = 2;
+
+	for (int i = 0; i < reqLen; i += 9) {
+		u32 reqFrame = DECODE_U4((u8 *)&reqPayload[i]);
+		u8 whichFrameTypes = reqPayload[i + 4];
+		bool frameReq = whichFrameTypes & 0b00001;
+		bool elrsReq = whichFrameTypes & 0b00010;
+		bool gpsReq = whichFrameTypes & 0b00100;
+		bool vbatReq = whichFrameTypes & 0b01000;
+		bool linkStatsReq = whichFrameTypes & 0b10000;
+		bool elrsFound = false, gpsFound = false, vbatFound = false, linkStatsFound = false;
+		bool elrsCompleted = false, gpsCompleted = false, vbatCompleted = false, linkStatsCompleted = false;
+		u32 totalSize =
+			(frameReq ? frameSize : 0) +
+			(elrsReq ? sizeof(elrsBuffer) : 0) +
+			(gpsReq ? sizeof(gpsBuffer) : 0) +
+			(vbatReq ? sizeof(linkStatsBuffer) : 0) +
+			(linkStatsReq ? sizeof(vbatBuffer) : 0);
+		if (bufPos + totalSize > getBlackboxChunkSize(mspVer)) break;
+		u32 elrsFrame = 0, gpsFrame = 0, vbatFrame = 0, linkStatsFrame = 0;
+		u32 suggestedSyncPos = DECODE_U4((u8 *)&reqPayload[i + 5]);
+		u32 nextSyncPos = suggestedSyncPos;
+		u32 framePos = 0;
+		bool searchingBackwards = true;
+		u32 frameNum = 0;
+
+		/*
+		 * EVERYTHING ALWAYS UNESCAPED
+		 *
+		 * in the following order, if wanted:
+		 * - elrs: 4 byte from frame (inclusive), 4 byte to frame (inclusive), ELRS data. Total 14 bytes
+		 * - gps: 4 byte from frame (inclusive), 4 byte to frame (inclusive), GPS data. Total 100 bytes
+		 * - link stats: 4 byte from frame (inclusive), 4 byte to frame (inclusive), link stats data. Total 19 bytes
+		 * - normal frame: length frameSize, just the frame
+		 */
+
+#if BLACKBOX_STORAGE == SD_BB
+		FsFile &file = bbPrintLog.logFile;
+#endif
+
+		while (elrsReq != elrsCompleted || gpsReq != gpsCompleted || vbatReq != vbatCompleted || linkStatsReq != linkStatsCompleted) {
+			rp2040.wdt_reset();
+			printfIndMessage("seeking %d", nextSyncPos);
+			if (nextSyncPos == 0xFFFFFFFFUL)
+				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 1 while reading file", strlen("Error 1 while reading file"));
+			if (nextSyncPos == 0) {
+				nextSyncPos = 256;
+				frameNum = 0;
+			}
+			printfIndMessage("actually seeking %d", nextSyncPos);
+			file.seek(nextSyncPos);
+			nextSyncPos = 0xFFFFFFFFUL;
+
+			i32 readable = file.read(inBuf, 1024);
+			if (readable < 0) {
+				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 2 while reading file", strlen("Error 2 while reading file"));
+			}
+			u32 readPos = 0;
+
+			for (bool goBack = false; !goBack;) {
+				// read one (any frametype) frame at a time, and read 512 bytes again if more bytes are needed by that frametype than are readable.
+
+				// shift and refill if needed
+				if (readable - readPos < 512) {
+					memmove(inBuf, &inBuf[readPos], 1024 - readPos);
+					memset(&inBuf[1024 - readPos], 0, readPos);
+					i32 newBytes = file.read(&inBuf[1024 - readPos], readPos);
+					readable -= readPos;
+					readPos = 0;
+					if (newBytes < 0)
+						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 3 while reading file", strlen("Error 3 while reading file"));
+					readable += newBytes;
+					if (readable <= 0) {
+						if (searchingBackwards) {
+							return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 4 while reading file", strlen("Error 4 while reading file"));
+						}
+						elrsCompleted = elrsReq;
+						gpsCompleted = gpsReq;
+						vbatCompleted = vbatReq;
+						linkStatsCompleted = linkStatsReq;
+						u32 u = frameNum - 1;
+						memcpy(&elrsBuffer[4], &u, 4);
+						memcpy(&gpsBuffer[4], &u, 4);
+						memcpy(&vbatBuffer[4], &u, 4);
+						memcpy(&linkStatsBuffer[4], &u, 4);
+						break;
+					}
+				}
+
+				switch (inBuf[readPos++]) {
+				case BB_FRAME_NORMAL: {
+					u32 used = 0;
+					u32 act = 0;
+					if (frameNum >= reqFrame && searchingBackwards) {
+						unescapeBytes(&inBuf[readPos], frameBuffer, readable - readPos, frameSize, &used);
+						framePos = file.position() - readable + readPos - 1;
+
+						if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound) {
+							// if the frame is the last thing we find, just continue searching
+							searchingBackwards = false;
+						} else {
+							goBack = true;
+						}
+					} else {
+						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
+					}
+					if (act != frameSize) {
+						// TODO error
+					}
+					frameNum++;
+					readPos += used;
+				} break;
+				case BB_FRAME_FLIGHTMODE: {
+					readPos++;
+				} break;
+				case BB_FRAME_HIGHLIGHT: {
+				} break;
+				case BB_FRAME_GPS: {
+					u32 used = 0;
+					u32 act = 0;
+					if (frameNum >= gpsFrame && frameNum <= reqFrame) {
+						unescapeBytes(&inBuf[readPos], &gpsBuffer[8], readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
+						memcpy(gpsBuffer, &frameNum, 4);
+						gpsFound = true;
+						gpsFrame = frameNum;
+					} else {
+						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
+						if (gpsFound && !gpsCompleted) {
+							u32 u = frameNum - 1;
+							memcpy(&gpsBuffer[4], &u, 4);
+							gpsCompleted = true;
+						}
+					}
+					if (act != BB_FRAMESIZE_GPS - 1) {
+						// TODO error
+					}
+					readPos += used;
+				} break;
+				case BB_FRAME_RC: {
+					u32 used = 0;
+					u32 act = 0;
+					if (frameNum >= elrsFrame && frameNum <= reqFrame) {
+						unescapeBytes(&inBuf[readPos], &elrsBuffer[8], readable - readPos, BB_FRAMESIZE_RC - 1, &used);
+						memcpy(elrsBuffer, &frameNum, 4);
+						elrsFound = true;
+						elrsFrame = frameNum;
+					} else {
+						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_RC - 1, &used);
+						if (elrsFound && !elrsCompleted) {
+							u32 u = frameNum - 1;
+							memcpy(&elrsBuffer[4], &u, 4);
+							elrsCompleted = true;
+						}
+					}
+					if (act != BB_FRAMESIZE_RC - 1) {
+						// TODO error
+					}
+					readPos += used;
+				} break;
+				case BB_FRAME_VBAT: {
+					if (frameNum >= vbatFrame && frameNum <= reqFrame) {
+						memcpy(&vbatBuffer[8], &inBuf[readPos], 2);
+						memcpy(vbatBuffer, &frameNum, 4);
+						vbatFound = true;
+						vbatFrame = frameNum;
+					} else {
+						if (vbatFound && !vbatCompleted) {
+							u32 u = frameNum - 1;
+							memcpy(&vbatBuffer[4], &u, 4);
+							vbatCompleted = true;
+						}
+					}
+					readPos += BB_FRAMESIZE_VBAT - 1;
+				} break;
+				case BB_FRAME_LINK_STATS: {
+					u32 used = 0;
+					u32 act = 0;
+					if (frameNum >= linkStatsFrame && frameNum <= reqFrame) {
+						unescapeBytes(&inBuf[readPos], &linkStatsBuffer[8], readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
+						memcpy(linkStatsBuffer, &linkStatsBuffer, 4);
+						linkStatsFound = true;
+						linkStatsFrame = frameNum;
+					} else {
+						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
+						if (linkStatsFound && !linkStatsCompleted) {
+							u32 u = frameNum - 1;
+							memcpy(&linkStatsBuffer[4], &u, 4);
+							linkStatsCompleted = true;
+						}
+					}
+					if (act != BB_FRAMESIZE_LINK_STATS - 1) {
+						// TODO error
+					}
+					readPos += used;
+				} break;
+				case BB_FRAME_SYNC: {
+					u32 used = 0;
+					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_SYNC - 1, &used);
+					if (act != BB_FRAMESIZE_SYNC - 1) {
+						// TODO error
+					}
+					if (nextSyncPos != 0xFFFFFFFFUL && framePos != 0 && (elrsReq != elrsFound || gpsReq != gpsFound || vbatReq != vbatFound || linkStatsReq != linkStatsFound)) {
+						// if we found the frame, but not all ELRS/GPS/... stuff, go back, else store the next jump point
+						goBack = true;
+						printfIndMessage("goBack");
+					} else if (nextSyncPos == 0xFFFFFFFFUL) {
+						nextSyncPos = DECODE_U4(&dummy[3 /*YNC*/ + 1 /*flag*/ + 4 /*frame number*/]);
+						printfIndMessage("found SYNC around %d with nextSyncPos %d", (u32)file.position() - readable + readPos - 1, nextSyncPos);
+					}
+					frameNum = DECODE_U4(&dummy[4]);
+					printfIndMessage("it has frameNum %d", frameNum);
+					readPos += used;
+				} break;
+				}
+
+				if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound && framePos != 0 && searchingBackwards) {
+					searchingBackwards = false;
+					nextSyncPos = framePos;
+					frameNum = reqFrame;
+					goBack = true;
+				}
+				if (elrsReq == elrsCompleted && gpsReq == gpsCompleted && vbatReq == vbatCompleted && linkStatsReq == linkStatsCompleted) {
+					goBack = true; // will exit
+				}
+			}
+		}
+
+		if (frameReq) {
+			memcpy(&buf[bufPos], frameBuffer, sizeof(frameBuffer));
+			bufPos += sizeof(frameBuffer);
+		}
+		if (elrsReq) {
+			memcpy(&buf[bufPos], elrsBuffer, sizeof(elrsBuffer));
+			bufPos += sizeof(elrsBuffer);
+		}
+		if (gpsReq) {
+			memcpy(&buf[bufPos], gpsBuffer, sizeof(gpsBuffer));
+			bufPos += sizeof(gpsBuffer);
+		}
+		if (vbatReq) {
+			memcpy(&buf[bufPos], vbatBuffer, sizeof(vbatBuffer));
+			bufPos += sizeof(vbatBuffer);
+		}
+		if (linkStatsReq) {
+			memcpy(&buf[bufPos], linkStatsBuffer, sizeof(linkStatsBuffer));
+			bufPos += sizeof(linkStatsBuffer);
+		}
+	}
+	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_DATA_REQ, mspVer, (char *)buf, bufPos);
 }
 
 void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {

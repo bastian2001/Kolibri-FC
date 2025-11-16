@@ -170,7 +170,7 @@ export default defineComponent({
 				<input v-else type="text" v-model="device" placeholder="Enter device name" class="manualDeviceInput" />
 				&nbsp;&nbsp;
 				<button v-if="connected" @click="disconnect"
-					@click.right="() => { sendCommand(MspFn.REBOOT, [4]).then(() => disconnect) }"
+					@click.right.prevent="() => { sendCommand(MspFn.REBOOT, [4]).then(disconnect) }"
 					class="connectButton">Disconnect</button>
 				<button v-else-if="serialDevices.length || wifiDevices.length || manualDevice" @click="connect"
 					class="connectButton">Connect</button>
@@ -263,7 +263,7 @@ export default defineComponent({
 	min-width: 250px;
 	margin-left: 1rem;
 	background-color: var(--background-blue);
-	height: 3rem;
+	height: 5rem;
 	padding: 0 0.5rem;
 	color: var(--text-color);
 	font-size: 0.7rem;
