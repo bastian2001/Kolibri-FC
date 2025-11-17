@@ -298,42 +298,53 @@ export default defineComponent({
 			return log.syncs[syncIndex].pos
 		},
 		getFrames(frames: Uint32Array, log: BBLog): { len: number, done: Promise<void> } {
-			console.log("trying frames ", frames)
-			const maxReqCount = frames.length
+			let maxReqCount = Math.min(frames.length, Math.floor((this.chunkSize - 5) / 9))
 			const reqData = new Uint8Array(this.chunkSize)
 			let i = 0
-			reqData.set([...intToLeBytes(this.sequenceNum, 2), ...intToLeBytes(this.selected, 2), log.frameSize], 0)
+			this.sequenceNum++
+			if (this.sequenceNum >= 65536) this.sequenceNum = 0
+			const seq = this.sequenceNum
+			reqData.set([...intToLeBytes(seq, 2), ...intToLeBytes(log.index, 2), log.frameSize], 0)
+
 			let resSize = 2
-			let frameReq = 0
-			const frameOffsets = new Uint32Array(maxReqCount)
-			let elrsReq = 0
-			const elrsOffsets = new Uint32Array(maxReqCount)
-			let gpsReq = 0
-			const gpsOffsets = new Uint32Array(maxReqCount)
-			let vbatReq = 0
-			const vbatOffsets = new Uint32Array(maxReqCount)
-			let linkStatsReq = 0
-			const linkStatsOffsets = new Uint32Array(maxReqCount)
 			for (; i < maxReqCount; i++) {
-				const pos = 5 + i * 9
 				const fr = frames[i]
 				const fl = 0x1F ^ log.frameLoadingStatus[fr]
-				if (pos + 9 > this.chunkSize) break; // ensure we don't overflow the req buffer
-
 				const resFrameLength =
 					((fl & 0b00001) ? log.frameSize : 0) +
 					((fl & 0b00010) ? 14 : 0) +
 					((fl & 0b00100) ? 100 : 0) +
-					((fl & 0b01000) ? 19 : 0) +
-					((fl & 0b10000) ? 10 : 0);
-
+					((fl & 0b01000) ? 10 : 0) +
+					((fl & 0b10000) ? 19 : 0);
 				if (resFrameLength + resSize > this.chunkSize) break; // ensure we don't overflow the res buffer
+				resSize += resFrameLength
+			}
+			const reqCount = Math.min(maxReqCount, i)
+			frames = frames.slice(0, reqCount)
+
+			resSize = 2
+			i = 0
+			let frameReq = 0
+			const frameOffsets = new Uint32Array(reqCount)
+			let elrsReq = 0
+			const elrsOffsets = new Uint32Array(reqCount)
+			let gpsReq = 0
+			const gpsOffsets = new Uint32Array(reqCount)
+			let vbatReq = 0
+			const vbatOffsets = new Uint32Array(reqCount)
+			let linkStatsReq = 0
+			const linkStatsOffsets = new Uint32Array(reqCount)
+			for (; i < reqCount; i++) {
+				const pos = 5 + i * 9
+				const fr = frames[i]
+				const fl = 0x1F ^ log.frameLoadingStatus[fr]
 
 				reqData.set(intToLeBytes(fr, 4), pos)
 				reqData[pos + 4] = fl
 				reqData.set(intToLeBytes(this.getSyncPosOfFrame(fr, log), 4), pos + 5)
 
 				if (fl & 0b00001) {
+					frames[frameReq] = fr
 					frameOffsets[frameReq++] = resSize
 					resSize += log.frameSize
 				}
@@ -354,22 +365,22 @@ export default defineComponent({
 					resSize += 19
 				}
 			}
+			frames = frames.slice(0, frameReq)
 
-			console.log(Array.from(reqData.slice(0, 5 + i * 9)))
+			console.log(reqCount, resSize)
 
 			return {
-				len: i,
+				len: reqCount,
 				done: new Promise<void>((res, rej) => {
 					sendCommand(MspFn.BB_FAST_DATA_REQ, {
 						data: Array.from(reqData.slice(0, 5 + i * 9)),
 						timeout: 2000,
 						retries: 0,
-						callbackData: this.sequenceNum++,
-						verifyFn: (req, res, cb) => {
-							return res.cmdType === 'response'
-								&& req.command === res.command
-								&& leBytesToInt(res.data, 0, 2) === cb
-						}
+						callbackData: seq,
+						verifyFn: (req, res, cb) =>
+							res.cmdType === 'response' &&
+							res.command === req.command &&
+							leBytesToInt(res.data, 0, 2) === cb
 					}).then(async c => {
 						if (c.data.length != resSize) throw 'incorrect length of response ' + c.data.length + " instead of " + resSize
 						const data = c.data
@@ -379,7 +390,6 @@ export default defineComponent({
 						for (let i = 0; i < frameReq; i++) {
 							frameBuf.set(data.slice(frameOffsets[i], frameOffsets[i] + log.frameSize), i * log.frameSize)
 						}
-						frames = frames.slice(0, frameReq)
 						parseFrames(log.logData, frameBuf, frames, log.frameLoadingStatus, log.offsets, log.frameSize, log.flags, log.framesPerSecond, log.motorPoles)
 
 						// parse ELRS
@@ -426,8 +436,6 @@ export default defineComponent({
 						}
 						parseLinkStats(log.logData, log.frameLoadingStatus, linkStatsBuf, linkStatsFrom, linkStatsTo)
 
-						console.log("got frames ", frames)
-						console.log(frameOffsets, data, frameBuf, frames)
 						res()
 					}).catch(rej)
 				})
@@ -435,28 +443,51 @@ export default defineComponent({
 		},
 		async openLogFast() {
 			try {
+				this.callStop()
+				const logNum = this.selected
 				let c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
-					data: [...intToLeBytes(this.selected, 2), 0],
+					data: [...intToLeBytes(logNum, 2), 0],
 					timeout: 1500,
 					verifyFn: (req, res) => {
-						return res.cmdType === 'response' && req.command === res.command && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2) && req.data[2] === res.data[2]
+						return res.cmdType === 'response' && req.command === res.command && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2) && req.data[2] === res.data[2] && res.length === 288
 					}
 				})
 
-				if (leBytesToInt(c.data, 0, 2) !== this.selected)
+				if (leBytesToInt(c.data, 0, 2) !== logNum) {
+					this.configuratorLog.push("got invalid response when asking for log")
 					return
-				this.callStop()
+				}
 				const header = c.data.slice(32)
 				const meta = c.data.slice(0, 32)
 				const fileSize = leBytesToInt(meta, 3, 4)
 				this.chunkSize = leBytesToInt(meta, 7, 4)
 				const frameCount = leBytesToInt(meta, 11, 4)
 
+				if (this.loadedLog?.rawFile) {
+					// check if the loadedLog is the same, then we don't need to erase everything, we can just continue
+					let logIsSame = true
+					for (let i = 0; i < 256; i++) {
+						if (this.loadedLog.rawFile[i] !== header[i]) {
+							logIsSame = false
+						}
+					}
+					if (frameCount !== this.loadedLog.frameCount)
+						logIsSame = false
+					if (fileSize !== this.loadedLog.fileSize)
+						logIsSame = false
+					if (logIsSame) {
+						this.startFetchingFrames()
+						this.configuratorLog.push("log was already loaded, continue loading")
+						return
+					}
+				}
+
 				const log = parseBlackboxHeader(header)
 				if (typeof log === 'string') {
 					this.configuratorLog.push(log)
 					return
 				}
+				log.index = logNum
 				log.rawFile = header
 				log.fileSize = fileSize
 				log.frameCount = frameCount
@@ -469,7 +500,7 @@ export default defineComponent({
 
 				for (let syncStart = 256; syncStart < fileSize;) {
 					c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
-						data: [...intToLeBytes(this.selected, 2), 1, ...intToLeBytes(syncStart, 4), frameSize, log.syncFrequency],
+						data: [...intToLeBytes(logNum, 2), 1, ...intToLeBytes(syncStart, 4), frameSize, log.syncFrequency],
 						timeout: 1500,
 						verifyFn: (req, res) => {
 							return res.cmdType === 'response'
@@ -493,7 +524,7 @@ export default defineComponent({
 
 				}
 
-				let reqData = [...intToLeBytes(this.selected, 2), 2, frameSize]
+				let reqData = [...intToLeBytes(logNum, 2), 2, frameSize]
 				syncs.forEach((s, i) => {
 					if (!s.ctrlByte) return
 					let pos = syncs[i - 1]?.pos
@@ -590,33 +621,38 @@ export default defineComponent({
 
 			const spawnFetcherInstance = async () => {
 				while (true) {
+					if (stop) {
+						return
+					}
 					if (!this.loadedLog) {
 						await delay(20)
 						continue
 					}
-					if (stop) {
-						return
-					}
 
 					// get frames to fetch
-					const frames = new Uint32Array(20)
-					const acc = new Uint32Array(20)
+					const size = 20
+					let frames = new Uint32Array(size)
+					let acc = new Uint32Array(size)
+					acc.fill(0x7FFFFFFF)
 					let best = 1
 					let fetching = 0
-					let settleDownFirst = false
-					for (let i = 0; i < accuracy.length; i++) {
-						const a = accuracy[i]
-						if (settleDownFirst) {
-							if (a === 0) {
-								settleDownFirst = false
+
+					const fillFrames = (start: number, end: number) => {
+						let settleDownFirst = false
+						for (let i = start; i < end; i++) {
+							const a = accuracy[i]
+							if (settleDownFirst) {
+								if (a === 0) {
+									settleDownFirst = false
+								}
+								continue
 							}
-							continue
-						}
-						if (a < best) {
-							continue
-						}
-						if (fetching < 20) {
-							if ((accuracy[i + 1] || 1) <= a) {
+							// if still rising, ignore
+							if ((accuracy[i + 1] || 1) > a) {
+								continue
+							}
+							// take all ones if the array is not full yet
+							if (fetching < size) {
 								if (pendingFrames.indexOf(i) !== -1) {
 									continue
 								}
@@ -624,26 +660,92 @@ export default defineComponent({
 								acc[fetching] = a
 								fetching++
 								settleDownFirst = true
+								best = 0x7FFFFFFF
+								for (let i = 0; i < fetching; i++) {
+									if (acc[i] < best) best = acc[i]
+								}
+								continue
 							}
-							continue
+							// ignore the ones that are better than the best
+							if (a < best) {
+								continue
+							}
+							if (pendingFrames.indexOf(i) !== -1) {
+								continue
+							}
+							for (let j = 0; j < size; j++) {
+								// throw out the one with the best rating
+								if (acc[j] == best) {
+									frames[j] = i
+									acc[j] = a
+									settleDownFirst = true
+									best = 0x7FFFFFFF
+									for (let i = 0; i < fetching; i++) {
+										if (acc[i] < best) best = acc[i]
+									}
+									break;
+								}
+							}
 						}
-						for (let j = 0; j < 20; j++) {
 
+						if (!fetching) return
+
+						// sort for maximum first
+						const f2 = new Uint32Array(size)
+						const a2 = new Uint32Array(size)
+						for (let i = 0; i < fetching; i++) {
+							let max = 0
+							let index = 0
+							for (let j = 0; j < fetching; j++) {
+								if (acc[j] > max) {
+									index = j
+									max = acc[j]
+								}
+							}
+							f2[i] = frames[index]
+							a2[i] = max
+							acc[i] = 0
 						}
+						frames = f2
+						acc = a2
+					}
+
+					// first fetch in the current view window, then extend if there's no more frame in there
+					let lMin = Math.floor(this.startFrame)
+					let lMax = Math.floor(this.endFrame + 1)
+					if (lMax > accuracy.length - 1) lMax = accuracy.length - 1
+					fillFrames(lMin, lMax)
+					if (accuracy[lMin] !== 0 && pendingFrames.indexOf(lMin) === -1 && frames.indexOf(lMin) === -1) {
+						acc.set(acc.slice(0, size - 1), 1)
+						acc[0] = accuracy[lMin]
+						frames.set(frames.slice(0, size - 1), 1)
+						frames[0] = lMin
+						fetching++
+						if (fetching > size) fetching = size
+					}
+					if (accuracy[lMax] !== 0 && pendingFrames.indexOf(lMax) === -1 && frames.indexOf(lMax) === -1) {
+						acc.set(acc.slice(0, size - 1), 1)
+						acc[0] = accuracy[lMax]
+						frames.set(frames.slice(0, size - 1), 1)
+						frames[0] = lMax
+						fetching++
+						if (fetching > size) fetching = size
+					}
+					if (!fetching) {
+						fillFrames(0, accuracy.length)
 					}
 
 					// fetch
 					if (!fetching) {
-						await delay(20)
+						await delay(2000)
 						continue
 					}
-					let f = frames.slice(0, fetching).sort()
+					let f = frames.slice(0, fetching)
 					const result = this.getFrames(f, this.loadedLog)
 
 					// mark frames as pending
 					f = f.slice(0, result.len)
 					pendingFrames.push(...f)
-					console.log(pendingFrames)
 
 					try {
 						// wait for fetched
@@ -654,11 +756,9 @@ export default defineComponent({
 							this.adjustAccuracy(frame, accuracy)
 						})
 						pendingFrames = pendingFrames.filter(v => f.indexOf(v) === -1);
-						console.log(pendingFrames)
 						this.drawCanvas()
 					} catch (e) {
 						pendingFrames = pendingFrames.filter(v => f.indexOf(v) === -1);
-						console.log(pendingFrames)
 						console.error(e)
 						await delay(500)
 						continue
@@ -666,8 +766,8 @@ export default defineComponent({
 				}
 			}
 
-			// for (let i = 0; i < 3; i++)
-			spawnFetcherInstance()
+			for (let i = 0; i < 2; i++)
+				spawnFetcherInstance()
 		},
 		deleteLog() {
 			sendCommand(MspFn.BB_FILE_DELETE, {
@@ -1117,6 +1217,7 @@ export default defineComponent({
 			}
 		},
 		drawCanvas(allowShortening = true) {
+			allowShortening = false
 			if (!this.loadedLog) return;
 			this.canvas.width = this.domCanvas.width;
 			this.canvas.height = this.domCanvas.height;
@@ -1180,6 +1281,11 @@ export default defineComponent({
 			const numGraphs = this.graphs.length;
 			const heightPerGraph = (height - this.dataViewerWrapper.clientHeight * 0.02 * numGraphs) / numGraphs;
 			let heightOffset = 0.01 * this.dataViewerWrapper.clientHeight;
+			const ls = this.loadedLog.frameLoadingStatus
+			const fc = this.loadedLog.frameCount
+			const endFrame = this.endFrame
+			const startFrame = this.startFrame
+			const sv = this.skipValue
 			for (let i = 0; i < numGraphs; i++) {
 				const graph = this.graphs[i];
 
@@ -1215,34 +1321,36 @@ export default defineComponent({
 					// @ts-expect-error
 					const array: TypedArray = trace.overrideData || this.loadedLog.logData[trace.path];
 					if (!array) continue; // nothing properly selected
-					const min = Math.min(trace.minValue, trace.maxValue);
-					const max = Math.max(trace.minValue, trace.maxValue);
+					const minValue = trace.minValue
+					const maxValue = trace.maxValue
+					const min = Math.min(minValue, maxValue);
+					const max = Math.max(minValue, maxValue);
 
 					// actually draw the trace
 					ctx.beginPath();
-					let k = Math.floor(this.startFrame)
+					let k = Math.floor(startFrame)
 					for (; k > 0; k--) {
 						// reverse until last valid point that is <= startFrame
-						if ((this.loadedLog.frameLoadingStatus[k] & bitmask) === bitmask) break;
+						if ((ls[k] & bitmask) === bitmask) break;
 					}
-					let pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
-					ctx.moveTo(frameWidth * (k - this.startFrame), pointY);
-					k += this.skipValue
-					for (; k < this.endFrame; k += this.skipValue) {
-						for (; k < this.loadedLog.frameCount - 1; k++) {
+					let pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - minValue) * scaleY;
+					ctx.moveTo(frameWidth * (k - startFrame), pointY);
+					k += sv
+					for (; k < endFrame; k += sv) {
+						for (; k < fc - 1; k++) {
 							// fast forward to first valid point after adding skipValue, stop at last frame to get at least a 0
-							if ((this.loadedLog.frameLoadingStatus[k] & bitmask) === bitmask) break;
+							if ((ls[k] & bitmask) === bitmask) break;
 						}
-						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
-						ctx.lineTo(frameWidth * (k - this.startFrame), pointY);
+						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - minValue) * scaleY;
+						ctx.lineTo(frameWidth * (k - startFrame), pointY);
 					}
 					// draw last point
-					for (; k < this.loadedLog.frameCount - 1; k++) {
-						if ((this.loadedLog.frameLoadingStatus[k] & bitmask) === bitmask) break;
+					for (; k < fc - 1; k++) {
+						if ((ls[k] & bitmask) === bitmask) break;
 					}
-					if (k < this.loadedLog.frameCount) {
-						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - trace.minValue) * scaleY;
-						ctx.lineTo(frameWidth * (k - this.startFrame), pointY);
+					if (k < fc) {
+						pointY = heightOffset + heightPerGraph - (constrain(array[k], min, max) - minValue) * scaleY;
+						ctx.lineTo(frameWidth * (k - startFrame), pointY);
 					}
 					ctx.stroke();
 				}
@@ -1251,8 +1359,8 @@ export default defineComponent({
 
 			// draw highlights as vertical lines
 			for (const h of this.loadedLog.highlights) {
-				if (h < this.startFrame || h > this.endFrame) continue;
-				const highlightX = (h - this.startFrame) * width / (this.endFrame - this.startFrame);
+				if (h < startFrame || h > endFrame) continue;
+				const highlightX = (h - startFrame) * width / (endFrame - startFrame);
 				ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
 				ctx.lineWidth = 4;
 				ctx.beginPath();
@@ -1269,9 +1377,9 @@ export default defineComponent({
 				const frame = f.frame;
 				const prev = currentFm
 				currentFm = f.fm;
-				if (frame <= this.endFrame) exitFm = currentFm;
-				if (frame < this.startFrame || frame > this.endFrame) continue;
-				const x = (frame - this.startFrame) * frameWidth;
+				if (frame <= endFrame) exitFm = currentFm;
+				if (frame < startFrame || frame > endFrame) continue;
+				const x = (frame - startFrame) * frameWidth;
 				visibleFms.push({ from: prev, to: currentFm, x });
 			}
 			for (const f in visibleFms) {
@@ -1351,6 +1459,7 @@ export default defineComponent({
 			this.binFile = new Uint8Array(leBytesToInt(data, 2, 4));
 			this.receivedChunks = [];
 			this.graphs = [[]];
+			this.callStop();
 			this.loadedLog = undefined;
 			this.chunkSize = leBytesToInt(data, 6, 4);
 			this.totalChunks = Math.ceil(this.binFile.length / this.chunkSize);
@@ -1429,6 +1538,7 @@ export default defineComponent({
 				return;
 			}
 			fillLogWithGenFlags(l);
+			this.callStop()
 			this.loadedLog = l;
 			this.resolveWhenReady(l);
 		},

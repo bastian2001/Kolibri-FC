@@ -26,6 +26,7 @@ export function parseBlackboxHeader(header: Uint8Array): BBLog | string {
 		frameSize: 0,
 		framesPerSecond: 0,
 		frequencyDivider: 0,
+		index: 0,
 		highlights: [],
 		isExact: true,
 		logData: {},

@@ -595,15 +595,27 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
 		}
 
+		u32 jumpToNextSync = 0;
+
 		for (bool doneAllSyncs = false; !doneAllSyncs;) {
-			memcpy(inBuf, inBuf + 512, 512);
+			if (jumpToNextSync) {
+				if (jumpToNextSync >= file.size()) {
+					// file end reached
+					break;
+				}
+				file.seek(jumpToNextSync);
+				maxReadNext = file.read(inBuf + 512, 512);
+				jumpToNextSync = 0;
+			}
+
+			rp2040.wdt_reset();
 			i32 maxRead = maxReadNext;
 			if (maxRead < BB_FRAMESIZE_SYNC) {
 				// file end reached
 				break;
 			}
 
-			rp2040.wdt_reset();
+			memcpy(inBuf, inBuf + 512, 512);
 			maxReadNext = file.read(inBuf + 512, 512);
 			if (maxReadNext < 0) {
 				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
@@ -631,6 +643,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 						doneAllSyncs = true;
 						break;
 					}
+					jumpToNextSync = syncPos + jumpAfterSync;
 				}
 			}
 		}
@@ -822,9 +835,6 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		bool searchingBackwards = true;
 		u32 frameNum = 0;
 		memset(frameBuffer, 0, frameSize);
-		// printfIndMessage("now searching for frame %d, %d", reqFrame, whichFrameTypes);
-		// serials[0].stream->loop(1024);
-		// sleep_ms(80);
 
 		/*
 		 * EVERYTHING ALWAYS UNESCAPED
@@ -896,15 +906,12 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					if (frameNum >= reqFrame && searchingBackwards) {
 						act = unescapeBytes(&inBuf[readPos], frameBuffer, readable - readPos, frameSize, &used);
 						framePos = file.position() - readable + readPos - 1;
-						// printfIndMessage("read %d (max %d) => act %d (should be %d) bytes from %06X into frameBuffer for frame %d", used, readable - readPos, act, frameSize, framePos, frameNum);
 
 						if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound) {
 							// if the frame is the last thing we find, just continue searching
 							searchingBackwards = false;
-							// printfIndMessage("keep going forward");
 						} else {
 							goBack = true;
-							// printfIndMessage("now go back");
 						}
 					} else {
 						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
@@ -1012,7 +1019,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 						nextSyncPos = framePos;
 						frameNum = reqFrame;
 						goBack = true;
-					} else if (nextSyncPos != 0xFFFFFFFFUL && framePos != 0 && (elrsReq != elrsFound || gpsReq != gpsFound || vbatReq != vbatFound || linkStatsReq != linkStatsFound)) {
+					} else if (nextSyncPos != 0xFFFFFFFFUL && (framePos != 0 || !frameReq) && (elrsReq != elrsFound || gpsReq != gpsFound || vbatReq != vbatFound || linkStatsReq != linkStatsFound)) {
 						// if we found the frame, but not all ELRS/GPS/... stuff, go back, else store the next jump point
 						goBack = true;
 					} else if (nextSyncPos == 0xFFFFFFFFUL) {
@@ -1021,7 +1028,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					readPos += used;
 				} break;
 				}
-				if (elrsReq == elrsCompleted && gpsReq == gpsCompleted && vbatReq == vbatCompleted && linkStatsReq == linkStatsCompleted) {
+				if (elrsReq == elrsCompleted && gpsReq == gpsCompleted && vbatReq == vbatCompleted && linkStatsReq == linkStatsCompleted && (!frameReq || framePos != 0)) {
 					rp2040.wdt_reset();
 					goBack = true; // will exit
 				}

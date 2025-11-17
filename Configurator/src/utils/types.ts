@@ -138,6 +138,7 @@ export type BBLog = {
 		gyro: number
 		accel: number
 	}
+	index: number
 	pidFrequency: number
 	frequencyDivider: number
 	rateCoeffs: ActualCoeffs[]
