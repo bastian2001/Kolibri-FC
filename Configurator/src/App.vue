@@ -157,7 +157,8 @@ export default defineComponent({
 <template>
 	<div class="main">
 		<div class="header">
-			<img src="https://svelte.dev/svelte-logo-horizontal.svg" alt="Svelte logo" class="kolibriLogo" />
+			<img src="https://upload.wikimedia.org/wikipedia/commons/9/95/Vue.js_Logo_2.svg" alt="Vue logo"
+				class="kolibriLogo" />
 			<div class="space"></div>
 			<div class="connector">
 				<input type="checkbox" id="manualDeviceEnabled" v-model="manualDevice" />
@@ -217,9 +218,8 @@ export default defineComponent({
 }
 
 .kolibriLogo {
-	height: 3rem;
+	height: 5rem;
 	flex-grow: 0;
-	background-color: black;
 }
 
 .space {
