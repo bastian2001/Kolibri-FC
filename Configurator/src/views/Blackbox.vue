@@ -75,6 +75,7 @@ export default defineComponent({
 			exiting: false,
 			sequenceNum: 0,
 			stopFetchingFrames: undefined as (() => void) | undefined,
+			lastDrawFrameCount: 0,
 		};
 	},
 	computed: {
@@ -718,7 +719,7 @@ export default defineComponent({
 
 					// first fetch in the current view window, then extend if there's no more frame in there
 					let lMin = Math.floor(this.startFrame)
-					let lMax = Math.floor(this.endFrame + 1)
+					let lMax = Math.ceil(this.endFrame)
 					if (lMax > accuracy.length - 1) lMax = accuracy.length - 1
 					fillFrames(lMin, lMax)
 					if (accuracy[lMin] !== 0 && pendingFrames.indexOf(lMin) === -1 && frames.indexOf(lMin) === -1) {
@@ -764,9 +765,19 @@ export default defineComponent({
 							this.adjustAccuracy(frame, accuracy)
 						})
 						pendingFrames = pendingFrames.filter(v => f.indexOf(v) === -1);
-						// TODO only draw if things changed substantially
-						// TODO let user export potentially unfinished log
-						this.drawCanvas()
+
+						let canDraw = 0
+						const maxDraw = lMax - lMin + 1
+						for (let i = lMin; i <= lMax; i++) {
+							if (ls[i] & 0b1) {
+								canDraw++
+							}
+						}
+						let draw = false
+						if (canDraw > this.lastDrawFrameCount * 1.2) draw = true
+						if (canDraw > this.lastDrawFrameCount && canDraw === maxDraw) draw = true
+
+						if (draw) this.drawCanvas(false)
 					} catch (e) {
 						pendingFrames = pendingFrames.filter(v => f.indexOf(v) === -1);
 						console.error(e)
@@ -1227,7 +1238,6 @@ export default defineComponent({
 			}
 		},
 		drawCanvas(allowShortening = true) {
-			allowShortening = false
 			if (!this.loadedLog) return;
 			this.canvas.width = this.domCanvas.width;
 			this.canvas.height = this.domCanvas.height;
@@ -1287,11 +1297,21 @@ export default defineComponent({
 				ctx.fillText(barDuration, 16 + barLength / 2, 35);
 			}
 
+			// count possibly drawn frames
+			const lMin = Math.floor(this.startFrame)
+			const lMax = Math.ceil(this.endFrame)
+			let drawn = 0
+			const ls = this.loadedLog.frameLoadingStatus
+			for (let i = lMin; i <= lMax; i++) {
+				if (ls[i] & 0b1) drawn++;
+			}
+			this.lastDrawFrameCount = drawn
+
+
 			const frameWidth = width / span;
 			const numGraphs = this.graphs.length;
 			const heightPerGraph = (height - this.dataViewerWrapper.clientHeight * 0.02 * numGraphs) / numGraphs;
 			let heightOffset = 0.01 * this.dataViewerWrapper.clientHeight;
-			const ls = this.loadedLog.frameLoadingStatus
 			const fc = this.loadedLog.frameCount
 			const endFrame = this.endFrame
 			const startFrame = this.startFrame

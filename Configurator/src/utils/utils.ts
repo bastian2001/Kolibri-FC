@@ -45,6 +45,15 @@ export const intToLeBytes = (value: number, length: number) => {
 	return bytes
 }
 
+export const bigIntToLeBytes = (value: bigint, length: number) => {
+	const bytes = new Uint8Array(length)
+	for (let i = 0; i < length; i++) {
+		bytes[i] = Number(value & 0xffn)
+		value >>= 8n
+	}
+	return bytes
+}
+
 export function map(value: number, inMin: number, inMax: number, outMin: number, outMax: number) {
 	return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin
 }

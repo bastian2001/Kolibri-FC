@@ -1,5 +1,5 @@
 import { BBLog, LogData, TypedArray } from "@utils/types"
-import { intToLeBytes, uint8ArrayEquals } from "../utils"
+import { bigIntToLeBytes, intToLeBytes, uint8ArrayEquals } from "../utils"
 import { escapeBlackbox } from "./parsing"
 import { BB_ALL_FLAGS } from "./bbFlags"
 
@@ -253,37 +253,37 @@ export function generateFullBinFile(log: BBLog): Uint8Array {
 		file[pos++] = 0
 		if (flags.indexOf("LOG_ROLL_SETPOINT") !== -1) {
 			const o = offsets["LOG_ROLL_SETPOINT"]
-			f.set(intToLeBytes(Math.round(data.setpointRoll![i] * 16), 2), o)
+			f.set(intToLeBytes(data.setpointRoll![i] * 16, 2), o)
 		}
 
 		if (flags.indexOf("LOG_PITCH_SETPOINT") !== -1) {
 			const o = offsets["LOG_PITCH_SETPOINT"]
-			f.set(intToLeBytes(Math.round(data.setpointPitch![i] * 16), 2), o)
+			f.set(intToLeBytes(data.setpointPitch![i] * 16, 2), o)
 		}
 
 		if (flags.indexOf("LOG_THROTTLE_SETPOINT") !== -1) {
 			const o = offsets["LOG_THROTTLE_SETPOINT"]
-			f.set(intToLeBytes(Math.round((data.setpointThrottle![i] - 1000) * 32), 2), o)
+			f.set(intToLeBytes((data.setpointThrottle![i] - 1000) * 32, 2), o)
 		}
 
 		if (flags.indexOf("LOG_YAW_SETPOINT") !== -1) {
 			const o = offsets["LOG_YAW_SETPOINT"]
-			f.set(intToLeBytes(Math.round(data.setpointYaw![i] * 16), 2), o)
+			f.set(intToLeBytes(data.setpointYaw![i] * 16, 2), o)
 		}
 
 		if (flags.indexOf("LOG_ROLL_GYRO_RAW") !== -1) {
 			const o = offsets["LOG_ROLL_GYRO_RAW"]
-			f.set(intToLeBytes(Math.round(data.gyroRawRoll![i] * 16), 2), o)
+			f.set(intToLeBytes(data.gyroRawRoll![i] * 16, 2), o)
 		}
 
 		if (flags.indexOf("LOG_PITCH_GYRO_RAW") !== -1) {
 			const o = offsets["LOG_PITCH_GYRO_RAW"]
-			f.set(intToLeBytes(Math.round(data.gyroRawPitch![i] * 16), 2), o)
+			f.set(intToLeBytes(data.gyroRawPitch![i] * 16, 2), o)
 		}
 
 		if (flags.indexOf("LOG_YAW_GYRO_RAW") !== -1) {
 			const o = offsets["LOG_YAW_GYRO_RAW"]
-			f.set(intToLeBytes(Math.round(data.gyroRawYaw![i] * 16), 2), o)
+			f.set(intToLeBytes(data.gyroRawYaw![i] * 16, 2), o)
 		}
 
 		if (flags.indexOf("LOG_ROLL_PID_P") !== -1) {
@@ -368,72 +368,72 @@ export function generateFullBinFile(log: BBLog): Uint8Array {
 
 		if (flags.indexOf("LOG_ALTITUDE") !== -1) {
 			const o = offsets["LOG_ALTITUDE"]
-			f.set(intToLeBytes(Math.round(data.altitude![i] * 64), 2), o)
+			f.set(intToLeBytes(data.altitude![i] * 64, 2), o)
 		}
 
 		if (flags.indexOf("LOG_VVEL") !== -1) {
 			const o = offsets["LOG_VVEL"]
-			f.set(intToLeBytes(Math.round(data.vvel![i] * 256), 2), o)
+			f.set(intToLeBytes(data.vvel![i] * 256, 2), o)
 		}
 
 		if (flags.indexOf("LOG_ATT_ROLL") !== -1) {
 			const o = offsets["LOG_ATT_ROLL"]
 			const rad = (data.rollAngle![i] * Math.PI) / 180
-			f.set(intToLeBytes(Math.round(rad * 10000), 2), o)
+			f.set(intToLeBytes(rad * 10000, 2), o)
 		}
 
 		if (flags.indexOf("LOG_ATT_PITCH") !== -1) {
 			const o = offsets["LOG_ATT_PITCH"]
 			const rad = (data.pitchAngle![i] * Math.PI) / 180
-			f.set(intToLeBytes(Math.round(rad * 10000), 2), o)
+			f.set(intToLeBytes(rad * 10000, 2), o)
 		}
 
 		if (flags.indexOf("LOG_ATT_YAW") !== -1) {
 			const o = offsets["LOG_ATT_YAW"]
 			const rad = (data.yawAngle![i] * Math.PI) / 180
-			f.set(intToLeBytes(Math.round(rad * 10000), 2), o)
+			f.set(intToLeBytes(rad * 10000, 2), o)
 		}
 
 		if (flags.indexOf("LOG_ACCEL_RAW") !== -1) {
 			const o = offsets["LOG_ACCEL_RAW"]
-			f.set(intToLeBytes(Math.round((data.accelRawX![i] * 2048) / 9.81), 2), o)
-			f.set(intToLeBytes(Math.round((data.accelRawY![i] * 2048) / 9.81), 2), o + 2)
-			f.set(intToLeBytes(Math.round((data.accelRawZ![i] * 2048) / 9.81), 2), o + 4)
+			f.set(intToLeBytes((data.accelRawX![i] * 2048) / 9.81, 2), o)
+			f.set(intToLeBytes((data.accelRawY![i] * 2048) / 9.81, 2), o + 2)
+			f.set(intToLeBytes((data.accelRawZ![i] * 2048) / 9.81, 2), o + 4)
 		}
 
 		if (flags.indexOf("LOG_ACCEL_FILTERED") !== -1) {
 			const o = offsets["LOG_ACCEL_FILTERED"]
-			f.set(intToLeBytes(Math.round((data.accelFilteredX![i] * 2048) / 9.81), 2), o)
-			f.set(intToLeBytes(Math.round((data.accelFilteredY![i] * 2048) / 9.81), 2), o + 2)
-			f.set(intToLeBytes(Math.round((data.accelFilteredZ![i] * 2048) / 9.81), 2), o + 4)
+			f.set(intToLeBytes((data.accelFilteredX![i] * 2048) / 9.81, 2), o)
+			f.set(intToLeBytes((data.accelFilteredY![i] * 2048) / 9.81, 2), o + 2)
+			f.set(intToLeBytes((data.accelFilteredZ![i] * 2048) / 9.81, 2), o + 4)
 		}
 
 		if (flags.indexOf("LOG_VERTICAL_ACCEL") !== -1) {
 			const o = offsets["LOG_VERTICAL_ACCEL"]
-			f.set(intToLeBytes(Math.round(data.accelVertical![i] * 128), 2), o)
+			f.set(intToLeBytes(data.accelVertical![i] * 128, 2), o)
 		}
 
 		if (flags.indexOf("LOG_VVEL_SETPOINT") !== -1) {
 			const o = offsets["LOG_VVEL_SETPOINT"]
-			f.set(intToLeBytes(Math.round(data.setpointVvel![i] * 4096), 2), o)
+			f.set(intToLeBytes(data.setpointVvel![i] * 4096, 2), o)
 		}
 
 		if (flags.indexOf("LOG_MAG_HEADING") !== -1) {
 			const o = offsets["LOG_MAG_HEADING"]
 			const rad = (data.magHeading![i] * Math.PI) / 180
-			f.set(intToLeBytes(Math.round(rad * 8192), 2), o)
+			f.set(intToLeBytes(rad * 8192, 2), o)
 		}
 
 		if (flags.indexOf("LOG_COMBINED_HEADING") !== -1) {
 			const o = offsets["LOG_COMBINED_HEADING"]
 			const rad = (data.combinedHeading![i] * Math.PI) / 180
-			f.set(intToLeBytes(Math.round(rad * 8192), 2), o)
+			f.set(intToLeBytes(rad * 8192, 2), o)
 		}
 
 		if (flags.indexOf("LOG_HVEL") !== -1) {
 			const o = offsets["LOG_HVEL"]
-			f.set(intToLeBytes(Math.round(data.hvelN![i] * 256), 2), o)
-			f.set(intToLeBytes(Math.round(data.hvelE![i] * 256), 2), o + 2)
+			f.set(intToLeBytes(data.hvelN![i] * 256, 2), o)
+			f.set(intToLeBytes(data.hvelE![i] * 256, 2), o + 2)
 		}
 
 		if (flags.indexOf("LOG_BARO") !== -1) {
@@ -466,6 +466,55 @@ export function generateFullBinFile(log: BBLog): Uint8Array {
 			f.set(intToLeBytes(data.pidSumRoll![i], 2), o)
 			f.set(intToLeBytes(data.pidSumPitch![i], 2), o + 2)
 			f.set(intToLeBytes(data.pidSumYaw![i], 2), o + 4)
+		}
+
+		if (flags.indexOf("LOG_MOTOR_OUTPUTS") !== -1) {
+			const o = offsets["LOG_MOTOR_OUTPUTS"]
+			let motors = 0n
+			motors |= BigInt(data.motorOutFL![i])
+			motors <<= 12n
+			motors |= BigInt(data.motorOutRL![i])
+			motors <<= 12n
+			motors |= BigInt(data.motorOutFR![i])
+			motors <<= 12n
+			motors |= BigInt(data.motorOutRR![i])
+			f.set(bigIntToLeBytes(motors, 6), o)
+		}
+
+		if (flags.indexOf("LOG_MOTOR_RPM") !== -1) {
+			const o = offsets["LOG_MOTOR_RPM"]
+
+			let rpm = 0n
+			const k = log.motorPoles / 2
+
+			const ar = [data.rpmFL![i], data.rpmRL![i], data.rpmFR![i], data.rpmRR![i]]
+
+			for (let j = 0; j < 4; j++) {
+				const r = ar[j]
+				if (r === 0) {
+					rpm <<= 12n
+					rpm |= 0xfffn
+					continue
+				}
+
+				// invert rpm -> x
+				const denom = r * k - 50
+				let x = denom > 0 ? 60000000 / denom : 1
+				if (x < 1) x = 1
+				let xi = Math.floor(x)
+
+				// convert x -> mantissa + exponent
+				let exponent = 0
+				while (xi > 0x1ff && exponent < 7) {
+					xi >>>= 1
+					exponent++
+				}
+				const mantissa = xi & 0x1ff
+				const field = BigInt(mantissa | (exponent << 9))
+				rpm <<= 12n
+				rpm |= field & 0xfffn
+			}
+			f.set(bigIntToLeBytes(rpm, 6), o)
 		}
 
 		f = new Uint8Array(escapeBlackbox(f))
