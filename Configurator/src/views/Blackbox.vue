@@ -1705,8 +1705,8 @@ export default defineComponent({
 			<select v-model="selected">
 				<option v-for="log in logNums" :value="log.num">{{ log.text || log.num }}</option>
 			</select>
-			<button @click="openLog" :disabled="selected === -1">Open</button>
-			<button @click="openLogFast" :disabled="selected === -1">Open Fast</button>
+			<button @click="openLog" :disabled="selected === -1">Open Full</button>
+			<button @click="openLogFast" :disabled="selected === -1">Open Live</button>
 			<button @click="deleteLog" :disabled="selected === -1">Delete</button>
 			<button @click="formatBB">Format</button>
 			<button @click="openLogFromFile">Open from file</button>

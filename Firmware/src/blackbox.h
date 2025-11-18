@@ -98,6 +98,7 @@
 extern u64 bbFlags; // 64 bits of flags for the blackbox (LOG_ macros)
 extern volatile bool bbLogging, fsReady; // Blackbox state
 extern u8 bbFreqDivider; // Blackbox frequency divider (compared to PID loop)
+extern u8 bbSyncFreq; // Blackbox makes SYNC after ... frames
 extern u32 bbDebug1, bbDebug2;
 extern u16 bbDebug3, bbDebug4;
 extern SdFs sdCard; // SD card filesystem

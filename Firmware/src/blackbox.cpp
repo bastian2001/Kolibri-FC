@@ -18,6 +18,7 @@ volatile bool bbLogging = false;
 volatile bool fsReady = false;
 
 u8 bbFreqDivider = 2;
+u8 bbSyncFreq = 100;
 
 u32 bbDebug1, bbDebug2;
 u16 bbDebug3, bbDebug4;
@@ -56,7 +57,7 @@ bool lastHighlightState = false;
 static FlightMode lastSavedFlightMode = FlightMode::LENGTH;
 static u32 writtenFrameNum = 0;
 static u32 lastSyncPos = 0;
-static u8 fmHighlightFlag = 0; // used for SYNC. bit 0 set to indicate HL, bit 1 set to indicate FM change in the last 100 frames
+static u8 fmHighlightFlag = 0; // used for SYNC. bit 0 set to indicate HL, bit 1 set to indicate FM change since last SYNC
 
 /**
  * @brief replaces every SYN with SYN! and sends it off to the blackbox buffer
@@ -244,9 +245,7 @@ void blackboxLoop() {
 	if (rp2040.fifo.available()) {
 		u8 *frame = (u8 *)rp2040.fifo.pop();
 		u8 &len = frame[0];
-		// i32 frameIndex;
-		// memcpy(&frameIndex, &frame[1], 4);
-		bool needsSync = (writtenFrameNum % 100) == 0;
+		bool needsSync = (writtenFrameNum % bbSyncFreq) == 0;
 		size_t spaceNeeded = (len + (needsSync ? 10 : 1)) * 4 / 3;
 		if (BB_WR_BUF_HAS_FREE(spaceNeeded)) {
 			if (needsSync) {
@@ -329,6 +328,7 @@ void blackboxLoop() {
 void initBlackbox() {
 	addSetting(SETTING_BB_FLAGS, &bbFlags, 0b1111111111111111100000000000000011111111111ULL);
 	addSetting(SETTING_BB_DIV, &bbFreqDivider, 2);
+	addSetting(SETTING_BB_SYNC, &bbSyncFreq, 100);
 
 #if BLACKBOX_STORAGE == SD_BB
 	SdioConfig sdConfig(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
@@ -1244,7 +1244,7 @@ void startLogging() {
 	blackboxFile.write((u8 *)&bbFlags, 8);
 	blackboxFile.write((u8)MOTOR_POLES);
 	blackboxFile.write((u8)0); // disarm reason, will be filled at the end
-	blackboxFile.write((u8)100); // one sync sequence every x frames. Set to 0 to indicate that ABV is disabled
+	blackboxFile.write((u8)bbSyncFreq); // one sync sequence every x frames. Set to 0 to indicate that ABV is disabled
 	blackboxFile.write(getFrameSizeFromFlags());
 	while (blackboxFile.position() < LOG_DATA_START) {
 		blackboxFile.write((u8)0);

@@ -5,6 +5,7 @@
 // blackbox settings
 #define SETTING_BB_FLAGS "blackbox_flags"
 #define SETTING_BB_DIV "blackbox_freq_divider"
+#define SETTING_BB_SYNC "blackbox_sync_frequency"
 
 // GPS settings
 #define SETTING_GPS_UPDATE_RATE "gps_update_rate"

@@ -548,16 +548,16 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
 			break;
 		case MspFn::GET_BB_SETTINGS: {
-			u8 bbSettings[9];
+			u8 bbSettings[10];
 			bbSettings[0] = bbFreqDivider;
+			bbSettings[9] = bbSyncFreq;
 			memcpy(&bbSettings[1], &bbFlags, 8);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)bbSettings, sizeof(bbSettings));
 		} break;
 		case MspFn::SET_BB_SETTINGS: {
-			u8 bbSettings[9];
-			memcpy(bbSettings, reqPayload, sizeof(bbSettings));
-			bbFreqDivider = bbSettings[0];
-			memcpy(&bbFlags, &bbSettings[1], 8);
+			bbFreqDivider = reqPayload[0];
+			bbSyncFreq = reqPayload[9];
+			memcpy(&bbFlags, &reqPayload[1], 8);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
 			getSetting(SETTING_BB_DIV)->updateSettingInFile();
