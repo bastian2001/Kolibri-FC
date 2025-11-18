@@ -216,6 +216,7 @@ export default defineComponent({
 						const str = reader.result as string;
 						this.callStop()
 						try {
+							this.loadedPct = -1
 							const data = JSON.parse(str);
 							if (data.version[0] !== 0) {
 								alert('Wrong version number: ' + data.version);
@@ -231,6 +232,7 @@ export default defineComponent({
 				} else {
 					const reader = new FileReader();
 					reader.onload = () => {
+						this.loadedPct = -1
 						const data = reader.result as ArrayBuffer;
 						this.binFile = new Uint8Array(data);
 
@@ -275,7 +277,6 @@ export default defineComponent({
 			URL.revokeObjectURL(url);
 		},
 		openLog() {
-			this.callStop()
 			this.getLog(this.selected)
 				.then(data => {
 					this.startFrame = 0;
@@ -443,6 +444,14 @@ export default defineComponent({
 						}
 						parseLinkStats(log.logData, log.frameLoadingStatus, linkStatsBuf, linkStatsFrom, linkStatsTo)
 
+						let loadedFrames = 0
+						const ls = log.frameLoadingStatus
+						const fc = log.frameCount
+						for (let i = 0; i < fc; i++) {
+							if (ls[i] & 0b1) loadedFrames++
+						}
+						this.loadedPct = Math.floor(100 * loadedFrames / fc)
+
 						res()
 					}).catch(rej)
 				})
@@ -494,6 +503,8 @@ export default defineComponent({
 					this.configuratorLog.push(log)
 					return
 				}
+				this.loadedPct = -1
+				this.binFileNumber = -1
 				log.usedFastDownload = true
 				log.index = logNum
 				log.rawFile = header
@@ -1491,6 +1502,7 @@ export default defineComponent({
 			this.graphs = [[]];
 			this.callStop();
 			this.loadedLog = undefined;
+			this.loadedPct = 0
 			this.chunkSize = leBytesToInt(data, 6, 4);
 			this.totalChunks = Math.ceil(this.binFile.length / this.chunkSize);
 			sendCommand(MspFn.BB_FILE_DOWNLOAD, [
@@ -1542,6 +1554,14 @@ export default defineComponent({
 			// if there was no chunk received for 500ms, request the missing chunk
 			clearInterval(this.getChunkInterval);
 			this.getChunkInterval = setInterval(this.getChunkTimeoutFn, 500);
+
+			let loadedChunks = 0
+			const tc = this.totalChunks
+			for (let i = 0; i < tc; i++) {
+				if (this.receivedChunks[i])
+					loadedChunks++
+			}
+			this.loadedPct = Math.floor(100 * loadedChunks / tc)
 
 			this.binFile.set(chunkData, chunkNum * this.chunkSize);
 			if (this.receivedChunks.length === this.totalChunks) {
@@ -1713,7 +1733,8 @@ export default defineComponent({
 			<button @click="() => { exportLog() }" :disabled="!loadedLog">Export KBB</button>
 			<button @click="() => { exportLog('json') }" :disabled="!loadedLog">Export JSON</button>
 			<button @click="() => { showSettings = true }">Settings</button>
-			<span v-if="loadedPct >= 0">Loaded: {{ loadedPct }} %</span>
+			<span v-if="loadedPct >= 0 && loadedPct !== 100">&nbsp;&nbsp;Loaded: {{ loadedPct }} %</span>
+			<span v-else-if="loadedPct === 100">&nbsp;&nbsp;Fully loaded</span>
 		</div>
 		<Settings v-if="showSettings" :flags="BB_ALL_FLAGS" @close="() => { showSettings = false; }" />
 		<div class="dataViewerWrapper" ref="dataViewerWrapper">

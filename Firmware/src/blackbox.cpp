@@ -919,7 +919,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
 					}
 					if (act != frameSize) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 0", strlen("Could not unescape successfully 0"));
 					}
 					frameNum++;
 					readPos += used;
@@ -933,12 +933,12 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					u32 used = 0;
 					u32 act = 0;
 					if (frameNum >= gpsFrame && frameNum <= reqFrame && gpsReq) {
-						unescapeBytes(&inBuf[readPos], &gpsBuffer[8], readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
+						act = unescapeBytes(&inBuf[readPos], &gpsBuffer[8], readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
 						memcpy(gpsBuffer, &frameNum, 4);
 						gpsFound = true;
 						gpsFrame = frameNum;
 					} else {
-						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
+						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
 						if (gpsFound && !gpsCompleted && !searchingBackwards) {
 							u32 u = frameNum - 1;
 							memcpy(&gpsBuffer[4], &u, 4);
@@ -946,7 +946,8 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 						}
 					}
 					if (act != BB_FRAMESIZE_GPS - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						printfIndMessage("%d %d %d", act, used, readable - readPos);
+						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 3", strlen("Could not unescape successfully 3"));
 					}
 					readPos += used;
 				} break;
@@ -954,12 +955,12 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					u32 used = 0;
 					u32 act = 0;
 					if (frameNum >= elrsFrame && frameNum <= reqFrame && elrsReq) {
-						unescapeBytes(&inBuf[readPos], &elrsBuffer[8], readable - readPos, BB_FRAMESIZE_RC - 1, &used);
+						act = unescapeBytes(&inBuf[readPos], &elrsBuffer[8], readable - readPos, BB_FRAMESIZE_RC - 1, &used);
 						memcpy(elrsBuffer, &frameNum, 4);
 						elrsFound = true;
 						elrsFrame = frameNum;
 					} else {
-						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_RC - 1, &used);
+						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_RC - 1, &used);
 						if (elrsFound && !elrsCompleted && !searchingBackwards) {
 							u32 u = frameNum - 1;
 							memcpy(&elrsBuffer[4], &u, 4);
@@ -967,7 +968,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 						}
 					}
 					if (act != BB_FRAMESIZE_RC - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 4", strlen("Could not unescape successfully 4"));
 					}
 					readPos += used;
 				} break;
@@ -990,12 +991,12 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					u32 used = 0;
 					u32 act = 0;
 					if (frameNum >= linkStatsFrame && frameNum <= reqFrame && linkStatsReq) {
-						unescapeBytes(&inBuf[readPos], &linkStatsBuffer[8], readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
+						act = unescapeBytes(&inBuf[readPos], &linkStatsBuffer[8], readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
 						memcpy(linkStatsBuffer, &frameNum, 4);
 						linkStatsFound = true;
 						linkStatsFrame = frameNum;
 					} else {
-						unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
+						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
 						if (linkStatsFound && !linkStatsCompleted && !searchingBackwards) {
 							u32 u = frameNum - 1;
 							memcpy(&linkStatsBuffer[4], &u, 4);
@@ -1003,7 +1004,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 						}
 					}
 					if (act != BB_FRAMESIZE_LINK_STATS - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 6", strlen("Could not unescape successfully 6"));
 					}
 					readPos += used;
 				} break;
@@ -1011,7 +1012,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_SYNC - 1, &used);
 					if (act != BB_FRAMESIZE_SYNC - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 83", strlen("Could not unescape successfully 83"));
 					}
 					frameNum = DECODE_U4(&dummy[4]);
 
