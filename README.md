@@ -14,18 +14,6 @@ Main software features:
 -   SD-Blackbox incl. viewer
 -   Barometer (Goertek SPL06-001 + STM LPS22HB)
 
-The PCB is in its fifth testing revision, which includes (hardware features):
-
--   3-8S input voltage
--   5V 2.5A, 10V 2.5A buck converters
--   30.5mm stack mounting
--   BMI270
--   Analog character based OSD similar to Betaflight/iNav
--   SD card slot for blackbox, now with SDIO
--   Barometer (STM LPS22HB)
--   Gemini 2.4GHz ELRS receiver with 4 additional PWM outputs
--   Speaker driver up to VBat
-
 > [!NOTE]
 > The PCB now lives in [its own repo](https://github.com/bastian2001/Kolibri-FC-Hardware)
 
@@ -40,19 +28,29 @@ Practically speaking, is there any reason to choose this over Betaflight or iNav
 ## Configurator screenshots
 
 Home Page with a general preview of the quad's orientation, some status info and general controls
-![grafik](https://github.com/user-attachments/assets/725f180a-3289-4ce4-969a-6d8dde11a078)
+<img width="2560" height="1396" alt="Bildschirmfoto_20251118_164835" src="https://github.com/user-attachments/assets/66cc1d67-906b-4c1b-9197-6ae756cfee57" />
 
-Blackbox viewer integrated into the configurator, you can record ELRS data, setpoints, rotation, attitude, PIDs, GPS, RPM, magnetometer and much more. Size is practically unlimited (SD card logging), but 1MB is about 10 seconds when logging practically everything. Integrated filtering to smooth noisy data, multiple graphs and multiple traces per graph, JSON converter for external analysis, pinch to zoom (touchscreen support). Don't mind the "Start Time" - it's wrong. The blackbox got some updates, which changed the interpretation of the timestamp.
-![grafik](https://github.com/user-attachments/assets/bb819397-651f-4cb0-9b38-71407371d939)
+Blackbox viewer integrated into the configurator. You can record ELRS data, gyro rates, PID, a bunch of sensor data and much more. Size is practically unlimited (SD card logging), for me it is usually in the range of 80-150KB/s. Integrated filtering to smooth noisy data, multiple graphs and multiple traces per graph, JSON converter for external analysis, pinch to zoom (touchscreen support).
+<img width="2560" height="1396" alt="Bildschirmfoto_20251118_171542" src="https://github.com/user-attachments/assets/b8b6045c-7c4c-4b9e-a91a-98f4010165c7" />
+<img width="1869" height="1012" alt="Bildschirmfoto_20251118_170242" src="https://github.com/user-attachments/assets/dbdcd3cf-3703-43e0-8ca4-0513d8505ccb" />
 
-Tasks viewer shows the execution duration and frequency of all the tasks to check they're running fast enough and to aid optimization of code (counting of frequency, max, min and average durations are not always done the same, so the results need to be checked against the code to see how each task is counted)
-![grafik](https://github.com/user-attachments/assets/9b534745-9b4a-4360-bc34-2277b3d5ddf8)
+Tasks viewer shows the execution duration and frequency of all the tasks to check they're running fast enough and to aid optimization of code. Some functions are not always running, hence the NaN and 0Hz.
+<img width="2560" height="1396" alt="Bildschirmfoto_20251118_165556" src="https://github.com/user-attachments/assets/3c1360c3-f7fa-4f25-8e7c-3372519fbaee" />
 
 Receiver page shows status of the RX and each channel
-![grafik](https://github.com/user-attachments/assets/bbb3fcbe-68ee-4360-bbdb-47f93a442701)
+<img width="2560" height="1396" alt="Bildschirmfoto_20251118_171011" src="https://github.com/user-attachments/assets/82dcc761-be12-4017-95ca-204f24d1bcd7" />
 
-Tuning is limited to basic PIDs and rates for now - filters have hardcoded cutoffs 😅
-![grafik](https://github.com/user-attachments/assets/6c2688b9-4fe8-4278-bf45-2c150c2fc7e7)
+Tuning of PIDs and filters, as well as rates, with live preview of rates and Blender-style input boxes
+<img width="2560" height="1396" alt="Bildschirmfoto_20251118_165937" src="https://github.com/user-attachments/assets/fffe9d9a-2334-4cf0-b838-2d7611710049" />
 
 GPS + Mag page shows X/Y Y/Z and Z/X graphs of the magnetometer to check calibration and skew. Lower side shows data obtained by the GPS (no GPS fix right now, so time is off)
 ![grafik](https://github.com/user-attachments/assets/e8557ebf-9b01-48e6-96f9-f8104626bf0b)
+
+CLI for some additional settings and easier development and testing of new ones
+<img width="2560" height="1396" alt="Bildschirmfoto_20251118_170111" src="https://github.com/user-attachments/assets/cbf4828b-ccf2-4d48-9f04-373424699846" />
+
+More features: Motor remapping and Analog VTX channel adjustment (IRC Tramp)
+<img width="1822" height="519" alt="Bildschirmfoto_20251118_165705" src="https://github.com/user-attachments/assets/d2882062-5b8c-439f-8340-ac16bc7c19ec" />
+<img width="902" height="437" alt="Bildschirmfoto_20251118_165611" src="https://github.com/user-attachments/assets/2fd337e3-2290-4c5f-a1d5-70ec91846839" />
+
+You can also connect via you ELRS' WiFi, and everything except very large CLI operations and the Tasks viewer works the same way (512 byte limit on ELRS side). Even blackbox data can be transmitted over WiFi.
