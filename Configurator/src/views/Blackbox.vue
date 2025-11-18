@@ -3,16 +3,17 @@ import { defineComponent, toRaw } from "vue";
 import Timeline from "@components/blackbox/Timeline.vue";
 import Settings from "@components/blackbox/Settings.vue";
 import { BBLog, TraceInGraph, Command, TypedArray, TraceInternalData } from "@utils/types";
-import { constrain, delay, intToLeBytes, leBytesToInt, prefixZeros, uint8ArrayEquals } from "@utils/utils";
+import { constrain, delay, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
 import { MspFn } from "@/msp/protocol";
 import { useLogStore } from "@stores/logStore";
 import { addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler, sendCommand } from "@/msp/comm";
 import TracePlacer from "@components/blackbox/TracePlacer.vue";
 import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
-import { escapeBlackbox, parseBlackbox, parseBlackboxHeader, parseElrs, parseFrames, parseGps, parseLinkStats, parseVbat, resizeTypedArrays } from "@/utils/blackbox/parsing";
+import { parseBlackbox, parseBlackboxHeader, parseElrs, parseFrames, parseGps, parseLinkStats, parseVbat, resizeTypedArrays } from "@/utils/blackbox/parsing";
 import { fillLogWithGenFlags } from "@/utils/blackbox/flagGen";
 import { getFrameRange, getGraphs, getSavedLog, saveLog, setFrameRange, setGraphs } from "@/utils/blackbox/saveView";
 import { DISARM_REASONS, TRACE_COLORS_FOR_BLACK_BACKGROUND } from "@/utils/constants";
+import { generateFullBinFile } from "@/utils/blackbox/other";
 
 const DURATION_BAR_RASTER = ['100us', '200us', '500us', '1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '0.5s', '1s', '2s', '5s', '10s', '20s', '30s', '1min', '2min', '5min', '10min', '20min', '30min', '1h'
 ];
@@ -241,439 +242,36 @@ export default defineComponent({
 			};
 			input.click();
 		},
-		interpolateForExport(values: TypedArray, loaded: Uint8Array, bitmask: number) {
-			const n = values.length;
-			if (n === 0) return values;
-			if ((loaded[0] & bitmask) !== bitmask) {
-				return
-			}
-			if ((loaded[n - 1] & bitmask) !== bitmask) {
-				return
-			}
-
-			let lastGoodIndex = 0;
-
-			// first pass: record positions of good values
-			// second pass: fill gaps
-			for (let i = 1; i < n; i++) {
-				const isGood = (loaded[i] & bitmask) === bitmask;
-
-				if (isGood) {
-					// if previous good is immediately before, nothing to fill
-					if (i > lastGoodIndex + 1) {
-						// interpolate from lastGoodIndex → i
-						const startValue = values[lastGoodIndex];
-						const endValue = values[i];
-						const gap = i - lastGoodIndex;
-
-						for (let j = 1; j < gap; j++) {
-							const t = j / gap;
-							values[lastGoodIndex + j] =
-								startValue + (endValue - startValue) * t;
-						}
-					}
-					lastGoodIndex = i;
-				}
-			}
-
-			return values;
-		},
 		exportLog(type: 'kbb' | 'json' = 'kbb') {
-			if (!this.loadedLog?.rawFile) return;
+			if (!this.loadedLog) return
+			const log = structuredClone(toRaw(this.loadedLog))
+			if (!log.rawFile) return;
 			let blob: Blob;
 			// temporarily convert rawFile to Array to prevent having an object as the rawFile
-			let raw = this.loadedLog.rawFile;
-			if (this.loadedLog.usedFastDownload) {
-				this.configuratorLog.push("generating binary file")
-				console.log("generating binary file")
+			let raw8 = log.rawFile;
+			let rawAr = Array.from(raw8);
+			if (log.usedFastDownload) {
+				this.configuratorLog.push("generating KBB file based on known data")
 				// generate raw file
-				const log = structuredClone(toRaw(this.loadedLog))
-				const { flags, offsets } = log
-				const data = log.logData
-				const fc = log.frameCount
-				const file = new Uint8Array(256 + Math.ceil((log.frameSize + 1 + 2 + 1 + 93 + 7 + 3 + 12) * fc + 13 * (log.syncFrequency ? (13 * Math.floor(fc / log.syncFrequency)) : 0) * 4 / 3))
-				let lastGpsPacket = new Uint8Array(92)
-				let lastElrsPacket = 0n
-				let lastVbat = -1
-				let lastSyncPos = 0
-				let hl = false
-				let fm = false
-
-				flags.forEach(flag => {
-					if (flag.startsWith("GEN_")) return
-					const f = BB_ALL_FLAGS[flag]
-					if (f.modifier) {
-						f.modifier.forEach(m => {
-							// @ts-expect-error
-							this.interpolateForExport(data[m.path] as TypedArray, log.frameLoadingStatus, f.loadedBitmask)
-						})
-					} else {
-						// @ts-expect-error
-						this.interpolateForExport(data[f.path] as TypedArray, log.frameLoadingStatus, f.loadedBitmask)
-					}
-				})
-
-				let pos = 0
-				file.set(log.rawFile!)
-				pos = 256
-
-				for (let i = 0; i < fc; i++) {
-					const fmIndex = log.flightModes.findIndex(fm => i === fm.frame)
-					if (fmIndex !== -1) {
-						fm = true
-						file[pos++] = 1
-						file[pos++] = log.flightModes[fmIndex].fm
-					}
-					if (log.highlights.indexOf(i) !== -1) {
-						hl = true
-						file[pos++] = 2
-					}
-					if (flags.indexOf('LOG_GPS') !== -1) {
-						let gps = new Uint8Array(92)
-						gps.set(intToLeBytes(data.gpsYear![i], 2), 4)
-						gps[6] = data.gpsMonth![i]
-						gps[7] = data.gpsDay![i]
-						gps[8] = data.gpsHour![i]
-						gps[9] = data.gpsMinute![i]
-						gps[10] = data.gpsSecond![i]
-						gps[11] = data.gpsTimeValidityFlags![i]
-						gps.set(intToLeBytes(data.gpsTAcc![i], 4), 12)
-						gps.set(intToLeBytes(data.gpsNs![i], 4), 16)
-						gps[20] = data.gpsFixType![i]
-						gps[21] = data.gpsFlags![i]
-						gps[22] = data.gpsFlags2![i]
-						gps[23] = data.gpsSatCount![i]
-						gps.set(intToLeBytes(data.gpsLon![i] * 10000000, 4), 24)
-						gps.set(intToLeBytes(data.gpsLat![i] * 10000000, 4), 28)
-						gps.set(intToLeBytes(data.gpsAlt![i] * 1000, 4), 36)
-						gps.set(intToLeBytes(data.gpsHAcc![i] * 1000, 4), 40)
-						gps.set(intToLeBytes(data.gpsVAcc![i] * 1000, 4), 44)
-						gps.set(intToLeBytes(data.gpsVelN![i] * 1000, 4), 48)
-						gps.set(intToLeBytes(data.gpsVelE![i] * 1000, 4), 52)
-						gps.set(intToLeBytes(data.gpsVelD![i] * 1000, 4), 56)
-						gps.set(intToLeBytes(data.gpsGSpeed![i] * 1000, 4), 60)
-						gps.set(intToLeBytes(data.gpsHeadMot![i] * 100000, 4), 64)
-						gps.set(intToLeBytes(data.gpsSAcc![i] * 1000, 4), 68)
-						gps.set(intToLeBytes(data.gpsHeadAcc![i] * 100000, 4), 72)
-						gps.set(intToLeBytes(data.gpsPDop![i] * 100, 2), 76)
-						gps.set(intToLeBytes(data.gpsFlags3![i], 2), 78)
-						if (!uint8ArrayEquals(gps, lastGpsPacket)) {
-							file[pos++] = 3
-							lastGpsPacket = gps
-							gps = new Uint8Array(escapeBlackbox(gps))
-							file.set(gps, pos)
-							pos += gps.length
-						}
-					}
-					if (flags.indexOf('LOG_ELRS_RAW') !== -1) {
-						let elrs = 0n
-						elrs |= BigInt(data.elrsYaw![i]) & 0xfffn
-						elrs <<= 12n
-						elrs |= BigInt(data.elrsThrottle![i]) & 0xfffn
-						elrs <<= 12n
-						elrs |= BigInt(data.elrsPitch![i]) & 0xfffn
-						elrs <<= 12n
-						elrs |= BigInt(data.elrsRoll![i]) & 0xfffn
-						if (elrs != lastElrsPacket) {
-							lastElrsPacket = elrs
-							file[pos++] = 4
-							let buf = new Uint8Array(6)
-							for (let j = 0; j < 6; j++) {
-								const byte = Number((elrs >> (BigInt(j) * 8n)) & 0xFFn)
-								buf[j] = byte
-							}
-							buf = new Uint8Array(escapeBlackbox(buf))
-							file.set(buf, pos)
-							pos += buf.length
-						}
-					}
-
-					if (flags.indexOf('LOG_VBAT') !== -1) {
-						if (data.vbat![i] !== lastVbat) {
-							lastVbat = data.vbat![i]
-							file[pos++] = 5
-							file.set(intToLeBytes(lastVbat * 100, 2), pos)
-							pos += 2
-						}
-					}
-
-					if (flags.indexOf('LOG_LINK_STATS') !== -1) {
-						let ls = new Uint8Array(11)
-						ls[0] = data.linkRssiA![i]
-						ls[1] = data.linkRssiB![i]
-						ls[2] = data.linkLqi![i]
-						ls[3] = data.linkSnr![i]
-						ls[4] = data.linkAntennaSel![i]
-						ls.set(intToLeBytes(data.linkTargetHz![i], 2), 5)
-						ls.set(intToLeBytes(data.linkActualHz![i], 2), 7)
-						ls.set(intToLeBytes(data.linkTxPow![i], 2), 9)
-						ls = new Uint8Array(escapeBlackbox(ls))
-						file[pos++] = 6
-						file.set(ls, pos)
-						pos += ls.length
-					}
-
-					if (log.syncFrequency && i % log.syncFrequency === 0) {
-						let s = new Uint8Array(9)
-						s[0] = (hl ? 1 : 0) + (fm ? 2 : 0)
-						s.set(intToLeBytes(i, 4), 1)
-						s.set(intToLeBytes(lastSyncPos, 4), 1)
-						hl = false
-						fm = false
-						lastSyncPos = pos
-						file[pos++] = "S".charCodeAt(0)
-						file[pos++] = "Y".charCodeAt(0)
-						file[pos++] = "N".charCodeAt(0)
-						file[pos++] = "C".charCodeAt(0)
-						s = new Uint8Array(escapeBlackbox(s))
-						file.set(s, pos)
-						pos += s.length
-					}
-
-					let f = new Uint8Array(log.frameSize)
-					file[pos++] = 0
-					if (flags.indexOf("LOG_ROLL_SETPOINT") !== -1) {
-						const o = offsets["LOG_ROLL_SETPOINT"]
-						f.set(intToLeBytes(Math.round(data.setpointRoll![i] * 16), 2), o)
-					}
-
-					if (flags.indexOf("LOG_PITCH_SETPOINT") !== -1) {
-						const o = offsets["LOG_PITCH_SETPOINT"]
-						f.set(intToLeBytes(Math.round(data.setpointPitch![i] * 16), 2), o)
-					}
-
-					if (flags.indexOf("LOG_THROTTLE_SETPOINT") !== -1) {
-						const o = offsets["LOG_THROTTLE_SETPOINT"]
-						f.set(intToLeBytes(Math.round((data.setpointThrottle![i] - 1000) * 32), 2), o)
-					}
-
-					if (flags.indexOf("LOG_YAW_SETPOINT") !== -1) {
-						const o = offsets["LOG_YAW_SETPOINT"]
-						f.set(intToLeBytes(Math.round(data.setpointYaw![i] * 16), 2), o)
-					}
-
-					if (flags.indexOf("LOG_ROLL_GYRO_RAW") !== -1) {
-						const o = offsets["LOG_ROLL_GYRO_RAW"]
-						f.set(intToLeBytes(Math.round(data.gyroRawRoll![i] * 16), 2), o)
-					}
-
-					if (flags.indexOf("LOG_PITCH_GYRO_RAW") !== -1) {
-						const o = offsets["LOG_PITCH_GYRO_RAW"]
-						f.set(intToLeBytes(Math.round(data.gyroRawPitch![i] * 16), 2), o)
-					}
-
-					if (flags.indexOf("LOG_YAW_GYRO_RAW") !== -1) {
-						const o = offsets["LOG_YAW_GYRO_RAW"]
-						f.set(intToLeBytes(Math.round(data.gyroRawYaw![i] * 16), 2), o)
-					}
-
-					if (flags.indexOf("LOG_ROLL_PID_P") !== -1) {
-						const o = offsets["LOG_ROLL_PID_P"]
-						f.set(intToLeBytes(data.pidRollP![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_ROLL_PID_I") !== -1) {
-						const o = offsets["LOG_ROLL_PID_I"]
-						f.set(intToLeBytes(data.pidRollI![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_ROLL_PID_D") !== -1) {
-						const o = offsets["LOG_ROLL_PID_D"]
-						f.set(intToLeBytes(data.pidRollD![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_ROLL_PID_FF") !== -1) {
-						const o = offsets["LOG_ROLL_PID_FF"]
-						f.set(intToLeBytes(data.pidRollFF![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_ROLL_PID_S") !== -1) {
-						const o = offsets["LOG_ROLL_PID_S"]
-						f.set(intToLeBytes(data.pidRollS![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_PITCH_PID_P") !== -1) {
-						const o = offsets["LOG_PITCH_PID_P"]
-						f.set(intToLeBytes(data.pidPitchP![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_PITCH_PID_I") !== -1) {
-						const o = offsets["LOG_PITCH_PID_I"]
-						f.set(intToLeBytes(data.pidPitchI![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_PITCH_PID_D") !== -1) {
-						const o = offsets["LOG_PITCH_PID_D"]
-						f.set(intToLeBytes(data.pidPitchD![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_PITCH_PID_FF") !== -1) {
-						const o = offsets["LOG_PITCH_PID_FF"]
-						f.set(intToLeBytes(data.pidPitchFF![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_PITCH_PID_S") !== -1) {
-						const o = offsets["LOG_PITCH_PID_S"]
-						f.set(intToLeBytes(data.pidPitchS![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_YAW_PID_P") !== -1) {
-						const o = offsets["LOG_YAW_PID_P"]
-						f.set(intToLeBytes(data.pidYawP![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_YAW_PID_I") !== -1) {
-						const o = offsets["LOG_YAW_PID_I"]
-						f.set(intToLeBytes(data.pidYawI![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_YAW_PID_D") !== -1) {
-						const o = offsets["LOG_YAW_PID_D"]
-						f.set(intToLeBytes(data.pidYawD![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_YAW_PID_FF") !== -1) {
-						const o = offsets["LOG_YAW_PID_FF"]
-						f.set(intToLeBytes(data.pidYawFF![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_YAW_PID_S") !== -1) {
-						const o = offsets["LOG_YAW_PID_S"]
-						f.set(intToLeBytes(data.pidYawS![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_FRAMETIME") !== -1) {
-						const o = offsets["LOG_FRAMETIME"]
-						f.set(intToLeBytes(data.frametime![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_ALTITUDE") !== -1) {
-						const o = offsets["LOG_ALTITUDE"]
-						f.set(intToLeBytes(Math.round(data.altitude![i] * 64), 2), o)
-					}
-
-					if (flags.indexOf("LOG_VVEL") !== -1) {
-						const o = offsets["LOG_VVEL"]
-						f.set(intToLeBytes(Math.round(data.vvel![i] * 256), 2), o)
-					}
-
-					if (flags.indexOf("LOG_ATT_ROLL") !== -1) {
-						const o = offsets["LOG_ATT_ROLL"]
-						const rad = (data.rollAngle![i] * Math.PI) / 180
-						f.set(intToLeBytes(Math.round(rad * 10000), 2), o)
-					}
-
-					if (flags.indexOf("LOG_ATT_PITCH") !== -1) {
-						const o = offsets["LOG_ATT_PITCH"]
-						const rad = (data.pitchAngle![i] * Math.PI) / 180
-						f.set(intToLeBytes(Math.round(rad * 10000), 2), o)
-					}
-
-					if (flags.indexOf("LOG_ATT_YAW") !== -1) {
-						const o = offsets["LOG_ATT_YAW"]
-						const rad = (data.yawAngle![i] * Math.PI) / 180
-						f.set(intToLeBytes(Math.round(rad * 10000), 2), o)
-					}
-
-					if (flags.indexOf("LOG_ACCEL_RAW") !== -1) {
-						const o = offsets["LOG_ACCEL_RAW"]
-						f.set(intToLeBytes(Math.round((data.accelRawX![i] * 2048) / 9.81), 2), o)
-						f.set(intToLeBytes(Math.round((data.accelRawY![i] * 2048) / 9.81), 2), o + 2)
-						f.set(intToLeBytes(Math.round((data.accelRawZ![i] * 2048) / 9.81), 2), o + 4)
-					}
-
-					if (flags.indexOf("LOG_ACCEL_FILTERED") !== -1) {
-						const o = offsets["LOG_ACCEL_FILTERED"]
-						f.set(intToLeBytes(Math.round((data.accelFilteredX![i] * 2048) / 9.81), 2), o)
-						f.set(intToLeBytes(Math.round((data.accelFilteredY![i] * 2048) / 9.81), 2), o + 2)
-						f.set(intToLeBytes(Math.round((data.accelFilteredZ![i] * 2048) / 9.81), 2), o + 4)
-					}
-
-					if (flags.indexOf("LOG_VERTICAL_ACCEL") !== -1) {
-						const o = offsets["LOG_VERTICAL_ACCEL"]
-						f.set(intToLeBytes(Math.round(data.accelVertical![i] * 128), 2), o)
-					}
-
-					if (flags.indexOf("LOG_VVEL_SETPOINT") !== -1) {
-						const o = offsets["LOG_VVEL_SETPOINT"]
-						f.set(intToLeBytes(Math.round(data.setpointVvel![i] * 4096), 2), o)
-					}
-
-					if (flags.indexOf("LOG_MAG_HEADING") !== -1) {
-						const o = offsets["LOG_MAG_HEADING"]
-						const rad = (data.magHeading![i] * Math.PI) / 180
-						f.set(intToLeBytes(Math.round(rad * 8192), 2), o)
-					}
-
-					if (flags.indexOf("LOG_COMBINED_HEADING") !== -1) {
-						const o = offsets["LOG_COMBINED_HEADING"]
-						const rad = (data.combinedHeading![i] * Math.PI) / 180
-						f.set(intToLeBytes(Math.round(rad * 8192), 2), o)
-					}
-
-					if (flags.indexOf("LOG_HVEL") !== -1) {
-						const o = offsets["LOG_HVEL"]
-						f.set(intToLeBytes(Math.round(data.hvelN![i] * 256), 2), o)
-						f.set(intToLeBytes(Math.round(data.hvelE![i] * 256), 2), o + 2)
-					}
-
-					if (flags.indexOf("LOG_BARO") !== -1) {
-						const o = offsets["LOG_BARO"]
-						f.set(intToLeBytes(data.baroRaw![i], 3), o)
-					}
-
-					if (flags.indexOf("LOG_DEBUG_1") !== -1) {
-						const o = offsets["LOG_DEBUG_1"]
-						f.set(intToLeBytes(data.debug1![i], 4), o)
-					}
-
-					if (flags.indexOf("LOG_DEBUG_2") !== -1) {
-						const o = offsets["LOG_DEBUG_2"]
-						f.set(intToLeBytes(data.debug2![i], 4), o)
-					}
-
-					if (flags.indexOf("LOG_DEBUG_3") !== -1) {
-						const o = offsets["LOG_DEBUG_3"]
-						f.set(intToLeBytes(data.debug3![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_DEBUG_4") !== -1) {
-						const o = offsets["LOG_DEBUG_4"]
-						f.set(intToLeBytes(data.debug4![i], 2), o)
-					}
-
-					if (flags.indexOf("LOG_PID_SUM") !== -1) {
-						const o = offsets["LOG_PID_SUM"]
-						f.set(intToLeBytes(data.pidSumRoll![i], 2), o)
-						f.set(intToLeBytes(data.pidSumPitch![i], 2), o + 2)
-						f.set(intToLeBytes(data.pidSumYaw![i], 2), o + 4)
-					}
-
-					f = new Uint8Array(escapeBlackbox(f))
-					file.set(f, pos)
-					pos += f.length
-				}
-				raw = file.slice(0, pos)
+				raw8 = generateFullBinFile(log)
+				rawAr = Array.from(raw8)
 			}
-			const raw2 = Array.from(raw);
-			this.loadedLog.rawFile = raw2 as unknown as Uint8Array;
+			log.rawFile = rawAr as unknown as Uint8Array;
 			if (type === 'kbb')
-				blob = new Blob([new Uint8Array(raw)], { type: 'application/octet-stream' });
+				blob = new Blob([new Uint8Array(raw8)], { type: 'application/octet-stream' });
 			else
-				blob = new Blob([JSON.stringify(this.loadedLog)], { type: 'application/json' });
+				blob = new Blob([JSON.stringify(log)], { type: 'application/json' });
 			const url = URL.createObjectURL(blob);
 			//download file
 			const a = document.createElement('a');
 			a.href = url;
-			a.download = `bb${prefixZeros(this.selected, 2)} ${this.loadedLog.startTime
+			a.download = `bb${prefixZeros(this.selected, 2)} ${log.startTime
 				.toISOString()
 				.replace('T', ' ')
 				.replace('.000Z', '')
 				.replace(/_/g, '-')}.${type}`;
 			a.click();
 			URL.revokeObjectURL(url);
-			// restore rawFile
-			this.loadedLog.rawFile = raw;
 		},
 		openLog() {
 			this.callStop()
