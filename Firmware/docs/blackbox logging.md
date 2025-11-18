@@ -21,10 +21,13 @@ Format: offset+length: description
 -   21+1: indicating the gyro ranges (0 (LSB) ... 2: gyr_range register, 3...4 acc_range register)
 -   22+36: rate coefficient (fix32[3][3], 16.16 bits, first dimension is the axis: 0 = roll, 1 = pitch, 2 = yaw, second dimension is the type of coefficient: 0 = center, 1 = max, 2 = expo)
 -   58+24: unused
--   82+60: PID gains (fix32[3][5], 16.16 bits, first dimension is the axis, second dimension is PID: P, I, D, FF, S)
+-   82+30: PID gains in nice form (uint16_t[3][5], first dimension is the axis, second dimension is PID: P, I, D, FF, S)
+-   112+30: unused
 -   142+8: enabled blackbox fields (uint64_t, bitmask, 0 = disabled, 1 = enabled)
 -   150+1: motor pole count
 -   151+1: Disarm reason
+-   152+1: frequency of SYNCs. E.g. 100 = one sync every 100 frames. 0 to disable
+-   153+1: frameSize in bytes
 -   rest filled with 0x00
 
 ### Blackbox Fields

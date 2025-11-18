@@ -14,6 +14,7 @@ export default defineComponent({
 			selected: [] as string[],
 			groups: [] as string[][],
 			divider: 0,
+			syncFreq: 0
 		};
 	},
 	props: {
@@ -33,8 +34,9 @@ export default defineComponent({
 		}
 		this.groups = g;
 		sendCommand(MspFn.GET_BB_SETTINGS).then(c => {
-			if (c.length !== 9) return
+			if (c.length !== 10) return
 			this.divider = c.data[0]
+			this.syncFreq = c.data[9]
 			const selectedBin = leBytesToBigInt(c.data, 1, 8, false)
 			const sel = []
 			for (let i = 0; i < 64; i++) {
@@ -74,7 +76,14 @@ export default defineComponent({
 					{{ flags[name].name }}
 				</label>
 			</div>
-			<div class="dividerSetting"><input type="number" v-model="divider" /></div>
+			<div class="dividerSetting">
+				Divider<br>
+				<input type="number" v-model="divider" />
+			</div>
+			<div class="syncSetting">
+				Sync frequency<br>
+				<input type="number" v-model="syncFreq" />
+			</div>
 			<div class="apply">
 				<button class="saveBtn" @click="saveSettings">Save settings</button>
 				<button class="cancelBtn" @click="$emit('close')">Cancel</button>
@@ -119,7 +128,8 @@ label {
 	gap: 1rem;
 }
 
-.dividerSetting input {
+.dividerSetting input,
+.syncSetting input {
 	color: black
 }
 
