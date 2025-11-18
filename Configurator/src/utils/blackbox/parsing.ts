@@ -22,6 +22,7 @@ export function parseBlackboxHeader(header: Uint8Array): BBLog | string {
 		flags: [],
 		flightModes: [],
 		frameCount: 0,
+		usedFastDownload: false,
 		frameLoadingStatus: new Uint8Array(0),
 		frameSize: 0,
 		framesPerSecond: 0,
@@ -388,10 +389,6 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	bbLog.frameLoadingStatus = new Uint8Array(frameCount)
 	bbLog.frameLoadingStatus.fill(0)
 
-	// TODO idea for getting highlights and fm changes: one additional byte in the sync frame that has flags for a FM change and a highlight
-	// TODO idea for getting ELRS and GPS: configurator requests ELRS for e.g. frame 120. PC sends request with needed sync(s) for frame 100 and FC responds with ELRS and "valid from frame x to frame y" after having searched the next ELRS
-	// TODO when configurator requests frame, send bitmap alongside the requested frame number to indicate what data is wanted. Then maybe also send the index of the 2nd last sync, not just the last sync
-
 	const flags = bbLog.flags
 	if (flags.includes("LOG_ELRS_RAW")) {
 		const elrsData = new Uint8Array(elrsPos.length * 6)
@@ -496,6 +493,39 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 
 	bbLog.rawFile = binFile
 	return bbLog
+}
+
+export function escapeBlackbox(input: Uint8Array): Uint8Array {
+	const S = "S".charCodeAt(0)
+	const Y = "Y".charCodeAt(0)
+	const N = "N".charCodeAt(0)
+	const EX = "!".charCodeAt(0)
+
+	// Worst case: every 3 bytes are SYN → SYN!
+	const out = new Uint8Array(Math.ceil((input.length * 4) / 3))
+	let i = 0
+	let o = 0
+
+	while (i < input.length) {
+		const b = input[i]
+
+		// Check for S Y N sequence
+		if (i + 2 < input.length && b === S && input[i + 1] === Y && input[i + 2] === N) {
+			// Emit S Y N !
+			out[o++] = S
+			out[o++] = Y
+			out[o++] = N
+			out[o++] = EX
+			i += 3
+			continue
+		}
+
+		// Otherwise copy raw byte
+		out[o++] = b
+		i++
+	}
+
+	return out.slice(0, o)
 }
 
 function unescapeBlackbox(withEscapedParts: Uint8Array): Uint8Array {

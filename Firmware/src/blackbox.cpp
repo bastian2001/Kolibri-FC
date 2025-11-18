@@ -445,7 +445,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		file.read(&b[32], 256);
 		u8 &frameSize = b[32 + 153];
 
-		u8 fileBuf[1024 + 8]; // 1024 bytes to read, +8 to check for sync crossing 1024-boundaries (sync size 9 bytes)
+		u8 fileBuf[1024 + 10]; // 1024 bytes to read, +8 to check for sync crossing 1024-boundaries (sync size 9 bytes)
 		for (int i = 0; i < 8; i++) {
 			fileBuf[i] = 0; // zero out the array to ensure no invalid sync read at the very end of the file
 		}
@@ -459,12 +459,12 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 				readSize -= searchPos - temp;
 			}
 
-			// shift the first 8 bytes of the last search position to the end so we can always search for a 9 byte sync phrase (sync is 13 byte but we only need the first 9 of it)
-			for (int i = 0; i < 8; i++) {
+			// shift the first 10 bytes of the last search position to the end so we can always search for a 9 byte sync phrase (sync is 13 byte but we only need the first 9 (+ worst case 2 sync) of it)
+			for (int i = 0; i < 10; i++) {
 				fileBuf[readSize + i] = fileBuf[i];
 			}
 
-			// get 1024 bytes so we have 1032 to read through to find a sync
+			// get 1024 bytes so we have 1034 to read through to find a sync
 			file.seek(searchPos);
 			file.read(fileBuf, readSize);
 
@@ -472,8 +472,10 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			for (i32 pos = readSize - 1; pos >= 0; pos--) {
 				if (fileBuf[pos] == 'S' && fileBuf[pos + 1] == 'Y' && fileBuf[pos + 2] == 'N' && fileBuf[pos + 3] == 'C') {
 					syncPos = searchPos + pos;
-					// TODO SYNC is also escaped. needs to be unescaped
-					syncFrame = DECODE_U4(&fileBuf[pos + 5]);
+					u8 dummy[9];
+					size_t used = 255, act = 255;
+					act = unescapeBytes(&fileBuf[pos], dummy, 11, 9, &used);
+					syncFrame = DECODE_U4(&dummy[5]);
 					break;
 				}
 			}

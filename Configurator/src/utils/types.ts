@@ -134,6 +134,7 @@ export type BBLog = {
 	logData: LogData
 	version: Uint8Array
 	startTime: Date
+	usedFastDownload: boolean
 	ranges: {
 		gyro: number
 		accel: number
