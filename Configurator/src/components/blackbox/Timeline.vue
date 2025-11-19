@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
-import { GenFlagProps, FlagProps, BBLog, LogDataType } from "@utils/types";
+import { GenFlagProps, FlagProps, BBLog, TypedArray } from "@utils/types";
 import { delay } from "@/utils/utils";
 import { skipValues } from "@/utils/blackbox/other";
 
@@ -53,7 +53,7 @@ export default defineComponent({
 				this.mouseUp();
 				return;
 			}
-			const frame = Math.round((e.offsetX / this.canvas.width) * this.loadedLog.frameCount);
+			const frame = (e.offsetX / this.canvas.width) * this.loadedLog.frameCount
 			let sf = this.startFrame;
 			let ef = this.endFrame;
 			if (this.currentlyTracking === 'start') {
@@ -84,7 +84,7 @@ export default defineComponent({
 				this.currentlyTracking = 'end';
 			} else if (e.offsetX > startFrameX && e.offsetX < endFrameX) {
 				this.currentlyTracking = 'move';
-				this.downAtFrame = Math.round((e.offsetX / this.canvas.width) * this.loadedLog.frameCount);
+				this.downAtFrame = (e.offsetX / this.canvas.width) * this.loadedLog.frameCount;
 				this.startFrameOnDown = this.startFrame;
 				this.endFrameOnDown = this.endFrame;
 			} else {
@@ -158,7 +158,7 @@ export default defineComponent({
 			if (!this.loadedLog) return;
 			const ctx = this.osCanvas.getContext('2d') as CanvasRenderingContext2D;
 			ctx.clearRect(0, 0, this.osCanvas.width, this.osCanvas.height);
-			let drawArray: number[] | LogDataType = [];
+			let drawArray: number[] | TypedArray = [];
 			if (traceName === 'LOG_MOTOR_OUTPUTS') {
 				for (let i = 0; i < this.loadedLog.frameCount; i++) {
 					let avg = this.loadedLog.logData.motorOutRR![i];
@@ -182,13 +182,13 @@ export default defineComponent({
 					const everyNth = Math.floor(this.loadedLog.frameCount / this.canvas.width);
 					const skipped = skipValues(this.loadedLog.logData, everyNth)
 					// @ts-expect-error
-					drawArray = skipped[this.flagProps[traceName].path] as LogDataType;
+					drawArray = skipped[this.flagProps[traceName].path] as TypedArray;
 					delay(500).then(() => {
 						this.fullDraw(false);
 					});
 				} else {
 					// @ts-expect-error
-					drawArray = this.loadedLog.logData[this.flagProps[traceName].path] as LogDataType;
+					drawArray = this.loadedLog.logData[this.flagProps[traceName].path] as TypedArray;
 				}
 			}
 			const scaleX = this.canvas.width / drawArray.length;

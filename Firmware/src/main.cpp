@@ -63,6 +63,12 @@ void setup() {
 	sleep_ms(1);
 	p.recalculateClock();
 	p.neoPixelFill(0, 0, 255, true);
+	for (int i = 0; i < 10; i++) {
+		p.neoPixelFill(0, 0, 0, true);
+		sleep_ms(30);
+		p.neoPixelFill(0, 0, 255, true);
+		sleep_ms(30);
+	}
 
 	initBlackbox();
 	initSpeaker();

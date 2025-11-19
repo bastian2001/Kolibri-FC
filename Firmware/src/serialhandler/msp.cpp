@@ -548,16 +548,16 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
 			break;
 		case MspFn::GET_BB_SETTINGS: {
-			u8 bbSettings[9];
+			u8 bbSettings[10];
 			bbSettings[0] = bbFreqDivider;
+			bbSettings[9] = bbSyncFreq;
 			memcpy(&bbSettings[1], &bbFlags, 8);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)bbSettings, sizeof(bbSettings));
 		} break;
 		case MspFn::SET_BB_SETTINGS: {
-			u8 bbSettings[9];
-			memcpy(bbSettings, reqPayload, sizeof(bbSettings));
-			bbFreqDivider = bbSettings[0];
-			memcpy(&bbFlags, &bbSettings[1], 8);
+			bbFreqDivider = reqPayload[0];
+			bbSyncFreq = reqPayload[9];
+			memcpy(&bbFlags, &reqPayload[1], 8);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			openSettingsFile();
 			getSetting(SETTING_BB_DIV)->updateSettingInFile();
@@ -683,6 +683,38 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			printFileInit(serialNum, version, fileNum);
+		} break;
+		case MspFn::BB_FAST_FILE_INIT: {
+			if (reqLen < 3) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
+			u8 subCmd = reqPayload[2];
+			printFastFileInit(serialNum, version, fileNum, subCmd, reqPayload + 3, reqLen - 3);
+		} break;
+		case MspFn::BB_FAST_DATA_REQ: {
+			/**
+			 * params:
+			 * - request identifier 2 byte (sequence number)
+			 * - file number to avoid confusion 2 byte
+			 * - size of regular frame 1 byte
+			 * - array of the following (length defines how many response frames are wanted)
+			 *   - requested frame number 4 byte
+			 *   - bitmask of what parts of that frame are wanted 1 byte
+			 *   - last sync pos before 4 byte
+			 */
+			if (reqLen < 5) {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				break;
+			}
+			u16 sequenceNum = DECODE_U2((u8 *)&reqPayload[0]);
+			u16 fileNum = DECODE_U2((u8 *)&reqPayload[2]);
+			u8 frameSize = reqPayload[4];
+			printFastDataReq(serialNum, version, sequenceNum, fileNum, frameSize, reqPayload + 5, reqLen - 5);
+		} break;
+		case MspFn::BB_CLOSE_FILE: {
+			bbClosePrintFile(serialNum, version);
 		} break;
 		case MspFn::GET_GPS_STATUS:
 			buf[0] = gpsStatus.gpsInited;
