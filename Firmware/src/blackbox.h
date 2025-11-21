@@ -70,6 +70,8 @@
 #define LOG_HEAD_LOGGED_FIELDS 142
 #define LOG_HEAD_MOTOR_POLES 150
 #define LOG_HEAD_DISARM_REASON 151
+#define LOG_HEAD_SYNC_FREQ 152
+#define LOG_HEAD_FRAMESIZE 153
 #define LOG_DATA_START 256
 
 #define BB_FRAME_NORMAL 0 // normal frame, i.e. gyro, setpoints, pid, etc.
@@ -79,10 +81,24 @@
 #define BB_FRAME_RC 4 // RC frame, ELRS channels
 #define BB_FRAME_VBAT 5 // Battery frame
 #define BB_FRAME_LINK_STATS 6 // ELRS link statistics
+#define BB_FRAME_SYNC 83 // ASCII 'S' => start of "SYNC"
+#define BB_FRAME_RESERVED_1 89 // 'Y'
+#define BB_FRAME_RESERVED_2 78 // 'N'
+#define BB_FRAME_RESERVED_3 67 // 'C'
+#define BB_FRAME_RESERVED_4 33 // '!'
+
+#define BB_FRAMESIZE_FLIGHTMODE 2
+#define BB_FRAMESIZE_HIGHLIGHT 1
+#define BB_FRAMESIZE_GPS 93
+#define BB_FRAMESIZE_RC 7
+#define BB_FRAMESIZE_VBAT 3
+#define BB_FRAMESIZE_LINK_STATS 12
+#define BB_FRAMESIZE_SYNC 13
 
 extern u64 bbFlags; // 64 bits of flags for the blackbox (LOG_ macros)
 extern volatile bool bbLogging, fsReady; // Blackbox state
 extern u8 bbFreqDivider; // Blackbox frequency divider (compared to PID loop)
+extern u8 bbSyncFreq; // Blackbox makes SYNC after ... frames
 extern u32 bbDebug1, bbDebug2;
 extern u16 bbDebug3, bbDebug4;
 extern SdFs sdCard; // SD card filesystem
@@ -109,6 +125,40 @@ bool clearBlackbox();
 u32 writeSingleFrame();
 
 /**
+ * @brief sends init data out to a connected MSP device
+ *
+ * @param serialNum MSP device port to send data to
+ * @param mspVer MSP version to use
+ * @param logNum file to open and use
+ * @param subCmd 0 = get header + info, 1 = get syncs (param startpos), 2 = get HL + FM (param prev sync)
+ * @param reqPayload depends on subcmd: none; 4 byte startpos in file; 4 byte sync pos in file => search from there to next sync and send out all HL and FM changes
+ * @param reqLen 0 for subcmd 0, 4 for sumcmd 1 and 2
+ */
+void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen);
+
+/**
+ * @brief sends data of frames to a connected MSP device
+ *
+ * @param serialNum MSP device port to send data to
+ * @param mspVer MSP version to use
+ * @param sequenceNum 2 byte incrementing number that is just echoed to the PC to know what the response holds
+ * @param logNum file to open and use
+ * @param frameSize size of one frame in bytes so the FC knows how much to skip for each frame
+ * @param reqPayload requested data
+ * @param reqLen length of data request, multiple of 9
+ */
+void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen);
+
+/**
+ * @brief Print the file number, the file size and the chunk size
+ *
+ * @param serialNum serial number of the device
+ * @param mspVer MSP version to use
+ * @param logNum log number to print
+ */
+void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum);
+
+/**
  * @brief Print a log file to the configurator using MspFn::BB_FILE_DOWNLOAD
  *
  * @details Chunk Size is 1024 bytes
@@ -121,13 +171,9 @@ u32 writeSingleFrame();
 void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk);
 
 /**
- * @brief Print the file number, the file size and the chunk size
- *
- * @param serialNum serial number of the device
- * @param mspVer MSP version to use
- * @param logNum log number to print
+ * @brief Closes a file, if open, that is currently used to print a log to the configurator
  */
-void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum);
+void bbClosePrintFile(u8 serialNum, MspVersion mspVer);
 
 /// @brief Writes the prepared blackbox frames to the SD card
 void blackboxLoop();

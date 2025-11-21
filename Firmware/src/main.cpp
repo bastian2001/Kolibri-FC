@@ -20,7 +20,6 @@ void setup() {
 	rebootReason = BootReason::WATCHDOG;
 
 	Serial.println("Setup started");
-	Serial.flush();
 	initLittleFs();
 	openSettingsFile();
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
@@ -29,7 +28,6 @@ void setup() {
 	// save crash info to EEPROM
 	if (crashInfo[0] == 255) {
 		Serial.println("Crash detected");
-		Serial.flush();
 		for (int i = 0; i < 256; i++) {
 			EEPROM.write(4096 - 256 + i, (u8)crashInfo[i]);
 		}
@@ -42,7 +40,7 @@ void setup() {
 	initPid();
 	initControl();
 	rtcInit();
-	OsdHandler::get().init();
+	osdInit();
 	inFlightTuningInit();
 	initMag();
 	imuInit();
@@ -64,14 +62,19 @@ void setup() {
 	// init LEDs
 	sleep_ms(1);
 	p.recalculateClock();
-	p.neoPixelFill(255, 80, 0, true);
+	p.neoPixelFill(0, 0, 255, true);
+	for (int i = 0; i < 10; i++) {
+		p.neoPixelFill(0, 0, 0, true);
+		sleep_ms(30);
+		p.neoPixelFill(0, 0, 255, true);
+		sleep_ms(30);
+	}
 
 	initBlackbox();
 	initSpeaker();
 	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");
-	Serial.flush();
 	taskTimer0 = 0;
 	setupDone |= 0b01;
 	while (!(setupDone & 0b10)) {
@@ -100,18 +103,19 @@ void loop() {
 	configuratorLoop();
 	gpsLoop();
 	magLoop();
-	OsdHandler::get().loop();
+	osdLoop();
 	taskManagerLoop();
 	trampLoop();
 	rp2040.wdt_reset();
-	if (activityTimer >= 250000) {
+	if (activityTimer >= 500000) {
 		static bool on = false;
 		if (on) {
-			p.neoPixelSetValue(0, 255, 0, 0, true);
+			p.neoPixelSetValue(0, 0, 0, 0, true);
+			on = false;
 		} else {
-			p.neoPixelSetValue(0, 0, 0, 255, true);
+			p.neoPixelSetValue(0, 255, 255, 255, true);
+			on = true;
 		}
-		on = !on;
 		activityTimer = 0;
 	}
 	TASK_END(TASK_LOOP0);

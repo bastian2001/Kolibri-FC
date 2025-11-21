@@ -1,10 +1,11 @@
-export type LogDataType =
-	| Uint8Array
+export type TypedArray =
 	| Int8Array
-	| Uint16Array
+	| Uint8Array
+	| Uint8ClampedArray
 	| Int16Array
-	| Uint32Array
+	| Uint16Array
 	| Int32Array
+	| Uint32Array
 	| Float32Array
 	| Float64Array
 
@@ -122,22 +123,30 @@ export type ActualCoeffs = {
 export type BBLog = {
 	frameCount: number
 	flightModes: { fm: number; frame: number }[]
+	offsets: { [key: string]: number }
+	syncs: { frame: number; pos: number; ctrlByte: number }[]
+	syncFrequency: number
+	frameLoadingStatus: Uint8Array
+	fileSize: number
 	highlights: number[]
-	rawFile: Uint8Array
+	rawFile?: Uint8Array
 	flags: string[]
 	logData: LogData
 	version: Uint8Array
 	startTime: Date
+	usedFastDownload: boolean
 	ranges: {
 		gyro: number
 		accel: number
 	}
+	index: number
 	pidFrequency: number
 	frequencyDivider: number
 	rateCoeffs: ActualCoeffs[]
 	pidConstants: number[][]
 	pidConstantsNice: number[][]
 	framesPerSecond: number
+	frameSize: number
 	isExact: boolean
 	motorPoles: number
 	duration: number
@@ -152,11 +161,11 @@ export type TraceInGraph = {
 	maxValue: number
 	id: number
 	unit: string
+	loadedBitmask: number
 	states?: string[]
 	decimals: number
 	displayName: string
 	overrideData?: Float32Array
-	overrideSliceAndSkip?: Float32Array
 	hasSetData: boolean
 }
 
@@ -175,6 +184,7 @@ export type TraceInternalData = {
 export type FlagProps = {
 	name: string
 	path: string
+	loadedBitmask: number
 	minValue?: number
 	maxValue?: number
 	rangeFn?: (file: BBLog | undefined) => { max: number; min: number }

@@ -45,6 +45,15 @@ export const intToLeBytes = (value: number, length: number) => {
 	return bytes
 }
 
+export const bigIntToLeBytes = (value: bigint, length: number) => {
+	const bytes = new Uint8Array(length)
+	for (let i = 0; i < length; i++) {
+		bytes[i] = Number(value & 0xffn)
+		value >>= 8n
+	}
+	return bytes
+}
+
 export function map(value: number, inMin: number, inMax: number, outMin: number, outMax: number) {
 	return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin
 }
@@ -100,4 +109,13 @@ export function mathEval(str: string): number {
 	str = str.replace(/,/g, ".")
 	str = str.replace(/;/g, ",")
 	return mexp.eval(str)
+}
+
+export function uint8ArrayEquals(a: Uint8Array, b: Uint8Array): boolean {
+	if (a.length !== b.length) return false
+
+	for (let i = 0; i < a.length; i++) {
+		if (a[i] !== b[i]) return false
+	}
+	return true
 }

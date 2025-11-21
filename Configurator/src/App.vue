@@ -43,7 +43,9 @@ export default defineComponent({
 			battery: '',
 			device: '',
 			connected: false,
-			routes
+			routes,
+			sendCommand,
+			MspFn,
 		};
 	},
 	methods: {
@@ -155,7 +157,8 @@ export default defineComponent({
 <template>
 	<div class="main">
 		<div class="header">
-			<img src="https://svelte.dev/svelte-logo-horizontal.svg" alt="Svelte logo" class="kolibriLogo" />
+			<img src="https://upload.wikimedia.org/wikipedia/commons/9/95/Vue.js_Logo_2.svg" alt="Vue logo"
+				class="kolibriLogo" />
 			<div class="space"></div>
 			<div class="connector">
 				<input type="checkbox" id="manualDeviceEnabled" v-model="manualDevice" />
@@ -167,7 +170,9 @@ export default defineComponent({
 				</select>
 				<input v-else type="text" v-model="device" placeholder="Enter device name" class="manualDeviceInput" />
 				&nbsp;&nbsp;
-				<button v-if="connected" @click="disconnect" class="connectButton">Disconnect</button>
+				<button v-if="connected" @click="disconnect"
+					@click.right.prevent="() => { sendCommand(MspFn.REBOOT, [4]).then(disconnect) }"
+					class="connectButton">Disconnect</button>
 				<button v-else-if="serialDevices.length || wifiDevices.length || manualDevice" @click="connect"
 					class="connectButton">Connect</button>
 				<span v-else style="color: #888">No devices found</span>
@@ -213,9 +218,8 @@ export default defineComponent({
 }
 
 .kolibriLogo {
-	height: 3rem;
+	height: 5rem;
 	flex-grow: 0;
-	background-color: black;
 }
 
 .space {
@@ -259,7 +263,7 @@ export default defineComponent({
 	min-width: 250px;
 	margin-left: 1rem;
 	background-color: var(--background-blue);
-	height: 3rem;
+	height: 5rem;
 	padding: 0 0.5rem;
 	color: var(--text-color);
 	font-size: 0.7rem;
