@@ -1,5 +1,4 @@
 #pragma once
-
 #include "global.h"
 
 #define MSP_DP_SPEED 115200

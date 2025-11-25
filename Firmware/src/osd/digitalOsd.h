@@ -1,5 +1,8 @@
+#pragma once
+#include "global.h"
 #include "osd/osdClass.h"
 #include <typedefs.h>
+
 class DigitalOsd : public Osd {
 public:
 	void init();

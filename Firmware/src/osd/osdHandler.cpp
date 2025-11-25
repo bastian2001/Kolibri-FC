@@ -1,4 +1,4 @@
-#include "global.h"
+#include "osd/osdHandler.h"
 
 void OsdHandler::init() {
 	osdType = OsdType::DIGITAL;

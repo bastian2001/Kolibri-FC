@@ -1,4 +1,4 @@
-#include "global.h"
+#include "osd/digitalOsd.h"
 
 DigitalOsd digitalOsd;
 

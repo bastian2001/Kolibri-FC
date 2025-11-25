@@ -159,16 +159,16 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			// 	buf[len++] = 1; //! Betaflight Compatibility Mode ;)
 			// 	buf[len++] = 45;
 			// } else {
-				buf[len++] = API_VERSION_MAJOR;
-				buf[len++] = API_VERSION_MINOR;
+			buf[len++] = API_VERSION_MAJOR;
+			buf[len++] = API_VERSION_MINOR;
 			// }
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
 		case MspFn::FIRMWARE_VARIANT: // TODO remove betaflight compatibility mode
-			// if (serials[serialNum].functions & SERIAL_MSP_DISPLAYPORT) {
-			// 	sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, "BTFL", FIRMWARE_IDENTIFIER_LENGTH); //! Betaflight Compatibility Mode ;)
-			// } else {
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
+									  // if (serials[serialNum].functions & SERIAL_MSP_DISPLAYPORT) {
+									  // 	sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, "BTFL", FIRMWARE_IDENTIFIER_LENGTH); //! Betaflight Compatibility Mode ;)
+									  // } else {
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
 			// }
 			break;
 		case MspFn::FIRMWARE_VERSION:
@@ -579,6 +579,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
 			break;
+		case MspFn::WRITE_OSD_ELEMENT: {
+			OsdHandler::getInstance().updateElementFromMsp(reqPayload, reqLen);
+		} break;
+		case MspFn::READ_OSD_ELEMENT: {
+
+		} break;
 		case MspFn::GET_BB_SETTINGS: {
 			u8 bbSettings[10];
 			bbSettings[0] = bbFreqDivider;

@@ -1,5 +1,4 @@
-#include "global.h"
-
+#include "osd/osd.h"
 u8 osdReady = 1;
 
 static elapsedMicros osdTimer = 0;

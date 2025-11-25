@@ -1,4 +1,5 @@
 #pragma once
+#include "global.h"
 #include "osdElement.h"
 #include <typedefs.h>
 

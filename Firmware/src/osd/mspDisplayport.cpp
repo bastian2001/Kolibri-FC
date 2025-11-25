@@ -1,4 +1,4 @@
-#include <osd/mspDisplayport.h>
+#include "osd/mspDisplayport.h"
 
 void sendMspDp(u8 subcmd, const char *payload, u8 payloadLength) {
 	if (payload == nullptr && payloadLength > 0) return;

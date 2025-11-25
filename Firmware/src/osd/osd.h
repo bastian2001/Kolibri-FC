@@ -1,3 +1,5 @@
+#pragma once
+#include "global.h"
 #include <Arduino.h>
 
 enum class OSDReg : u8 {

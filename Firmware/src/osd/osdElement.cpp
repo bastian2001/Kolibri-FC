@@ -1,6 +1,5 @@
-#include "osdElement.h"
-#include "formatFunc.h"
-#include "global.h"
+#include "osd/osdElement.h"
+
 
 int OsdElement::compareOsdElements(const OsdElement *a, const OsdElement *b) {
 	if (a == nullptr && b == nullptr) return 0;
