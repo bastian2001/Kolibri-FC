@@ -2,7 +2,8 @@
 
 void OsdHandler::init() {
 	osdType = OsdType::DIGITAL;
-
+	readConfigFromLittleFs(config);
+	/*
 	// TODO Read settings
 	OsdElement *elem;
 	elem = new OsdElement(ElementType::BATTERY_VOLTAGE);
@@ -28,7 +29,7 @@ void OsdHandler::init() {
 	elem->setPos(2, 5);
 	elem->setRefreshRate(5);
 	addOsdElement(elem);
-
+*/
 	optimize();
 }
 
@@ -245,4 +246,15 @@ void OsdHandler::setDefaultConfig() {
 	elem->setRefreshRate(5);
 	addOsdElement(elem);
 	optimize();
+}
+
+void OsdHandler::addElementsFromConfig() {
+	for (u8 i = 0; i < MAX_OSD_ELEMENTS; i++) {
+		OsdElement *elem;
+		ElemConfig cfg = getParams(config[i]);
+		elem = new OsdElement(cfg.type);
+		elem->setPos(cfg.x, cfg.y);
+		elem->setRefreshRate(cfg.refreshRate);
+		Serial.printf("Added Element Type: %d Coords: %d, %d Refresh: %d \n", cfg.type, cfg.x, cfg.y, cfg.refreshRate);
+	}
 }

@@ -73,7 +73,7 @@ private:
 	/**
 	 * @brief splits a saved word from eeprom to a stuct with the information
 	 * @param 32bit Word from eeprom
-	 * @return ElemConfic struct with information to configure a element for the OSD
+	 * @return ElemConfic struct with information to configure a element for the OSD addElementsFromConfig(){
 	 */
 	ElemConfig getParams(u32 inWord);
 
@@ -90,6 +90,9 @@ private:
 	void writeConfigToLittleFs(u32 *inArr);
 
 	void setDefaultConfig();
+
+void addElementsFromConfig();
+
 	u32 minTimeout;
 	u16 lastElem;
 	u8 chunk;
