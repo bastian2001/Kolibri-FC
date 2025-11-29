@@ -1,5 +1,7 @@
 #include "global.h"
 
+#ifdef BLACKBOX_STORAGE
+
 #if BLACKBOX_STORAGE == SD_BB
 SdFs sdCard;
 #endif
@@ -1551,3 +1553,5 @@ u32 writeSingleFrame() {
 	TASK_END(TASK_BLACKBOX);
 	return durationTASK_BLACKBOX;
 }
+
+#endif

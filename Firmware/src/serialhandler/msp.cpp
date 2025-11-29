@@ -548,13 +548,18 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
 			break;
 		case MspFn::GET_BB_SETTINGS: {
+#ifdef BLACKBOX_STORAGE
 			u8 bbSettings[10];
 			bbSettings[0] = bbFreqDivider;
 			bbSettings[9] = bbSyncFreq;
 			memcpy(&bbSettings[1], &bbFlags, 8);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)bbSettings, sizeof(bbSettings));
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::SET_BB_SETTINGS: {
+#ifdef BLACKBOX_STORAGE
 			bbFreqDivider = reqPayload[0];
 			bbSyncFreq = reqPayload[9];
 			memcpy(&bbFlags, &reqPayload[1], 8);
@@ -562,8 +567,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			openSettingsFile();
 			getSetting(SETTING_BB_DIV)->updateSettingInFile();
 			getSetting(SETTING_BB_FLAGS)->updateSettingInFile();
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::BB_FILE_LIST: {
+#ifdef BLACKBOX_STORAGE
 			int i = 0;
 			u16 b[500];
 #if BLACKBOX_STORAGE == SD_BB
@@ -599,8 +608,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 #endif
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (const char *)b, i * 2);
+#else
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::BB_FILE_INFO: {
+#ifdef BLACKBOX_STORAGE
 			/* data of command
 			 * 0...len-1: file numbers (LE 2 bytes each)
 			 *
@@ -649,16 +662,24 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				}
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buffer, index);
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::BB_FILE_DOWNLOAD: {
+#ifdef BLACKBOX_STORAGE
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			i32 chunkNum = -1;
 			if (reqLen >= 6) {
 				chunkNum = DECODE_I4((u8 *)&reqPayload[2]);
 			}
 			printLogBin(serialNum, version, fileNum, chunkNum);
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::BB_FILE_DELETE: {
+#ifdef BLACKBOX_STORAGE
 			// data just includes one byte of file number
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			char path[32];
@@ -669,22 +690,34 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 2);
 			else
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 2);
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::BB_FORMAT:
+#ifdef BLACKBOX_STORAGE
 			if (clearBlackbox())
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			else
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 			break;
 		case MspFn::BB_FILE_INIT: {
+#ifdef BLACKBOX_STORAGE
 			if (reqLen < 2) {
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 				break;
 			}
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			printFileInit(serialNum, version, fileNum);
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::BB_FAST_FILE_INIT: {
+#ifdef BLACKBOX_STORAGE
 			if (reqLen < 3) {
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 				break;
@@ -692,8 +725,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			u8 subCmd = reqPayload[2];
 			printFastFileInit(serialNum, version, fileNum, subCmd, reqPayload + 3, reqLen - 3);
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::BB_FAST_DATA_REQ: {
+#ifdef BLACKBOX_STORAGE
 			/**
 			 * params:
 			 * - request identifier 2 byte (sequence number)
@@ -712,9 +749,16 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[2]);
 			u8 frameSize = reqPayload[4];
 			printFastDataReq(serialNum, version, sequenceNum, fileNum, frameSize, reqPayload + 5, reqLen - 5);
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::BB_CLOSE_FILE: {
+#ifdef BLACKBOX_STORAGE
 			bbClosePrintFile(serialNum, version);
+#else
+			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
+#endif
 		} break;
 		case MspFn::GET_GPS_STATUS:
 			buf[0] = gpsStatus.gpsInited;

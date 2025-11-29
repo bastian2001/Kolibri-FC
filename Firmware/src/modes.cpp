@@ -24,7 +24,9 @@ void disarm(DisarmReason reason) {
 	armed = false;
 	p.neoPixelSetValue(1, 0, 0, 0, true);
 	Serial.printf("Disarming for reason %d\n", (u8)reason);
+#ifdef BLACKBOX_STORAGE
 	endLogging(reason);
+#endif
 }
 
 void modesLoop() {
@@ -64,7 +66,9 @@ void modesLoop() {
 				armingDisableFlags |= 0x20;
 			if (!armingDisableFlags) {
 				// arm the drone
+#ifdef BLACKBOX_STORAGE
 				startLogging();
+#endif
 				armed = true;
 				p.neoPixelSetValue(1, 255, 255, 255, true);
 				homepointLat = gpsLatitudeFiltered;

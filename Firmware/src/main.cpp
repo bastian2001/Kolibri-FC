@@ -70,7 +70,9 @@ void setup() {
 		sleep_ms(30);
 	}
 
+#ifdef BLACKBOX_STORAGE
 	initBlackbox();
+#endif
 	initSpeaker();
 	rp2040.wdt_begin(200);
 
@@ -94,7 +96,9 @@ void loop() {
 	TASK_START(TASK_LOOP0);
 	speakerLoop();
 	baroLoop();
+#ifdef BLACKBOX_STORAGE
 	blackboxLoop();
+#endif
 	ELRS->loop();
 	modesLoop();
 	adcLoop();

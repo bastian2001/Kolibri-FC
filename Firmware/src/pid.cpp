@@ -359,10 +359,12 @@ void pidLoop() {
 	lastSetpoints[AXIS_PITCH] = pitchSetpoint;
 	lastSetpoints[AXIS_YAW] = yawSetpoint;
 
-	// write blackbox if needed
+// write blackbox if needed
+#ifdef BLACKBOX_STORAGE
 	if ((pidLoopCounter % bbFreqDivider) == 0 && bbFreqDivider) {
 		taskTimerTASK_PID -= writeSingleFrame();
 	}
+#endif
 	pidLoopCounter++;
 
 	TASK_END(TASK_PID);

@@ -22,7 +22,9 @@ void initADC() {
 	if (cellCountSetting) batCells = cellCountSetting;
 
 	adc_gpio_init(PIN_ADC_VOLTAGE);
+#ifdef PIN_ADC_CURRENT
 	adc_gpio_init(PIN_ADC_CURRENT);
+#endif
 	adc_init();
 	enableElem(OSDElem::TOT_VOLTAGE);
 	placeElem(OSDElem::TOT_VOLTAGE, 1, 1);
@@ -84,6 +86,7 @@ void adcLoop() {
 			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);
 			snprintf((char *)voltageStr, 16, "%.2f\x06 ", cellVoltage / 100.f);
 			updateElem(OSDElem::CELL_VOLTAGE, (char *)voltageStr);
+#ifdef PIN_ADC_CURRENT
 		} else {
 			// adc_select_input(PIN_ADC_CURRENT - 26);
 			// u16 raw           = adc_read();
@@ -97,6 +100,7 @@ void adcLoop() {
 			// read temperature
 			// adc_select_input(4);
 			// temperature = analogReadTemp();
+#endif
 		}
 		adcType = !adcType;
 		TASK_END(TASK_ADC);

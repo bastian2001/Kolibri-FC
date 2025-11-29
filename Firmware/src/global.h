@@ -1,8 +1,5 @@
 #pragma once
 
-#define SD_BB 0
-#define FLASH_BB 1 // not implemented yet
-
 // general C/C++ includes
 #include <deque>
 #include <list>
@@ -57,7 +54,6 @@
 #include "inFlightTuning.h"
 #include "modes.h"
 #include "pid.h"
-#include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
 #include "pioasm/halfduplex_uart.pio.h"
 #include "ringbuffer.h"
@@ -73,6 +69,7 @@
 #include "settings/littleFs.h"
 #include "settings/setting.h"
 #include "settings/settingIds.h"
+#include "targets.h"
 #include "taskManager.h"
 #include "typedefs.h"
 #include "unittest.h"
@@ -80,7 +77,6 @@
 #include "utils/filters.h"
 #include "utils/quaternion.h"
 
-#define SPI_OSD spi1 // SPI for OSD
 
 #ifdef BARO_SPL06
 #define SPI_BARO spi0 // SPI for baro
@@ -89,10 +85,8 @@
 #ifdef BARO_LPS22
 #define I2C_BARO i2c0 // I2C for baro
 #endif
-#define I2C_MAG i2c0 // I2C for magnetometer
 
 #define PIO_ESC pio1 // uses all 4 SMs
-#define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
 #define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
 #define PIO_LED pio2 // 1 SM, 4 instructions
 #define PIO_HALFDUPLEX_UART pio2 // 1 SM, 19 instructions

@@ -288,6 +288,7 @@ void speakerLoop() {
 }
 
 bool playWav(const char *filename) {
+#ifdef BLACKBOX_STORAGE
 	if (soundState != 1) {
 		return false;
 	}
@@ -318,6 +319,9 @@ bool playWav(const char *filename) {
 	} else {
 		return false;
 	}
+#else
+	return false;
+#endif
 }
 
 void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs) {
