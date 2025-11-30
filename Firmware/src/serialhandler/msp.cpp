@@ -241,8 +241,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 1; // pid_process_denom
 			buf[len++] = 0; // useUnsyncedPwm => true if motors are updated asynchronously from the PID
 			buf[len++] = 6; // motorPwmProtocol, 6 = DShot 300
-			buf[len++] = 3200 & 0xFF;
-			buf[len++] = 3200 >> 8;
+			buf[len++] = PID_FREQ & 0xFF;
+			buf[len++] = PID_FREQ >> 8;
 			buf[len++] = (idlePermille * 10) & 0xFF;
 			buf[len++] = (idlePermille * 10) >> 8;
 			buf[len++] = 0; // gyro_use_32kHz
@@ -250,8 +250,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 0; // gyro_to_use
 			buf[len++] = 0; // gyro_high_fsr (true if > 2000dps)
 			buf[len++] = CALIBRATION_TOLERANCE;
-			buf[len++] = (CALIBRATION_SAMPLES * 100 / 3200) & 0xFF; // calibration duration in centiseconds
-			buf[len++] = (CALIBRATION_SAMPLES * 100 / 3200) >> 8;
+			buf[len++] = (CALIBRATION_SAMPLES * 100 / PID_FREQ) & 0xFF; // calibration duration in centiseconds
+			buf[len++] = (CALIBRATION_SAMPLES * 100 / PID_FREQ) >> 8;
 			buf[len++] = 0; // gyro_offset_yaw
 			buf[len++] = 0;
 			buf[len++] = 0; // checkOverflow, no overflow
@@ -272,8 +272,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			break;
 		case MspFn::MSP_STATUS:
 			// only exists for compatibility with BLHeliSuite32
-			buf[len++] = 312 & 0xFF;
-			buf[len++] = 312 >> 8;
+			buf[len++] = (1000000 / PID_FREQ) & 0xFF;
+			buf[len++] = (1000000 / PID_FREQ) >> 8;
 			buf[len++] = 0; // I2C error count
 			buf[len++] = 0;
 			buf[len++] = 0b101111; // gyro, no rangefinder, gps, mag, baro, accel

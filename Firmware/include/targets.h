@@ -86,6 +86,10 @@
 // #define BLACKBOX_STORAGE FLASH_BB
 #define I2C_MAG i2c0 // I2C for magnetometer
 #define SPI_OSD spi1 // SPI for OSD
-#define SPI_GYRO spi0 // 1 SM, 5 instructions
+#define SPI_GYRO spi0
 #define GYRO_ICM42688P
+#endif
+
+#ifdef SPI_GYRO
+#define SPI_GYRO_HW spi_get_hw(SPI_GYRO)
 #endif

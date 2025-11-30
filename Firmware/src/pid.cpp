@@ -126,19 +126,19 @@ void initPid() {
 
 	throttleScale = fix32(2000 - idlePermille * 2) / 1024;
 
-	dFilterRoll = PT2(dFilterCutoff, 3200);
-	dFilterPitch = PT2(dFilterCutoff, 3200);
-	dFilterYaw = PT2(dFilterCutoff, 3200);
+	dFilterRoll = PT2(dFilterCutoff, PID_FREQ);
+	dFilterPitch = PT2(dFilterCutoff, PID_FREQ);
+	dFilterYaw = PT2(dFilterCutoff, PID_FREQ);
 
-	gyroFiltered[AXIS_ROLL] = PT1(gyroFilterCutoff, 3200);
-	gyroFiltered[AXIS_PITCH] = PT1(gyroFilterCutoff, 3200);
-	gyroFiltered[AXIS_YAW] = PT1(gyroFilterCutoff, 3200);
+	gyroFiltered[AXIS_ROLL] = PT1(gyroFilterCutoff, PID_FREQ);
+	gyroFiltered[AXIS_PITCH] = PT1(gyroFilterCutoff, PID_FREQ);
+	gyroFiltered[AXIS_YAW] = PT1(gyroFilterCutoff, PID_FREQ);
 
-	setpointDiff[AXIS_ROLL] = PT1(setpointDiffCutoff, 3200);
-	setpointDiff[AXIS_PITCH] = PT1(setpointDiffCutoff, 3200);
-	setpointDiff[AXIS_YAW] = PT1(setpointDiffCutoff, 3200);
+	setpointDiff[AXIS_ROLL] = PT1(setpointDiffCutoff, PID_FREQ);
+	setpointDiff[AXIS_PITCH] = PT1(setpointDiffCutoff, PID_FREQ);
+	setpointDiff[AXIS_YAW] = PT1(setpointDiffCutoff, PID_FREQ);
 
-	pidBoostFilter = PT1(pidBoostCutoff, 3200);
+	pidBoostFilter = PT1(pidBoostCutoff, PID_FREQ);
 
 	placeElem(OSDElem::PIDBOOST_INDICATOR, 25, 12);
 	enableElem(OSDElem::PIDBOOST_INDICATOR);
@@ -167,16 +167,16 @@ void pidLoop() {
 		takeoffCounter = 0;
 	} // if the quad hasn't "taken off" yet, reset the counter
 	if (takeoffCounter < 1000) { // enable i term falloff (windup prevention) only before takeoff
-		rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign() / pidGains[0][I];
-		pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign() / pidGains[1][I];
-		yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign() / pidGains[2][I];
+		rollErrorSum = rollErrorSum - iFalloff / PID_FREQ * rollErrorSum.sign() / pidGains[0][I];
+		pitchErrorSum = pitchErrorSum - iFalloff / PID_FREQ * pitchErrorSum.sign() / pidGains[1][I];
+		yawErrorSum = yawErrorSum - iFalloff / PID_FREQ * yawErrorSum.sign() / pidGains[2][I];
 	}
 
 	// PID boost / anti gravity
 	fix32 pFactor = 1, iFactor = 1, dFactor = 1;
 	if (pidBoostAxis) {
 		pidBoostFilter.update(throttle - lastThrottle);
-		fix32 boostStrength = (fix32(pidBoostFilter).abs() * 3200 - pidBoostStart) / (pidBoostFull - pidBoostStart);
+		fix32 boostStrength = (fix32(pidBoostFilter).abs() * PID_FREQ - pidBoostStart) / (pidBoostFull - pidBoostStart);
 		if (boostStrength > 1)
 			boostStrength = 1;
 		else if (boostStrength < 0)
@@ -188,9 +188,9 @@ void pidLoop() {
 	}
 
 	// setpoint differentiator for iRelax and FF
-	setpointDiff[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
-	setpointDiff[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
-	setpointDiff[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * 3200); // e.g. 1250 for 1000 deg/s in 50ms
+	setpointDiff[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * PID_FREQ); // e.g. 1250 for 1000 deg/s in 50ms
+	setpointDiff[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * PID_FREQ); // e.g. 1250 for 1000 deg/s in 50ms
+	setpointDiff[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * PID_FREQ); // e.g. 1250 for 1000 deg/s in 50ms
 
 	// I term relax multiplier
 	fix32 totalDiff = fix32(setpointDiff[AXIS_ROLL]).abs() + fix32(setpointDiff[AXIS_PITCH]).abs() + fix32(setpointDiff[AXIS_YAW]).abs();

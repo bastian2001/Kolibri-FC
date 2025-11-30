@@ -5,6 +5,7 @@ volatile u8 setupDone = 0b00;
 static elapsedMicros taskTimer0;
 
 void setup() {
+	// for(;;);
 	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
 
@@ -60,13 +61,12 @@ void setup() {
 	ELRS = new ExpressLRS(elrsNum);
 
 	// init LEDs
-	sleep_ms(1);
 	p.recalculateClock();
 	p.neoPixelFill(0, 0, 255, true);
 	for (int i = 0; i < 10; i++) {
 		p.neoPixelFill(0, 0, 0, true);
 		sleep_ms(30);
-		p.neoPixelFill(0, 0, 255, true);
+		// p.neoPixelFill(0, 0, 255, true);
 		sleep_ms(30);
 	}
 

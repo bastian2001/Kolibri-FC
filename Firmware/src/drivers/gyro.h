@@ -75,20 +75,20 @@ enum class GyroReg : u8 {
 	DRIVE_CONFIG = 0x13,
 	INT_CONFIG = 0x14,
 	FIFO_CONFIG = 0x16,
-	TEMP_MSB = 0x1D,
-	TEMP_LSB,
-	ACC_X_MSB = 0x1F,
-	ACC_X_LSB,
-	ACC_Y_MSB,
-	ACC_Y_LSB,
-	ACC_Z_MSB,
-	ACC_Z_LSB,
-	GYR_X_MSB = 0x25,
-	GYR_X_LSB,
-	GYR_Y_MSB,
-	GYR_Y_LSB,
-	GYR_Z_MSB,
-	GYR_Z_LSB,
+	TEMP_MSB = 0x1D, // actually LSB, endianness swapped
+	TEMP_LSB, // actually MSB, endianness swapped
+	ACC_X_MSB = 0x1F, // actually LSB, endianness swapped
+	ACC_X_LSB, // actually MSB, endianness swapped
+	ACC_Y_MSB, // actually LSB, endianness swapped
+	ACC_Y_LSB, // actually MSB, endianness swapped
+	ACC_Z_MSB, // actually LSB, endianness swapped
+	ACC_Z_LSB, // actually MSB, endianness swapped
+	GYR_X_MSB = 0x25, // actually LSB, endianness swapped
+	GYR_X_LSB, // actually MSB, endianness swapped
+	GYR_Y_MSB, // actually LSB, endianness swapped
+	GYR_Y_LSB, // actually MSB, endianness swapped
+	GYR_Z_MSB, // actually LSB, endianness swapped
+	GYR_Z_LSB, // actually MSB, endianness swapped
 	INT_STATUS = 0x2D,
 	SIGNAL_PATH_RESET = 0x4B,
 	INTF_CONFIG0 = 0x4C,
@@ -143,8 +143,8 @@ enum class GyroReg : u8 {
  * @details gyro data, and by extension the PID loop, is the most time-sensitive task. it gets priority, and once the data is read, the flag is set to FFFFFFFF so that other tasks know it's safe to run without impacting the gyro data or PID loop.
  */
 extern u32 gyroUpdateFlag;
-extern volatile i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of bmiDataRaw
-extern volatile i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of bmiDataRaw
+extern volatile i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of agDataRaw
+extern volatile i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of agDataRaw
 extern const fix32 *const accelDataFiltered[3]; // PT1 filters for the accelerometer data, raw scaling from accel
 
 /// @brief Initializes the gyro (Bosch BMI270)
