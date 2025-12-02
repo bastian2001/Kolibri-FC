@@ -169,7 +169,7 @@ void speakerLoop() {
 				speakerChanAData[i * 4 + 2] = inBuf[i];
 				speakerChanAData[i * 4 + 3] = inBuf[i];
 			}
-			dma_channel_set_trans_count(speakerDmaAChan, bytesRead * 4, false);
+			dma_channel_set_transfer_count(speakerDmaAChan, bytesRead * 4, false);
 		}
 		if (soundState & 0b100) {
 			soundState &= 0b1011;
@@ -180,7 +180,7 @@ void speakerLoop() {
 				speakerChanBData[i * 4 + 2] = inBuf[i];
 				speakerChanBData[i * 4 + 3] = inBuf[i];
 			}
-			dma_channel_set_trans_count(speakerDmaBChan, bytesRead * 4, false);
+			dma_channel_set_transfer_count(speakerDmaBChan, bytesRead * 4, false);
 		}
 		if (bytesRead <= 0) {
 			if (pState & 0b10) {

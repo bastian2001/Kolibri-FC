@@ -9,6 +9,8 @@ void setup() {
 	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
 
+	initFlashBb();
+
 	initFixMath();
 
 	runUnitTests();
@@ -66,7 +68,7 @@ void setup() {
 	for (int i = 0; i < 10; i++) {
 		p.neoPixelFill(0, 0, 0, true);
 		sleep_ms(30);
-		// p.neoPixelFill(0, 0, 255, true);
+		p.neoPixelFill(0, 0, 255, true);
 		sleep_ms(30);
 	}
 

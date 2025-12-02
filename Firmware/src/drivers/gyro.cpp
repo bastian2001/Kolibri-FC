@@ -159,9 +159,9 @@ void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
 #endif
 
 	// prepare channels and start them in sync
-	dma_channel_set_trans_count(gyroDmaRxChannel, GYRO_DMA_LENGTH, false);
+	dma_channel_set_transfer_count(gyroDmaRxChannel, GYRO_DMA_LENGTH, false);
 	dma_channel_set_write_addr(gyroDmaRxChannel, gyroDmaRxData, false);
-	dma_channel_set_trans_count(gyroDmaTxChannel, GYRO_DMA_LENGTH, false);
+	dma_channel_set_transfer_count(gyroDmaTxChannel, GYRO_DMA_LENGTH, false);
 	dma_channel_set_read_addr(gyroDmaTxChannel, gyroDmaTxData, false);
 	dma_start_channel_mask((1u << gyroDmaRxChannel) | (1u << gyroDmaTxChannel));
 }

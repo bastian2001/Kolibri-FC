@@ -43,6 +43,7 @@
 #include "customSimdMath.h"
 #include "drivers/baro.h"
 #include "drivers/esc.h"
+#include "drivers/flashBb.h"
 #include "drivers/gyro.h"
 #include "drivers/halfduplexUart.h"
 #include "drivers/i2c.h"
@@ -86,7 +87,6 @@
 #endif
 
 #define PIO_ESC pio1 // uses all 4 SMs
-#define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
 #define PIO_LED pio2 // 1 SM, 4 instructions
 #define PIO_HALFDUPLEX_UART pio2 // 1 SM, 19 instructions
 // Total usage of pio2: 3 SMs (assuming one UART) and 28 of 32 instructions
