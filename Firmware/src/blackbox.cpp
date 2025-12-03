@@ -366,6 +366,8 @@ bool clearBlackbox() {
 	if (!sdCard.rmdir("/blackbox")) return false;
 	if (!sdCard.mkdir("/blackbox")) return false;
 	return true;
+#elif BLACKBOX_STORAGE == FLASH_BB
+	return false;
 #endif
 }
 
@@ -415,6 +417,7 @@ static bool openLogFileIfDiffNum(u16 logNum) {
 }
 
 void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen) {
+#if BLACKBOX_STORAGE == SD_BB
 	if (!fsReady || bbLogging) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
@@ -787,9 +790,11 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "invalid subCmd", strlen("invalid subCmd"));
 		break;
 	}
+#endif
 }
 
 void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
+#if BLACKBOX_STORAGE == SD_BB
 	if (!fsReady || bbLogging) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
@@ -1062,6 +1067,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		}
 	}
 	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_DATA_REQ, mspVer, (char *)buf, bufPos);
+#endif
 }
 
 void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {

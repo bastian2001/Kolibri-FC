@@ -1,3 +1,123 @@
 #pragma once
+#if BLACKBOX_STORAGE == FLASH_BB
 
 void initFlashBb();
+
+class FlashBbFile {};
+class FlashFile {};
+
+// Filesystem that Captures Kolibri's Awesome Flight Data
+class Fckafd {
+public:
+	Fckafd() = default;
+	Fckafd(const Fckafd &) = delete;
+	Fckafd &operator=(const Fckafd &) = delete;
+
+	/**
+	 * @brief Initialize flash chip, check for file system
+	 *
+	 * @param ioBase pin of IO0. IO1 must be the one immediately following
+	 * @param sckPin SPI Clock pin
+	 * @param csPin Chip Select pin
+	 * @param fsReady true is written here if the filesystem was found, false otherwise
+	 * @return true if flash chip found and compatible
+	 * @return false if not found or not compatible
+	 */
+	bool begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool &fsReady);
+
+	/**
+	 * @brief formats a partition on the flash chip
+	 *
+	 * @param partition 0 for blackbox partition, 1 for audio partition
+	 * @return true if success
+	 * @return false if failed
+	 */
+	bool format(u8 partition);
+
+	/** Test for the existence of a file
+	 *
+	 * @param path Path of the file to be tested for. Must lie within /audio on second partition
+	 *
+	 * @return true if the file exists else false.
+	 */
+	bool exists(const char *path) { return false; };
+
+	/**
+	 * @brief Test for the existence of a file
+	 *
+	 * @param num blackbox file num
+	 * @return true if this file exists
+	 * @return false if it doesn't exist
+	 */
+	bool exists(u16 num);
+
+	/**
+	 * @brief Opens a file
+	 *
+	 * @param num blackbox file num (first partition)
+	 * @param oflag Either O_RDONLY or O_WRITE | O_CREAT. No read and write combined. You can replace a max of 26 bytes in a file after you've written them. Once an O_WRITE | O_CREAT file is closed, you cannot edit it anymore.
+	 * @return FlashBbFile The opened file, nullptr if file already exists and trying to write
+	 */
+	// FlashBbFile open(u16 num, oflag_t oflag = O_RDONLY);
+
+	/**
+	 * @brief Opens a file
+	 *
+	 * @param path path to file. Must lie within /audio on second partition
+	 * @param oflag Either O_RDONLY or O_WRITE | O_CREAT. No read and write combined. Once an O_WRITE | O_CREAT file is closed, you cannot edit it anymore. No modification of any written byte. No deletion.
+	 * @return FlashBbFile The opened file, nullptr if file already exists and trying to write
+	 */
+	FlashFile open(const char *path, oflag_t oflag = O_RDONLY) { return FlashFile(); };
+
+	/// remove not supported
+	bool remove(const char *path) { return false; };
+
+	/**
+	 * @brief Get the file num that is one higher than the highest file num currently present
+	 *
+	 * @return u16 file num or 0xFFFF if blackbox full
+	 */
+	u16 getNewBbFileNum();
+
+	char manufacturer[13];
+	char model[21];
+	u32 totalSize = 0;
+
+	void eraseBlock(u16 block, bool getFeatureWait = true);
+	
+	private:
+	u8 singleSpiTransfer(u8 txByte = 0);
+	void burstSpiRead(u16 len, u8 *dst);
+	void burstSpiWrite(u16 len, const u8 *src);
+	bool checkReadId();
+	void reset();
+	u8 getFeature(u8 featureRegister = 0xC0);
+	void setFeature(u8 featureRegister, u8 data);
+	void writeEnable();
+	void writeDisable();
+	bool checkFeature(u8 mask, u8 value, u8 featureRegister = 0xC0);
+	u16 programLoad(u16 block, u16 start, u16 length, const u8 *buf);
+	void programExecute(u16 block, u8 page, bool getFeatureWait = true);
+	void pageRead(u16 block, u8 page, bool getFeatureWait = true);
+	u16 readFromCache(u16 block, u16 start, u16 length, u8 *buf);
+
+	u8 blackboxSm;
+	u8 blackboxOffset;
+
+	u8 dmaTxChannel, dmaRxChannel;
+	bool chipReady = false;
+	bool fsReady = false;
+	u8 manufacturerId = 0xFF;
+	u32 pageSize = 0;
+	u16 spareSize = 0;
+	u32 pageCount = 0;
+	u32 blockCount = 0;
+	u32 maxProgTime = 0;
+	u32 maxEraseTime = 0;
+	u32 maxReadTime = 0;
+	u32 maxBbBlock = 0;
+
+	u32 firstFreeBlock = 0;
+};
+
+#endif

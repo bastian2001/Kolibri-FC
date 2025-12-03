@@ -5,7 +5,6 @@ volatile u8 setupDone = 0b00;
 static elapsedMicros taskTimer0;
 
 void setup() {
-	// for(;;);
 	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
 

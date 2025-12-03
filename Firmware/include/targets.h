@@ -84,7 +84,7 @@
 #define PIN_LEDS 27
 #define PIN_DCDC_EN 28
 
-// #define BLACKBOX_STORAGE FLASH_BB
+#define BLACKBOX_STORAGE FLASH_BB
 #define PIO_EXT_SPI_BB pio0
 #define I2C_MAG i2c0 // I2C for magnetometer
 #define SPI_OSD spi1 // SPI for OSD
