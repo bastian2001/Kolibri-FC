@@ -3,8 +3,13 @@
 #ifdef BLACKBOX_STORAGE
 
 #if BLACKBOX_STORAGE == SD_BB
-SdFs sdCard;
+SdFs bbFs;
+#define FILE_CLASS FsFile
+#elif BLACKBOX_STORAGE == FLASH_BB
+Fckafd bbFs;
+#define FILE_CLASS FlashFile
 #endif
+FILE_CLASS blackboxFile;
 
 // rather conservative estimates of available buffers. Doesn't need to be perfect.
 #define BLACKBOX_CHUNK_SIZE 1024
@@ -32,7 +37,7 @@ typedef struct bbPrintConfig {
 	bool open;
 	bool printing;
 	MspVersion mspVer;
-	FsFile logFile;
+	FILE_CLASS logFile;
 	i32 currentChunk;
 	u32 chunkSize;
 	u16 logNum;
@@ -47,7 +52,6 @@ BbPrintConfig bbPrintLog = {
 	.logNum = 0,
 };
 
-FsFile blackboxFile;
 elapsedMillis bbDuration;
 
 i32 bbFrameNum = 0;
@@ -335,12 +339,22 @@ void initBlackbox() {
 #if BLACKBOX_STORAGE == SD_BB
 	SdioConfig sdConfig(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
 	FsDateTime::setCallback(getFsTime);
-	fsReady = sdCard.begin(sdConfig);
+	fsReady = bbFs.begin(sdConfig);
 
-	if (!sdCard.exists("/blackbox")) {
-		sdCard.mkdir("/blackbox");
+	if (!bbFs.exists("/blackbox")) {
+		bbFs.mkdir("/blackbox");
 	}
 	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
+#elif BLACKBOX_STORAGE == FLASH_BB
+	sleep_ms(3000);
+	bool r = false;
+	bool chip = bbFs.begin(PIN_FLASH_IO_BASE, PIN_FLASH_SCLK, PIN_FLASH_CS, r);
+	fsReady = r;
+	if (!fsReady && chip) {
+		Serial.println("Broken FCKAFD, formatting");
+		fsReady = bbFs.format(0);
+	}
+	Serial.println(fsReady ? "FCKAFD ready" : "FCKAFD not ready");
 #endif
 }
 
@@ -348,7 +362,7 @@ bool clearBlackbox() {
 	if (!fsReady || bbLogging)
 		return false;
 #if BLACKBOX_STORAGE == SD_BB
-	FsFile dir = sdCard.open("/blackbox");
+	FsFile dir = bbFs.open("/blackbox");
 	FsFile file;
 	if (!dir) return true;
 	if (!dir.isDir()) return false;
@@ -363,11 +377,11 @@ bool clearBlackbox() {
 			return false;
 		}
 	}
-	if (!sdCard.rmdir("/blackbox")) return false;
-	if (!sdCard.mkdir("/blackbox")) return false;
+	if (!bbFs.rmdir("/blackbox")) return false;
+	if (!bbFs.mkdir("/blackbox")) return false;
 	return true;
 #elif BLACKBOX_STORAGE == FLASH_BB
-	return false;
+	return bbFs.format(0);
 #endif
 }
 
@@ -401,10 +415,12 @@ static bool openLogFileIfDiffNum(u16 logNum) {
 	}
 
 	if (!bbPrintLog.open) {
-		char path[32];
 #if BLACKBOX_STORAGE == SD_BB
+		char path[32];
 		snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-		bbPrintLog.logFile = sdCard.open(path);
+		bbPrintLog.logFile = bbFs.open(path);
+#elif BLACKBOX_STORAGE == FLASH_BB
+		bbPrintLog.logFile = bbFs.open(logNum);
 #endif
 		if (!bbPrintLog.logFile) {
 			return false;
@@ -417,7 +433,6 @@ static bool openLogFileIfDiffNum(u16 logNum) {
 }
 
 void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen) {
-#if BLACKBOX_STORAGE == SD_BB
 	if (!fsReady || bbLogging) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
@@ -435,9 +450,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 
 	switch (subCmd) {
 	case 0: {
-#if BLACKBOX_STORAGE == SD_BB
-		FsFile &file = bbPrintLog.logFile;
-#endif
+		FILE_CLASS &file = bbPrintLog.logFile;
 
 		u8 b[288];
 		b[0] = logNum & 0xFF;
@@ -581,9 +594,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 	case 1: {
 		if (reqLen != 6)
 			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Incorrect usage of fast file init subCmd 1", strlen("Incorrect usage of fast file init subCmd 1"));
-#if BLACKBOX_STORAGE == SD_BB
-		FsFile &file = bbPrintLog.logFile;
-#endif
+		FILE_CLASS &file = bbPrintLog.logFile;
 		u32 startPos = DECODE_U4((u8 *)reqPayload);
 		u8 frameSize = reqPayload[4];
 		u8 syncFreq = reqPayload[5];
@@ -669,9 +680,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		// search from startPos up to the next SYNC and report ALL found HLs and FM changes. Format: u8: count of total occurences until next sync, then an array of 5 byte structs: u32 frameNum, u8 flag. Where flag is of the following format: bit0-bit3: FM change: 0xF = no change, anything lower is the new FM. bit 4: HL indicator, bit5-7 reserved. Repeat this u8 + struct[] thing until all are done. flags can contain data for both, a HL and FM change, but they do not need to be merged.
 		// reqData contains a bunch of the previously reported sync positions. These HAVE TO be actual starts of SYNC sequences
 
-#if BLACKBOX_STORAGE == SD_BB
-		FsFile &file = bbPrintLog.logFile;
-#endif
+		FILE_CLASS &file = bbPrintLog.logFile;
 
 		const u32 syncCount = (reqLen - 1) / 4;
 		u32 bufPos = 3;
@@ -790,11 +799,9 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "invalid subCmd", strlen("invalid subCmd"));
 		break;
 	}
-#endif
 }
 
 void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
-#if BLACKBOX_STORAGE == SD_BB
 	if (!fsReady || bbLogging) {
 		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
@@ -855,9 +862,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		 * - normal frame: length frameSize, just the frame
 		 */
 
-#if BLACKBOX_STORAGE == SD_BB
-		FsFile &file = bbPrintLog.logFile;
-#endif
+		FILE_CLASS &file = bbPrintLog.logFile;
 
 		while (elrsReq != elrsCompleted || gpsReq != gpsCompleted || vbatReq != vbatCompleted || linkStatsReq != linkStatsCompleted || (framePos == 0 && frameReq)) {
 			rp2040.wdt_reset();
@@ -1067,7 +1072,6 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		}
 	}
 	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_DATA_REQ, mspVer, (char *)buf, bufPos);
-#endif
 }
 
 void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
@@ -1194,7 +1198,7 @@ void startLogging() {
 	currentBBFlags = bbFlags;
 #if BLACKBOX_STORAGE == SD_BB
 	char path[32];
-	FsFile dir = sdCard.open("/blackbox");
+	FsFile dir = bbFs.open("/blackbox");
 	FsFile file;
 	int i = 0;
 	while (file.openNext(&dir)) {
@@ -1226,7 +1230,9 @@ void startLogging() {
 		}
 	}
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", i + 1);
-	blackboxFile = sdCard.open(path, O_WRITE | O_CREAT);
+	blackboxFile = bbFs.open(path, O_WRITE | O_CREAT);
+#elif BLACKBOX_STORAGE == FLASH_BB
+	blackboxFile = bbFs.open(bbFs.getNewBbFileNum(), O_WRITE | O_CREAT);
 #endif
 	if (!blackboxFile)
 		return;

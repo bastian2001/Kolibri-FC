@@ -4,8 +4,6 @@
 #include "global.h"
 #include "pioasm/extended_spi.pio.h"
 
-Fckafd fck;
-
 enum FlashRegisters {
 	FLASH_CMD_RESET = 0xFF,
 	FLASH_CMD_GET_FEATURE = 0x0F,
@@ -211,7 +209,7 @@ u16 Fckafd::programLoad(u16 block, u16 start, u16 length, const u8 *buf) {
 	burstSpiWrite(length, buf);
 	gpio_put(PIN_FLASH_CS, true);
 	cachedBlock = 0xFFFF;
-	cachedPage = 0xFFFF;
+	cachedPage = 0xFF;
 	return lenBackup;
 }
 
@@ -308,6 +306,7 @@ bool Fckafd::begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool 
 	maxProgTime = DECODE_U2(&buf[133]);
 	maxEraseTime = DECODE_U2(&buf[135]);
 	maxReadTime = DECODE_U2(&buf[137]);
+	if (pageSize != 2048) return false;
 
 	totalSize = pageSize * pageCount * blockCount;
 
@@ -394,6 +393,17 @@ bool Fckafd::exists(u16 num) {
 	return true;
 }
 
+FlashFile Fckafd::open(u16 num, oflag_t oflag = O_RDONLY) {
+	if (!fsReady) return FlashFile();
+	if (oflag == O_RDONLY) {
+		return FlashFile(0, num, false, *this);
+	}
+	if (oflag == O_WRITE | O_CREAT) {
+		return FlashFile(0, num, true, *this);
+	}
+	return FlashFile();
+}
+
 u16 Fckafd::getNewBbFileNum() {
 	if (!chipReady) return 0xFFFF;
 	if (!fsReady) return 0xFFFF;
@@ -413,15 +423,27 @@ u16 Fckafd::getNewBbFileNum() {
 
 //==============================FlashFile================================//
 
-FlashFile::FlashFile(u8 partition, u16 fileNum, bool forWrite) {
+Fckafd dummy;
+FlashFile::FlashFile() : fck(&dummy) {
+	isOpen = false;
+}
+
+FlashFile::FlashFile(u8 partition, u16 fileNum, bool forWrite, Fckafd &fs) : fck(&fs) {
 	this->fileNum = fileNum;
 	this->writeAccess = forWrite;
 
 	u8 buf[130];
 	bool foundFile = false;
+	i32 maxBlock = -1;
+	u16 freePage = 0xFFFF;
+	u16 freeOffset = 0xFFFF;
 	for (int page = 1; page < 64; page++) {
 		for (int offset = 0; offset < 2048; offset += 1024) {
-			fck.getData(0, page, offset, 9, buf);
+			fck->getData(0, page, offset, 9, buf);
+			if (buf[0] == 0xFF && freePage == 0xFFFF) {
+				freePage = page;
+				freeOffset = offset;
+			}
 			if (buf[0] == 0x00) {
 				// found a file, check if it is this
 				u16 fn = DECODE_U2(&buf[1]);
@@ -434,12 +456,13 @@ FlashFile::FlashFile(u8 partition, u16 fileNum, bool forWrite) {
 					}
 					firstBlock = DECODE_U2(&buf[3]);
 					startTime = DECODE_U4(&buf[5]);
-					fck.getData(0, page, offset + 512, 7, buf);
+					fck->getData(0, page, offset + 512, 7, buf);
 					if (buf[0] != 1) continue; // failed finishing file (should not happen when the file is being cleaned on mount)
 					lastBlock = DECODE_U2(&buf[1]);
-					size = DECODE_U4(&buf[3]);
+					if (lastBlock > maxBlock) maxBlock = lastBlock;
+					fileSize = DECODE_U4(&buf[3]);
 					foundFile = true;
-					fck.getData(0, page, offset + 512 + 126, 130, buf);
+					fck->getData(0, page, offset + 512 + 126, 130, buf);
 					for (int i = 0; i < 26; i++) {
 						int pos = i * 5;
 						u32 bytePos = DECODE_U4(&buf[pos]);
@@ -455,32 +478,44 @@ FlashFile::FlashFile(u8 partition, u16 fileNum, bool forWrite) {
 		}
 		if (foundFile) break;
 	}
-	if (!foundFile) isOpen = false;
-
-	if (forWrite && isOpen) {
-		// TODO open file for write
+	if (forWrite) {
+		if (foundFile) isOpen = false;
+		if (freePage == 0xFFFF) isOpen = false;
+		firstBlock = maxBlock + 1;
+		lastBlock = maxBlock + 1;
+		buf[0] = 0;
+		buf[1] = fileNum;
+		buf[2] = fileNum >> 8;
+		buf[3] = firstBlock;
+		buf[4] = firstBlock >> 8;
+		u32 startTime = rtcGetUnixTimestamp();
+		memcpy(&buf[5], &startTime, 4);
+		fck->programLoad(0, freeOffset, 9, buf);
+		fck->programExecute(0, freePage);
+	} else {
+		if (!foundFile) isOpen = false;
 	}
 }
 
 bool FlashFile::seek(u32 newPos) {
-	if (!isOpen || newPos > size) return false;
+	if (!isOpen || newPos > fileSize) return false;
 	if (writeAccess && !correctionMode) {
 		privateFlush();
 	}
 
-	currentBlock = firstBlock + newPos / (fck.pageCount * fck.pageSize);
-	currentPage = (newPos % (fck.pageCount * fck.pageSize)) / fck.pageSize;
-	currentPagePos = newPos % fck.pageSize;
+	currentBlock = firstBlock + newPos / (fck->pageCount * fck->pageSize);
+	currentPage = (newPos % (fck->pageCount * fck->pageSize)) / fck->pageSize;
+	currentPagePos = newPos % fck->pageSize;
 	return true;
 }
 
 void FlashFile::moveCursorFwd(u32 count) {
 	currentPagePos += count;
-	while (currentPagePos >= fck.pageSize) {
-		currentPagePos -= fck.pageSize;
+	while (currentPagePos >= fck->pageSize) {
+		currentPagePos -= fck->pageSize;
 		currentPage++;
-		if (currentPage >= fck.pageCount) {
-			currentPage -= fck.pageCount;
+		if (currentPage >= fck->pageCount) {
+			currentPage -= fck->pageCount;
 			currentBlock++;
 		}
 	}
@@ -489,7 +524,7 @@ void FlashFile::moveCursorFwd(u32 count) {
 // Stream
 int FlashFile::available() {
 	if (!isOpen || writeAccess) return 0;
-	i32 av = (i32)size - (i32)currentFilePos;
+	i32 av = (i32)fileSize - (i32)currentFilePos;
 	if (av < 0) return 0;
 	return av;
 }
@@ -504,14 +539,14 @@ i32 FlashFile::read(u8 *buffer, size_t length) {
 	if (!length) return 0;
 	if (!available()) return 0;
 
-	if (currentFilePos + length > size) length = size - currentFilePos;
+	if (currentFilePos + length > fileSize) length = fileSize - currentFilePos;
 
 	const u32 endExcl = currentFilePos + length;
 	const u32 startFPos = currentFilePos;
 
 	// cover simplest read: no page boundary
 	if (currentPagePos + length <= 2048) {
-		fck.getData(currentBlock, currentPage, currentPagePos, length, buffer);
+		fck->getData(currentBlock, currentPage, currentPagePos, length, buffer);
 		for (auto &cb : corrBytes) {
 			if (cb.pos >= startFPos && cb.pos < endExcl) {
 				buffer[cb.pos - startFPos] = cb.byte;
@@ -524,21 +559,21 @@ i32 FlashFile::read(u8 *buffer, size_t length) {
 	// else read first (part) page
 	u16 thisLength = 2048 - currentPagePos;
 	size_t bufPos = 0;
-	fck.getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
+	fck->getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
 	bufPos += thisLength;
 	moveCursorFwd(thisLength);
 
 	// as long as we can still read full pages
-	thisLength = fck.pageSize;
+	thisLength = fck->pageSize;
 	while (bufPos + thisLength < length) {
-		fck.getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
+		fck->getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
 		bufPos += thisLength;
 		moveCursorFwd(thisLength);
 	}
 
 	// read remaining bytes
 	thisLength = length - bufPos;
-	fck.getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
+	fck->getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
 	bufPos += thisLength;
 	moveCursorFwd(thisLength);
 
@@ -558,24 +593,100 @@ int FlashFile::peek() {
 		}
 	}
 	u8 buf;
-	fck.getData(currentBlock, currentPage, currentPagePos, 1, &buf);
+	fck->getData(currentBlock, currentPage, currentPagePos, 1, &buf);
 	return buf;
 }
 
 // Print
 size_t FlashFile::write(const uint8_t *buffer, size_t size) {
-	if (!writeAccess) return 0;
+	if (!writeAccess || !isOpen) return 0;
 
-	// TODO write to buffer/send buffer if needed
-	// TODO convert to a bunch of single writes during correctionMode
+	if (correctionMode) {
+		size_t written = 0;
+		for (size_t i = 0; i < size; i++) {
+			written += write(buffer[i]);
+		}
+		return written;
+	}
+
+	u16 sectorPos = currentPagePos % 512;
+
+	// partial sector write (don't send to flash)
+	u16 maxWrite = 512 - sectorPos;
+	if (maxWrite > size) {
+		memcpy(writeBuf + sectorPos, buffer, size);
+		moveCursorFwd(size);
+		fileSize += size;
+		return size;
+	}
+
+	// finish the current sector and send it off
+	size_t wrPos = 0;
+	memcpy(writeBuf + sectorPos, buffer, maxWrite);
+	fck->programLoad(currentBlock, currentPagePos - sectorPos, 512, writeBuf);
+	fck->programExecute(currentBlock, currentPage);
+	moveCursorFwd(maxWrite);
+	wrPos += maxWrite;
+	if (currentBlock > fck->maxBbBlock) {
+		correctionMode = true;
+		fileSize += wrPos;
+		return wrPos;
+	}
+
+	// any other sectors able to be fully written?
+	while (wrPos + 512 <= size) {
+		memcpy(writeBuf, buffer + wrPos, 512);
+		fck->programLoad(currentBlock, currentPagePos, 512, writeBuf);
+		fck->programExecute(currentBlock, currentPage);
+		moveCursorFwd(512);
+		wrPos += 512;
+		if (currentBlock > fck->maxBbBlock) {
+			correctionMode = true;
+			fileSize += wrPos;
+			return wrPos;
+		}
+	}
+	fileSize += size;
+
+	// no data left
+	if (wrPos == size) return size;
+
+	// partial sector left (only write to writeBuf)
+	maxWrite = size - wrPos;
+	memcpy(writeBuf, buffer, maxWrite);
+	moveCursorFwd(maxWrite);
+	return size;
+
+	// TODO maximum file size
 }
-size_t FlashFile::write(uint8_t) {
-	if (!writeAccess) return 0;
-	// TODO write single byte to buffer / corrBytes and potentially send the buffer to flash
+size_t FlashFile::write(uint8_t data) {
+	if (!writeAccess || !isOpen) return 0;
+
+	if (correctionMode) {
+		if (corrCount >= 26) return 0;
+		corrBytes[corrCount].pos = currentFilePos;
+		corrBytes[corrCount++].byte = data;
+		return 1;
+	}
+
+	u16 sectorPos = currentPagePos % 512;
+	writeBuf[sectorPos] = data;
+	if (sectorPos == 511) {
+		fck->programLoad(currentBlock, currentPagePos - 511, 512, writeBuf);
+		fck->programExecute(currentBlock, currentPage);
+	}
+	moveCursorFwd();
+	if (currentBlock > fck->maxBbBlock) {
+		maxBlock = currentBlock;
+		correctionMode = true;
+	}
+	fileSize++;
+	return 1;
 }
 int FlashFile::availableForWrite() {
-	if (!writeAccess) return 0;
+	if (!writeAccess || !isOpen) return 0;
 	// TODO bytes that can be written immediately
+	return 1;
 }
 void FlashFile::flush() {
 	// no flushing supported due to unpredictability. privateFlush() exists for internal flushing
@@ -583,19 +694,33 @@ void FlashFile::flush() {
 }
 
 void FlashFile::close() {
-	if (!isOpen) return;
+	if (!isOpen || !writeAccess) return;
 	if (!correctionMode) privateFlush();
 
-	// todo write sector 1/3 on meta page
+	u8 buf[256];
+	memset(buf, 0xFF, 256);
+	buf[0] = 1;
+	buf[1] = maxBlock;
+	buf[2] = maxBlock >> 8;
+	memcpy(&buf[3], &fileSize, 4);
+	for (int i = 0; i < 26; i++) {
+		int pos = i * 5 + 126;
+		memcpy(&buf[pos], &corrBytes[i].pos, 4);
+		buf[pos + 4] = corrBytes[i].byte;
+	}
+
+	fck->programLoad(0, metaPagePart * 1024, 256, buf);
+	fck->programExecute(0, metaPage);
 
 	isOpen = false;
 }
 
 void FlashFile::privateFlush() {
-	if (!writeAccess) return;
+	if (!writeAccess || !isOpen) return;
 	if (currentPagePos == 0) return;
-	fck.programLoad(currentBlock, currentPagePos / 512 * 512, currentPagePos % 512, writeBuf);
-	fck.programExecute(currentBlock, currentPage);
+	fck->programLoad(currentBlock, currentPagePos / 512 * 512, currentPagePos % 512, writeBuf);
+	fck->programExecute(currentBlock, currentPage);
+	maxBlock = currentBlock;
 
 	correctionMode = true;
 }

@@ -304,7 +304,7 @@ bool playWav(const char *filename) {
 		return false;
 	}
 	if (fsReady) {
-		speakerFile = sdCard.open(filename);
+		speakerFile = bbFs.open(filename);
 		if (speakerFile && speakerFile.size() > 1002) {
 			while (speakerFile.position() < 1000) { // skip wav header
 				if (speakerFile.read() == 'd' && speakerFile.read() == 'a' && speakerFile.read() == 't' && speakerFile.read() == 'a') {

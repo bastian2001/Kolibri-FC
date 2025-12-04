@@ -576,7 +576,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			int i = 0;
 			u16 b[500];
 #if BLACKBOX_STORAGE == SD_BB
-			FsFile dir = sdCard.open("/blackbox");
+			FsFile dir = bbFs.open("/blackbox");
 			FsFile file;
 			while (file.openNext(&dir)) {
 				if (file.isFile()) {
@@ -636,7 +636,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				u16 fileNum = fileNums[i];
 #if BLACKBOX_STORAGE == SD_BB
 				snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
-				FsFile logFile = sdCard.open(path);
+				FsFile logFile = bbFs.open(path);
 #endif
 				if (!logFile) {
 					buffer[index++] = fileNum;
@@ -685,7 +685,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			char path[32];
 #if BLACKBOX_STORAGE == SD_BB
 			snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
-			if (sdCard.remove(path))
+			if (bbFs.remove(path))
 #endif
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 2);
 			else

@@ -1,7 +1,73 @@
 #pragma once
 #if BLACKBOX_STORAGE == FLASH_BB
 
-class FlashFile;
+class Fckafd;
+
+typedef struct correctionByte {
+	u32 pos = 0xFFFFFFFF;
+	u8 byte = 0;
+} CorrectionByte;
+
+class FlashFile : public Stream {
+public:
+	FlashFile();
+	FlashFile(u8 partition, u16 fileNum, bool forWrite, Fckafd &fs);
+
+	FlashFile(const FlashFile &) = delete; // no copies
+	FlashFile &operator=(const FlashFile &) = delete; // no copies
+
+	FlashFile(FlashFile &&) = default; // allow moves
+	FlashFile &operator=(FlashFile &&) = default; // allow moves
+
+	bool seek(u32 pos);
+	size_t position() { return currentFilePos; };
+
+	// Stream
+	int available() override;
+	int read() override;
+	i32 read(u8 *buffer, size_t length);
+	int peek() override;
+
+	// Print
+	size_t write(const uint8_t *buffer, size_t size) override;
+	size_t write(uint8_t) override;
+	int availableForWrite() override;
+	void flush() override;
+
+	void close();
+
+	operator bool() { return isOpen; };
+
+	size_t size() { return fileSize; };
+
+private:
+	void moveCursorFwd(u32 count = 1);
+	void privateFlush();
+
+	bool isOpen = true;
+	bool writeAccess = false;
+	CorrectionByte corrBytes[26];
+	bool correctionMode = false;
+	u8 corrCount = 0;
+	u32 fileSize = 0;
+	u16 firstBlock = 0;
+	u16 lastBlock = 0;
+	u32 startTime = 0;
+	u16 fileNum = 0;
+	char fileName[33];
+
+	Fckafd *fck;
+
+	u16 currentBlock = 0;
+	u8 currentPage = 0;
+	u8 writeBuf[512];
+	u32 currentFilePos = 0;
+	u16 currentPagePos = 0;
+
+	u8 metaPage = 0xFF;
+	u8 metaPagePart = 0;
+	u16 maxBlock = 0;
+};
 
 #define CACHED_SECTORS 3
 
@@ -133,58 +199,6 @@ private:
 	u32 maxReadTime = 0;
 
 	u32 firstFreeBlock = 0;
-};
-
-typedef struct correctionByte {
-	u32 pos = 0xFFFFFFFF;
-	u8 byte = 0;
-} CorrectionByte;
-
-class FlashFile : public Stream {
-public:
-	FlashFile() { isOpen = false; };
-	FlashFile(const FlashFile &) = delete;
-	FlashFile &operator=(const FlashFile &) = delete;
-
-	FlashFile(u8 partition, u16 fileNum, bool forWrite);
-
-	bool seek(u32 pos);
-
-	// Stream
-	int available() override;
-	int read() override;
-	i32 read(u8 *buffer, size_t length);
-	int peek() override;
-
-	// Print
-	size_t write(const uint8_t *buffer, size_t size) override;
-	size_t write(uint8_t) override;
-	int availableForWrite() override;
-	void flush() override;
-
-	void close();
-
-private:
-	void moveCursorFwd(u32 count = 1);
-	void privateFlush();
-
-	bool isOpen = true;
-	bool writeAccess = false;
-	CorrectionByte corrBytes[26];
-	bool correctionMode = false;
-	u8 corrCount = 0;
-	u32 size = 0;
-	u16 firstBlock = 0;
-	u16 lastBlock = 0;
-	u32 startTime = 0;
-	u16 fileNum = 0;
-	char fileName[33];
-
-	u16 currentBlock = 0;
-	u8 currentPage = 0;
-	u8 writeBuf[512];
-	u32 currentFilePos = 0;
-	u16 currentPagePos = 0;
 };
 
 #endif

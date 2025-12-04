@@ -105,7 +105,7 @@ extern u8 bbSyncFreq; // Blackbox makes SYNC after ... frames
 extern u32 bbDebug1, bbDebug2;
 extern u16 bbDebug3, bbDebug4;
 #if BLACKBOX_STORAGE == SD_BB
-extern SdFs sdCard; // SD card filesystem
+extern SdFs bbFs; // SD card filesystem
 #endif
 
 /// @brief Set up SD card and create /blackbox folder
