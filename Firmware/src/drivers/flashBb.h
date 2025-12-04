@@ -1,10 +1,17 @@
 #pragma once
 #if BLACKBOX_STORAGE == FLASH_BB
 
-void initFlashBb();
+class FlashFile;
 
-class FlashBbFile {};
-class FlashFile {};
+#define CACHED_SECTORS 3
+
+typedef struct sectorCache {
+	u8 buf[512];
+	u16 block = 0xFFFF;
+	u8 page = 0xFF;
+	u8 sector = 0xFF;
+	u8 prio = 0xFF;
+} SectorCache;
 
 // Filesystem that Captures Kolibri's Awesome Flight Data
 class Fckafd {
@@ -58,7 +65,7 @@ public:
 	 * @param oflag Either O_RDONLY or O_WRITE | O_CREAT. No read and write combined. You can replace a max of 26 bytes in a file after you've written them. Once an O_WRITE | O_CREAT file is closed, you cannot edit it anymore.
 	 * @return FlashBbFile The opened file, nullptr if file already exists and trying to write
 	 */
-	// FlashBbFile open(u16 num, oflag_t oflag = O_RDONLY);
+	FlashFile open(u16 num, oflag_t oflag = O_RDONLY);
 
 	/**
 	 * @brief Opens a file
@@ -83,9 +90,20 @@ public:
 	char model[21];
 	u32 totalSize = 0;
 
-	void eraseBlock(u16 block, bool getFeatureWait = true);
-	
-	private:
+	u16 cachedBlock = 0xFFFF;
+	u8 cachedPage = 0xFF;
+
+	u16 programLoad(u16 block, u16 start, u16 length, const u8 *buf);
+	void programExecute(u16 block, u8 page, bool getFeatureWait = true);
+	u16 getData(u16 block, u8 page, u16 start, u16 length, u8 *buf);
+	void invalidateCaches();
+
+	u32 pageSize = 0;
+	u32 pageCount = 0;
+	u32 blockCount = 0;
+	u32 maxBbBlock = 0;
+
+private:
 	u8 singleSpiTransfer(u8 txByte = 0);
 	void burstSpiRead(u16 len, u8 *dst);
 	void burstSpiWrite(u16 len, const u8 *src);
@@ -95,29 +113,78 @@ public:
 	void setFeature(u8 featureRegister, u8 data);
 	void writeEnable();
 	void writeDisable();
-	bool checkFeature(u8 mask, u8 value, u8 featureRegister = 0xC0);
-	u16 programLoad(u16 block, u16 start, u16 length, const u8 *buf);
-	void programExecute(u16 block, u8 page, bool getFeatureWait = true);
-	void pageRead(u16 block, u8 page, bool getFeatureWait = true);
 	u16 readFromCache(u16 block, u16 start, u16 length, u8 *buf);
+	void pageRead(u16 block, u8 page, bool getFeatureWait = true);
+	bool checkFeature(u8 mask, u8 value, u8 featureRegister = 0xC0);
+	void eraseBlock(u16 block, bool getFeatureWait = true);
 
 	u8 blackboxSm;
 	u8 blackboxOffset;
+
+	SectorCache secCaches[CACHED_SECTORS];
 
 	u8 dmaTxChannel, dmaRxChannel;
 	bool chipReady = false;
 	bool fsReady = false;
 	u8 manufacturerId = 0xFF;
-	u32 pageSize = 0;
 	u16 spareSize = 0;
-	u32 pageCount = 0;
-	u32 blockCount = 0;
 	u32 maxProgTime = 0;
 	u32 maxEraseTime = 0;
 	u32 maxReadTime = 0;
-	u32 maxBbBlock = 0;
 
 	u32 firstFreeBlock = 0;
+};
+
+typedef struct correctionByte {
+	u32 pos = 0xFFFFFFFF;
+	u8 byte = 0;
+} CorrectionByte;
+
+class FlashFile : public Stream {
+public:
+	FlashFile() { isOpen = false; };
+	FlashFile(const FlashFile &) = delete;
+	FlashFile &operator=(const FlashFile &) = delete;
+
+	FlashFile(u8 partition, u16 fileNum, bool forWrite);
+
+	bool seek(u32 pos);
+
+	// Stream
+	int available() override;
+	int read() override;
+	i32 read(u8 *buffer, size_t length);
+	int peek() override;
+
+	// Print
+	size_t write(const uint8_t *buffer, size_t size) override;
+	size_t write(uint8_t) override;
+	int availableForWrite() override;
+	void flush() override;
+
+	void close();
+
+private:
+	void moveCursorFwd(u32 count = 1);
+	void privateFlush();
+
+	bool isOpen = true;
+	bool writeAccess = false;
+	CorrectionByte corrBytes[26];
+	bool correctionMode = false;
+	u8 corrCount = 0;
+	u32 size = 0;
+	u16 firstBlock = 0;
+	u16 lastBlock = 0;
+	u32 startTime = 0;
+	u16 fileNum = 0;
+	char fileName[33];
+
+	u16 currentBlock = 0;
+	u8 currentPage = 0;
+	u8 writeBuf[512];
+	u32 currentFilePos = 0;
+	u16 currentPagePos = 0;
 };
 
 #endif
