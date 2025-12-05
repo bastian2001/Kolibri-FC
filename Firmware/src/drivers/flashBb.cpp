@@ -393,7 +393,7 @@ bool Fckafd::exists(u16 num) {
 	return true;
 }
 
-FlashFile Fckafd::open(u16 num, oflag_t oflag = O_RDONLY) {
+FlashFile Fckafd::open(u16 num, oflag_t oflag) {
 	if (!fsReady) return FlashFile();
 	if (oflag == O_RDONLY) {
 		return FlashFile(0, num, false, *this);

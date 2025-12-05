@@ -559,7 +559,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #endif
 		} break;
 		case MspFn::SET_BB_SETTINGS: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			bbFreqDivider = reqPayload[0];
 			bbSyncFreq = reqPayload[9];
 			memcpy(&bbFlags, &reqPayload[1], 8);
@@ -572,7 +572,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #endif
 		} break;
 		case MspFn::BB_FILE_LIST: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			int i = 0;
 			u16 b[500];
 #if BLACKBOX_STORAGE == SD_BB
@@ -606,14 +606,21 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 					break;
 				}
 			}
-#endif
+#elif BLACKBOX_STORAGE == FLASH_BB
+			int max = bbFs.getNewBbFileNum();
+			for (int j = 0; j < max; j++) {
+				if (bbFs.exists(j)) {
+					b[i++] = j;
+				}
+			}
+#endif // write nums into b
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (const char *)b, i * 2);
-#else
+#else // #ifdef BLACKBOX_STORAGE
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 0);
-#endif
+#endif // #ifdef BLACKBOX_STORAGE
 		} break;
 		case MspFn::BB_FILE_INFO: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			/* data of command
 			 * 0...len-1: file numbers (LE 2 bytes each)
 			 *
@@ -632,11 +639,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u8 index = 0;
 			for (int i = 0; i < len; i++) {
 				rp2040.wdt_reset();
-				char path[32];
 				u16 fileNum = fileNums[i];
 #if BLACKBOX_STORAGE == SD_BB
+				char path[32];
 				snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
 				FsFile logFile = bbFs.open(path);
+#elif BLACKBOX_STORAGE == FLASH_BB
+				FlashFile logFile = bbFs.open(fileNum);
 #endif
 				if (!logFile) {
 					buffer[index++] = fileNum;
@@ -667,7 +676,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #endif
 		} break;
 		case MspFn::BB_FILE_DOWNLOAD: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			i32 chunkNum = -1;
 			if (reqLen >= 6) {
@@ -679,23 +688,25 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #endif
 		} break;
 		case MspFn::BB_FILE_DELETE: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			// data just includes one byte of file number
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
-			char path[32];
 #if BLACKBOX_STORAGE == SD_BB
+			char path[32];
 			snprintf(path, 32, "/blackbox/KOLI%04d.kbb", fileNum);
 			if (bbFs.remove(path))
-#endif
+#elif BLACKBOX_STORAGE == FLASH_BB
+			if (bbFs.remove(fileNum))
+#endif // if (remove)
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 2);
 			else
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 2);
-#else
+#else // #ifdef BLACKBOX_STORAGE
 			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);
-#endif
+#endif // #ifdef BLACKBOX_STORAGE
 		} break;
 		case MspFn::BB_FORMAT:
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			if (clearBlackbox())
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			else
@@ -705,7 +716,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #endif
 			break;
 		case MspFn::BB_FILE_INIT: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			if (reqLen < 2) {
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 				break;
@@ -717,7 +728,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #endif
 		} break;
 		case MspFn::BB_FAST_FILE_INIT: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			if (reqLen < 3) {
 				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 				break;
@@ -730,7 +741,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #endif
 		} break;
 		case MspFn::BB_FAST_DATA_REQ: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			/**
 			 * params:
 			 * - request identifier 2 byte (sequence number)
@@ -754,7 +765,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #endif
 		} break;
 		case MspFn::BB_CLOSE_FILE: {
-#if BLACKBOX_STORAGE == SD_BB
+#ifdef BLACKBOX_STORAGE
 			bbClosePrintFile(serialNum, version);
 #else
 			sendMsp(serialNum, MspMsgType::ERROR, fn, version, buf, 0);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drivers/flashBb.h"
 #include "modes.h"
 #include "serialhandler/msp.h"
 #include "targets.h"
@@ -106,6 +107,8 @@ extern u32 bbDebug1, bbDebug2;
 extern u16 bbDebug3, bbDebug4;
 #if BLACKBOX_STORAGE == SD_BB
 extern SdFs bbFs; // SD card filesystem
+#elif BLACKBOX_STORAGE == FLASH_BB
+extern Fckafd bbFs; // Filesystem that Captures Kolibri's Awesome Flight Data
 #endif
 
 /// @brief Set up SD card and create /blackbox folder

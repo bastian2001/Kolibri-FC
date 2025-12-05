@@ -144,6 +144,8 @@ public:
 
 	/// remove not supported
 	bool remove(const char *path) { return false; };
+	/// remove not supported
+	bool remove(const u16 fileNum) { return false; };
 
 	/**
 	 * @brief Get the file num that is one higher than the highest file num currently present
