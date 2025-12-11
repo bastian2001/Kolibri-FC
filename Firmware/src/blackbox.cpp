@@ -346,15 +346,17 @@ void initBlackbox() {
 	}
 	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
 #elif BLACKBOX_STORAGE == FLASH_BB
-	sleep_ms(3000);
+
 	bool r = false;
 	bool chip = bbFs.begin(PIN_FLASH_IO_BASE, PIN_FLASH_SCLK, PIN_FLASH_CS, r);
 	fsReady = r;
 	if (!fsReady && chip) {
-		Serial.println("Broken FCKAFD, formatting");
+		DEBUG_PRINTLN("Broken FCKAFD, formatting");
 		fsReady = bbFs.format(0);
+	} else if (!chip) {
+		DEBUG_PRINTLN("Flash chip refused");
 	}
-	Serial.println(fsReady ? "FCKAFD ready" : "FCKAFD not ready");
+	DEBUG_PRINTLN(fsReady ? "FCKAFD ready" : "FCKAFD not ready");
 #endif
 }
 
@@ -485,6 +487,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			// get 1024 bytes so we have 1034 to read through to find a sync
 			file.seek(searchPos);
 			file.read(fileBuf, readSize);
+			rp2040.wdt_reset();
 
 			// read through the bytes and find sync
 			for (i32 pos = readSize - 1; pos >= 0; pos--) {
@@ -917,20 +920,26 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 				case BB_FRAME_NORMAL: {
 					u32 used = 0;
 					u32 act = 0;
+					u32 flags = 0;
 					if (frameNum >= reqFrame && searchingBackwards) {
 						act = unescapeBytes(&inBuf[readPos], frameBuffer, readable - readPos, frameSize, &used);
 						framePos = file.position() - readable + readPos - 1;
+						flags |= 1;
 
 						if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound) {
 							// if the frame is the last thing we find, just continue searching
 							searchingBackwards = false;
+							flags |= 2;
 						} else {
 							goBack = true;
+							flags |= 4;
 						}
 					} else {
 						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
+						flags |= 8;
 					}
 					if (act != frameSize) {
+						printfIndMessage("act %d frameSize %d bw %d frame %d reqFrame %d framePos %d goBack %d fileSize %d readable %d readPos %d file position %d, flags %d", act, frameSize, searchingBackwards, frameNum, reqFrame, framePos, goBack, file.size(), readable, readPos, file.position(), flags);
 						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 0", strlen("Could not unescape successfully 0"));
 					}
 					frameNum++;
@@ -1244,7 +1253,7 @@ void startLogging() {
 	blackboxFile.write((u8 *)&recordTime, 4);
 	u32 zero = 0;
 	blackboxFile.write((u8 *)&zero, 4); // duration, will be filled later
-	blackboxFile.write((u8)0); // 3200Hz PID Loop
+	blackboxFile.write(16000 / PID_FREQ - 1); // PID Loop frequency
 	blackboxFile.write((u8)bbFreqDivider);
 	blackboxFile.write((u8)3); // 2000deg/sec and 16g
 	i32 rf[3][3];

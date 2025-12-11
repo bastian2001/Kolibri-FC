@@ -137,8 +137,6 @@ extern std::string uavName;
 
 #ifdef PRINT_DEBUG
 #define DEBUG_PRINT(x) Serial.print(x)
-#define DEBUG_PRINTSLN(x) \
-	Serial.printf("%15s:%3d: %s\n", __FILE__, __LINE__, x);
 #define DEBUG_PRINTLN(x)                             \
 	Serial.printf("%15s:%3d: ", __FILE__, __LINE__); \
 	Serial.println(x);
@@ -148,7 +146,6 @@ extern std::string uavName;
 #endif
 #ifndef PRINT_DEBUG
 #define DEBUG_PRINT(x)
-#define DEBUG_PRINTSLN(x)
 #define DEBUG_PRINTF(x, ...)
 #endif
 

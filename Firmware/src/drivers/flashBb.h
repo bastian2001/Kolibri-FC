@@ -165,6 +165,8 @@ public:
 	void programExecute(u16 block, u8 page, bool getFeatureWait = true);
 	u16 getData(u16 block, u8 page, u16 start, u16 length, u8 *buf);
 	void invalidateCaches();
+	void eraseBlock(u16 block, bool getFeatureWait = true);
+	u8 getFeature(u8 featureRegister = 0xC0);
 
 	u32 pageSize = 0;
 	u32 pageCount = 0;
@@ -177,14 +179,12 @@ private:
 	void burstSpiWrite(u16 len, const u8 *src);
 	bool checkReadId();
 	void reset();
-	u8 getFeature(u8 featureRegister = 0xC0);
 	void setFeature(u8 featureRegister, u8 data);
 	void writeEnable();
 	void writeDisable();
 	u16 readFromCache(u16 block, u16 start, u16 length, u8 *buf);
 	void pageRead(u16 block, u8 page, bool getFeatureWait = true);
 	bool checkFeature(u8 mask, u8 value, u8 featureRegister = 0xC0);
-	void eraseBlock(u16 block, bool getFeatureWait = true);
 
 	u8 blackboxSm;
 	u8 blackboxOffset;

@@ -1,12 +1,19 @@
 #include "global.h"
+#include "hardware/structs/qmi.h"
 #include "hardware/vreg.h"
 
 volatile u8 setupDone = 0b00;
 static elapsedMicros taskTimer0;
 
 void setup() {
-	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
+	vreg_disable_voltage_limit();
+	vreg_set_voltage(VREG_VOLTAGE_1_40);
+	sleep_ms(100);
+
+	qmi_hw->m[0].timing = 0x60007203;
+	sleep_ms(100);
+	set_sys_clock_khz(360000, false);
 
 	initFixMath();
 
@@ -73,6 +80,115 @@ void setup() {
 	initBlackbox();
 #endif
 	initSpeaker();
+
+	// sleep_ms(4000);
+
+	// for (int i = 0; i < 2048; i++) {
+	// 	bbFs.eraseBlock(i);
+	// 	u8 feat = bbFs.getFeature();
+	// 	Serial.printf("Block %d feat 0x%02X\n", i, feat);
+	// 	// Serial.flush();
+	// 	// sleep_ms(50);
+	// }
+
+	// u8 *buf = (u8 *)malloc(2048);
+	// // u8 *buf2 = (u8 *)malloc(2048);
+	// for (int i = 0; i < 2048; i++) {
+	// 	for (int j = 0; j < 2048; j++) {
+	// 		// 	// buf[j] = rp2040.hwrand32();
+	// 		buf[j] = 0x55;
+	// 	}
+	// 	// u16 block = rp2040.hwrand32() % 2048;
+	// 	// bbFs.eraseBlock(i);
+	// 	// sleep_ms(20);
+	// 	// u8 page = rp2040.hwrand32() % 8;
+	// 	for (int j = 0; j < 64; j++) {
+	// 		bbFs.programLoad(i, 0, 2048, buf);
+	// 		bbFs.programExecute(i, j);
+	// 	}
+	// 	bool blockOk = true;
+	// 	for (int j = 0; j < 64; j++) {
+	// 		bbFs.getData(i, j, 0, 2048, buf);
+	// 		// if (memcmp(buf, buf2, 2048)) {
+	// 		bool pageOk = true;
+	// 		for (int k = 0; k < 2048; k++) {
+	// 			if (buf[k] != 0x55) {
+	// 				pageOk = false;
+	// 				blockOk = false;
+	// 			}
+	// 		}
+	// 		// if (!pageOk) {
+	// 		// 	Serial.printf("\n\n============================\nfound error at block %d page %d\n", i, j);
+	// 		// 	Serial.print("                   wanted                                                   got");
+	// 		// 	for (int k = 0; k < 2048; k += 16) {
+	// 		// 		Serial.printf("\n%4d 0x%02X   ", k, k);
+	// 		// 		// Serial.print(memcmp(buf + k, buf2 + k, 16) ? 'x' : ' ');
+	// 		// 		Serial.print("  ");
+	// 		// 		for (int l = 0; l < 16; l++) {
+	// 		// 			if (l % 8 == 0) Serial.print(' ');
+	// 		// 			Serial.printf("%02X ", 0xFF);
+	// 		// 		}
+	// 		// 		Serial.print("     ");
+	// 		// 		for (int l = 0; l < 16; l++) {
+	// 		// 			if (l % 8 == 0) Serial.print(' ');
+	// 		// 			Serial.printf("%02X ", buf[k + l]);
+	// 		// 		}
+	// 		// 	}
+	// 		// 	Serial.println();
+	// 		// 	sleep_ms(50);
+	// 		// }
+	// 	}
+	// 	// if ((i % 100) == 0) Serial.printf("%d done\n", i);
+	// 	// if (blockOk)
+	// 	// 	Serial.printf("Block %d ok\n", i);
+	// 	// else
+	// 	// 	Serial.printf("Block %d not ok.\n", i);
+	// 	// Serial.flush();
+	// 	// sleep_ms(blockOk ? 50 : 50);
+	// }
+	// free(buf);
+	// // free(buf2);
+
+	// // for (; true;) {
+	// // 	if (Serial.available() >= 5) {
+	// // 		u32 block = Serial.parseInt();
+	// // 		while (Serial.read() != -1)
+	// // 			;
+	// // 		Serial.printf("\nReading block %d, enter page\n", block);
+	// // 		Serial.flush();
+	// // 		for (; Serial.available() < 3;)
+	// // 			;
+	// // 		u32 page = Serial.parseInt();
+	// // 		while (Serial.read() != -1)
+	// // 			;
+	// // 		Serial.printf("Reading page %d, enter from and length\n", page);
+	// // 		Serial.flush();
+	// // 		for (; Serial.available() < 5;)
+	// // 			;
+	// // 		u32 from = Serial.parseInt();
+	// // 		while (Serial.read() != -1)
+	// // 			;
+	// // 		Serial.printf("Reading from %d\n", from);
+	// // 		Serial.flush();
+	// // 		for (; Serial.available() < 5;)
+	// // 			;
+	// // 		u32 len = Serial.parseInt();
+	// // 		while (Serial.read() != -1)
+	// // 			;
+	// // 		Serial.printf("Reading %d bytes\n", len);
+	// // 		Serial.flush();
+	// // u8 *buf = (u8 *)malloc(2176);
+	// // 		bbFs.getData(block, page, from, len, buf);
+	// // 		for (int i = from; i < from + len; i++) {
+	// // 			int c = buf[i - from];
+	// // 			if (i % 16 == 0) Serial.printf("\n%4d 0x%02X ", i, i);
+	// // 			if (i % 8 == 0) Serial.print(' ');
+	// // 			Serial.printf("%02X ", c);
+	// // 		}
+	// // free(buf);
+	// // 	}
+	// // }
+
 	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");

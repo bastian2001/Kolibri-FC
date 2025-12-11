@@ -13,20 +13,19 @@
 // ------------ //
 
 #define extended_spi_wrap_target 0
-#define extended_spi_wrap 2
+#define extended_spi_wrap 1
 
 static const uint16_t extended_spi_program_instructions[] = {
             //     .wrap_target
-    0x7001, //  0: out    pins, 1         side 0     
-    0xb942, //  1: nop                    side 1 [1] 
-    0x5001, //  2: in     pins, 1         side 0     
+    0x7501, //  0: out    pins, 1         side 0 [5] 
+    0x5c01, //  1: in     pins, 1         side 1 [4] 
             //     .wrap
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program extended_spi_program = {
     .instructions = extended_spi_program_instructions,
-    .length = 3,
+    .length = 2,
     .origin = -1,
 };
 

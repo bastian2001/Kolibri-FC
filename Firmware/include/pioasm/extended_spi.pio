@@ -1,8 +1,8 @@
 .program extended_spi
 .side_set 1 opt
 
-out pins, 1 side 0 [3] ; Stall here on empty (sideset proceeds even if
-in pins, 1  side 1  ; instruction stalls, so we stall with SCK low)
+out pins, 1 side 0 [5] ; Stall here on empty (sideset proceeds even if
+in pins, 1  side 1  [4] ; instruction stalls, so we stall with SCK low)
 
 % c-sdk {
 #include "hardware/gpio.h"

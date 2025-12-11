@@ -42,8 +42,14 @@ static volatile const u32 gyroDmaTxData[13] = {0x80UL | (u32)GyroReg::ACC_X_MSB,
 #endif
 #define GYRO_DMA_LENGTH ARRAYLEN(gyroDmaTxData)
 static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {0};
-
+static elapsedMicros gyroInterruptTimer = 0;
+static void fetchGyro();
 void gyroLoop() {
+	if (gyroInterruptTimer > 300) {
+		tasks[TASK_GYROREAD].debugInfo = 2;
+		gyroInterruptTimer = 0;
+		fetchGyro();
+	}
 	if (gyroInterrupts) {
 		u32 duration = taskTimerGyro;
 		if (tasks[TASK_GYROREAD].maxGap < duration)
@@ -139,6 +145,11 @@ void gyroLoop() {
 }
 
 void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
+	tasks[TASK_GYROREAD].debugInfo = 1;
+	gyroInterruptTimer = 0;
+	fetchGyro();
+}
+static void fetchGyro() {
 	// abort channels if they are not done
 	dma_channel_abort(gyroDmaRxChannel);
 	dma_channel_abort(gyroDmaTxChannel);
@@ -322,7 +333,10 @@ int gyroInit() {
 	gpio_set_dir(PIN_GYRO_CLKIN, GPIO_OUT);
 	gpio_set_function(PIN_GYRO_CLKIN, GPIO_FUNC_PWM);
 	u8 sliceNum = pwm_gpio_to_slice_num(PIN_GYRO_CLKIN);
-	pwm_set_clkdiv_int_frac4(sliceNum, 165, 0);
+	u32 cpu = clock_get_hz(clk_sys); // 360k
+	u32 totalDiv = cpu / 32000; // 11250
+	u8 pwmDivInt = totalDiv / 50;
+	pwm_set_clkdiv_int_frac4(sliceNum, pwmDivInt, 0);
 	pwm_set_wrap(sliceNum, 49); // 32 kHz
 	pwm_set_enabled(sliceNum, true);
 	pwm_set_gpio_level(PIN_GYRO_CLKIN, 25);

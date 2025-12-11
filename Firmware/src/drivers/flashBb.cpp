@@ -36,7 +36,7 @@ u8 Fckafd::singleSpiTransfer(u8 txByte) {
 }
 void Fckafd::burstSpiRead(u16 len, u8 *dst) {
 	if (dst == nullptr) return;
-	u8 dummy[len];
+	u8 *dummy = (u8 *)malloc(len);
 	pio_sm_clear_fifos(PIO_EXT_SPI_BB, blackboxSm);
 	dma_channel_abort(dmaTxChannel);
 	dma_channel_abort(dmaRxChannel);
@@ -54,10 +54,11 @@ void Fckafd::burstSpiRead(u16 len, u8 *dst) {
 	while (dma_channel_is_busy(dmaTxChannel) || dma_channel_is_busy(dmaRxChannel)) {
 		tight_loop_contents();
 	}
+	free(dummy);
 }
 void Fckafd::burstSpiWrite(u16 len, const u8 *src) {
 	if (src == nullptr) return;
-	u8 dummy[len];
+	u8 *dummy = (u8 *)malloc(len);
 	pio_sm_clear_fifos(PIO_EXT_SPI_BB, blackboxSm);
 	dma_channel_abort(dmaTxChannel);
 	dma_channel_abort(dmaRxChannel);
@@ -75,6 +76,7 @@ void Fckafd::burstSpiWrite(u16 len, const u8 *src) {
 	while (dma_channel_is_busy(dmaRxChannel) || dma_channel_is_busy(dmaTxChannel)) {
 		tight_loop_contents();
 	}
+	free(dummy);
 }
 
 bool Fckafd::checkReadId() {
@@ -158,7 +160,7 @@ u16 Fckafd::getData(u16 block, u8 page, u16 start, u16 length, u8 *buf) {
 }
 
 void Fckafd::pageRead(u16 block, u8 page, bool getFeatureWait) {
-	if (cachedBlock == block && cachedPage == page) return;
+	// if (cachedBlock == block && cachedPage == page) return;
 	gpio_put(PIN_FLASH_CS, false);
 	u32 addr = (page & 0x3F) | ((u32)block << 6);
 	u8 buf[4] = {FLASH_CMD_PAGE_READ, (u8)(addr >> 16), (u8)(addr >> 8), (u8)addr};
@@ -291,7 +293,7 @@ bool Fckafd::begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool 
 
 	// read parameter page
 	pageRead(0, 1, true);
-	u8 buf[2176];
+	u8 *buf = (u8 *)malloc(2176);
 	readFromCache(0, 0, 256, buf);
 	strncpy(manufacturer, (char *)&buf[32], 13);
 	manufacturer[12] = 0;
@@ -306,7 +308,11 @@ bool Fckafd::begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool 
 	maxProgTime = DECODE_U2(&buf[133]);
 	maxEraseTime = DECODE_U2(&buf[135]);
 	maxReadTime = DECODE_U2(&buf[137]);
-	if (pageSize != 2048) return false;
+	if (pageSize != 2048) {
+		DEBUG_PRINTF("Page size refused %d\n", pageSize);
+		free(buf);
+		return false;
+	}
 
 	totalSize = pageSize * pageCount * blockCount;
 
@@ -315,6 +321,8 @@ bool Fckafd::begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool 
 
 	// Accept Micron devices up to 4 Gb nominal size (512 MiB)
 	if (manufacturerId != 0x2C || !totalSize || totalSize > 512 * 1024 * 1024) {
+		DEBUG_PRINTF("Manufacturer ID %d, totalSize %d\n", manufacturerId, totalSize);
+		free(buf);
 		return false;
 	}
 
@@ -333,6 +341,7 @@ bool Fckafd::begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool 
 	if (buf[6] != 0) isValidFs = false;
 	if (buf[7] != 1) isValidFs = false;
 	if (buf[8] != 0) isValidFs = false;
+	DEBUG_PRINTF("%s %d %d %d\n", buf, buf[6], buf[7], buf[8]);
 
 	if (isValidFs) {
 		u16 checkBlock = 0xFFFF;
@@ -356,10 +365,12 @@ bool Fckafd::begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool 
 			// TODO check block, broken file
 		}
 		fsReady = true;
+		this->fsReady = true;
 	}
 
 	chipReady = true;
 
+	free(buf);
 	return true;
 }
 
@@ -368,16 +379,20 @@ bool Fckafd::format(u8 partition) {
 	if (partition != 0) return false;
 	for (int i = 0; i < maxBbBlock; i++) {
 		eraseBlock(i);
+		rp2040.wdt_reset();
 	}
 	u8 buf[9] = "FCKAFD";
 	buf[6] = 0;
 	buf[7] = 1;
 	buf[8] = 0;
-	Serial.printf("fmt %s %d %d %d\n", buf, buf[6], buf[7], buf[8]);
+	DEBUG_PRINTF("fmt %s %d %d %d\n", buf, buf[6], buf[7], buf[8]);
 	programLoad(0, 0, 9, buf);
 	programExecute(0, 0);
-	fsReady = true;
-	return true;
+	pageRead(0, 0);
+	u8 buf2[9];
+	readFromCache(0, 0, 9, buf2);
+	fsReady = memcmp(buf, buf2, 9) == 0;
+	return fsReady;
 }
 
 bool Fckafd::exists(u16 num) {
@@ -394,19 +409,26 @@ bool Fckafd::exists(u16 num) {
 }
 
 FlashFile Fckafd::open(u16 num, oflag_t oflag) {
+	printfIndMessage("Open %d", num);
 	if (!fsReady) return FlashFile();
+	printIndMessage("FS ready");
 	if (oflag == O_RDONLY) {
 		return FlashFile(0, num, false, *this);
 	}
 	if (oflag == O_WRITE | O_CREAT) {
+		DEBUG_PRINTF("Will create file %d\n", num);
 		return FlashFile(0, num, true, *this);
 	}
+	printIndMessage("Flag???");
 	return FlashFile();
 }
 
 u16 Fckafd::getNewBbFileNum() {
+	DEBUG_PRINTLN("getNewBbFileNum");
 	if (!chipReady) return 0xFFFF;
+	DEBUG_PRINTLN("chip ready");
 	if (!fsReady) return 0xFFFF;
+	DEBUG_PRINTLN("FCKAFD ready");
 	u8 buf[3];
 	i32 highest = -1;
 	for (int page = 1; page < 64; page++) {
@@ -418,6 +440,7 @@ u16 Fckafd::getNewBbFileNum() {
 			if (num > highest) highest = num;
 		}
 	}
+	DEBUG_PRINTF("Suggested number %d\n", highest + 1);
 	return highest + 1;
 }
 
@@ -431,68 +454,106 @@ FlashFile::FlashFile() : fck(&dummy) {
 FlashFile::FlashFile(u8 partition, u16 fileNum, bool forWrite, Fckafd &fs) : fck(&fs) {
 	this->fileNum = fileNum;
 	this->writeAccess = forWrite;
-
 	u8 buf[130];
-	bool foundFile = false;
-	i32 maxBlock = -1;
-	u16 freePage = 0xFFFF;
-	u16 freeOffset = 0xFFFF;
-	for (int page = 1; page < 64; page++) {
-		for (int offset = 0; offset < 2048; offset += 1024) {
-			fck->getData(0, page, offset, 9, buf);
-			if (buf[0] == 0xFF && freePage == 0xFFFF) {
-				freePage = page;
-				freeOffset = offset;
-			}
-			if (buf[0] == 0x00) {
-				// found a file, check if it is this
-				u16 fn = DECODE_U2(&buf[1]);
-				if (fn == fileNum) {
-					if (forWrite) {
+
+	if (forWrite) {
+		u16 freePage = 0xFFFF;
+		u16 freeOffset = 0xFFFF;
+		i32 maxBlock = 0;
+		for (int page = 1; page < 64; page++) {
+			for (int offset = 0; offset < 2048; offset += 1024) {
+				fck->getData(0, page, offset, 9, buf);
+
+				// remember page and offset so we can place the file here later
+				if (buf[0] == 0xFF && freePage == 0xFFFF) {
+					freePage = page;
+					freeOffset = offset;
+				}
+
+				// if we find a file, check the fileNum and mark the highest used block
+				if (buf[0] == 0x00) {
+					u16 fn = DECODE_U2(&buf[1]);
+					if (fn == fileNum) {
 						// found file, do not open
 						isOpen = false;
-						foundFile = true;
-						break;
+						DEBUG_PRINTLN("Found File. Do not open");
+						return;
 					}
+
 					firstBlock = DECODE_U2(&buf[3]);
-					startTime = DECODE_U4(&buf[5]);
 					fck->getData(0, page, offset + 512, 7, buf);
-					if (buf[0] != 1) continue; // failed finishing file (should not happen when the file is being cleaned on mount)
-					lastBlock = DECODE_U2(&buf[1]);
-					if (lastBlock > maxBlock) maxBlock = lastBlock;
-					fileSize = DECODE_U4(&buf[3]);
-					foundFile = true;
-					fck->getData(0, page, offset + 512 + 126, 130, buf);
-					for (int i = 0; i < 26; i++) {
-						int pos = i * 5;
-						u32 bytePos = DECODE_U4(&buf[pos]);
-						u8 byte = buf[4];
-						if (bytePos == 0xFFFFFFFF) break;
-						corrBytes[i].pos = bytePos;
-						corrBytes[i].byte = byte;
-						corrCount++;
+					if (buf[0] != 1) {
+						// failed finishing file (should not happen when the file is being cleaned on mount)
+						isOpen = false;
+						DEBUG_PRINTLN("Found incomplete file. Cannot create a new one");
+						return;
 					}
-					break;
+
+					u16 endBlock = DECODE_U2(&buf[1]);
+					if (endBlock > maxBlock) maxBlock = endBlock;
 				}
 			}
 		}
-		if (foundFile) break;
-	}
-	if (forWrite) {
-		if (foundFile) isOpen = false;
-		if (freePage == 0xFFFF) isOpen = false;
+
+		if (freePage == 0xFFFF) {
+			isOpen = false;
+			DEBUG_PRINTLN("Could not find a free meta page to create the file in");
+			return;
+		}
+		DEBUG_PRINTF("Found a free page %d %d \n", freePage, freeOffset);
+
 		firstBlock = maxBlock + 1;
-		lastBlock = maxBlock + 1;
+		currentBlock = firstBlock;
+		lastBlock = firstBlock;
 		buf[0] = 0;
 		buf[1] = fileNum;
 		buf[2] = fileNum >> 8;
 		buf[3] = firstBlock;
 		buf[4] = firstBlock >> 8;
-		u32 startTime = rtcGetUnixTimestamp();
+		startTime = rtcGetUnixTimestamp();
 		memcpy(&buf[5], &startTime, 4);
 		fck->programLoad(0, freeOffset, 9, buf);
 		fck->programExecute(0, freePage);
+		metaPage = freePage;
+		metaPagePart = freeOffset / 1024;
+
+		DEBUG_PRINTF("Created file %d for write with its first block %d, on meta page %d at offset %d. Start time %d\n", fileNum, firstBlock, freePage, freeOffset, startTime);
 	} else {
+		bool foundFile = false;
+		// for reading
+		for (int page = 1; page < 64; page++) {
+			for (int offset = 0; offset < 2048; offset += 1024) {
+				fck->getData(0, page, offset, 9, buf);
+
+				if (buf[0] == 0x00) {
+					// found a file, check if it is this
+					u16 fn = DECODE_U2(&buf[1]);
+					if (fn == fileNum) {
+						firstBlock = DECODE_U2(&buf[3]);
+						currentBlock = firstBlock;
+						startTime = DECODE_U4(&buf[5]);
+						fck->getData(0, page, offset + 512, 7, buf);
+						if (buf[0] != 1) continue; // failed finishing file (should not happen when the file is being cleaned on mount)
+						lastBlock = DECODE_U2(&buf[1]);
+						fileSize = DECODE_U4(&buf[3]);
+						foundFile = true;
+						fck->getData(0, page, offset + 512 + 126, 130, buf);
+						printfIndMessage("Opening file %d for read on page %d with offset %d. First block %d, last block %d, total file size %d. Start time %d", fileNum, page, offset, firstBlock, lastBlock, fileSize, startTime);
+						for (int i = 0; i < 26; i++) {
+							int pos = i * 5;
+							u32 bytePos = DECODE_U4(&buf[pos]);
+							u8 byte = buf[pos + 4];
+							if (bytePos == 0xFFFFFFFF) break;
+							corrBytes[i].pos = bytePos;
+							corrBytes[i].byte = byte;
+							corrCount++;
+						}
+						break;
+					}
+				}
+			}
+			if (foundFile) break;
+		}
 		if (!foundFile) isOpen = false;
 	}
 }
@@ -506,10 +567,12 @@ bool FlashFile::seek(u32 newPos) {
 	currentBlock = firstBlock + newPos / (fck->pageCount * fck->pageSize);
 	currentPage = (newPos % (fck->pageCount * fck->pageSize)) / fck->pageSize;
 	currentPagePos = newPos % fck->pageSize;
+	currentFilePos = newPos;
 	return true;
 }
 
 void FlashFile::moveCursorFwd(u32 count) {
+	currentFilePos += count;
 	currentPagePos += count;
 	while (currentPagePos >= fck->pageSize) {
 		currentPagePos -= fck->pageSize;
@@ -539,12 +602,12 @@ i32 FlashFile::read(u8 *buffer, size_t length) {
 	if (!length) return 0;
 	if (!available()) return 0;
 
-	if (currentFilePos + length > fileSize) length = fileSize - currentFilePos;
-
 	const u32 endExcl = currentFilePos + length;
+	if (endExcl > fileSize) length = fileSize - currentFilePos;
+
 	const u32 startFPos = currentFilePos;
 
-	// cover simplest read: no page boundary
+	// simplest read: no page boundary
 	if (currentPagePos + length <= 2048) {
 		fck->getData(currentBlock, currentPage, currentPagePos, length, buffer);
 		for (auto &cb : corrBytes) {
@@ -566,14 +629,14 @@ i32 FlashFile::read(u8 *buffer, size_t length) {
 	// as long as we can still read full pages
 	thisLength = fck->pageSize;
 	while (bufPos + thisLength < length) {
-		fck->getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
+		fck->getData(currentBlock, currentPage, 0, thisLength, buffer + bufPos);
 		bufPos += thisLength;
 		moveCursorFwd(thisLength);
 	}
 
 	// read remaining bytes
 	thisLength = length - bufPos;
-	fck->getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
+	fck->getData(currentBlock, currentPage, 0, thisLength, buffer + bufPos);
 	bufPos += thisLength;
 	moveCursorFwd(thisLength);
 
@@ -588,7 +651,6 @@ int FlashFile::peek() {
 	if (!isOpen || writeAccess || !available()) return -1;
 	for (auto &cb : corrBytes) {
 		if (cb.pos == currentFilePos) {
-			moveCursorFwd();
 			return cb.byte;
 		}
 	}
@@ -622,11 +684,13 @@ size_t FlashFile::write(const uint8_t *buffer, size_t size) {
 
 	// finish the current sector and send it off
 	size_t wrPos = 0;
+	size_t wrLeft = size;
 	memcpy(writeBuf + sectorPos, buffer, maxWrite);
 	fck->programLoad(currentBlock, currentPagePos - sectorPos, 512, writeBuf);
 	fck->programExecute(currentBlock, currentPage);
 	moveCursorFwd(maxWrite);
 	wrPos += maxWrite;
+	wrLeft -= maxWrite;
 	if (currentBlock > fck->maxBbBlock) {
 		correctionMode = true;
 		fileSize += wrPos;
@@ -634,12 +698,13 @@ size_t FlashFile::write(const uint8_t *buffer, size_t size) {
 	}
 
 	// any other sectors able to be fully written?
-	while (wrPos + 512 <= size) {
+	while (wrLeft >= 512) {
 		memcpy(writeBuf, buffer + wrPos, 512);
 		fck->programLoad(currentBlock, currentPagePos, 512, writeBuf);
 		fck->programExecute(currentBlock, currentPage);
 		moveCursorFwd(512);
 		wrPos += 512;
+		wrLeft -= 512;
 		if (currentBlock > fck->maxBbBlock) {
 			correctionMode = true;
 			fileSize += wrPos;
@@ -649,12 +714,11 @@ size_t FlashFile::write(const uint8_t *buffer, size_t size) {
 	fileSize += size;
 
 	// no data left
-	if (wrPos == size) return size;
+	if (!wrLeft) return size;
 
 	// partial sector left (only write to writeBuf)
-	maxWrite = size - wrPos;
-	memcpy(writeBuf, buffer, maxWrite);
-	moveCursorFwd(maxWrite);
+	memcpy(writeBuf, buffer + wrPos, wrLeft);
+	moveCursorFwd(wrLeft);
 	return size;
 
 	// TODO maximum file size
@@ -665,6 +729,7 @@ size_t FlashFile::write(uint8_t data) {
 	if (correctionMode) {
 		if (corrCount >= 26) return 0;
 		corrBytes[corrCount].pos = currentFilePos;
+		moveCursorFwd();
 		corrBytes[corrCount++].byte = data;
 		return 1;
 	}
@@ -709,8 +774,9 @@ void FlashFile::close() {
 		buf[pos + 4] = corrBytes[i].byte;
 	}
 
-	fck->programLoad(0, metaPagePart * 1024, 256, buf);
+	fck->programLoad(0, metaPagePart * 1024 + 512, 256, buf);
 	fck->programExecute(0, metaPage);
+	DEBUG_PRINTF("Closing file %d on max block %d with offset %d on metaPage %d\n", fileNum, maxBlock, metaPagePart * 1024, metaPage);
 
 	isOpen = false;
 }
@@ -723,6 +789,7 @@ void FlashFile::privateFlush() {
 	maxBlock = currentBlock;
 
 	correctionMode = true;
+	DEBUG_PRINTLN("Flushed file, going to correction mode now");
 }
 
 #endif
