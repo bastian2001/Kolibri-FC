@@ -190,7 +190,8 @@ u16 Fckafd::readFromCache(u16 block, u16 start, u16 length, u8 *buf) {
 void Fckafd::eraseBlock(u16 block, bool getFeatureWait) {
 	writeEnable();
 	gpio_put(PIN_FLASH_CS, false);
-	u8 buf[4] = {FLASH_CMD_BLOCK_ERASE, 0, (u8)(block >> 8), (u8)block};
+	u32 addr = (u32) block << 6;
+	u8 buf[4] = {FLASH_CMD_BLOCK_ERASE, (u8)(addr >> 16), (u8)(addr >> 8), (u8)(addr)};
 	burstSpiWrite(4, buf);
 	gpio_put(PIN_FLASH_CS, true);
 	if (getFeatureWait) {

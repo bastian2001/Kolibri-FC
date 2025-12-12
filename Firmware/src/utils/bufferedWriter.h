@@ -160,7 +160,6 @@ public:
 		}
 		writeBuffer.push(c);
 		mutex_exit(&writeMutex);
-		flush();
 		return 1;
 	};
 	virtual size_t write(const uint8_t *p, size_t len) override {
@@ -198,7 +197,6 @@ public:
 			}
 		}
 		mutex_exit(&writeMutex);
-		flush();
 		return len;
 	};
 
