@@ -9,10 +9,6 @@ void setup() {
 	Serial.begin(115200);
 	vreg_disable_voltage_limit();
 	vreg_set_voltage(VREG_VOLTAGE_1_40);
-	sleep_ms(100);
-
-	qmi_hw->m[0].timing = 0x60007203;
-	sleep_ms(100);
 	set_sys_clock_khz(360000, false);
 
 	initFixMath();
