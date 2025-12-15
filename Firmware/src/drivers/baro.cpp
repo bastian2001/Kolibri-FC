@@ -14,12 +14,13 @@ enum BARO_COEFFS {
 	c30,
 };
 constexpr i32 baroScaleFactor = 7864320;
+static i32 baroCalibration[9];
 #elifdef BARO_LPS22
 #endif
 
 fix32 baroASL = 0; // above sea level
-fix32 lastBaroASL = 0, gpsBaroOffset = 0;
-PT2 baroAslFiltered(1, 50);
+static fix32 lastBaroASL = 0, gpsBaroOffset = 0;
+static PT2 baroAslFiltered(1, 50);
 enum class BaroState {
 	NOT_INIT = 0, // not inited / no baro detected yet
 	INITIALIZING, // initializing (baro detected but depending on model maybe needs more initialization steps than can be done at once)
@@ -36,12 +37,12 @@ f32 baroPres = 0;
 volatile i32 blackboxPres = 0;
 fix32 baroUpVel = 0;
 u8 baroTemp = 0;
-i32 baroCalibration[9];
 fix32 gpsBaroAlt;
 static u8 baroBuffer[32] = {0};
-elapsedMicros baroTimer = 0;
+static elapsedMicros baroTimer = 0;
 static u32 baroTimerTimeout = 0;
-i32 pressureRaw, baroTempRaw;
+i32 pressureRaw;
+static i32 baroTempRaw;
 
 void baroLoop() {
 	TASK_START(TASK_BARO);

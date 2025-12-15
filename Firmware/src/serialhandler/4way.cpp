@@ -2,15 +2,15 @@
 #include "pioasm/onewire_receive.pio.h"
 #include "pioasm/onewire_transmit.pio.h"
 
-bool setup4WayDone = false;
-u32 offsetPioReceive;
-u32 offsetPioTransmit;
-pio_sm_config configPioReceive;
-pio_sm_config configPioTransmit;
-u8 serialNum4Way;
+static bool setup4WayDone = false;
+static u32 offsetPioReceive;
+static u32 offsetPioTransmit;
+static pio_sm_config configPioReceive;
+static pio_sm_config configPioTransmit;
+static u8 serialNum4Way;
 
-bool isTxEnabled = false;
-std::deque<uint8_t> escRxBuf;
+static bool isTxEnabled = false;
+static std::deque<uint8_t> escRxBuf;
 
 #define INTERFACE_NAME_4WAY "m4wFCIntf"
 #define SERIAL_4WAY_VER_MAIN 20

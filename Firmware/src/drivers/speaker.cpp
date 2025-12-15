@@ -1,17 +1,17 @@
 #include "global.h"
 
-elapsedMillis soundStart;
-u16 soundDuration = 0;
-u8 soundType = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
-u16 sweepStartFrequency = 0;
-u16 sweepEndFrequency = 0;
-u16 onTime = 0;
-u16 offTime = 0;
-u16 currentWrap = 400;
-bool stopWavFlag = false;
-u8 startNewPwmSound = 0; // 1 = start new static sound, 2 = start new sweep sound
-std::string startSoundFile;
-std::string fallbackRtttl;
+static elapsedMillis soundStart;
+static u16 soundDuration = 0;
+static u8 soundType = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
+static u16 sweepStartFrequency = 0;
+static u16 sweepEndFrequency = 0;
+static u16 onTime = 0;
+static u16 offTime = 0;
+static u16 currentWrap = 400;
+static bool stopWavFlag = false;
+static u8 startNewPwmSound = 0; // 1 = start new static sound, 2 = start new sweep sound
+static std::string startSoundFile; // name of the file to play
+static std::string fallbackRtttl; // fallback RTTTL string if the file is not found
 
 struct newPwmSound {
 	u16 startFrequency;
@@ -20,9 +20,9 @@ struct newPwmSound {
 	u16 tOnMs;
 	u16 tOffMs;
 };
-newPwmSound newPwmSoundData = {0, 0, 0, 0, 0};
+static newPwmSound newPwmSoundData = {0, 0, 0, 0, 0};
 
-fix32 noteFrequencies[13] =
+static const fix32 noteFrequencies[13] =
 	{
 		16.35, // C0
 		17.32, // C#0
@@ -49,11 +49,11 @@ typedef struct rtttlSong {
 	RTTTLNote notes[MAX_RTTTL_NOTES];
 	u8 numNotes;
 } RTTTLSong;
-RTTTLSong songToPlay;
+static RTTTLSong songToPlay;
 
 #define FREQ_TO_WRAP(freq) (2000000 / freq)
 
-u8 sliceNum;
+static u8 sliceNum;
 
 #if BLACKBOX_STORAGE == SD_BB
 FsFile speakerFile;
