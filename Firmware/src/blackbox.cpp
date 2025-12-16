@@ -9,7 +9,7 @@ SdFs bbFs;
 Fckafd bbFs;
 #define FILE_CLASS FlashFile
 #endif
-FILE_CLASS blackboxFile;
+static FILE_CLASS blackboxFile;
 
 // rather conservative estimates of available buffers. Doesn't need to be perfect.
 #define BLACKBOX_CHUNK_SIZE 1024
@@ -19,9 +19,9 @@ FILE_CLASS blackboxFile;
 #define BLACKBOX_WRITE_BUFFER_SIZE 8192
 
 u64 bbFlags = 0;
-u64 currentBBFlags = 0;
+static u64 currentBBFlags = 0;
 
-volatile bool bbLogging = false;
+static volatile bool bbLogging = false;
 volatile bool fsReady = false;
 
 u8 bbFreqDivider = 2;
@@ -30,7 +30,7 @@ u8 bbSyncFreq = 100;
 u32 bbDebug1, bbDebug2;
 u16 bbDebug3, bbDebug4;
 
-RingBuffer<u8 *> bbFramePtrBuffer(64);
+static RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 typedef struct bbPrintConfig {
 	u8 serialNum;
@@ -42,7 +42,7 @@ typedef struct bbPrintConfig {
 	u32 chunkSize;
 	u16 logNum;
 } BbPrintConfig;
-BbPrintConfig bbPrintLog = {
+static BbPrintConfig bbPrintLog = {
 	.serialNum = 255,
 	.open = false,
 	.printing = false,
@@ -52,14 +52,14 @@ BbPrintConfig bbPrintLog = {
 	.logNum = 0,
 };
 
-elapsedMillis bbDuration;
+static elapsedMillis bbDuration;
 
-i32 bbFrameNum = 0;
-elapsedMicros frametime;
-u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
-u32 bbWriteBufferPos = 0;
+static i32 bbFrameNum = 0;
+static elapsedMicros frametime;
+static u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
+static u32 bbWriteBufferPos = 0;
 #define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
-bool lastHighlightState = false;
+static bool lastHighlightState = false;
 static FlightMode lastSavedFlightMode = FlightMode::LENGTH;
 static u32 writtenFrameNum = 0;
 static u32 lastSyncPos = 0;

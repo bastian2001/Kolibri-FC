@@ -3,7 +3,7 @@ volatile bool armed = false;
 fix64 homepointLat, homepointLon;
 fix32 homepointAlt;
 
-File modesSettingsFile;
+static File modesSettingsFile;
 
 /**
  * 0: switch in armed position for >= 10 cycles
@@ -18,7 +18,7 @@ File modesSettingsFile;
 u32 armingDisableFlags = 0;
 
 RxMode rxModes[RxModeIndex::LENGTH];
-u32 consecutiveArmedCycles = 0; // number of cycles the switch is in the armed position, reset to 0 when disarmed
+static u32 consecutiveArmedCycles = 0; // number of cycles the switch is in the armed position, reset to 0 when disarmed
 
 void disarm(DisarmReason reason) {
 	armed = false;

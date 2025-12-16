@@ -32,36 +32,36 @@ static fix32 rollLast, pitchLast, yawLast; // rate of last PID cycle (deg/s)
 static fix64 rollErrorSum, pitchErrorSum, yawErrorSum; // I term sum for the PID controller
 fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, rollSum, pitchSum, yawSum;
 fix32 throttle;
-PT2 dFilterRoll, dFilterPitch, dFilterYaw;
+static PT2 dFilterRoll, dFilterPitch, dFilterYaw;
 
 // Idling
 u8 idlePermille;
 bool useDynamicIdle = true;
 u16 dynamicIdleRpm = 3000;
-fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
-fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07};
-fix32 throttleScale;
-interp_config dynIdleInterpConfig;
+static fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
+static fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07};
+static fix32 throttleScale;
+static interp_config dynIdleInterpConfig;
 
 // FF / PID boost filter
 fix32 setpointDiffCutoff = 12;
-PT1 setpointDiff[3];
-fix32 lastSetpoints[3];
+static PT1 setpointDiff[3];
+static fix32 lastSetpoints[3];
 
 // PID boost
-fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
-PT1 pidBoostFilter;
-fix32 lastThrottle;
-u8 pidBoostAxis = 0; // 0: off, 1: RP only, 2: RPY
-fix32 pidBoostP = 5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
-fix32 pidBoostI = 5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
-fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
-fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
-fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
+static fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
+static PT1 pidBoostFilter;
+static fix32 lastThrottle;
+static u8 pidBoostAxis = 0; // 0: off, 1: RP only, 2: RPY
+static fix32 pidBoostP = 5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
+static fix32 pidBoostI = 5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
+static fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
+static fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
+static fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
 volatile bool pidBoostActive = false;
 
 // Misc
-u32 pidLoopCounter = 0; // counter of PID controller loops
+static u32 pidLoopCounter = 0; // counter of PID controller loops
 
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {

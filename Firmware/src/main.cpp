@@ -2,13 +2,14 @@
 #include "hardware/structs/qmi.h"
 #include "hardware/vreg.h"
 
-volatile u8 setupDone = 0b00;
+static volatile u8 setupDone = 0b00;
 static elapsedMicros taskTimer0;
 
 void setup() {
 	Serial.begin(115200);
 	vreg_disable_voltage_limit();
-	vreg_set_voltage(VREG_VOLTAGE_1_40);
+	vreg_set_voltage(VREG_VOLTAGE_1_35);
+	sleep_ms(100);
 	set_sys_clock_khz(360000, false);
 
 	initFixMath();
@@ -138,7 +139,7 @@ void setup1() {
 	while (!(setupDone & 0b01)) {
 	}
 }
-elapsedMicros taskTimer = 0;
+static elapsedMicros taskTimer = 0;
 
 void loop1() {
 	u32 duration = taskTimer;
