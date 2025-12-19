@@ -1,17 +1,17 @@
 #include "global.h"
 
-elapsedMillis soundStart;
-u16 soundDuration = 0;
-u8 soundType = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
-u16 sweepStartFrequency = 0;
-u16 sweepEndFrequency = 0;
-u16 onTime = 0;
-u16 offTime = 0;
-u16 currentWrap = 400;
-bool stopWavFlag = false;
-u8 startNewPwmSound = 0; // 1 = start new static sound, 2 = start new sweep sound
-std::string startSoundFile;
-std::string fallbackRtttl;
+static elapsedMillis soundStart;
+static u16 soundDuration = 0;
+static u8 soundType = 0; // 0 = stationary, 1 = sweep, 2 = rtttl
+static u16 sweepStartFrequency = 0;
+static u16 sweepEndFrequency = 0;
+static u16 onTime = 0;
+static u16 offTime = 0;
+static u16 currentWrap = 400;
+static bool stopWavFlag = false;
+static u8 startNewPwmSound = 0; // 1 = start new static sound, 2 = start new sweep sound
+static std::string startSoundFile; // name of the file to play
+static std::string fallbackRtttl; // fallback RTTTL string if the file is not found
 
 struct newPwmSound {
 	u16 startFrequency;
@@ -20,9 +20,9 @@ struct newPwmSound {
 	u16 tOnMs;
 	u16 tOffMs;
 };
-newPwmSound newPwmSoundData = {0, 0, 0, 0, 0};
+static newPwmSound newPwmSoundData = {0, 0, 0, 0, 0};
 
-fix32 noteFrequencies[13] =
+static const fix32 noteFrequencies[13] =
 	{
 		16.35, // C0
 		17.32, // C#0
@@ -43,29 +43,36 @@ typedef struct rtttlNote {
 	u16 duration; // milliseconds
 	u8 sweepToNext; // dash after note will sweep to next, e.g. 8e6-,8d6 will sweep from 8e6 to 8d6 within "duration" milliseconds
 	u8 quieter; // 0 = normal, 1-3 = quieter, 4 = ring-tone-like e.g. 8e6$4 will play 8e6 like a ring-tone
-				// quietness only sweeps statically (with the quietness level of the first note)
+	// quietness only sweeps statically (with the quietness level of the first note)
 } RTTTLNote;
 typedef struct rtttlSong {
 	RTTTLNote notes[MAX_RTTTL_NOTES];
 	u8 numNotes;
 } RTTTLSong;
-RTTTLSong songToPlay;
+static RTTTLSong songToPlay;
 
 #define FREQ_TO_WRAP(freq) (2000000 / freq)
 
-u8 sliceNum;
+static u8 sliceNum;
+
+#if BLACKBOX_STORAGE == SD_BB
 FsFile speakerFile;
 u32 speakerDataSize = 0;
 u32 speakerCounter = 0;
 const f32 WAV_SPEAKER_CLKDIV = (float)F_CPU / (256 * 44100 * 4);
-const f32 RECT_SPEAKER_CLKDIV = 132;
 dma_channel_config speakerDmaAConfig, speakerDmaBConfig;
 u8 speakerDmaAChan, speakerDmaBChan;
-volatile static u8 soundState = 1; // 1: playing PWM, 2: a needs to be filled, 4: b needs to be filled
-// 1KiB buffer each, thus worst case the speaker has a buffer of 1024 samples / 44.1kHz = 23ms
+// 8KiB buffer each, thus worst case the speaker has a buffer of 1024 samples / 44.1kHz = 23ms
 u16 speakerChanAData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
 u16 speakerChanBData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
+u32 totalBytes = 0;
+u8 finishedChannels = 0b00;
+u8 startSpeakerFile = true;
+#endif
+const f32 RECT_SPEAKER_CLKDIV = 132;
+volatile static u8 soundState = 1; // 1: playing PWM, 2: a needs to be filled, 4: b needs to be filled
 
+#if BLACKBOX_STORAGE == SD_BB
 void dmaIrqHandler() {
 	u32 interrupts = dma_hw->intr;
 	if (interrupts & (1u << speakerDmaAChan)) {
@@ -77,6 +84,7 @@ void dmaIrqHandler() {
 		soundState |= 0b100;
 	}
 }
+#endif
 
 void initSpeaker() {
 	addSetting(SETTING_START_SOUND, &startSoundFile, "start.wav");
@@ -93,6 +101,7 @@ void initSpeaker() {
 	pwm_set_gpio_level(PIN_SPEAKER, 0);
 	pwm_set_enabled(sliceNum, true);
 
+#if BLACKBOX_STORAGE == SD_BB
 	speakerDmaAChan = dma_claim_unused_channel(true);
 	speakerDmaAConfig = dma_channel_get_default_config(speakerDmaAChan);
 	speakerDmaBChan = dma_claim_unused_channel(true);
@@ -116,22 +125,23 @@ void initSpeaker() {
 	dma_channel_set_irq0_enabled(speakerDmaBChan, true);
 	dma_channel_set_read_addr(speakerDmaBChan, speakerChanBData, false);
 	dma_channel_set_write_addr(speakerDmaBChan, &pwm_hw->slice[sliceNum].cc, false);
+#endif
 	if (playWav(startSoundFile.c_str())) {
 		soundState = 0b110;
 	} else {
 		soundState = 0b001;
 		makeRtttlSound(fallbackRtttl.c_str());
 	}
+#if BLACKBOX_STORAGE == SD_BB
 	irq_set_exclusive_handler(DMA_IRQ_0, dmaIrqHandler);
 	irq_set_enabled(DMA_IRQ_0, true);
+#endif
 }
 
 u8 beeperOn = 0;
-u32 totalBytes = 0;
-u8 finishedChannels = 0b00;
-u8 startSpeakerFile = true;
 void speakerLoop() {
 	TASK_START(TASK_SPEAKER);
+#if BLACKBOX_STORAGE == SD_BB
 	if (soundState & 0b110) {
 		if (stopWavFlag) {
 			stopWavFlag = false;
@@ -169,7 +179,7 @@ void speakerLoop() {
 				speakerChanAData[i * 4 + 2] = inBuf[i];
 				speakerChanAData[i * 4 + 3] = inBuf[i];
 			}
-			dma_channel_set_trans_count(speakerDmaAChan, bytesRead * 4, false);
+			dma_channel_set_transfer_count(speakerDmaAChan, bytesRead * 4, false);
 		}
 		if (soundState & 0b100) {
 			soundState &= 0b1011;
@@ -180,7 +190,7 @@ void speakerLoop() {
 				speakerChanBData[i * 4 + 2] = inBuf[i];
 				speakerChanBData[i * 4 + 3] = inBuf[i];
 			}
-			dma_channel_set_trans_count(speakerDmaBChan, bytesRead * 4, false);
+			dma_channel_set_transfer_count(speakerDmaBChan, bytesRead * 4, false);
 		}
 		if (bytesRead <= 0) {
 			if (pState & 0b10) {
@@ -216,6 +226,7 @@ void speakerLoop() {
 		TASK_END(TASK_SPEAKER);
 		return;
 	}
+#endif
 
 	if (!beeperOn && ((rxModes[RxModeIndex::BEEPER].isActive() && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
 		beeperOn = true;
@@ -288,11 +299,12 @@ void speakerLoop() {
 }
 
 bool playWav(const char *filename) {
+#if BLACKBOX_STORAGE == SD_BB
 	if (soundState != 1) {
 		return false;
 	}
 	if (fsReady) {
-		speakerFile = sdCard.open(filename);
+		speakerFile = bbFs.open(filename);
 		if (speakerFile && speakerFile.size() > 1002) {
 			while (speakerFile.position() < 1000) { // skip wav header
 				if (speakerFile.read() == 'd' && speakerFile.read() == 'a' && speakerFile.read() == 't' && speakerFile.read() == 'a') {
@@ -318,6 +330,9 @@ bool playWav(const char *filename) {
 	} else {
 		return false;
 	}
+#else
+	return false;
+#endif
 }
 
 void makeSound(u16 frequency, u16 duration, u16 tOnMs, u16 tOffMs) {

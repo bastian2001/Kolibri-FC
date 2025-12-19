@@ -1,6 +1,6 @@
 #include "global.h"
 
-u32 enableDShot = 0;
+static u32 enableDShot = 0;
 
 u32 escRawTelemetry[4] = {0};
 u32 escRpm[4] = {0};

@@ -193,7 +193,7 @@ export default defineComponent({
 			<button @click="ledOff">LED Off</button>
 			<button @click="() => sendCommand(MspFn.ACC_CALIBRATION)">Calibrate Accelerometer</button>
 			<button @click="playSound">Play Sound</button>
-			<input type="number" step="1" min="1" max="2" placeholder="Serial Number" v-model="serialNum" />
+			<input type="number" step="1" min="1" max="4" placeholder="Serial Number" v-model="serialNum" />
 			<input type="number" step="1" min="9600" max="115200" placeholder="Baud Rate" v-model="baudRate" />
 			<button @click="startPassthrough">Start Serial Passthrough</button>
 			<button @click="() => {

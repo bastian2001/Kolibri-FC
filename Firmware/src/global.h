@@ -1,8 +1,5 @@
 #pragma once
 
-#define SD_BB 0
-#define FLASH_BB 1 // not implemented yet
-
 // general C/C++ includes
 #include <deque>
 #include <list>
@@ -46,6 +43,7 @@
 #include "customSimdMath.h"
 #include "drivers/baro.h"
 #include "drivers/esc.h"
+#include "drivers/flashBb.h"
 #include "drivers/gyro.h"
 #include "drivers/halfduplexUart.h"
 #include "drivers/i2c.h"
@@ -57,7 +55,6 @@
 #include "inFlightTuning.h"
 #include "modes.h"
 #include "pid.h"
-#include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
 #include "pioasm/halfduplex_uart.pio.h"
 #include "ringbuffer.h"
@@ -73,14 +70,13 @@
 #include "settings/littleFs.h"
 #include "settings/setting.h"
 #include "settings/settingIds.h"
+#include "targets.h"
 #include "taskManager.h"
 #include "typedefs.h"
 #include "unittest.h"
 #include "utils/bufferedWriter.h"
 #include "utils/filters.h"
 #include "utils/quaternion.h"
-
-#define SPI_OSD spi1 // SPI for OSD
 
 #ifdef BARO_SPL06
 #define SPI_BARO spi0 // SPI for baro
@@ -89,11 +85,8 @@
 #ifdef BARO_LPS22
 #define I2C_BARO i2c0 // I2C for baro
 #endif
-#define I2C_MAG i2c0 // I2C for magnetometer
 
 #define PIO_ESC pio1 // uses all 4 SMs
-#define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
-#define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
 #define PIO_LED pio2 // 1 SM, 4 instructions
 #define PIO_HALFDUPLEX_UART pio2 // 1 SM, 19 instructions
 // Total usage of pio2: 3 SMs (assuming one UART) and 28 of 32 instructions
@@ -144,8 +137,6 @@ extern std::string uavName;
 
 #ifdef PRINT_DEBUG
 #define DEBUG_PRINT(x) Serial.print(x)
-#define DEBUG_PRINTSLN(x) \
-	Serial.printf("%15s:%3d: %s\n", __FILE__, __LINE__, x);
 #define DEBUG_PRINTLN(x)                             \
 	Serial.printf("%15s:%3d: ", __FILE__, __LINE__); \
 	Serial.println(x);
@@ -155,7 +146,6 @@ extern std::string uavName;
 #endif
 #ifndef PRINT_DEBUG
 #define DEBUG_PRINT(x)
-#define DEBUG_PRINTSLN(x)
 #define DEBUG_PRINTF(x, ...)
 #endif
 
@@ -165,3 +155,9 @@ enum class MOTOR : u8 {
 	RL,
 	FL,
 };
+
+#if HW_VARIANT == HW_V5
+#define PID_FREQ 3200
+#elif HW_VARIANT == HW_V6
+#define PID_FREQ 8000
+#endif
