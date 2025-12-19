@@ -1,20 +1,20 @@
 #include "global.h"
 
 RingBuffer<u8> gpsBuffer(1024);
-elapsedMicros gpsInitTimer;
-bool gpsInitAck = false;
+static elapsedMicros gpsInitTimer;
+static bool gpsInitAck = false;
 GpsAccuracy gpsAcc;
 struct tm gpsTime;
 GpsStatus gpsStatus;
 GpsMotion gpsMotion;
 fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
-char olcString[14] = "AABBCCDD+EEFG";
-char olcAlphabet[] = "23456789CFGHJMPQRVWX";
+static char olcString[14] = "AABBCCDD+EEFG";
+static char olcAlphabet[] = "23456789CFGHJMPQRVWX";
 u8 currentPvtMsg[92];
 u32 newPvtMessageFlag = 0;
 u32 gpsUpdateRate;
 fix32 gpsVelocityFilterCutoff;
-BufferedWriter *gpsSerial = nullptr;
+static BufferedWriter *gpsSerial = nullptr;
 bool gpsGoodQuality = false;
 static bool firstGoodQuality = true;
 

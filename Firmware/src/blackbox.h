@@ -1,9 +1,13 @@
 #pragma once
 
+#include "drivers/flashBb.h"
 #include "modes.h"
 #include "serialhandler/msp.h"
+#include "targets.h"
 #include "typedefs.h"
 #include <Arduino.h>
+
+#ifdef BLACKBOX_STORAGE
 
 #define LOG_ELRS_RAW (1 << 0) // 0 bytes
 #define LOG_ROLL_SETPOINT (1 << 1) // 2 bytes
@@ -96,12 +100,16 @@
 #define BB_FRAMESIZE_SYNC 13
 
 extern u64 bbFlags; // 64 bits of flags for the blackbox (LOG_ macros)
-extern volatile bool bbLogging, fsReady; // Blackbox state
+extern volatile bool fsReady; // Blackbox state
 extern u8 bbFreqDivider; // Blackbox frequency divider (compared to PID loop)
 extern u8 bbSyncFreq; // Blackbox makes SYNC after ... frames
 extern u32 bbDebug1, bbDebug2;
 extern u16 bbDebug3, bbDebug4;
-extern SdFs sdCard; // SD card filesystem
+#if BLACKBOX_STORAGE == SD_BB
+extern SdFs bbFs; // SD card filesystem
+#elif BLACKBOX_STORAGE == FLASH_BB
+extern Fckafd bbFs; // Filesystem that Captures Kolibri's Awesome Flight Data
+#endif
 
 /// @brief Set up SD card and create /blackbox folder
 void initBlackbox();
@@ -177,3 +185,5 @@ void bbClosePrintFile(u8 serialNum, MspVersion mspVer);
 
 /// @brief Writes the prepared blackbox frames to the SD card
 void blackboxLoop();
+
+#endif

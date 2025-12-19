@@ -13,6 +13,7 @@ extern volatile u8 accelCalState; // 0 = normal operation, 1 = quiet, 2 = measur
 extern volatile bool imuAlignmentDone; // imu orientation done flag to save the data
 extern volatile u8 imuAlignmentStep; // 0 = normal operation, 1 = waiting for normal placement, 2 = waiting for nose down
 
+#ifdef GYRO_BMI270
 enum class GyroReg : u8 {
 	CHIP_ID = 0x00,
 	ERROR = 0x02,
@@ -70,6 +71,77 @@ enum class GyroReg : u8 {
 	PWR_CTRL = 0x7D,
 	CMD = 0x7E,
 };
+#elifdef GYRO_ICM42688P
+
+enum class GyroReg : u8 {
+	REG_BANK_SEL = 0x76,
+
+	// user bank 0
+	DEVICE_CONFIG = 0x11,
+	DRIVE_CONFIG = 0x13,
+	INT_CONFIG = 0x14,
+	FIFO_CONFIG = 0x16,
+	TEMP_MSB = 0x1D, // actually LSB, endianness swapped
+	TEMP_LSB, // actually MSB, endianness swapped
+	ACC_X_MSB = 0x1F, // actually LSB, endianness swapped
+	ACC_X_LSB, // actually MSB, endianness swapped
+	ACC_Y_MSB, // actually LSB, endianness swapped
+	ACC_Y_LSB, // actually MSB, endianness swapped
+	ACC_Z_MSB, // actually LSB, endianness swapped
+	ACC_Z_LSB, // actually MSB, endianness swapped
+	GYR_X_MSB = 0x25, // actually LSB, endianness swapped
+	GYR_X_LSB, // actually MSB, endianness swapped
+	GYR_Y_MSB, // actually LSB, endianness swapped
+	GYR_Y_LSB, // actually MSB, endianness swapped
+	GYR_Z_MSB, // actually LSB, endianness swapped
+	GYR_Z_LSB, // actually MSB, endianness swapped
+	INT_STATUS = 0x2D,
+	SIGNAL_PATH_RESET = 0x4B,
+	INTF_CONFIG0 = 0x4C,
+	INTF_CONFIG1 = 0x4D,
+	PWR_MGMT0 = 0x4E,
+	GYRO_CONFIG0 = 0x4F,
+	ACCEL_CONFIG0 = 0x50,
+	GYRO_CONFIG1 = 0x51,
+	GYRO_ACCEL_CONFIG0 = 0x52,
+	ACCEL_CONFIG1 = 0x53,
+	TMST_CONFIG = 0x54,
+	INT_CONFIG0 = 0x63,
+	INT_CONFIG1 = 0x64,
+	INT_SOURCE0 = 0x65,
+	INT_SOURCE1 = 0x66,
+	INT_SOURCE3 = 0x68,
+	INT_SOURCE4 = 0x69,
+	SELF_TEST_CONFIG = 0x70,
+	WHO_AM_I = 0x75,
+
+	// user bank 1
+	SENSOR_CONFIG0 = 0x03,
+	GYRO_CONFIG_STATIC3 = 0x0C,
+	GYRO_CONFIG_STATIC4,
+	GYRO_CONFIG_STATIC5,
+	TMSTVAL0 = 0x62,
+	TMSTVAL1,
+	TMSTVAL2,
+	INTF_CONFIG5 = 0x7B,
+
+	// user bank 2
+	ACCEL_CONFIG_STATIC2 = 0x03,
+	ACCEL_CONFIG_STATIC3,
+	ACCEL_CONFIG_STATIC4,
+
+	// user bank 4
+	OFFSET_USER0 = 0x77,
+	OFFSET_USER1,
+	OFFSET_USER2,
+	OFFSET_USER3,
+	OFFSET_USER4,
+	OFFSET_USER5,
+	OFFSET_USER6,
+	OFFSET_USER7,
+	OFFSET_USER8,
+};
+#endif
 
 /**
  * @brief provides flags for tasks that depend on the gyro data
@@ -77,8 +149,8 @@ enum class GyroReg : u8 {
  * @details gyro data, and by extension the PID loop, is the most time-sensitive task. it gets priority, and once the data is read, the flag is set to FFFFFFFF so that other tasks know it's safe to run without impacting the gyro data or PID loop.
  */
 extern u32 gyroUpdateFlag;
-extern volatile i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of bmiDataRaw
-extern volatile i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of bmiDataRaw
+extern volatile i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of agDataRaw
+extern volatile i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of agDataRaw
 extern const fix32 *const accelDataFiltered[3]; // PT1 filters for the accelerometer data, raw scaling from accel
 
 /// @brief Initializes the gyro (Bosch BMI270)

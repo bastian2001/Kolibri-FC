@@ -1,8 +1,15 @@
 #include "global.h"
 
+#ifdef BLACKBOX_STORAGE
+
 #if BLACKBOX_STORAGE == SD_BB
-SdFs sdCard;
+SdFs bbFs;
+#define FILE_CLASS FsFile
+#elif BLACKBOX_STORAGE == FLASH_BB
+Fckafd bbFs;
+#define FILE_CLASS FlashFile
 #endif
+static FILE_CLASS blackboxFile;
 
 // rather conservative estimates of available buffers. Doesn't need to be perfect.
 #define BLACKBOX_CHUNK_SIZE 1024
@@ -12,9 +19,9 @@ SdFs sdCard;
 #define BLACKBOX_WRITE_BUFFER_SIZE 8192
 
 u64 bbFlags = 0;
-u64 currentBBFlags = 0;
+static u64 currentBBFlags = 0;
 
-volatile bool bbLogging = false;
+static volatile bool bbLogging = false;
 volatile bool fsReady = false;
 
 u8 bbFreqDivider = 2;
@@ -23,19 +30,19 @@ u8 bbSyncFreq = 100;
 u32 bbDebug1, bbDebug2;
 u16 bbDebug3, bbDebug4;
 
-RingBuffer<u8 *> bbFramePtrBuffer(64);
+static RingBuffer<u8 *> bbFramePtrBuffer(64);
 
 typedef struct bbPrintConfig {
 	u8 serialNum;
 	bool open;
 	bool printing;
 	MspVersion mspVer;
-	FsFile logFile;
+	FILE_CLASS logFile;
 	i32 currentChunk;
 	u32 chunkSize;
 	u16 logNum;
 } BbPrintConfig;
-BbPrintConfig bbPrintLog = {
+static BbPrintConfig bbPrintLog = {
 	.serialNum = 255,
 	.open = false,
 	.printing = false,
@@ -45,15 +52,14 @@ BbPrintConfig bbPrintLog = {
 	.logNum = 0,
 };
 
-FsFile blackboxFile;
-elapsedMillis bbDuration;
+static elapsedMillis bbDuration;
 
-i32 bbFrameNum = 0;
-elapsedMicros frametime;
-u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
-u32 bbWriteBufferPos = 0;
+static i32 bbFrameNum = 0;
+static elapsedMicros frametime;
+static u8 bbWriteBuffer[BLACKBOX_WRITE_BUFFER_SIZE];
+static u32 bbWriteBufferPos = 0;
 #define BB_WR_BUF_HAS_FREE(bytes) ((bytes) < BLACKBOX_WRITE_BUFFER_SIZE - bbWriteBufferPos)
-bool lastHighlightState = false;
+static bool lastHighlightState = false;
 static FlightMode lastSavedFlightMode = FlightMode::LENGTH;
 static u32 writtenFrameNum = 0;
 static u32 lastSyncPos = 0;
@@ -333,12 +339,24 @@ void initBlackbox() {
 #if BLACKBOX_STORAGE == SD_BB
 	SdioConfig sdConfig(PIN_SD_SCLK, PIN_SD_CMD, PIN_SD_DAT);
 	FsDateTime::setCallback(getFsTime);
-	fsReady = sdCard.begin(sdConfig);
+	fsReady = bbFs.begin(sdConfig);
 
-	if (!sdCard.exists("/blackbox")) {
-		sdCard.mkdir("/blackbox");
+	if (!bbFs.exists("/blackbox")) {
+		bbFs.mkdir("/blackbox");
 	}
 	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
+#elif BLACKBOX_STORAGE == FLASH_BB
+
+	bool r = false;
+	bool chip = bbFs.begin(PIN_FLASH_IO_BASE, PIN_FLASH_SCLK, PIN_FLASH_CS, r);
+	fsReady = r;
+	if (!fsReady && chip) {
+		DEBUG_PRINTLN("Broken FCKAFD, formatting");
+		fsReady = bbFs.format(0);
+	} else if (!chip) {
+		DEBUG_PRINTLN("Flash chip refused");
+	}
+	DEBUG_PRINTLN(fsReady ? "FCKAFD ready" : "FCKAFD not ready");
 #endif
 }
 
@@ -346,7 +364,7 @@ bool clearBlackbox() {
 	if (!fsReady || bbLogging)
 		return false;
 #if BLACKBOX_STORAGE == SD_BB
-	FsFile dir = sdCard.open("/blackbox");
+	FsFile dir = bbFs.open("/blackbox");
 	FsFile file;
 	if (!dir) return true;
 	if (!dir.isDir()) return false;
@@ -361,9 +379,11 @@ bool clearBlackbox() {
 			return false;
 		}
 	}
-	if (!sdCard.rmdir("/blackbox")) return false;
-	if (!sdCard.mkdir("/blackbox")) return false;
+	if (!bbFs.rmdir("/blackbox")) return false;
+	if (!bbFs.mkdir("/blackbox")) return false;
 	return true;
+#elif BLACKBOX_STORAGE == FLASH_BB
+	return bbFs.format(0);
 #endif
 }
 
@@ -397,10 +417,12 @@ static bool openLogFileIfDiffNum(u16 logNum) {
 	}
 
 	if (!bbPrintLog.open) {
-		char path[32];
 #if BLACKBOX_STORAGE == SD_BB
+		char path[32];
 		snprintf(path, 32, "/blackbox/KOLI%04d.kbb", logNum);
-		bbPrintLog.logFile = sdCard.open(path);
+		bbPrintLog.logFile = bbFs.open(path);
+#elif BLACKBOX_STORAGE == FLASH_BB
+		bbPrintLog.logFile = bbFs.open(logNum);
 #endif
 		if (!bbPrintLog.logFile) {
 			return false;
@@ -430,9 +452,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 
 	switch (subCmd) {
 	case 0: {
-#if BLACKBOX_STORAGE == SD_BB
-		FsFile &file = bbPrintLog.logFile;
-#endif
+		FILE_CLASS &file = bbPrintLog.logFile;
 
 		u8 b[288];
 		b[0] = logNum & 0xFF;
@@ -467,6 +487,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			// get 1024 bytes so we have 1034 to read through to find a sync
 			file.seek(searchPos);
 			file.read(fileBuf, readSize);
+			rp2040.wdt_reset();
 
 			// read through the bytes and find sync
 			for (i32 pos = readSize - 1; pos >= 0; pos--) {
@@ -576,9 +597,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 	case 1: {
 		if (reqLen != 6)
 			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Incorrect usage of fast file init subCmd 1", strlen("Incorrect usage of fast file init subCmd 1"));
-#if BLACKBOX_STORAGE == SD_BB
-		FsFile &file = bbPrintLog.logFile;
-#endif
+		FILE_CLASS &file = bbPrintLog.logFile;
 		u32 startPos = DECODE_U4((u8 *)reqPayload);
 		u8 frameSize = reqPayload[4];
 		u8 syncFreq = reqPayload[5];
@@ -664,9 +683,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		// search from startPos up to the next SYNC and report ALL found HLs and FM changes. Format: u8: count of total occurences until next sync, then an array of 5 byte structs: u32 frameNum, u8 flag. Where flag is of the following format: bit0-bit3: FM change: 0xF = no change, anything lower is the new FM. bit 4: HL indicator, bit5-7 reserved. Repeat this u8 + struct[] thing until all are done. flags can contain data for both, a HL and FM change, but they do not need to be merged.
 		// reqData contains a bunch of the previously reported sync positions. These HAVE TO be actual starts of SYNC sequences
 
-#if BLACKBOX_STORAGE == SD_BB
-		FsFile &file = bbPrintLog.logFile;
-#endif
+		FILE_CLASS &file = bbPrintLog.logFile;
 
 		const u32 syncCount = (reqLen - 1) / 4;
 		u32 bufPos = 3;
@@ -848,9 +865,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		 * - normal frame: length frameSize, just the frame
 		 */
 
-#if BLACKBOX_STORAGE == SD_BB
-		FsFile &file = bbPrintLog.logFile;
-#endif
+		FILE_CLASS &file = bbPrintLog.logFile;
 
 		while (elrsReq != elrsCompleted || gpsReq != gpsCompleted || vbatReq != vbatCompleted || linkStatsReq != linkStatsCompleted || (framePos == 0 && frameReq)) {
 			rp2040.wdt_reset();
@@ -905,20 +920,26 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 				case BB_FRAME_NORMAL: {
 					u32 used = 0;
 					u32 act = 0;
+					u32 flags = 0;
 					if (frameNum >= reqFrame && searchingBackwards) {
 						act = unescapeBytes(&inBuf[readPos], frameBuffer, readable - readPos, frameSize, &used);
 						framePos = file.position() - readable + readPos - 1;
+						flags |= 1;
 
 						if (elrsReq == elrsFound && gpsReq == gpsFound && vbatReq == vbatFound && linkStatsReq == linkStatsFound) {
 							// if the frame is the last thing we find, just continue searching
 							searchingBackwards = false;
+							flags |= 2;
 						} else {
 							goBack = true;
+							flags |= 4;
 						}
 					} else {
 						act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
+						flags |= 8;
 					}
 					if (act != frameSize) {
+						printfIndMessage("act %d frameSize %d bw %d frame %d reqFrame %d framePos %d goBack %d fileSize %d readable %d readPos %d file position %d, flags %d", act, frameSize, searchingBackwards, frameNum, reqFrame, framePos, goBack, file.size(), readable, readPos, file.position(), flags);
 						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 0", strlen("Could not unescape successfully 0"));
 					}
 					frameNum++;
@@ -1186,7 +1207,7 @@ void startLogging() {
 	currentBBFlags = bbFlags;
 #if BLACKBOX_STORAGE == SD_BB
 	char path[32];
-	FsFile dir = sdCard.open("/blackbox");
+	FsFile dir = bbFs.open("/blackbox");
 	FsFile file;
 	int i = 0;
 	while (file.openNext(&dir)) {
@@ -1218,7 +1239,9 @@ void startLogging() {
 		}
 	}
 	snprintf(path, 32, "/blackbox/KOLI%04d.kbb", i + 1);
-	blackboxFile = sdCard.open(path, O_WRITE | O_CREAT);
+	blackboxFile = bbFs.open(path, O_WRITE | O_CREAT);
+#elif BLACKBOX_STORAGE == FLASH_BB
+	blackboxFile = bbFs.open(bbFs.getNewBbFileNum(), O_WRITE | O_CREAT);
 #endif
 	if (!blackboxFile)
 		return;
@@ -1230,7 +1253,7 @@ void startLogging() {
 	blackboxFile.write((u8 *)&recordTime, 4);
 	u32 zero = 0;
 	blackboxFile.write((u8 *)&zero, 4); // duration, will be filled later
-	blackboxFile.write((u8)0); // 3200Hz PID Loop
+	blackboxFile.write(16000 / PID_FREQ - 1); // PID Loop frequency
 	blackboxFile.write((u8)bbFreqDivider);
 	blackboxFile.write((u8)3); // 2000deg/sec and 16g
 	i32 rf[3][3];
@@ -1551,3 +1574,5 @@ u32 writeSingleFrame() {
 	TASK_END(TASK_BLACKBOX);
 	return durationTASK_BLACKBOX;
 }
+
+#endif

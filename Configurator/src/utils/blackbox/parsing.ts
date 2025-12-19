@@ -51,7 +51,7 @@ export function parseBlackboxHeader(header: Uint8Array): BBLog | string {
 	bbLog.version = header.slice(8, 11)
 	bbLog.startTime = new Date(leBytesToInt(header, 11, 4) * 1000)
 	bbLog.duration = leBytesToInt(header, 15, 4) / 1000 // in seconds
-	bbLog.pidFrequency = [3200][header[19]]
+	bbLog.pidFrequency = 16000 / (header[19] + 1)
 	bbLog.frequencyDivider = header[20]
 	const rangeByte = header[21]
 	bbLog.ranges = {
@@ -376,7 +376,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 				}
 				break
 			default:
-				console.log("invalid frame found")
+				console.log("invalid frame found at pos ", pos, " near frame ", frameCount)
 				pos++
 				break
 		}
@@ -472,6 +472,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	}
 
 	const frameData = new Uint8Array(frameCount * frameSize)
+	console.log(JSON.stringify(Array.from(framePos)))
 	framePos.forEach((p, i) => {
 		frameData.set(data.slice(p, p + frameSize), i * frameSize)
 	})

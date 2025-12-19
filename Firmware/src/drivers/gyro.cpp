@@ -1,6 +1,7 @@
 #include "global.h"
 
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
+// and ICM-42688-P https://invensense.tdk.com/wp-content/uploads/2020/04/ds-000347_icm-42688-p-datasheet.pdf
 
 volatile bool accelCalDone = false;
 volatile u8 accelCalState = 0;
@@ -21,24 +22,45 @@ static i32 gyroCalibrationOffsetTemp[3] = {0}; // temporary offset that gets add
 static i32 accelCalibrationOffsetTemp[3] = {0};
 static u16 accelCalibratedCycles = 0; // counts up the cycles for the accel calibration, calibration is done if the value is 2000
 
-static volatile i16 bmiDataRaw[6] __attribute__((aligned(4))) = {0};
-volatile i16 *gyroDataRaw = bmiDataRaw + 3;
-volatile i16 *accelDataRaw = bmiDataRaw;
+static volatile i16 agDataRaw[6] __attribute__((aligned(4))) = {0};
+volatile i16 *gyroDataRaw = agDataRaw + 3;
+volatile i16 *accelDataRaw = agDataRaw;
 
 static PT1 accelDataFilter[3];
 const fix32 *const accelDataFiltered[3] = {&accelDataFilter[0].getConstRef(), &accelDataFilter[1].getConstRef(), &accelDataFilter[2].getConstRef()};
 
 static volatile u8 spiSm = 0;
 static volatile u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
-static volatile u32 gyroDmaRxData[14] = {0};
-static volatile const u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg::ACC_X_LSB) << 23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 u32 gyroUpdateFlag = 0;
 static volatile u8 gyroInterrupts = 0;
 static elapsedMicros taskTimerGyro = 0;
 
-extern const u8 bmi270_config_file[8192];
+#ifdef GYRO_HALFDUPLEX_SPI
+#define REG_WR(reg, buf, ...) regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
+#define REG_RD(reg, buf, ...) regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
+#else
+#define REG_WR(reg, buf, ...) regWrite(SPI_GYRO, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
+#define REG_RD(reg, buf, ...) regRead(SPI_GYRO, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
+#endif
 
+#ifdef GYRO_BMI270
+extern const u8 bmi270_config_file[8192];
+#define GYRO_SPI_SPEED 10000000
+static volatile const u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg::ACC_X_LSB) << 23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+#elifdef GYRO_ICM42688P
+#define GYRO_SPI_SPEED 24000000
+static volatile const u32 gyroDmaTxData[13] = {0x80UL | (u32)GyroReg::ACC_X_MSB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+#endif
+#define GYRO_DMA_LENGTH ARRAYLEN(gyroDmaTxData)
+static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {0};
+static elapsedMicros gyroInterruptTimer = 0;
+static void fetchGyro();
 void gyroLoop() {
+	if (gyroInterruptTimer > 300) {
+		tasks[TASK_GYROREAD].debugInfo = 2;
+		gyroInterruptTimer = 0;
+		fetchGyro();
+	}
 	if (gyroInterrupts) {
 		u32 duration = taskTimerGyro;
 		if (tasks[TASK_GYROREAD].maxGap < duration)
@@ -52,17 +74,17 @@ void gyroLoop() {
 
 #if __ARM_FEATURE_SIMD32
 		// ARMv7E-M SIMD, saturated 2x16 vector subtraction => does not overflow, will clamp
-		*((int16x2_t *)bmiDataRaw) = __qsub16(*((int16x2_t *)bmiDataRaw), *((int16x2_t *)bmiCalibrationOffset));
-		*((int16x2_t *)(bmiDataRaw + 2)) = __qsub16(*((int16x2_t *)(bmiDataRaw + 2)), *((int16x2_t *)(bmiCalibrationOffset + 2)));
-		*((int16x2_t *)(bmiDataRaw + 4)) = __qsub16(*((int16x2_t *)(bmiDataRaw + 4)), *((int16x2_t *)(bmiCalibrationOffset + 4)));
+		*((int16x2_t *)agDataRaw) = __qsub16(*((int16x2_t *)agDataRaw), *((int16x2_t *)bmiCalibrationOffset));
+		*((int16x2_t *)(agDataRaw + 2)) = __qsub16(*((int16x2_t *)(agDataRaw + 2)), *((int16x2_t *)(bmiCalibrationOffset + 2)));
+		*((int16x2_t *)(agDataRaw + 4)) = __qsub16(*((int16x2_t *)(agDataRaw + 4)), *((int16x2_t *)(bmiCalibrationOffset + 4)));
 #else
 #warning overflow can occur!
-		bmiDataRaw[0] -= accelCalibrationOffset[0];
-		bmiDataRaw[1] -= accelCalibrationOffset[1];
-		bmiDataRaw[2] -= accelCalibrationOffset[2];
-		bmiDataRaw[3] -= gyroCalibrationOffset[0];
-		bmiDataRaw[4] -= gyroCalibrationOffset[1];
-		bmiDataRaw[5] -= gyroCalibrationOffset[2];
+		agDataRaw[0] -= accelCalibrationOffset[0];
+		agDataRaw[1] -= accelCalibrationOffset[1];
+		agDataRaw[2] -= accelCalibrationOffset[2];
+		agDataRaw[3] -= gyroCalibrationOffset[0];
+		agDataRaw[4] -= gyroCalibrationOffset[1];
+		agDataRaw[5] -= gyroCalibrationOffset[2];
 #endif
 		gyroUpdateFlag = 0xFFFFFFFF;
 		for (int i = 0; i < 3; i++) {
@@ -177,18 +199,36 @@ void gyroLoop() {
 }
 
 void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
+	tasks[TASK_GYROREAD].debugInfo = 1;
+	gyroInterruptTimer = 0;
+	fetchGyro();
+}
+static void fetchGyro() {
+	// abort channels if they are not done
 	dma_channel_abort(gyroDmaRxChannel);
 	dma_channel_abort(gyroDmaTxChannel);
 	while (dma_channel_is_busy(gyroDmaRxChannel) || dma_channel_is_busy(gyroDmaTxChannel) || dma_hw->abort & (1u << gyroDmaRxChannel) || dma_hw->abort & (1u << gyroDmaTxChannel)) {
 		// wait until busy is deasserted and abort is cleared (12.6.8.3 and E5)
 		tight_loop_contents();
 	}
+
+	// prepare chip select
 	gpio_put(PIN_GYRO_CS, 0);
+
+	// clear RX(/TX) FIFO if needed
+#ifdef GYRO_HALFDUPLEX_SPI
 	pio_sm_clear_fifos(PIO_GYRO_SPI, spiSm);
-	dma_channel_set_trans_count(gyroDmaRxChannel, 14, false);
-	dma_channel_set_write_addr(gyroDmaRxChannel, gyroDmaRxData, true);
-	dma_channel_set_trans_count(gyroDmaTxChannel, 14, false);
-	dma_channel_set_read_addr(gyroDmaTxChannel, gyroDmaTxData, true);
+#else
+	while (spi_is_readable(SPI_GYRO))
+		(void)SPI_GYRO_HW->dr;
+#endif
+
+	// prepare channels and start them in sync
+	dma_channel_set_transfer_count(gyroDmaRxChannel, GYRO_DMA_LENGTH, false);
+	dma_channel_set_write_addr(gyroDmaRxChannel, gyroDmaRxData, false);
+	dma_channel_set_transfer_count(gyroDmaTxChannel, GYRO_DMA_LENGTH, false);
+	dma_channel_set_read_addr(gyroDmaTxChannel, gyroDmaTxData, false);
+	dma_start_channel_mask((1u << gyroDmaRxChannel) | (1u << gyroDmaTxChannel));
 }
 
 void gyroDmaInterrupt() {
@@ -196,11 +236,27 @@ void gyroDmaInterrupt() {
 	if (interrupts & (1u << gyroDmaRxChannel)) {
 		gpio_put(PIN_GYRO_CS, 1);
 		dma_hw->ints1 = 1u << gyroDmaRxChannel;
-		u8 *data = (u8 *)bmiDataRaw;
-		for (int i = 0; i < 12; i++) {
+		u8 *data = (u8 *)agDataRaw;
+#ifdef GYRO_BMI270
+		for (int i = 0; i < GYRO_DMA_LENGTH - 2; i++) {
 			data[i] = (u8)(gyroDmaRxData[i + 2] & 0xFF);
 		}
+#elifdef GYRO_ICM42688P
+		for (int i = 0; i < GYRO_DMA_LENGTH - 1; i++) {
+			data[i] = (u8)(gyroDmaRxData[i + 1] & 0xFF);
+		}
+#endif
 		gyroInterrupts++;
+
+#if HW_VARIANT == HW_V6
+		// TODO fix janky prerotation for v6 FC
+		i16 temp = gyroDataRaw[AXIS_ROLL];
+		gyroDataRaw[AXIS_ROLL] = gyroDataRaw[AXIS_PITCH];
+		gyroDataRaw[AXIS_PITCH] = -temp;
+		temp = accelDataRaw[AXIS_ROLL];
+		accelDataRaw[AXIS_ROLL] = accelDataRaw[AXIS_PITCH];
+		accelDataRaw[AXIS_PITCH] = -temp;
+#endif
 	}
 }
 
@@ -210,9 +266,9 @@ int gyroInit() {
 
 	addSetting(SETTING_ACC_FILTER_CUTOFF, &accelFilterCutoff, 100);
 
-	accelDataFilter[0] = PT1(accelFilterCutoff, 3200);
-	accelDataFilter[1] = PT1(accelFilterCutoff, 3200);
-	accelDataFilter[2] = PT1(accelFilterCutoff, 3200);
+	accelDataFilter[0] = PT1(accelFilterCutoff, PID_FREQ);
+	accelDataFilter[1] = PT1(accelFilterCutoff, PID_FREQ);
+	accelDataFilter[2] = PT1(accelFilterCutoff, PID_FREQ);
 
 	armingDisableFlags |= 0x40;
 	calibrateGyro = true;
@@ -225,6 +281,7 @@ int gyroInit() {
 	gpio_put(PIN_GYRO_CS, 1);
 	gpio_init(PIN_GYRO_SCLK);
 	gpio_set_dir(PIN_GYRO_SCLK, GPIO_OUT);
+#ifdef GYRO_HALFDUPLEX_SPI
 	gpio_init(PIN_GYRO_SDX);
 	gpio_set_dir(PIN_GYRO_SDX, GPIO_IN);
 
@@ -245,16 +302,29 @@ int gyroInit() {
 	pio_sm_set_enabled(PIO_GYRO_SPI, spiSm, true);
 	pio_sm_put(PIO_GYRO_SPI, spiSm, 0); // dummy write to set clock polarity (mode 11)
 	pio_sm_set_clkdiv_int_frac8(PIO_GYRO_SPI, spiSm, 3, 128); // set clock divider to 3.5 => (264 / 3.5 / 8 (ticks per bit)) = 9.4MHz (max 10MHz)
+#else
+	gpio_init(PIN_GYRO_MISO);
+	gpio_set_dir(PIN_GYRO_MISO, GPIO_IN);
+	gpio_init(PIN_GYRO_MOSI);
+	gpio_set_dir(PIN_GYRO_MOSI, GPIO_OUT);
 
+	spi_init(SPI_GYRO, GYRO_SPI_SPEED);
+	spi_set_format(SPI_GYRO, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+	gpio_set_function(PIN_GYRO_SCLK, GPIO_FUNC_SPI);
+	gpio_set_function(PIN_GYRO_MISO, GPIO_FUNC_SPI);
+	gpio_set_function(PIN_GYRO_MOSI, GPIO_FUNC_SPI);
+#endif
+
+#ifdef GYRO_BMI270
 	u8 data = 0xB6;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::CMD, &data, 1, 500); // soft reset
+	REG_WR(GyroReg::CMD, &data, 1, 500); // soft reset
 	for (int i = 0; i < 50 && data != 0x24; i++) {
 		sleep_ms(2);
 		data = 1;
-		regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::IF_CONF, &data, 1, 500); // set SPI mode to 3 wire
-		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::IF_CONF, &data, 1, 2); // read IF_CONF
+		REG_WR(GyroReg::IF_CONF, &data, 1, 500); // set SPI mode to 3 wire
+		REG_RD(GyroReg::IF_CONF, &data, 1, true); // read IF_CONF
 		data = 0;
-		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::CHIP_ID, &data, 1, 2); // read chip id
+		REG_RD(GyroReg::CHIP_ID, &data, 1, true); // read chip id
 	}
 	if (data != 0x24) {
 		Serial.print("Failed to load BMI270, wrong Chip ID: "); // chip id should be 0x24
@@ -262,18 +332,18 @@ int gyroInit() {
 		return 1;
 	}
 	data = 0;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
+	REG_WR(GyroReg::PWR_CONF, &data, 1, 500); // disable PWR_CONF.adv_power_save
 	data = 0;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // prepare config load
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
+	REG_WR(GyroReg::INIT_CTRL, &data, 1, 500); // prepare config load
+	REG_WR(GyroReg::INIT_DATA, bmi270_config_file, sizeof(bmi270_config_file), 500); // load config
 	data = 1;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
+	REG_WR(GyroReg::INIT_CTRL, &data, 1, 500); // complete config load
 
 	// check initialization status
 	data = 0;
 	for (int i = 0; i < 50 && (data & 0x6F) != 0x01; i++) {
 		sleep_ms(1); // should always be below 20ms, but we wait a bit longer to be sure
-		regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INTERNAL_STATUS, &data, 1);
+		REG_RD(GyroReg::INTERNAL_STATUS, &data, 1, true);
 	}
 	if ((data & 0x6F) != 0x01) {
 		sleep_ms(5000);
@@ -285,34 +355,115 @@ int gyroInit() {
 	// enable performance mode (p. 22)
 	// PWR_CTRL: temp_en (3) | acc_en (2) | gyr_en (1) | aux_en (0)
 	data = 0b1110; // temp, accel and gyro enabled
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CTRL, &data, 1, 500);
+	REG_WR(GyroReg::PWR_CTRL, &data, 1, 500);
 	// ACC_CONF: acc_filter_perf (7) | acc_bwp (6...4) | acc_odr (3...0)
 	data = 1 << 7 | 0x02 << 4 | 0x0C; // performance optimized, no averaging, 1600Hz
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::ACC_CONF, &data, 1, 500);
+	REG_WR(GyroReg::ACC_CONF, &data, 1, 500);
 	// ACC_RANGE: acc_range (1...0)
 	data = 0x03; // +/- 16g
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::ACC_RANGE, &data, 1, 500);
+	REG_WR(GyroReg::ACC_RANGE, &data, 1, 500);
 	// GYR_CONF: gyr_filter_perf (7) | gyr_noise_perf (6) | gyr_bwp (5...4) | gyr_odr (3...0)
 	data = 1 << 7 | 1 << 6 | 0x00 << 4 | 0x0D; // performance optimized, 3200Hz
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::GYR_CONF, &data, 1, 500);
+	REG_WR(GyroReg::GYR_CONF, &data, 1, 500);
 	// GYR_RANGE: ois_range (3) | gyr_range (2...0)
 	data = 0x00; // +/- 2000dps
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::GYR_RANGE, &data, 1, 500);
+	REG_WR(GyroReg::GYR_RANGE, &data, 1, 500);
 	data = 0x02;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::PWR_CONF, &data, 1, 500);
+	REG_WR(GyroReg::PWR_CONF, &data, 1, 500);
 
 	// INT_MAP_DATA: err_int2, drdy_int2, fwm_int2, ffull_int2, err_int1, drdy_int1, fwm_int1, ffull_int1
 	data = 0b10000100;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT_MAP_DATA, &data, 1, 500);
+	REG_WR(GyroReg::INT_MAP_DATA, &data, 1, 500);
 	// INT1_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT1_IO_CTRL, &data, 1, 500);
+	REG_WR(GyroReg::INT1_IO_CTRL, &data, 1, 500);
 	// INT2_IO_CTRL: input_en (4), output_en (3), output_driver (2), output_lvl (1)
 	data = 0b1010;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT2_IO_CTRL, &data, 1, 500);
+	REG_WR(GyroReg::INT2_IO_CTRL, &data, 1, 500);
 	// INT_LATCH: int_latch(0)
 	data = 0x00;
-	regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, (u8)GyroReg::INT_LATCH, &data, 1, 500);
+	REG_WR(GyroReg::INT_LATCH, &data, 1, 500);
+#elifdef GYRO_ICM42688P
+	// create 32 kHz clock output for gyro
+	gpio_init(PIN_GYRO_CLKIN);
+	gpio_set_dir(PIN_GYRO_CLKIN, GPIO_OUT);
+	gpio_set_function(PIN_GYRO_CLKIN, GPIO_FUNC_PWM);
+	u8 sliceNum = pwm_gpio_to_slice_num(PIN_GYRO_CLKIN);
+	u32 cpu = clock_get_hz(clk_sys); // 360k
+	u32 totalDiv = cpu / 32000; // 11250
+	u8 pwmDivInt = totalDiv / 50;
+	pwm_set_clkdiv_int_frac4(sliceNum, pwmDivInt, 0);
+	pwm_set_wrap(sliceNum, 49); // 32 kHz
+	pwm_set_enabled(sliceNum, true);
+	pwm_set_gpio_level(PIN_GYRO_CLKIN, 25);
+
+	u8 data = 0x01;
+	REG_WR(GyroReg::DEVICE_CONFIG, &data, 1);
+	for (int i = 0; i < 50 && data != 0x47; i++) {
+		sleep_ms(2);
+		data = 0;
+		REG_RD(GyroReg::WHO_AM_I, &data, 1); // read chip id
+	}
+	if (data != 0x47) {
+		Serial.print("Failed to load ICM-42688-P, wrong Chip ID: ");
+		Serial.println(data, HEX);
+		return 1;
+	}
+	// interrupt config: int1 pulsed, push-pull, active high
+	data = 0b000011;
+	REG_WR(GyroReg::INT_CONFIG, &data, 1);
+	// switch sensor data to little endian
+	data = 0x20;
+	REG_WR(GyroReg::INTF_CONFIG0, &data, 1);
+	// enable RTC
+	data = 0x95;
+	REG_WR(GyroReg::INTF_CONFIG1, &data, 1);
+	// gyro 2000deg/s, 4000Hz
+	data = 0x00 | (PID_FREQ == 8000 ? 0x3 : 0x4);
+	REG_WR(GyroReg::GYRO_CONFIG0, &data, 1);
+	// accel 16g, 4000Hz
+	data = 0x00 | (PID_FREQ == 8000 ? 0x3 : 0x4);
+	REG_WR(GyroReg::ACCEL_CONFIG0, &data, 1);
+	// temp sensor: 5Hz DLPF, gyro 2nd order UI, 3rd order DEC2_M2
+	data = 0xD6;
+	REG_WR(GyroReg::GYRO_CONFIG1, &data, 1)
+	// interrupt config that is required for 8khz operation
+	data = 0b01100000;
+	REG_WR(GyroReg::INT_CONFIG1, &data, 1);
+	// route drdy to int1
+	data = 0x08;
+	REG_WR(GyroReg::INT_SOURCE0, &data, 1);
+
+	// switch to page 1
+	data = 1;
+	REG_WR(GyroReg::REG_BANK_SEL, &data, 1);
+	// set gyro AAF to 348Hz
+	u8 buf[3];
+	buf[0] = 8; // DELT
+	buf[1] = 64 & 0xFF; // DELTSQR
+	buf[2] = ((64 >> 8) & 0xF) | (9 << 4);
+	REG_WR(GyroReg::GYRO_CONFIG_STATIC3, buf, 3);
+	// int2 as CLKIN
+	data = 0b10 << 1;
+	REG_WR(GyroReg::INTF_CONFIG5, &data, 1);
+
+	// switch to page 2
+	data = 2;
+	REG_WR(GyroReg::REG_BANK_SEL, &data, 1);
+	// set accel AAF to 348Hz
+	buf[0] = 8 << 1; // DELT
+	buf[1] = 64 & 0xFF; // DELTSQR
+	buf[2] = ((64 >> 8) & 0xF) | (9 << 4);
+	REG_WR(GyroReg::ACCEL_CONFIG_STATIC2, buf, 3);
+
+	// switch to page 0
+	data = 0;
+	REG_WR(GyroReg::REG_BANK_SEL, &data, 1);
+	// enable gyro/accel in low noise mode, keep temp sensor enabled, needs to be the last step, do not write any other registers for 200us afterwards
+	data = 0b00001111;
+	REG_WR(GyroReg::PWR_MGMT0, &data, 1, 200);
+
+#endif
 
 	// set up DMA channel
 	gyroDmaTxChannel = dma_claim_unused_channel(true);
@@ -323,15 +474,26 @@ int gyroInit() {
 	channel_config_set_write_increment(&gyroDmaTxConfig, false);
 	channel_config_set_read_increment(&gyroDmaRxConfig, false);
 	channel_config_set_write_increment(&gyroDmaRxConfig, true);
+#ifdef GYRO_HALFDUPLEX_SPI
 	channel_config_set_dreq(&gyroDmaTxConfig, pio_get_dreq(PIO_GYRO_SPI, spiSm, true));
 	channel_config_set_dreq(&gyroDmaRxConfig, pio_get_dreq(PIO_GYRO_SPI, spiSm, false));
+#else
+	channel_config_set_dreq(&gyroDmaTxConfig, spi_get_dreq(SPI_GYRO, true));
+	channel_config_set_dreq(&gyroDmaRxConfig, spi_get_dreq(SPI_GYRO, false));
+#endif
 	channel_config_set_transfer_data_size(&gyroDmaTxConfig, DMA_SIZE_32);
 	channel_config_set_transfer_data_size(&gyroDmaRxConfig, DMA_SIZE_32);
 	dma_channel_set_config(gyroDmaTxChannel, &gyroDmaTxConfig, false);
 	dma_channel_set_config(gyroDmaRxChannel, &gyroDmaRxConfig, false);
 	dma_channel_set_irq1_enabled(gyroDmaRxChannel, true); // enable interrupt once transfer is done
+#ifdef GYRO_HALFDUPLEX_SPI
 	dma_channel_set_write_addr(gyroDmaTxChannel, &PIO_GYRO_SPI->txf[spiSm], false);
 	dma_channel_set_read_addr(gyroDmaRxChannel, &PIO_GYRO_SPI->rxf[spiSm], false);
+#else
+	// SPI TX and RX FIFO are the same register
+	dma_channel_set_write_addr(gyroDmaTxChannel, &SPI_GYRO_HW->dr, false);
+	dma_channel_set_read_addr(gyroDmaRxChannel, &SPI_GYRO_HW->dr, false);
+#endif
 	irq_set_exclusive_handler(DMA_IRQ_1, &gyroDmaInterrupt);
 	irq_set_enabled(DMA_IRQ_1, true);
 
@@ -377,6 +539,7 @@ void startImuAlignment() {
 	alignImu = true;
 }
 
+#ifdef GYRO_BMI270
 // config file needs to be uploaded to the BMI270 before it can be used
 constexpr u8 bmi270_config_file[8192] PROGMEM = {
 	0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x3d, 0xb1, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x91, 0x03, 0x80, 0x2e, 0xbc,
@@ -811,3 +974,4 @@ constexpr u8 bmi270_config_file[8192] PROGMEM = {
 	0xc1, 0x80, 0x2e, 0x00, 0xc1, 0x80, 0x2e, 0x00, 0xc1, 0x80, 0x2e, 0x00, 0xc1, 0x80, 0x2e, 0x00, 0xc1, 0x80, 0x2e,
 	0x00, 0xc1, 0x80, 0x2e, 0x00, 0xc1, 0x80, 0x2e, 0x00, 0xc1, 0x80, 0x2e, 0x00, 0xc1, 0x80, 0x2e, 0x00, 0xc1, 0x80,
 	0x2e, 0x00, 0xc1};
+#endif // config file
