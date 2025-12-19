@@ -1,7 +1,7 @@
 #include "global.h"
 __attribute__((__aligned__(4))) volatile FCTask tasks[TASK_LENGTH];
 
-elapsedMicros taskManagerTimer;
+static elapsedMicros taskManagerTimer;
 
 void resetTasks() {
 	for (int i = 0; i < TASK_LENGTH; i++) {

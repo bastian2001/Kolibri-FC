@@ -1,16 +1,16 @@
 #include "global.h"
 
 u16 adcVoltage = 0, cellVoltage = 0; // centivolts
-bool batBlinkingAndBeeping = false;
+static bool batBlinkingAndBeeping = false;
 u16 emptyVoltageSetting = 0;
 static u16 emptyVoltage = 0;
 f32 adcCurrent = 0;
-elapsedMicros adcTimer = 0;
+static elapsedMicros adcTimer = 0;
 f32 temperature = 0;
 u8 cellCountSetting = 0;
 u8 batCells = 1;
 u8 batState = 0;
-elapsedMicros batTimer = 0;
+static elapsedMicros batTimer = 0;
 u32 adcFlag = 0;
 
 // up to 4.35V per cell + 0.1V (inclusive) for auto detection, e.g. 1S = 0-4.45V, 5S = 17.5x-21.85V, 6S = 21.85x-26.2V
@@ -22,7 +22,9 @@ void initADC() {
 	if (cellCountSetting) batCells = cellCountSetting;
 
 	adc_gpio_init(PIN_ADC_VOLTAGE);
+#ifdef PIN_ADC_CURRENT
 	adc_gpio_init(PIN_ADC_CURRENT);
+#endif
 	adc_init();
 	// enableElem(OSDElem::TOT_VOLTAGE);
 	// placeElem(OSDElem::TOT_VOLTAGE, 1, 1);
@@ -34,7 +36,7 @@ void initADC() {
 	batTimer = 0;
 }
 
-u8 adcType = 0; // 1 = voltage, 0 = current
+static u8 adcType = 0; // 1 = voltage, 0 = current
 
 void adcLoop() {
 	if (adcTimer >= 50000) {
@@ -89,6 +91,7 @@ void adcLoop() {
 			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);
 			snprintf((char *)voltageStr, 16, "%.2f\x06 ", cellVoltage / 100.f);
 			updateElem(OSDElem::CELL_VOLTAGE, (char *)voltageStr);
+#ifdef PIN_ADC_CURRENT
 		} else {
 			// adc_select_input(PIN_ADC_CURRENT - 26);
 			// u16 raw           = adc_read();
@@ -102,6 +105,7 @@ void adcLoop() {
 			// read temperature
 			// adc_select_input(4);
 			// temperature = analogReadTemp();
+#endif
 		}
 		adcType = !adcType;
 		TASK_END(TASK_ADC);

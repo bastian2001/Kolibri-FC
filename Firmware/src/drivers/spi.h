@@ -9,11 +9,10 @@
  * @param reg Register address
  * @param buf Buffer to store the read data
  * @param nbytes Number of bytes to read, default is 1
- * @param delay Delay in microseconds after the read, default is 0
- * @param dummy Send a dummy byte before reading, default is true
+ * @param dummy Send a dummy byte before reading, default is false
  * @return int
  */
-int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nbytes = 1, const u16 delay = 0, u8 dummy = true);
+int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nbytes = 1, u8 dummy = false);
 /**
  * @brief Read a register from a halfduplex PIO SPI device
  *
@@ -23,11 +22,10 @@ int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nby
  * @param reg Register address
  * @param buf Buffer to store the read data
  * @param nbytes Number of bytes to read, default is 1
- * @param delay Delay in microseconds after the read, default is 0
- * @param dummy Send a dummy byte before reading, default is true
+ * @param dummy Send a dummy byte before reading, default is false
  * @return int
  */
-int regRead(PIO pio, u8 sm, const uint cs, const u8 reg, u8 *buf, const u16 nbytes = 1, const u16 delay = 0, u8 dummy = true);
+int regRead(PIO pio, u8 sm, const uint cs, const u8 reg, u8 *buf, const u16 nbytes = 1, u8 dummy = false);
 /**
  * @brief Write a register to a SPI device
  *

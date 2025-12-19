@@ -4,7 +4,7 @@
 #define WRITE_BASE 0x100 // used to indicate to the PIO that this byte is a write
 
 // adapted from https://www.digikey.de/de/maker/projects/raspberry-pi-pico-rp2040-spi-example-with-micropython-and-cc/9706ea0cf3784ee98e35ff49188ee045
-int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nbytes, const u16 delay, u8 dummy) {
+int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nbytes, u8 dummy) {
 	// Construct message (set ~W bit high)
 	u8 msg = 0x80 | reg;
 
@@ -16,12 +16,10 @@ int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nby
 	int num_bytes_read = spi_read_blocking(spi, 0, buf, nbytes);
 	gpio_put(cs, 1);
 
-	if (delay > 0)
-		sleep_us(delay);
 	return num_bytes_read;
 }
 
-int regRead(PIO pio, u8 sm, const uint cs, const u8 reg, u8 *buf, const u16 nbytes, const u16 delay, u8 dummy) {
+int regRead(PIO pio, u8 sm, const uint cs, const u8 reg, u8 *buf, const u16 nbytes, const u8 dummy) {
 	// Read from register
 	gpio_put(cs, 0);
 	pio_sm_clear_fifos(pio, sm);
@@ -46,8 +44,6 @@ int regRead(PIO pio, u8 sm, const uint cs, const u8 reg, u8 *buf, const u16 nbyt
 	}
 	gpio_put(cs, 1);
 
-	if (delay > 0)
-		sleep_us(delay);
 	return nbytes;
 }
 

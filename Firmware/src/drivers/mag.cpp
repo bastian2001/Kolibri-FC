@@ -4,9 +4,9 @@
 
 static MagState magState = MagState::NOT_INIT;
 static u8 magSubState = 0;
-elapsedMicros magTimer;
-u32 magTimerTimeout = 0;
-u8 magBuffer[6] = {0};
+static elapsedMicros magTimer;
+static u32 magTimerTimeout = 0;
+static u8 magBuffer[6] = {0};
 i32 magData[3] = {0};
 
 i16 magOffset[3] = {0};
@@ -25,8 +25,8 @@ void initMag() {
 }
 
 MagState magStateAfterRead = MagState::PROCESS_DATA;
-float xtxMatrix[4][4] = {0};
-float xtyVector[4] = {0};
+static float xtxMatrix[4][4] = {0};
+static float xtyVector[4] = {0};
 u32 calibrationCycle = 0;
 
 float cofactor(float matrix[4][4], i32 row, i32 col) {
