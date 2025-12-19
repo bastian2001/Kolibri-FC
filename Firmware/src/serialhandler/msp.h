@@ -37,7 +37,6 @@
 #include <Arduino.h>
 
 extern bool configuratorConnected; // true if the configurator is connected
-extern u8 accelCalDone; // accel calibration flag to send a message to the configurator
 extern i16 mspDebugSensors[4]; // write values here to see them in the sensors tab. +-100, +-1000, +-10000, +-256
 
 /**
@@ -119,6 +118,8 @@ enum class MspFn {
 
 	// 0x415_ Gyro/Accel
 	GET_ROTATION = 0x4150,
+	GET_IMU_SETUP_STATE = 0x4151,
+	START_IMU_ORIENTATION = 0x4152,
 
 	// 0x416_ Barometer
 	GET_BARO_DATA = 0x4160,

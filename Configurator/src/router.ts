@@ -11,9 +11,11 @@ import Cli from "@views/Cli.vue"
 import Sensors from "@views/Sensors.vue"
 import Battery from "@views/Battery.vue"
 import Vtx from "@views/Vtx.vue"
+import HardwareSetup from "@views/HardwareSetup.vue"
 
 export const routes = [
 	{ path: "/", component: Home, name: "Home" },
+	{ path: "/hardwaresetup", component: HardwareSetup, name: "Hardware Setup" },
 	{ path: "/blackbox", component: Blackbox, name: "Blackbox" },
 	{ path: "/tasks", component: Tasks, name: "Tasks" },
 	{ path: "/osd", component: Osd, name: "OSD" },

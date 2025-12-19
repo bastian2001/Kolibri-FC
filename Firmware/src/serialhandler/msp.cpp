@@ -4,8 +4,6 @@
 #define SIGNATURE_LENGTH 32
 #define TARGET_IDENTIFIER_LENGTH 4
 
-u8 accelCalDone = 0;
-
 elapsedMillis mspOverrideMotors = 1001;
 
 static constexpr char targetIdentifier[] = "KD05";
@@ -23,13 +21,19 @@ void configuratorLoop() {
 	if (lastConfigPingRx > 1000000)
 		configuratorConnected = false;
 	if (accelCalDone) {
-		accelCalDone = 0;
-		char data = 1;
-		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::ACC_CALIBRATION, lastMspVersion, &data, 1);
+		accelCalDone = false;
+		accelCalState = 0;
 		openSettingsFile();
 		getSetting(SETTING_ACC_CAL)->updateSettingInFile();
 		closeSettingsFile();
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS, lastMspVersion);
+	}
+	if (imuAlignmentDone) {
+		imuAlignmentDone = false;
+		imuAlignmentStep = 0;
+		openSettingsFile();
+		getSetting(SETTING_IMU_ALIGNMENT)->updateSettingInFile();
+		closeSettingsFile();
 	}
 }
 
@@ -249,7 +253,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 0; // motorPwmInversion
 			buf[len++] = 0; // gyro_to_use
 			buf[len++] = 0; // gyro_high_fsr (true if > 2000dps)
-			buf[len++] = CALIBRATION_TOLERANCE;
+			buf[len++] = GYRO_CALIBRATION_TOLERANCE;
 			buf[len++] = (CALIBRATION_SAMPLES * 100 / 3200) & 0xFF; // calibration duration in centiseconds
 			buf[len++] = (CALIBRATION_SAMPLES * 100 / 3200) >> 8;
 			buf[len++] = 0; // gyro_offset_yaw
@@ -788,6 +792,11 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[6] = heading & 0xFF;
 			buf[7] = heading >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
+		} break;
+		case MspFn::GET_IMU_SETUP_STATE: {
+
+		} break;
+		case MspFn::START_IMU_ORIENTATION: {
 		} break;
 		case MspFn::TASK_STATUS: {
 			u32 buf[TASK_LENGTH * 7];

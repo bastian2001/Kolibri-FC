@@ -58,7 +58,6 @@ export default defineComponent({
 			serialNum: 1,
 			baudRate: 115200,
 			time: { year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0, },
-			sendCommand,
 			sendRaw,
 			enableCommands,
 			configuratorLog: useLogStore(),
@@ -100,12 +99,6 @@ export default defineComponent({
 		onCommand(command: Command) {
 			if (command.cmdType === 'response') {
 				switch (command.command) {
-					case MspFn.ACC_CALIBRATION:
-						if (command.data[0] === 1)
-							this.configuratorLog.push('Accelerometer calibrated');
-						else
-							this.configuratorLog.push('Accelerometer calibration started');
-						break
 					case MspFn.MSP_ATTITUDE:
 						this.attitude = {
 							roll: -leBytesToInt(command.data, 0, 2, true) / 10,
@@ -191,7 +184,6 @@ export default defineComponent({
 		<div>
 			<button @click="ledOn">LED On</button>
 			<button @click="ledOff">LED Off</button>
-			<button @click="() => sendCommand(MspFn.ACC_CALIBRATION)">Calibrate Accelerometer</button>
 			<button @click="playSound">Play Sound</button>
 			<input type="number" step="1" min="1" max="2" placeholder="Serial Number" v-model="serialNum" />
 			<input type="number" step="1" min="9600" max="115200" placeholder="Baud Rate" v-model="baudRate" />

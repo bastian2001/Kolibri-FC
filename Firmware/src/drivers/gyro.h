@@ -5,7 +5,13 @@
 // a total of 2000 good samples are required, the first 1000 are ignored
 #define CALIBRATION_SAMPLES 1000
 #define QUIET_SAMPLES 1000
-#define CALIBRATION_TOLERANCE 128 // (4deg/s)
+#define GYRO_CALIBRATION_TOLERANCE 128 // (4deg/s)
+#define IMU_ALIGNMENT_TOLERANCE 400 // does not need to be exact, therefore rather big at 2m/s²
+
+extern volatile bool accelCalDone; // accel calibration flag to save the data
+extern volatile u8 accelCalState; // 0 = normal operation, 1 = quiet, 2 = measuring
+extern volatile bool imuAlignmentDone; // imu orientation done flag to save the data
+extern volatile u8 imuAlignmentStep; // 0 = normal operation, 1 = waiting for normal placement, 2 = waiting for nose down
 
 enum class GyroReg : u8 {
 	CHIP_ID = 0x00,
@@ -96,3 +102,7 @@ void startGyroCalibration();
 void getGyroCalibration(i16 cal[3]);
 
 void startAccelCalibration();
+
+void startImuAlignment();
+
+void getImuAlignment(u8 axes[3]);
