@@ -11,22 +11,23 @@
 // Y: forward / roll right
 // Z: up / yaw left
 
-constexpr f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
-constexpr f32 FRAME_TIME = 1. / 3200;
-constexpr f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
-constexpr f32 ANGLE_CHANGE_LIMIT = .0005;
-constexpr fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
+static constexpr f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
+static constexpr f32 FRAME_TIME = 1. / PID_FREQ;
+static constexpr f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
+static constexpr f32 ANGLE_CHANGE_LIMIT = .0005;
+static constexpr fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 fix32 accelFilterCutoff;
 fix32 roll, pitch, yaw;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
 fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading;
 PT1 magHeadingCorrection;
 fix32 magFilterCutoff;
-static DualPT1 vVelFilter(0.1, 400), combinedAltitudeFilter(0.03, 400);
+static DualPT1 vVelFilter(0.1, PID_FREQ / 8), combinedAltitudeFilter(0.03, PID_FREQ / 8);
 const fix32 &combinedAltitude = combinedAltitudeFilter.getConstRef();
 const fix32 &vVel = vVelFilter.getConstRef();
-PT1 baroImuUpVelFilter(0.2, 50), baroImuUpVelFilter2(5, 400);
-fix32 lastBaroImuUpVel;
+PT1 baroImuUpVelFilter(0.2, 50);
+static PT1 baroImuUpVelFilter2(5, PID_FREQ / 8);
+static fix32 lastBaroImuUpVel;
 PT1 eVelFilter;
 PT1 nVelFilter;
 const fix32 &eVel = eVelFilter.getConstRef();
@@ -153,12 +154,12 @@ void imuUpdateSpeeds() {
 		vVelFilter.set(0);
 		combinedAltitudeFilter.set(gpsBaroAlt);
 	} else {
-		baroImuUpVelFilter.add(vAccel / 400);
+		baroImuUpVelFilter.add(vAccel / (PID_FREQ / 8));
 		lastBaroImuUpVel = baroImuUpVelFilter2;
 		const fix32 baroImuUpAccel = baroImuUpVelFilter2.update(baroImuUpVelFilter) - lastBaroImuUpVel;
 		vVelFilter.add(baroImuUpAccel);
 		const fix32 filterVel = gpsGoodQuality ? fix32(-gpsMotion.velD / 10) * 0.01f : baroUpVel;
-		combinedAltitudeFilter.add(vVelFilter.update(filterVel) / 400);
+		combinedAltitudeFilter.add(vVelFilter.update(filterVel) / (PID_FREQ / 8));
 		combinedAltitudeFilter.update(gpsBaroAlt);
 	}
 	mspDebugSensors[2] = (vVel * 10000).geti32();
@@ -172,6 +173,6 @@ void imuUpdateSpeeds() {
 	nAccel = northAccel;
 	eAccel = eastAccel;
 
-	eVelFilter.add(eastAccel * RAW_TO_M_PER_SEC2 / 400);
-	nVelFilter.add(northAccel * RAW_TO_M_PER_SEC2 / 400);
+	eVelFilter.add(eastAccel * RAW_TO_M_PER_SEC2 / (PID_FREQ / 8));
+	nVelFilter.add(northAccel * RAW_TO_M_PER_SEC2 / (PID_FREQ / 8));
 }

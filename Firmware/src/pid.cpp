@@ -34,34 +34,34 @@ static fix32 rollLast, pitchLast, yawLast; // rate of last PID cycle (deg/s)
 static fix64 rollErrorSum, pitchErrorSum, yawErrorSum; // I term sum for the PID controller
 fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, rollSum, pitchSum, yawSum;
 fix32 throttle;
-PT2 dFilterRoll, dFilterPitch, dFilterYaw;
+static PT2 dFilterRoll, dFilterPitch, dFilterYaw;
+static fix32 lastSetpoints[3];
 static PT1 iRelaxFilter[3];
 static PT1 ffFilter[3];
-fix32 lastSetpoints[3];
 
 // Idling
 u8 idlePermille;
 bool useDynamicIdle = true;
 u16 dynamicIdleRpm = 3000;
-fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
-fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07};
-fix32 throttleScale;
-interp_config dynIdleInterpConfig;
+static fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
+static fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07};
+static fix32 throttleScale;
+static interp_config dynIdleInterpConfig;
 
 // PID boost
-fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
-PT1 pidBoostFilter;
-fix32 lastThrottle;
-u8 pidBoostAxis = 0; // 0: off, 1: RP only, 2: RPY
-fix32 pidBoostP = 5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
-fix32 pidBoostI = 5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
-fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
-fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
-fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
+static fix32 pidBoostCutoff = 5; // cutoff frequency for pid boost throttle filter
+static PT1 pidBoostFilter;
+static fix32 lastThrottle;
+static u8 pidBoostAxis = 0; // 0: off, 1: RP only, 2: RPY
+static fix32 pidBoostP = 5; // addition boost factor, e.g. when set to 2 in full effect, P is 3x
+static fix32 pidBoostI = 5; // addition boost factor, e.g. when set to 2 in full effect, I is 3x
+static fix32 pidBoostD = 0; // addition boost factor, e.g. when set to 2 in full effect, D is 3x
+static fix32 pidBoostStart; // dThrottle/dt in 1/1024 / s when pidBoost starts
+static fix32 pidBoostFull; // dThrottle/dt in 1/1024 / s when pidBoost is in full effect
 volatile bool pidBoostActive = false;
 
 // Misc
-u32 pidLoopCounter = 0; // counter of PID controller loops
+static u32 pidLoopCounter = 0; // counter of PID controller loops
 
 void initPidGains() {
 	for (int i = 0; i < 3; i++) {
@@ -127,22 +127,22 @@ void initPid() {
 
 	throttleScale = fix32(2000 - idlePermille * 2) / 1024;
 
-	dFilterRoll = PT2(dFilterCutoff, 3200);
-	dFilterPitch = PT2(dFilterCutoff, 3200);
-	dFilterYaw = PT2(dFilterCutoff, 3200);
+	dFilterRoll = PT2(dFilterCutoff, PID_FREQ);
+	dFilterPitch = PT2(dFilterCutoff, PID_FREQ);
+	dFilterYaw = PT2(dFilterCutoff, PID_FREQ);
 
-	gyroFiltered[AXIS_ROLL] = PT1(gyroFilterCutoff, 3200);
-	gyroFiltered[AXIS_PITCH] = PT1(gyroFilterCutoff, 3200);
-	gyroFiltered[AXIS_YAW] = PT1(gyroFilterCutoff, 3200);
+	gyroFiltered[AXIS_ROLL] = PT1(gyroFilterCutoff, PID_FREQ);
+	gyroFiltered[AXIS_PITCH] = PT1(gyroFilterCutoff, PID_FREQ);
+	gyroFiltered[AXIS_YAW] = PT1(gyroFilterCutoff, PID_FREQ);
 
-	iRelaxFilter[0] = PT1(iRelaxCutoff, 3200);
-	iRelaxFilter[1] = PT1(iRelaxCutoff, 3200);
-	iRelaxFilter[2] = PT1(iRelaxCutoff, 3200);
-	ffFilter[0] = PT1(ffCutoff, 3200);
-	ffFilter[1] = PT1(ffCutoff, 3200);
-	ffFilter[2] = PT1(ffCutoff, 3200);
+	iRelaxFilter[0] = PT1(iRelaxCutoff, PID_FREQ);
+	iRelaxFilter[1] = PT1(iRelaxCutoff, PID_FREQ);
+	iRelaxFilter[2] = PT1(iRelaxCutoff, PID_FREQ);
+	ffFilter[0] = PT1(ffCutoff, PID_FREQ);
+	ffFilter[1] = PT1(ffCutoff, PID_FREQ);
+	ffFilter[2] = PT1(ffCutoff, PID_FREQ);
 
-	pidBoostFilter = PT1(pidBoostCutoff, 3200);
+	pidBoostFilter = PT1(pidBoostCutoff, PID_FREQ);
 
 	placeElem(OSDElem::PIDBOOST_INDICATOR, 25, 12);
 	enableElem(OSDElem::PIDBOOST_INDICATOR);
@@ -171,16 +171,16 @@ void pidLoop() {
 		takeoffCounter = 0;
 	} // if the quad hasn't "taken off" yet, reset the counter
 	if (takeoffCounter < 1000) { // enable i term falloff (windup prevention) only before takeoff
-		rollErrorSum = rollErrorSum - iFalloff / 3200 * rollErrorSum.sign() / pidGains[0][I];
-		pitchErrorSum = pitchErrorSum - iFalloff / 3200 * pitchErrorSum.sign() / pidGains[1][I];
-		yawErrorSum = yawErrorSum - iFalloff / 3200 * yawErrorSum.sign() / pidGains[2][I];
+		rollErrorSum = rollErrorSum - iFalloff / PID_FREQ * rollErrorSum.sign() / pidGains[0][I];
+		pitchErrorSum = pitchErrorSum - iFalloff / PID_FREQ * pitchErrorSum.sign() / pidGains[1][I];
+		yawErrorSum = yawErrorSum - iFalloff / PID_FREQ * yawErrorSum.sign() / pidGains[2][I];
 	}
 
 	// PID boost / anti gravity
 	fix32 pFactor = 1, iFactor = 1, dFactor = 1;
 	if (pidBoostAxis) {
 		pidBoostFilter.update(throttle - lastThrottle);
-		fix32 boostStrength = (fix32(pidBoostFilter).abs() * 3200 - pidBoostStart) / (pidBoostFull - pidBoostStart);
+		fix32 boostStrength = (fix32(pidBoostFilter).abs() * PID_FREQ - pidBoostStart) / (pidBoostFull - pidBoostStart);
 		if (boostStrength > 1)
 			boostStrength = 1;
 		else if (boostStrength < 0)
@@ -193,9 +193,9 @@ void pidLoop() {
 
 	// I term relax
 	// e.g. 1250 for 1000 deg/s in 50ms (shift to prevent overflow)
-	fix32 totalDiff = iRelaxFilter[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * 3200).abs();
-	totalDiff += iRelaxFilter[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * 3200).abs();
-	totalDiff += iRelaxFilter[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * 3200).abs();
+	fix32 totalDiff = iRelaxFilter[AXIS_ROLL].update(((rollSetpoint - lastSetpoints[AXIS_ROLL]) >> 4) * PID_FREQ).abs();
+	totalDiff += iRelaxFilter[AXIS_PITCH].update(((pitchSetpoint - lastSetpoints[AXIS_PITCH]) >> 4) * PID_FREQ).abs();
+	totalDiff += iRelaxFilter[AXIS_YAW].update(((yawSetpoint - lastSetpoints[AXIS_YAW]) >> 4) * PID_FREQ).abs();
 	fix32 iRelaxMultiplier = 1;
 	if (totalDiff > 300) {
 		iRelaxMultiplier = fix32(0.0625f);
@@ -367,10 +367,12 @@ void pidLoop() {
 	lastSetpoints[AXIS_PITCH] = pitchSetpoint;
 	lastSetpoints[AXIS_YAW] = yawSetpoint;
 
-	// write blackbox if needed
+// write blackbox if needed
+#ifdef BLACKBOX_STORAGE
 	if ((pidLoopCounter % bbFreqDivider) == 0 && bbFreqDivider) {
 		taskTimerTASK_PID -= writeSingleFrame();
 	}
+#endif
 	pidLoopCounter++;
 
 	TASK_END(TASK_PID);

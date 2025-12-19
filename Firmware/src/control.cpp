@@ -150,7 +150,7 @@ static inline void runAngleMode2() {
 	startFixMath();
 
 	// set headQuat
-	targetAngleHeading += newYawSetpoint / 400;
+	targetAngleHeading += newYawSetpoint / (PID_FREQ / 8);
 	if (targetAngleHeading > 180)
 		targetAngleHeading -= 360;
 	else if (targetAngleHeading <= -180)
@@ -765,9 +765,9 @@ static void initPidVVel() {
 
 static void initPidHVel() {
 	pidGainsHVel[P] = 12; // immediate target tilt in degree @ 1m/s too slow/fast
-	pidGainsHVel[I] = 1.f / 400.f; // additional tilt per 1/400th of a second @ 1m/s too slow/fast
+	pidGainsHVel[I] = 1.f / ((float)PID_FREQ / 8); // additional tilt per 1/400th of a second @ 1m/s too slow/fast
 	pidGainsHVel[D] = 0; // tilt in degrees, if changing speed by 400m/s /s
-	pidGainsHVel[FF] = 400.f * .1f; // tilt in degrees for target acceleration of 400m/s^2
+	pidGainsHVel[FF] = ((float)PID_FREQ / 8) * .1f; // tilt in degrees for target acceleration of 400m/s^2
 }
 
 void initControl() {
@@ -785,8 +785,8 @@ void initControl() {
 	addSetting(SETTING_VVEL_D_FILTER_CUTOFF, &vvelDFilterCutoff, 15);
 	vVelMaxErrorSum = 1024 / pidGainsVVel[I].getf32();
 	vVelMinErrorSum = idlePermille * 2 / pidGainsVVel[I].getf32();
-	vVelDFilter = PT1(vvelDFilterCutoff, 400);
-	vVelFFFilter = PT1(vvelFFFilterCutoff, 400);
+	vVelDFilter = PT1(vvelDFilterCutoff, PID_FREQ / 8);
+	vVelFFFilter = PT1(vvelFFFilterCutoff, PID_FREQ / 8);
 
 	// GPS mode
 	addSetting(SETTING_MAX_ANGLE_BURST, &maxAngleBurst, 60);
@@ -798,10 +798,10 @@ void initControl() {
 	addSetting(SETTING_HVEL_I_RELAX_FILTER_CUTOFF, &hvelIRelaxFilterCutoff, 0.5f);
 	addSetting(SETTING_HVEL_PUSH_FILTER_CUTOFF, &hvelPushFilterCutoff, 4);
 	addSetting(SETTING_HVEL_STICK_DEADBAND, &hvelStickDeadband, 30);
-	ffFilterNVel = PT1(hvelFfFilterCutoff, 400);
-	ffFilterEVel = PT1(hvelFfFilterCutoff, 400);
-	iRelaxFilterNVel = DualPT1(hvelIRelaxFilterCutoff, 400);
-	iRelaxFilterEVel = DualPT1(hvelIRelaxFilterCutoff, 400);
-	pushNorth = PT1(hvelPushFilterCutoff, 400);
-	pushEast = PT1(hvelPushFilterCutoff, 400);
+	ffFilterNVel = PT1(hvelFfFilterCutoff, PID_FREQ / 8);
+	ffFilterEVel = PT1(hvelFfFilterCutoff, PID_FREQ / 8);
+	iRelaxFilterNVel = DualPT1(hvelIRelaxFilterCutoff, PID_FREQ / 8);
+	iRelaxFilterEVel = DualPT1(hvelIRelaxFilterCutoff, PID_FREQ / 8);
+	pushNorth = PT1(hvelPushFilterCutoff, PID_FREQ / 8);
+	pushEast = PT1(hvelPushFilterCutoff, PID_FREQ / 8);
 }
