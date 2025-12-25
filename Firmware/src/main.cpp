@@ -1,12 +1,16 @@
 #include "global.h"
+#include "hardware/structs/qmi.h"
 #include "hardware/vreg.h"
 
-volatile u8 setupDone = 0b00;
+static volatile u8 setupDone = 0b00;
 static elapsedMicros taskTimer0;
 
 void setup() {
-	vreg_set_voltage(VREG_VOLTAGE_1_30);
 	Serial.begin(115200);
+	vreg_disable_voltage_limit();
+	vreg_set_voltage(VREG_VOLTAGE_1_35);
+	sleep_ms(100);
+	set_sys_clock_khz(360000, false);
 
 	initFixMath();
 
@@ -60,7 +64,6 @@ void setup() {
 	ELRS = new ExpressLRS(elrsNum);
 
 	// init LEDs
-	sleep_ms(1);
 	p.recalculateClock();
 	p.neoPixelFill(0, 0, 255, true);
 	for (int i = 0; i < 10; i++) {
@@ -70,8 +73,11 @@ void setup() {
 		sleep_ms(30);
 	}
 
+#ifdef BLACKBOX_STORAGE
 	initBlackbox();
+#endif
 	initSpeaker();
+
 	rp2040.wdt_begin(200);
 
 	Serial.println("Setup complete");
@@ -94,7 +100,9 @@ void loop() {
 	TASK_START(TASK_LOOP0);
 	speakerLoop();
 	baroLoop();
+#ifdef BLACKBOX_STORAGE
 	blackboxLoop();
+#endif
 	ELRS->loop();
 	modesLoop();
 	adcLoop();
@@ -131,7 +139,7 @@ void setup1() {
 	while (!(setupDone & 0b01)) {
 	}
 }
-elapsedMicros taskTimer = 0;
+static elapsedMicros taskTimer = 0;
 
 void loop1() {
 	u32 duration = taskTimer;

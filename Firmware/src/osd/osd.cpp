@@ -24,14 +24,14 @@ void osdInit() {
 
 void disableOSD() {
 	u8 data;
-	regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data, 1, 0, 0);
+	regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data, 1, 0);
 	data &= ~0b00001000;
 	regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data);
 }
 
 void enableOSD() {
 	u8 data;
-	regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data, 1, 0, 0);
+	regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data, 1, 0);
 	data |= 0b00001000;
 	regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data);
 }
@@ -131,7 +131,7 @@ void osdLoop() {
 		TASK_START(TASK_OSD);
 		u8 data = 0;
 		osdTimer = 0;
-		regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::STAT, &data, 1, 0, 0);
+		regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::STAT, &data, 1, 0);
 		if (data && !(data & 0b01100000)) {
 			osdReady = 2;
 		}
