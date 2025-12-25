@@ -181,6 +181,10 @@ public:
 	 */
 	static int compareOsdElements(const OsdElement *a, const OsdElement *b);
 
+	u8 getRow;
+	u8 getColumn;
+	u8 getRefreshRate;
+
 	char *screenText; // What is displayed on screen
 private:
 	/**

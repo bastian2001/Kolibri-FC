@@ -1,6 +1,5 @@
 #include "osd/osdElement.h"
 
-
 int OsdElement::compareOsdElements(const OsdElement *a, const OsdElement *b) {
 	if (a == nullptr && b == nullptr) return 0;
 	if (a == nullptr) return 1;
@@ -206,3 +205,12 @@ void OsdElement::setPos(u8 row, u8 column) {
 	this->column = column;
 }
 
+u8 OsdElement::getRow() {
+	return row;
+}
+u8 OsdElement::getColumn() {
+	return column;
+}
+u8 OsdElement::getRefreshRate() {
+	return refHz;
+}

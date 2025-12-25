@@ -580,9 +580,22 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
 			break;
 		case MspFn::WRITE_OSD_ELEMENT: {
-			OsdHandler::getInstance().updateElementFromMsp(reqPayload, reqLen);
+			if (reqLen != 4) break;
+			OsdHandler::ElemConfig config;
+			config.type = static_cast<ElementType>(reqPayload[0]);
+			config.x = reqPayload[1];
+			config.y = reqPayload[2];
+			config.refreshRate = reqPayload[3];
+			OsdHandler::get().writeOrUpdateElementFromMsp(config);
 		} break;
 		case MspFn::READ_OSD_ELEMENT: {
+
+			int idx = OsdHandler::get().find(static_cast<ElementType>(reqPayload[0]));
+			if (idx == -1) break; // Nothing found
+			OsdHandler::get().elements[idx]->getElementType();
+			OsdHandler::get().elements[idx]->getRow();
+			OsdHandler::get().elements[idx]->getColumn();
+			OsdHandler::get().elements[idx]->getRefreshRate();
 
 		} break;
 		case MspFn::GET_BB_SETTINGS: {

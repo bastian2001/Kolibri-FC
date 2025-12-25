@@ -108,22 +108,6 @@ void OsdHandler::loop() {
 	}
 	curState = nextState;
 	// ----- State machine end -----
-
-	// if (lastCall < minTimeout) return;
-
-	// lastCall = millis();
-	// u16 start = chunk * CHUNKSIZE;
-	// u16 end = (chunk == lastChunk) ? lastElem : start + CHUNKSIZE;
-	// for (int i = start; i < end; i++) {
-	// 	if (elements[i] != nullptr && elements[i]->getElementType() != ElementType::UNDEFINED) {
-	// 		elements[i]->updateOsdElementData();
-	// 		if (elements[i]->isScheduled()) {
-	// 			elements[i]->drawOsdElement();
-	// 		}
-	// 	}
-	// }
-	// chunk = (chunk == lastChunk) ? 0 : chunk + 1;
-
 	TASK_END(TASK_OSD);
 }
 
@@ -134,6 +118,29 @@ void OsdHandler::addOsdElement(OsdElement *element) {
 			return;
 		}
 	}
+}
+
+void OsdHandler::writeOrUpdateElementFromMsp(ElemConfig config) {
+	OsdElement *elem = new OsdElement(config.type);
+	if (int i = find(config.type) == -1) {
+		elem->setPos(config.x, config.y);
+		elem->setRefreshRate(config.refreshRate);
+		addOsdElement(elem);
+	} else {
+		elements[i]->setPos(config.x, config.y);
+		elements[i]->setRefreshRate(config.refreshRate);
+	}
+	optimize();
+}
+
+int OsdHandler::find(ElementType type) {
+	int i = 0;
+	for (OsdElement element : elements) {
+		if (element.getElementType() == type) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 void OsdHandler::optimize() {

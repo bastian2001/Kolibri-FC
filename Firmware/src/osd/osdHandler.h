@@ -45,7 +45,21 @@ public:
 	 */
 	int find(ElementType elementType);
 
+	struct ElemConfig;
+	/**
+	 * @brief Updates or writes OSP element from the msp command
+	 * @param ElemConfig sturct
+	 */
+	void writeOrUpdateElementFromMsp(ElemConfig config /*, special data at some point*/); // TODO Add support for special data (something like custom text or other element settings)
+
 	OsdElement *elements[MAX_OSD_ELEMENTS] = {nullptr};
+
+	struct ElemConfig {
+		ElementType type;
+		u8 refreshRate;
+		u8 x;
+		u8 y;
+	};
 
 private:
 	enum class State : u8 {
@@ -69,7 +83,6 @@ private:
 	 */
 	void optimize();
 
-	struct ElemConfig;
 	/**
 	 * @brief splits a saved word from eeprom to a stuct with the information
 	 * @param 32bit Word from eeprom
@@ -91,7 +104,7 @@ private:
 
 	void setDefaultConfig();
 
-void addElementsFromConfig();
+	void addElementsFromConfig();
 
 	u32 minTimeout;
 	u16 lastElem;
@@ -111,10 +124,4 @@ void addElementsFromConfig();
 	bool digitalResponse = false;
 
 	u32 config[MAX_OSD_ELEMENTS];
-	struct ElemConfig {
-		ElementType type;
-		u8 refreshRate;
-		u8 x;
-		u8 y;
-	};
 };

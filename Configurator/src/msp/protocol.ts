@@ -47,6 +47,8 @@ export const MspFn = {
 
 	// 0x411_ OSD settings
 	WRITE_OSD_FONT_CHARACTER: 0x4110,
+	WRITE_OSD_ELEMENT : 0x4111,
+	READ_OSD_ELEMENT : 0x4112,
 
 	// 0x412_ Blackbox
 	GET_BB_SETTINGS: 0x4120,
