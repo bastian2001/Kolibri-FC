@@ -1,8 +1,8 @@
 #pragma once
 #include <Arduino.h>
 #include <fixedPointInt.h>
-#define AXIS_ROLL 1
-#define AXIS_PITCH 0
+#define AXIS_ROLL 0
+#define AXIS_PITCH 1
 #define AXIS_YAW 2
 
 #define P_SHIFT 11

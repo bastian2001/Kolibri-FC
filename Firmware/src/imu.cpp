@@ -4,18 +4,11 @@
 // X: forward / roll right
 // Y: right / pitch up
 // Z: down / yaw right
-// (Tait-Bryan angles)
-
-// on the PCB (v0.4):
-// X: right / pitch up
-// Y: forward / roll right
-// Z: up / yaw left
 
 static constexpr f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
 static constexpr f32 FRAME_TIME = 1. / PID_FREQ;
 static constexpr f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 static constexpr f32 ANGLE_CHANGE_LIMIT = .0005;
-static constexpr fix32 RAW_TO_M_PER_SEC2 = (9.81 * 32 + 0.5) / 65536; // +/-16g (0.5 for rounding)
 fix32 accelFilterCutoff;
 fix32 roll, pitch, yaw;
 fix32 combinedHeading; // NOT heading of motion, but heading of quad
@@ -42,8 +35,8 @@ void imuInit() {
 	addSetting(SETTING_GPS_UPDATE_RATE, &gpsUpdateRate, 20);
 	addSetting(SETTING_MAG_FILTER_CUTOFF, &magFilterCutoff, 0.02f);
 
-	pitch = 0; // pitch up
 	roll = 0; // roll right
+	pitch = 0; // pitch up
 	yaw = 0; // yaw right
 	q.w = 1;
 	q.v[0] = 0;

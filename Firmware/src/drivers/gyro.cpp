@@ -8,7 +8,7 @@ volatile u8 accelCalState = 0;
 volatile bool imuAlignmentDone = false;
 volatile u8 imuAlignmentStep = 0;
 static u8 imuAlignment[3] = {0, 2, 4}; // +-X, +-Y, +-Z
-static u16 imuAlignmentCounter = 0;
+static i16 imuAlignmentCounter = 0;
 static bool calibrateGyro = false;
 static bool calibrateAccel = false;
 static bool alignImu = false;
@@ -87,8 +87,17 @@ void gyroLoop() {
 		agDataRaw[5] -= gyroCalibrationOffset[2];
 #endif
 		gyroUpdateFlag = 0xFFFFFFFF;
+
+		fix32 gyroLut[6];
+		fix32 accelLut[6];
+		for (int i = 0; i < 6; i += 2) {
+			gyroLut[i].setRaw(gyroDataRaw[i >> 1] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math, gyro data in range of -2000 ... +2000 (degrees per second)
+			gyroLut[i + 1] = -gyroLut[i];
+			accelLut[i].setRaw(accelDataRaw[i >> 1] * 314); // accel data in range of -.5 ... +.5 due to fixed point math, accel data in range of -16g ... +16g (9.81 * 16 * 2)
+			accelLut[i + 1] = -accelLut[i];
+		}
 		for (int i = 0; i < 3; i++) {
-			gyroScaled[i].setRaw((i32)gyroDataRaw[i] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math,gyro data in range of -2000 ... +2000 (degrees per second)
+			gyroScaled[i].setRaw((i32)gyroDataRaw[i] * 4000);
 		}
 
 		gyroScaled[AXIS_PITCH] = -gyroScaled[AXIS_PITCH];
@@ -102,8 +111,15 @@ void gyroLoop() {
 		accelDataFilter[2].update(accelDataRaw[2]);
 
 		if (armingDisableFlags & 0x40) {
+			bool isStill = true;
+			bool isVeryStill = true;
+			for (int ax = 0; ax < 3; ax++) {
+				if (abs(gyroDataRaw[ax] >= GYRO_CALIBRATION_TOLERANCE)) isVeryStill = false;
+				if (abs(gyroDataRaw[ax] >= 5 * GYRO_CALIBRATION_TOLERANCE)) isStill = false;
+			}
+
 			if (calibrateGyro) {
-				if (gyroDataRaw[0] < GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[0] > -GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[1] < GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[1] > -GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[2] < GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[2] > -GYRO_CALIBRATION_TOLERANCE) {
+				if (isVeryStill) {
 					// ignore -1 (0xFFFF), as this speaks for a communication error
 					gyroCalibratedCycles++;
 					if (gyroCalibratedCycles >= QUIET_SAMPLES) {
@@ -132,7 +148,7 @@ void gyroLoop() {
 				}
 			}
 			if (calibrateAccel) {
-				if (gyroDataRaw[0] < GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[0] > -GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[1] < GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[1] > -GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[2] < GYRO_CALIBRATION_TOLERANCE && gyroDataRaw[2] > -GYRO_CALIBRATION_TOLERANCE) {
+				if (isVeryStill) {
 					accelCalibratedCycles++;
 					if (accelCalibratedCycles >= CALIBRATION_SAMPLES) {
 						accelCalibrationOffsetTemp[0] += accelDataRaw[0];
@@ -177,18 +193,75 @@ void gyroLoop() {
 						}
 						if (thisAxis != 255) break;
 					}
+					if (!isStill) thisAxis = 255;
+
+					if (thisAxis != lastAxis || thisAxis == 255) {
+						lastAxis = thisAxis;
+						if (imuAlignmentCounter > 0) imuAlignmentCounter = 0;
+						break;
+					}
+					if (++imuAlignmentCounter >= PID_FREQ * 1) {
+						firstAxis = thisAxis;
+						imuAlignmentCounter = 0;
+						imuAlignmentStep = 2;
+					}
+					break;
+				case 2:
+					thisAxis = 255;
+					for (int i = 0; i < 3; i++) {
+						for (int j = 0; j < 2; j++) {
+							int x = abs(accelDataRaw[i] * (j ? 1 : -1) - 2048);
+							int y = abs(accelDataRaw[(i + 1) % 3]);
+							int z = abs(accelDataRaw[(i + 2) % 3]);
+							if (x < IMU_ALIGNMENT_TOLERANCE &&
+								y < IMU_ALIGNMENT_TOLERANCE &&
+								z < IMU_ALIGNMENT_TOLERANCE) {
+								thisAxis = i * 2 + j;
+								break;
+							}
+						}
+						if (thisAxis != 255) break;
+					}
+					if (!isStill || (thisAxis & ~1) == (firstAxis & ~1)) thisAxis = 255;
 
 					if (thisAxis != lastAxis || thisAxis == 255) {
 						lastAxis = thisAxis;
 						imuAlignmentCounter = 0;
 						break;
 					}
-					if (++imuAlignmentCounter >= 16000) {
-						firstAxis = thisAxis;
-						imuAlignmentStep = 2;
+					if (++imuAlignmentCounter >= PID_FREQ * 1) {
+						// found orientation, calculate third one
+						u8 a0 = firstAxis / 2, a1 = thisAxis / 2;
+						u8 a2 = 0;
+
+						// find missing axis (forward/backward irrelevant)
+						for (; a2 < 3; a2++) {
+							if (a2 != a0 && a2 != a1) break;
+						}
+
+						// check for sanity
+						if (a2 == 3 || a0 == a1) {
+							// should not happen
+							imuAlignmentStep = 0;
+							alignImu = false;
+							break;
+						}
+
+						// possibly invert (to make right-handed)
+						a2 *= 2;
+						if (a1 - a0 == 1 || a0 - a1 == 2) a2 += 1;
+
+						// possibly invert again if a1 OR a0 is inverted
+						a2 ^= (thisAxis ^ firstAxis) & 1;
+
+						imuAlignment[AXIS_ROLL] = thisAxis;
+						imuAlignment[AXIS_PITCH] = a2;
+						imuAlignment[AXIS_YAW] = firstAxis;
+
+						imuAlignmentCounter = 0;
+						imuAlignmentStep = 0;
+						imuAlignmentDone = true;
 					}
-					break;
-				case 2:
 					break;
 				}
 			}
@@ -198,7 +271,7 @@ void gyroLoop() {
 	}
 }
 
-void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
+static void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
 	tasks[TASK_GYROREAD].debugInfo = 1;
 	gyroInterruptTimer = 0;
 	fetchGyro();
@@ -247,16 +320,6 @@ void gyroDmaInterrupt() {
 		}
 #endif
 		gyroInterrupts++;
-
-#if HW_VARIANT == HW_V6
-		// TODO fix janky prerotation for v6 FC
-		i16 temp = gyroDataRaw[AXIS_ROLL];
-		gyroDataRaw[AXIS_ROLL] = gyroDataRaw[AXIS_PITCH];
-		gyroDataRaw[AXIS_PITCH] = -temp;
-		temp = accelDataRaw[AXIS_ROLL];
-		accelDataRaw[AXIS_ROLL] = accelDataRaw[AXIS_PITCH];
-		accelDataRaw[AXIS_PITCH] = -temp;
-#endif
 	}
 }
 
@@ -535,6 +598,7 @@ void startAccelCalibration() {
 
 void startImuAlignment() {
 	imuAlignmentStep = 1;
+	imuAlignmentCounter = -PID_FREQ * 1;
 	armingDisableFlags |= 0x40;
 	alignImu = true;
 }
