@@ -151,7 +151,10 @@ enum class GyroReg : u8 {
 extern u32 gyroUpdateFlag;
 extern volatile i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of agDataRaw
 extern volatile i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of agDataRaw
-extern const fix32 *const accelDataFiltered[3]; // PT1 filters for the accelerometer data, raw scaling from accel
+extern fix32 gyroScaled[3]; // gyro data in deg/s
+extern fix32 accelScaled[3]; // accel data in m/s^2
+extern const fix32 *const gyroFiltered[3]; // gyro filter (currently PT1) deg/s
+extern const fix32 *const accelFiltered[3]; // PT1 filters for the accelerometer data, m/s^2
 
 /// @brief Initializes the gyro (Bosch BMI270)
 /// @return 0 on success, 1 on failure

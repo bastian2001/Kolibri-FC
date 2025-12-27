@@ -3,39 +3,51 @@
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 // and ICM-42688-P https://invensense.tdk.com/wp-content/uploads/2020/04/ds-000347_icm-42688-p-datasheet.pdf
 
-volatile bool accelCalDone = false;
+// gyro calibration procedure
+static volatile bool calibrateGyro = false;
+static u32 gyroCalibratedCycles = 0; // counts up the cycles for the gyro calibration, calibration is done if the value is 2000
+static i32 gyroCalibrationOffsetTemp[3] = {0}; // temporary offset that gets added to the gyro values during calibration
+// accel calibration procedure
+static volatile bool calibrateAccel = false;
 volatile u8 accelCalState = 0;
-volatile bool imuAlignmentDone = false;
+volatile bool accelCalDone = false;
+static u16 accelCalibratedCycles = 0; // counts up the cycles for the accel calibration, calibration is done if the value is 2000
+static i32 accelCalibrationOffsetTemp[3] = {0};
+// imu alignment procedure
+static volatile bool alignImu = false;
 volatile u8 imuAlignmentStep = 0;
-static u8 imuAlignment[3] = {0, 2, 4}; // +-X, +-Y, +-Z
+volatile bool imuAlignmentDone = false;
 static i16 imuAlignmentCounter = 0;
-static bool calibrateGyro = false;
-static bool calibrateAccel = false;
-static bool alignImu = false;
 static u8 firstAxis = 0;
 
-static u32 gyroCalibratedCycles = 0; // counts up the cycles for the gyro calibration, calibration is done if the value is 2000
-static i16 bmiCalibrationOffset[6] __attribute__((aligned(4))) = {0};
-static i16 *gyroCalibrationOffset = bmiCalibrationOffset + 3; // offset that gets subtracted from the gyro values
-static i16 *accelCalibrationOffset = bmiCalibrationOffset; // offset that gets subtracted from the accelerometer values
-static i32 gyroCalibrationOffsetTemp[3] = {0}; // temporary offset that gets added to the gyro values during calibration
-static i32 accelCalibrationOffsetTemp[3] = {0};
-static u16 accelCalibratedCycles = 0; // counts up the cycles for the accel calibration, calibration is done if the value is 2000
+static u8 imuAlignment[3] = {0, 2, 4}; // +-X, +-Y, +-Z
 
+// calibration offset and their aliases
+static i16 agCalibrationOffset[6] __attribute__((aligned(4))) = {0};
+static i16 *gyroCalibrationOffset = agCalibrationOffset + 3; // offset that gets subtracted from the gyro values
+static i16 *accelCalibrationOffset = agCalibrationOffset; // offset that gets subtracted from the accelerometer values
+
+// IMU raw data and their aliases
 static volatile i16 agDataRaw[6] __attribute__((aligned(4))) = {0};
 volatile i16 *gyroDataRaw = agDataRaw + 3;
 volatile i16 *accelDataRaw = agDataRaw;
 
+// Data
+fix32 gyroScaled[3];
+static PT1 gyroDataFilter[3];
+const fix32 *const gyroFiltered[3] = {&gyroDataFilter[0].getConstRef(), &gyroDataFilter[1].getConstRef(), &gyroDataFilter[2].getConstRef()};
+fix32 accelScaled[3];
 static PT1 accelDataFilter[3];
-const fix32 *const accelDataFiltered[3] = {&accelDataFilter[0].getConstRef(), &accelDataFilter[1].getConstRef(), &accelDataFilter[2].getConstRef()};
+const fix32 *const accelFiltered[3] = {&accelDataFilter[0].getConstRef(), &accelDataFilter[1].getConstRef(), &accelDataFilter[2].getConstRef()};
 
-static volatile u8 spiSm = 0;
 static volatile u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
 u32 gyroUpdateFlag = 0;
 static volatile u8 gyroInterrupts = 0;
 static elapsedMicros taskTimerGyro = 0;
 
+// regWrite/regRead aliases to allow identical use regardless of HW SPI / PIO SPI
 #ifdef GYRO_HALFDUPLEX_SPI
+static volatile u8 spiSm = 0;
 #define REG_WR(reg, buf, ...) regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
 #define REG_RD(reg, buf, ...) regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
 #else
@@ -43,6 +55,7 @@ static elapsedMicros taskTimerGyro = 0;
 #define REG_RD(reg, buf, ...) regRead(SPI_GYRO, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
 #endif
 
+// IMU data fetching: DMA stuff
 #ifdef GYRO_BMI270
 extern const u8 bmi270_config_file[8192];
 #define GYRO_SPI_SPEED 10000000
@@ -55,6 +68,7 @@ static volatile const u32 gyroDmaTxData[13] = {0x80UL | (u32)GyroReg::ACC_X_MSB,
 static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {0};
 static elapsedMicros gyroInterruptTimer = 0;
 static void fetchGyro();
+
 void gyroLoop() {
 	if (gyroInterruptTimer > 300) {
 		tasks[TASK_GYROREAD].debugInfo = 2;
@@ -74,9 +88,9 @@ void gyroLoop() {
 
 #if __ARM_FEATURE_SIMD32
 		// ARMv7E-M SIMD, saturated 2x16 vector subtraction => does not overflow, will clamp
-		*((int16x2_t *)agDataRaw) = __qsub16(*((int16x2_t *)agDataRaw), *((int16x2_t *)bmiCalibrationOffset));
-		*((int16x2_t *)(agDataRaw + 2)) = __qsub16(*((int16x2_t *)(agDataRaw + 2)), *((int16x2_t *)(bmiCalibrationOffset + 2)));
-		*((int16x2_t *)(agDataRaw + 4)) = __qsub16(*((int16x2_t *)(agDataRaw + 4)), *((int16x2_t *)(bmiCalibrationOffset + 4)));
+		*((int16x2_t *)agDataRaw) = __qsub16(*((int16x2_t *)agDataRaw), *((int16x2_t *)agCalibrationOffset));
+		*((int16x2_t *)(agDataRaw + 2)) = __qsub16(*((int16x2_t *)(agDataRaw + 2)), *((int16x2_t *)(agCalibrationOffset + 2)));
+		*((int16x2_t *)(agDataRaw + 4)) = __qsub16(*((int16x2_t *)(agDataRaw + 4)), *((int16x2_t *)(agCalibrationOffset + 4)));
 #else
 #warning overflow can occur!
 		agDataRaw[0] -= accelCalibrationOffset[0];
@@ -97,18 +111,11 @@ void gyroLoop() {
 			accelLut[i + 1] = -accelLut[i];
 		}
 		for (int i = 0; i < 3; i++) {
-			gyroScaled[i].setRaw((i32)gyroDataRaw[i] * 4000);
+			gyroScaled[i] = gyroLut[imuAlignment[i]];
+			gyroDataFilter[i].update(gyroScaled[i]);
+			accelScaled[i] = accelLut[imuAlignment[i]];
+			accelDataFilter[i].update(accelScaled[i]);
 		}
-
-		gyroScaled[AXIS_PITCH] = -gyroScaled[AXIS_PITCH];
-		gyroScaled[AXIS_YAW] = -gyroScaled[AXIS_YAW];
-
-		gyroFiltered[AXIS_ROLL].update(gyroScaled[AXIS_ROLL]);
-		gyroFiltered[AXIS_PITCH].update(gyroScaled[AXIS_PITCH]);
-		gyroFiltered[AXIS_YAW].update(gyroScaled[AXIS_YAW]);
-		accelDataFilter[0].update(accelDataRaw[0]);
-		accelDataFilter[1].update(accelDataRaw[1]);
-		accelDataFilter[2].update(accelDataRaw[2]);
 
 		if (armingDisableFlags & 0x40) {
 			bool isStill = true;
@@ -327,8 +334,12 @@ int gyroInit() {
 	addPointerSetting(SETTING_ACC_CAL, accelCalibrationOffset, 3);
 	addPointerSetting(SETTING_IMU_ALIGNMENT, imuAlignment, 3);
 
+	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
 	addSetting(SETTING_ACC_FILTER_CUTOFF, &accelFilterCutoff, 100);
 
+	gyroDataFilter[0] = PT1(gyroFilterCutoff, PID_FREQ);
+	gyroDataFilter[1] = PT1(gyroFilterCutoff, PID_FREQ);
+	gyroDataFilter[2] = PT1(gyroFilterCutoff, PID_FREQ);
 	accelDataFilter[0] = PT1(accelFilterCutoff, PID_FREQ);
 	accelDataFilter[1] = PT1(accelFilterCutoff, PID_FREQ);
 	accelDataFilter[2] = PT1(accelFilterCutoff, PID_FREQ);

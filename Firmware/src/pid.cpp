@@ -12,10 +12,6 @@
 // ESC outputs
 i16 throttles[4] __attribute__((aligned(4)));
 
-// Gyro data
-fix32 gyroScaled[3];
-PT1 gyroFiltered[3];
-
 // PID controller config
 u16 pidGainsNice[3][5] = {0};
 static fix32 pidGains[3][5]; // PID gains (raw, calculated) for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
@@ -99,7 +95,6 @@ void initPid() {
 	addArraySetting(SETTING_PID_GAINS, pidGainsNice, &initPidGains);
 	addSetting(SETTING_IDLE_PERMILLE, &idlePermille, 35);
 	addSetting(SETTING_DFILTER_CUTOFF, &dFilterCutoff, 70);
-	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
 	addSetting(SETTING_SETPOINT_DIFF_CUTOFF, &setpointDiffCutoff, 12);
 	addSetting(SETTING_PID_BOOST_CUTOFF, &pidBoostCutoff, 5);
 	addSetting(SETTING_PID_BOOST_START, &pidBoostStart, 2000000);
@@ -130,10 +125,6 @@ void initPid() {
 	dFilterPitch = PT2(dFilterCutoff, PID_FREQ);
 	dFilterYaw = PT2(dFilterCutoff, PID_FREQ);
 
-	gyroFiltered[AXIS_ROLL] = PT1(gyroFilterCutoff, PID_FREQ);
-	gyroFiltered[AXIS_PITCH] = PT1(gyroFilterCutoff, PID_FREQ);
-	gyroFiltered[AXIS_YAW] = PT1(gyroFilterCutoff, PID_FREQ);
-
 	setpointDiff[AXIS_ROLL] = PT1(setpointDiffCutoff, PID_FREQ);
 	setpointDiff[AXIS_PITCH] = PT1(setpointDiffCutoff, PID_FREQ);
 	setpointDiff[AXIS_YAW] = PT1(setpointDiffCutoff, PID_FREQ);
@@ -156,9 +147,9 @@ void pidLoop() {
 	// below is the PID controller (setpoint -> ESC output)
 
 	// get errors (deg/s)
-	fix32 rollError = rollSetpoint - gyroFiltered[AXIS_ROLL];
-	fix32 pitchError = pitchSetpoint - gyroFiltered[AXIS_PITCH];
-	fix32 yawError = yawSetpoint - gyroFiltered[AXIS_YAW];
+	fix32 rollError = rollSetpoint - *gyroFiltered[AXIS_ROLL];
+	fix32 pitchError = pitchSetpoint - *gyroFiltered[AXIS_PITCH];
+	fix32 yawError = yawSetpoint - *gyroFiltered[AXIS_YAW];
 
 	// I term windup prevention
 	if (ELRS->channels[2] > 1020) {
@@ -213,9 +204,9 @@ void pidLoop() {
 	rollI = pidGains[0][I] * rollErrorSum;
 	pitchI = pidGains[1][I] * pitchErrorSum;
 	yawI = pidGains[2][I] * yawErrorSum;
-	rollD = pidGains[0][D] * dFilterRoll.update(rollLast - gyroFiltered[AXIS_ROLL]) * dFactor;
-	pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - gyroFiltered[AXIS_PITCH]) * dFactor;
-	yawD = pidGains[2][D] * dFilterYaw.update(yawLast - gyroFiltered[AXIS_YAW]) * (pidBoostAxis == 2 ? dFactor : 1);
+	rollD = pidGains[0][D] * dFilterRoll.update(rollLast - *gyroFiltered[AXIS_ROLL]) * dFactor;
+	pitchD = pidGains[1][D] * dFilterPitch.update(pitchLast - *gyroFiltered[AXIS_PITCH]) * dFactor;
+	yawD = pidGains[2][D] * dFilterYaw.update(yawLast - *gyroFiltered[AXIS_YAW]) * (pidBoostAxis == 2 ? dFactor : 1);
 	rollFF = pidGains[0][FF] * setpointDiff[AXIS_ROLL];
 	pitchFF = pidGains[1][FF] * setpointDiff[AXIS_PITCH];
 	yawFF = pidGains[2][FF] * setpointDiff[AXIS_YAW];
@@ -352,9 +343,9 @@ void pidLoop() {
 	sendThrottles(throttles);
 
 	// save states
-	rollLast = gyroFiltered[AXIS_ROLL];
-	pitchLast = gyroFiltered[AXIS_PITCH];
-	yawLast = gyroFiltered[AXIS_YAW];
+	rollLast = *gyroFiltered[AXIS_ROLL];
+	pitchLast = *gyroFiltered[AXIS_PITCH];
+	yawLast = *gyroFiltered[AXIS_YAW];
 	lastSetpoints[AXIS_ROLL] = rollSetpoint;
 	lastSetpoints[AXIS_PITCH] = pitchSetpoint;
 	lastSetpoints[AXIS_YAW] = yawSetpoint;
