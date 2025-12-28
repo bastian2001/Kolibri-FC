@@ -12,6 +12,7 @@ extern volatile bool accelCalDone; // accel calibration flag to save the data
 extern volatile u8 accelCalState; // 0 = normal operation, 1 = quiet, 2 = measuring
 extern volatile bool imuAlignmentDone; // imu orientation done flag to save the data
 extern volatile u8 imuAlignmentStep; // 0 = normal operation, 1 = waiting for normal placement, 2 = waiting for nose down
+extern volatile i16 imuAlignmentCounter;
 
 #ifdef GYRO_BMI270
 enum class GyroReg : u8 {

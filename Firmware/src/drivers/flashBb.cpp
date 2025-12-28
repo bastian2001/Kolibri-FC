@@ -1,8 +1,8 @@
 
-#if BLACKBOX_STORAGE == FLASH_BB
 
 #include "global.h"
 #include "pioasm/extended_spi.pio.h"
+#if BLACKBOX_STORAGE == FLASH_BB
 
 enum FlashRegisters {
 	FLASH_CMD_RESET = 0xFF,

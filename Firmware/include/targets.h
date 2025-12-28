@@ -1,7 +1,7 @@
 #include "typedefs.h"
 
 #define SD_BB 0
-#define FLASH_BB 1 // not implemented yet
+#define FLASH_BB 1
 
 #define HW_V5 5
 #define HW_V6 6

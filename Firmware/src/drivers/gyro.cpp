@@ -17,7 +17,7 @@ static i32 accelCalibrationOffsetTemp[3] = {0};
 static volatile bool alignImu = false;
 volatile u8 imuAlignmentStep = 0;
 volatile bool imuAlignmentDone = false;
-static i16 imuAlignmentCounter = 0;
+volatile i16 imuAlignmentCounter = 0;
 static u8 firstAxis = 0;
 
 static u8 imuAlignment[3] = {0, 2, 4}; // +-X, +-Y, +-Z
@@ -70,7 +70,7 @@ static elapsedMicros gyroInterruptTimer = 0;
 static void fetchGyro();
 
 void gyroLoop() {
-	if (gyroInterruptTimer > 300) {
+	if (gyroInterruptTimer > 1000000 / PID_FREQ * 2) {
 		tasks[TASK_GYROREAD].debugInfo = 2;
 		gyroInterruptTimer = 0;
 		fetchGyro();
@@ -121,8 +121,8 @@ void gyroLoop() {
 			bool isStill = true;
 			bool isVeryStill = true;
 			for (int ax = 0; ax < 3; ax++) {
-				if (abs(gyroDataRaw[ax] >= GYRO_CALIBRATION_TOLERANCE)) isVeryStill = false;
-				if (abs(gyroDataRaw[ax] >= 5 * GYRO_CALIBRATION_TOLERANCE)) isStill = false;
+				if (abs(gyroDataRaw[ax]) >= GYRO_CALIBRATION_TOLERANCE) isVeryStill = false;
+				if (abs(gyroDataRaw[ax]) >= 5 * GYRO_CALIBRATION_TOLERANCE) isStill = false;
 			}
 
 			if (calibrateGyro) {
@@ -180,6 +180,12 @@ void gyroLoop() {
 					accelCalibratedCycles = 0;
 				}
 			}
+			static elapsedMicros x = 0;
+			bool y = false;
+			if (x > 200000) {
+				x = 0;
+				y = true;
+			}
 			if (alignImu) {
 				static u8 lastAxis = 0;
 				u8 thisAxis = 0;
@@ -199,6 +205,12 @@ void gyroLoop() {
 							}
 						}
 						if (thisAxis != 255) break;
+					}
+					if (y && thisAxis == 255) {
+						printIndMessage("Did not find any axis");
+					}
+					else if (y){
+						printfIndMessage("Timer %d, axis %d", imuAlignmentCounter, thisAxis);
 					}
 					if (!isStill) thisAxis = 255;
 
@@ -251,6 +263,8 @@ void gyroLoop() {
 							// should not happen
 							imuAlignmentStep = 0;
 							alignImu = false;
+							if (!calibrateGyro && !calibrateAccel)
+								armingDisableFlags &= ~0x40;
 							break;
 						}
 
@@ -268,6 +282,8 @@ void gyroLoop() {
 						imuAlignmentCounter = 0;
 						imuAlignmentStep = 0;
 						imuAlignmentDone = true;
+						if (!calibrateGyro && !calibrateAccel)
+							armingDisableFlags &= ~0x40;
 					}
 					break;
 				}
@@ -612,6 +628,9 @@ void startImuAlignment() {
 	imuAlignmentCounter = -PID_FREQ * 1;
 	armingDisableFlags |= 0x40;
 	alignImu = true;
+}
+void getImuAlignment(u8 axes[3]) {
+	memcpy(axes, imuAlignment, 3);
 }
 
 #ifdef GYRO_BMI270

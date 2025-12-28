@@ -15,6 +15,7 @@ enum BARO_COEFFS {
 };
 constexpr i32 baroScaleFactor = 7864320;
 static i32 baroCalibration[9];
+static i32 baroTempRaw;
 #elifdef BARO_LPS22
 #endif
 
@@ -42,7 +43,6 @@ static u8 baroBuffer[32] = {0};
 static elapsedMicros baroTimer = 0;
 static u32 baroTimerTimeout = 0;
 i32 pressureRaw;
-static i32 baroTempRaw;
 
 void baroLoop() {
 	TASK_START(TASK_BARO);
