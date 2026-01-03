@@ -95,6 +95,22 @@ void Quaternion_normalize(Quaternion *q, Quaternion *output) {
 		output);
 }
 
+void Quaternion_normalize_fast(Quaternion *q) {
+	f32 magsq =
+		q->w * q->w +
+		q->v[0] * q->v[0] +
+		q->v[1] * q->v[1] +
+		q->v[2] * q->v[2];
+
+	// One Newton step toward unit length
+	f32 scale = 2.0f / (1.0f + magsq);
+
+	q->w *= scale;
+	q->v[0] *= scale;
+	q->v[1] *= scale;
+	q->v[2] *= scale;
+}
+
 void Quaternion_multiply(Quaternion *q1, Quaternion *q2, Quaternion *output) {
 	Quaternion result;
 

@@ -90,6 +90,12 @@ f32 Quaternion_norm(Quaternion *q);
 void Quaternion_normalize(Quaternion *q, Quaternion *output);
 
 /**
+ * Normalizes the quaternion. Faster, but only works for quaternions with a norm ~1
+ * (first order Newton approximation)
+ */
+void Quaternion_normalize_fast(Quaternion *q);
+
+/**
  * Multiplies two quaternions: output = q1 * q2
  * @param q1
  *      The rotation to apply on q2.

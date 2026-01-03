@@ -48,6 +48,9 @@
 #define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
 #define GYRO_BMI270
 
+#define TARGET_IDENTIFIER "KD05"
+#define TARGET_FULL_NAME "Kolibri Dev v0.5"
+
 #elif HW_VARIANT == HW_V6
 
 #define PIN_TX0 0 // UART0 / Serial1
@@ -90,6 +93,9 @@
 #define SPI_OSD spi1 // SPI for OSD
 #define SPI_GYRO spi0
 #define GYRO_ICM42688P
+
+#define TARGET_IDENTIFIER "KD06"
+#define TARGET_FULL_NAME "Kolibri Dev v0.6"
 #endif
 
 #ifdef SPI_GYRO

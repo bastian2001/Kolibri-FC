@@ -6,8 +6,8 @@
 
 elapsedMillis mspOverrideMotors = 1001;
 
-static constexpr char targetIdentifier[] = "KD05";
-static constexpr char targetFullName[] = "Kolibri Dev v0.5";
+static constexpr char targetIdentifier[] = TARGET_IDENTIFIER;
+static constexpr char targetFullName[] = TARGET_FULL_NAME;
 
 static elapsedMicros lastConfigPingRx = 0;
 bool configuratorConnected = false;
