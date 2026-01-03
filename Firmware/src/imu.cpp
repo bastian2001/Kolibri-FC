@@ -103,7 +103,7 @@ void imuAccelUpdate2() {
 	f32 axis[3];
 	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis); // reduces effect of accel noise on attitude
 
-	if (accAngle > ANGLE_CHANGE_LIMIT) accAngle = ANGLE_CHANGE_LIMIT;
+	if (accAngle > .1) accAngle = .1;
 
 	// Quaternion c;
 	f32 c[3]; // correction quaternion, but w is 1
