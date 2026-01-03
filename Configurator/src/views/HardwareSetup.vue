@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
-import { useLogStore } from '@stores/logStore';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 const AXES_NAMES = ['+X', '-X', '+Y', '-Y', '+Z', '-Z']
