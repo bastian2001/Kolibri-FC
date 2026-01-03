@@ -53,7 +53,7 @@ void imuInit() {
 void imuGyroUpdate() {
 	// quaternion of all 3 axis rotations combined
 
-	f32 all[] = {gyroDataRaw[0] * RAW_TO_HALF_ANGLE, gyroDataRaw[1] * RAW_TO_HALF_ANGLE, gyroDataRaw[2] * RAW_TO_HALF_ANGLE};
+	f32 all[] = {gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, gyroAligned[2] * RAW_TO_HALF_ANGLE};
 	Quaternion buffer = q;
 	q.w += (-buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2]);
 	q.v[0] += (+buffer.w * all[0] - buffer.v[1] * all[2] + buffer.v[2] * all[1]);
@@ -76,13 +76,13 @@ void imuAccelUpdate1() {
 	orientation_vector[1] = q.v[1] * q.v[2] * -2 + q.w * q.v[0] * 2;
 	orientation_vector[2] = -q.v[2] * q.v[2] + q.v[1] * q.v[1] + q.v[0] * q.v[0] - q.w * q.w;
 
-	f32 accelVectorNorm = sqrtf((i32)accelDataRaw[0] * (i32)accelDataRaw[0] + (i32)accelDataRaw[1] * (i32)accelDataRaw[1] + (i32)accelDataRaw[2] * (i32)accelDataRaw[2]);
+	f32 accelVectorNorm = sqrtf(accelAligned[0] * accelAligned[0] + accelAligned[1] * accelAligned[1] + accelAligned[2] * accelAligned[2]);
 	f32 accelVector[3];
 	if (accelVectorNorm > 100) { // prevent division by zero, assume at least some acceleration
 		f32 invAccelVectorNorm = 1 / accelVectorNorm;
-		accelVector[0] = invAccelVectorNorm * accelDataRaw[0];
-		accelVector[1] = invAccelVectorNorm * accelDataRaw[1];
-		accelVector[2] = invAccelVectorNorm * accelDataRaw[2];
+		accelVector[0] = invAccelVectorNorm * accelAligned[0];
+		accelVector[1] = invAccelVectorNorm * accelAligned[1];
+		accelVector[2] = invAccelVectorNorm * accelAligned[2];
 	} else {
 		return;
 	}

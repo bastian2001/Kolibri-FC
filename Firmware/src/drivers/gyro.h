@@ -6,7 +6,7 @@
 #define CALIBRATION_SAMPLES 1000
 #define QUIET_SAMPLES 1000
 #define GYRO_CALIBRATION_TOLERANCE 128 // (4deg/s)
-#define IMU_ALIGNMENT_TOLERANCE 400 // does not need to be exact, therefore rather big at 2m/s²
+#define IMU_ALIGNMENT_TOLERANCE 800 // does not need to be exact, therefore rather big at 4m/s²
 
 extern volatile bool accelCalDone; // accel calibration flag to save the data
 extern volatile u8 accelCalState; // 0 = normal operation, 1 = quiet, 2 = measuring
@@ -150,10 +150,10 @@ enum class GyroReg : u8 {
  * @details gyro data, and by extension the PID loop, is the most time-sensitive task. it gets priority, and once the data is read, the flag is set to FFFFFFFF so that other tasks know it's safe to run without impacting the gyro data or PID loop.
  */
 extern u32 gyroUpdateFlag;
-extern volatile i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of agDataRaw
-extern volatile i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of agDataRaw
 extern fix32 gyroScaled[3]; // gyro data in deg/s
 extern fix32 accelScaled[3]; // accel data in m/s^2
+extern i32 gyroAligned[3]; // after alignment, no scaling or filtering
+extern i32 accelAligned[3]; // after alignment, no scaling or filtering
 extern const fix32 *const gyroFiltered[3]; // gyro filter (currently PT1) deg/s
 extern const fix32 *const accelFiltered[3]; // PT1 filters for the accelerometer data, m/s^2
 

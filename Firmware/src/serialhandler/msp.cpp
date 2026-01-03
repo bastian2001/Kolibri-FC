@@ -300,12 +300,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
 		case MspFn::MSP_RAW_IMU: {
-			buf[len++] = accelDataRaw[0] & 0xFF; // accel x
-			buf[len++] = accelDataRaw[0] >> 8;
-			buf[len++] = accelDataRaw[1] & 0xFF; // accel y
-			buf[len++] = accelDataRaw[1] >> 8;
-			buf[len++] = accelDataRaw[2] & 0xFF; // accel z
-			buf[len++] = accelDataRaw[2] >> 8;
+			buf[len++] = accelAligned[0] & 0xFF; // accel x
+			buf[len++] = accelAligned[0] >> 8;
+			buf[len++] = accelAligned[1] & 0xFF; // accel y
+			buf[len++] = accelAligned[1] >> 8;
+			buf[len++] = accelAligned[2] & 0xFF; // accel z
+			buf[len++] = accelAligned[2] >> 8;
 			i16 gyroX = gyroScaled[0].geti32(); // gyro x
 			i16 gyroY = gyroScaled[1].geti32(); // gyro y
 			i16 gyroZ = gyroScaled[2].geti32(); // gyro z

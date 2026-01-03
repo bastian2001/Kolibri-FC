@@ -18,6 +18,7 @@
 #include <hardware/spi.h>
 #include <hardware/watchdog.h>
 #include <pico/stdlib.h>
+#include <pico/mutex.h>
 
 // Arduino
 #ifdef USE_TINYUSB

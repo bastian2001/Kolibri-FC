@@ -71,8 +71,8 @@ onBeforeUnmount(() => {
 			<p v-else-if="imuOrientationState === 1">Put your quad in its normal orientation.</p>
 			<p v-else-if="imuOrientationState === 2">Pitch your quad forward so that the nose points down.</p>
 			<p v-else-if="imuOrientationState === 3">Test the orientation.</p>
-			<p>Right: {{ AXES_NAMES[imuAxes[0]] }}</p>
-			<p>Back: {{ AXES_NAMES[imuAxes[1]] }}</p>
+			<p>Forward: {{ AXES_NAMES[imuAxes[0]] }}</p>
+			<p>Right: {{ AXES_NAMES[imuAxes[1]] }}</p>
 			<p>Down: {{ AXES_NAMES[imuAxes[2]] }}</p>
 		</div>
 		<div>
