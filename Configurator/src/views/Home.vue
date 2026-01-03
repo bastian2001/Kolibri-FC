@@ -78,12 +78,12 @@ export default defineComponent({
 			while (!this.exiting) {
 				try {
 					const c = await sendCommand(MspFn.GET_ROTATION)
-					let pitch = leBytesToInt(c.data, 0, 2, true)
-					pitch /= 8192.0
-					pitch *= 180.0 / Math.PI
-					let roll = leBytesToInt(c.data, 2, 2, true)
+					let roll = leBytesToInt(c.data, 0, 2, true)
 					roll /= 8192.0
 					roll *= 180.0 / Math.PI
+					let pitch = leBytesToInt(c.data, 2, 2, true)
+					pitch /= 8192.0
+					pitch *= 180.0 / Math.PI
 					let yaw = leBytesToInt(c.data, 4, 2, true)
 					yaw /= 8192.0
 					yaw *= 180.0 / Math.PI
@@ -122,7 +122,7 @@ export default defineComponent({
 		redrawDrone() {
 			(this.$refs.zBox as HTMLDivElement).style.transform = `rotateZ(${this.showHeading ? this.attitude.heading : this.attitude.yaw}deg) translateZ(10px)`;
 			(this.$refs.yBox as HTMLDivElement).style.transform = `rotateX(${this.attitude.pitch}deg)`;
-			(this.$refs.xBox as HTMLDivElement).style.transform = `rotateY(${-this.attitude.roll}deg)`
+			(this.$refs.xBox as HTMLDivElement).style.transform = `rotateY(${this.attitude.roll}deg)`
 		},
 		ledOn() {
 			sendCommand(MspFn.SET_DEBUG_LED, [1])

@@ -244,6 +244,7 @@ void gyroLoop() {
 					}
 					if (++imuAlignmentCounter >= PID_FREQ * 1) {
 						// found orientation, calculate third one
+						firstAxis ^= 1; // we found up axis, but we want down axis
 						thisAxis ^= 1; // we found back axis, but we want forward axis
 						u8 a0 = thisAxis / 2;
 						u8 a1 = 0;
@@ -328,7 +329,10 @@ void gyroDmaInterrupt() {
 	if (interrupts & (1u << gyroDmaRxChannel)) {
 		gpio_put(PIN_GYRO_CS, 1);
 		dma_hw->ints1 = 1u << gyroDmaRxChannel;
-		if (!mutex_try_enter(&agDataRawAccess, nullptr)) return;
+		if (!mutex_try_enter(&agDataRawAccess, nullptr)) {
+			tasks[TASK_GYROREAD].errorCount++;
+			return;
+		}
 		u8 *data = (u8 *)agDataRaw;
 #ifdef GYRO_BMI270
 		for (int i = 0; i < GYRO_DMA_LENGTH - 2; i++) {

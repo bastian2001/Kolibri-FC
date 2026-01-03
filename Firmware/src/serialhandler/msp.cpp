@@ -834,14 +834,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::GET_ROTATION: {
 			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
-			int rotationPitch = (pitch * 8192).geti32();
-			int rotationRoll = (roll * 8192).geti32();
-			int rotationYaw = (yaw * 8192).geti32();
+			int rotationRoll = roll.raw >> 3;
+			int rotationPitch = pitch.raw >> 3;
+			int rotationYaw = yaw.raw >> 3;
 			int heading = combinedHeading.raw >> 3;
-			buf[0] = rotationPitch & 0xFF;
-			buf[1] = rotationPitch >> 8;
-			buf[2] = rotationRoll & 0xFF;
-			buf[3] = rotationRoll >> 8;
+			buf[0] = rotationRoll & 0xFF;
+			buf[1] = rotationRoll >> 8;
+			buf[2] = rotationPitch & 0xFF;
+			buf[3] = rotationPitch >> 8;
 			buf[4] = rotationYaw & 0xFF;
 			buf[5] = rotationYaw >> 8;
 			buf[6] = heading & 0xFF;

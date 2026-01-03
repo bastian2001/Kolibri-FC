@@ -6,7 +6,7 @@
 #define CALIBRATION_SAMPLES 1000
 #define QUIET_SAMPLES 1000
 #define GYRO_CALIBRATION_TOLERANCE 128 // (4deg/s)
-#define IMU_ALIGNMENT_TOLERANCE 800 // does not need to be exact, therefore rather big at 4m/s²
+#define IMU_ALIGNMENT_TOLERANCE 400 // does not need to be exact, therefore rather big at 2m/s²
 
 extern volatile bool accelCalDone; // accel calibration flag to save the data
 extern volatile u8 accelCalState; // 0 = normal operation, 1 = quiet, 2 = measuring

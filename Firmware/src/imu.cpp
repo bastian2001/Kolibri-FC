@@ -1,9 +1,15 @@
 #include "global.h"
 
+// Partly taken from
+// https://github.com/catphish/openuav/blob/master/firmware/src/imu.c
+
 // COORDINATE SYSTEM:
 // X: forward / roll right
 // Y: right / pitch up
 // Z: down / yaw right
+
+// Applied in the order yaw -> pitch -> roll
+// (rotate in horizontal plane -> how much to look up -> then roll right)
 
 static constexpr f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
 static constexpr f32 FRAME_TIME = 1. / PID_FREQ;
