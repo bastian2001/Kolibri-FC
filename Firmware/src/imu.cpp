@@ -53,12 +53,12 @@ void imuInit() {
 void imuGyroUpdate() {
 	// quaternion of all 3 axis rotations combined
 
-	f32 all[] = {gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, gyroAligned[2] * RAW_TO_HALF_ANGLE};
+	f32 all[] = {-gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, gyroAligned[2] * RAW_TO_HALF_ANGLE};
 	Quaternion buffer = q;
-	q.w += (-buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2]);
-	q.v[0] += (+buffer.w * all[0] - buffer.v[1] * all[2] + buffer.v[2] * all[1]);
-	q.v[1] += (+buffer.w * all[1] + buffer.v[0] * all[2] - buffer.v[2] * all[0]);
-	q.v[2] += (+buffer.w * all[2] - buffer.v[0] * all[1] + buffer.v[1] * all[0]);
+	q.w += -buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2];
+	q.v[0] += +buffer.w * all[0] - buffer.v[1] * all[2] + buffer.v[2] * all[1];
+	q.v[1] += +buffer.w * all[1] + buffer.v[0] * all[2] - buffer.v[2] * all[0];
+	q.v[2] += +buffer.w * all[2] - buffer.v[0] * all[1] + buffer.v[1] * all[0];
 
 	Quaternion_normalize(&q, &q);
 }
@@ -81,8 +81,8 @@ void imuAccelUpdate1() {
 	if (accelVectorNorm > 100) { // prevent division by zero, assume at least some acceleration
 		f32 invAccelVectorNorm = 1 / accelVectorNorm;
 		accelVector[0] = invAccelVectorNorm * accelAligned[0];
-		accelVector[1] = invAccelVectorNorm * accelAligned[1];
-		accelVector[2] = invAccelVectorNorm * accelAligned[2];
+		accelVector[1] = invAccelVectorNorm * -accelAligned[1];
+		accelVector[2] = invAccelVectorNorm * -accelAligned[2];
 	} else {
 		return;
 	}
