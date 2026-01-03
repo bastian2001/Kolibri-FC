@@ -57,14 +57,15 @@ void imuInit() {
 }
 
 void imuGyroUpdate() {
+	if (millis() < 3000) Quaternion_setIdentity(&q);
 	// quaternion of all 3 axis rotations combined
 
-	f32 all[] = {-gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, gyroAligned[2] * RAW_TO_HALF_ANGLE};
+	f32 all[] = {gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, gyroAligned[2] * RAW_TO_HALF_ANGLE};
 	Quaternion buffer = q;
 	q.w += -buffer.v[0] * all[0] - buffer.v[1] * all[1] - buffer.v[2] * all[2];
-	q.v[0] += +buffer.w * all[0] - buffer.v[1] * all[2] + buffer.v[2] * all[1];
-	q.v[1] += +buffer.w * all[1] + buffer.v[0] * all[2] - buffer.v[2] * all[0];
-	q.v[2] += +buffer.w * all[2] - buffer.v[0] * all[1] + buffer.v[1] * all[0];
+	q.v[0] += +buffer.w * all[0] + buffer.v[1] * all[2] - buffer.v[2] * all[1];
+	q.v[1] += +buffer.w * all[1] - buffer.v[0] * all[2] + buffer.v[2] * all[0];
+	q.v[2] += +buffer.w * all[2] + buffer.v[0] * all[1] - buffer.v[1] * all[0];
 
 	Quaternion_normalize(&q, &q);
 }
@@ -72,6 +73,7 @@ void imuGyroUpdate() {
 static f32 orientation_vector[3];
 static Quaternion shortest_path;
 void imuAccelUpdate1() {
+	return;
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
 	// p2.y = 2*x*y*p1.x + y*y*p1.y + 2*z*y*p1.z + 2*w*z*p1.x - z*z*p1.y + w*w*p1.y - 2*x*w*p1.z - x*x*p1.y;
@@ -96,6 +98,7 @@ void imuAccelUpdate1() {
 }
 
 void imuAccelUpdate2() {
+	return;
 	f32 axis[3];
 	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis); // reduces effect of accel noise on attitude
 
@@ -122,9 +125,9 @@ void imuAccelUpdate2() {
 
 void imuUpdatePitchRoll() {
 	startFixMath();
-	roll = atan2Fix(2 * (q.w * q.v[0] - q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
-	pitch = asinf(2 * (q.w * q.v[1] + q.v[2] * q.v[0]));
-	yaw = atan2Fix(2 * (q.v[0] * q.v[1] - q.w * q.v[2]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
+	roll = atan2Fix(2 * (q.w * q.v[0] + q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
+	pitch = asinf(constrain(2 * (q.w * q.v[1] - q.v[2] * q.v[0]), -1, 1));
+	yaw = atan2Fix(2 * (q.w * q.v[2] + q.v[0] * q.v[1]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
 	fix32 temp = yaw + magHeadingCorrection;
 	if (temp >= FIX_PI) {
 		temp -= FIX_PI * 2;

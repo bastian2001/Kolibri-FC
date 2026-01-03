@@ -121,7 +121,7 @@ export default defineComponent({
 		},
 		redrawDrone() {
 			(this.$refs.zBox as HTMLDivElement).style.transform = `rotateZ(${this.showHeading ? this.attitude.heading : this.attitude.yaw}deg) translateZ(10px)`;
-			(this.$refs.yBox as HTMLDivElement).style.transform = `rotateX(${this.attitude.pitch}deg)`;
+			(this.$refs.yBox as HTMLDivElement).style.transform = `rotateX(${-this.attitude.pitch}deg)`;
 			(this.$refs.xBox as HTMLDivElement).style.transform = `rotateY(${this.attitude.roll}deg)`
 		},
 		ledOn() {
