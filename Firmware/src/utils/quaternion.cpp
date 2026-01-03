@@ -180,14 +180,40 @@ void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *out
 	f32 dot;
 	Vector_dot(v0, v1, &dot);
 
+	// Clamp dot to avoid tiny numeric drift producing invalid acos/normalize
+	if (dot > 1) dot = 1;
+	if (dot < -1) dot = -1;
+
 	if (dot > ONE_MINUS_EPS) {
 		Quaternion_setIdentity(output);
 		return;
 	} else if (dot < -ONE_MINUS_EPS) {
-		// Rotate along any orthonormal vec to vec1 or vec2 as the axis.
+		// 180 deg rotation: choose a stable axis not parallel to v0.
+		// Pick the basis vector least aligned with v0 to avoid zero cross.
+		f32 vTemp[3];
+		if (fabsf(v0[0]) < fabsf(v0[1])) {
+			vTemp[0] = 1;
+			vTemp[1] = 0;
+			vTemp[2] = 0;
+		} else {
+			vTemp[0] = 0;
+			vTemp[1] = 1;
+			vTemp[2] = 0;
+		}
 		f32 cross[3];
-		f32 vTemp[3] = {1, 0, 0};
 		Vector_cross(vTemp, v0, cross);
+		// Normalize the axis before creating the quaternion.
+		f32 axisNorm = sqrtf(cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]);
+		if (axisNorm < 1e-6f) {
+			// Fallback axis if still degenerate (should be rare).
+			cross[0] = 0;
+			cross[1] = 0;
+			cross[2] = 1;
+			axisNorm = 1;
+		}
+		cross[0] /= axisNorm;
+		cross[1] /= axisNorm;
+		cross[2] /= axisNorm;
 		Quaternion_fromAxisAngle(cross, (f32)PI, output);
 		return;
 	}

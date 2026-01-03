@@ -81,11 +81,11 @@ void imuAccelUpdate1() {
 
 	// world's down axis in quad's coordinate system
 	f32 orientation_vector[3];
-	// f32 temp[3] = {0, 0, -1};
-	// Quaternion_rotate(&con, temp, orientation_vector);
-	orientation_vector[0] = con.w * con.v[1] * -2 + con.v[0] * con.v[2] * -2;
-	orientation_vector[1] = con.v[1] * con.v[2] * -2 + con.w * con.v[0] * 2;
-	orientation_vector[2] = -con.v[2] * con.v[2] + con.v[1] * con.v[1] + con.v[0] * con.v[0] - con.w * con.w;
+	f32 temp[3] = {0, 0, 1};
+	Quaternion_rotate(&con, temp, orientation_vector);
+	// orientation_vector[0] = con.w * con.v[1] * -2 + con.v[0] * con.v[2] * -2;
+	// orientation_vector[1] = con.v[1] * con.v[2] * -2 + con.w * con.v[0] * 2;
+	// orientation_vector[2] = -con.v[2] * con.v[2] + con.v[1] * con.v[1] + con.v[0] * con.v[0] - con.w * con.w;
 
 	f32 accelVectorNorm = sqrtf(accelAligned[0] * accelAligned[0] +
 								accelAligned[1] * accelAligned[1] +
@@ -96,7 +96,12 @@ void imuAccelUpdate1() {
 	accelVector[0] = invAccelVectorNorm * accelAligned[0];
 	accelVector[1] = invAccelVectorNorm * accelAligned[1];
 	accelVector[2] = invAccelVectorNorm * accelAligned[2];
-	Quaternion_from_unit_vecs(accelVector, orientation_vector, &shortest_path);
+
+	// Accelerometer measures specific force (upward when only gravity acts).
+	// Convert to a gravity/down estimate to match orientation_vector.
+	f32 accelDown[3] = {accelVector[0], accelVector[1], accelVector[2]};
+	// Rotate estimated down into measured accel; order matters (from estimate to measurement)
+	Quaternion_from_unit_vecs(orientation_vector, accelDown, &shortest_path);
 }
 
 void imuAccelUpdate2() {
@@ -105,23 +110,23 @@ void imuAccelUpdate2() {
 
 	if (accAngle > ANGLE_CHANGE_LIMIT) accAngle = ANGLE_CHANGE_LIMIT;
 
-	// Quaternion c;
-	f32 c[3]; // correction quaternion, but w is 1
-	// Quaternion_fromAxisAngle(axis, accAngle, &c);
-	f32 co = accAngle * 0.5f;
-	c[0] = axis[0] * co;
-	c[1] = axis[1] * co;
-	c[2] = axis[2] * co;
+	Quaternion c;
+	// f32 c[3]; // correction quaternion, but w is 1
+	Quaternion_fromAxisAngle(axis, accAngle, &c);
+	// f32 co = accAngle * 0.5f;
+	// c[0] = axis[0] * co;
+	// c[1] = axis[1] * co;
+	// c[2] = axis[2] * co;
 
-	// Quaternion_multiply(&q, &c, &q);
-	Quaternion buffer;
-	buffer.w = q.w - c[0] * q.v[0] - c[1] * q.v[1] - c[2] * q.v[2];
-	buffer.v[0] = c[0] * q.w + q.v[0] + c[1] * q.v[2] - c[2] * q.v[1];
-	buffer.v[1] = q.v[1] - c[0] * q.v[2] + c[1] * q.w + c[2] * q.v[0];
-	buffer.v[2] = q.v[2] + c[0] * q.v[1] - c[1] * q.v[0] + c[2] * q.w;
-	// q = buffer;
+	// Apply correction in body frame (right-multiply) so predicted down rotates toward measured down
+	Quaternion_multiply(&q, &c, &q);
+	// Quaternion buffer;
+	// buffer.w = q.w - c[0] * q.v[0] - c[1] * q.v[1] - c[2] * q.v[2];
+	// buffer.v[0] = c[0] * q.w + q.v[0] + c[1] * q.v[2] - c[2] * q.v[1];
+	// buffer.v[1] = q.v[1] - c[0] * q.v[2] + c[1] * q.w + c[2] * q.v[0];
+	// buffer.v[2] = q.v[2] + c[0] * q.v[1] - c[1] * q.v[0] + c[2] * q.w;
 
-	Quaternion_normalize(&buffer, &q);
+	Quaternion_normalize(&q, &q);
 }
 
 void imuUpdatePitchRoll() {
