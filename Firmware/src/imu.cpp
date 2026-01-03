@@ -14,7 +14,7 @@
 static constexpr f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
 static constexpr f32 FRAME_TIME = 1. / PID_FREQ;
 static constexpr f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
-static constexpr f32 ANGLE_CHANGE_LIMIT = .0005;
+static constexpr f32 ANGLE_CHANGE_LIMIT = 0.2 * (8 * FRAME_TIME); // 0.2 rad per second
 fix32 accelFilterCutoff;
 fix32 roll, pitch, yaw;
 fix32 combinedHeading; // heading of quad, NOT heading of motion
@@ -103,7 +103,7 @@ void imuAccelUpdate2() {
 	f32 axis[3];
 	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis); // reduces effect of accel noise on attitude
 
-	if (accAngle > .1) accAngle = .1;
+	if (accAngle > ANGLE_CHANGE_LIMIT) accAngle = ANGLE_CHANGE_LIMIT;
 
 	// Quaternion c;
 	f32 c[3]; // correction quaternion, but w is 1
