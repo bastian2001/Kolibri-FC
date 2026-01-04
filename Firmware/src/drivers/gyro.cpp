@@ -68,15 +68,8 @@ static volatile const u32 gyroDmaTxData[13] = {0x80UL | (u32)GyroReg::ACC_X_MSB,
 #endif
 #define GYRO_DMA_LENGTH ARRAYLEN(gyroDmaTxData)
 static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {0};
-static elapsedMicros gyroInterruptTimer = 0;
-static void fetchGyro();
 
 void gyroLoop() {
-	if (gyroInterruptTimer > 1000000 / PID_FREQ * 2) {
-		tasks[TASK_GYROREAD].debugInfo = 2;
-		gyroInterruptTimer = 0;
-		fetchGyro();
-	}
 	if (gyroInterrupts) {
 		u32 duration = taskTimerGyro;
 		if (tasks[TASK_GYROREAD].maxGap < duration)
@@ -125,7 +118,7 @@ void gyroLoop() {
 			bool isVeryStill = true;
 			for (int ax = 0; ax < 3; ax++) {
 				if (abs(gyroDataRaw[ax]) >= GYRO_CALIBRATION_TOLERANCE) isVeryStill = false;
-				// if (abs(gyroDataRaw[ax]) >= 5 * GYRO_CALIBRATION_TOLERANCE) isStill = false;
+				if (abs(gyroDataRaw[ax]) >= 5 * GYRO_CALIBRATION_TOLERANCE) isStill = false;
 			}
 
 			if (calibrateGyro) {
@@ -290,12 +283,7 @@ void gyroLoop() {
 	}
 }
 
-static void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
-	tasks[TASK_GYROREAD].debugInfo = 1;
-	gyroInterruptTimer = 0;
-	fetchGyro();
-}
-static void fetchGyro() {
+static void gyroGpioInterrupt() {
 	// abort channels if they are not done
 	dma_channel_abort(gyroDmaRxChannel);
 	dma_channel_abort(gyroDmaTxChannel);
