@@ -1,5 +1,3 @@
-#include "typedefs.h"
-
 #define SD_BB 0
 #define FLASH_BB 1
 

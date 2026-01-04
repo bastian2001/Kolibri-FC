@@ -283,7 +283,7 @@ void gyroLoop() {
 	}
 }
 
-static void gyroGpioInterrupt() {
+static void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
 	// abort channels if they are not done
 	dma_channel_abort(gyroDmaRxChannel);
 	dma_channel_abort(gyroDmaTxChannel);

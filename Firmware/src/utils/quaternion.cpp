@@ -36,8 +36,9 @@ void Quaternion_fromAxisAngle(f32 axis[3], f32 angle, Quaternion *output) {
 
 f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
-	f32 angle = acosf(q->w) * 2;
-	f32 divider = sqrtf(1 - q->w * q->w);
+	f32 w = constrain(q->w, -1, 1);
+	f32 angle = acosf(w) * 2;
+	f32 divider = sqrtf(1 - w * w);
 
 	if (divider > 0.0001f) {
 		// Calculate the axis
@@ -45,13 +46,13 @@ f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 		output[0] = q->v[0] * divNew;
 		output[1] = q->v[1] * divNew;
 		output[2] = q->v[2] * divNew;
-	} else {
-		// Arbitrary normalized axis
-		output[0] = 1;
-		output[1] = 0;
-		output[2] = 0;
+		return angle;
 	}
-	return angle;
+	// Arbitrary normalized axis
+	output[0] = 1;
+	output[1] = 0;
+	output[2] = 0;
+	return 0;
 }
 
 void Quaternion_fromXRotation(f32 angle, Quaternion *output) {

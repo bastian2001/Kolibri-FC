@@ -59,12 +59,23 @@ void imuInit() {
 
 void imuGyroUpdate() {
 	// quaternion of all 3 axis rotations combined
-	f32 dq[] = {gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, gyroAligned[2] * RAW_TO_HALF_ANGLE};
-	Quaternion buffer = q;
-	q.w += -buffer.v[0] * dq[0] - buffer.v[1] * dq[1] - buffer.v[2] * dq[2];
-	q.v[0] += +buffer.w * dq[0] + buffer.v[1] * dq[2] - buffer.v[2] * dq[1];
-	q.v[1] += +buffer.w * dq[1] - buffer.v[0] * dq[2] + buffer.v[2] * dq[0];
-	q.v[2] += +buffer.w * dq[2] + buffer.v[0] * dq[1] - buffer.v[1] * dq[0];
+
+	// f32 dq[] = {gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, -gyroAligned[2] * RAW_TO_HALF_ANGLE};
+	// Quaternion buffer = q;
+	// q.w += (-buffer.v[0] * dq[0] - buffer.v[1] * dq[1] - buffer.v[2] * dq[2]);
+	// q.v[0] += (+buffer.w * dq[0] - buffer.v[1] * dq[2] + buffer.v[2] * dq[1]);
+	// q.v[1] += (+buffer.w * dq[1] + buffer.v[0] * dq[2] - buffer.v[2] * dq[0]);
+	// q.v[2] += (+buffer.w * dq[2] - buffer.v[0] * dq[1] + buffer.v[1] * dq[0]);
+	// if (abs(gyroAligned[0]) > 1000 || abs(gyroAligned[1]) > 1000 || abs(gyroAligned[2]) > 1000) {
+	// 	printfIndMessage("%d %d %d", gyroAligned[0], gyroAligned[1], gyroAligned[2]);
+	// }
+
+	Quaternion dq;
+	dq.w = 1;
+	dq.v[0] = gyroAligned[0] * RAW_TO_HALF_ANGLE;
+	dq.v[1] = gyroAligned[1] * RAW_TO_HALF_ANGLE;
+	dq.v[2] = gyroAligned[2] * RAW_TO_HALF_ANGLE;
+	Quaternion_multiply(&q, &dq, &q);
 
 	Quaternion_normalize(&q);
 }
@@ -77,32 +88,31 @@ void imuAccelUpdate1() {
 	// p2.z = 2*x*z*p1.x + 2*y*z*p1.y + z*z*p1.z - 2*w*y*p1.x - y*y*p1.z + 2*w*x*p1.y - x*x*p1.z + w*w*p1.z;
 	// with p1.x = 0, p1.y = 0, p1.z = -1, things can be simplified
 
-	Quaternion con;
-	Quaternion_conjugate(&q, &con);
-
-	// world's down axis in quad's coordinate system
 	f32 orientation_vector[3];
-	f32 temp[3] = {0, 0, 1};
-	Quaternion_rotate(&con, temp, orientation_vector);
-	// orientation_vector[0] = con.w * con.v[1] * -2 + con.v[0] * con.v[2] * -2;
-	// orientation_vector[1] = con.v[1] * con.v[2] * -2 + con.w * con.v[0] * 2;
-	// orientation_vector[2] = -con.v[2] * con.v[2] + con.v[1] * con.v[1] + con.v[0] * con.v[0] - con.w * con.w;
+	// orientation_vector[0] = q.w * q.v[1] * -2 + q.v[0] * q.v[2] * -2;
+	// orientation_vector[1] = q.v[1] * q.v[2] * -2 + q.w * q.v[0] * 2;
+	// orientation_vector[2] = -q.v[2] * q.v[2] + q.v[1] * q.v[1] + q.v[0] * q.v[0] - q.w * q.w;
 
-	f32 accelVectorNorm = sqrtf(accelAligned[0] * accelAligned[0] +
-								accelAligned[1] * accelAligned[1] +
-								accelAligned[2] * accelAligned[2]);
+	// When stationary (which is on average the case), the measured acceleration points against gravity
+	// In world frame: gravity is (0,0,1) down, so specific force is (0,0,-1).
+	// q is body->world, so use q* to bring that world vector into body.
+	Quaternion q_conj;
+	Quaternion_conjugate(&q, &q_conj);
+	f32 specForceWorld[3] = {0, 0, -1};
+	Quaternion_rotate(&q_conj, specForceWorld, orientation_vector);
+
+	f32 accelVectorNorm = sqrtf(accelAligned[0] * accelAligned[0] + accelAligned[1] * accelAligned[1] + accelAligned[2] * accelAligned[2]);
 	f32 accelVector[3];
-	if (accelVectorNorm < 100) return; // throw out useless accel values, avoid division by 0
+	if (accelVectorNorm < 100) { // throw out useless accel values, avoid division by 0
+		Quaternion_setIdentity(&shortest_path);
+		return;
+	}
 	f32 invAccelVectorNorm = 1 / accelVectorNorm;
 	accelVector[0] = invAccelVectorNorm * accelAligned[0];
 	accelVector[1] = invAccelVectorNorm * accelAligned[1];
 	accelVector[2] = invAccelVectorNorm * accelAligned[2];
 
-	// Accelerometer measures specific force (upward when only gravity acts).
-	// Convert to a gravity/down estimate to match orientation_vector.
-	f32 accelDown[3] = {accelVector[0], accelVector[1], accelVector[2]};
-	// Rotate estimated down into measured accel; order matters (from estimate to measurement)
-	Quaternion_from_unit_vecs(orientation_vector, accelDown, &shortest_path);
+	Quaternion_from_unit_vecs(accelVector, orientation_vector, &shortest_path);
 }
 
 void imuAccelUpdate2() {
@@ -112,29 +122,29 @@ void imuAccelUpdate2() {
 	if (accAngle > ANGLE_CHANGE_LIMIT) accAngle = ANGLE_CHANGE_LIMIT;
 
 	Quaternion c;
-	// f32 c[3]; // correction quaternion, but w is 1
 	Quaternion_fromAxisAngle(axis, accAngle, &c);
+	Quaternion_multiply(&q, &c, &q);
+	// f32 c[3]; // correction quaternion, but w is 1
 	// f32 co = accAngle * 0.5f;
 	// c[0] = axis[0] * co;
 	// c[1] = axis[1] * co;
 	// c[2] = axis[2] * co;
 
-	// Apply correction in body frame (right-multiply) so predicted down rotates toward measured down
-	Quaternion_multiply(&q, &c, &q);
 	// Quaternion buffer;
 	// buffer.w = q.w - c[0] * q.v[0] - c[1] * q.v[1] - c[2] * q.v[2];
 	// buffer.v[0] = c[0] * q.w + q.v[0] + c[1] * q.v[2] - c[2] * q.v[1];
 	// buffer.v[1] = q.v[1] - c[0] * q.v[2] + c[1] * q.w + c[2] * q.v[0];
 	// buffer.v[2] = q.v[2] + c[0] * q.v[1] - c[1] * q.v[0] + c[2] * q.w;
+	// q = buffer;
 
 	Quaternion_normalize(&q);
 }
 
 void imuUpdatePitchRoll() {
 	startFixMath();
-	roll = atan2Fix(2 * (q.w * q.v[0] + q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
+	roll = atan2f(2 * (q.w * q.v[0] + q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(constrain(2 * (q.w * q.v[1] - q.v[2] * q.v[0]), -1, 1));
-	yaw = atan2Fix(2 * (q.w * q.v[2] + q.v[0] * q.v[1]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
+	yaw = atan2f(2 * (q.w * q.v[2] + q.v[0] * q.v[1]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
 	fix32 temp = yaw + magHeadingCorrection;
 	if (temp >= FIX_PI) {
 		temp -= FIX_PI * 2;
