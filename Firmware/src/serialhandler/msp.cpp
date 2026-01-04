@@ -22,11 +22,15 @@ void configuratorLoop() {
 		configuratorConnected = false;
 	if (accelCalDone) {
 		accelCalDone = false;
-		accelCalState = 0;
-		openSettingsFile();
-		getSetting(SETTING_ACC_CAL)->updateSettingInFile();
-		closeSettingsFile();
-		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS, lastMspVersion);
+		if (accelCalState == 0) {
+			openSettingsFile();
+			getSetting(SETTING_ACC_CAL)->updateSettingInFile();
+			closeSettingsFile();
+			sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS, lastMspVersion);
+		} else if (accelCalState >= 128) {
+			accelCalState = 0;
+			printIndMessage("ERROR: Accelerometer calibration failed. IMU alignment correct?");
+		}
 	}
 	if (imuAlignmentDone) {
 		imuAlignmentDone = false;

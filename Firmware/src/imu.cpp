@@ -116,8 +116,9 @@ void imuAccelUpdate1() {
 }
 
 void imuAccelUpdate2() {
+	// We limit the correction angle so the accel can only slowly correct the attitude over time
 	f32 axis[3];
-	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis); // reduces effect of accel noise on attitude
+	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis); 
 
 	if (accAngle > ANGLE_CHANGE_LIMIT) accAngle = ANGLE_CHANGE_LIMIT;
 

@@ -153,21 +153,33 @@ void gyroLoop() {
 			if (calibrateAccel) {
 				if (isVeryStill) {
 					accelCalibratedCycles++;
-					if (accelCalibratedCycles >= CALIBRATION_SAMPLES) {
-						// TODO respect alignment
+					if (accelCalibratedCycles >= QUIET_SAMPLES) {
 						accelCalibrationOffsetTemp[0] += accelDataRaw[0];
 						accelCalibrationOffsetTemp[1] += accelDataRaw[1];
-						accelCalibrationOffsetTemp[2] += accelDataRaw[2] - 2048;
+						accelCalibrationOffsetTemp[2] += accelDataRaw[2];
+						int vertAx = imuAlignment[2] >> 1;
+						bool upIsPos = imuAlignment[2] & 1;
+						accelCalibrationOffsetTemp[vertAx] += upIsPos ? -2048 : 2048;
 						accelCalState = 2;
 					}
 					if (accelCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
 						if (!alignImu && !calibrateGyro)
 							armingDisableFlags &= ~0x40;
-						accelCalibrationOffset[0] = (accelCalibrationOffsetTemp[0] + (accelCalibrationOffset[0] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-						accelCalibrationOffset[1] = (accelCalibrationOffsetTemp[1] + (accelCalibrationOffset[1] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-						accelCalibrationOffset[2] = (accelCalibrationOffsetTemp[2] + (accelCalibrationOffset[2] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-						accelCalDone = true;
+						i32 newCalib[3];
+						for (int i = 0; i < 3; i++) {
+							newCalib[i] = (accelCalibrationOffsetTemp[i] + (accelCalibrationOffset[i] > 0 ? CALIBRATION_SAMPLES / 2 : -CALIBRATION_SAMPLES / 2)) / CALIBRATION_SAMPLES;
+							if (newCalib[i] > 128 || newCalib[i] < -128) {
+								accelCalState = 255;
+								accelCalDone = true;
+								calibrateAccel = false;
+								return;
+							}
+						}
+						for (int i = 0; i < 3; i++) {
+							accelCalibrationOffset[i] = newCalib[i];
+						}
 						accelCalState = 0;
+						accelCalDone = true;
 						calibrateAccel = false;
 					}
 				} else {
@@ -177,17 +189,9 @@ void gyroLoop() {
 					accelCalibratedCycles = 0;
 				}
 			}
-			static elapsedMicros x = 0;
-			bool y = false;
-			if (x > 200000) {
-				x = 0;
-				y = true;
-			}
 			if (alignImu) {
-				static u32 newAxisCounter = 0;
 				static u8 lastAxis = 0;
-				static u8 thisAxis = 255;
-				u8 newAxis = 255;
+				u8 thisAxis = 255;
 				for (int i = 0; i < 3; i++) {
 					for (int j = 0; j < 2; j++) {
 						int x = abs(accelDataRaw[i] * (j ? -1 : 1) - 2048);
@@ -196,20 +200,11 @@ void gyroLoop() {
 						if (x < IMU_ALIGNMENT_TOLERANCE &&
 							y < IMU_ALIGNMENT_TOLERANCE &&
 							z < IMU_ALIGNMENT_TOLERANCE) {
-							newAxis = i * 2 + j;
+							thisAxis = i * 2 + j;
 							break;
 						}
 					}
-					if (newAxis != 255) break;
-				}
-				if (newAxis != thisAxis) {
-					// filter out some noise
-					if (++newAxisCounter == 10) {
-						thisAxis = newAxis;
-						newAxisCounter = 0;
-					}
-				} else {
-					newAxisCounter = 0;
+					if (thisAxis != 255) break;
 				}
 				switch (imuAlignmentStep) {
 				case 1:
