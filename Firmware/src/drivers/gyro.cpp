@@ -84,14 +84,13 @@ void gyroLoop() {
 		TASK_START(TASK_GYROREAD);
 
 		i16 agCopy[6];
-		if (mutex_try_enter(&agDataRawAccess, nullptr)) {
-			memcpy(agCopy, (void *)agDataRaw, 12);
-			mutex_exit(&agDataRawAccess);
-		} else {
+		if (!mutex_try_enter(&agDataRawAccess, nullptr)) {
 			tasks[TASK_GYROREAD].errorCount++;
 			TASK_END(TASK_GYROREAD);
 			return;
 		}
+		memcpy(agCopy, (void *)agDataRaw, 12);
+		mutex_exit(&agDataRawAccess);
 
 		gyroInterrupts--;
 		if (gyroInterrupts > 3) {
@@ -593,6 +592,30 @@ int gyroInit() {
 
 	gpio_set_irq_enabled_with_callback(PIN_GYRO_INT1, GPIO_IRQ_EDGE_RISE, true, &gyroGpioInterrupt);
 
+#ifdef GYRO_ICM42688P
+	// wait up to 50ms for gyro to release valid samples (page 75 in datasheet of ICM-42688-P)
+	elapsedMicros readyTimer = 0;
+	while (readyTimer < 50000) {
+		if (gyroInterrupts) {
+			gyroInterrupts--;
+
+			i16 agCopy[6];
+			if (!mutex_try_enter(&agDataRawAccess, nullptr)) {
+				tasks[TASK_GYROREAD].errorCount++;
+				continue;
+			}
+			memcpy(agCopy, (void *)agDataRaw, 12);
+			mutex_exit(&agDataRawAccess);
+
+			bool valid = true;
+			for (int i = 0; i < 6; i++) {
+				if (agCopy[i] == -32768) valid = false;
+			}
+			if (valid) return 0;
+		}
+	}
+	return 1;
+#endif
 	return 0;
 }
 
