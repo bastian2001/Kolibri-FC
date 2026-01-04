@@ -54,6 +54,7 @@ void imuInit() {
 	magHeadingCorrection.setRolloverParams(-FIX_PI, FIX_PI);
 
 	combinedAltitudeFilter.set(baroASL);
+	Quaternion_setIdentity(&q);
 }
 
 void imuGyroUpdate() {
@@ -65,10 +66,10 @@ void imuGyroUpdate() {
 	q.v[1] += +buffer.w * dq[1] - buffer.v[0] * dq[2] + buffer.v[2] * dq[0];
 	q.v[2] += +buffer.w * dq[2] + buffer.v[0] * dq[1] - buffer.v[1] * dq[0];
 
-	Quaternion_normalize(&q, &q);
+	Quaternion_normalize(&q);
 }
 
-static Quaternion shortest_path;
+static Quaternion shortest_path = {0, 0, 0, 1};
 void imuAccelUpdate1() {
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
@@ -126,7 +127,7 @@ void imuAccelUpdate2() {
 	// buffer.v[1] = q.v[1] - c[0] * q.v[2] + c[1] * q.w + c[2] * q.v[0];
 	// buffer.v[2] = q.v[2] + c[0] * q.v[1] - c[1] * q.v[0] + c[2] * q.w;
 
-	Quaternion_normalize(&q, &q);
+	Quaternion_normalize(&q);
 }
 
 void imuUpdatePitchRoll() {

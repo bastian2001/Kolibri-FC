@@ -196,7 +196,7 @@ static void inline runAngleMode4() {
 	Quaternion currentQuatInv;
 	Quaternion_conjugate(&q, &currentQuatInv);
 	Quaternion_multiply(&targetQuat, &currentQuatInv, &diffQuat);
-	Quaternion_normalize(&diffQuat, &diffQuat);
+	Quaternion_normalize(&diffQuat);
 }
 
 static void inline runAngleMode5() {

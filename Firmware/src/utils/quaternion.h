@@ -85,9 +85,9 @@ void Quaternion_fromZRotation(f32 angle, Quaternion *output);
 f32 Quaternion_norm(Quaternion *q);
 
 /**
- * Normalizes the quaternion.
+ * Normalizes the quaternion in place.
  */
-void Quaternion_normalize(Quaternion *q, Quaternion *output);
+void Quaternion_normalize(Quaternion *q);
 
 /**
  * Normalizes the quaternion. Faster, but only works for quaternions with a norm ~1

@@ -846,7 +846,19 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[5] = rotationYaw >> 8;
 			buf[6] = heading & 0xFF;
 			buf[7] = heading >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
+			int qw = q.w * 20000;
+			int q0 = q.v[0] * 20000;
+			int q1 = q.v[1] * 20000;
+			int q2 = q.v[2] * 20000;
+			buf[8] = qw;
+			buf[9] = qw >> 8;
+			buf[10] = q0;
+			buf[11] = q0 >> 8;
+			buf[12] = q1;
+			buf[13] = q1 >> 8;
+			buf[14] = q2;
+			buf[15] = q2 >> 8;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 16);
 		} break;
 		case MspFn::GET_IMU_SETUP_STATE: {
 			buf[0] = imuAlignmentStep;

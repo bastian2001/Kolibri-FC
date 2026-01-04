@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <fixedPointInt.h>
 
-extern fix32 roll, pitch, yaw; // Euler angles of the drone
+extern fix32 roll, pitch, yaw; // Euler angles of the drone, roll right, pitch up, yaw right
 extern fix32 accelFilterCutoff; // filter frequency for the accelerometer data
 extern fix32 combinedHeading; // heading of the drone (in rad) by combining the magnetometer and the gyro
 extern fix32 cosPitch, cosRoll, sinPitch, sinRoll, cosHeading, sinHeading; // trigonometric values of the Euler angles

@@ -79,20 +79,17 @@ f32 Quaternion_norm(Quaternion *q) {
 	return sqrtf(q->w * q->w + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
 }
 
-void Quaternion_normalize(Quaternion *q, Quaternion *output) {
-
+void Quaternion_normalize(Quaternion *q) {
 	f32 len = Quaternion_norm(q);
 	if (len < 0.0001f) {
-		Quaternion_setIdentity(output);
+		Quaternion_setIdentity(q);
 		return;
 	}
 	f32 oneOverLen = 1 / len;
-	Quaternion_set(
-		q->w * oneOverLen,
-		q->v[0] * oneOverLen,
-		q->v[1] * oneOverLen,
-		q->v[2] * oneOverLen,
-		output);
+	q->w *= oneOverLen;
+	q->v[0] *= oneOverLen;
+	q->v[1] *= oneOverLen;
+	q->v[2] *= oneOverLen;
 }
 
 void Quaternion_normalize_fast(Quaternion *q) {
@@ -220,7 +217,7 @@ void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *out
 
 	output->w = dot + 1;
 	Vector_cross(v0, v1, output->v);
-	Quaternion_normalize(output, output);
+	Quaternion_normalize(output);
 }
 
 void Quaternion_conjugate(Quaternion *q, Quaternion *output) {
