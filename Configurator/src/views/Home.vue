@@ -54,6 +54,7 @@ export default defineComponent({
 			fcPing: -1,
 			getRotationInterval: -1,
 			attitude: { roll: 0, pitch: 0, yaw: 0, heading: 0 },
+			quat: { qw: 1, q0: 0, q1: 0, q2: 0 },
 			showHeading: false,
 			serialNum: 1,
 			baudRate: 115200,
@@ -91,6 +92,11 @@ export default defineComponent({
 					heading /= 8192.0
 					heading *= 180.0 / Math.PI
 					this.attitude = { roll, pitch, yaw, heading }
+					let qw = leBytesToInt(c.data, 8, 2, true) / 20000
+					let q0 = leBytesToInt(c.data, 10, 2, true) / 20000
+					let q1 = leBytesToInt(c.data, 12, 2, true) / 20000
+					let q2 = leBytesToInt(c.data, 14, 2, true) / 20000
+					this.quat = { qw, q0, q1, q2 }
 				} catch (_) {
 					await delay(10) // avoid hung program if sendCommand rejects immediately
 				}
@@ -244,6 +250,7 @@ export default defineComponent({
 			</div>
 			<div v-else class="axisLabel axisYaw">Yaw: {{ attitude.yaw.toFixed(2) }}°</div>
 			<br />
+			w: {{ quat.qw }}<br>v0: {{ quat.q0 }}<br>v1: {{ quat.q1 }}<br>v2: {{ quat.q2 }}<br>
 			<input type="checkbox" v-model="showHeading" id="headingCheckbox" />
 			<label for="headingCheckbox">Show Heading instead of Yaw</label>
 		</div>
