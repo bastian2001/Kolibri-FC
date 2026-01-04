@@ -168,7 +168,7 @@ void gyroLoop() {
 						i32 newCalib[3];
 						for (int i = 0; i < 3; i++) {
 							newCalib[i] = (accelCalibrationOffsetTemp[i] + (accelCalibrationOffset[i] > 0 ? CALIBRATION_SAMPLES / 2 : -CALIBRATION_SAMPLES / 2)) / CALIBRATION_SAMPLES;
-							if (newCalib[i] > 128 || newCalib[i] < -128) {
+							if (newCalib[i] > ACCEL_CALIBRATION_TOLERANCE || newCalib[i] < -ACCEL_CALIBRATION_TOLERANCE) {
 								accelCalState = 255;
 								accelCalDone = true;
 								calibrateAccel = false;
