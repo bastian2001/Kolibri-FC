@@ -58,26 +58,21 @@ void imuInit() {
 }
 
 void imuGyroUpdate() {
-	// quaternion of all 3 axis rotations combined
+	f32 dq[] = {gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, gyroAligned[2] * RAW_TO_HALF_ANGLE};
+	Quaternion temp = q;
 
-	// f32 dq[] = {gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, -gyroAligned[2] * RAW_TO_HALF_ANGLE};
-	// Quaternion buffer = q;
-	// q.w += (-buffer.v[0] * dq[0] - buffer.v[1] * dq[1] - buffer.v[2] * dq[2]);
-	// q.v[0] += (+buffer.w * dq[0] - buffer.v[1] * dq[2] + buffer.v[2] * dq[1]);
-	// q.v[1] += (+buffer.w * dq[1] + buffer.v[0] * dq[2] - buffer.v[2] * dq[0]);
-	// q.v[2] += (+buffer.w * dq[2] - buffer.v[0] * dq[1] + buffer.v[1] * dq[0]);
-	// if (abs(gyroAligned[0]) > 1000 || abs(gyroAligned[1]) > 1000 || abs(gyroAligned[2]) > 1000) {
-	// 	printfIndMessage("%d %d %d", gyroAligned[0], gyroAligned[1], gyroAligned[2]);
-	// }
+	q.w += -temp.v[0] * dq[0] - temp.v[1] * dq[1] - temp.v[2] * dq[2];
+	q.v[0] += +temp.w * dq[0] + temp.v[1] * dq[2] - temp.v[2] * dq[1];
+	q.v[1] += +temp.w * dq[1] - temp.v[0] * dq[2] + temp.v[2] * dq[0];
+	q.v[2] += +temp.w * dq[2] + temp.v[0] * dq[1] - temp.v[1] * dq[0];
 
-	Quaternion dq;
-	dq.w = 1;
-	dq.v[0] = gyroAligned[0] * RAW_TO_HALF_ANGLE;
-	dq.v[1] = gyroAligned[1] * RAW_TO_HALF_ANGLE;
-	dq.v[2] = gyroAligned[2] * RAW_TO_HALF_ANGLE;
-	Quaternion_multiply(&q, &dq, &q);
+	// The above is identical to:
+	// Quaternion dq;
+	// small angle approximation with sin(x) = x, cos(x) = 1
+	// dq.w = 1; dq.v[0..2] = gyroAligned[0..2] * RAW_TO_HALF_ANGLE;
+	// Quaternion_multiply(&q, &dq, &q);
 
-	Quaternion_normalize(&q);
+	Quaternion_normalize_fast(&q);
 }
 
 static Quaternion shortest_path = {0, 0, 0, 1};
@@ -88,61 +83,65 @@ void imuAccelUpdate1() {
 	// p2.z = 2*x*z*p1.x + 2*y*z*p1.y + z*z*p1.z - 2*w*y*p1.x - y*y*p1.z + 2*w*x*p1.y - x*x*p1.z + w*w*p1.z;
 	// with p1.x = 0, p1.y = 0, p1.z = -1, things can be simplified
 
-	f32 orientation_vector[3];
-	// orientation_vector[0] = q.w * q.v[1] * -2 + q.v[0] * q.v[2] * -2;
-	// orientation_vector[1] = q.v[1] * q.v[2] * -2 + q.w * q.v[0] * 2;
-	// orientation_vector[2] = -q.v[2] * q.v[2] + q.v[1] * q.v[1] + q.v[0] * q.v[0] - q.w * q.w;
+	f32 upBody[3];
 
 	// When stationary (which is on average the case), the measured acceleration points against gravity
 	// In world frame: gravity is (0,0,1) down, so specific force is (0,0,-1).
 	// q is body->world, so use q* to bring that world vector into body.
-	Quaternion q_conj;
-	Quaternion_conjugate(&q, &q_conj);
-	f32 specForceWorld[3] = {0, 0, -1};
-	Quaternion_rotate(&q_conj, specForceWorld, orientation_vector);
+	upBody[0] = q.w * q.v[1] * 2 - q.v[0] * q.v[2] * 2;
+	upBody[1] = q.v[1] * q.v[2] * -2 - q.w * q.v[0] * 2;
+	upBody[2] = q.v[1] * q.v[1] - q.v[2] * q.v[2] + q.v[0] * q.v[0] - q.w * q.w;
 
-	f32 accelVectorNorm = sqrtf(accelAligned[0] * accelAligned[0] + accelAligned[1] * accelAligned[1] + accelAligned[2] * accelAligned[2]);
-	f32 accelVector[3];
-	if (accelVectorNorm < 100) { // throw out useless accel values, avoid division by 0
+	// The above is identical to:
+	// f32 upWorld[3] = {0, 0, -1};
+	// Quaternion q_conj;
+	// Quaternion_conjugate(&q, &q_conj);
+	// Quaternion_rotate(&conj, upWorld, upBody);
+
+	startFixMath();
+	f32 accelLength = (sqrtFix(fix32().setRaw(accelAligned[0] * accelAligned[0] + accelAligned[1] * accelAligned[1] + accelAligned[2] * accelAligned[2])) << 8).getf32();
+	if (accelLength < 100) { // throw out useless accel values, avoid division by 0
 		Quaternion_setIdentity(&shortest_path);
 		return;
 	}
-	f32 invAccelVectorNorm = 1 / accelVectorNorm;
-	accelVector[0] = invAccelVectorNorm * accelAligned[0];
-	accelVector[1] = invAccelVectorNorm * accelAligned[1];
-	accelVector[2] = invAccelVectorNorm * accelAligned[2];
+	f32 accelVector[3];
+	f32 accelLengthRec = 1 / accelLength;
+	accelVector[0] = accelLengthRec * accelAligned[0];
+	accelVector[1] = accelLengthRec * accelAligned[1];
+	accelVector[2] = accelLengthRec * accelAligned[2];
 
-	Quaternion_from_unit_vecs(accelVector, orientation_vector, &shortest_path);
+	Quaternion_from_unit_vecs(accelVector, upBody, &shortest_path);
 }
 
 void imuAccelUpdate2() {
 	// We limit the correction angle so the accel can only slowly correct the attitude over time
 	f32 axis[3];
-	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis); 
+	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis) / 128;
 
 	if (accAngle > ANGLE_CHANGE_LIMIT) accAngle = ANGLE_CHANGE_LIMIT;
 
-	Quaternion c;
-	Quaternion_fromAxisAngle(axis, accAngle, &c);
-	Quaternion_multiply(&q, &c, &q);
-	// f32 c[3]; // correction quaternion, but w is 1
-	// f32 co = accAngle * 0.5f;
-	// c[0] = axis[0] * co;
-	// c[1] = axis[1] * co;
-	// c[2] = axis[2] * co;
+	f32 c[3]; // correction quaternion, but w is 1
+	f32 co = accAngle * 0.5f; // assume sin(a / 2) = a / 2
+	c[0] = axis[0] * co;
+	c[1] = axis[1] * co;
+	c[2] = axis[2] * co;
 
-	// Quaternion buffer;
-	// buffer.w = q.w - c[0] * q.v[0] - c[1] * q.v[1] - c[2] * q.v[2];
-	// buffer.v[0] = c[0] * q.w + q.v[0] + c[1] * q.v[2] - c[2] * q.v[1];
-	// buffer.v[1] = q.v[1] - c[0] * q.v[2] + c[1] * q.w + c[2] * q.v[0];
-	// buffer.v[2] = q.v[2] + c[0] * q.v[1] - c[1] * q.v[0] + c[2] * q.w;
-	// q = buffer;
+	Quaternion temp = q;
+	q.w -= temp.v[0] * c[0] + temp.v[1] * c[1] + temp.v[2] * c[2];
+	q.v[0] += temp.w * c[0] + temp.v[1] * c[2] - temp.v[2] * c[1];
+	q.v[1] += temp.w * c[1] - temp.v[0] * c[2] + temp.v[2] * c[0];
+	q.v[2] += temp.w * c[2] + temp.v[0] * c[1] - temp.v[1] * c[0];
 
-	Quaternion_normalize(&q);
+	// The above is equivalent to:
+	// Not 100% identical because small angle approximation is used above
+	// Quaternion c;
+	// Quaternion_fromAxisAngle(axis, accAngle, &c);
+	// Quaternion_multiply(&q, &c, &q);
+
+	Quaternion_normalize_fast(&q);
 }
 
 void imuUpdatePitchRoll() {
-	startFixMath();
 	roll = atan2f(2 * (q.w * q.v[0] + q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(constrain(2 * (q.w * q.v[1] - q.v[2] * q.v[0]), -1, 1));
 	yaw = atan2f(2 * (q.w * q.v[2] + q.v[0] * q.v[1]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
@@ -160,6 +159,7 @@ static fix32 nAccel, eAccel;
 static u8 lastAltInitState = 0;
 
 void imuUpdateSpeeds() {
+	startFixMath();
 	sinCosFix(roll, sinRoll, cosRoll);
 	sinCosFix(pitch, sinPitch, cosPitch);
 	sinCosFix(combinedHeading, sinHeading, cosHeading);
