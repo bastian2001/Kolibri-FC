@@ -266,6 +266,7 @@ void gyroLoop() {
 						imuAlignmentCounter = 0;
 						imuAlignmentStep = 0;
 						imuAlignmentDone = true;
+						alignImu = false;
 						if (!calibrateGyro && !calibrateAccel)
 							armingDisableFlags &= ~0x40;
 					}
