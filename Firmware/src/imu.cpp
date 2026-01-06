@@ -163,9 +163,9 @@ void imuUpdateSpeeds() {
 	sinCosFix(roll, sinRoll, cosRoll);
 	sinCosFix(pitch, sinPitch, cosPitch);
 	sinCosFix(combinedHeading, sinHeading, cosHeading);
-	vAccel = cosRoll * cosPitch * *accelFiltered[AXIS_YAW];
-	vAccel += sinRoll * cosPitch * *accelFiltered[AXIS_PITCH];
-	vAccel -= sinPitch * *accelFiltered[AXIS_ROLL];
+	vAccel = -cosRoll * cosPitch * *accelFiltered[AXIS_YAW];
+	vAccel -= sinRoll * cosPitch * *accelFiltered[AXIS_PITCH];
+	vAccel += sinPitch * *accelFiltered[AXIS_ROLL];
 	vAccel -= 9.81f; // remove gravity
 	if (altInitState > lastAltInitState) {
 		lastAltInitState = altInitState;
@@ -192,6 +192,8 @@ void imuUpdateSpeeds() {
 	fAccel = forwardAccel;
 	nAccel = northAccel;
 	eAccel = eastAccel;
+	mspDebugSensors[0] = (nAccel * 100).geti32();
+	mspDebugSensors[3] = (eAccel * 256).geti32();
 
 	eVelFilter.add(eastAccel / (PID_FREQ / 8));
 	nVelFilter.add(northAccel / (PID_FREQ / 8));
