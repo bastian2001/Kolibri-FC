@@ -52,7 +52,6 @@ export default defineComponent({
 		},
 	},
 	mounted() {
-		this.mspInterval = setInterval(this.getData, 20);
 		addOnCommandHandler(this.onCommand);
 	},
 	beforeUnmount() {
