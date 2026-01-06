@@ -6,6 +6,7 @@ import { leBytesToInt, delay, intToLeBytes } from '@utils/utils';
 import { MspFn } from '@/msp/protocol';
 import { Command } from '@utils/types';
 import { prefixZeros } from '@utils/utils';
+import Drone3dPreview from '@/components/Drone3dPreview.vue';
 
 const FLIGHT_MODES = ['Acro', 'Angle', 'Altitude Hold', 'GPS Hold', 'Waypoint'];
 const ARMING_DISABLE_FLAGS = [
@@ -21,6 +22,10 @@ const REBOOT_MODES = { FIRMWARE: 0, BOOTLOADER_ROM: 1, MSC: 2, MSC_UTC: 3, BOOTL
 
 export default defineComponent({
 	name: 'Home',
+	components: {
+		Drone3dPreview
+	}
+	,
 	mounted() {
 		addOnCommandHandler(this.onCommand);
 		this.getRotationContinuous();
@@ -125,11 +130,6 @@ export default defineComponent({
 				}
 			}
 		},
-		redrawDrone() {
-			(this.$refs.zBox as HTMLDivElement).style.transform = `rotateZ(${this.showHeading ? this.attitude.heading : this.attitude.yaw}deg) translateZ(10px)`;
-			(this.$refs.yBox as HTMLDivElement).style.transform = `rotateX(${-this.attitude.pitch}deg)`;
-			(this.$refs.xBox as HTMLDivElement).style.transform = `rotateY(${this.attitude.roll}deg)`
-		},
 		ledOn() {
 			sendCommand(MspFn.SET_DEBUG_LED, [1])
 		},
@@ -170,19 +170,6 @@ export default defineComponent({
 			sendCommand(MspFn.REBOOT, [REBOOT_MODES.BOOTLOADER_FLASH])
 		},
 	},
-	watch: {
-		attitude: {
-			handler() {
-				this.redrawDrone();
-			},
-			deep: true,
-		},
-		showHeading: {
-			handler() {
-				this.redrawDrone();
-			}
-		}
-	},
 })
 </script>
 <template>
@@ -222,27 +209,8 @@ export default defineComponent({
 			Time: {{ prefixZeros(time.year, 4) }}-{{ prefixZeros(time.month, 2) }}-{{ prefixZeros(time.day, 2) }}
 			{{ prefixZeros(time.hour, 2) }}:{{ prefixZeros(time.minute, 2) }}:{{ prefixZeros(time.second, 2) }}
 		</div>
-		<div class="drone3DPreview">
-			<div class="droneBase droneAxes">
-				<div class="zBox droneAxes" ref="zBox">
-					<div class="yBox droneAxes" ref="yBox">
-						<div class="xBox droneAxes" ref="xBox">
-							<div class="droneFrame">
-								<div class="flrrBar"></div>
-								<div class="rlfrBar"></div>
-							</div>
-							<div class="arrowForward"></div>
-							<div class="props">
-								<div class="dronePropellerRR"></div>
-								<div class="dronePropellerFR"></div>
-								<div class="dronePropellerRL"></div>
-								<div class="dronePropellerFL"></div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
+		<Drone3dPreview :roll="attitude.roll" :pitch="attitude.pitch"
+			:yaw="showHeading ? attitude.heading : attitude.yaw" />
 		<div class="attInfo">
 			<div class="axisLabel axisRoll">Roll: {{ attitude.roll.toFixed(2) }}°</div>
 			<div class="axisLabel axisPitch">Pitch: {{ attitude.pitch.toFixed(2) }}°</div>
@@ -261,103 +229,6 @@ export default defineComponent({
 .wrapper {
 	padding: 1rem 0px;
 	box-sizing: border-box;
-}
-
-.drone3DPreview {
-	width: 500px;
-	height: 500px;
-	background-color: rgba(255, 255, 255, 0.4);
-	perspective: 600px;
-	position: relative;
-	display: inline-block;
-}
-
-.droneBase {
-	transform: rotateX(60deg) translate3d(0px, 0px, -180px);
-	top: -170px;
-	border-radius: 50%;
-	border: 5px solid #000;
-	background-image: url("/src/assets/grid.svg");
-	background-size: 35px 35px;
-}
-
-.zBox {
-	transform: rotateZ(0deg) translateZ(10px);
-}
-
-/*Rotating the bounding box later via JS will rotate the whole drone with it*/
-.xBox,
-.yBox {
-	transform: rotateX(0deg) rotateY(0deg);
-}
-
-.droneAxes {
-	width: 100%;
-	height: 100%;
-	position: relative;
-	transform-style: preserve-3d;
-}
-
-.flrrBar,
-.rlfrBar {
-	width: 350px;
-	height: 20px;
-	background-color: #000;
-	position: absolute;
-	transform-style: preserve-3d;
-	top: 50%;
-	left: 50%;
-}
-
-.flrrBar {
-	transform: translate(-50%, -50%) rotatez(-45deg);
-}
-
-.rlfrBar {
-	transform: translate(-50%, -50%) rotatez(45deg);
-}
-
-.props {
-	transform-style: preserve-3d;
-}
-
-.props div {
-	width: 150px;
-	transform-style: preserve-3d;
-	height: 150px;
-	position: absolute;
-	border-radius: 100%;
-}
-
-.dronePropellerFL {
-	transform: translate3d(60px, 60px, 15px);
-	background-color: #282;
-}
-
-.dronePropellerFR {
-	transform: translate3d(290px, 60px, 15px);
-	background-color: #282;
-}
-
-.dronePropellerRL {
-	transform: translate3d(60px, 290px, 15px);
-	background-color: #d00;
-}
-
-.dronePropellerRR {
-	transform: translate3d(290px, 290px, 15px);
-	background-color: #d00;
-}
-
-.arrowForward {
-	width: 100px;
-	height: 50px;
-	position: absolute;
-	left: 50%;
-	top: 150px;
-	transform: translate3d(-50%, -50%, 10px);
-	background-color: #000;
-	clip-path: polygon(0 100%, 50% 0, 100% 100%);
 }
 
 .attInfo {

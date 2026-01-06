@@ -866,12 +866,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::GET_IMU_SETUP_STATE: {
 			buf[0] = imuAlignmentStep;
-			buf[1] = imuAlignmentCounter / 256;
+			buf[1] = imuAlignmentCounter * 100 / PID_FREQ;
 			getImuAlignment((u8 *)&buf[2]);
 			buf[5] = accelCalState;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 6);
 		} break;
-		case MspFn::START_IMU_ORIENTATION: {
+		case MspFn::START_IMU_ALIGNMENT: {
 			startImuAlignment();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
