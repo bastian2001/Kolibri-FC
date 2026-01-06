@@ -77,17 +77,17 @@ onBeforeUnmount(() => {
 		<div>
 			Serial Port Setup
 		</div>
-		<div>
-			Sensor status<br>
-			- Gyro/accel found, model<br>
-			- Mag found, model<br>
-			- baro found, model<br>
-			- Large FS (SD/FCKAFD) found, size and available size, audio flashing helper<br>
-			- GPS found, init state<br>
-			- Other serial devices found such as RX/VTX<br>
-			- DShot status<br>
+		<!--
+			Sensor status
+			- Gyro/accel found, model
+			- Mag found, model
+			- baro found, model
+			- Large FS (SD/FCKAFD) found, size and available size, audio flashing helper
+			- GPS found, init state
+			- Other serial devices found such as RX/VTX
+			- DShot status
 			- ADC values
-		</div>
+		-->
 	</div>
 </template>
 
