@@ -150,6 +150,10 @@ void pidLoop() {
 	fix32 rollError = rollSetpoint - *gyroFiltered[AXIS_ROLL];
 	fix32 pitchError = pitchSetpoint - *gyroFiltered[AXIS_PITCH];
 	fix32 yawError = yawSetpoint - *gyroFiltered[AXIS_YAW];
+	static u8 counter;
+	if (++counter == 0) {
+		Serial.printf("new: %.3f %.3f %.3f\n", rollSetpoint.getf32(), pitchSetpoint.getf32(), yawSetpoint.getf32());
+	}
 
 	// I term windup prevention
 	if (ELRS->channels[2] > 1020) {
@@ -233,15 +237,15 @@ void pidLoop() {
 	// apply mixer
 	fix32 tRR, tRL, tFR, tFL;
 #ifdef PROPS_OUT
-	tRR = throttle - rollSum + pitchSum + yawSum;
-	tFR = throttle - rollSum - pitchSum - yawSum;
-	tRL = throttle + rollSum + pitchSum - yawSum;
-	tFL = throttle + rollSum - pitchSum + yawSum;
+	tRR = throttle - rollSum - pitchSum + yawSum;
+	tFR = throttle - rollSum + pitchSum - yawSum;
+	tRL = throttle + rollSum - pitchSum - yawSum;
+	tFL = throttle + rollSum + pitchSum + yawSum;
 #else
-	tRR = throttle - rollSum + pitchSum - yawSum;
-	tFR = throttle - rollSum - pitchSum + yawSum;
-	tRL = throttle + rollSum + pitchSum + yawSum;
-	tFL = throttle + rollSum - pitchSum - yawSum;
+	tRR = throttle - rollSum - pitchSum - yawSum;
+	tFR = throttle - rollSum + pitchSum + yawSum;
+	tRL = throttle + rollSum - pitchSum + yawSum;
+	tFL = throttle + rollSum + pitchSum - yawSum;
 #endif
 	throttles[(u8)MOTOR::RR] = tRR.geti32();
 	throttles[(u8)MOTOR::RL] = tRL.geti32();
