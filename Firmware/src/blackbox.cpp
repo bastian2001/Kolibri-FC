@@ -1462,13 +1462,13 @@ u32 writeSingleFrame() {
 		bbBuffer[bufferPos++] = accelAligned[2] >> 8;
 	}
 	if (currentBBFlags & LOG_ACCEL_FILTERED) {
-		i16 i = accelFiltered[AXIS_ROLL]->geti32();
+		i16 i = (*accelFiltered[AXIS_ROLL] * 200).geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i = accelFiltered[AXIS_PITCH]->geti32();
+		i = (*accelFiltered[AXIS_PITCH] * 200).geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i = accelFiltered[AXIS_YAW]->geti32();
+		i = (*accelFiltered[AXIS_YAW] * 200).geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}

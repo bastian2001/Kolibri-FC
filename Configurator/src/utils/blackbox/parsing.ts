@@ -472,7 +472,6 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 	}
 
 	const frameData = new Uint8Array(frameCount * frameSize)
-	console.log(JSON.stringify(Array.from(framePos)))
 	framePos.forEach((p, i) => {
 		frameData.set(data.slice(p, p + frameSize), i * frameSize)
 	})
@@ -855,9 +854,9 @@ export function parseFrames(
 		const o = offsets["LOG_ACCEL_FILTERED"]
 		frameNumbers.forEach((f, i) => {
 			const p = i * frameSize + o
-			logData.accelFilteredX![f] = (leBytesToInt(frameData, p, 2, true) * 9.81) / 2048
-			logData.accelFilteredY![f] = (leBytesToInt(frameData, p + 2, 2, true) * 9.81) / 2048
-			logData.accelFilteredZ![f] = (leBytesToInt(frameData, p + 4, 2, true) * 9.81) / 2048
+			logData.accelFilteredX![f] = leBytesToInt(frameData, p, 2, true) / 200
+			logData.accelFilteredY![f] = leBytesToInt(frameData, p + 2, 2, true) / 200
+			logData.accelFilteredZ![f] = leBytesToInt(frameData, p + 4, 2, true) / 200
 		})
 	}
 	if (flags.includes("LOG_VERTICAL_ACCEL")) {

@@ -107,7 +107,7 @@ export default defineComponent({
 			handler() {
 				this.drawCanvas();
 			},
-			deep: 1
+			deep: 2
 		},
 	},
 	methods: {
