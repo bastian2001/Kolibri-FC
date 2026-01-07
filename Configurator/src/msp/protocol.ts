@@ -72,6 +72,8 @@ export const MspFn = {
 
 	// 0x415_ Gyro/Accel
 	GET_ROTATION: 0x4150,
+	GET_IMU_SETUP_STATE: 0x4151,
+	START_IMU_ALIGNMENT: 0x4152,
 
 	// 0x416_ Barometer
 	GET_BARO_DATA: 0x4160,

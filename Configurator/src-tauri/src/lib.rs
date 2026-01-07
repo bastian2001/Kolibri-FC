@@ -1,10 +1,10 @@
 use serialport::SerialPort;
 use std::collections::HashSet;
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::process::Command;
 use std::sync::{Mutex, MutexGuard};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::command;
 
 // Helper function to acquire mutex with timeout
@@ -30,6 +30,37 @@ fn acquire_mutex_with_timeout<T>(
             Err("Timed out waiting for mutex".to_string())
         }
     }
+}
+
+// Write with retries to avoid OS-level timed out errors on non-blocking handles
+fn write_with_retry(
+    port: &mut dyn SerialPort,
+    data: &[u8],
+    total_timeout_ms: u64,
+) -> Result<(), String> {
+    let start = Instant::now();
+    let deadline = Duration::from_millis(total_timeout_ms);
+    let mut offset = 0;
+
+    while offset < data.len() {
+        match port.write(&data[offset..]) {
+            Ok(written) => {
+                offset += written;
+            }
+            Err(e) => match e.kind() {
+                ErrorKind::TimedOut | ErrorKind::WouldBlock | ErrorKind::Interrupted => {
+                    if start.elapsed() >= deadline {
+                        return Err("Timed out writing to serial port".to_string());
+                    }
+                    std::thread::sleep(Duration::from_micros(50));
+                }
+                _ => return Err(format!("{:?}", e)),
+            },
+        }
+    }
+
+    // Ensure bytes are pushed out; ignore flush errors as hard failures for consistency
+    port.flush().map_err(|e| format!("{:?}", e))
 }
 
 #[derive(Default)]
@@ -116,10 +147,7 @@ fn serial_read(state: tauri::State<'_, MyState>) -> Result<Vec<u8>, String> {
 fn serial_write(state: tauri::State<'_, MyState>, data: Vec<u8>) -> Result<(), String> {
     let mut port = state.port.lock().unwrap();
     match port.as_mut() {
-        Some(port) => match port.write(data.as_slice()) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("{:?}", e)),
-        },
+        Some(port) => write_with_retry(port.as_mut(), data.as_slice(), 200),
         None => Err("No port open".to_string()),
     }
 }

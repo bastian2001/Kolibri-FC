@@ -52,6 +52,7 @@ export default defineComponent({
 
 	},
 	unmounted() {
+		this.exiting = true
 		removeOnConnectHandler(this.getSettings);
 		window.removeEventListener('resize', this.onResize);
 	},

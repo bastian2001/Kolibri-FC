@@ -1454,17 +1454,21 @@ u32 writeSingleFrame() {
 		bbBuffer[bufferPos++] = rpmPacket >> 40;
 	}
 	if (currentBBFlags & LOG_ACCEL_RAW) {
-		memcpy(&bbBuffer[bufferPos], (void *)accelDataRaw, 6);
-		bufferPos += 6;
+		bbBuffer[bufferPos++] = accelAligned[0];
+		bbBuffer[bufferPos++] = accelAligned[0] >> 8;
+		bbBuffer[bufferPos++] = accelAligned[1];
+		bbBuffer[bufferPos++] = accelAligned[1] >> 8;
+		bbBuffer[bufferPos++] = accelAligned[2];
+		bbBuffer[bufferPos++] = accelAligned[2] >> 8;
 	}
 	if (currentBBFlags & LOG_ACCEL_FILTERED) {
-		i16 i = accelDataFiltered[0]->geti32();
+		i16 i = accelFiltered[AXIS_ROLL]->geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i = accelDataFiltered[1]->geti32();
+		i = accelFiltered[AXIS_PITCH]->geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
-		i = accelDataFiltered[2]->geti32();
+		i = accelFiltered[AXIS_YAW]->geti32();
 		bbBuffer[bufferPos++] = i;
 		bbBuffer[bufferPos++] = i >> 8;
 	}

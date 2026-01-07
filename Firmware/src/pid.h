@@ -1,8 +1,8 @@
 #pragma once
 #include <Arduino.h>
 #include <fixedPointInt.h>
-#define AXIS_ROLL 1
-#define AXIS_PITCH 0
+#define AXIS_ROLL 0
+#define AXIS_PITCH 1
 #define AXIS_YAW 2
 
 #define P_SHIFT 11
@@ -11,7 +11,6 @@
 #define FF_SHIFT 8
 #define S_SHIFT 8 // setpoint follow
 
-extern fix32 gyroScaled[3]; // gyro data in deg/s
 extern fix32 rateCoeffs[3][3]; // rate coefficients for the PID controller [axis][number type ACTUAL_xxx]
 enum {
 	P,
@@ -26,7 +25,6 @@ extern fix32 rollSetpoint, pitchSetpoint, yawSetpoint; // acro setpoint (deg/s),
 extern fix32 throttleSetpoint; // throttle value as set by the control functions (acro/angle/...)
 extern fix32 rollP, pitchP, yawP, rollI, pitchI, yawI, rollD, pitchD, yawD, rollFF, pitchFF, yawFF, rollS, pitchS, yawS, rollSum, pitchSum, yawSum; // acro PID summands
 extern fix32 throttle; // current throttle setpoint (idlePermille*2 to 2000)
-extern PT1 gyroFiltered[3]; // gyro filter (currently PT1) deg/s
 extern i16 throttles[4]; // throttle values for the motors (0-2000)
 extern u16 dFilterCutoff; // cutoff frequency for the D filter (Hz)
 extern u16 gyroFilterCutoff; // cutoff frequency for the gyro filter (Hz)

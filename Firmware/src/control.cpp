@@ -102,7 +102,7 @@ static void runAcroMode() {
 	// acro is the simplest: we just need to calculate the setpoints based on the sticks
 	startRateInterp();
 	rollSetpoint = getRateInterp(stickPos[0], AXIS_ROLL);
-	pitchSetpoint = getRateInterp(stickPos[1], AXIS_PITCH);
+	pitchSetpoint = -getRateInterp(stickPos[1], AXIS_PITCH);
 	yawSetpoint = getRateInterp(stickPos[2], AXIS_YAW);
 	throttleSetpoint = stickThr;
 }
@@ -122,7 +122,7 @@ static inline void runAngleMode1() {
 
 	// angle or alt hold: sticks => target tilt => target angular rate
 	targetRoll = stickPos[0] * maxAngle;
-	targetPitch = stickPos[1] * maxAngle;
+	targetPitch = -stickPos[1] * maxAngle;
 	// in case of angle, throttle is unchanged
 }
 
@@ -156,7 +156,7 @@ static inline void runAngleMode2() {
 	else if (targetAngleHeading <= -180)
 		targetAngleHeading += 360;
 
-	fix32 halfHeading = -targetAngleHeading * FIX_DEG_TO_RAD / 2;
+	fix32 halfHeading = targetAngleHeading * FIX_DEG_TO_RAD / 2;
 	fix32 si, co;
 	sinCosFix(halfHeading, si, co);
 	headQuat.w = co.getf32();
@@ -171,7 +171,7 @@ static void inline runAngleMode3() {
 	// create targetRPQuat
 	fix32 totalAngle = sqrtFix(targetRoll * targetRoll + targetPitch * targetPitch);
 	fix32 ratios[3] = {
-		-targetRoll / totalAngle,
+		targetRoll / totalAngle,
 		targetPitch / totalAngle,
 		0 // yaw is not set
 	};
@@ -196,7 +196,7 @@ static void inline runAngleMode4() {
 	Quaternion currentQuatInv;
 	Quaternion_conjugate(&q, &currentQuatInv);
 	Quaternion_multiply(&targetQuat, &currentQuatInv, &diffQuat);
-	Quaternion_normalize(&diffQuat, &diffQuat);
+	Quaternion_normalize(&diffQuat);
 }
 
 static void inline runAngleMode5() {
@@ -231,9 +231,9 @@ static void inline runAngleMode5() {
 	// apply P gain and limit to total 1000 deg/s
 	angle *= angleModeP;
 	if (angle > FIX_DEG_TO_RAD * 1000) angle = FIX_DEG_TO_RAD * 1000;
-	newRoll = -angle * axis[0] * FIX_RAD_TO_DEG;
+	newRoll = angle * axis[0] * FIX_RAD_TO_DEG;
 	newPitch = angle * axis[1] * FIX_RAD_TO_DEG;
-	newYaw = -angle * axis[2] * FIX_RAD_TO_DEG;
+	newYaw = angle * axis[2] * FIX_RAD_TO_DEG;
 }
 
 static void inline runGpsMode1() {
@@ -370,7 +370,7 @@ static void inline runGpsMode4() {
 	fix32 eVelPID = eVelP + eVelI + eVelD + eVelFF;
 	fix32 nVelPID = nVelP + nVelI + nVelD + nVelFF;
 	targetRoll = eVelPID * cosHeading - nVelPID * sinHeading;
-	targetPitch = eVelPID * sinHeading + nVelPID * cosHeading;
+	targetPitch = -eVelPID * sinHeading - nVelPID * cosHeading;
 	if (targetRoll.abs() > maxAngle || targetPitch.abs() > maxAngle) {
 		// limit the tilt to maxAngle
 		if (burstCooldown > angleBurstCooldownTime) {

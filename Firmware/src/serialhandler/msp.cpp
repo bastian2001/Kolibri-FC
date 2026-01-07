@@ -4,12 +4,10 @@
 #define SIGNATURE_LENGTH 32
 #define TARGET_IDENTIFIER_LENGTH 4
 
-u8 accelCalDone = 0;
-
 elapsedMillis mspOverrideMotors = 1001;
 
-static constexpr char targetIdentifier[] = "KD05";
-static constexpr char targetFullName[] = "Kolibri Dev v0.5";
+static constexpr char targetIdentifier[] = TARGET_IDENTIFIER;
+static constexpr char targetFullName[] = TARGET_FULL_NAME;
 
 static elapsedMicros lastConfigPingRx = 0;
 bool configuratorConnected = false;
@@ -23,13 +21,23 @@ void configuratorLoop() {
 	if (lastConfigPingRx > 1000000)
 		configuratorConnected = false;
 	if (accelCalDone) {
-		accelCalDone = 0;
-		char data = 1;
-		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::ACC_CALIBRATION, lastMspVersion, &data, 1);
+		accelCalDone = false;
+		if (accelCalState == 0) {
+			openSettingsFile();
+			getSetting(SETTING_ACC_CAL)->updateSettingInFile();
+			closeSettingsFile();
+			sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS, lastMspVersion);
+		} else if (accelCalState >= 128) {
+			accelCalState = 0;
+			printIndMessage("ERROR: Accelerometer calibration failed. IMU alignment correct?");
+		}
+	}
+	if (imuAlignmentDone) {
+		imuAlignmentDone = false;
+		imuAlignmentStep = 0;
 		openSettingsFile();
-		getSetting(SETTING_ACC_CAL)->updateSettingInFile();
+		getSetting(SETTING_IMU_ALIGNMENT)->updateSettingInFile();
 		closeSettingsFile();
-		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS, lastMspVersion);
 	}
 }
 
@@ -249,7 +257,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 0; // motorPwmInversion
 			buf[len++] = 0; // gyro_to_use
 			buf[len++] = 0; // gyro_high_fsr (true if > 2000dps)
-			buf[len++] = CALIBRATION_TOLERANCE;
+			buf[len++] = GYRO_CALIBRATION_TOLERANCE;
 			buf[len++] = (CALIBRATION_SAMPLES * 100 / PID_FREQ) & 0xFF; // calibration duration in centiseconds
 			buf[len++] = (CALIBRATION_SAMPLES * 100 / PID_FREQ) >> 8;
 			buf[len++] = 0; // gyro_offset_yaw
@@ -296,12 +304,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 			break;
 		case MspFn::MSP_RAW_IMU: {
-			buf[len++] = accelDataRaw[0] & 0xFF; // accel x
-			buf[len++] = accelDataRaw[0] >> 8;
-			buf[len++] = accelDataRaw[1] & 0xFF; // accel y
-			buf[len++] = accelDataRaw[1] >> 8;
-			buf[len++] = accelDataRaw[2] & 0xFF; // accel z
-			buf[len++] = accelDataRaw[2] >> 8;
+			buf[len++] = accelAligned[0] & 0xFF; // accel x
+			buf[len++] = accelAligned[0] >> 8;
+			buf[len++] = accelAligned[1] & 0xFF; // accel y
+			buf[len++] = accelAligned[1] >> 8;
+			buf[len++] = accelAligned[2] & 0xFF; // accel z
+			buf[len++] = accelAligned[2] >> 8;
 			i16 gyroX = gyroScaled[0].geti32(); // gyro x
 			i16 gyroY = gyroScaled[1].geti32(); // gyro y
 			i16 gyroZ = gyroScaled[2].geti32(); // gyro z
@@ -830,19 +838,30 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::GET_ROTATION: {
 			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
-			int rotationPitch = (pitch * 8192).geti32();
-			int rotationRoll = (roll * 8192).geti32();
-			int rotationYaw = (yaw * 8192).geti32();
+			int rotationRoll = roll.raw >> 3;
+			int rotationPitch = pitch.raw >> 3;
+			int rotationYaw = yaw.raw >> 3;
 			int heading = combinedHeading.raw >> 3;
-			buf[0] = rotationPitch & 0xFF;
-			buf[1] = rotationPitch >> 8;
-			buf[2] = rotationRoll & 0xFF;
-			buf[3] = rotationRoll >> 8;
+			buf[0] = rotationRoll & 0xFF;
+			buf[1] = rotationRoll >> 8;
+			buf[2] = rotationPitch & 0xFF;
+			buf[3] = rotationPitch >> 8;
 			buf[4] = rotationYaw & 0xFF;
 			buf[5] = rotationYaw >> 8;
 			buf[6] = heading & 0xFF;
 			buf[7] = heading >> 8;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
+		} break;
+		case MspFn::GET_IMU_SETUP_STATE: {
+			buf[0] = imuAlignmentStep;
+			buf[1] = imuAlignmentCounter * 100 / PID_FREQ;
+			getImuAlignment((u8 *)&buf[2]);
+			buf[5] = accelCalState;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 6);
+		} break;
+		case MspFn::START_IMU_ALIGNMENT: {
+			startImuAlignment();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::TASK_STATUS: {
 			u32 buf[TASK_LENGTH * 7];

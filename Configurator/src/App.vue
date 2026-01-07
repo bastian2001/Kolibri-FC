@@ -60,6 +60,10 @@ export default defineComponent({
 				switch (command.command) {
 					case MspFn.SAVE_SETTINGS:
 						this.configuratorLog.push('EEPROM saved');
+						break;
+					case MspFn.STATUS:
+						this.battery = `${(leBytesToInt(command.data, 0, 2) / 100).toFixed(2)}V`;
+						break;
 				}
 			}
 		},
