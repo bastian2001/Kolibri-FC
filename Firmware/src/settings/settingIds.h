@@ -1,6 +1,7 @@
 // accelerometer settings
 #define SETTING_ACC_CAL "accel_calibration"
 #define SETTING_ACC_FILTER_CUTOFF "accel_filter_cutoff"
+#define SETTING_IMU_ALIGNMENT "imu_alignment"
 
 // blackbox settings
 #define SETTING_BB_FLAGS "blackbox_flags"

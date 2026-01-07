@@ -11,7 +11,7 @@ export default defineComponent({
 	name: "Sensors",
 	data() {
 		return {
-			fetchInterval: -1,
+			mspInterval: -1,
 			history: new Array(600).fill(0).map(() => new Array(26).fill(0)) as number[][],
 			values: new Array(26).fill(0) as number[],
 			total: 0,
@@ -52,11 +52,10 @@ export default defineComponent({
 		},
 	},
 	mounted() {
-		this.fetchInterval = setInterval(this.getData, 20);
 		addOnCommandHandler(this.onCommand);
 	},
-	unmounted() {
-		clearInterval(this.fetchInterval);
+	beforeUnmount() {
+		clearInterval(this.mspInterval);
 		removeOnCommandHandler(this.onCommand);
 	},
 	methods: {
@@ -196,8 +195,8 @@ export default defineComponent({
 	watch: {
 		frequency: {
 			handler(newVal) {
-				clearInterval(this.fetchInterval);
-				this.fetchInterval = setInterval(this.getData, 1000 / newVal);
+				clearInterval(this.mspInterval);
+				this.mspInterval = setInterval(this.getData, 1000 / newVal);
 			},
 			immediate: true,
 		},

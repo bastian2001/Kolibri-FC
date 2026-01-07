@@ -36,7 +36,13 @@ export default defineComponent({
 	},
 	data() {
 		return {
-			graphs: [[]] as TraceInGraph[][],
+			graphs: [{
+				id: 0,
+				tr: []
+			}] as {
+				id: number,
+				tr: TraceInGraph[]
+			}[],
 			startFrame: 0,
 			endFrame: 0,
 			loadedLog: undefined as BBLog | undefined,
@@ -144,7 +150,7 @@ export default defineComponent({
 			this.drawCanvas();
 		},
 		addGraph() {
-			this.graphs.push([]);
+			this.graphs.push({ id: Math.random(), tr: [] });
 			this.traceInternalBackupFn.push([]);
 			this.traceInternalData.push([]);
 		},
@@ -154,7 +160,7 @@ export default defineComponent({
 			this.traceInternalData = this.traceInternalData.filter((_, i) => i !== g);
 		},
 		deleteTrace(g: number, t: number) {
-			this.graphs[g] = this.graphs[g].filter((_, i) => i !== t);
+			this.graphs[g].tr = this.graphs[g].tr.filter((_, i) => i !== t);
 			this.traceInternalBackupFn[g] = this.traceInternalBackupFn[g].filter((_, i) => i !== t);
 			this.traceInternalData[g] = this.traceInternalData[g].filter((_, i) => i !== t);
 		},
@@ -173,10 +179,10 @@ export default defineComponent({
 				hasSetData: false
 			};
 
-			const c = TRACE_COLORS_FOR_BLACK_BACKGROUND[this.graphs[graphIndex].length]
+			const c = TRACE_COLORS_FOR_BLACK_BACKGROUND[this.graphs[graphIndex].tr.length]
 			if (c) defaultTrace.color = c;
 			this.traceInternalBackupFn[graphIndex].push(() => { })
-			this.graphs[graphIndex].push(defaultTrace)
+			this.graphs[graphIndex].tr.push(defaultTrace)
 
 		},
 		formatBB() {
@@ -593,7 +599,7 @@ export default defineComponent({
 				this.startFrame = 0;
 				this.endFrame = frameCount - 1;
 
-				this.graphs = [[]]
+				this.graphs = [{ id: Math.random(), tr: [] }]
 
 				this.startFetchingFrames()
 			} catch (e) {
@@ -1028,7 +1034,7 @@ export default defineComponent({
 					(height - this.dataViewerWrapper.clientHeight * 0.02 * (numGraphs - 1)) / numGraphs;
 				let heightOffset = 0.01 * this.dataViewerWrapper.clientHeight;
 				for (let i = 0; i < numGraphs; i++) {
-					const graph = this.graphs[i];
+					const graph = this.graphs[i].tr;
 					const numTraces = graph.length;
 					for (let j = 0; j < numTraces; j++) {
 						const trace = graph[j];
@@ -1056,7 +1062,7 @@ export default defineComponent({
 				const timeText = t + 's, Frame ' + closestFrameNum;
 				const valueTexts: string[] = [];
 				for (let i = 0; i < numGraphs; i++) {
-					const graph = this.graphs[i];
+					const graph = this.graphs[i].tr;
 					const numTraces = graph.length;
 					for (let j = 0; j < numTraces; j++) {
 						const trace = graph[j];
@@ -1134,9 +1140,10 @@ export default defineComponent({
 				}
 				let pointY = textY + textPadding + textHeight + 6;
 				for (let i = 0; i < this.graphs.length; i++) {
-					for (let j = 0; j < this.graphs[i].length; j++) {
-						if (!this.graphs[i][j].path) continue;
-						ctx.fillStyle = this.graphs[i][j].color;
+					const traces = this.graphs[i].tr
+					for (let j = 0; j < traces.length; j++) {
+						if (!traces[j].path) continue;
+						ctx.fillStyle = traces[j].color;
 						ctx.beginPath();
 						ctx.arc(textX + textPadding + 8, pointY, 5, 0, Math.PI * 2);
 						ctx.fill();
@@ -1328,7 +1335,7 @@ export default defineComponent({
 			const startFrame = this.startFrame
 			const sv = this.skipValue
 			for (let i = 0; i < numGraphs; i++) {
-				const graph = this.graphs[i];
+				const graph = this.graphs[i].tr;
 
 				// draw the graph outline
 				ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
@@ -1499,7 +1506,7 @@ export default defineComponent({
 			this.binFileNumber = leBytesToInt(data, 0, 2);
 			this.binFile = new Uint8Array(leBytesToInt(data, 2, 4));
 			this.receivedChunks = [];
-			this.graphs = [[]];
+			this.graphs = [{ id: Math.random(), tr: [] }];
 			this.callStop();
 			this.loadedLog = undefined;
 			this.loadedPct = 0
@@ -1674,18 +1681,18 @@ export default defineComponent({
 			this.endFrame = max;
 			const d = getGraphs();
 			for (const i in d) {
-				if (!this.graphs[i]) this.graphs[i] = [];
+				if (!this.graphs[i]) this.graphs[i] = { id: Math.random(), tr: [] };
 				if (!this.traceInternalData[i]) this.traceInternalData[i] = [];
 				for (const j in d[i]) {
 					const g = d[i][j];
-					this.graphs[i][j] = g.t
+					this.graphs[i].tr[j] = g.t
 					this.traceInternalData[i][j] = g.s as TraceInternalData;
 				}
 			}
 		} else {
 			this.startFrame = 0;
 			this.endFrame = 0;
-			this.graphs = [[]];
+			this.graphs = [{ id: Math.random(), tr: [] }];
 		}
 	},
 	beforeUnmount() {
@@ -1703,9 +1710,9 @@ export default defineComponent({
 			const g = [] as { t: TraceInGraph, s: TraceInternalData | undefined }[][]
 			for (const i in this.graphs) {
 				g[i] = [];
-				for (const j in this.graphs[i]) {
+				for (const j in this.graphs[i].tr) {
 					const s = this.traceInternalBackupFn[i][j]() as TraceInternalData | undefined;
-					const t = this.graphs[i][j];
+					const t = this.graphs[i].tr[j];
 					t.hasSetData = true;
 					g[i][j] = { t, s }
 				}
@@ -1746,11 +1753,11 @@ export default defineComponent({
 			</canvas>
 		</div>
 		<div class="flagSelector">
-			<div v-for="(graph, graphIndex) in graphs" v-if="loadedLog" class="graphSelector">
-				<TracePlacer v-for="(trace, traceIndex) in graph" :key="trace.id" :loadedLog="loadedLog"
+			<div v-for="(graph, graphIndex) in graphs" v-if="loadedLog" :key="graph.id" class="graphSelector">
+				<TracePlacer v-for="(trace, traceIndex) in graph.tr" :key="trace.id" :loadedLog="loadedLog"
 					:flagProps="BB_ALL_FLAGS" :genFlagProps="BB_GEN_FLAGS" :trace="trace"
-					v-model="graphs[graphIndex][traceIndex]" @update="(t: TraceInGraph) => {
-						graphs[graphIndex][traceIndex] = t;
+					v-model="graphs[graphIndex].tr[traceIndex]" @update="(t: TraceInGraph) => {
+						graphs[graphIndex].tr[traceIndex] = t;
 						drawCanvas()
 					}" @delete="() => {
 						deleteTrace(graphIndex, traceIndex);

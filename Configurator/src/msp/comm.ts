@@ -653,7 +653,7 @@ export const disconnect = () => {
 let serialDevices: string[] = []
 function listSerialDevices() {
 	invoke("serial_list").then((d: unknown) => {
-		serialDevices = d as string[]
+		serialDevices = (d as string[]).filter(s => !s.match(/\/dev\/ttyS\d+/))
 	})
 }
 let wifiDevices: string[][] = []
