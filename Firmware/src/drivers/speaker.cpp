@@ -59,7 +59,6 @@ static u8 sliceNum;
 FsFile speakerFile;
 u32 speakerDataSize = 0;
 u32 speakerCounter = 0;
-const f32 WAV_SPEAKER_CLKDIV = (float)F_CPU / (256 * 44100 * 4);
 dma_channel_config speakerDmaAConfig, speakerDmaBConfig;
 u8 speakerDmaAChan, speakerDmaBChan;
 // 8KiB buffer each, thus worst case the speaker has a buffer of 1024 samples / 44.1kHz = 23ms
@@ -213,7 +212,8 @@ void speakerLoop() {
 			}
 		}
 		if (startSpeakerFile) {
-			pwm_set_clkdiv(sliceNum, WAV_SPEAKER_CLKDIV);
+			f32 clkdiv = (float)clock_get_hz(clk_sys) / (256 * 44100 * 4);
+			pwm_set_clkdiv(sliceNum, clkdiv);
 			pwm_set_wrap(sliceNum, 256);
 			dma_channel_start(speakerDmaAChan);
 			finishedChannels = 0b00;

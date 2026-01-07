@@ -134,8 +134,8 @@ void inFlightTuningInit() {
 }
 
 void inFlightTuningLoop() {
-	if (!(ELRS->newPacketFlag & (1 << 2)))
-		ELRS->newPacketFlag &= ~(1 << 2);
+	if (!(ELRS->newPacketFlag & (1 << 2)) || !ELRS->isLinkUp) return;
+	ELRS->newPacketFlag &= ~(1 << 2);
 	i8 newSelectState = 0;
 	if (rxModes[RxModeIndex::TUNING_NEXT_VAR].isActive()) newSelectState = 1;
 	if (rxModes[RxModeIndex::TUNING_PREV_VAR].isActive()) newSelectState = -1;
