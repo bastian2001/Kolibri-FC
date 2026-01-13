@@ -1,55 +1,91 @@
 <script setup lang="ts">
 import Drone3dPreview from '@/components/Drone3dPreview.vue';
+import Imu from '@/components/hardwarePorts/imu.vue'
 import { sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
 import { delay, leBytesToInt } from '@/utils/utils';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 
-const AXES_NAMES = ['+X', '-X', '+Y', '-Y', '+Z', '-Z']
-const imuAxes = ref([0, 2, 4])
-let lastAccelCalibState = 0
-const accelCalibState = ref(0)
-let lastImuOrientationState = 0
-const imuOrientationState = ref(0)
-const imuOrientationTimer = ref(0)
+type portType = 'analog-osd' | 'digital-osd' | 'analog-vtx' | 'adc' | 'dshot' | 'elrs' | 'gps' | 'baro' | 'mag' | 'large-fs' | 'ledstrip' | 'speaker' | 'imu'
+type port = {
+	type: portType,
+
+	serialBaud: number,
+
+	// analog OSD status
+	detectedVideoType?: 'pal' | 'ntsc',
+
+	// digital OSD status
+	canvasWidth?: number,
+	canvasHeight?: number,
+
+	// analog VTX status
+	analogVtxOnline?: boolean,
+	analogVtxFreq?: number,
+
+	// ADC values
+	rawVoltage: number,
+	batVoltage: number,
+	rawCurrent: number,
+	batCurrent: number,
+	cpuTemp: number,
+
+	// DShot settings
+	dshotSpeed: number,
+	bidirStatus: boolean[],
+	edtStatus: boolean[],
+
+	// ELRS status
+	rxFound: boolean,
+	txFound: boolean,
+	lqi: number,
+	packetRate: number,
+
+	// GPS settings
+	gpsProtocol: number,
+	gpsFound: boolean,
+	gpsInited: boolean,
+
+	// Baro settings
+	baroModel: number,
+	baroFound: boolean,
+	baroRaw: number,
+	baroAltitude: number,
+	baroUpdateRate: number,
+
+	// Magnetometer settings
+	magMode: number,
+	magFound: boolean,
+	magRaw: number[],
+	magAlignment: number[],
+	magCalibration: number,
+	magCalibrationState: number,
+	magCalibrationTimer: number,
+
+	// Large FS info
+	largeFsType: number,
+	largeFsTotalSpace: number,
+	largeFsFreeSpace: number,
+
+	// LED strip
+	ledColors: number[][],
+
+	// Speaker
+	speakerSoundFile: string,
+	speakerFrequency: number,
+
+	// IMU
+	// imuAxes: number[]
+	// imuLastAccelCalibState: number,
+	// imuAccelCalibState: number,
+	// imuLastOrientationState: number,
+	// imuOrientationState: number,
+	// imuOrientationTimer: number,
+}
+
 
 let exiting = false
 const attitude = ref({ roll: 0, pitch: 0, yaw: 0 })
-
-const getImuSetupState = setInterval(() => {
-	sendCommand(MspFn.GET_IMU_SETUP_STATE).then(c => {
-		imuOrientationState.value = c.data[0]
-		imuOrientationTimer.value = leBytesToInt(c.data, 1, 1, true)
-		for (let i = 0; i < 3; i++) {
-			imuAxes.value[i] = c.data[i + 2]
-		}
-
-		if (imuOrientationState.value === 0 && (lastImuOrientationState === 2 || lastImuOrientationState === 3)) {
-			imuOrientationState.value = 3
-			setTimeout(() => {
-				if (imuOrientationState.value === 3) {
-					imuOrientationState.value = 0
-					lastImuOrientationState = 0
-				}
-			}, 5000)
-		}
-		if (lastImuOrientationState !== 3 || imuOrientationState.value === 0)
-			lastImuOrientationState = imuOrientationState.value
-
-		accelCalibState.value = c.data[5]
-		if (accelCalibState.value === 0 && (lastAccelCalibState === 2 || lastAccelCalibState === 3)) {
-			accelCalibState.value = 3
-			setTimeout(() => {
-				if (accelCalibState.value === 3) {
-					accelCalibState.value = 0
-					lastAccelCalibState = 0
-				}
-			}, 5000)
-		}
-		if (lastAccelCalibState !== 3 || accelCalibState.value !== 0)
-			lastAccelCalibState = accelCalibState.value
-	})
-}, 100)
 
 
 async function getRotationContinuous() {
@@ -79,7 +115,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
 	exiting = true
-	clearInterval(getImuSetupState)
 })
 </script>
 
@@ -90,53 +125,7 @@ onBeforeUnmount(() => {
 		</div>
 		<div class="gridWrapper">
 			<div class="grid">
-				<div class="gyro">
-					<div class="hardwareIcon green"></div>
-					<h3>Gyro / Accelerometer</h3>
-					<div class="imuAlignment inlineblock">
-						<button @click="() => sendCommand(MspFn.START_IMU_ALIGNMENT)" :style="{
-							background: `linear-gradient(to right, #fff3 ${Math.max(imuOrientationTimer, 0)}%, transparent ${Math.max(imuOrientationTimer, 0)}%)`,
-						}">Start Gyro Alignment</button>
-						<p v-if="imuOrientationState === 0">Use this to align the gyro/accelerometer in 90° steps.</p>
-						<p v-else-if="imuOrientationState === 1">1. Put your quad in its normal orientation.</p>
-						<p v-else-if="imuOrientationState === 2">2. Pitch your quad forward so that the nose points
-							down.
-						</p>
-						<p v-else-if="imuOrientationState === 3">3. Test the alignment.</p>
-						<p>Forward: {{ AXES_NAMES[imuAxes[0]] }}, Right: {{ AXES_NAMES[imuAxes[1]] }}, Down: {{
-							AXES_NAMES[imuAxes[2]] }}</p>
-					</div>
-					<div class="accelCalib inlineblock">
-						<button @click="() => sendCommand(MspFn.ACC_CALIBRATION)">Calibrate Accelerometer</button>
-						<p v-if="accelCalibState === 0">Use this to compensate small errors.</p>
-						<p v-else-if="accelCalibState === 1">1. Rest the quad on a horizontal surface.</p>
-						<p v-else-if="accelCalibState === 2">2. Hold still.</p>
-						<p v-else-if="accelCalibState === 3">3. Calibration finished, test whether it is good.</p>
-					</div>
-				</div>
-				<div>
-					Serial Port Setup
-				</div>
-				<div>
-					Serial Port Setup
-				</div>
-				<div>
-					Serial Port Setup
-				</div>
-				<div>
-					Serial Port Setup
-				</div>
-				<!--
-				Sensor status
-				- Gyro/accel found, model
-				- Mag found, model
-				- baro found, model
-				- Large FS (SD/FCKAFD) found, size and available size, audio flashing helper
-				- GPS found, init state
-				- Other serial devices found such as RX/VTX
-				- DShot status
-				- ADC values
-			-->
+				<Imu />
 			</div>
 		</div>
 	</div>
@@ -169,7 +158,7 @@ onBeforeUnmount(() => {
 	gap: 2px;
 }
 
-.grid>div {
+.grid>:deep(div) {
 	box-sizing: border-box;
 	background-color: var(--background-light);
 	text-align: center;
@@ -177,41 +166,12 @@ onBeforeUnmount(() => {
 	box-shadow: 0px 0px 0px 2px var(--border-color);
 }
 
-.hardwareIcon {
+:deep(.hardwareIcon) {
 	height: 8rem;
 	background-color: #0f0;
 	-webkit-mask: url(@assets/gyroaccel_app.svg) no-repeat center;
 	mask: url(@assets/gyroaccel_app.svg) no-repeat center;
 	-webkit-mask-size: contain;
 	mask-size: contain;
-}
-
-h3 {
-	margin-top: 6px;
-	margin-bottom: 0px;
-}
-
-p {
-	font-size: .85rem;
-	margin-top: 6px;
-}
-
-.inlineblock>* {
-	margin-right: 10px;
-	margin-left: 10px;
-	display: inline-block;
-}
-
-.imuAlignment {
-	margin-top: 8px;
-}
-
-button {
-	color: var(--text-color);
-	font-size: .8rem;
-	background-color: transparent;
-	border: 1px solid var(--border-color);
-	border-radius: 6px;
-	padding: 5px 12px;
 }
 </style>
