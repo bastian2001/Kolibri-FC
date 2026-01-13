@@ -1,7 +1,7 @@
 #include "global.h"
 #include <math.h>
 
-#ifdef BARO_SPL006
+#if HW_BARO == BARO_SPL006
 enum BARO_COEFFS {
 	c0,
 	c1,
@@ -16,7 +16,7 @@ enum BARO_COEFFS {
 constexpr i32 baroScaleFactor = 7864320;
 static i32 baroCalibration[9];
 static i32 baroTempRaw;
-#elifdef BARO_LPS22
+#elif HW_BARO == BARO_LPS22
 #endif
 
 fix32 baroASL = 0; // above sea level
@@ -52,7 +52,7 @@ void baroLoop() {
 		if (i2c0blocker) break;
 		baroTimer = 0;
 		// no baro detected yet
-#ifdef BARO_SPL006
+#if HW_BARO == BARO_SPL006
 		gpio_put(PIN_BARO_CS, 0); // enable SPI by pulling CS low (datasheet page 10)
 		sleep_us(10);
 		gpio_put(PIN_BARO_CS, 1);
@@ -61,7 +61,7 @@ void baroLoop() {
 			Serial.println("Baro not found");
 			return;
 		}
-#elifdef BARO_LPS22
+#elif HW_BARO == BARO_LPS22
 		baroBuffer[0] = (u8)BaroRegs::WHO_AM_I;
 		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
 		i2c_read_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 1, false);
@@ -73,7 +73,7 @@ void baroLoop() {
 	case BaroState::INITIALIZING: {
 		// baro detected
 		if (i2c0blocker) break;
-#ifdef BARO_SPL006
+#if HW_BARO == BARO_SPL006
 		regRead(SPI_BARO, PIN_BARO_CS, 0x10, baroBuffer, 18, 0, false); // read calibration data
 		baroCalibration[c0] = (((u32)baroBuffer[0]) << 4) + (baroBuffer[1] >> 4);
 		if (baroCalibration[c0] > 2047) baroCalibration[c0] -= 4096;
@@ -99,7 +99,7 @@ void baroLoop() {
 		regWrite(SPI_BARO, PIN_BARO_CS, 0x07, baroBuffer, 1, 0); // set TMP_CFG register
 		baroBuffer[0] = 0b00000111; // enable pressureRaw and temperature measurement
 		regWrite(SPI_BARO, PIN_BARO_CS, 0x08, baroBuffer, 1, 0); // set MEAS_CFG register
-#elifdef BARO_LPS22
+#elif HW_BARO == BARO_LPS22
 		baroBuffer[0] = (u8)BaroRegs::CTRL_REG1;
 		baroBuffer[1] = 0b01001010; // 50Hz, Low-pass, block data update (from now on, only single byte reads allowed)
 		i2c_write_blocking(I2C_BARO, I2C_BARO_ADDR, baroBuffer, 2, false);
@@ -121,9 +121,9 @@ void baroLoop() {
 		break;
 	case BaroState::CHECK_READY: {
 		TASK_START(TASK_BARO_CHECK);
-#ifdef BARO_SPL006
+#if HW_BARO == BARO_SPL006
 		baroState = 4;
-#elifdef BARO_LPS22
+#elif HW_BARO == BARO_LPS22
 		switch (baroSubState) {
 		case 0:
 			if (i2c0blocker == 0) {
@@ -160,14 +160,14 @@ void baroLoop() {
 	} break;
 	case BaroState::READ_DATA: {
 		TASK_START(TASK_BARO_READ);
-#ifdef BARO_SPL006
+#if HW_BARO == BARO_SPL006
 		regRead(SPI_BARO, PIN_BARO_CS, 0x00, baroBuffer, 6, 0, false);
 		// preserve the sign bit
 		pressureRaw = ((i32)baroBuffer[0]) << 24 | ((i32)baroBuffer[1]) << 16 | baroBuffer[2] << 8;
 		temperature = ((i32)baroBuffer[3]) << 24 | ((i32)baroBuffer[4]) << 16 | baroBuffer[5] << 8;
 		pressureRaw >>= 8;
 		temperature >>= 8;
-#elifdef BARO_LPS22
+#elif HW_BARO == BARO_LPS22
 		switch (baroSubState) {
 		case 0:
 			if (i2c0blocker == 0) {
@@ -219,12 +219,12 @@ void baroLoop() {
 	} break;
 	case BaroState::EVAL_DATA: {
 		TASK_START(TASK_BARO_EVAL);
-#ifdef BARO_SPL006
+#if HW_BARO == BARO_SPL006
 		baroTemp = 201 * .5f - baroTempRaw / 7864320.f * 260;
 		f32 pressureScaled = pressureRaw / 7864320.f;
 		f32 temperatureScaled = baroTempRaw / 7864320.f;
 		baroPres = baroCalibration[c00] + pressureScaled * (baroCalibration[c10] + pressureScaled * (baroCalibration[c20] + pressureScaled * baroCalibration[c30])) + temperatureScaled * baroCalibration[c01] + temperatureScaled * pressureScaled * (baroCalibration[c11] + pressureScaled * baroCalibration[c21]);
-#elifdef BARO_LPS22
+#elif HW_BARO == BARO_LPS22
 		blackboxPres = pressureRaw;
 		baroPres = pressureRaw * (1 / 40.96f);
 #endif

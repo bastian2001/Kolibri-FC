@@ -54,13 +54,13 @@ void magLoop() {
 		if (magTimer < 5000) break;
 		if (i2c0blocker) break;
 		magTimer = 0;
-#if MAG_HARDWARE == MAG_HMC5883L
+#if HW_MAG == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::ID_A;
 		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
 		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 3, false);
 		if (strncmp((char *)magBuffer, "H43", 3) == 0)
 			magState = MagState::INITIALIZING;
-#elif MAG_HARDWARE == MAG_QMC5883L
+#elif HW_MAG == MAG_QMC5883L
 		magBuffer[0] = (u8)MAG_REG::ID;
 		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
 		i2c_read_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 1, false);
@@ -70,7 +70,7 @@ void magLoop() {
 		break;
 	case MagState::INITIALIZING:
 		if (i2c0blocker) break;
-#if MAG_HARDWARE == MAG_HMC5883L
+#if HW_MAG == MAG_HMC5883L
 		magBuffer[0] = (u8)MAG_REG::CONF_REGA;
 		magBuffer[1] = MAG_AVG_8 | MAG_ODR_75HZ | MAG_LOAD_FLOAT;
 		magBuffer[2] = MAG_RANGE_2_5;
@@ -79,7 +79,7 @@ void magLoop() {
 		i2c_set_baudrate(I2C_MAG, 3400000);
 		magState = MagState::MEASURING;
 		magTimerTimeout = 13000;
-#elif MAG_HARDWARE == MAG_QMC5883L
+#elif HW_MAG == MAG_QMC5883L
 		magBuffer[0] = (u8)MAG_REG::SET_RESET;
 		magBuffer[1] = 1;
 		i2c_write_blocking(I2C_MAG, MAG_ADDRESS, magBuffer, 2, false);
@@ -91,13 +91,13 @@ void magLoop() {
 #endif
 		break;
 	case MagState::MEASURING:
-#if MAG_HARDWARE == MAG_QMC5883L
+#if HW_MAG == MAG_QMC5883L
 		if (magTimer > magTimerTimeout) {
 			magTimer = 0;
 			magState = MagState::CHECK_DATA_READY;
 			magSubState = 0;
 		}
-#elif MAG_HARDWARE == MAG_HMC5883L
+#elif HW_MAG == MAG_HMC5883L
 		if (magTimer > magTimerTimeout) {
 			magState = MagState::READ_DATA;
 			magTimer = 0;
@@ -106,7 +106,7 @@ void magLoop() {
 		break;
 	case MagState::CHECK_DATA_READY: {
 		TASK_START(TASK_MAG_CHECK);
-#if MAG_HARDWARE == MAG_QMC5883L
+#if HW_MAG == MAG_QMC5883L
 		// check every ms if data is ready
 		switch (magSubState) {
 		case 0:
@@ -151,9 +151,9 @@ void magLoop() {
 			if (i2c0blocker == 0) {
 				i2c0blocker = 2;
 				magSubState = 1;
-#if MAG_HARDWARE == MAG_HMC5883L
+#if HW_MAG == MAG_HMC5883L
 				magBuffer[0] = (u8)MAG_REG::DATA_X_H;
-#elif MAG_HARDWARE == MAG_QMC5883L
+#elif HW_MAG == MAG_QMC5883L
 				magBuffer[0] = (u8)MAG_REG::DATA_X_L;
 #endif
 				startI2cWrite(MAG_ADDRESS, magBuffer, 1);
@@ -183,12 +183,12 @@ void magLoop() {
 	case MagState::PROCESS_DATA: {
 		TASK_START(TASK_MAG_EVAL);
 		static i32 magDataRaw[3];
-#if MAG_HARDWARE == MAG_HMC5883L
+#if HW_MAG == MAG_HMC5883L
 		// TODO: can't be right: 3 permutations (odd)
 		magDataRaw[0] = -(i16)(magBuffer[5] + (magBuffer[4] << 8));
 		magDataRaw[1] = (i16)(magBuffer[1] + (magBuffer[0] << 8));
 		magDataRaw[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8));
-#elif MAG_HARDWARE == MAG_QMC5883L
+#elif HW_MAG == MAG_QMC5883L
 		magDataRaw[0] = -((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4;
 		magDataRaw[1] = -((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4;
 		magDataRaw[2] = ((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4;
@@ -216,11 +216,11 @@ void magLoop() {
 	case MagState::CALIBRATE: {
 		// https://www.nxp.com/docs/en/application-note/AN4248.pdf
 		i16 val[4];
-#if MAG_HARDWARE == MAG_HMC5883L
+#if HW_MAG == MAG_HMC5883L
 		val[0] = -(i16)(magBuffer[5] + (magBuffer[4] << 8));
 		val[1] = (i16)(magBuffer[1] + (magBuffer[0] << 8));
 		val[2] = (i16)(magBuffer[3] + (magBuffer[2] << 8));
-#elif MAG_HARDWARE == MAG_QMC5883L
+#elif HW_MAG == MAG_QMC5883L
 		val[0] = -((i16)(magBuffer[0] + (magBuffer[1] << 8))) >> 4;
 		val[1] = -((i16)(magBuffer[2] + (magBuffer[3] << 8))) >> 4;
 		val[2] = ((i16)(magBuffer[4] + (magBuffer[5] << 8))) >> 4;
@@ -235,9 +235,9 @@ void magLoop() {
 			}
 			xtyVector[row] += val[row] * (val[0] * val[0] + val[1] * val[1] + val[2] * val[2]);
 		}
-#if MAG_HARDWARE == MAG_HMC5883L
+#if HW_MAG == MAG_HMC5883L
 		if (++calibrationCycle == 1000)
-#elif MAG_HARDWARE == MAG_QMC5883L
+#elif HW_MAG == MAG_QMC5883L
 		if (++calibrationCycle == 3000)
 #endif
 		{

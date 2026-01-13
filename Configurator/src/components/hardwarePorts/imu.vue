@@ -6,7 +6,10 @@ import { onBeforeUnmount, ref } from 'vue'
 
 
 const AXES_NAMES = ['+X', '-X', '+Y', '-Y', '+Z', '-Z']
+const IMU_NAMES = ['unknown', 'BMI270', 'ICM-42688-P']
 const imuAxes = ref([0, 2, 4])
+const imuModel = ref('unknown')
+const readyFlags = ref(0b1111)
 
 let lastAccelCalibState = 0
 const accelCalibState = ref(0)
@@ -48,6 +51,9 @@ const getImuSetupState = setInterval(() => {
 		}
 		if (lastAccelCalibState !== 3 || accelCalibState.value !== 0)
 			lastAccelCalibState = accelCalibState.value
+
+		imuModel.value = IMU_NAMES[c.data[6]]
+		readyFlags.value = c.data[7]
 	})
 }, 100)
 
@@ -59,9 +65,12 @@ onBeforeUnmount(() => {
 <template>
 
 	<div class="gyro">
-		<div class="hardwareIcon green"></div>
+		<div
+			:class="{ hardwareIcon: true, green: (readyFlags === 0), red: (readyFlags & 1), yellow: (readyFlags & 0b1110) }">
+		</div>
 		<h3>Gyro / Accelerometer</h3>
 		<div class="imuAlignment inlineblock">
+			<p>Model: {{ imuModel }}</p><br>
 			<button @click="() => sendCommand(MspFn.START_IMU_ALIGNMENT)" :style="{
 				background: `linear-gradient(to right, #fff3 ${Math.max(imuOrientationTimer, 0)}%, transparent ${Math.max(imuOrientationTimer, 0)}%)`,
 			}">Start Gyro Alignment</button>

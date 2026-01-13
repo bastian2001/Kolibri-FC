@@ -10,7 +10,7 @@ extern fix32 gpsBaroAlt;
 extern i32 pressureRaw;
 extern volatile i32 blackboxPres;
 
-#ifdef BARO_LPS22
+#if HW_BARO == BARO_LPS22
 #define I2C_BARO_ADDR 0x5D
 enum BaroRegs {
 	INTERRUPT_CFG = 0x0B,

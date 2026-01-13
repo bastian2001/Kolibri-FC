@@ -1,8 +1,19 @@
+#pragma once
+
 #define SD_BB 0
 #define FLASH_BB 1
 
 #define HW_V5 5
 #define HW_V6 6
+
+#define GYRO_BMI270 1
+#define GYRO_ICM42688P 2
+
+#define BARO_SPL006 1
+#define BARO_LPS22 2
+
+#define MAG_HMC5883L 1
+#define MAG_QMC5883L 2
 
 #if HW_VARIANT == HW_V5
 
@@ -44,7 +55,10 @@
 #define SPI_OSD spi1 // SPI for OSD
 #define GYRO_HALFDUPLEX_SPI
 #define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
-#define GYRO_BMI270
+
+#define HW_MAG MAG_QMC5883L
+#define HW_BARO BARO_LPS22
+#define HW_GYRO GYRO_BMI270
 
 #define TARGET_IDENTIFIER "KD05"
 #define TARGET_FULL_NAME "Kolibri Dev v0.5"
@@ -90,7 +104,10 @@
 #define I2C_MAG i2c0 // I2C for magnetometer
 #define SPI_OSD spi1 // SPI for OSD
 #define SPI_GYRO spi0
-#define GYRO_ICM42688P
+
+#define HW_MAG MAG_QMC5883L
+#define HW_BARO BARO_LPS22
+#define HW_GYRO GYRO_ICM42688P
 
 #define TARGET_IDENTIFIER "KD06"
 #define TARGET_FULL_NAME "Kolibri Dev v0.6"

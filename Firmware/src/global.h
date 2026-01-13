@@ -17,8 +17,8 @@
 #include <hardware/resets.h>
 #include <hardware/spi.h>
 #include <hardware/watchdog.h>
-#include <pico/stdlib.h>
 #include <pico/mutex.h>
+#include <pico/stdlib.h>
 
 // Arduino
 #ifdef USE_TINYUSB
@@ -83,7 +83,7 @@
 #define SPI_BARO spi0 // SPI for baro
 #endif
 
-#ifdef BARO_LPS22
+#if HW_BARO == BARO_LPS22
 #define I2C_BARO i2c0 // I2C for baro
 #endif
 

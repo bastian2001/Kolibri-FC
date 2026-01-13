@@ -75,12 +75,6 @@ type port = {
 	speakerFrequency: number,
 
 	// IMU
-	// imuAxes: number[]
-	// imuLastAccelCalibState: number,
-	// imuAccelCalibState: number,
-	// imuLastOrientationState: number,
-	// imuOrientationState: number,
-	// imuOrientationTimer: number,
 }
 
 
@@ -168,10 +162,26 @@ onBeforeUnmount(() => {
 
 :deep(.hardwareIcon) {
 	height: 8rem;
-	background-color: #0f0;
+	background-color: white;
 	-webkit-mask: url(@assets/gyroaccel_app.svg) no-repeat center;
 	mask: url(@assets/gyroaccel_app.svg) no-repeat center;
 	-webkit-mask-size: contain;
 	mask-size: contain;
+}
+
+:deep(.hardwareIcon.green) {
+	background-color: #0f0;
+}
+
+:deep(.hardwareIcon.yellow) {
+	background-color: #ff0;
+}
+
+:deep(.hardwareIcon.orange) {
+	background-color: #f80;
+}
+
+:deep(.hardwareIcon.red) {
+	background-color: #ff0;
 }
 </style>

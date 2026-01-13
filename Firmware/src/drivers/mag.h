@@ -1,8 +1,7 @@
+#include "targets.h"
 #include "typedefs.h"
 
-#define MAG_HMC5883L 0
-#define MAG_QMC5883L 1
-#if MAG_HARDWARE == MAG_QMC5883L
+#if HW_MAG == MAG_QMC5883L
 #define MAG_ADDRESS (0x0D)
 
 enum class MAG_REG {
@@ -36,7 +35,7 @@ enum class MAG_REG {
 #define MAG_SOFT_RST (0b1 << 7) // write into CONTROL_2 to reset the sensor
 #define MAG_ROL_PNT (0b1 << 6) // write into CONTROL_2 to roll over pointer from Z to X
 #define MAG_INT_EN (0b1 << 0) // write into CONTROL_2 to enable interrupt
-#elif MAG_HARDWARE == MAG_HMC5883L
+#elif HW_MAG == MAG_HMC5883L
 // driver for HMC5883L magnetometer
 
 #define MAG_ADDRESS (0x1E)

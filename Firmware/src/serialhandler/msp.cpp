@@ -857,7 +857,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[1] = imuAlignmentCounter * 100 / PID_FREQ;
 			getImuAlignment((u8 *)&buf[2]);
 			buf[5] = accelCalState;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 6);
+			buf[6] = HW_GYRO;
+			buf[7] = gyroReadyFlags;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
 		} break;
 		case MspFn::START_IMU_ALIGNMENT: {
 			startImuAlignment();
