@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
-import { useLogStore } from '@/stores/logStore';
 import { leBytesToInt } from '@/utils/utils';
 import { computed, onBeforeUnmount, ref } from 'vue';
 
