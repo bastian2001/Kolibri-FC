@@ -374,11 +374,32 @@ void pidDisarmedLoop() {
 
 	// Quad disarmed
 	// all motors off
-	if (mspOverrideMotors > 1000)
+	bool customThrottles = true;
+	if (mspOverrideMotors > 1000) {
+		customThrottles = false;
 		for (int i = 0; i < 4; i++)
 			throttles[i] = 0;
+	}
 	if (!rxModes[RxModeIndex::BEEPER].isActive()) {
-		sendThrottles(throttles);
+
+		static elapsedMillis enableEdtTimer;
+		static u32 enableEdtCounter = 0;
+		if (enableEdtTimer > 3000) {
+			enableEdtTimer = 0;
+			for (int i = 0; i < 4; i++) {
+				if (!escEdtFound[i]) enableEdtCounter = 1;
+			}
+		}
+
+		if (enableEdtCounter && enableEdtCounter++ <= 10 && !customThrottles) {
+			if (enableEdtCounter == 11) {
+				enableEdtCounter = 0;
+			}
+			u16 motors[4] = {DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE, DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE, DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE, DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE};
+			sendRaw11Bit(motors);
+		} else {
+			sendThrottles(throttles);
+		}
 	} else {
 		static elapsedMillis motorBeepTimer;
 		if (motorBeepTimer > 500)

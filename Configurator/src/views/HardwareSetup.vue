@@ -182,6 +182,6 @@ onBeforeUnmount(() => {
 }
 
 :deep(.hardwareIcon.red) {
-	background-color: #ff0;
+	background-color: #f00;
 }
 </style>

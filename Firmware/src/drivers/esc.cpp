@@ -108,14 +108,7 @@ void decodeErpm() {
 			escCurrent[m] = telemVal;
 			break;
 		case BidirDshotTelemetryType::NO_PACKET:
-			tasks[TASK_ESC_RPM].errorCount++;
-			tasks[TASK_ESC_RPM].lastError = 1;
-			thisEscFail = true;
-			escRawTelemetry[m] = 0;
-			break;
 		case BidirDshotTelemetryType::CHECKSUM_ERROR:
-			tasks[TASK_ESC_RPM].errorCount++;
-			tasks[TASK_ESC_RPM].lastError = 2;
 			thisEscFail = true;
 			escRawTelemetry[m] = 0;
 			break;
@@ -127,12 +120,14 @@ void decodeErpm() {
 		case BidirDshotTelemetryType::DEBUG_FRAME_1:
 		case BidirDshotTelemetryType::DEBUG_FRAME_2:
 			escRawTelemetry[m] = 0;
+			break;
 		default:
 			break;
 		}
 
 		if (thisEscFail) {
 			escErpmFail |= 1 << m;
+			tasks[TASK_ESC_RPM].errorCount++;
 			if (++escNoBidirCounter[m] >= PID_FREQ * 2) {
 				escFound[m] = false;
 			}
@@ -145,7 +140,7 @@ void decodeErpm() {
 			escNoEdtCounter[m] = 0;
 			escEdtFound[m] = true;
 		} else {
-			if (++escNoEdtCounter[m] >= PID_FREQ * 2) {
+			if (++escNoEdtCounter[m] >= PID_FREQ * 3) {
 				escEdtFound[m] = false;
 			}
 		}
