@@ -63,7 +63,6 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-
 	<div class="gyro">
 		<div
 			:class="{ hardwareIcon: true, green: (readyFlags === 0), red: (readyFlags & 1), yellow: (readyFlags & 0b1110) }">
@@ -94,6 +93,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.hardwareIcon {
+	-webkit-mask: url(@assets/gyroaccel_app.svg) no-repeat center;
+	mask: url(@assets/gyroaccel_app.svg) no-repeat center;
+}
+
 h3 {
 	margin-top: 6px;
 	margin-bottom: 0px;

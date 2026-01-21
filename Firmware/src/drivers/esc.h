@@ -15,6 +15,8 @@ extern u32 escCurrent[4]; // last reported current from the ESCs
 extern u8 escErpmFail; // flags for failed RPM decoding
 extern u32 escErpmFailCounter; // consecutive frames with at least one broken RPM measurement, reset to 0 when all RPMs are measured correctly
 extern u16 dshotBeepTone; // tone for the ESC beeps (1-5)
+extern bool escFound[4]; // whether there was at least one bidir response from the ESCs in the last 2 seconds
+extern bool escEdtFound[4]; // whether there was at least one EDT status response from the ESCs in the last 2 seconds
 
 /// @brief Initializes the ESC communication
 void initESCs();

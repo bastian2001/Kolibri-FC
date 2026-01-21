@@ -93,6 +93,7 @@ export const MspFn = {
 	// 0x41A_ Motors
 	GET_MOTOR_LAYOUT: 0x41a0,
 	SET_MOTOR_LAYOUT: 0x41a1,
+	GET_MOTOR_STATE: 0x41a2,
 
 	// 0x41B_ VTX
 	GET_VTX_CURRENT_STATE: 0x41b0,

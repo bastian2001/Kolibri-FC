@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import Drone3dPreview from '@/components/Drone3dPreview.vue';
-import Imu from '@/components/hardwarePorts/imu.vue'
+import Drone3dPreview from '@components/Drone3dPreview.vue';
+import Imu from '@components/hardwarePorts/imu.vue'
+import Dshot from '@components/hardwarePorts/dshot.vue'
 import { sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
 import { delay, leBytesToInt } from '@/utils/utils';
@@ -120,6 +121,7 @@ onBeforeUnmount(() => {
 		<div class="gridWrapper">
 			<div class="grid">
 				<Imu />
+				<Dshot />
 			</div>
 		</div>
 	</div>
@@ -163,8 +165,6 @@ onBeforeUnmount(() => {
 :deep(.hardwareIcon) {
 	height: 8rem;
 	background-color: white;
-	-webkit-mask: url(@assets/gyroaccel_app.svg) no-repeat center;
-	mask: url(@assets/gyroaccel_app.svg) no-repeat center;
 	-webkit-mask-size: contain;
 	mask-size: contain;
 }

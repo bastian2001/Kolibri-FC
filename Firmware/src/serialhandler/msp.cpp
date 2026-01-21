@@ -925,6 +925,19 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[0] = updateMotorPins((const u8 *)reqPayload);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 		} break;
+		case MspFn::GET_MOTOR_STATE: {
+			for (int m = 0; m < 4; m++) {
+				u8 motor = 1 << 0; // motor output is enabled
+				motor |= 1 << 1; // output is bidir
+				if (escFound[m]) motor |= 1 << 2;
+				if (escEdtFound[m]) motor |= 1 << 3;
+				buf[m] = motor;
+			}
+			for (int m = 4; m < 8; m++) {
+				buf[m] = 0;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
+		} break;
 		case MspFn::GET_VTX_CURRENT_STATE: {
 			u8 len = sendTrampUpdateMsg(buf);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
