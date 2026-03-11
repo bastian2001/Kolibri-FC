@@ -16,30 +16,10 @@ void setup() {
 
 	runUnitTests();
 
-	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
-		bootReason = rebootReason;
-	else
-		bootReason = BootReason::POR;
-	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
-	rebootReason = BootReason::WATCHDOG;
-
 	Serial.println("Setup started");
 	initLittleFs();
 	openSettingsFile();
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
-
-	EEPROM.begin(4096);
-	// save crash info to EEPROM
-	if (crashInfo[0] == 255) {
-		Serial.println("Crash detected");
-		for (int i = 0; i < 256; i++) {
-			EEPROM.write(4096 - 256 + i, (u8)crashInfo[i]);
-		}
-		EEPROM.commit();
-	}
-	for (int i = 0; i < 256; i++) {
-		crashInfo[i] = 0;
-	}
 
 	initPid();
 	initControl();

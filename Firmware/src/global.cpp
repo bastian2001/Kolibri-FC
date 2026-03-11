@@ -27,11 +27,6 @@ f64 DECODE_R8(const u8 *buf) {
 	return result;
 }
 
-volatile u32 __uninitialized_ram(crashInfo)[256];
-BootReason bootReason;
-BootReason __uninitialized_ram(rebootReason);
-u64 __uninitialized_ram(powerOnResetMagicNumber);
-
 NeoPixelConnect p(PIN_LEDS, 9, PIO_LED);
 std::string uavName = "";
 

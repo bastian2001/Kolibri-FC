@@ -226,7 +226,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			case MSP_REBOOT_FIRMWARE:
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 				serials[serialNum].stream->flush();
-				rebootReason = BootReason::CMD_REBOOT;
 				sleep_ms(100);
 				rp2040.reboot();
 				break;
@@ -234,7 +233,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			case MSP_REBOOT_BOOTLOADER_ROM:
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 				serials[serialNum].stream->flush();
-				rebootReason = BootReason::CMD_BOOTLOADER;
 				sleep_ms(100);
 				rp2040.rebootToBootloader();
 				break;
@@ -1120,17 +1118,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::GET_CRASH_DUMP:
-			for (int i = 0; i < 256; i++) {
-				rp2040.wdt_reset();
-				buf[i] = EEPROM.read(4096 - 256 + i);
-			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 256);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::CLEAR_CRASH_DUMP:
-			for (int i = 0; i < 256; i++) {
-				rp2040.wdt_reset();
-				EEPROM.write(4096 - 256 + i, 0);
-			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
 		case MspFn::SET_DEBUG_LED:

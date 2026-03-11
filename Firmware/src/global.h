@@ -25,7 +25,6 @@
 #include <Adafruit_TinyUSB.h>
 #endif
 #include <Arduino.h>
-#include <EEPROM.h>
 #include <LittleFS.h>
 #if BLACKBOX_STORAGE == SD_BB
 #include <SdFat.h>
@@ -105,12 +104,6 @@ f32 DECODE_R4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit floa
 i64 DECODE_I8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit signed integer
 f64 DECODE_R8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit float / double
 
-enum class BootReason {
-	POR, // Power-on reset
-	CMD_REBOOT,
-	CMD_BOOTLOADER,
-	WATCHDOG
-};
 enum MspRebootMode {
 	MSP_REBOOT_FIRMWARE = 0,
 	MSP_REBOOT_BOOTLOADER_ROM,
@@ -118,11 +111,6 @@ enum MspRebootMode {
 	MSP_REBOOT_MSC_UTC,
 	MSP_REBOOT_BOOTLOADER_FLASH
 };
-
-extern volatile u32 crashInfo[256]; // Crash info buffer (arbitrary data to be saved to EEPROM in case of a crash)
-extern BootReason bootReason; // Reason for booting
-extern BootReason rebootReason; // Reason for rebooting (can be set right before an intentional reboot, WATCHDOG otherwise)
-extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0xdeadbeefdeadbeef)
 
 extern NeoPixelConnect p;
 extern std::string uavName;
