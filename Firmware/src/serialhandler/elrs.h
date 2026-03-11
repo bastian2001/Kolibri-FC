@@ -137,12 +137,17 @@ public:
 	static constexpr u8 ADDRESS_RADIO_TRANSMITTER = 0xEA;
 	static constexpr u8 ADDRESS_CRSF_RECEIVER = 0xEC;
 	static constexpr u8 ADDRESS_CRSF_TRANSMITTER = 0xEE;
+	static constexpr u8 ADDRESS_CRSF_BROADCAST = 0x00;
 
 private:
 	// constants needed for encoding/decoding packets
 	static constexpr u16 powerStates[9] = {0, 10, 25, 100, 500, 1000, 2000, 250, 50};
-	static constexpr u16 packetRates[20] = {
-		4, 25, 50, 100, 100, 150, 200, 250, 333, 500, 250, 500, 500, 1000, 50, 200, 500, 1000, 1000, 1000};
+	static constexpr u16 packetRates900[20] = {
+		25, 50, 100, 100, 150, 200, 200, 250, 333, 500, 50, 1000};
+	static constexpr u16 packetRates2400[20] = {
+		25, 50, 100, 100, 150, 200, 200, 250, 333, 500, 250, 500, 500, 1000, 250, 500, 1000};
+	static constexpr u16 packetRatesX[20] = {
+		100, 150};
 	static constexpr u8 CRSF_SYNC_BYTE = 0xC8;
 
 	// incoming packets

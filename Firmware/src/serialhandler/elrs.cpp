@@ -113,8 +113,7 @@ void ExpressLRS::loop() {
 		rcPacketRateCounter = 0;
 		frequencyTimer = 0;
 		if (!pinged) {
-			// somehow ADDRESS_BROADCAST gets no device info in return so using CRSF_RECEIVER here
-			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_RECEIVER, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
+			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_BROADCAST, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
 		}
 	}
 
@@ -419,7 +418,12 @@ void ExpressLRS::processMessage() {
 		uplinkSNR = inPayload[3];
 		antennaSelection = inPayload[4];
 		packetRateIdx = inPayload[5];
-		targetPacketRate = packetRates[packetRateIdx];
+		if (packetRateIdx < 20)
+			targetPacketRate = packetRates900[packetRateIdx];
+		else if (packetRateIdx < 40)
+			targetPacketRate = packetRates2400[packetRateIdx - 20];
+		else if (packetRateIdx < 120 && packetRateIdx >= 100)
+			targetPacketRate = packetRatesX[packetRateIdx - 100];
 		txPower = powerStates[inPayload[6]];
 		downlinkRssi = -inPayload[7];
 		downlinkLinkQuality = inPayload[8];
@@ -494,13 +498,8 @@ bool ExpressLRS::parseChar(u8 c) {
 		}
 		break;
 	case CRSF_STATE_LEN:
-		if (c > 62) {
-			ELRS_RAISE_ERROR(ERROR_INVALID_PKT_LEN);
-			inMsgState = CRSF_STATE_SYNC;
-		} else {
-			inMsgLen = c;
-			inMsgState = CRSF_STATE_TYPE;
-		}
+		inMsgLen = c;
+		inMsgState = CRSF_STATE_TYPE;
 		break;
 	case CRSF_STATE_TYPE:
 		inType = c;
@@ -511,8 +510,12 @@ bool ExpressLRS::parseChar(u8 c) {
 			inMsgIsExtended = true;
 		} else {
 			inActualLen = inMsgLen - 2;
-			inMsgState = CRSF_STATE_PAYLOAD;
 			inMsgIsExtended = false;
+			inMsgState = inActualLen ? CRSF_STATE_PAYLOAD : CRSF_STATE_CRC;
+		}
+		if (inActualLen > 60) {
+			ELRS_RAISE_ERROR(ERROR_INVALID_PKT_LEN);
+			inMsgState = CRSF_STATE_SYNC;
 		}
 		break;
 	case CRSF_STATE_EXT_DEST:
@@ -523,12 +526,12 @@ bool ExpressLRS::parseChar(u8 c) {
 	case CRSF_STATE_EXT_SRC:
 		inExtSrc = c;
 		CRC_LUT_D5_APPLY(inCrc, c);
-		inMsgState = CRSF_STATE_PAYLOAD;
+		inMsgState = inActualLen ? CRSF_STATE_PAYLOAD : CRSF_STATE_CRC;
 		break;
 	case CRSF_STATE_PAYLOAD:
 		inPayload[inPayloadIndex++] = c;
 		CRC_LUT_D5_APPLY(inCrc, c);
-		if (inPayloadIndex == inActualLen)
+		if (inPayloadIndex >= inActualLen)
 			inMsgState = CRSF_STATE_CRC;
 		break;
 	case CRSF_STATE_CRC:
