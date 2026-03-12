@@ -72,6 +72,14 @@ export default defineComponent({
 		this.exiting = true
 	},
 	methods: {
+		scanDevices() {
+			sendCommand(MspFn.CRSF_SCAN_DEVICES)
+		},
+		async getDevices() {
+			try {
+				console.log(await sendCommand(MspFn.CRSF_GET_DEVICES))
+			} catch (e) { }
+		},
 		async getRcContinuous() {
 			while (!this.exiting) {
 				try {
@@ -140,6 +148,8 @@ export default defineComponent({
 					TX Power: {{ txPower }}mW<br />
 					Total RC message count: {{ rcMsgCount }}
 				</div>
+				<button @click="scanDevices">Scan Devices</button>
+				<button @click="getDevices">Get Devices</button>
 			</div>
 			<div id="rxModes">
 				<RxMode v-for="(mode, index) in rxModes" :key="index" :min="mode.min" :max="mode.max" :rc="channels"
@@ -215,5 +225,9 @@ export default defineComponent({
 	flex-grow: 1;
 	height: 100%;
 	overflow: auto;
+}
+
+button {
+	color: black
 }
 </style>

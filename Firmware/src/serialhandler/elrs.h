@@ -3,13 +3,22 @@
 #include "msp.h"
 #include <Arduino.h>
 #include <elapsedMillis.h>
-#include <vector>
-using std::vector;
+#include <list>
 
 // protocol wiki of CRSF, made by ExpressLRS
 // https://github.com/crsf-wg/crsf/wiki
 
 extern RingBuffer<u8> elrsBuffer;
+
+typedef struct crsfDevice {
+	char name[32];
+	u8 address = 0;
+	u32 serialNo = 0;
+	u32 hardwareId = 0;
+	u32 firmwareId = 0;
+	u8 paramCount = 0;
+	u8 paramVersion = 0;
+} CrsfDevice;
 
 class ExpressLRS {
 public:
@@ -103,6 +112,22 @@ public:
 	 */
 	void sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen);
 
+	/**
+	 * @brief send a broadcast ping to discover attached devices
+	 *
+	 * clears current device tree and creates a new one, filled with all the replied DEVICE_INFO frames
+	 */
+	void scanDevices();
+
+	/**
+	 * @brief Get a list of all currently found devices
+	 *
+	 * Call scanDevices first, then call getDeviceList periodically to get all devices
+	 *
+	 * @return std::list<CrsfDevice> list of all devices
+	 */
+	std::list<CrsfDevice> getDeviceList() { return deviceList; };
+
 	// possible frametypes
 	static constexpr u8 FRAMETYPE_GPS = 0x02;
 	static constexpr u8 FRAMETYPE_VARIO = 0x07;
@@ -186,7 +211,9 @@ private:
 	elapsedMicros heartbeatTimer;
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter = 0;
-	bool pinged = false;
+
+	// Other devices
+	std::list<CrsfDevice> deviceList;
 
 	// MSP packets (in/out)
 	u8 mspExtSrcAddr = 0;

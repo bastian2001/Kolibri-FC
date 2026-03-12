@@ -901,6 +901,31 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::SET_RX_MODES: {
 			mspSetRxModes(serialNum, version, reqPayload, reqLen);
 		} break;
+		case MspFn::CRSF_SCAN_DEVICES: {
+			ELRS->scanDevices();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
+		case MspFn::CRSF_GET_DEVICES: {
+			std::list<CrsfDevice> devs = ELRS->getDeviceList();
+			u32 count = devs.size();
+			if (count > 20) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			char buf[37 * count];
+			u32 i = 0;
+			for (CrsfDevice dev : devs) {
+				memcpy(&buf[i], dev.name, 32);
+				i += 32;
+				buf[i++] = dev.address;
+				buf[i++] = dev.paramCount;
+				buf[i++] = dev.paramVersion;
+				memcpy(&buf[i], &dev.serialNo, 4);
+				i += 4;
+				memcpy(&buf[i], &dev.hardwareId, 4);
+				i += 4;
+				memcpy(&buf[i], &dev.firmwareId, 4);
+				i += 4;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, i);
+		} break;
 		case MspFn::GET_BATTERY_SETTINGS: {
 			buf[len++] = cellCountSetting;
 			buf[len++] = emptyVoltageSetting;

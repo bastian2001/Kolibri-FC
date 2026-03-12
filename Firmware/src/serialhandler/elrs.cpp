@@ -112,9 +112,6 @@ void ExpressLRS::loop() {
 		packetRateCounter = 0;
 		rcPacketRateCounter = 0;
 		frequencyTimer = 0;
-		if (!pinged) {
-			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_BROADCAST, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
-		}
 	}
 
 	int inBufAvail = elrsBuffer.itemCount();
@@ -239,7 +236,7 @@ void ExpressLRS::processMessage() {
 	sinceLastMessage = 0;
 	packetRateCounter++;
 
-	if (inMsgIsExtended && inExtDest != ADDRESS_FLIGHT_CONTROLLER) return;
+	if (inMsgIsExtended && (inExtDest != ADDRESS_FLIGHT_CONTROLLER && inExtDest != ADDRESS_CRSF_BROADCAST)) return;
 
 	switch (inType) {
 	case FRAMETYPE_RC_CHANNELS_PACKED: {
@@ -448,7 +445,29 @@ void ExpressLRS::processMessage() {
 		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, inExtSrc, ADDRESS_FLIGHT_CONTROLLER, buf, pos);
 	} break;
 	case FRAMETYPE_DEVICE_INFO: {
-		pinged = true;
+		CrsfDevice thisDevice;
+		u32 len = strlen((char *)inPayload);
+		if (len > 31) break;
+		memcpy(thisDevice.name, inPayload, len);
+		thisDevice.name[32] = 0;
+		int index = len + 1;
+		memcpy(&thisDevice.serialNo, &inPayload[index], 4);
+		index += 4;
+		memcpy(&thisDevice.hardwareId, &inPayload[index], 4);
+		index += 4;
+		memcpy(&thisDevice.firmwareId, &inPayload[index], 4);
+		index += 4;
+		thisDevice.paramCount = inPayload[index++];
+		thisDevice.paramVersion = inPayload[index++];
+		thisDevice.address = inExtSrc;
+		for (auto it = deviceList.begin(); it != deviceList.end(); it++) {
+			if (it->address == thisDevice.address) {
+				// remove device if it already exists
+				deviceList.erase(it);
+				break;
+			}
+		}
+		deviceList.push_back(thisDevice);
 	} break;
 	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY: {
 		Serial.printf("FRAMETYPE_PARAMETER_SETTINGS_ENTRY with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
@@ -626,6 +645,12 @@ void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload,
 		else
 			sendPacket(FRAMETYPE_MSP_REQ, (char *)packet, chunkSize + 3);
 	}
+}
+
+void ExpressLRS::scanDevices() {
+	this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_BROADCAST, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
+
+	deviceList.clear();
 }
 
 void ExpressLRS::resetMsp(bool setError) {
