@@ -464,7 +464,10 @@ function updateParam(id: number, opt = 0) {
 				</tr>
 				<tr class="command" v-if="p.dataType === 'command'">
 					<td class="pad" colspan="2" @click="updateParam(p.id, 1)" tabindex="0">
-						<template v-if="p.cmdStatus === 0"><i class="fa-solid fa-forward"></i>{{ p.name }}</template>
+						<template v-if="p.cmdStatus === 0">
+							<i class="fa-solid fa-forward"></i>
+							{{ p.name }}
+						</template>
 						<template v-else-if="p.cmdStatus === 3">
 							{{ p.info }}
 							<button @click="updateParam(p.id, 4)">Yes</button>
