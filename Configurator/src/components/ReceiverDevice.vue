@@ -5,6 +5,7 @@ import { Command, CrsfDevice } from '@/utils/types'
 import { intToLeBytes, leBytesToInt } from '@/utils/utils'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NumericInput from './NumericInput.vue'
+import { PollingWatchKind } from 'typescript'
 
 type DataType = 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32' | null | 'f32' | 'dropdown' | 'string' | 'folder' | 'info' | 'command'
 const DATA_TYPE_LUT = ['u8', 'i8', 'u16', 'i16', 'u32', 'i32', null, null, 'f32', 'dropdown', 'string', 'folder', 'info', 'command'] as DataType[]
@@ -197,6 +198,11 @@ const onCommand = (c: Command) => {
 						}
 					} break;
 					case 'command': {
+						if (pollingFor === waitingForParam && rest[0] !== 2) {
+							clearInterval(pollCommandInterval)
+							pollCommandInterval = -1
+							pollingFor = -1
+						}
 						crsfParams.value[waitingForParam] = {
 							name,
 							hidden,
@@ -204,9 +210,10 @@ const onCommand = (c: Command) => {
 							parent,
 							id: waitingForParam,
 							cmdStatus: rest[0],
-							cmdTimeout: rest[1],
+							cmdTimeout: rest[1] * 10,
 							info: String.fromCharCode(...rest.slice(2))
 						}
+						console.log(crsfParams.value[waitingForParam], pollingFor)
 					} break;
 					case 'string': {
 						crsfParams.value[waitingForParam] = {
@@ -226,7 +233,8 @@ const onCommand = (c: Command) => {
 	}
 }
 
-async function fetchParams(ids: number[], optimize = false) {
+// set can be set to false, in case the configurator knows through another way that the parameter is coming
+async function fetchParams(ids: number[], optimize = false, send = true) {
 	let stop = false
 	stopFetching()
 	stopFetching = () => {
@@ -261,7 +269,7 @@ async function fetchParams(ids: number[], optimize = false) {
 				paramBody.length = 0
 				first = false
 			}
-			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2C, props.dev.address, 0xC8, id, chunk])
+			if (send) sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2C, props.dev.address, 0xC8, id, chunk])
 		})
 		try {
 			const advance = await prom
@@ -277,6 +285,9 @@ async function fetchParams(ids: number[], optimize = false) {
 		}
 	}
 }
+
+let pollCommandInterval = -1
+let pollingFor = -1
 
 onMounted(() => {
 	addOnCommandHandler(onCommand)
@@ -306,6 +317,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	stopFetching()
 	removeOnCommandHandler(onCommand)
+	clearInterval(pollCommandInterval)
 })
 
 function isNumberType(dataType: DataType) {
@@ -328,7 +340,7 @@ function getFolderChain(id: number): number[] {
 	return res
 }
 
-function updateParam(id: number) {
+function updateParam(id: number, opt = 0) {
 	let type = crsfParams.value[id].dataType
 	switch (type) {
 		case 'u8':
@@ -347,7 +359,16 @@ function updateParam(id: number) {
 			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2D, props.dev.address, 0xC8, id, ...strToArray(crsfParams.value[id].value as string)])
 			break;
 		case 'command':
-			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2D, props.dev.address, 0xC8, id, 1])
+			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2D, props.dev.address, 0xC8, id, opt])
+			fetchParams([id], false, false)
+			if (opt !== 6) {
+				clearInterval(pollCommandInterval)
+				pollCommandInterval = setInterval(() => {
+					console.log('polling')
+					updateParam(id, 6)
+				}, crsfParams.value[id]?.cmdTimeout || 2000)
+				pollingFor = id
+			}
 			break;
 	}
 	if (type !== 'command') {
@@ -388,7 +409,7 @@ function updateParam(id: number) {
 <template>
 	<div class="wrapper" v-if="subbed">
 		<template v-for="id in getFolderChain(currentParent)">
-			<span @click="currentParent = id" class="path clickable">
+			<span @click="currentParent = id" class="path clickable" tabindex="0">
 				{{
 					id === 0 ? dev.name : crsfParams[id].name
 				}}
@@ -412,7 +433,7 @@ function updateParam(id: number) {
 					</td>
 				</tr>
 				<tr class="folder" v-if="p.dataType === 'folder'">
-					<td class="pad" colspan="2" @click="currentParent = p.id">
+					<td class="pad" colspan="2" @click="currentParent = p.id" tabindex="0">
 						<i class="fa-regular fa-folder close"></i>
 						<i class="fa-regular fa-folder-open open"></i>
 						{{ p.name }}
@@ -435,15 +456,24 @@ function updateParam(id: number) {
 					<td><input type="text" v-model="(p.value as string)" @change="updateParam(p.id)"></td>
 				</tr>
 				<tr class="info" v-if="p.dataType === 'info'">
-					<td class="pad">{{ p.name }}</td>
+					<td class="pad">
+						<i class="fa-solid fa-info"></i>
+						{{ p.name }}
+					</td>
 					<td class="pad">{{ p.info! }}</td>
 				</tr>
 				<tr class="command" v-if="p.dataType === 'command'">
-					<td class="pad" colspan="2" @click="updateParam(p.id)">
-						<i class="fa-solid fa-forward"></i>
-						{{ p.name }}
-						{{ p.cmdStatus }}
-						{{ p.info }}
+					<td class="pad" colspan="2" @click="updateParam(p.id, 1)" tabindex="0">
+						<template v-if="p.cmdStatus === 0"><i class="fa-solid fa-forward"></i>{{ p.name }}</template>
+						<template v-else-if="p.cmdStatus === 3">
+							{{ p.info }}
+							<button @click="updateParam(p.id, 4)">Yes</button>
+							<button @click="updateParam(p.id, 5)">No</button>
+						</template>
+						<template v-else>
+							{{ p.info }}
+							<button @click="updateParam(p.id, 5)">Stop</button>
+						</template>
 					</td>
 				</tr>
 			</template>
@@ -501,16 +531,21 @@ td.pad {
 .folder>td,
 .command>td {
 	cursor: pointer;
+	transition: 0.2s ease-out
+}
+
+.folder>td:hover,
+.command>td:hover {
 	background-color: var(--background-highlight);
 }
 
 .folder>td>.open {
 	display: none;
+	width: 19px;
 }
 
 .folder>td:hover>.open {
 	display: inline-block;
-	width: 19px;
 }
 
 .folder>td:hover>.close {
@@ -519,6 +554,11 @@ td.pad {
 
 .folder>td>.close {
 	width: 19px;
+}
+
+.info>td>i {
+	width: 19px;
+	transform: translate(5px) scale(0.9);
 }
 
 td>select {
