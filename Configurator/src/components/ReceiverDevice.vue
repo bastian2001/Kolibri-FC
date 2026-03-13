@@ -5,7 +5,6 @@ import { Command, CrsfDevice } from '@/utils/types'
 import { intToLeBytes, leBytesToInt } from '@/utils/utils'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NumericInput from './NumericInput.vue'
-import { PollingWatchKind } from 'typescript'
 
 type DataType = 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32' | null | 'f32' | 'dropdown' | 'string' | 'folder' | 'info' | 'command'
 const DATA_TYPE_LUT = ['u8', 'i8', 'u16', 'i16', 'u32', 'i32', null, null, 'f32', 'dropdown', 'string', 'folder', 'info', 'command'] as DataType[]
@@ -182,7 +181,6 @@ const onCommand = (c: Command) => {
 						const strLen = rest.indexOf(0)
 						const str = String.fromCharCode(...rest.slice(0, strLen))
 						rest = rest.slice(strLen + 1)
-						console.log(str)
 						crsfParams.value[waitingForParam] = {
 							name,
 							hidden,
@@ -213,17 +211,19 @@ const onCommand = (c: Command) => {
 							cmdTimeout: rest[1] * 10,
 							info: String.fromCharCode(...rest.slice(2))
 						}
-						console.log(crsfParams.value[waitingForParam], pollingFor)
 					} break;
 					case 'string': {
+						const strLen = rest.indexOf(0)
+						const str = String.fromCharCode(...rest.slice(0, strLen))
+						rest = rest.slice(strLen + 1)
 						crsfParams.value[waitingForParam] = {
 							name,
 							hidden,
 							dataType,
 							parent,
 							id: waitingForParam,
-							maxLength: rest[rest.length - 1],
-							value: String.fromCharCode(...rest.slice(0, rest.length - 1))
+							maxLength: rest.length ? rest[0] : 16,
+							value: str
 						}
 					} break;
 				}
@@ -356,7 +356,7 @@ function updateParam(id: number, opt = 0) {
 			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2D, props.dev.address, 0xC8, id, ...intToLeBytes(crsfParams.value[id].value! as number, bytes)])
 		} break;
 		case 'string':
-			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2D, props.dev.address, 0xC8, id, ...strToArray(crsfParams.value[id].value as string)])
+			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2D, props.dev.address, 0xC8, id, ...strToArray((crsfParams.value[id].value as string).substring(0, (crsfParams.value[id].maxLength || 16) - 1)), 0])
 			break;
 		case 'command':
 			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2D, props.dev.address, 0xC8, id, opt])
@@ -364,7 +364,6 @@ function updateParam(id: number, opt = 0) {
 			if (opt !== 6) {
 				clearInterval(pollCommandInterval)
 				pollCommandInterval = setInterval(() => {
-					console.log('polling')
 					updateParam(id, 6)
 				}, crsfParams.value[id]?.cmdTimeout || 2000)
 				pollingFor = id
@@ -453,7 +452,8 @@ function updateParam(id: number, opt = 0) {
 				</tr>
 				<tr class="string" v-if="p.dataType === 'string'">
 					<td class="pad">{{ p.name }}</td>
-					<td><input type="text" v-model="(p.value as string)" @change="updateParam(p.id)"></td>
+					<td><input type="text" v-model="(p.value as string)" @change="updateParam(p.id)"
+							:maxlength="p.maxLength! - 1"></td>
 				</tr>
 				<tr class="info" v-if="p.dataType === 'info'">
 					<td class="pad">
