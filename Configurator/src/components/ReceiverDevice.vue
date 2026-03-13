@@ -86,144 +86,141 @@ const onCommand = (c: Command) => {
 		const crsfFn = c.data[1]
 		switch (crsfFn) {
 			case 0x2B:
-				if (waitingForParam === payload[0]) {
-					const chunksRemaining = payload[1]
-					paramBody.push(...payload.slice(2))
-					if (chunksRemaining) {
-						paramPromiseResolve(false)
-						break
-					}
-					const b = paramBody
-					const parent = b[0]
-					const dataType = DATA_TYPE_LUT[b[1] & 0x7F]
-					if (!dataType) {
-						paramPromiseReject()
-						break
-					}
-					const hidden = (b[1] >> 7) > 0
-					const end = b.indexOf(0, 2)
-					const name = String.fromCharCode(...b.slice(2, end))
-					let rest = b.slice(end + 1)
-					if (!rest.length) {
-						paramPromiseReject()
-						break
-					}
-					let fail = false;
-					switch (dataType) {
-						case 'u8':
-						case 'i8':
-						case 'u16':
-						case 'i16':
-						case 'u32':
-						case 'i32':
-						case 'f32': {
-							const signed = !dataType.startsWith('u')
-							const bytes = parseInt(dataType.substring(1)) / 8
-							if (rest.length < 3 * bytes) {
+				if (waitingForParam !== payload[0]) break; // do not reject here, as this might just be a still-in-flight packet when two updates are overlaying. Just wait for the original promise to time out
+
+				const chunksRemaining = payload[1]
+				paramBody.push(...payload.slice(2))
+				if (chunksRemaining) {
+					paramPromiseResolve(false)
+					break
+				}
+				const b = paramBody
+				const parent = b[0]
+				const dataType = DATA_TYPE_LUT[b[1] & 0x7F]
+				if (!dataType) {
+					paramPromiseReject()
+					break
+				}
+				const hidden = (b[1] >> 7) > 0
+				const end = b.indexOf(0, 2)
+				const name = String.fromCharCode(...b.slice(2, end))
+				let rest = b.slice(end + 1)
+				if (!rest.length) {
+					paramPromiseReject()
+					break
+				}
+				let fail = false;
+				switch (dataType) {
+					case 'u8':
+					case 'i8':
+					case 'u16':
+					case 'i16':
+					case 'u32':
+					case 'i32':
+					case 'f32': {
+						const signed = !dataType.startsWith('u')
+						const bytes = parseInt(dataType.substring(1)) / 8
+						if (rest.length < 3 * bytes) {
+							paramPromiseReject()
+							fail = true
+							break
+						}
+						const value = leBytesToInt(rest, 0, bytes, signed)
+						const min = leBytesToInt(rest, bytes, bytes, signed)
+						const max = leBytesToInt(rest, bytes * 2, bytes, signed)
+						let precision = 0
+						let step = 1
+						rest = rest.slice(3 * bytes)
+						if (dataType === 'f32') {
+							if (rest.length < 5) {
 								paramPromiseReject()
 								fail = true
 								break
 							}
-							const value = leBytesToInt(rest, 0, bytes, signed)
-							const min = leBytesToInt(rest, bytes, bytes, signed)
-							const max = leBytesToInt(rest, bytes * 2, bytes, signed)
-							let precision = 0
-							let step = 1
-							rest = rest.slice(3 * bytes)
-							if (dataType === 'f32') {
-								if (rest.length < 5) {
-									paramPromiseReject()
-									fail = true
-									break
-								}
-								precision = rest[0]
-								step = leBytesToInt(rest, 1, 4, false)
-								rest = rest.slice(5)
-							}
-							const unit = String.fromCharCode(...rest)
-							crsfParams.value[waitingForParam] = {
-								name,
-								hidden,
-								dataType,
-								parent,
-								id: waitingForParam,
-								min,
-								max,
-								default: 0,
-								value,
-								decimals: precision,
-								step,
-								unit,
-							}
-						} break;
-						case 'folder':
-							crsfParams.value[waitingForParam] = {
-								name,
-								hidden,
-								dataType,
-								parent,
-								id: waitingForParam,
-								children: structuredClone(rest)
-							}
-							break;
-						case 'info':
-							crsfParams.value[waitingForParam] = {
-								name,
-								hidden,
-								dataType,
-								parent,
-								id: waitingForParam,
-								info: String.fromCharCode(...rest)
-							}
-							break;
-						case 'dropdown': {
-							const strLen = rest.indexOf(0)
-							const str = String.fromCharCode(...rest.slice(0, strLen))
-							rest = rest.slice(strLen + 1)
-							console.log(str)
-							crsfParams.value[waitingForParam] = {
-								name,
-								hidden,
-								dataType,
-								parent,
-								id: waitingForParam,
-								options: str.split(';'),
-								value: rest[0],
-								min: rest[1],
-								max: rest[2],
-								default: rest[3],
-								unit: String.fromCharCode(...rest.slice(4))
-							}
-						} break;
-						case 'command': {
-							crsfParams.value[waitingForParam] = {
-								name,
-								hidden,
-								dataType,
-								parent,
-								id: waitingForParam,
-								cmdStatus: rest[0],
-								cmdTimeout: rest[1],
-								info: String.fromCharCode(...rest.slice(2))
-							}
-						} break;
-						case 'string': {
-							crsfParams.value[waitingForParam] = {
-								name,
-								hidden,
-								dataType,
-								parent,
-								id: waitingForParam,
-								maxLength: rest[rest.length - 1],
-								value: String.fromCharCode(...rest.slice(0, rest.length - 1))
-							}
-						} break;
-					}
-					if (fail) break
-					paramPromiseResolve(true)
-				} else {
-					paramPromiseReject()
+							precision = rest[0]
+							step = leBytesToInt(rest, 1, 4, false)
+							rest = rest.slice(5)
+						}
+						const unit = String.fromCharCode(...rest)
+						crsfParams.value[waitingForParam] = {
+							name,
+							hidden,
+							dataType,
+							parent,
+							id: waitingForParam,
+							min,
+							max,
+							default: 0,
+							value,
+							decimals: precision,
+							step,
+							unit,
+						}
+					} break;
+					case 'folder':
+						crsfParams.value[waitingForParam] = {
+							name,
+							hidden,
+							dataType,
+							parent,
+							id: waitingForParam,
+							children: structuredClone(rest)
+						}
+						break;
+					case 'info':
+						crsfParams.value[waitingForParam] = {
+							name,
+							hidden,
+							dataType,
+							parent,
+							id: waitingForParam,
+							info: String.fromCharCode(...rest)
+						}
+						break;
+					case 'dropdown': {
+						const strLen = rest.indexOf(0)
+						const str = String.fromCharCode(...rest.slice(0, strLen))
+						rest = rest.slice(strLen + 1)
+						console.log(str)
+						crsfParams.value[waitingForParam] = {
+							name,
+							hidden,
+							dataType,
+							parent,
+							id: waitingForParam,
+							options: str.split(';'),
+							value: rest[0],
+							min: rest[1],
+							max: rest[2],
+							default: rest[3],
+							unit: String.fromCharCode(...rest.slice(4))
+						}
+					} break;
+					case 'command': {
+						crsfParams.value[waitingForParam] = {
+							name,
+							hidden,
+							dataType,
+							parent,
+							id: waitingForParam,
+							cmdStatus: rest[0],
+							cmdTimeout: rest[1],
+							info: String.fromCharCode(...rest.slice(2))
+						}
+					} break;
+					case 'string': {
+						crsfParams.value[waitingForParam] = {
+							name,
+							hidden,
+							dataType,
+							parent,
+							id: waitingForParam,
+							maxLength: rest[rest.length - 1],
+							value: String.fromCharCode(...rest.slice(0, rest.length - 1))
+						}
+					} break;
 				}
+				if (!fail) paramPromiseResolve(true)
 				break;
 		}
 	}
@@ -237,28 +234,32 @@ async function fetchParams(ids: number[]) {
 		paramPromiseReject()
 	}
 	let chunk = 0;
+	let first = true
 	for (let i = 0; i < ids.length;) {
-		// await delay(1000)
 		if (stop) break;
 		const id = ids[i]
 		const prom = new Promise<boolean>((resolve, reject) => {
 			setTimeout(reject, 4000)
 			paramPromiseResolve = resolve
 			paramPromiseReject = reject
-			waitingForParam = id
+			if (first) {
+				waitingForParam = id
+				chunk = 0
+				paramBody.length = 0
+				first = false
+			}
 			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2C, props.dev.address, 0xC8, id, chunk])
 		})
 		try {
 			const advance = await prom
 			if (advance) {
-				i++;
-				chunk = 0;
-				paramBody.length = 0
-			}
-			else {
+				i++
+				first = true
+			} else {
 				chunk++
 			}
 		} catch {
+			first = true
 			continue
 		}
 	}
@@ -335,6 +336,37 @@ function updateParam(id: number) {
 		case 'command':
 			sendCommand(MspFn.CRSF_SEND_MESSAGE, [0x2D, props.dev.address, 0xC8, id, 1])
 			break;
+	}
+	if (type !== 'command') {
+		const refreshOrder = [id]
+		let last = id
+		// go up the tree first (sort of DFS)
+		for (let i = 0; i < 256; i++) {
+			const next = crsfParams.value[last].parent
+			if (!crsfParams.value[next] || refreshOrder.includes(next)) break;
+			refreshOrder.push(next)
+			last = next
+			if (!next) break;
+		}
+		// then take children (sort of BFS)
+		// because the length of the list changes, we iterate manually until the (potentially updated) length
+		for (let i = 0; i < refreshOrder.length; i++) {
+			const id = refreshOrder[i]
+			if (crsfParams.value[id].dataType !== 'folder') continue
+			// push all children of id
+			crsfParams.value.forEach(el => {
+				if (el.parent !== id) return
+				if (refreshOrder.includes(el.id)) return
+				refreshOrder.push(el.id)
+			})
+		}
+		// then take any dangling elements
+		// should only ever happen when there are broken params, such as when changing values during initial load
+		// (or when carefully crafting the timing of updating values as a user)
+		for (let i = 0; i < props.dev.paramCount; i++) {
+			if (!refreshOrder.includes(i)) refreshOrder.push(i)
+		}
+		fetchParams(refreshOrder)
 	}
 }
 
