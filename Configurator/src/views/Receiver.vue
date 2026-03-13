@@ -5,6 +5,8 @@ import { sendCommand, addOnConnectHandler, removeOnConnectHandler } from "@/msp/
 import { MspFn } from "@/msp/protocol";
 import { delay, leBytesToInt } from "@utils/utils";
 import RxMode from "@/components/RxMode.vue";
+import ReceiverDevice from "@/components/ReceiverDevice.vue";
+import { CrsfDevice } from "@/utils/types";
 
 export default defineComponent({
 	name: "Receiver",
@@ -36,12 +38,16 @@ export default defineComponent({
 				{ name: "Tuning: Previous Parameter", min: -50, max: 50, channel: 10 },
 				{ name: "Tuning: Increase Value", min: -50, max: 50, channel: 10 },
 				{ name: "Tuning: Decrease Value", min: -50, max: 50, channel: 10 },
-			]
+			],
+			crsfDevices: [] as CrsfDevice[],
+			subbedTo: 0,
+			getInterval: -1,
 		};
 	},
 	components: {
 		Channel,
 		RxMode,
+		ReceiverDevice,
 	},
 	mounted() {
 		this.getRcContinuous()
@@ -63,15 +69,78 @@ export default defineComponent({
 				})
 				.catch(() => { });
 		}, 1000);
+		this.scanDevices()
+		this.getInterval = setInterval(this.getDevices, 200)
+		this.relaxGetter()
 		this.getModes();
-		addOnConnectHandler(this.getModes);
+		addOnConnectHandler(this.getModes, this.scanDevices, this.unsubscribe);
 	},
 	unmounted() {
 		clearInterval(this.channelInterval);
-		removeOnConnectHandler(this.getModes);
+		clearInterval(this.getInterval);
+		this.getInterval = -1
+		removeOnConnectHandler(this.getModes, this.scanDevices, this.unsubscribe);
 		this.exiting = true
 	},
 	methods: {
+		subscribe(i: number) {
+			this.subbedTo = 0
+			const address = this.crsfDevices[i].address
+			sendCommand(MspFn.CRSF_SUBSCRIBE, [address, 1, 0x2B]).then(c => {
+				if (c.data[0] === address && c.data[1] === 1)
+					this.subbedTo = address
+			})
+		},
+		unsubscribe() {
+			this.subbedTo = 0
+			sendCommand(MspFn.CRSF_SUBSCRIBE, [0, 0])
+		},
+		relaxGetter() {
+			setTimeout(() => {
+				if (this.getInterval !== -1) {
+					clearInterval(this.getInterval)
+					this.getInterval = setInterval(this.getDevices, 5000)
+				}
+			}, 3500)
+		},
+		speedupGetter() {
+			if (this.getInterval !== -1) {
+				clearInterval(this.getInterval)
+				this.getInterval = setInterval(this.getDevices, 200)
+				this.relaxGetter()
+			}
+		},
+		scanDevices() {
+			sendCommand(MspFn.CRSF_SCAN_DEVICES)
+				.then(this.speedupGetter)
+				.catch(() => { })
+		},
+		getDevices() {
+			sendCommand(MspFn.CRSF_GET_DEVICES)
+				.then(c => {
+					this.crsfDevices = []
+					for (let i = 0; i < c.data.length / 47; i++) {
+						const d = c.data.slice(i * 47, i * 47 + 47)
+						const strEnd = d.indexOf(0)
+						const name = String.fromCharCode(...d.slice(0, strEnd))
+						const address = d[32]
+						const paramCount = d[33]
+						const paramVersion = d[34]
+						const serialNo = d.slice(35, 39)
+						const hardwareId = d.slice(39, 43)
+						const firmwareId = d.slice(43, 47)
+						this.crsfDevices.push({
+							name,
+							address,
+							paramCount,
+							paramVersion,
+							serialNo,
+							hardwareId,
+							firmwareId,
+						})
+					}
+				}).catch(() => { })
+		},
 		async getRcContinuous() {
 			while (!this.exiting) {
 				try {
@@ -140,6 +209,11 @@ export default defineComponent({
 					TX Power: {{ txPower }}mW<br />
 					Total RC message count: {{ rcMsgCount }}
 				</div>
+				<button @click="scanDevices">Rescan Devices</button>
+				<div class="crsfDevices">
+					<ReceiverDevice v-for="(c, i) in crsfDevices" :dev="c" @sub="subscribe(i)" @unsub="unsubscribe"
+						:key="c.address" :subbed="subbedTo === c.address" />
+				</div>
 			</div>
 			<div id="rxModes">
 				<RxMode v-for="(mode, index) in rxModes" :key="index" :min="mode.min" :max="mode.max" :rc="channels"
@@ -190,7 +264,7 @@ export default defineComponent({
 	flex-direction: row;
 	justify-content: space-between;
 	gap: 3rem;
-	overflow: hidden;
+	overflow: auto;
 }
 
 #rxFlex>* {
@@ -198,22 +272,32 @@ export default defineComponent({
 }
 
 #rxChannels {
-	min-width: 500px;
+	min-width: 300px;
 	flex-grow: 1;
-	height: 100%;
 	box-sizing: border-box;
 }
 
 #rxSettings {
-	min-width: 200px;
-	flex-grow: 1;
-	height: 100%;
+	min-width: 350px;
+	flex-grow: 2;
+}
+
+.crsfDevices {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	grid-auto-rows: minmax(350px, auto);
+	overflow: hidden;
+	gap: 2px;
 }
 
 #rxModes {
-	min-width: 500px;
+	min-width: 350px;
 	flex-grow: 1;
 	height: 100%;
 	overflow: auto;
+}
+
+button {
+	color: black
 }
 </style>
