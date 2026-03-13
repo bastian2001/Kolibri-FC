@@ -238,6 +238,19 @@ void ExpressLRS::processMessage() {
 
 	if (inMsgIsExtended && (inExtDest != ADDRESS_FLIGHT_CONTROLLER && inExtDest != ADDRESS_CRSF_BROADCAST)) return;
 
+	if (inMsgIsExtended && !armed && subscribeCount) {
+		for (int i = 0; i < subscribeCount; i++) {
+			if (subscribeList[i] == inType) {
+				char buf[62];
+				buf[0] = inExtSrc;
+				buf[1] = inType;
+				memcpy(&buf[2], inPayload, inActualLen);
+				sendMsp(subscribeSerialNum, MspMsgType::REQUEST, MspFn::CRSF_GOT_MESSAGE, subscribeMspVersion, buf, inActualLen + 2);
+				break;
+			}
+		}
+	}
+
 	switch (inType) {
 	case FRAMETYPE_RC_CHANNELS_PACKED: {
 		if (inActualLen != 22) // 16 channels * 11 bits
@@ -448,7 +461,7 @@ void ExpressLRS::processMessage() {
 		CrsfDevice thisDevice;
 		u32 len = strlen((char *)inPayload);
 		if (len > 31) break;
-		memcpy(thisDevice.name, inPayload, len);
+		memcpy(thisDevice.name, inPayload, len + 1);
 		thisDevice.name[32] = 0;
 		int index = len + 1;
 		memcpy(&thisDevice.serialNo, &inPayload[index], 4);
@@ -651,6 +664,26 @@ void ExpressLRS::scanDevices() {
 	this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_BROADCAST, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
 
 	deviceList.clear();
+}
+
+bool ExpressLRS::setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, u8 configuratorSerial, MspVersion configuratorMspVersion) {
+	if (subCount == 0) {
+		this->subscribeCount = 0;
+		this->subscribeSerialNum = 255;
+		return true;
+	}
+	if (subCount > 20) subCount = 20;
+	for (int i = 0; i < subCount; i++) {
+		if (subList[i] <= 0x27) // only extended frames are allowed for passthrough
+			return false;
+	}
+	if (crsfAddress == 0 || subList == nullptr) return false;
+	this->subscribeSrcAddress = crsfAddress;
+	this->subscribeCount = subCount;
+	memcpy(this->subscribeList, subList, subCount);
+	this->subscribeSerialNum = configuratorSerial;
+	this->subscribeMspVersion = configuratorMspVersion;
+	return true;
 }
 
 void ExpressLRS::resetMsp(bool setError) {

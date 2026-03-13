@@ -74,10 +74,10 @@ addOnCommandHandler((c: Command) => {
 	}
 })
 
-function arrayToStr(ar: number[] | Uint8Array) {
+export function arrayToStr(ar: number[] | Uint8Array) {
 	return String.fromCharCode(...ar)
 }
-function strToArray(str: string) {
+export function strToArray(str: string) {
 	const data = []
 	for (let i = 0; i < str.length; i++) {
 		data[i] = str.charCodeAt(i)
@@ -140,7 +140,7 @@ export async function sendCommand(
 				timeout?: number
 				verifyFn?: (req: Command, res: Command, callbackData?: any) => boolean
 				callbackData?: any
-		  } = []
+		  } = [],
 ): Promise<Command> {
 	return new Promise<Command>((resolve, reject) => {
 		// sanitize input
@@ -680,17 +680,21 @@ export const getWifiDevices = () => wifiDevices
 
 const onDisconnectHandlers: (() => void)[] = []
 const onConnectHandlers: (() => void)[] = []
-export const addOnDisconnectHandler = (handler: () => void) => {
-	onDisconnectHandlers.push(handler)
+export const addOnDisconnectHandler = (...handler: (() => void)[]) => {
+	onDisconnectHandlers.push(...handler)
 }
-export const removeOnDisconnectHandler = (handler: () => void) => {
-	const i = onDisconnectHandlers.indexOf(handler)
-	if (i >= 0) onDisconnectHandlers.splice(i, 1)
+export const removeOnDisconnectHandler = (...handler: (() => void)[]) => {
+	for (const h of handler) {
+		const i = onDisconnectHandlers.indexOf(h)
+		if (i >= 0) onDisconnectHandlers.splice(i, 1)
+	}
 }
-export const addOnConnectHandler = (handler: () => void) => {
-	onConnectHandlers.push(handler)
+export const addOnConnectHandler = (...handler: (() => void)[]) => {
+	onConnectHandlers.push(...handler)
 }
-export const removeOnConnectHandler = (handler: () => void) => {
-	const i = onConnectHandlers.indexOf(handler)
-	if (i >= 0) onConnectHandlers.splice(i, 1)
+export const removeOnConnectHandler = (...handler: (() => void)[]) => {
+	for (const h of handler) {
+		const i = onConnectHandlers.indexOf(h)
+		if (i >= 0) onConnectHandlers.splice(i, 1)
+	}
 }

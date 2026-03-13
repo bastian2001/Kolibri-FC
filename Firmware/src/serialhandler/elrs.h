@@ -128,6 +128,18 @@ public:
 	 */
 	std::list<CrsfDevice> getDeviceList() { return deviceList; };
 
+	/**
+	 * @brief sets up passthrough from a CRSF device to a configurator (MSP) host
+	 *
+	 * @param crsfAddress the requested device to forward from
+	 * @param subList array of up to 20 functions to forward, only extended functions allowed
+	 * @param subCount 0-20, the amount of functions. 0 to disable
+	 * @param configuratorSerial serialNum of the configurator
+	 * @param configuratorMspVersion MspVersion:: of the outgoing MSP message
+	 * @return true for success, false for invalid parameters (not extended functions and similar)
+	 */
+	bool setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, u8 configuratorSerial, MspVersion configuratorMspVersion);
+
 	// possible frametypes
 	static constexpr u8 FRAMETYPE_GPS = 0x02;
 	static constexpr u8 FRAMETYPE_VARIO = 0x07;
@@ -214,6 +226,11 @@ private:
 
 	// Other devices
 	std::list<CrsfDevice> deviceList;
+	u8 subscribeSrcAddress = 0;
+	u8 subscribeList[20] = {0};
+	u8 subscribeCount = 0;
+	u8 subscribeSerialNum = 255;
+	MspVersion subscribeMspVersion = MspVersion::V2;
 
 	// MSP packets (in/out)
 	u8 mspExtSrcAddr = 0;
