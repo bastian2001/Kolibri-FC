@@ -901,6 +901,63 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::SET_RX_MODES: {
 			mspSetRxModes(serialNum, version, reqPayload, reqLen);
 		} break;
+		case MspFn::CRSF_SCAN_DEVICES: {
+			ELRS->scanDevices();
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
+		case MspFn::CRSF_GET_DEVICES: {
+			std::list<CrsfDevice> devs = ELRS->getDeviceList();
+			u32 count = devs.size();
+			if (count > 20) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			char buf[47 * count];
+			u32 i = 0;
+			for (CrsfDevice dev : devs) {
+				memcpy(&buf[i], dev.name, 32);
+				i += 32;
+				buf[i++] = dev.address;
+				buf[i++] = dev.paramCount;
+				buf[i++] = dev.paramVersion;
+				memcpy(&buf[i], &dev.serialNo, 4);
+				i += 4;
+				memcpy(&buf[i], &dev.hardwareId, 4);
+				i += 4;
+				memcpy(&buf[i], &dev.firmwareId, 4);
+				i += 4;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, i);
+		} break;
+		case MspFn::CRSF_SEND_MESSAGE: {
+			// Configurator wants to send message to a device
+			u8 len = reqLen - 1;
+			if (len > 60) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			u8 cmd = reqPayload[0];
+			ELRS->sendPacket(cmd, &reqPayload[1], len);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+		} break;
+		case MspFn::CRSF_SUBSCRIBE: {
+			// Configurator wants to start or stop passthrough to a device
+			// => enable flags to forward any messages from said device to configurator
+			// MSP message data: device to forward from, start or stop, array of wanted commands
+			i16 subCount = reqLen - 2;
+			if (subCount > 20) subCount = 20;
+			if (subCount < 0) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			u8 address = reqPayload[0];
+			if (subCount == 0 || reqPayload[1] == 0) {
+				// stop passthrough when receiving stop command or no functions
+				buf[0] = address;
+				buf[1] = 0;
+				ELRS->setupSubscription(0, nullptr, 0, 255, MspVersion::V2);
+				return sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 2);
+			}
+			if (address == 0) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (ELRS->setupSubscription(address, (const u8 *)&reqPayload[2], subCount, serialNum, version)) {
+				buf[0] = address;
+				buf[1] = 1;
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 2);
+			} else {
+				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			}
+		} break;
 		case MspFn::GET_BATTERY_SETTINGS: {
 			buf[len++] = cellCountSetting;
 			buf[len++] = emptyVoltageSetting;

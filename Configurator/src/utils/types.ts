@@ -220,3 +220,13 @@ export type Command = {
 	version: number
 	callbackData?: any
 }
+
+export type CrsfDevice = {
+	name: string
+	address: number
+	paramCount: number
+	paramVersion: number
+	serialNo: Uint8Array
+	hardwareId: Uint8Array
+	firmwareId: Uint8Array
+}

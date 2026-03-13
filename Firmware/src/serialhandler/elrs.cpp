@@ -112,10 +112,6 @@ void ExpressLRS::loop() {
 		packetRateCounter = 0;
 		rcPacketRateCounter = 0;
 		frequencyTimer = 0;
-		if (!pinged) {
-			// somehow ADDRESS_BROADCAST gets no device info in return so using CRSF_RECEIVER here
-			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_RECEIVER, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
-		}
 	}
 
 	int inBufAvail = elrsBuffer.itemCount();
@@ -240,7 +236,20 @@ void ExpressLRS::processMessage() {
 	sinceLastMessage = 0;
 	packetRateCounter++;
 
-	if (inMsgIsExtended && inExtDest != ADDRESS_FLIGHT_CONTROLLER) return;
+	if (inMsgIsExtended && (inExtDest != ADDRESS_FLIGHT_CONTROLLER && inExtDest != ADDRESS_CRSF_BROADCAST)) return;
+
+	if (inMsgIsExtended && !armed && subscribeCount) {
+		for (int i = 0; i < subscribeCount; i++) {
+			if (subscribeList[i] == inType) {
+				char buf[62];
+				buf[0] = inExtSrc;
+				buf[1] = inType;
+				memcpy(&buf[2], inPayload, inActualLen);
+				sendMsp(subscribeSerialNum, MspMsgType::REQUEST, MspFn::CRSF_GOT_MESSAGE, subscribeMspVersion, buf, inActualLen + 2);
+				break;
+			}
+		}
+	}
 
 	switch (inType) {
 	case FRAMETYPE_RC_CHANNELS_PACKED: {
@@ -419,7 +428,12 @@ void ExpressLRS::processMessage() {
 		uplinkSNR = inPayload[3];
 		antennaSelection = inPayload[4];
 		packetRateIdx = inPayload[5];
-		targetPacketRate = packetRates[packetRateIdx];
+		if (packetRateIdx < 20)
+			targetPacketRate = packetRates900[packetRateIdx];
+		else if (packetRateIdx < 40)
+			targetPacketRate = packetRates2400[packetRateIdx - 20];
+		else if (packetRateIdx < 120 && packetRateIdx >= 100)
+			targetPacketRate = packetRatesX[packetRateIdx - 100];
 		txPower = powerStates[inPayload[6]];
 		downlinkRssi = -inPayload[7];
 		downlinkLinkQuality = inPayload[8];
@@ -444,36 +458,36 @@ void ExpressLRS::processMessage() {
 		this->sendExtPacket(FRAMETYPE_DEVICE_INFO, inExtSrc, ADDRESS_FLIGHT_CONTROLLER, buf, pos);
 	} break;
 	case FRAMETYPE_DEVICE_INFO: {
-		pinged = true;
-	} break;
-	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY: {
-		Serial.printf("FRAMETYPE_PARAMETER_SETTINGS_ENTRY with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
-		for (int i = 0; i < inActualLen; i++) {
-			Serial.printf("%02X ", inPayload[i]);
+		CrsfDevice thisDevice;
+		u32 len = strlen((char *)inPayload);
+		if (len > 31) break;
+		memcpy(thisDevice.name, inPayload, len + 1);
+		thisDevice.name[32] = 0;
+		int index = len + 1;
+		memcpy(&thisDevice.serialNo, &inPayload[index], 4);
+		index += 4;
+		memcpy(&thisDevice.hardwareId, &inPayload[index], 4);
+		index += 4;
+		memcpy(&thisDevice.firmwareId, &inPayload[index], 4);
+		index += 4;
+		thisDevice.paramCount = inPayload[index++];
+		thisDevice.paramVersion = inPayload[index++];
+		thisDevice.address = inExtSrc;
+		for (auto it = deviceList.begin(); it != deviceList.end(); it++) {
+			if (it->address == thisDevice.address) {
+				// remove device if it already exists
+				deviceList.erase(it);
+				break;
+			}
 		}
-		Serial.println();
+		deviceList.push_back(thisDevice);
 	} break;
-	case FRAMETYPE_PARAMETER_READ: {
-		Serial.printf("FRAMETYPE_PARAMETER_READ with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
-		for (int i = 0; i < inActualLen; i++) {
-			Serial.printf("%02X ", inPayload[i]);
-		}
-		Serial.println();
-	} break;
-	case FRAMETYPE_PARAMETER_WRITE: {
-		Serial.printf("FRAMETYPE_PARAMETER_WRITE with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
-		for (int i = 0; i < inActualLen; i++) {
-			Serial.printf("%02X ", inPayload[i]);
-		}
-		Serial.println();
-	} break;
-	case FRAMETYPE_COMMAND: {
-		Serial.printf("FRAMETYPE_COMMAND with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
-		for (int i = 0; i < inActualLen; i++) {
-			Serial.printf("%02X ", inPayload[i]);
-		}
-		Serial.println();
-	} break;
+	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY:
+	case FRAMETYPE_PARAMETER_READ:
+	case FRAMETYPE_PARAMETER_WRITE:
+	case FRAMETYPE_COMMAND:
+		// no-op, but may be used in the future
+		break;
 	case FRAMETYPE_MSP_REQ:
 	case FRAMETYPE_MSP_WRITE: {
 		this->processMspReq();
@@ -494,13 +508,8 @@ bool ExpressLRS::parseChar(u8 c) {
 		}
 		break;
 	case CRSF_STATE_LEN:
-		if (c > 62) {
-			ELRS_RAISE_ERROR(ERROR_INVALID_PKT_LEN);
-			inMsgState = CRSF_STATE_SYNC;
-		} else {
-			inMsgLen = c;
-			inMsgState = CRSF_STATE_TYPE;
-		}
+		inMsgLen = c;
+		inMsgState = CRSF_STATE_TYPE;
 		break;
 	case CRSF_STATE_TYPE:
 		inType = c;
@@ -511,8 +520,12 @@ bool ExpressLRS::parseChar(u8 c) {
 			inMsgIsExtended = true;
 		} else {
 			inActualLen = inMsgLen - 2;
-			inMsgState = CRSF_STATE_PAYLOAD;
 			inMsgIsExtended = false;
+			inMsgState = inActualLen ? CRSF_STATE_PAYLOAD : CRSF_STATE_CRC;
+		}
+		if (inActualLen > 60) {
+			ELRS_RAISE_ERROR(ERROR_INVALID_PKT_LEN);
+			inMsgState = CRSF_STATE_SYNC;
 		}
 		break;
 	case CRSF_STATE_EXT_DEST:
@@ -523,12 +536,12 @@ bool ExpressLRS::parseChar(u8 c) {
 	case CRSF_STATE_EXT_SRC:
 		inExtSrc = c;
 		CRC_LUT_D5_APPLY(inCrc, c);
-		inMsgState = CRSF_STATE_PAYLOAD;
+		inMsgState = inActualLen ? CRSF_STATE_PAYLOAD : CRSF_STATE_CRC;
 		break;
 	case CRSF_STATE_PAYLOAD:
 		inPayload[inPayloadIndex++] = c;
 		CRC_LUT_D5_APPLY(inCrc, c);
-		if (inPayloadIndex == inActualLen)
+		if (inPayloadIndex >= inActualLen)
 			inMsgState = CRSF_STATE_CRC;
 		break;
 	case CRSF_STATE_CRC:
@@ -623,6 +636,32 @@ void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload,
 		else
 			sendPacket(FRAMETYPE_MSP_REQ, (char *)packet, chunkSize + 3);
 	}
+}
+
+void ExpressLRS::scanDevices() {
+	this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_BROADCAST, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
+
+	deviceList.clear();
+}
+
+bool ExpressLRS::setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, u8 configuratorSerial, MspVersion configuratorMspVersion) {
+	if (subCount == 0) {
+		this->subscribeCount = 0;
+		this->subscribeSerialNum = 255;
+		return true;
+	}
+	if (subCount > 20) subCount = 20;
+	for (int i = 0; i < subCount; i++) {
+		if (subList[i] <= 0x27) // only extended frames are allowed for passthrough
+			return false;
+	}
+	if (crsfAddress == 0 || subList == nullptr) return false;
+	this->subscribeSrcAddress = crsfAddress;
+	this->subscribeCount = subCount;
+	memcpy(this->subscribeList, subList, subCount);
+	this->subscribeSerialNum = configuratorSerial;
+	this->subscribeMspVersion = configuratorMspVersion;
+	return true;
 }
 
 void ExpressLRS::resetMsp(bool setError) {
