@@ -226,7 +226,7 @@ const onCommand = (c: Command) => {
 	}
 }
 
-async function fetchParams(ids: number[]) {
+async function fetchParams(ids: number[], optimize = false) {
 	let stop = false
 	stopFetching()
 	stopFetching = () => {
@@ -237,6 +237,19 @@ async function fetchParams(ids: number[]) {
 	let first = true
 	for (let i = 0; i < ids.length;) {
 		if (stop) break;
+		if (optimize && i === 1) {
+			const todo = ids.slice(1)
+			const children = crsfParams.value[ids[0]]?.children
+			if (children) {
+				ids.length = 1
+				todo.sort((a, b) => {
+					if (children.includes(a) == children.includes(b)) return 0;
+					if (children.includes(a)) return -1
+					return 1
+				})
+				ids.push(...todo)
+			}
+		}
 		const id = ids[i]
 		const prom = new Promise<boolean>((resolve, reject) => {
 			setTimeout(reject, 4000)
@@ -284,7 +297,7 @@ onMounted(() => {
 				}
 			}
 			stopFetching()
-			fetchParams(ids)
+			fetchParams(ids, true)
 		} else {
 			stopFetching()
 		}
@@ -375,55 +388,59 @@ function updateParam(id: number) {
 <template>
 	<div class="wrapper" v-if="subbed">
 		<template v-for="id in getFolderChain(currentParent)">
-			<span @click="currentParent = id"
-				style="cursor: pointer; background-color: var(--background-highlight); padding: 1px 3px; margin: 0px 3px; display: inline-block;">
+			<span @click="currentParent = id" class="path clickable">
 				{{
 					id === 0 ? dev.name : crsfParams[id].name
 				}}
 			</span>
 			&nbsp;>&nbsp;
 		</template>
-		<span style="display: inline-block; padding: 1px 5px;">
+		<span class="path">
 			{{
 				currentParent ? crsfParams[currentParent].name : dev.name
 			}}
 		</span>
-		<table style="width: 100%">
+		<table>
 			<template
 				v-for="p in crsfParams.filter(p => !p.hidden && p.parent === currentParent && p.id !== currentParent)"
 				:key="p.id">
 				<tr class="number" v-if="isNumberType(p.dataType)">
-					<td>{{ p.name }}</td>
+					<td class="pad">{{ p.name }}</td>
 					<td>
 						<NumericInput v-model="(p.value as number)" :min="p.min" :max="p.max" :step="p.step"
 							:io-divider="10 ** p.decimals!" :unit="p.unit" @change="updateParam(p.id)" />
 					</td>
 				</tr>
 				<tr class="folder" v-if="p.dataType === 'folder'">
-					<td colspan="2" @click="currentParent = p.id">{{ p.name }}</td>
+					<td class="pad" colspan="2" @click="currentParent = p.id">
+						<i class="fa-regular fa-folder close"></i>
+						<i class="fa-regular fa-folder-open open"></i>
+						{{ p.name }}
+					</td>
 				</tr>
 				<tr class="dropdown" v-if="p.dataType === 'dropdown'">
-					<td>{{ p.name }}</td>
+					<td class="pad">{{ p.name }}</td>
 					<td>
-						<select name="" :id="'crsfSelect' + p.id" v-model="(p.value as number)" style="color:black"
+						<select name="" :id="'crsfSelect' + p.id" v-model="(p.value as number)"
 							@change="updateParam(p.id)">
 							<option
 								v-for="o in p.options!.map((el, index) => ({ name: el, i: index })).filter((o, i) => i >= p.min! && i <= p.max! && o.name.length)"
-								:key="o.i" :value="o.i">{{ o.name }}&thinsp;{{ p.unit || '' }}
+								:key="o.i" :value="o.i">{{ o.name + p.unit || '' }}
 							</option>
 						</select>
 					</td>
 				</tr>
 				<tr class="string" v-if="p.dataType === 'string'">
-					<td>{{ p.name }}</td>
+					<td class="pad">{{ p.name }}</td>
 					<td><input type="text" v-model="(p.value as string)" @change="updateParam(p.id)"></td>
 				</tr>
 				<tr class="info" v-if="p.dataType === 'info'">
-					<td>{{ p.name }}</td>
-					<td>{{ p.info! }}</td>
+					<td class="pad">{{ p.name }}</td>
+					<td class="pad">{{ p.info! }}</td>
 				</tr>
 				<tr class="command" v-if="p.dataType === 'command'">
-					<td colspan="2" @click="updateParam(p.id)">
+					<td class="pad" colspan="2" @click="updateParam(p.id)">
+						<i class="fa-solid fa-forward"></i>
 						{{ p.name }}
 						{{ p.cmdStatus }}
 						{{ p.info }}
@@ -453,6 +470,22 @@ function updateParam(id: number) {
 	box-shadow: 0px 0px 0px 2px var(--border-color);
 }
 
+.path {
+	display: inline-block;
+	padding: 1px 5px;
+}
+
+.path.clickable {
+	cursor: pointer;
+	background-color: var(--background-highlight);
+	padding: 1px 3px;
+	margin: 0px 3px;
+}
+
+table {
+	width: 100%;
+}
+
 button {
 	color: black
 }
@@ -461,7 +494,45 @@ td {
 	text-align: left;
 }
 
+td.pad {
+	padding: 2px 5px
+}
+
+.folder>td,
+.command>td {
+	cursor: pointer;
+	background-color: var(--background-highlight);
+}
+
+.folder>td>.open {
+	display: none;
+}
+
+.folder>td:hover>.open {
+	display: inline-block;
+	width: 19px;
+}
+
+.folder>td:hover>.close {
+	display: none;
+}
+
+.folder>td>.close {
+	width: 19px;
+}
+
 td>select {
-	width: 100%
+	width: 100%;
+	color: black;
+}
+
+.command>td>i {
+	width: 19px;
+	transform: scale(0.8);
+	transition: 0.2s ease-out;
+}
+
+.command>td:hover>i {
+	transform: scale(0.8) translateX(5px);
 }
 </style>
