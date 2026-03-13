@@ -482,34 +482,12 @@ void ExpressLRS::processMessage() {
 		}
 		deviceList.push_back(thisDevice);
 	} break;
-	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY: {
-		Serial.printf("FRAMETYPE_PARAMETER_SETTINGS_ENTRY with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
-		for (int i = 0; i < inActualLen; i++) {
-			Serial.printf("%02X ", inPayload[i]);
-		}
-		Serial.println();
-	} break;
-	case FRAMETYPE_PARAMETER_READ: {
-		Serial.printf("FRAMETYPE_PARAMETER_READ with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
-		for (int i = 0; i < inActualLen; i++) {
-			Serial.printf("%02X ", inPayload[i]);
-		}
-		Serial.println();
-	} break;
-	case FRAMETYPE_PARAMETER_WRITE: {
-		Serial.printf("FRAMETYPE_PARAMETER_WRITE with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
-		for (int i = 0; i < inActualLen; i++) {
-			Serial.printf("%02X ", inPayload[i]);
-		}
-		Serial.println();
-	} break;
-	case FRAMETYPE_COMMAND: {
-		Serial.printf("FRAMETYPE_COMMAND with ext dest %02X, ext src %02X, and %d bytes payload\n", inExtDest, inExtSrc, inActualLen);
-		for (int i = 0; i < inActualLen; i++) {
-			Serial.printf("%02X ", inPayload[i]);
-		}
-		Serial.println();
-	} break;
+	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY:
+	case FRAMETYPE_PARAMETER_READ:
+	case FRAMETYPE_PARAMETER_WRITE:
+	case FRAMETYPE_COMMAND:
+		// no-op, but may be used in the future
+		break;
 	case FRAMETYPE_MSP_REQ:
 	case FRAMETYPE_MSP_WRITE: {
 		this->processMspReq();
