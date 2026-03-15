@@ -2,7 +2,7 @@
 
 u32 crcLutD5[256] = {0};
 
-char serialFunctionNames[SERIAL_FUNCTION_COUNT][20] = {
+char const serialFunctionNames[SERIAL_FUNCTION_COUNT][20] = {
 	"CRSF",
 	"MSP",
 	"GPS",
@@ -13,13 +13,7 @@ char serialFunctionNames[SERIAL_FUNCTION_COUNT][20] = {
 	"MSP Displayport",
 };
 
-KoliSerial serials[SERIAL_COUNT] = {
-	{new BufferedWriter(&Serial, 2048), SERIAL_MSP},
-	{new BufferedWriter(&Serial1, 2048), SERIAL_CRSF},
-	{new BufferedWriter(&Serial2, 2048), SERIAL_GPS},
-	{new BufferedWriter(new SerialPIO(PIN_TX2, PIN_RX2, 1024), 2048), 0},
-	{new BufferedWriter(new SerialPioHdx(PIO_HALFDUPLEX_UART), 2048), SERIAL_IRC_TRAMP},
-};
+std::optional<KoliSerial> serials[SERIAL_COUNT];
 static u8 currentSerial = 0;
 
 void initSerial() {
@@ -34,8 +28,15 @@ void initSerial() {
 		crcLutD5[i] = crc & 0xFF;
 	}
 
+	serials[0].emplace(&Serial, 2048, SERIAL_MSP);
+	serials[1].emplace(&Serial1, 2048, SERIAL_CRSF);
+	serials[2].emplace(&Serial2, 2048, SERIAL_GPS);
+	serials[3].emplace(pio1, pio1, -1, -1, 2048, SERIAL_MSP | SERIAL_MSP_DISPLAYPORT);
+	serials[4].emplace(pio2, -1, 2048, SERIAL_IRC_TRAMP);
+
 	for (int i = 0; i < SERIAL_COUNT; i++) {
-		auto &serial = serials[i];
+		if (!serials[i]) continue;
+		auto &serial = *serials[i];
 		u32 rxFifo = 4;
 		u32 baud = 115200;
 		u16 config = SERIAL_8N1;
@@ -51,11 +52,11 @@ void initSerial() {
 		} else if (serial.functions & SERIAL_4WAY) {
 			rxFifo = 256;
 		} else if (serial.functions & SERIAL_IRC_TRAMP) {
-			rxFifo = 0;
+			rxFifo = 32;
 			baud = 9600;
 		} else if (serial.functions & SERIAL_SMARTAUDIO) {
 			config = SERIAL_8N2;
-			rxFifo = 0;
+			rxFifo = 32;
 			baud = 4800;
 		} else if (serial.functions & SERIAL_ESC_TELEM) {
 			rxFifo = 64;
@@ -83,25 +84,9 @@ void initSerial() {
 			rxPin = txPin = PIN_TX2;
 			break;
 		}
-		switch (serial.stream->serialType) {
-		case SerialType::USB:
-			break;
-		case SerialType::UART:
-			serial.stream->uartStream->setPinout(txPin, rxPin);
-			serial.stream->uartStream->setFIFOSize(rxFifo);
-			break;
-		case SerialType::PIO:
-			if (serial.stream->pioStream)
-				delete serial.stream->pioStream;
-			delete serial.stream;
-			serial.stream = new BufferedWriter(new SerialPIO(txPin, rxPin, rxFifo), 2048);
-			break;
-		case SerialType::PIO_HDX:
-			serial.stream->hdxStream->setPin(txPin);
-			break;
-		}
-		if (serial.functions)
-			serial.stream->begin(baud, config);
+		serial.setPinout(txPin, rxPin);
+		serial.setRxFifoSize(rxFifo);
+		serial.begin(baud, config);
 	}
 }
 
@@ -109,10 +94,13 @@ void serialLoop() {
 	TASK_START(TASK_SERIAL);
 
 	if (++currentSerial >= SERIAL_COUNT) currentSerial = 0;
-	u32 functions = serials[currentSerial].functions;
-	Stream *serial = serials[currentSerial].stream;
+	if (!serials[currentSerial]) return;
+
+	KoliSerial &serial = *serials[currentSerial];
+	u32 &functions = serial.functions;
+
 	if (!functions) {
-		while (serial->read() != -1) { // empty RX buf
+		while (serial.read() != -1) { // empty RX buf
 			tight_loop_contents();
 		}
 		TASK_END(TASK_SERIAL);
@@ -121,7 +109,7 @@ void serialLoop() {
 
 	// max 16 chars per loop, stop when no char to read
 	for (int i = 16; i; i--) {
-		int c = serial->read();
+		int c = serial.read();
 		if (c == -1) break;
 
 		if (functions & SERIAL_CRSF) {
@@ -152,6 +140,6 @@ void serialLoop() {
 		if (functions & SERIAL_MSP_DISPLAYPORT) {
 		}
 	}
-	serials[currentSerial].stream->loop();
+	serial.loop();
 	TASK_END(TASK_SERIAL);
 }

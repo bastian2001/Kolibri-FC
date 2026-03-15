@@ -1,0 +1,42 @@
+; Normal UART TX (e.g. 8N1)
+; operates at 32 ticks per bit
+; requires extensive configuration and packet prep:
+; - packet needs start and stop bits included (...hMddddddLl, where h/l are high/low
+;       start and stop bits, M/L are MSB/LSB and d are data bits)
+; - shift register needs config with autopull and depth of data + start + stop bits
+; - parity and more/fewer bits are easy to set up this way, too
+; - inversion is also easy by either altering the bits or using the pin config
+
+.program uart_tx
+
+.wrap_target
+out pins, 1[31]
+.wrap
+
+% c-sdk {
+
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+static inline void uart_tx_program_init(PIO pio, uint sm, uint offset, uint pin, uint baud) {
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+    pio_gpio_init(pio, pin);
+    pio_sm_config c = uart_tx_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, pin,1);
+    // Shift to right, autopull enabled
+    sm_config_set_out_shift(&c, true, true, 10);
+    // Deeper FIFO as we're not doing any RX
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    // SM transmits 1 bit per 32 execution cycles.
+    float div = (float)clock_get_hz(clk_sys) / (32 * baud);
+    sm_config_set_clkdiv(&c, div);
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+static inline void uart_tx_program_end(PIO pio, uint sm, uint pin) {
+	pio_sm_set_enabled(pio, sm, false);
+	pio_sm_clear_fifos(pio, sm);
+	pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, false);
+	gpio_set_function(pin, GPIO_FUNC_NULL);
+}
+
+%}

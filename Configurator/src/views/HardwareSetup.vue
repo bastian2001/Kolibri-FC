@@ -2,7 +2,8 @@
 import Drone3dPreview from '@components/Drone3dPreview.vue';
 import Imu from '@components/hardwarePorts/imu.vue'
 import Dshot from '@components/hardwarePorts/dshot.vue'
-import { sendCommand } from '@/msp/comm';
+import AddSerial from '@components/hardwarePorts/addSerial.vue'
+import { addOnConnectHandler, removeOnConnectHandler, sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
 import { delay, leBytesToInt } from '@/utils/utils';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
@@ -103,12 +104,23 @@ async function getRotationContinuous() {
 		}
 	}
 }
-getRotationContinuous();
+
+function fetchSetup() {
+	// fetch RP pinout
+
+	// fetch serial count
+
+	// fetch 
+}
 
 onMounted(() => {
+	getRotationContinuous();
+	fetchSetup()
+	addOnConnectHandler(fetchSetup)
 })
 
 onBeforeUnmount(() => {
+	removeOnConnectHandler(fetchSetup)
 	exiting = true
 })
 </script>
@@ -122,6 +134,7 @@ onBeforeUnmount(() => {
 			<div class="grid">
 				<Imu />
 				<Dshot />
+				<AddSerial />
 			</div>
 		</div>
 	</div>

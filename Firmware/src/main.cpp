@@ -36,7 +36,9 @@ void setup() {
 
 	u8 elrsNum = 0;
 	for (int i = 0; i < SERIAL_COUNT; i++) {
-		if (serials[i].functions & SERIAL_CRSF) {
+		auto &s = serials[i];
+		if (!s) continue;
+		if (s->functions & SERIAL_CRSF) {
 			elrsNum = i;
 			break;
 		}

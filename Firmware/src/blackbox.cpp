@@ -239,7 +239,8 @@ void blackboxLoop() {
 			}
 			sendMsp(bbPrintLog.serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, bbPrintLog.mspVer, (char *)buffer, bytesRead + 6);
 			bbPrintLog.currentChunk++;
-			serials[bbPrintLog.serialNum].stream->flush();
+			if (serials[bbPrintLog.serialNum])
+				serials[bbPrintLog.serialNum]->flush();
 
 			TASK_END(TASK_CONFIGURATOR);
 		}
@@ -1309,6 +1310,7 @@ u32 writeSingleFrame() {
 	}
 	TASK_START(TASK_BLACKBOX);
 	u8 *bbBuffer = (u8 *)malloc(128);
+	if (bbBuffer == nullptr) return 0;
 	if (currentBBFlags & LOG_ROLL_SETPOINT) {
 		i16 setpoint = (i16)(rollSetpoint.raw >> 12);
 		bbBuffer[bufferPos++] = setpoint;

@@ -44,6 +44,7 @@ void configuratorLoop() {
 void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const char *data, u16 len) {
 	if (data == nullptr && len > 0) return;
 	if (serialNum > ARRAYLEN(serials)) return;
+	if (!serials[serialNum]) return;
 
 	if (version == MspVersion::V1 && len > 254) version = MspVersion::V1_JUMBO;
 	if (version == MspVersion::V2_OVER_V1 && len > 248) return;
@@ -53,7 +54,7 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 	bool versionHasV2 = version == MspVersion::V2 || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_CRSF;
 	bool versionHasCrsf = version == MspVersion::V2_OVER_CRSF || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF;
 	if (!versionHasV2 && fn >= MspFn::MSP_V2_FRAME) return;
-	Stream *ser = serials[serialNum].stream;
+	KoliSerial &ser = *serials[serialNum];
 
 	if (versionHasCrsf) {
 		u8 headerSize = 0;
@@ -147,12 +148,12 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 				crcV1 ^= crcV2;
 			}
 		}
-		ser->write(header, pos);
-		ser->write(data, len);
+		ser.write(header, pos);
+		ser.write((u8 *)data, len);
 		if (versionHasV2)
-			ser->write((u8)crcV2);
+			ser.write((u8)crcV2);
 		if (versionHasV1)
-			ser->write((u8)crcV1);
+			ser.write((u8)crcV1);
 	}
 }
 
@@ -225,14 +226,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			switch (reqPayload[0]) {
 			case MSP_REBOOT_FIRMWARE:
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-				serials[serialNum].stream->flush();
+				serials[serialNum]->flush();
 				sleep_ms(100);
 				rp2040.reboot();
 				break;
 			case MSP_REBOOT_BOOTLOADER_FLASH:
 			case MSP_REBOOT_BOOTLOADER_ROM:
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-				serials[serialNum].stream->flush();
+				serials[serialNum]->flush();
 				sleep_ms(100);
 				rp2040.rebootToBootloader();
 				break;
@@ -485,41 +486,42 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, reqLen);
 			break;
 		case MspFn::SERIAL_PASSTHROUGH: {
-			if (reqPayload[0] >= SERIAL_COUNT)
-				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-
 			u8 fromNum = serialNum;
 			if (reqLen > 5) fromNum = reqPayload[5];
-			if (fromNum >= SERIAL_COUNT)
+			if (reqPayload[0] >= SERIAL_COUNT ||
+				fromNum >= SERIAL_COUNT ||
+				!serials[fromNum] ||
+				!serials[reqPayload[0]] ||
+				armed)
 				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 
-			BufferedWriter *from = serials[fromNum].stream;
-			BufferedWriter *to = serials[reqPayload[0]].stream;
+			KoliSerial &from = *serials[fromNum];
+			KoliSerial &to = *serials[reqPayload[0]];
 			u32 baud = DECODE_U4((u8 *)&reqPayload[1]);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)reqPayload, 5);
-			serials[serialNum].stream->flush();
+			serials[serialNum]->flush();
 
 			u8 plusCount = 0;
 			elapsedMillis breakoutCounter = 0;
-			to->end();
-			to->begin(baud);
+			to.end();
+			to.begin(baud);
 			while (true) {
 				if (breakoutCounter > 1000 && plusCount >= 3) break;
-				if (from->available()) {
+				if (from.available()) {
 					breakoutCounter = 0;
 
-					char c = from->read();
+					char c = from.read();
 					if (c == '+')
 						plusCount++;
 					else
 						plusCount = 0;
-					to->write(c);
+					to.write(c);
 				}
-				if (to->available()) {
-					from->write(to->read());
+				if (to.available()) {
+					from.write(to.read());
 				}
-				from->loop();
-				to->loop();
+				from.loop();
+				to.loop();
 				rp2040.wdt_reset();
 			}
 		} break;

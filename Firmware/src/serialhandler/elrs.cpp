@@ -594,7 +594,7 @@ void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
 		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[3 + payloadLen] = crc;
-	serials[serialNum].stream->write(packet, 4 + payloadLen);
+	serials[serialNum]->write(packet, 4 + payloadLen);
 }
 
 void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
@@ -607,7 +607,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[5 + extPayloadLen] = crc;
-	serials[serialNum].stream->write(packet, 6 + extPayloadLen);
+	serials[serialNum]->write(packet, 6 + extPayloadLen);
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {

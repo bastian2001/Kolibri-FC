@@ -1,7 +1,8 @@
 #pragma once
 
-#include "utils/bufferedWriter.h"
+#include "utils/koliSerial.h"
 #include <Arduino.h>
+#include <optional>
 
 //! when updating this list, also update SERIAL_FUNCTION_COUNT and serialFunctionNames
 #define SERIAL_CRSF (1 << 0)
@@ -16,15 +17,10 @@
 #define SERIAL_COUNT 5
 #define SERIAL_FUNCTION_COUNT 8
 
-extern char serialFunctionNames[SERIAL_FUNCTION_COUNT][20];
-
-typedef struct koliSerial {
-	BufferedWriter *stream;
-	u32 functions = 0; // OR of SERIAL_ defines, e.g. SERIAL_MSP
-} KoliSerial;
+extern const char serialFunctionNames[SERIAL_FUNCTION_COUNT][20];
 
 // 0 = Serial (USB CDC), 1 = Serial1 = UART0, 2 = Serial2 = UART1, 3 = Software Serial
-extern KoliSerial serials[SERIAL_COUNT];
+extern std::optional<KoliSerial> serials[SERIAL_COUNT];
 
 extern u32 crcLutD5[256]; // u32 is used because it is faster than u8
 #define CRC_LUT_D5_APPLY(crc, data) crc = crcLutD5[(crc) ^ (u8)(data)]

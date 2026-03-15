@@ -1,7 +1,7 @@
 #include "global.h"
 
-u8 SerialPioHdx::programOffsets[NUM_PIOS];
-bool SerialPioHdx::offsetsSet;
+static u8 programOffsets[NUM_PIOS];
+static bool offsetsSet;
 
 SerialPioHdx::SerialPioHdx(PIO pio, i8 sm)
 	: pio(pio),
@@ -130,7 +130,7 @@ void SerialPioHdx::begin() {
 	pio_gpio_init(pio, pin);
 
 	// set up configs
-	pioConfig = halfduplex_uart_program_get_default_config(programOffsets[pioIndex]);
+	pio_sm_config pioConfig = halfduplex_uart_program_get_default_config(programOffsets[pioIndex]);
 	sm_config_set_set_pins(&pioConfig, pin, 1);
 	sm_config_set_out_pins(&pioConfig, pin, 1);
 	sm_config_set_in_pins(&pioConfig, pin);
@@ -165,8 +165,17 @@ int SerialPioHdx::getPc() {
 	return pio_sm_get_pc(pio, sm) - programOffsets[pioIndex];
 }
 
-bool SerialPioHdx::setPin(u8 pin) {
+bool SerialPioHdx::setPinout(u8 pin, u8 _) {
 	if (running) return false;
 	this->pin = pin;
+	return true;
+}
+
+bool SerialPioHdx::setFIFOSize(size_t size) {
+	if (running) return false;
+	// only accept powers of 2, don't accept zero size
+	if (!size || (size & (size - 1)) != 0) return false;
+	rxFifoSize = size;
+	// TODO actually do something with this
 	return true;
 }

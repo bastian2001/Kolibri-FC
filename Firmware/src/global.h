@@ -49,6 +49,7 @@
 #include "drivers/i2c.h"
 #include "drivers/mag.h"
 #include "drivers/osd.h"
+#include "drivers/pioUart.h"
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
 #include "imu.h"
@@ -74,8 +75,8 @@
 #include "taskManager.h"
 #include "typedefs.h"
 #include "unittest.h"
-#include "utils/bufferedWriter.h"
 #include "utils/filters.h"
+#include "utils/koliSerial.h"
 #include "utils/quaternion.h"
 
 #ifdef BARO_SPL06
@@ -85,11 +86,6 @@
 #if HW_BARO == BARO_LPS22
 #define I2C_BARO i2c0 // I2C for baro
 #endif
-
-#define PIO_ESC pio1 // uses all 4 SMs
-#define PIO_LED pio2 // 1 SM, 4 instructions
-#define PIO_HALFDUPLEX_UART pio2 // 1 SM, 19 instructions
-// Total usage of pio2: 3 SMs (assuming one UART) and 28 of 32 instructions
 
 #define PROPS_OUT
 

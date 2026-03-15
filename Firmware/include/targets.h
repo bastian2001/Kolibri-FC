@@ -50,11 +50,15 @@
 #define PIN_LEDS 27
 
 #define BLACKBOX_STORAGE SD_BB
-#define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
 #define I2C_MAG i2c0 // I2C for magnetometer
 #define SPI_OSD spi1 // SPI for OSD
 #define GYRO_HALFDUPLEX_SPI
+
+#define PIO_ESC pio0 // uses all 4 SMs
+#define PIO_SDIO pio1 // automatically assigned, claims all 4 SMs and 32 instructions
+#define PIO_LED pio2 // 1 SM, 4 instructions
 #define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
+#define AUX_PIOS {2}
 
 #define HW_MAG MAG_QMC5883L
 #define HW_BARO BARO_LPS22
@@ -100,10 +104,14 @@
 #define PIN_DCDC_EN 28
 
 #define BLACKBOX_STORAGE FLASH_BB
-#define PIO_EXT_SPI_BB pio0
 #define I2C_MAG i2c0 // I2C for magnetometer
 #define SPI_OSD spi1 // SPI for OSD
 #define SPI_GYRO spi0
+
+#define PIO_ESC pio0 // uses all 4 SMs
+#define PIO_EXT_SPI_BB pio1 // 1 SM, 2 instructions, at least right now (may become more if parallel transfer is wanted in the future)
+#define PIO_LED pio1 // 1 SM, 4 instructions
+#define UART_PIOS {1, 2}
 
 #define HW_MAG MAG_QMC5883L
 #define HW_BARO BARO_LPS22

@@ -22,7 +22,7 @@ static u16 trampConfPower = 25;
 static u8 trampConfBand = 4;
 static u8 trampConfChan = 0;
 
-static u8 trampSerialNum = 255;
+static KoliSerial *trampSerial = nullptr;
 static elapsedMicros trampLastSend = 0;
 
 static bool awaitingResponse = false;
@@ -84,7 +84,7 @@ enum class TrampCommand : u8 {
 static TrampStatus trampStatus = TrampStatus::OFFLINE;
 
 static void trampWriteBuf(u8 *buf) {
-	serials[trampSerialNum].stream->write(buf, 16);
+	trampSerial->write(buf, 16);
 }
 
 static u8 trampCalcChecksum(u8 *trampBuf) {
@@ -175,9 +175,10 @@ static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
 }
 
 void trampInit() {
-	for (int i = 0; i < SERIAL_COUNT; i++) {
-		if (serials[i].functions & SERIAL_IRC_TRAMP) {
-			trampSerialNum = i;
+	for (auto &s : serials) {
+		if (!s) continue;
+		if (s->functions & SERIAL_IRC_TRAMP) {
+			trampSerial = &*s;
 			break;
 		}
 	}
@@ -196,7 +197,7 @@ void trampInit() {
 }
 
 void trampLoop() {
-	if (trampSerialNum == 255) return;
+	if (trampSerial == nullptr) return;
 
 	TASK_START(TASK_VTX);
 

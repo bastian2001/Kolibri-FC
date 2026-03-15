@@ -2,11 +2,17 @@
 #include "Arduino.h"
 #include "typedefs.h"
 
-class SerialPioHdx : public HardwareSerial {
+typedef struct serialPioConfig {
+	i8 rxPio;
+	i8 txPio;
+} SerialPioConfig;
+
+class SerialPio : public HardwareSerial {
 public:
-	SerialPioHdx() = delete;
-	SerialPioHdx(PIO pio, i8 sm = -1);
-	~SerialPioHdx();
+	SerialPio() = delete;
+	SerialPio(const SerialPio &) = delete;
+	SerialPio(PIO pioTx, PIO pioRx, i8 smTx = -1, i8 smRx = -1);
+	~SerialPio();
 
 	// from Stream
 	virtual int available() override;
@@ -21,31 +27,31 @@ public:
 
 	// Serial-alike
 	virtual void begin(unsigned long baudrate) override;
-	/**
-	 * @brief Same as begin(baudrate), config is UNUSED!
-	 *
-	 * @param baudrate
-	 * @param _config
-	 */
+	/// @brief Same as begin(baudrate), _config is UNUSED!
 	virtual void begin(unsigned long baudrate, uint16_t _config) override;
 	virtual void end() override;
-	int getPc();
 
-	bool setPinout(u8 pin, u8 _);
+	bool setPinout(u8 tx, u8 rx);
 	bool setFIFOSize(size_t size);
 
 	operator bool() override;
 
 private:
 	void begin();
-	u8 pin = 255;
+	u8 pinTx = 255;
+	u8 pinRx = 255;
 	u32 baudrate = 0;
-	PIO pio = nullptr;
-	i8 beginSm = -1;
-	i8 sm = -1;
+	PIO pioTx = nullptr;
+	PIO pioRx = nullptr;
+	i8 beginSmTx = -1;
+	i8 beginSmRx = -1;
+	i8 smTx = -1;
+	i8 smRx = -1;
 	bool running = false;
-	u8 pioIndex = 255;
+	u8 pioIndexTx = 255;
+	u8 pioIndexRx = 255;
 	// TODO implement FIFO
-	size_t rxFifoSize = 16;
+	size_t rxFifoSize = 32;
 	i32 peekVal = -1;
+	SerialPioConfig pioConfig;
 };

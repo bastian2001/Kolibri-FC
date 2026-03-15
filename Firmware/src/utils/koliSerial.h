@@ -1,5 +1,6 @@
 #pragma once
 #include "drivers/halfduplexUart.h"
+#include "elapsedMillis.h"
 #include "ringbuffer.h"
 #include "typedefs.h"
 #include <Arduino.h>
@@ -12,77 +13,55 @@ enum class SerialType {
 	PIO_HDX,
 };
 
-class BufferedWriter : public HardwareSerial {
-public:
-	Stream *const stream;
 #ifdef USE_TINYUSB
-	Adafruit_USBD_CDC *const usbStream;
+typedef Adafruit_USBD_CDC UsbSerialClass;
 #else
-	SerialUSB *const usbStream;
+typedef SerialUSB UsbSerialClass;
 #endif
-	SerialUART *const uartStream;
-	SerialPIO *const pioStream;
-	SerialPioHdx *const hdxStream;
+
+class KoliSerial : public HardwareSerial {
+public:
 	const SerialType serialType;
 
-#ifdef USE_TINYUSB
-	BufferedWriter(Adafruit_USBD_CDC *const usbStream, int fifoSize)
-		: stream(usbStream),
-		  usbStream(usbStream),
-		  uartStream(nullptr),
-		  pioStream(nullptr),
-		  hdxStream(nullptr),
-		  serialType(SerialType::USB),
-		  writeBuffer(fifoSize) {
-		mutex_init(&writeMutex);
-	};
-#else
-	BufferedWriter(SerialUSB *const usbStream, int fifoSize)
-		: stream(usbStream),
-		  usbStream(usbStream),
-		  uartStream(nullptr),
-		  pioStream(nullptr),
-		  hdxStream(nullptr),
-		  serialType(SerialType::USB),
-		  writeBuffer(fifoSize) {
-		mutex_init(&writeMutex);
-	};
-#endif
+	KoliSerial() = delete;
+	KoliSerial(const KoliSerial &) = delete;
+	KoliSerial &operator=(const KoliSerial &) = delete;
 
-	BufferedWriter(SerialUART *const uartStream, size_t fifoSize)
+	KoliSerial(UsbSerialClass *const usbStream, int txfSize, int functions)
+		: stream(usbStream),
+		  serialType(SerialType::USB),
+		  writeBuffer(txfSize),
+		  functions(functions) {
+		mutex_init(&writeMutex);
+	};
+
+	KoliSerial(SerialUART *const uartStream, int txfSize, int functions)
 		: stream(uartStream),
-		  usbStream(nullptr),
-		  uartStream(uartStream),
-		  pioStream(nullptr),
-		  hdxStream(nullptr),
 		  serialType(SerialType::UART),
-		  writeBuffer(fifoSize) {
+		  writeBuffer(txfSize),
+		  functions(functions) {
 		mutex_init(&writeMutex);
 	};
 
-	BufferedWriter(SerialPIO *const pioStream, size_t fifoSize)
-		: stream(pioStream),
-		  usbStream(nullptr),
-		  uartStream(nullptr),
-		  pioStream(pioStream),
-		  hdxStream(nullptr),
+	KoliSerial(PIO pioTx, PIO pioRx, u8 smTx, u8 smRx, size_t txfSize, int functions)
+		: stream(new SerialPio(pioTx, pioRx, smTx, smRx)),
 		  serialType(SerialType::PIO),
-		  writeBuffer(fifoSize) {
+		  writeBuffer(txfSize),
+		  functions(functions) {
 		mutex_init(&writeMutex);
 	};
 
-	BufferedWriter(SerialPioHdx *const hdxStream, size_t fifoSize)
-		: stream(hdxStream),
-		  usbStream(nullptr),
-		  uartStream(nullptr),
-		  pioStream(nullptr),
-		  hdxStream(hdxStream),
+	KoliSerial(PIO pio, u8 sm, size_t txfSize, int functions)
+		: stream(new SerialPioHdx(pio, sm)),
 		  serialType(SerialType::PIO_HDX),
-		  writeBuffer(fifoSize) {
+		  writeBuffer(txfSize),
+		  functions(functions) {
 		mutex_init(&writeMutex);
 	};
 
-	virtual void begin(unsigned long baudrate = 115200) override;
+	~KoliSerial();
+
+	virtual void begin(unsigned long baudrate) override;
 	virtual void begin(unsigned long baudrate, uint16_t config) override;
 	virtual void end() override;
 	virtual int available() override {
@@ -111,11 +90,12 @@ public:
 
 		if (serialType == SerialType::UART) {
 			// special treatment: UART cannot tell how many bytes it can still send, only _that_ it can still send at least one
+			SerialUART &s = *static_cast<SerialUART *>(stream);
 			if (!c) return mutex_exit(&writeMutex);
 			while (c--) {
-				if (!stream->availableForWrite())
+				if (!s.availableForWrite())
 					return mutex_exit(&writeMutex);
-				uartStream->write(writeBuffer.pop());
+				s.write(writeBuffer.pop());
 				totalTx++;
 			}
 			return mutex_exit(&writeMutex);
@@ -200,14 +180,20 @@ public:
 		return len;
 	};
 
+	bool setRxFifoSize(size_t size);
+	bool setPinout(pin_size_t tx, pin_size_t rx);
+
 	operator bool();
 
 	volatile u32 totalRx = 0;
 	volatile u32 totalTx = 0;
 	static elapsedMicros sinceReset;
+	u32 functions = 0; // OR of SERIAL_ defines, e.g. SERIAL_MSP
 	static char serialTypeNames[4][8];
 
 private:
 	RingBuffer<u8> writeBuffer;
 	mutex_t writeMutex;
+
+	Stream *const stream;
 };

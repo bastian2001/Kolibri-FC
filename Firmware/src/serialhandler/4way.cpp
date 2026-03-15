@@ -7,7 +7,7 @@ static u32 offsetPioReceive;
 static u32 offsetPioTransmit;
 static pio_sm_config configPioReceive;
 static pio_sm_config configPioTransmit;
-static u8 serialNum4Way;
+static KoliSerial *serial4Way;
 
 static bool isTxEnabled = false;
 static std::deque<uint8_t> escRxBuf;
@@ -245,8 +245,8 @@ void begin4Way(u8 serialNum) {
 	sm_config_set_clkdiv_int_frac8(&configPioTransmit, 859, 128);
 	pio_sm_init(PIO_ESC, 0, offsetPioReceive, &configPioReceive);
 	pio_sm_set_enabled(PIO_ESC, 0, true);
-	serials[serialNum].functions |= SERIAL_4WAY;
-	serialNum4Way = serialNum;
+	serial4Way = &*serials[serialNum];
+	serial4Way->functions |= SERIAL_4WAY;
 	setup4WayDone = true;
 }
 
@@ -260,7 +260,7 @@ void end4Way() {
 		gpio_set_function(PIN_MOTORS + i, GPIO_FUNC_NULL);
 	}
 	initESCs();
-	serials[serialNum4Way].functions &= ~SERIAL_4WAY;
+	serial4Way->functions &= ~SERIAL_4WAY;
 	setup4WayDone = false;
 }
 
@@ -280,12 +280,12 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 		crc = crcUpdateXmodem(crc, payload[i]);
 	}
 	crc = crcUpdateXmodem(crc, (u8)resCode);
-	serials[serialNum4Way].stream->write(header, 5);
-	serials[serialNum4Way].stream->write(payload, len);
-	serials[serialNum4Way].stream->write((u8)resCode);
-	serials[serialNum4Way].stream->write(crc >> 8);
-	serials[serialNum4Way].stream->write(crc & 0xFF);
-	serials[serialNum4Way].stream->flush();
+	serial4Way->write(header, 5);
+	serial4Way->write(payload, len);
+	serial4Way->write((u8)resCode);
+	serial4Way->write(crc >> 8);
+	serial4Way->write(crc & 0xFF);
+	serial4Way->flush();
 }
 
 uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {

@@ -14,7 +14,7 @@ u8 currentPvtMsg[92];
 u32 newPvtMessageFlag = 0;
 u32 gpsUpdateRate;
 fix32 gpsVelocityFilterCutoff;
-static BufferedWriter *gpsSerial = nullptr;
+static KoliSerial *gpsSerial = nullptr;
 bool gpsGoodQuality = false;
 static bool firstGoodQuality = true;
 
@@ -33,8 +33,9 @@ void gpsChecksum(const u8 *buf, int len, u8 *ck_a, u8 *ck_b) {
 
 void initGPS() {
 	for (auto &serial : serials) {
-		if (serial.functions & SERIAL_GPS) {
-			gpsSerial = serial.stream;
+		if (!serial) continue;
+		if (serial->functions & SERIAL_GPS) {
+			gpsSerial = &*serial;
 			break;
 		}
 	}

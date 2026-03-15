@@ -89,7 +89,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		response = "Settings saved";
 	} else if (cmd == "reboot") {
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Rebooting...", 13);
-		serials[lastMspSerial].stream->flush();
+		serials[lastMspSerial]->flush();
 		sleep_ms(100);
 		rp2040.reboot();
 	} else if (cmd == "status") {
@@ -98,16 +98,16 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		response += "Uptime: " + std::to_string(millis()) + " ms\n";
 	} else if (cmd == "serial") {
 		if (payload == "stats get") {
-			f32 timeSinceReset = f32(BufferedWriter::sinceReset) / 1000.f;
+			f32 timeSinceReset = f32(KoliSerial::sinceReset) / 1000.f;
 			response = "Statistics since the last reset (" + std::to_string((u32)timeSinceReset) + "ms ago)\n";
 			for (int i = 0; i < SERIAL_COUNT; i++) {
 				char line[128];
-				BufferedWriter *s = serials[i].stream;
-				snprintf(line, 128, "Serial %d (%s):     TX: %7d bytes (%.2fKB/s),     RX: %7d bytes (%.2fKB/s),     ", i + 1, BufferedWriter::serialTypeNames[(u8)s->serialType], s->totalTx, s->totalTx / timeSinceReset, s->totalRx, s->totalRx / timeSinceReset);
+				KoliSerial &s = *serials[i];
+				snprintf(line, 128, "Serial %d (%s):     TX: %7d bytes (%.2fKB/s),     RX: %7d bytes (%.2fKB/s),     ", i + 1, KoliSerial::serialTypeNames[(u8)s.serialType], s.totalTx, s.totalTx / timeSinceReset, s.totalRx, s.totalRx / timeSinceReset);
 				response += line;
 				bool firstFunction = true;
 				for (int j = 0; j < SERIAL_FUNCTION_COUNT; j++) {
-					if (serials[i].functions & (1 << j)) {
+					if (s.functions & (1 << j)) {
 						if (firstFunction)
 							firstFunction = false;
 						else
@@ -117,17 +117,18 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 				}
 				response += '\n';
 			}
-		} else if (payload == "stats clear") {
+		} else if (payload == "stats reset") {
 			for (auto &s : serials) {
-				while (s.stream->totalRx || s.stream->totalTx) {
+				if (!s) continue;
+				while (s->totalRx || s->totalTx) {
 					// clearing may fail in case a byte is read/written atm
-					s.stream->totalRx = 0;
-					s.stream->totalTx = 0;
-					BufferedWriter::sinceReset = 0;
+					s->totalRx = 0;
+					s->totalTx = 0;
 				}
 			}
+			KoliSerial::sinceReset = 0;
 		} else {
-			response = "Requires the following format: serial <subcmd> [arguments]\nwhere subcmd is one of the following: stats\nstats: arguments: get, clean\n";
+			response = "Requires the following format: serial <subcmd> [arguments]\nwhere subcmd is one of the following: stats\nstats: arguments: get, reset\n";
 		}
 	} else if (cmd == "gyro_calibration") {
 		if (payload == "start") {
@@ -154,7 +155,8 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 	} else if (cmd == "reset") {
 		if (payload == "confirm") {
 			sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Resetting settings...", 22);
-			serials[lastMspSerial].stream->flush();
+			if (serials[lastMspSerial])
+				serials[lastMspSerial]->flush();
 			sleep_ms(100);
 			closeSettingsFile();
 			LittleFS.remove("/settings.txt");
