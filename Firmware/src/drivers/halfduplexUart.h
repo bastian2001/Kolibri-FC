@@ -33,7 +33,6 @@ public:
 	 */
 	virtual void begin(unsigned long baudrate, uint16_t _config) override;
 	virtual void end() override;
-	int getPc();
 
 	bool setPinout(u8 pin, u8 _);
 	bool setFIFOSize(size_t size);
@@ -49,8 +48,9 @@ private:
 	i8 sm = -1;
 	bool running = false;
 	u8 pioIndex = 255;
-	// TODO implement FIFO
-	size_t rxBufSize = 16;
-	i32 peekVal = -1;
 	SerialPioHdxConfig pioConfig;
+	size_t rxBufSize = 0;
+	u8 *rxBuf = nullptr;
+	u8 rxDmaChan = 255;
+	u8 *rxPtr = nullptr;
 };

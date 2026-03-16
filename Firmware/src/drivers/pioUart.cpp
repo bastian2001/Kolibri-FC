@@ -21,10 +21,7 @@ SerialPio::SerialPio(PIO pioTx, PIO pioRx, i8 smTx, i8 smRx)
 		}
 		offsetsSet = true;
 	}
-	rxBuf = (u8 *)aligned_alloc(rxBufSize, rxBufSize);
-	Serial.printf("%08X\n", rxBuf);
 	rxDmaChan = dma_claim_unused_channel(false);
-	Serial.flush();
 }
 
 SerialPio::~SerialPio() {
@@ -245,7 +242,6 @@ bool SerialPio::setFIFOSize(size_t size) {
 	if (!size || (size & (size - 1)) != 0) return false;
 	if (rxBuf != nullptr) free(rxBuf);
 	rxBuf = (u8 *)aligned_alloc(size, size);
-	Serial.printf("%08X\n", rxBuf);
 	if (rxBuf == nullptr) return false;
 	rxBufSize = size;
 	return true;

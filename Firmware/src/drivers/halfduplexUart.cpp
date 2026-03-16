@@ -16,42 +16,34 @@ SerialPioHdx::SerialPioHdx(PIO pio, i8 sm)
 		}
 		offsetsSet = true;
 	}
+	rxDmaChan = dma_claim_unused_channel(false);
 }
 
 SerialPioHdx::~SerialPioHdx() {
 	if (running) {
 		end();
+		if (rxBuf != nullptr) free(rxBuf);
+		if (rxDmaChan != 255) dma_channel_unclaim(rxDmaChan);
 	}
 }
 
 int SerialPioHdx::available() {
-	return pio_sm_get_rx_fifo_level(pio, sm);
+	u8 *dmaPtr = (u8 *)dma_hw->ch[rxDmaChan].write_addr;
+	if (dmaPtr >= rxPtr) return dmaPtr - rxPtr;
+	return rxBufSize - (rxPtr - dmaPtr);
 }
 int SerialPioHdx::read() {
-	if (!running) {
-		return -1;
-	}
-	if (peekVal != -1) {
-		int i = peekVal;
-		peekVal = -1;
-		return i;
-	}
-	if (pio_sm_is_rx_fifo_empty(pio, sm)) {
-		return -1;
-	}
-	return pio_sm_get(pio, sm) >> 24;
+	if (!running) return -1;
+	volatile u8 *dmaPtr = (volatile u8 *)dma_hw->ch[rxDmaChan].write_addr;
+	if (dmaPtr == rxPtr) return -1;
+	int res = *rxPtr++;
+	if (rxPtr >= rxBuf + rxBufSize)
+		rxPtr = rxBuf;
+	return res;
 }
 int SerialPioHdx::peek() {
-	if (!running) {
-		return -1;
-	}
-	if (peekVal != -1) {
-		return peekVal;
-	}
-	if (pio_sm_is_rx_fifo_empty(pio, sm)) {
-		return -1;
-	}
-	return peekVal = pio_sm_get(pio, sm) >> 24;
+	if (!running || !available()) return -1;
+	return *rxPtr;
 }
 
 size_t SerialPioHdx::write(uint8_t c) {
@@ -83,7 +75,7 @@ int SerialPioHdx::availableForWrite() {
 
 void SerialPioHdx::begin() {
 	if (running) return;
-	if (!pio || !baudrate || pin == 255) {
+	if (!pio || !baudrate || pin == 255 || rxBuf == nullptr || rxDmaChan == 255) {
 		Serial.println("Assign values to halfduplex UART first");
 		return;
 	}
@@ -147,6 +139,19 @@ void SerialPioHdx::begin() {
 	pio_sm_set_enabled(pio, sm, true);
 	pio_sm_set_clkdiv(pio, sm, clkdiv);
 
+	// set up RX DMA channel
+	dma_channel_config_t dmaCfg = dma_channel_get_default_config(rxDmaChan);
+	channel_config_set_read_increment(&dmaCfg, false);
+	channel_config_set_write_increment(&dmaCfg, true);
+	channel_config_set_dreq(&dmaCfg, pio_get_dreq(pio, sm, false));
+	channel_config_set_transfer_data_size(&dmaCfg, DMA_SIZE_8);
+	channel_config_set_ring(&dmaCfg, true, 31 - __builtin_clz(rxBufSize));
+	dma_channel_set_config(rxDmaChan, &dmaCfg, false);
+	dma_channel_set_read_addr(rxDmaChan, ((u8 *)&pio->rxf[sm]) + 3, false);
+	dma_channel_set_write_addr(rxDmaChan, rxBuf, false);
+	dma_channel_set_transfer_count(rxDmaChan, 0xFFFFFFFFUL, true);
+	rxPtr = rxBuf;
+
 	pioConfig.pio = pioIndex;
 	configs.push_back(&pioConfig);
 
@@ -173,7 +178,7 @@ void SerialPioHdx::end() {
 		}
 	}
 
-	// stop state machines
+	// stop state machine
 	pio_sm_set_enabled(pio, sm, false);
 	pio_sm_clear_fifos(pio, sm);
 	pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, false);
@@ -196,10 +201,6 @@ SerialPioHdx::operator bool() {
 	return running;
 }
 
-int SerialPioHdx::getPc() {
-	return pio_sm_get_pc(pio, sm) - programOffsets[pioIndex];
-}
-
 bool SerialPioHdx::setPinout(u8 pin, u8 _) {
 	if (running) return false;
 	this->pin = pin;
@@ -210,7 +211,9 @@ bool SerialPioHdx::setFIFOSize(size_t size) {
 	if (running) return false;
 	// only accept powers of 2, don't accept zero size
 	if (!size || (size & (size - 1)) != 0) return false;
+	if (rxBuf != nullptr) free(rxBuf);
+	rxBuf = (u8 *)aligned_alloc(size, size);
+	if (rxBuf == nullptr) return false;
 	rxBufSize = size;
-	// TODO actually do something with this
 	return true;
 }
