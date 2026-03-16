@@ -21,11 +21,16 @@ SerialPio::SerialPio(PIO pioTx, PIO pioRx, i8 smTx, i8 smRx)
 		}
 		offsetsSet = true;
 	}
+	rxBuf = (i8 *)aligned_alloc(rxFifoSize, rxFifoSize);
+	rxDmaChan = dma_claim_unused_channel(false);
+	Serial.flush();
 }
 
 SerialPio::~SerialPio() {
 	if (running) {
 		end();
+		if (rxBuf != nullptr) free(rxBuf);
+		if (rxDmaChan != 255) dma_channel_unclaim(rxDmaChan);
 	}
 }
 
@@ -92,7 +97,7 @@ int SerialPio::availableForWrite() {
 
 void SerialPio::begin() {
 	if (running) return;
-	if (!pioTx || !pioRx || !baudrate || pinRx == 255 || pinTx == 255) {
+	if (!pioTx || !pioRx || !baudrate || pinRx == 255 || pinTx == 255 || rxBuf == nullptr || rxDmaChan == 255) {
 		Serial.println("Assign values to UART first");
 		return;
 	}
@@ -146,7 +151,7 @@ void SerialPio::begin() {
 			pio_sm_unclaim(pioRx, smRx);
 			return;
 		}
-		addRx = true;
+		addTx = true;
 	}
 	if (programOffsetsRx[pioIndexRx] == 255) {
 		if (!pio_can_add_program(pioRx, &uart_rx_program)) {
@@ -167,6 +172,18 @@ void SerialPio::begin() {
 	// start state machines
 	uart_tx_program_init(pioTx, smTx, programOffsetsTx[pioIndexTx], pinTx, baudrate);
 	uart_rx_program_init(pioRx, smRx, programOffsetsRx[pioIndexRx], pinRx, baudrate);
+
+	// set up RX DMA channel
+	dma_channel_config_t dmaCfg = dma_channel_get_default_config(rxDmaChan);
+	channel_config_set_read_increment(&dmaCfg, false);
+	channel_config_set_write_increment(&dmaCfg, true);
+	channel_config_set_dreq(&dmaCfg, pio_get_dreq(pioRx, smRx, false));
+	channel_config_set_transfer_data_size(&dmaCfg, DMA_SIZE_8);
+	channel_config_set_ring(&dmaCfg, true, 31 - __builtin_clz(rxFifoSize));
+	dma_channel_set_config(rxDmaChan, &dmaCfg, false);
+	dma_channel_set_read_addr(rxDmaChan, ((u8 *)&pioRx->rxf[smRx]) + 3, false);
+	dma_channel_set_write_addr(rxDmaChan, rxBuf, false);
+	dma_channel_set_transfer_count(rxDmaChan, 0xFFFFFFFFUL, true);
 
 	pioConfig.txPio = pioIndexTx;
 	pioConfig.rxPio = pioIndexRx;
@@ -202,7 +219,7 @@ void SerialPio::end() {
 	// search for others, and if another serial on the same pio still exists, don't delete programs
 	bool delRx = true;
 	bool delTx = true;
-	for (auto it = configs.begin(); it != configs.end();) {
+	for (auto it = configs.begin(); it != configs.end(); ++it) {
 		if ((*it)->rxPio == pioIndexRx) delRx = false;
 		if ((*it)->txPio == pioIndexTx) delTx = false;
 	}
@@ -235,6 +252,9 @@ bool SerialPio::setFIFOSize(size_t size) {
 	if (running) return false;
 	// only accept powers of 2, don't accept zero size
 	if (!size || (size & (size - 1)) != 0) return false;
+	if (rxBuf != nullptr) free(rxBuf);
+	rxBuf = (i8 *)aligned_alloc(size, size);
+	if (rxBuf == nullptr) return false;
 	rxFifoSize = size;
 	// TODO actually do something with this
 	return true;

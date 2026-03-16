@@ -50,8 +50,9 @@ private:
 	bool running = false;
 	u8 pioIndexTx = 255;
 	u8 pioIndexRx = 255;
-	// TODO implement FIFO
-	size_t rxFifoSize = 32;
 	i32 peekVal = -1;
 	SerialPioConfig pioConfig;
+	size_t rxFifoSize = 32;
+	i8 *rxBuf = nullptr;
+	u8 rxDmaChan = 255;
 };

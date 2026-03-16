@@ -2,6 +2,10 @@
 #include "Arduino.h"
 #include "typedefs.h"
 
+typedef struct serialPioHdxConfig {
+	i8 pio;
+} SerialPioHdxConfig;
+
 class SerialPioHdx : public HardwareSerial {
 public:
 	SerialPioHdx() = delete;
@@ -48,4 +52,5 @@ private:
 	// TODO implement FIFO
 	size_t rxFifoSize = 16;
 	i32 peekVal = -1;
+	SerialPioHdxConfig pioConfig;
 };

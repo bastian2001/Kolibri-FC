@@ -29,7 +29,7 @@ void initSerial() {
 	}
 
 	serials[0].emplace(&Serial, 2048, SERIAL_MSP);
-	serials[1].emplace(&Serial1, 2048, SERIAL_CRSF);
+	serials[1].emplace(pio2, pio2, -1, -1, 2048, SERIAL_CRSF);
 	serials[2].emplace(&Serial2, 2048, SERIAL_GPS);
 	serials[3].emplace(pio1, pio1, -1, -1, 2048, SERIAL_MSP | SERIAL_MSP_DISPLAYPORT);
 	serials[4].emplace(pio2, -1, 2048, SERIAL_IRC_TRAMP);

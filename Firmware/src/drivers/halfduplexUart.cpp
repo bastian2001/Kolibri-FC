@@ -1,7 +1,10 @@
+#include "drivers/halfduplexUart.h"
 #include "global.h"
 
 static u8 programOffsets[NUM_PIOS];
 static bool offsetsSet;
+
+static std::list<SerialPioHdxConfig *> configs;
 
 SerialPioHdx::SerialPioHdx(PIO pio, i8 sm)
 	: pio(pio),
@@ -130,19 +133,22 @@ void SerialPioHdx::begin() {
 	pio_gpio_init(pio, pin);
 
 	// set up configs
-	pio_sm_config pioConfig = halfduplex_uart_program_get_default_config(programOffsets[pioIndex]);
-	sm_config_set_set_pins(&pioConfig, pin, 1);
-	sm_config_set_out_pins(&pioConfig, pin, 1);
-	sm_config_set_in_pins(&pioConfig, pin);
-	sm_config_set_jmp_pin(&pioConfig, pin);
-	sm_config_set_in_shift(&pioConfig, true, false, 8);
-	sm_config_set_out_shift(&pioConfig, true, false, 8);
-	sm_config_set_clkdiv(&pioConfig, clkdiv);
+	pio_sm_config cfg = halfduplex_uart_program_get_default_config(programOffsets[pioIndex]);
+	sm_config_set_set_pins(&cfg, pin, 1);
+	sm_config_set_out_pins(&cfg, pin, 1);
+	sm_config_set_in_pins(&cfg, pin);
+	sm_config_set_jmp_pin(&cfg, pin);
+	sm_config_set_in_shift(&cfg, true, false, 8);
+	sm_config_set_out_shift(&cfg, true, false, 8);
+	sm_config_set_clkdiv(&cfg, clkdiv);
 
 	// set up state machine
-	pio_sm_init(pio, sm, programOffsets[pioIndex], &pioConfig);
+	pio_sm_init(pio, sm, programOffsets[pioIndex], &cfg);
 	pio_sm_set_enabled(pio, sm, true);
 	pio_sm_set_clkdiv(pio, sm, clkdiv);
+
+	pioConfig.pio = pioIndex;
+	configs.push_back(&pioConfig);
 
 	running = true;
 }
@@ -155,7 +161,36 @@ void SerialPioHdx::begin(unsigned long baudrate) {
 void SerialPioHdx::begin(unsigned long baudrate, uint16_t _config) {
 	begin(baudrate);
 }
-void SerialPioHdx::end() {}
+void SerialPioHdx::end() {
+	running = false;
+
+	// erase this serial from the configs
+	for (auto it = configs.begin(); it != configs.end();) {
+		if ((*it) == &pioConfig) {
+			it = configs.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	// stop state machines
+	pio_sm_set_enabled(pio, sm, false);
+	pio_sm_clear_fifos(pio, sm);
+	pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, false);
+	gpio_set_function(pin, GPIO_FUNC_NULL);
+
+	// search for others, and if another serial on the same pio still exists, don't delete program
+	bool del = true;
+	for (auto it = configs.begin(); it != configs.end(); ++it) {
+		if ((*it)->pio == pioIndex) del = false;
+	}
+	if (del) {
+		pio_remove_program(pio, &halfduplex_uart_program, programOffsets[pioIndex]);
+		programOffsets[pioIndex] = 255;
+	}
+
+	pio_sm_unclaim(pio, sm);
+}
 
 SerialPioHdx::operator bool() {
 	return running;

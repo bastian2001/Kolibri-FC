@@ -45,7 +45,6 @@
 #include "drivers/esc.h"
 #include "drivers/flashBb.h"
 #include "drivers/gyro.h"
-#include "drivers/halfduplexUart.h"
 #include "drivers/i2c.h"
 #include "drivers/mag.h"
 #include "drivers/osd.h"
