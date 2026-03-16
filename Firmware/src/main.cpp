@@ -2,7 +2,7 @@
 #include "hardware/structs/qmi.h"
 #include "hardware/vreg.h"
 
-static volatile u8 setupDone = 0b00;
+static volatile u8 setupDone = 0; // lower nibble for core 0, higher nibble for core 1
 static elapsedMicros taskTimer0;
 
 void setup() {
@@ -20,7 +20,8 @@ void setup() {
 	initLittleFs();
 	openSettingsFile();
 
-	while (!(setupDone & 0b10)) {
+	setupDone |= 0b1;
+	while (!(setupDone & 0b10000)) {
 		tight_loop_contents();
 	}
 
@@ -65,15 +66,14 @@ void setup() {
 #endif
 	initSpeaker();
 
+	closeSettingsFile();
+
 	rp2040.wdt_begin(200);
+	rp2040.wdt_reset();
 
 	Serial.println("Setup complete");
 	taskTimer0 = 0;
-	setupDone |= 0b01;
-	while (!(setupDone & 0b10)) {
-		rp2040.wdt_reset();
-	}
-	closeSettingsFile();
+	setupDone |= 0b10;
 	rom_flash_flush_cache();
 }
 
@@ -118,10 +118,13 @@ void loop() {
 }
 
 void setup1() {
+	while (!(setupDone & 0b1)) {
+		tight_loop_contents();
+	}
 	initESCs();
 	gyroInit();
-	setupDone |= 0b10;
-	while (!(setupDone & 0b01)) {
+	setupDone |= 0b10000;
+	while (!(setupDone & 0b10)) {
 		tight_loop_contents();
 	}
 }
