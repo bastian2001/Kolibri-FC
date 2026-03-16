@@ -17,7 +17,6 @@ std::optional<KoliSerial> serials[SERIAL_COUNT];
 static u8 currentSerial = 0;
 
 void initSerial() {
-	sleep_ms(4000);
 	for (u32 i = 0; i < 256; i++) {
 		u32 crc = i;
 		for (u32 j = 0; j < 8; j++) {
@@ -30,9 +29,9 @@ void initSerial() {
 	}
 
 	serials[0].emplace(&Serial, 2048, SERIAL_MSP);
-	serials[1].emplace(pio2, pio2, -1, -1, 2048, SERIAL_CRSF);
+	serials[1].emplace(&Serial1, 2048, SERIAL_CRSF);
 	serials[2].emplace(&Serial2, 2048, SERIAL_GPS);
-	serials[3].emplace(pio1, pio1, -1, -1, 2048, SERIAL_MSP | SERIAL_MSP_DISPLAYPORT);
+	// serials[3].emplace(pio1, pio1, -1, -1, 2048, SERIAL_MSP | SERIAL_MSP_DISPLAYPORT);
 	serials[4].emplace(pio2, -1, 2048, SERIAL_IRC_TRAMP);
 
 	for (int i = 0; i < SERIAL_COUNT; i++) {

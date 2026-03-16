@@ -50,8 +50,11 @@
 #define PIN_LEDS 27
 
 #define BLACKBOX_STORAGE SD_BB
+
 #define I2C_MAG i2c0 // I2C for magnetometer
+
 #define SPI_OSD spi1 // SPI for OSD
+
 #define GYRO_HALFDUPLEX_SPI
 
 #define PIO_ESC pio0 // uses all 4 SMs

@@ -19,6 +19,11 @@ void setup() {
 	Serial.println("Setup started");
 	initLittleFs();
 	openSettingsFile();
+
+	while (!(setupDone & 0b10)) {
+		tight_loop_contents();
+	}
+
 	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
 
 	initPid();
@@ -113,12 +118,11 @@ void loop() {
 }
 
 void setup1() {
-	while (!(setupDone & 0b01)) {
-	}
 	initESCs();
 	gyroInit();
 	setupDone |= 0b10;
 	while (!(setupDone & 0b01)) {
+		tight_loop_contents();
 	}
 }
 static elapsedMicros taskTimer = 0;
