@@ -210,7 +210,7 @@ bool SerialPioHdx::setFIFOSize(size_t size) {
 	if (running) return false;
 	// only accept powers of 2, don't accept zero size
 	if (!size || (size & (size - 1)) != 0) return false;
-	rxFifoSize = size;
+	rxBufSize = size;
 	// TODO actually do something with this
 	return true;
 }

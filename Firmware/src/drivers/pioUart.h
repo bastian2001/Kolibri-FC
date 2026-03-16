@@ -52,7 +52,8 @@ private:
 	u8 pioIndexRx = 255;
 	i32 peekVal = -1;
 	SerialPioConfig pioConfig;
-	size_t rxFifoSize = 32;
-	i8 *rxBuf = nullptr;
+	size_t rxBufSize = 32;
+	u8 *rxBuf = nullptr;
 	u8 rxDmaChan = 255;
+	u8 *rxPtr = nullptr;
 };

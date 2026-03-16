@@ -21,7 +21,8 @@ SerialPio::SerialPio(PIO pioTx, PIO pioRx, i8 smTx, i8 smRx)
 		}
 		offsetsSet = true;
 	}
-	rxBuf = (i8 *)aligned_alloc(rxFifoSize, rxFifoSize);
+	rxBuf = (u8 *)aligned_alloc(rxBufSize, rxBufSize);
+	Serial.printf("%08X\n", rxBuf);
 	rxDmaChan = dma_claim_unused_channel(false);
 	Serial.flush();
 }
@@ -35,33 +36,22 @@ SerialPio::~SerialPio() {
 }
 
 int SerialPio::available() {
-	return pio_sm_get_rx_fifo_level(pioRx, smRx);
+	u8 *dmaPtr = (u8 *)dma_hw->ch[rxDmaChan].write_addr;
+	if (dmaPtr >= rxPtr) return dmaPtr - rxPtr;
+	return rxBufSize - (rxPtr - dmaPtr);
 }
 int SerialPio::read() {
-	if (!running) {
-		return -1;
-	}
-	if (peekVal != -1) {
-		int i = peekVal;
-		peekVal = -1;
-		return i;
-	}
-	if (pio_sm_is_rx_fifo_empty(pioRx, smRx)) {
-		return -1;
-	}
-	return pio_sm_get(pioRx, smRx) >> 24;
+	if (!running) return -1;
+	volatile u8 *dmaPtr = (volatile u8 *)dma_hw->ch[rxDmaChan].write_addr;
+	if (dmaPtr == rxPtr) return -1;
+	int res = *rxPtr++;
+	if (rxPtr >= rxBuf + rxBufSize)
+		rxPtr = rxBuf;
+	return res;
 }
 int SerialPio::peek() {
-	if (!running) {
-		return -1;
-	}
-	if (peekVal != -1) {
-		return peekVal;
-	}
-	if (pio_sm_is_rx_fifo_empty(pioRx, smRx)) {
-		return -1;
-	}
-	return peekVal = pio_sm_get(pioRx, smRx) >> 24;
+	if (!running || !available()) return -1;
+	return *rxPtr;
 }
 
 size_t SerialPio::write(uint8_t c) {
@@ -179,11 +169,12 @@ void SerialPio::begin() {
 	channel_config_set_write_increment(&dmaCfg, true);
 	channel_config_set_dreq(&dmaCfg, pio_get_dreq(pioRx, smRx, false));
 	channel_config_set_transfer_data_size(&dmaCfg, DMA_SIZE_8);
-	channel_config_set_ring(&dmaCfg, true, 31 - __builtin_clz(rxFifoSize));
+	channel_config_set_ring(&dmaCfg, true, 31 - __builtin_clz(rxBufSize));
 	dma_channel_set_config(rxDmaChan, &dmaCfg, false);
 	dma_channel_set_read_addr(rxDmaChan, ((u8 *)&pioRx->rxf[smRx]) + 3, false);
 	dma_channel_set_write_addr(rxDmaChan, rxBuf, false);
 	dma_channel_set_transfer_count(rxDmaChan, 0xFFFFFFFFUL, true);
+	rxPtr = rxBuf;
 
 	pioConfig.txPio = pioIndexTx;
 	pioConfig.rxPio = pioIndexRx;
@@ -253,9 +244,9 @@ bool SerialPio::setFIFOSize(size_t size) {
 	// only accept powers of 2, don't accept zero size
 	if (!size || (size & (size - 1)) != 0) return false;
 	if (rxBuf != nullptr) free(rxBuf);
-	rxBuf = (i8 *)aligned_alloc(size, size);
+	rxBuf = (u8 *)aligned_alloc(size, size);
+	Serial.printf("%08X\n", rxBuf);
 	if (rxBuf == nullptr) return false;
-	rxFifoSize = size;
-	// TODO actually do something with this
+	rxBufSize = size;
 	return true;
 }
