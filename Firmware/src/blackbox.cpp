@@ -1262,7 +1262,7 @@ void startLogging() {
 		for (int i = 0; i < 3; i++)
 			rf[ax][i] = rateCoeffs[ax][i].raw;
 	blackboxFile.write((u8 *)rf, 36);
-	u8 dummy[30] = {0};
+	u8 dummy[30] = {};
 	blackboxFile.write(dummy, 24); // reserved space for future use
 	blackboxFile.write((u8 *)pidGainsNice, 30);
 	blackboxFile.write(dummy, 30);

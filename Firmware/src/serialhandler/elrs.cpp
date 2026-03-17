@@ -297,7 +297,7 @@ void ExpressLRS::processMessage() {
 			ELRS_RAISE_ERROR(ERROR_INVALID_LENGTH);
 			break;
 		}
-		u32 pChannels[16] = {0};
+		u32 pChannels[16] = {};
 		switch (res) {
 		case 0b00: {
 			// 10 bits

@@ -2,11 +2,11 @@
 
 static u32 enableDShot = 0;
 
-u32 escRawTelemetry[4] = {0};
-u32 escRpm[4] = {0};
-u32 escTemp[4] = {0};
-fix32 escVoltage[4] = {0};
-u32 escCurrent[4] = {0};
+u32 escRawTelemetry[4] = {};
+u32 escRpm[4] = {};
+u32 escTemp[4] = {};
+fix32 escVoltage[4] = {};
+u32 escCurrent[4] = {};
 u8 escErpmFail = 0;
 u32 escErpmFailCounter = 0;
 static u32 escNoBidirCounter[4];
@@ -14,7 +14,7 @@ static u32 escNoEdtCounter[4];
 bool escFound[4];
 bool escEdtFound[4];
 u16 dshotBeepTone = 1;
-static u8 motorPins[4] = {0};
+static u8 motorPins[4] = {};
 
 BidirDShotX1 *escs[4];
 

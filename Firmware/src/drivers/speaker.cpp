@@ -63,8 +63,8 @@ const f32 WAV_SPEAKER_CLKDIV = (float)F_CPU / (256 * 44100 * 4);
 dma_channel_config speakerDmaAConfig, speakerDmaBConfig;
 u8 speakerDmaAChan, speakerDmaBChan;
 // 8KiB buffer each, thus worst case the speaker has a buffer of 1024 samples / 44.1kHz = 23ms
-u16 speakerChanAData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
-u16 speakerChanBData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
+u16 speakerChanAData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {};
+u16 speakerChanBData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {};
 u32 totalBytes = 0;
 u8 finishedChannels = 0b00;
 u8 startSpeakerFile = true;

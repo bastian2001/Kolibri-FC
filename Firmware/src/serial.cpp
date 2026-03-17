@@ -1,6 +1,6 @@
 #include "global.h"
 
-u32 crcLutD5[256] = {0};
+u32 crcLutD5[256] = {};
 
 char const serialFunctionNames[SERIAL_FUNCTION_COUNT][20] = {
 	"CRSF",

@@ -291,7 +291,7 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {
 	if (addrHi == 0xFF && addrLo == 0xFF) return 1;
 	uint8_t sCmd[] = {(u8)BlCmd::SET_ADDRESS, 0x00, addrHi, addrLo};
-	uint8_t rxBuf[50] = {0};
+	uint8_t rxBuf[50] = {};
 	sendEsc(sCmd, 4);
 	delayWhileRead(5);
 	uint16_t rxSize = getEsc(rxBuf, 20);
@@ -301,7 +301,7 @@ uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {
 
 uint8_t blSendCmdSetBuf(uint8_t len, uint8_t buf[256]) {
 	uint8_t sCmd[] = {(u8)BlCmd::SET_BUFFER, 0x00, len == 0, len};
-	uint8_t rxBuf[50] = {0};
+	uint8_t rxBuf[50] = {};
 	sendEsc(sCmd, 4);
 	delayWhileRead(5);
 	uint16_t rxSize = getEsc(rxBuf, 20);
@@ -316,7 +316,7 @@ uint8_t blSendCmdSetBuf(uint8_t len, uint8_t buf[256]) {
 uint8_t blVerifyFlash(uint8_t len, uint8_t buf[256], uint8_t addrHi, uint8_t addrLo) {
 	if (blSendCmdSetAddr(addrHi, addrLo)) {
 		uint8_t sCmd[] = {(u8)BlCmd::VERIFY_FLASH_ARM, 0x01};
-		uint8_t rxBuf[50] = {0};
+		uint8_t rxBuf[50] = {};
 		if (!blSendCmdSetBuf(len, buf)) return 0;
 		sendEsc(sCmd, 2);
 		delayWhileRead(5);
@@ -327,7 +327,7 @@ uint8_t blVerifyFlash(uint8_t len, uint8_t buf[256], uint8_t addrHi, uint8_t add
 }
 
 void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
-	u8 buf[300] = {0};
+	u8 buf[300] = {};
 
 	switch ((Cmd4Way)cmd) {
 	case Cmd4Way::INTERFACE_TEST_ALIVE:
@@ -491,7 +491,7 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 
 	case Cmd4Way::DEVICE_PAGE_ERASE: {
 		u8 ack = (u8)Res4Way::ACK_OK;
-		u8 rx[250] = {0};
+		u8 rx[250] = {};
 
 		buf[0] = (u8)BlCmd::SET_ADDRESS;
 		buf[1] = 0;

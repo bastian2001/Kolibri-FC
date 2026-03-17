@@ -1,6 +1,4 @@
 #include "global.h"
-#include "pioasm/uart_rx.pio.h"
-#include "pioasm/uart_tx.pio.h"
 
 static u8 programOffsetsRx[NUM_PIOS];
 static u8 programOffsetsTx[NUM_PIOS];

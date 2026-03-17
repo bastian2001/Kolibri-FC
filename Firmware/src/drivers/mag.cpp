@@ -6,10 +6,10 @@ static MagState magState = MagState::NOT_INIT;
 static u8 magSubState = 0;
 static elapsedMicros magTimer;
 static u32 magTimerTimeout = 0;
-static u8 magBuffer[6] = {0};
-i32 magData[3] = {0};
+static u8 magBuffer[6] = {};
+i32 magData[3] = {};
 
-i16 magOffset[3] = {0};
+i16 magOffset[3] = {};
 fix32 magRight = 0, magFront = 0;
 
 fix32 magHeading = 0;
@@ -25,13 +25,13 @@ void initMag() {
 }
 
 MagState magStateAfterRead = MagState::PROCESS_DATA;
-static float xtxMatrix[4][4] = {0};
-static float xtyVector[4] = {0};
+static float xtxMatrix[4][4] = {};
+static float xtyVector[4] = {};
 u32 calibrationCycle = 0;
 
 float cofactor(float matrix[4][4], i32 row, i32 col) {
-	i32 rows[3] = {0};
-	i32 cols[3] = {0};
+	i32 rows[3] = {};
+	i32 cols[3] = {};
 	for (int i = 0; i < 3; i++) {
 		rows[i] = i >= row ? i + 1 : i;
 		cols[i] = i >= col ? i + 1 : i;

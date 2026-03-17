@@ -70,6 +70,8 @@
 #define TARGET_IDENTIFIER "KD05"
 #define TARGET_FULL_NAME "Kolibri Dev v0.5"
 
+inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1", "R1", "T2", "R2", "", "", "", "", "", "", "", "", "M1", "M2", "M3", "M4", "SDA", "SCL", "Spk", "LEDx", "", ""};
+
 #elif HW_VARIANT == HW_V6
 
 #define PIN_TX0 0 // UART0 / Serial1

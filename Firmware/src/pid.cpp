@@ -13,7 +13,7 @@
 i16 throttles[4] __attribute__((aligned(4)));
 
 // PID controller config
-u16 pidGainsNice[3][5] = {0};
+u16 pidGainsNice[3][5] = {};
 static fix32 pidGains[3][5]; // PID gains (raw, calculated) for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 fix32 iFalloff;
 u16 dFilterCutoff;
@@ -34,7 +34,7 @@ static PT2 dFilterRoll, dFilterPitch, dFilterYaw;
 u8 idlePermille;
 bool useDynamicIdle = true;
 u16 dynamicIdleRpm = 3000;
-static fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
+static fix32 dynamicIdlePids[4][3] = {}; // [motor][P, I, D]
 static fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07};
 static fix32 throttleScale;
 static interp_config dynIdleInterpConfig;
@@ -254,7 +254,7 @@ void pidLoop() {
 
 	// apply idling / throttle clamping
 	if (runDynIdle) {
-		static i32 lastRpm[4] = {0};
+		static i32 lastRpm[4] = {};
 		i32 minIncrease = INT32_MIN; // typically negative, but >0 when one channels wants to lift
 		i32 tryDecrease = 0;
 		startDynIdleInterp();

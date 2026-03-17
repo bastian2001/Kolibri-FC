@@ -35,6 +35,10 @@ void setup() {
 	initMag();
 	imuInit();
 	initADC();
+#ifdef BLACKBOX_STORAGE
+	initBlackbox();
+#endif
+	initSpeaker();
 	modesInit();
 	initSerial();
 	trampInit();
@@ -60,11 +64,6 @@ void setup() {
 		p.neoPixelFill(0, 0, 255, true);
 		sleep_ms(30);
 	}
-
-#ifdef BLACKBOX_STORAGE
-	initBlackbox();
-#endif
-	initSpeaker();
 
 	closeSettingsFile();
 

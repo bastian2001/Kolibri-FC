@@ -1,4 +1,3 @@
-#include "drivers/halfduplexUart.h"
 #include "global.h"
 
 static u8 programOffsets[NUM_PIOS];

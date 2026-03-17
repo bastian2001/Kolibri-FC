@@ -39,7 +39,7 @@ volatile i32 blackboxPres = 0;
 fix32 baroUpVel = 0;
 u8 baroTemp = 0;
 fix32 gpsBaroAlt;
-static u8 baroBuffer[32] = {0};
+static u8 baroBuffer[32] = {};
 static elapsedMicros baroTimer = 0;
 static u32 baroTimerTimeout = 0;
 i32 pressureRaw;

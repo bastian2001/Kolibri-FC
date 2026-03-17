@@ -6,13 +6,13 @@
 // gyro calibration procedure
 static volatile bool calibrateGyro = false;
 static u32 gyroCalibratedCycles = 0; // counts up the cycles for the gyro calibration, calibration is done if the value is 2000
-static i32 gyroCalibrationOffsetTemp[3] = {0}; // temporary offset that gets added to the gyro values during calibration
+static i32 gyroCalibrationOffsetTemp[3] = {}; // temporary offset that gets added to the gyro values during calibration
 // accel calibration procedure
 static volatile bool calibrateAccel = false;
 volatile u8 accelCalState = 0;
 volatile bool accelCalDone = false;
 static u16 accelCalibratedCycles = 0; // counts up the cycles for the accel calibration, calibration is done if the value is 2000
-static i32 accelCalibrationOffsetTemp[3] = {0};
+static i32 accelCalibrationOffsetTemp[3] = {};
 // imu alignment procedure
 static volatile bool alignImu = false;
 volatile u8 imuAlignmentStep = 0;
@@ -27,7 +27,7 @@ static i32 accelCalibrationOffset[3]; // offset that gets subtracted from the ac
 static i32 accelCalibrationOffsetBackup[3];
 
 // IMU raw data and their copies
-static volatile i16 agDataRaw[6] __attribute__((aligned(4))) = {0}; // raw register reads
+static volatile i16 agDataRaw[6] __attribute__((aligned(4))) = {}; // raw register reads
 static i32 gyroDataRaw[3]; // after applying offset, but no scaling/filtering etc.
 static i32 accelDataRaw[3]; // after applying offset, but no scaling/filtering etc.
 static mutex_t agDataRawAccess;
@@ -69,7 +69,7 @@ static volatile const u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg:
 static volatile const u32 gyroDmaTxData[13] = {0x80UL | (u32)GyroReg::ACC_X_MSB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 #endif
 #define GYRO_DMA_LENGTH ARRAYLEN(gyroDmaTxData)
-static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {0};
+static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {};
 
 void gyroLoop() {
 	if (gyroInterrupts) {

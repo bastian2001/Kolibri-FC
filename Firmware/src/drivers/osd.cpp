@@ -6,9 +6,9 @@ static elapsedMicros osdTimer = 0;
 
 u8 drawIterator = 0;
 
-u8 elemPositions[(u8)OSDElem::LENGTH][2] = {0}; // up to LENGTH elements can be shown, each element has 2 bytes for x and y position, the 3 MSBs of x is used as an updated flag + reserved, the 3 MSBs of y is used as a visible flag + blinking flag + reserved
+u8 elemPositions[(u8)OSDElem::LENGTH][2] = {}; // up to LENGTH elements can be shown, each element has 2 bytes for x and y position, the 3 MSBs of x is used as an updated flag + reserved, the 3 MSBs of y is used as a visible flag + blinking flag + reserved
 
-u8 elemData[(u8)OSDElem::LENGTH][16] = {0}; // up to LENGTH elements can be shown, each element has 16 bytes for data
+u8 elemData[(u8)OSDElem::LENGTH][16] = {}; // up to LENGTH elements can be shown, each element has 16 bytes for data
 
 void osdInit() {
 	spi_init(SPI_OSD, 8000000);

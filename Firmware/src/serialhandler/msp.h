@@ -152,6 +152,11 @@ enum class MspFn {
 	SET_VTX_CONFIG = 0x41B2,
 	VTX_APPLY_CONFIG = 0x41B3,
 
+	// 0x41C_ Serial setup
+	GET_IO_CONSTRAINTS = 0x41C0,
+	GET_SERIAL_SETUP = 0x41C1,
+	SET_SERIAL_SETUP = 0x41C2,
+
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET = 0x41F0,
 	SET_TZ_OFFSET = 0x41F1,

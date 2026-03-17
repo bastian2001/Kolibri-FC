@@ -182,11 +182,16 @@ public:
 
 	bool setRxFifoSize(size_t size);
 	bool setPinout(pin_size_t tx, pin_size_t rx);
+	pin_size_t getRxPin() { return rxPin; };
+	pin_size_t getTxPin() { return txPin; };
+	bool setBaudrate(u32 baud);
+	const u32 &getBaurate() { return baudrate; };
 
 	operator bool();
 
 	volatile u32 totalRx = 0;
 	volatile u32 totalTx = 0;
+
 	static elapsedMicros sinceReset;
 	u32 functions = 0; // OR of SERIAL_ defines, e.g. SERIAL_MSP
 	static char serialTypeNames[4][8];
@@ -194,6 +199,8 @@ public:
 private:
 	RingBuffer<u8> writeBuffer;
 	mutex_t writeMutex;
+	u32 baudrate = 0;
+	pin_size_t txPin, rxPin;
 
 	Stream *const stream;
 };

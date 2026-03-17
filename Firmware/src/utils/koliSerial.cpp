@@ -9,22 +9,10 @@ char KoliSerial::serialTypeNames[4][8] = {
 elapsedMicros KoliSerial::sinceReset = 0;
 
 void KoliSerial::begin(unsigned long baudrate) {
-	switch (serialType) {
-	case SerialType::USB:
-		static_cast<UsbSerialClass *>(stream)->begin(baudrate);
-		break;
-	case SerialType::UART:
-		static_cast<SerialUART *>(stream)->begin(baudrate);
-		break;
-	case SerialType::PIO:
-		static_cast<SerialPio *>(stream)->begin(baudrate);
-		break;
-	case SerialType::PIO_HDX:
-		static_cast<SerialPioHdx *>(stream)->begin(baudrate);
-		break;
-	}
+	return begin(baudrate, SERIAL_8N1);
 }
 void KoliSerial::begin(unsigned long baudrate, uint16_t config) {
+	this->baudrate = baudrate;
 	switch (serialType) {
 	case SerialType::USB:
 		static_cast<UsbSerialClass *>(stream)->begin(baudrate, config);
@@ -104,6 +92,8 @@ bool KoliSerial::setRxFifoSize(size_t size) {
 }
 
 bool KoliSerial::setPinout(pin_size_t tx, pin_size_t rx) {
+	txPin = tx;
+	rxPin = rx;
 	switch (serialType) {
 	case SerialType::USB:
 		// cannot set pinout on USB interface
