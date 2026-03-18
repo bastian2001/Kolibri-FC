@@ -19,6 +19,7 @@ export type SerialPort = {
 	no: number
 	hwParam: number
 	modified: boolean
+	initialFunctions: number
 }
 export const SERIAL_TYPE_LUT: { [key in SerialType]: string } = {
 	usb: "USB",
@@ -189,6 +190,7 @@ export const usePortStore = defineStore("port", () => {
 					functions: 0,
 					hwParam: 0,
 					modified: true,
+					initialFunctions: 0,
 					no: newSerialNum,
 					rxPin: rx,
 					txPin: tx,

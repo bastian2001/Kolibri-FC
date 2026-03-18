@@ -189,7 +189,8 @@ function fetchSetup() {
 					functions: 0,
 					no: i,
 					hwParam: 0,
-					modified: false
+					modified: false,
+					initialFunctions: 0,
 				}
 				serials.push(s)
 				if (bin[0]) s.exists = true
@@ -202,6 +203,7 @@ function fetchSetup() {
 				s.txPin = bin[10]
 				s.rxPin = bin[11]
 				s.functions = leBytesToInt(bin, 12, 4)
+				s.initialFunctions = s.functions
 				s.hwParam = bin[16]
 			}
 			// TODO fetch pad positions, labels
@@ -301,7 +303,7 @@ onBeforeUnmount(() => {
 	box-sizing: border-box;
 	background-color: var(--background-light);
 	text-align: center;
-	padding: 0.3rem;
+	padding: .6rem 0.3rem;
 	box-shadow: 0px 0px 0px 2px var(--border-color);
 }
 

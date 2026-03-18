@@ -480,7 +480,8 @@ void ExpressLRS::processMessage() {
 				break;
 			}
 		}
-		deviceList.push_back(thisDevice);
+		if (deviceList.size() < 10)
+			deviceList.push_back(thisDevice);
 	} break;
 	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY:
 	case FRAMETYPE_PARAMETER_READ:
