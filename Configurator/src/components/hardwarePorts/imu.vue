@@ -54,7 +54,7 @@ const getImuSetupState = setInterval(() => {
 
 		imuModel.value = IMU_NAMES[c.data[6]]
 		readyFlags.value = c.data[7]
-	})
+	}).catch(() => { })
 }, 100)
 
 onBeforeUnmount(() => {

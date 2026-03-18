@@ -699,7 +699,6 @@ export function onConnectHandler(...handler: (() => void)[]) {
 		for (const h of handler) {
 			const i = onConnectHandlers.indexOf(h)
 			if (i >= 0) onConnectHandlers.splice(i, 1)
-			console.log("removed")
 		}
 	})
 }

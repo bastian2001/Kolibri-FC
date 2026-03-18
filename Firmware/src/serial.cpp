@@ -20,7 +20,6 @@ static u32 freeInstructions[NUM_PIOS] = {}; // we need to copy it manually, beca
 static u8 freeSms[NUM_PIOS] = {};
 
 void stopSerials() {
-
 	// TODO tell ELRS and so on that the serial no longer exists
 	elrs.reset();
 	setGpsSerial(nullptr);
@@ -33,8 +32,8 @@ void stopSerials() {
 }
 
 static SerialUART *getSerial(int i) {
-	if (i == 1) return &Serial1;
-	if (i == 2) return &Serial2;
+	if (i == 0) return &Serial1;
+	if (i == 1) return &Serial2;
 	return nullptr;
 }
 
@@ -66,8 +65,10 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 				success = false;
 				break;
 			}
-			PIO pioTx = pio_get_instance(cfg.hwParam & 0xF);
-			PIO pioRx = pio_get_instance(cfg.hwParam >> 4);
+			u8 txNum = cfg.hwParam & 0xF;
+			u8 rxNum = cfg.hwParam >> 4;
+			PIO pioTx = pio_get_instance(txNum);
+			PIO pioRx = pio_get_instance(rxNum);
 			serials[i + 1].emplace(pioTx, pioRx, -1, -1, 2048);
 		} break;
 		case SerialType::PIO_HDX: {
@@ -181,7 +182,6 @@ u32 getFreeInstructions(int pioNum) { return freeInstructions[pioNum]; }
 u8 getFreeSms(int pioNum) { return freeSms[pioNum]; }
 
 void initSerial() {
-	sleep_ms(5000);
 	for (u32 i = 0; i < 256; i++) {
 		u32 crc = i;
 		for (u32 j = 0; j < 8; j++) {
@@ -214,8 +214,8 @@ void initSerial() {
 	};
 
 	SerialConfig cfgs[SERIAL_COUNT - 1] = {
-		// {SerialType::DISABLED, 0, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
-		{SerialType::UART, 2, PIN_TX1, PIN_RX1, 0, SERIAL_GPS},
+		{SerialType::DISABLED, 0, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
+		{SerialType::UART, 1, PIN_TX1, PIN_RX1, 0, SERIAL_GPS},
 		{SerialType::PIO, (2 << 4) | 2, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
 		// {SerialType::PIO_HDX, 2, PIN_TX2, PIN_RX2, 0, SERIAL_IRC_TRAMP},
 	};

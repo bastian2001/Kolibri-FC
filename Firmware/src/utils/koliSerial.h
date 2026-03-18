@@ -11,7 +11,7 @@ enum class SerialType {
 	UART,
 	PIO,
 	PIO_HDX,
-	DISABLED = 127,
+	DISABLED = 255,
 };
 
 #ifdef USE_TINYUSB

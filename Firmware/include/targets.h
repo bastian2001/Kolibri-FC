@@ -124,6 +124,9 @@ inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1",
 
 #define TARGET_IDENTIFIER "KD06"
 #define TARGET_FULL_NAME "Kolibri Dev v0.6"
+
+inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1", "R1", "T2", "R2", "", "", "", "", "", "", "", "", "M1", "M2", "M3", "M4", "SDA", "SCL", "Spk", "LEDx", "", ""};
+
 #endif
 
 #ifdef SPI_GYRO

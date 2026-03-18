@@ -9,12 +9,11 @@ import { MspFn } from '@/msp/protocol';
 import { delay, leBytesToBigInt, leBytesToInt } from '@/utils/utils';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { Command } from '@/utils/types';
-import { useLogStore } from '@/stores/logStore';
-import { usePortStore } from '@/stores/portStore';
+import { SerialPort, usePortStore } from '@/stores/portStore';
 
 const ports = usePortStore()
 
-const serials = ports.serials
+const { serials, pioSetup, pins } = ports
 
 type portType = 'analog-osd' | 'digital-osd' | 'analog-vtx' | 'adc' | 'dshot' | 'elrs' | 'gps' | 'baro' | 'mag' | 'large-fs' | 'ledstrip' | 'speaker' | 'imu'
 type port = {
@@ -24,10 +23,6 @@ type port = {
 
 	// analog OSD status
 	detectedVideoType?: 'pal' | 'ntsc',
-
-	// analog VTX status
-	analogVtxOnline?: boolean,
-	analogVtxFreq?: number,
 
 	// ADC values
 	rawVoltage: number,
@@ -103,7 +98,7 @@ function ioConstraintMatcher(req: Command, res: Command) {
 }
 
 function fetchSetup() {
-	serials.value.length = 0
+	ports.reset()
 	sendCommand(MspFn.GET_IO_CONSTRAINTS, {
 		data: [0],
 		verifyFn: ioConstraintMatcher,
@@ -129,15 +124,19 @@ function fetchSetup() {
 				if (funcs & 1n << 1n) pin.spi = true
 				for (let j = 2n; j < 10n; j++) {
 					const isTx = j % 2n === 0n
-					const serial = Number(j - 2n) / 2
-					if (isTx && funcs & 1n << j) pin.uartTx[serial] = true
-					if (!isTx && funcs & 1n << j) pin.uartRx[serial] = true
+					const serial = Number((j - 2n) / 2n)
+					if (funcs & (1n << j)) {
+						if (isTx) pin.uartTx[serial] = true
+						if (!isTx) pin.uartRx[serial] = true
+					}
 				}
 				for (let j = 10n; j < 16n; j++) {
 					const isSda = j % 2n === 0n
-					const i2c = Number(j - 10n) / 2
-					if (isSda && funcs & 1n << j) pin.sda[i2c] = true
-					if (!isSda && funcs & 1n << j) pin.scl[i2c] = true
+					const i2c = Number((j - 10n) / 2n)
+					if (funcs & (1n << j)) {
+						if (isSda) pin.sda[i2c] = true
+						if (!isSda) pin.scl[i2c] = true
+					}
 				}
 				for (let j = 16n; j < 20; j++) {
 					const pio = Number(j) - 16
@@ -156,8 +155,8 @@ function fetchSetup() {
 		.then(c => {
 			const d = c.data.slice(1)
 			if (d.length < 2) throw ''
-			hwSerials = d[0]
-			maxSerials = d[1]
+			ports.hwSerials = d[0]
+			ports.maxSerials = d[1]
 
 			return sendCommand(MspFn.GET_IO_CONSTRAINTS, {
 				data: [11],
@@ -183,27 +182,27 @@ function fetchSetup() {
 		.then(c => {
 			const d = c.data
 			if (d.length % 17 !== 0) throw ''
+			if (d.length / 17 !== ports.maxSerials) throw ''
 			for (let i = 0; i < d.length / 17; i++) {
 				const bin = d.slice(i * 17, i * 17 + 17)
-				const s = {
+				const s: SerialPort = {
 					exists: false,
 					type: 'disabled' as 'usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled' | 'invalid',
-					running: false,
 					baud: 0,
 					baudSet: 0,
 					txPin: 255,
 					rxPin: 255,
 					functions: 0,
 					no: i,
-					hwParam: 0
+					hwParam: 0,
+					modified: false
 				}
-				serials.value.push(s)
+				serials.push(s)
 				if (bin[0]) s.exists = true
 				else continue
-				if (bin[1] & 1 << 7) s.running = true
 				const lut = ['usb', 'uart', 'pio', 'pio-hdx'] as ('usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled')[]
-				lut[127] = 'disabled'
-				s.type = lut[bin[1] & ~(1 << 7)] || 'invalid'
+				lut[255] = 'disabled'
+				s.type = lut[bin[1]] || 'invalid'
 				s.baud = leBytesToInt(bin, 2, 4)
 				s.baudSet = leBytesToInt(bin, 6, 4)
 				s.txPin = bin[10]
@@ -214,7 +213,6 @@ function fetchSetup() {
 			// TODO fetch pad positions, labels
 		})
 		.catch(e => {
-			useLogStore().push('Error requesting serial setup')
 			console.error(e)
 		})
 }
@@ -237,11 +235,12 @@ onBeforeUnmount(() => {
 			<Drone3dPreview :roll="attitude.roll" :pitch="attitude.pitch" :yaw="attitude.yaw" :size="400" />
 		</div>
 		<div class="gridWrapper">
+
 			<div class="grid">
 				<Imu />
 				<Dshot />
 				<template v-for="s in serials">
-					<Serial v-if="s.exists" />
+					<Serial v-if="s.exists" :key="s.no" :num="s.no" />
 				</template>
 				<AddPort />
 			</div>

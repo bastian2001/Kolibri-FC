@@ -116,10 +116,6 @@ export default defineComponent({
 						this.flightMode = command.data[3];
 						this.armingDisableFlags = leBytesToInt(command.data, 4, 4);
 						break;
-					case MspFn.REBOOT:
-						this.configuratorLog.push('Rebooting');
-						disconnect();
-						break;
 				}
 			}
 		},
@@ -157,10 +153,10 @@ export default defineComponent({
 			})
 		},
 		reboot() {
-			sendCommand(MspFn.REBOOT, [REBOOT_MODES.FIRMWARE])
+			sendCommand(MspFn.REBOOT, [REBOOT_MODES.FIRMWARE]).then(disconnect)
 		},
 		rebootBootloader() {
-			sendCommand(MspFn.REBOOT, [REBOOT_MODES.BOOTLOADER_FLASH])
+			sendCommand(MspFn.REBOOT, [REBOOT_MODES.BOOTLOADER_FLASH]).then(disconnect)
 		},
 	},
 })

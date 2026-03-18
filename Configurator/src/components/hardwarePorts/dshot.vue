@@ -62,7 +62,7 @@ function fetchState() {
 		return sendCommand(MspFn.MSP_BATTERY_STATE)
 	}).then(c => {
 		batState.value = c.data[8]
-	})
+	}).catch(() => { })
 }
 
 const iconColor = computed(() => {

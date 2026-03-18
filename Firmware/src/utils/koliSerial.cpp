@@ -104,6 +104,7 @@ bool KoliSerial::setPinout(pin_size_t tx, pin_size_t rx) {
 		return static_cast<SerialPio *>(stream)->setPinout(tx, rx);
 	case SerialType::PIO_HDX:
 		// halfduplex => use "tx" pin for all IO
+		rxPin = tx;
 		return static_cast<SerialPioHdx *>(stream)->setPinout(tx, tx);
 	}
 	return false;

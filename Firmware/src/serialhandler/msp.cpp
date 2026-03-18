@@ -1036,8 +1036,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 					funcs |= 1 << 1; // all pins have something SPI
 					if (pin % 16 == 0 || pin % 16 == 2 || pin % 16 == 12 || pin % 16 == 14) funcs |= 1 << 2;
 					if (pin % 16 == 1 || pin % 16 == 3 || pin % 16 == 13 || pin % 16 == 15) funcs |= 1 << 3;
-					if (pin % 16 == 4 || pin % 16 == 6 || pin % 16 == 8 || pin % 16 == 10) funcs |= 1 << 3;
-					if (pin % 16 == 5 || pin % 16 == 7 || pin % 16 == 9 || pin % 16 == 11) funcs |= 1 << 3;
+					if (pin % 16 == 4 || pin % 16 == 6 || pin % 16 == 8 || pin % 16 == 10) funcs |= 1 << 4;
+					if (pin % 16 == 5 || pin % 16 == 7 || pin % 16 == 9 || pin % 16 == 11) funcs |= 1 << 5;
 					// only 2 HW uarts
 					if (pin % 4 == 0) funcs |= 1 << 10;
 					if (pin % 4 == 1) funcs |= 1 << 11;
@@ -1080,7 +1080,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				// page 10: info about possible serial combinations
 				buf[0] = page;
 				buf[1] = 2; // hardware UARTs
-				buf[2] = SERIAL_COUNT; // maximum number of available serials (just the software/performance limit part)
+				buf[2] = SERIAL_COUNT - 1; // maximum number of externally available serials (just the software/performance limit part)
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 3);
 				break;
 			case 11:
@@ -1116,9 +1116,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				}
 				KoliSerial &ser = *serial;
 				buf[len++] = 1; // serial exists
-				buf[len] = (u8)ser.serialType;
-				if (ser) buf[len] |= 1 << 7; // serial is running
-				len++;
+				buf[len++] = (u8)ser.serialType;
 				memcpy(&buf[len], &ser.getBaurate(), 4);
 				len += 4;
 				memcpy(&buf[len], &cfg.baud, 4);
@@ -1159,7 +1157,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 					ok = false;
 					continue;
 				}
-				if ((u8)ser[0] < 2 && (u8)ser[1] >= NUM_PIOS) {
+				u8 hwParam = ser[1];
+				u8 rxPio = hwParam >> 4;
+				u8 txPio = hwParam & 0xF;
+				if ((u8)ser[0] < 2 && (rxPio >= NUM_PIOS || txPio >= NUM_PIOS)) {
 					errorMsg += "Serial " + std::to_string(i + 1) + " invalid PIO index.\n";
 					ok = false;
 					continue;
