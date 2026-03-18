@@ -167,7 +167,7 @@ static size_t unescapeBytes(u8 *in, u8 *out, size_t inputLen, size_t outputLen, 
 	return o++;
 }
 
-static void writeFlightModeToBlackbox() {
+static inline void writeFlightModeToBlackbox() {
 	FlightMode fm = flightMode;
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_FLIGHTMODE;
 	bbWriteBuffer[bbWriteBufferPos++] = (u8)fm;
@@ -175,46 +175,46 @@ static void writeFlightModeToBlackbox() {
 	fmHighlightFlag |= 0b10;
 }
 
-static void writeElrsToBlackbox() {
+static inline void writeElrsToBlackbox() {
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_RC;
 	u64 channels = 0;
-	channels |= ELRS->channels[0];
-	channels |= ELRS->channels[1] << 12;
-	channels |= (u64)ELRS->channels[2] << 24;
-	channels |= (u64)ELRS->channels[3] << 36;
+	channels |= elrs->channels[0];
+	channels |= elrs->channels[1] << 12;
+	channels |= (u64)elrs->channels[2] << 24;
+	channels |= (u64)elrs->channels[3] << 36;
 	writeToBlackboxWithEscape((u8 *)&channels, 6);
-	ELRS->newPacketFlag &= ~(1 << 1);
+	elrs->newPacketFlag &= ~(1 << 1);
 }
 
-static void writeGpsToBlackbox() {
+static inline void writeGpsToBlackbox() {
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_GPS;
 	writeToBlackboxWithEscape(currentPvtMsg, 92);
 	newPvtMessageFlag &= ~(1 << 0);
 }
 
-static void writeVbatToBlackbox() {
+static inline void writeVbatToBlackbox() {
 	adcFlag &= ~(1 << 0);
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_VBAT;
 	bbWriteBuffer[bbWriteBufferPos++] = adcVoltage;
 	bbWriteBuffer[bbWriteBufferPos++] = adcVoltage >> 8;
 }
 
-static void writeElrsLinkToBlackbox() {
+static inline void writeElrsLinkToBlackbox() {
 	bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_LINK_STATS;
 	u8 buf[11];
-	buf[0] = -ELRS->uplinkRssi[0];
-	buf[1] = -ELRS->uplinkRssi[1];
-	buf[2] = ELRS->uplinkLinkQuality;
-	buf[3] = ELRS->uplinkSNR;
-	buf[4] = ELRS->antennaSelection;
-	buf[5] = ELRS->targetPacketRate;
-	buf[6] = ELRS->targetPacketRate >> 8;
-	buf[7] = ELRS->actualPacketRate;
-	buf[8] = ELRS->actualPacketRate >> 8;
-	buf[9] = ELRS->txPower;
-	buf[10] = ELRS->txPower >> 8;
+	buf[0] = -elrs->uplinkRssi[0];
+	buf[1] = -elrs->uplinkRssi[1];
+	buf[2] = elrs->uplinkLinkQuality;
+	buf[3] = elrs->uplinkSNR;
+	buf[4] = elrs->antennaSelection;
+	buf[5] = elrs->targetPacketRate;
+	buf[6] = elrs->targetPacketRate >> 8;
+	buf[7] = elrs->actualPacketRate;
+	buf[8] = elrs->actualPacketRate >> 8;
+	buf[9] = elrs->txPower;
+	buf[10] = elrs->txPower >> 8;
 	writeToBlackboxWithEscape(buf, 11);
-	ELRS->newLinkStatsFlag &= ~(1 << 0);
+	elrs->newLinkStatsFlag &= ~(1 << 0);
 }
 
 void blackboxLoop() {
@@ -241,6 +241,8 @@ void blackboxLoop() {
 			bbPrintLog.currentChunk++;
 			if (serials[bbPrintLog.serialNum])
 				serials[bbPrintLog.serialNum]->flush();
+			else
+				bbPrintLog.printing = false;
 
 			TASK_END(TASK_CONFIGURATOR);
 		}
@@ -299,7 +301,7 @@ void blackboxLoop() {
 	}
 
 	// save ELRS joysticks
-	if (ELRS->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
+	if (elrs && elrs->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
 		writeElrsToBlackbox();
 	}
 
@@ -309,7 +311,7 @@ void blackboxLoop() {
 	}
 
 	// save ELRS link statistics
-	if (ELRS->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
+	if (elrs && elrs->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
 		writeElrsLinkToBlackbox();
 	}
 

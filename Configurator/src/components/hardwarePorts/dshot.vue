@@ -101,6 +101,7 @@ onBeforeUnmount(() => {
 	<div>
 		<div :class="`hardwareIcon ${iconColor}`">
 		</div>
+		<h3>Motors</h3>
 		<div class="motors">
 			<div class="motor" v-for="m in motors">
 				<p>{{ m.name }}</p>
@@ -126,10 +127,24 @@ onBeforeUnmount(() => {
 	mask: url(@assets/motor_app.svg) no-repeat center;
 }
 
+h3 {
+	margin-top: 6px;
+	margin-bottom: 0px;
+}
+
+
 .motors {
 	display: flex;
 	gap: 1rem;
 	padding: 1rem;
+}
+
+.motor>p {
+	margin-top: 6px;
+}
+
+.properties {
+	font-size: .85rem;
 }
 
 .motor {

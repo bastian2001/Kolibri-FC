@@ -138,6 +138,7 @@ void initPid() {
 static u32 takeoffCounter = 0;
 static elapsedMicros taskTimerPid;
 void pidLoop() {
+	if (!elrs) return pidDisarmedLoop();
 	u32 duration = taskTimerPid;
 	if (tasks[TASK_PID].maxGap < duration)
 		tasks[TASK_PID].maxGap = duration;
@@ -156,7 +157,7 @@ void pidLoop() {
 	}
 
 	// I term windup prevention
-	if (ELRS->channels[2] > 1020) {
+	if (elrs->channels[2] > 1020) {
 		takeoffCounter++;
 	} else if (takeoffCounter < 1000) { // 1000 = ca. 0.3s
 		takeoffCounter = 0;

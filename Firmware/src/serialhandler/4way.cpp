@@ -246,7 +246,7 @@ void begin4Way(u8 serialNum) {
 	pio_sm_init(PIO_ESC, 0, offsetPioReceive, &configPioReceive);
 	pio_sm_set_enabled(PIO_ESC, 0, true);
 	serial4Way = &*serials[serialNum];
-	serial4Way->functions |= SERIAL_4WAY;
+	serial4Way->functions |= SERIAL_4WAY_HOST;
 	setup4WayDone = true;
 }
 
@@ -260,7 +260,7 @@ void end4Way() {
 		gpio_set_function(PIN_MOTORS + i, GPIO_FUNC_NULL);
 	}
 	initESCs();
-	serial4Way->functions &= ~SERIAL_4WAY;
+	serial4Way->functions &= ~SERIAL_4WAY_HOST;
 	setup4WayDone = false;
 }
 

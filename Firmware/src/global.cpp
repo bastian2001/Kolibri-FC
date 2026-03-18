@@ -1,6 +1,6 @@
 #include "global.h"
 
-ExpressLRS *ELRS;
+std::optional<ExpressLRS> elrs;
 u32 DECODE_U4(const u8 *buf) {
 	u32 result;
 	memcpy(&result, buf, 4); // memcpy needed because of 4-byte-alignment

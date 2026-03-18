@@ -11,6 +11,7 @@ enum class SerialType {
 	UART,
 	PIO,
 	PIO_HDX,
+	DISABLED = 127,
 };
 
 #ifdef USE_TINYUSB
@@ -27,35 +28,31 @@ public:
 	KoliSerial(const KoliSerial &) = delete;
 	KoliSerial &operator=(const KoliSerial &) = delete;
 
-	KoliSerial(UsbSerialClass *const usbStream, int txfSize, int functions)
+	KoliSerial(UsbSerialClass *const usbStream, int txfSize)
 		: stream(usbStream),
 		  serialType(SerialType::USB),
-		  writeBuffer(txfSize),
-		  functions(functions) {
+		  writeBuffer(txfSize) {
 		mutex_init(&writeMutex);
 	};
 
-	KoliSerial(SerialUART *const uartStream, int txfSize, int functions)
+	KoliSerial(SerialUART *const uartStream, int txfSize)
 		: stream(uartStream),
 		  serialType(SerialType::UART),
-		  writeBuffer(txfSize),
-		  functions(functions) {
+		  writeBuffer(txfSize) {
 		mutex_init(&writeMutex);
 	};
 
-	KoliSerial(PIO pioTx, PIO pioRx, u8 smTx, u8 smRx, size_t txfSize, int functions)
+	KoliSerial(PIO pioTx, PIO pioRx, u8 smTx, u8 smRx, size_t txfSize)
 		: stream(new SerialPio(pioTx, pioRx, smTx, smRx)),
 		  serialType(SerialType::PIO),
-		  writeBuffer(txfSize),
-		  functions(functions) {
+		  writeBuffer(txfSize) {
 		mutex_init(&writeMutex);
 	};
 
-	KoliSerial(PIO pio, u8 sm, size_t txfSize, int functions)
+	KoliSerial(PIO pio, u8 sm, size_t txfSize)
 		: stream(new SerialPioHdx(pio, sm)),
 		  serialType(SerialType::PIO_HDX),
-		  writeBuffer(txfSize),
-		  functions(functions) {
+		  writeBuffer(txfSize) {
 		mutex_init(&writeMutex);
 	};
 

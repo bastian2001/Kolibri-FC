@@ -6,7 +6,7 @@ import { BBLog, TraceInGraph, Command, TypedArray, TraceInternalData } from "@ut
 import { constrain, delay, intToLeBytes, leBytesToInt, prefixZeros } from "@utils/utils";
 import { MspFn } from "@/msp/protocol";
 import { useLogStore } from "@stores/logStore";
-import { addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler, sendCommand } from "@/msp/comm";
+import { onCommandHandler, onConnectHandler, onDisconnectHandler, sendCommand } from "@/msp/comm";
 import TracePlacer from "@components/blackbox/TracePlacer.vue";
 import { BB_ALL_FLAGS, BB_GEN_FLAGS } from "@/utils/blackbox/bbFlags";
 import { parseBlackbox, parseBlackboxHeader, parseElrs, parseFrames, parseGps, parseLinkStats, parseVbat, resizeTypedArrays } from "@/utils/blackbox/parsing";
@@ -1665,14 +1665,14 @@ export default defineComponent({
 	},
 	mounted() {
 		this.getFileList()
-		addOnConnectHandler(this.getFileList);
-		addOnDisconnectHandler(this.callStop)
+		onConnectHandler(this.getFileList);
+		onDisconnectHandler(this.callStop)
 		window.addEventListener('resize', this.onResize);
 		this.domCanvas.addEventListener('touchstart', this.onTouchDown, { passive: false });
 		this.domCanvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
 		this.domCanvas.addEventListener('touchend', this.onTouchUp, { passive: false });
 		this.onResize()
-		addOnCommandHandler(this.onCommand)
+		onCommandHandler(this.onCommand)
 
 		this.loadedLog = getSavedLog()
 		if (this.loadedLog) {
@@ -1698,9 +1698,6 @@ export default defineComponent({
 	beforeUnmount() {
 		clearTimeout(this.drawFullCanvasTimeout);
 		clearInterval(this.getChunkInterval);
-		removeOnConnectHandler(this.getFileList);
-		removeOnDisconnectHandler(this.callStop)
-		removeOnCommandHandler(this.onCommand)
 		window.removeEventListener('resize', this.onResize);
 		this.callStop()
 

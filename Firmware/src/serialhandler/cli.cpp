@@ -89,7 +89,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		response = "Settings saved";
 	} else if (cmd == "reboot") {
 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Rebooting...", 13);
-		serials[lastMspSerial]->flush();
+		if (serials[lastMspSerial]) serials[lastMspSerial]->flush();
 		sleep_ms(100);
 		rp2040.reboot();
 	} else if (cmd == "status") {
@@ -102,8 +102,9 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 			response = "Statistics since the last reset (" + std::to_string((u32)timeSinceReset) + "ms ago)\n";
 			for (int i = 0; i < SERIAL_COUNT; i++) {
 				char line[128];
+				if (!serials[i]) continue;
 				KoliSerial &s = *serials[i];
-				snprintf(line, 128, "Serial %d (%s):     TX: %7d bytes (%.2fKB/s),     RX: %7d bytes (%.2fKB/s),     ", i + 1, KoliSerial::serialTypeNames[(u8)s.serialType], s.totalTx, s.totalTx / timeSinceReset, s.totalRx, s.totalRx / timeSinceReset);
+				snprintf(line, 128, "Serial %d (%s):     TX: %7d bytes (%.2fKB/s),     RX: %7d bytes (%.2fKB/s),     ", i, KoliSerial::serialTypeNames[(u8)s.serialType], s.totalTx, s.totalTx / timeSinceReset, s.totalRx, s.totalRx / timeSinceReset);
 				response += line;
 				bool firstFunction = true;
 				for (int j = 0; j < SERIAL_FUNCTION_COUNT; j++) {
@@ -155,8 +156,7 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 	} else if (cmd == "reset") {
 		if (payload == "confirm") {
 			sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Resetting settings...", 22);
-			if (serials[lastMspSerial])
-				serials[lastMspSerial]->flush();
+			if (serials[lastMspSerial]) serials[lastMspSerial]->flush();
 			sleep_ms(100);
 			closeSettingsFile();
 			LittleFS.remove("/settings.txt");

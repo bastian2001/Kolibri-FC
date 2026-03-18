@@ -15,6 +15,13 @@ extern fix32 gpsVelocityFilterCutoff;
 extern bool gpsGoodQuality; // whether the GPS data of the last frame is good
 
 /**
+ * @brief Set the serial that the GPS uses
+ *
+ * @param g KoliSerial ptr. nullptr to disable GPS serial
+ */
+void setGpsSerial(KoliSerial *g);
+
+/**
  * @brief initialize GPS driver
  *
  * @details Uses Serial2 and sets the baudrate to 38400, also enables the OSD elements

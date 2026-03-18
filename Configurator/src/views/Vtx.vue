@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { addOnConnectHandler, removeOnConnectHandler, sendCommand } from '@/msp/comm'
+import { onConnectHandler, sendCommand } from '@/msp/comm'
 import { MspFn } from '@/msp/protocol';
 import { delay, intToLeBytes, leBytesToInt } from '@/utils/utils';
 import NumericInput from '@/components/NumericInput.vue';
@@ -58,7 +58,7 @@ const fetchInterval = setInterval(() => {
 	})
 }, 200)
 
-const onConnect = () => {
+const onCommand = () => {
 	sendCommand(MspFn.GET_VTX_CONFIG).then(c => {
 		const data = c.data
 		trampUseFreq.value = data[0] > 0
@@ -70,12 +70,11 @@ const onConnect = () => {
 }
 
 onMounted(() => {
-	onConnect()
-	addOnConnectHandler(onConnect)
+	onCommand()
+	onConnectHandler(onCommand)
 })
 
 onBeforeUnmount(() => {
-	removeOnConnectHandler(onConnect)
 	clearInterval(fetchInterval)
 })
 

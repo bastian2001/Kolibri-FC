@@ -3,7 +3,7 @@ import { defineComponent } from "vue";
 import { MspFn } from "@/msp/protocol";
 import { leBytesToInt, delay, intToLeBytes } from "@utils/utils";
 import { routes } from "./router";
-import { connect, disconnect, sendCommand, getSerialDevices, getWifiDevices, addOnCommandHandler, addOnConnectHandler, addOnDisconnectHandler, removeOnCommandHandler, removeOnConnectHandler, removeOnDisconnectHandler } from "./msp/comm";
+import { connect, disconnect, sendCommand, getSerialDevices, getWifiDevices, onCommandHandler, onConnectHandler, onDisconnectHandler } from "./msp/comm";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "./utils/types";
 
@@ -14,9 +14,9 @@ export default defineComponent({
 		delay(150).then(this.listDevices);
 		disconnect();
 
-		addOnConnectHandler(this.onConnect);
-		addOnDisconnectHandler(this.onDisconnect);
-		addOnCommandHandler(this.onCommand)
+		onConnectHandler(this.onConnect);
+		onDisconnectHandler(this.onDisconnect);
+		onCommandHandler(this.onCommand)
 
 		this.configuratorLog.$subscribe(() => {
 			this.$nextTick().then(() => {
@@ -29,9 +29,6 @@ export default defineComponent({
 	unmounted() {
 		clearInterval(this.listInterval);
 		this.disconnect();
-		removeOnConnectHandler(this.onConnect);
-		removeOnDisconnectHandler(this.onDisconnect);
-		removeOnCommandHandler(this.onCommand);
 	},
 	data() {
 		return {

@@ -90,7 +90,8 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 			break;
 		}
 		memcpy(&buf[headerSize], data, len);
-		ELRS->sendMspMsg(type, version == MspVersion::V2_OVER_CRSF ? 2 : 1, buf, len + headerSize);
+		if (elrs)
+			elrs->sendMspMsg(type, version == MspVersion::V2_OVER_CRSF ? 2 : 1, buf, len + headerSize);
 	} else {
 		u8 pos = 0;
 		u8 header[12];
@@ -340,7 +341,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::RC: {
 			u16 channels[16];
 			for (int i = 0; i < 16; i++)
-				channels[i] = ELRS->channels[i];
+				channels[i] = elrs ? elrs->channels[i] : 0;
 			memcpy(buf, channels, 32);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 32);
 		} break;
@@ -879,18 +880,19 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 		} break;
 		case MspFn::GET_RX_STATUS: {
-			buf[0] = ELRS->isReceiverUp;
-			buf[1] = ELRS->isLinkUp;
-			buf[2] = ELRS->uplinkRssi[0];
-			buf[3] = ELRS->uplinkRssi[1];
-			buf[4] = ELRS->uplinkLinkQuality;
-			buf[5] = ELRS->uplinkSNR;
-			buf[6] = ELRS->antennaSelection;
-			buf[7] = ELRS->packetRateIdx;
-			memcpy(&buf[8], &ELRS->txPower, 2);
-			memcpy(&buf[10], &ELRS->targetPacketRate, 2);
-			memcpy(&buf[12], &ELRS->actualPacketRate, 2);
-			memcpy(&buf[14], &ELRS->rcMsgCount, 4);
+			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			buf[0] = elrs->isReceiverUp;
+			buf[1] = elrs->isLinkUp;
+			buf[2] = elrs->uplinkRssi[0];
+			buf[3] = elrs->uplinkRssi[1];
+			buf[4] = elrs->uplinkLinkQuality;
+			buf[5] = elrs->uplinkSNR;
+			buf[6] = elrs->antennaSelection;
+			buf[7] = elrs->packetRateIdx;
+			memcpy(&buf[8], &elrs->txPower, 2);
+			memcpy(&buf[10], &elrs->targetPacketRate, 2);
+			memcpy(&buf[12], &elrs->actualPacketRate, 2);
+			memcpy(&buf[14], &elrs->rcMsgCount, 4);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 18);
 		} break;
 		case MspFn::GET_RX_MODES: {
@@ -900,11 +902,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			mspSetRxModes(serialNum, version, reqPayload, reqLen);
 		} break;
 		case MspFn::CRSF_SCAN_DEVICES: {
-			ELRS->scanDevices();
+			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			elrs->scanDevices();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::CRSF_GET_DEVICES: {
-			std::list<CrsfDevice> devs = ELRS->getDeviceList();
+			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			std::list<CrsfDevice> devs = elrs->getDeviceList();
 			u32 count = devs.size();
 			if (count > 20) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 			char buf[47 * count];
@@ -925,14 +929,16 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, i);
 		} break;
 		case MspFn::CRSF_SEND_MESSAGE: {
+			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 			// Configurator wants to send message to a device
 			u8 len = reqLen - 1;
 			if (len > 60) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 			u8 cmd = reqPayload[0];
-			ELRS->sendPacket(cmd, &reqPayload[1], len);
+			elrs->sendPacket(cmd, &reqPayload[1], len);
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 		} break;
 		case MspFn::CRSF_SUBSCRIBE: {
+			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 			// Configurator wants to start or stop passthrough to a device
 			// => enable flags to forward any messages from said device to configurator
 			// MSP message data: device to forward from, start or stop, array of wanted commands
@@ -944,11 +950,11 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				// stop passthrough when receiving stop command or no functions
 				buf[0] = address;
 				buf[1] = 0;
-				ELRS->setupSubscription(0, nullptr, 0, 255, MspVersion::V2);
+				elrs->setupSubscription(0, nullptr, 0, 255, MspVersion::V2);
 				return sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 2);
 			}
 			if (address == 0) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-			if (ELRS->setupSubscription(address, (const u8 *)&reqPayload[2], subCount, serialNum, version)) {
+			if (elrs->setupSubscription(address, (const u8 *)&reqPayload[2], subCount, serialNum, version)) {
 				buf[0] = address;
 				buf[1] = 1;
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 2);
@@ -1075,6 +1081,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				buf[0] = page;
 				buf[1] = 2; // hardware UARTs
 				buf[2] = SERIAL_COUNT; // maximum number of available serials (just the software/performance limit part)
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 3);
 				break;
 			case 11:
 				// page 11: PIO parameters: available PIOs and space
@@ -1084,10 +1091,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				buf[len++] = halfduplex_uart_program.length;
 				buf[len++] = uart_tx_program.length;
 				buf[len++] = uart_rx_program.length;
-				len += 10; // reserved
+				len = 16; // reserved
 				for (int i = 0; i < NUM_PIOS; i++) {
-					buf[len++] = 0; // bitmap of available SMs on this PIO for serial purposes
-					buf[len++] = 0; // largest block of free instruction space on this SM
+					buf[len++] = getFreeSms(i);
+					u32 freeInstructions = getFreeInstructions(i);
+					memcpy(&buf[len], &freeInstructions, 4);
+					len += 4;
 				}
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 				break;
@@ -1099,30 +1108,32 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::GET_SERIAL_SETUP: {
 			for (int i = 1; i < SERIAL_COUNT; i++) {
 				std::optional<KoliSerial> &serial = serials[i];
+				const SerialConfig &cfg = getSerialConfig(i);
 				buf[len] = 0;
 				if (!serial) {
 					len += 17; // TODO
+					continue;
 				}
 				KoliSerial &ser = *serial;
-				buf[len++] |= 1; // serial exists
-				len++;
+				buf[len++] = 1; // serial exists
 				buf[len] = (u8)ser.serialType;
 				if (ser) buf[len] |= 1 << 7; // serial is running
 				len++;
 				memcpy(&buf[len], &ser.getBaurate(), 4);
 				len += 4;
-				memcpy(&buf[len], &ser.getBaurate(), 4); // TODO baud setting (auto baud)
+				memcpy(&buf[len], &cfg.baud, 4);
 				len += 4;
 				buf[len++] = ser.getTxPin();
 				buf[len++] = ser.getRxPin();
 				memcpy(&buf[len], &ser.functions, 4);
 				len += 4;
+				buf[len++] = cfg.hwParam;
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
 		} break;
 		case MspFn::SET_SERIAL_SETUP: {
 			// check new config options for validity
-			// 0: serial type
+			// 0: serial type (-1 = disabled)
 			// 1: special hw info (pio index, serial number)
 			// 2-5: baudrate
 			// 6-9: functions
@@ -1130,18 +1141,26 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			// 11: rx pin
 
 			// only allow full configs per serial, and first serial (USB) cannot be reconfigured
-			if (reqLen % 12 != 0 || reqLen / 12 > SERIAL_COUNT - 1)
+			int totalSerials = reqLen / 12;
+			if (reqLen % 12 != 0 || totalSerials > SERIAL_COUNT - 1 || armed)
 				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
 			bool ok = true;
 			string errorMsg = "You should not be able to even make something this incorrect. Configurator error.\n";
-			for (int i = 0; i < reqLen / 12; i++) {
+			for (int i = 0; i < totalSerials; i++) {
 				const char *ser = &reqPayload[i * 12];
-				if (i < 2 && ser[0] != 1) {
-					errorMsg += "Serial " + std::to_string(i + 1) + " invalid type. Needs HW UART.\n";
+				if (ser[0] == -1) continue; // serial disabled
+				if (ser[0] == 1 && (u8)ser[1] >= 2) {
+					errorMsg += "Serial " + std::to_string(i + 1) + " has HW UART index invalid.\n";
 					ok = false;
 					continue;
-				} else if (i >= 2 && ser[0] < 2) {
-					errorMsg += "Serial " + std::to_string(i + 1) + "invalid type. Serial 3+ only PIO/PIO HDx.\n";
+				}
+				if ((u8)ser[0] < 2) {
+					errorMsg += "Serial " + std::to_string(i + 1) + " invalid type. Serial 3+ only PIO/PIO HDx.\n";
+					ok = false;
+					continue;
+				}
+				if ((u8)ser[0] < 2 && (u8)ser[1] >= NUM_PIOS) {
+					errorMsg += "Serial " + std::to_string(i + 1) + " invalid PIO index.\n";
 					ok = false;
 					continue;
 				}
@@ -1177,7 +1196,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 					if (pin % 16 != 5 && pin % 16 != 7 && pin % 16 != 9 && pin % 16 != 11) pinok = false;
 				}
 				if (!pinok) {
-					errorMsg += "Serial " + std::to_string(i + 1) + " cannot use one of the two pins.\n";
+					errorMsg += "Serial " + std::to_string(i + 1) + " cannot use one of the provided pins.\n";
 					ok = false;
 					continue;
 				}
@@ -1186,6 +1205,50 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				return sendMsp(serialNum, MspMsgType::ERROR, fn, version, errorMsg.c_str(), errorMsg.length());
 			}
 
+			SerialConfig newCfgs[SERIAL_COUNT - 1];
+			stopSerials();
+
+			for (int i = 0; i < SERIAL_COUNT - 1; i++) {
+
+				if (i >= totalSerials) {
+					// serial is unconfigured => insert DISABLED
+					newCfgs[i] = {
+						.type = SerialType::DISABLED,
+						.hwParam = 255,
+						.txPin = 255,
+						.rxPin = 255,
+						.baud = 0,
+						.functions = 0,
+					};
+					continue;
+				}
+
+				const char *ser = &reqPayload[i * 12];
+				if (ser[0] == -1) {
+					// serial is disabled
+					newCfgs[i] = {
+						.type = SerialType::DISABLED,
+						.hwParam = 255,
+						.txPin = 255,
+						.rxPin = 255,
+						.baud = 0,
+						.functions = 0,
+					};
+					continue;
+				}
+
+				newCfgs[i] = {
+					.type = (SerialType)ser[0],
+					.hwParam = (u8)ser[1],
+					.txPin = (u8)ser[10],
+					.rxPin = (u8)ser[11],
+				};
+				memcpy(&newCfgs[i].baud, &ser[2], 4);
+				memcpy(&newCfgs[i].functions, &ser[6], 4);
+			}
+
+			buf[0] = startSerials(newCfgs);
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 		} break;
 		case MspFn::GET_TZ_OFFSET: {
 			buf[0] = rtcTimezoneOffset;

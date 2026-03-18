@@ -44,17 +44,6 @@ void setup() {
 	trampInit();
 	initGPS();
 
-	u8 elrsNum = 0;
-	for (int i = 0; i < SERIAL_COUNT; i++) {
-		auto &s = serials[i];
-		if (!s) continue;
-		if (s->functions & SERIAL_CRSF) {
-			elrsNum = i;
-			break;
-		}
-	}
-	ELRS = new ExpressLRS(elrsNum);
-
 	// init LEDs
 	p.recalculateClock();
 	p.neoPixelFill(0, 0, 255, true);
@@ -89,7 +78,8 @@ void loop() {
 #ifdef BLACKBOX_STORAGE
 	blackboxLoop();
 #endif
-	ELRS->loop();
+	if (elrs)
+		elrs->loop();
 	modesLoop();
 	adcLoop();
 	inFlightTuningLoop();

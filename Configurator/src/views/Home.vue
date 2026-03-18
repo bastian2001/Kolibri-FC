@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/msp/comm';
+import { onCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, enableCommands } from '@/msp/comm';
 import { useLogStore } from '@stores/logStore';
 import { leBytesToInt, delay, intToLeBytes } from '@utils/utils';
 import { MspFn } from '@/msp/protocol';
@@ -27,7 +27,7 @@ export default defineComponent({
 	}
 	,
 	mounted() {
-		addOnCommandHandler(this.onCommand);
+		onCommandHandler(this.onCommand);
 		this.getRotationContinuous();
 
 		this.pingInterval = setInterval(() => {
@@ -45,7 +45,6 @@ export default defineComponent({
 		}, 1000);
 	},
 	unmounted() {
-		removeOnCommandHandler(this.onCommand);
 		clearInterval(this.getRotationInterval);
 		clearInterval(this.pingInterval);
 		clearInterval(this.rtcInterval);

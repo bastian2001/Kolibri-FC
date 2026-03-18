@@ -2,11 +2,19 @@
 import Drone3dPreview from '@components/Drone3dPreview.vue';
 import Imu from '@components/hardwarePorts/imu.vue'
 import Dshot from '@components/hardwarePorts/dshot.vue'
-import AddSerial from '@components/hardwarePorts/addSerial.vue'
-import { addOnConnectHandler, removeOnConnectHandler, sendCommand } from '@/msp/comm';
+import AddPort from '@components/hardwarePorts/addPort.vue'
+import Serial from '@components/hardwarePorts/serial.vue'
+import { onConnectHandler, sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
-import { delay, leBytesToInt } from '@/utils/utils';
+import { delay, leBytesToBigInt, leBytesToInt } from '@/utils/utils';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { Command } from '@/utils/types';
+import { useLogStore } from '@/stores/logStore';
+import { usePortStore } from '@/stores/portStore';
+
+const ports = usePortStore()
+
+const serials = ports.serials
 
 type portType = 'analog-osd' | 'digital-osd' | 'analog-vtx' | 'adc' | 'dshot' | 'elrs' | 'gps' | 'baro' | 'mag' | 'large-fs' | 'ledstrip' | 'speaker' | 'imu'
 type port = {
@@ -16,10 +24,6 @@ type port = {
 
 	// analog OSD status
 	detectedVideoType?: 'pal' | 'ntsc',
-
-	// digital OSD status
-	canvasWidth?: number,
-	canvasHeight?: number,
 
 	// analog VTX status
 	analogVtxOnline?: boolean,
@@ -37,16 +41,6 @@ type port = {
 	bidirStatus: boolean[],
 	edtStatus: boolean[],
 
-	// ELRS status
-	rxFound: boolean,
-	txFound: boolean,
-	lqi: number,
-	packetRate: number,
-
-	// GPS settings
-	gpsProtocol: number,
-	gpsFound: boolean,
-	gpsInited: boolean,
 
 	// Baro settings
 	baroModel: number,
@@ -75,14 +69,11 @@ type port = {
 	// Speaker
 	speakerSoundFile: string,
 	speakerFrequency: number,
-
-	// IMU
 }
 
 
 let exiting = false
 const attitude = ref({ roll: 0, pitch: 0, yaw: 0 })
-
 
 async function getRotationContinuous() {
 	while (!exiting) {
@@ -105,24 +96,139 @@ async function getRotationContinuous() {
 	}
 }
 
+function ioConstraintMatcher(req: Command, res: Command) {
+	if (req.command !== res.command) return false
+	if (req.data[0] !== res.data[0]) return false
+	return true
+}
+
 function fetchSetup() {
-	// fetch RP pinout
+	serials.value.length = 0
+	sendCommand(MspFn.GET_IO_CONSTRAINTS, {
+		data: [0],
+		verifyFn: ioConstraintMatcher,
+	})
+		.then(c => {
+			const d = c.data.slice(1)
+			if (d.length % 6 !== 0) throw ''
+			for (let i = 0; i < d.length / 6; i++) {
+				const funcs = leBytesToBigInt(d, i * 6, 6)
+				const pin = {
+					hstx: false,
+					spi: false,
+					uartTx: Array(4).fill(false),
+					uartRx: Array(4).fill(false),
+					sda: Array(3).fill(false),
+					scl: Array(3).fill(false),
+					pio: Array(4).fill(false),
+					recommended: false,
+					allowed: false,
+					pads: []
+				}
+				if (funcs & 1n << 0n) pin.hstx = true
+				if (funcs & 1n << 1n) pin.spi = true
+				for (let j = 2n; j < 10n; j++) {
+					const isTx = j % 2n === 0n
+					const serial = Number(j - 2n) / 2
+					if (isTx && funcs & 1n << j) pin.uartTx[serial] = true
+					if (!isTx && funcs & 1n << j) pin.uartRx[serial] = true
+				}
+				for (let j = 10n; j < 16n; j++) {
+					const isSda = j % 2n === 0n
+					const i2c = Number(j - 10n) / 2
+					if (isSda && funcs & 1n << j) pin.sda[i2c] = true
+					if (!isSda && funcs & 1n << j) pin.scl[i2c] = true
+				}
+				for (let j = 16n; j < 20; j++) {
+					const pio = Number(j) - 16
+					if (funcs & 1n << j) pin.pio[pio] = true
+				}
+				if (funcs & 1n << 46n) pin.recommended = true
+				if (funcs & 1n << 47n) pin.allowed = true
+				pins.push(pin)
+			}
 
-	// fetch serial count
+			return sendCommand(MspFn.GET_IO_CONSTRAINTS, {
+				data: [10],
+				verifyFn: ioConstraintMatcher,
+			})
+		})
+		.then(c => {
+			const d = c.data.slice(1)
+			if (d.length < 2) throw ''
+			hwSerials = d[0]
+			maxSerials = d[1]
 
-	// fetch 
+			return sendCommand(MspFn.GET_IO_CONSTRAINTS, {
+				data: [11],
+				verifyFn: ioConstraintMatcher,
+			})
+		})
+		.then(c => {
+			let d = c.data.slice(1)
+			if (d.length < 15 || (d.length - 15) % 5 !== 0) throw ''
+			pioSetup.version = d[0]
+			pioSetup.numPios = d[1]
+			pioSetup.hdxLength = d[2]
+			pioSetup.txLength = d[3]
+			pioSetup.rxLength = d[4]
+			d = d.slice(15)
+			for (let i = 0; i < d.length / 5; i++) {
+				pioSetup.freeSms[i] = d[i * 5 + 0]
+				pioSetup.freeInstructions[i] = leBytesToBigInt(d, i * 5 + 1, 4)
+			}
+
+			return sendCommand(MspFn.GET_SERIAL_SETUP)
+		})
+		.then(c => {
+			const d = c.data
+			if (d.length % 17 !== 0) throw ''
+			for (let i = 0; i < d.length / 17; i++) {
+				const bin = d.slice(i * 17, i * 17 + 17)
+				const s = {
+					exists: false,
+					type: 'disabled' as 'usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled' | 'invalid',
+					running: false,
+					baud: 0,
+					baudSet: 0,
+					txPin: 255,
+					rxPin: 255,
+					functions: 0,
+					no: i,
+					hwParam: 0
+				}
+				serials.value.push(s)
+				if (bin[0]) s.exists = true
+				else continue
+				if (bin[1] & 1 << 7) s.running = true
+				const lut = ['usb', 'uart', 'pio', 'pio-hdx'] as ('usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled')[]
+				lut[127] = 'disabled'
+				s.type = lut[bin[1] & ~(1 << 7)] || 'invalid'
+				s.baud = leBytesToInt(bin, 2, 4)
+				s.baudSet = leBytesToInt(bin, 6, 4)
+				s.txPin = bin[10]
+				s.rxPin = bin[11]
+				s.functions = leBytesToInt(bin, 12, 4)
+				s.hwParam = bin[16]
+			}
+			// TODO fetch pad positions, labels
+		})
+		.catch(e => {
+			useLogStore().push('Error requesting serial setup')
+			console.error(e)
+		})
 }
 
 onMounted(() => {
 	getRotationContinuous();
 	fetchSetup()
-	addOnConnectHandler(fetchSetup)
+	onConnectHandler(fetchSetup)
 })
 
 onBeforeUnmount(() => {
-	removeOnConnectHandler(fetchSetup)
 	exiting = true
 })
+
 </script>
 
 <template>
@@ -134,7 +240,10 @@ onBeforeUnmount(() => {
 			<div class="grid">
 				<Imu />
 				<Dshot />
-				<AddSerial />
+				<template v-for="s in serials">
+					<Serial v-if="s.exists" />
+				</template>
+				<AddPort />
 			</div>
 		</div>
 	</div>

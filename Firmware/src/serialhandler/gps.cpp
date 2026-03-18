@@ -31,15 +31,11 @@ void gpsChecksum(const u8 *buf, int len, u8 *ck_a, u8 *ck_b) {
 	}
 }
 
-void initGPS() {
-	for (auto &serial : serials) {
-		if (!serial) continue;
-		if (serial->functions & SERIAL_GPS) {
-			gpsSerial = &*serial;
-			break;
-		}
-	}
+void setGpsSerial(KoliSerial *g) {
+	gpsSerial = g;
+}
 
+void initGPS() {
 	placeElem(OSDElem::LATITUDE, 1, 13);
 	placeElem(OSDElem::LONGITUDE, 13, 13);
 	placeElem(OSDElem::ALTITUDE, 1, 14);
@@ -79,7 +75,7 @@ void fillOpenLocationCode() {
 }
 
 void gpsLoop() {
-	if (!gpsSerial) return;
+	if (gpsSerial == nullptr) return;
 	TASK_START(TASK_GPS);
 	if (lastPvtMessage > 1000000) {
 		// no PVT message received for 1 second
