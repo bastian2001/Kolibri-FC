@@ -84,9 +84,11 @@ function addPort2() {
 				return false
 			return ports.addSerial('pio', txPin.value, rxPin.value)
 		case 'pio-hdx':
+			console.log(1)
 			if (!pioPins.value.includes(hdxPin.value))
 				return false
-			return ports.addSerial('pio-hdx', txPin.value, rxPin.value)
+			console.log(2)
+			return ports.addSerial('pio-hdx', hdxPin.value, hdxPin.value)
 		default:
 			break;
 	}

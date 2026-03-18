@@ -1079,7 +1079,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			case 10:
 				// page 10: info about possible serial combinations
 				buf[0] = page;
-				buf[1] = 2; // hardware UARTs
+				buf[1] = NUM_UARTS; // hardware UARTs
 				buf[2] = SERIAL_COUNT - 1; // maximum number of externally available serials (just the software/performance limit part)
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 3);
 				break;
@@ -1146,43 +1146,59 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			string errorMsg = "You should not be able to even make something this incorrect. Configurator error.\n";
 			for (int i = 0; i < totalSerials; i++) {
 				const char *ser = &reqPayload[i * 12];
-				if (ser[0] == -1) continue; // serial disabled
-				if (ser[0] == 1 && (u8)ser[1] >= 2) {
-					errorMsg += "Serial " + std::to_string(i + 1) + " has HW UART index invalid.\n";
-					ok = false;
-					continue;
-				}
-				if ((u8)ser[0] < 2) {
-					errorMsg += "Serial " + std::to_string(i + 1) + " invalid type. Serial 3+ only PIO/PIO HDx.\n";
-					ok = false;
-					continue;
-				}
+				SerialType type = (SerialType)ser[0];
 				u8 hwParam = ser[1];
+				if (type == SerialType::DISABLED) continue; // serial disabled
+
+				// check if hardware is existent
+				if (type == SerialType::UART && hwParam >= NUM_UARTS) {
+					errorMsg += "Serial " + std::to_string(i) + " has HW UART index invalid.\n";
+					ok = false;
+					continue;
+				}
 				u8 rxPio = hwParam >> 4;
 				u8 txPio = hwParam & 0xF;
-				if ((u8)ser[0] < 2 && (rxPio >= NUM_PIOS || txPio >= NUM_PIOS)) {
-					errorMsg += "Serial " + std::to_string(i + 1) + " invalid PIO index.\n";
+				if (type >= SerialType::PIO && (rxPio >= NUM_PIOS || txPio >= NUM_PIOS)) {
+					errorMsg += "Serial " + std::to_string(i) + " invalid PIO index.\n";
 					ok = false;
 					continue;
 				}
-				if (i < 2 && ser[1] != i) {
-					errorMsg += "Serial " + std::to_string(i + 1) + " needs to be the same number HW serial.\n";
+
+				// only UART until NUM_UARTS
+				if (i < NUM_UARTS && type >= SerialType::PIO) {
+					errorMsg += "Serial " + std::to_string(i) + " invalid type. First serials only HW UARTs.\n";
 					ok = false;
 					continue;
 				}
+				// UART number = HW UART index
+				if (i < NUM_UARTS && i != hwParam) {
+					errorMsg += "Serial " + std::to_string(i) + " needs to be the same number HW serial.\n";
+					ok = false;
+					continue;
+				}
+				// only allow PIO beyond NUM_UARTs
+				if (i >= NUM_UARTS && type < SerialType::PIO) {
+					errorMsg += "Serial " + std::to_string(i) + " invalid type. Serial 3+ only PIO/PIO HDx.\n";
+					ok = false;
+					continue;
+				}
+
+				// check baud and functions
 				u32 temp;
 				memcpy(&temp, &ser[2], 4);
 				if (temp && (temp < 1200 || temp > 10000000)) {
-					errorMsg += "Serial " + std::to_string(i + 1) + " needs at least 1200 baud, maximum 10 MBaud.\n";
+					errorMsg += "Serial " + std::to_string(i) + " needs at least 1200 baud, maximum 10 MBaud.\n";
 					ok = false;
 					continue;
 				}
 				memcpy(&temp, &ser[6], 4);
 				if (temp >> SERIAL_FUNCTION_COUNT) {
-					errorMsg += "Serial " + std::to_string(i + 1) + " requests invalid function.\n";
+					errorMsg += "Serial " + std::to_string(i) + " requests invalid function.\n";
 					ok = false;
 					continue;
 				}
+
+				// check pins
 				bool pinok = true;
 				if (i == 0) {
 					u8 pin = ser[10]; // tx

@@ -174,15 +174,11 @@ static bool trampHandleMessage(TrampCommand cmd, u8 data[12]) {
 	return false;
 }
 
-void trampInit() {
-	for (auto &s : serials) {
-		if (!s) continue;
-		if (s->functions & SERIAL_IRC_TRAMP) {
-			trampSerial = &*s;
-			break;
-		}
-	}
+void setTrampSerial(KoliSerial *ptr) {
+	trampSerial = ptr;
+}
 
+void trampInit() {
 	addSetting(SETTING_VTX_FREQ, &trampConfFreq, 5658);
 	addSetting(SETTING_VTX_POWER, &trampConfPower, 25);
 	addSetting(SETTING_VTX_BAND, &trampConfBand, 4);

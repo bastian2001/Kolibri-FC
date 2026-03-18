@@ -20,6 +20,14 @@ export type SerialPort = {
 	hwParam: number
 	modified: boolean
 }
+export const SERIAL_TYPE_LUT: { [key in SerialType]: string } = {
+	usb: "USB",
+	"pio-hdx": "PIO Halfduplex",
+	disabled: "Disabled WTF",
+	invalid: "Invalid WTF",
+	pio: "PIO",
+	uart: "",
+}
 
 export const usePortStore = defineStore("port", () => {
 	const pioSetup = ref({
@@ -141,7 +149,7 @@ export const usePortStore = defineStore("port", () => {
 		if (type === "pio" || type === "pio-hdx") {
 			let newSerialNum = -1
 			serials.value.forEach((s, i) => {
-				if (!s.exists && i >= hwSerials.value) newSerialNum = i
+				if (!s.exists && i >= hwSerials.value && newSerialNum === -1) newSerialNum = i
 			})
 			if (newSerialNum === -1) return false
 			if (type === "pio-hdx") rx = tx

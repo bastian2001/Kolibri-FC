@@ -8,6 +8,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 // - remapping
 // - (reversing)
 // - output strength
+// - DShot speed
 // - bidir dshot state (=> show RPM)
 // - EDT state (=> show temp)
 

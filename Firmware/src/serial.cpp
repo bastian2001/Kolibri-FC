@@ -24,6 +24,7 @@ void stopSerials() {
 	elrs.reset();
 	setGpsSerial(nullptr);
 	end4Way();
+	setTrampSerial(nullptr);
 
 	// destroy all the serials (end() is called in the destructor)
 	for (int i = 1; i < SERIAL_COUNT; i++) {
@@ -41,6 +42,7 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 	bool success = true;
 	u8 elrsSerial = 0;
 	KoliSerial *gpsSerial = nullptr;
+	KoliSerial *trampSerial = nullptr;
 
 	// try new config
 	for (int i = 0; i < SERIAL_COUNT - 1; i++) {
@@ -113,6 +115,7 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 		} else if (serial.functions & SERIAL_IRC_TRAMP) {
 			rxFifo = 32;
 			baud = 9600;
+			trampSerial = &serial;
 		} else if (serial.functions & SERIAL_SMARTAUDIO) {
 			config = SERIAL_8N2;
 			rxFifo = 32;
@@ -126,22 +129,13 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 		}
 		if (cfg.baud) baud = cfg.baud;
 
-		Serial.printf("Beginning Serial %d %d %d %d %d\n", i + 1, baud, cfg.type, cfg.txPin, cfg.rxPin);
-		Serial.flush();
-		sleep_ms(10);
 		serial.setPinout(cfg.txPin, cfg.rxPin);
 		serial.setRxFifoSize(rxFifo);
 		serial.begin(baud, config);
-		Serial.printf("Begun Serial %d %d %d %d %d\n", i + 1, baud, cfg.type, cfg.txPin, cfg.rxPin);
-		Serial.flush();
-		sleep_ms(10);
 		if (!serial) {
 			success = false;
 			break;
 		}
-		Serial.println("Success");
-		Serial.flush();
-		sleep_ms(10);
 	}
 
 	if (!success) return false;
@@ -150,6 +144,7 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 
 	elrs.emplace(elrsSerial);
 	setGpsSerial(gpsSerial);
+	setTrampSerial(trampSerial);
 
 	// save config
 	for (int i = 0; i < SERIAL_COUNT - 1; i++) {
@@ -214,9 +209,9 @@ void initSerial() {
 	};
 
 	SerialConfig cfgs[SERIAL_COUNT - 1] = {
-		{SerialType::DISABLED, 0, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
-		{SerialType::UART, 1, PIN_TX1, PIN_RX1, 0, SERIAL_GPS},
-		{SerialType::PIO, (2 << 4) | 2, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
+		// {SerialType::DISABLED, 0, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
+		// {SerialType::UART, 1, PIN_TX1, PIN_RX1, 0, SERIAL_GPS},
+		// {SerialType::PIO, (2 << 4) | 2, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
 		// {SerialType::PIO_HDX, 2, PIN_TX2, PIN_RX2, 0, SERIAL_IRC_TRAMP},
 	};
 

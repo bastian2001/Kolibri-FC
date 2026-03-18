@@ -6,10 +6,10 @@ import AddPort from '@components/hardwarePorts/addPort.vue'
 import Serial from '@components/hardwarePorts/serial.vue'
 import { onConnectHandler, sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
-import { delay, leBytesToBigInt, leBytesToInt } from '@/utils/utils';
+import { delay, intToLeBytes, leBytesToBigInt, leBytesToInt } from '@/utils/utils';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { Command } from '@/utils/types';
-import { SerialPort, usePortStore } from '@/stores/portStore';
+import { SerialPort, SerialType, usePortStore } from '@/stores/portStore';
 
 const ports = usePortStore()
 
@@ -30,12 +30,6 @@ type port = {
 	rawCurrent: number,
 	batCurrent: number,
 	cpuTemp: number,
-
-	// DShot settings
-	dshotSpeed: number,
-	bidirStatus: boolean[],
-	edtStatus: boolean[],
-
 
 	// Baro settings
 	baroModel: number,
@@ -217,6 +211,31 @@ function fetchSetup() {
 		})
 }
 
+function update() {
+	const data: number[] = []
+	const lut: { [key in SerialType]: number } = {
+		usb: 0,
+		uart: 1,
+		pio: 2,
+		"pio-hdx": 3,
+		disabled: 255,
+		invalid: 255,
+	}
+	serials.forEach(ser => {
+		data.push(lut[ser.type])
+		data.push(ser.hwParam)
+		data.push(...intToLeBytes(ser.baudSet, 4))
+		data.push(...intToLeBytes(ser.functions, 4))
+		data.push(ser.txPin)
+		data.push(ser.rxPin)
+	})
+	sendCommand(MspFn.SET_SERIAL_SETUP, data)
+		.then(c => {
+			if (c.data[0]) console.log('success')
+			else console.log('F')
+		})
+}
+
 onMounted(() => {
 	getRotationContinuous();
 	fetchSetup()
@@ -235,7 +254,10 @@ onBeforeUnmount(() => {
 			<Drone3dPreview :roll="attitude.roll" :pitch="attitude.pitch" :yaw="attitude.yaw" :size="400" />
 		</div>
 		<div class="gridWrapper">
-
+			<div class="header">
+				<div class="spacer"></div>
+				<button class="updateBtn" @click="update">Update</button>
+			</div>
 			<div class="grid">
 				<Imu />
 				<Dshot />
@@ -304,5 +326,30 @@ onBeforeUnmount(() => {
 
 :deep(.hardwareIcon.red) {
 	background-color: #f00;
+}
+
+.header {
+	display: flex;
+	background-color: #223;
+	padding: .6rem 2rem;
+}
+
+.spacer {
+	flex-grow: 1;
+}
+
+.updateBtn {
+	background-color: transparent;
+	border: 1px solid var(--border-green);
+	border-radius: 5px;
+	padding: 0.5rem 1rem;
+	font-size: 1rem;
+	color: var(--text-color);
+	transition: background-color 0.2s ease-out;
+	margin-left: 1rem;
+}
+
+.updateBtn:hover {
+	background-color: #fff1;
 }
 </style>
