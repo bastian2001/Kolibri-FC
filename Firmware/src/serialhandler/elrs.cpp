@@ -96,6 +96,7 @@ ExpressLRS::ExpressLRS(u8 serialNum)
 	interpConfig1 = interp_default_config();
 	interpConfig2 = interp_default_config();
 	interp_config_set_clamp(&interpConfig2, 1);
+	frequencyTimer = 1000000;
 }
 
 void ExpressLRS::loop() {
@@ -107,7 +108,10 @@ void ExpressLRS::loop() {
 			isLinkUp = true;
 		else
 			isLinkUp = false;
-		if (msgCount) isReceiverUp = true;
+		if (msgCount)
+			isReceiverUp = true;
+		else // force receiver to send something so that we get knowledge of its existence
+			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_RECEIVER, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
 		actualPacketRate = rcPacketRateCounter;
 		packetRateCounter = 0;
 		rcPacketRateCounter = 0;

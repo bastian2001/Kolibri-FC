@@ -95,7 +95,7 @@ export default defineComponent({
 				.then(c => {
 					this.configuratorLog.push(`Firmware: ${c.dataStr}`);
 					if (c.dataStr !== 'KOLI') {
-						this.disconnect();
+						disconnect('123');
 						throw 'This configurator is only compatible with Kolibri firmware.'
 					}
 					return sendCommand(MspFn.FIRMWARE_VERSION)

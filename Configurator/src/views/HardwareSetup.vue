@@ -173,41 +173,7 @@ function fetchSetup() {
 
 			return sendCommand(MspFn.GET_SERIAL_SETUP)
 		})
-		.then(c => {
-			const d = c.data
-			if (d.length % 17 !== 0) throw ''
-			if (d.length / 17 !== ports.maxSerials) throw ''
-			for (let i = 0; i < d.length / 17; i++) {
-				const bin = d.slice(i * 17, i * 17 + 17)
-				const s: SerialPort = {
-					exists: false,
-					type: 'disabled' as 'usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled' | 'invalid',
-					baud: 0,
-					baudSet: 0,
-					txPin: 255,
-					rxPin: 255,
-					functions: 0,
-					no: i,
-					hwParam: 0,
-					modified: false,
-					initialFunctions: 0,
-				}
-				serials.push(s)
-				if (bin[0]) s.exists = true
-				else continue
-				const lut = ['usb', 'uart', 'pio', 'pio-hdx'] as ('usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled')[]
-				lut[255] = 'disabled'
-				s.type = lut[bin[1]] || 'invalid'
-				s.baud = leBytesToInt(bin, 2, 4)
-				s.baudSet = leBytesToInt(bin, 6, 4)
-				s.txPin = bin[10]
-				s.rxPin = bin[11]
-				s.functions = leBytesToInt(bin, 12, 4)
-				s.initialFunctions = s.functions
-				s.hwParam = bin[16]
-			}
-			// TODO fetch pad positions, labels
-		})
+		.then(onGetSerialSetup)
 		.catch(e => {
 			console.error(e)
 		})
@@ -235,7 +201,47 @@ function update() {
 		.then(c => {
 			if (c.data[0]) console.log('success')
 			else console.log('F')
-		})
+			return sendCommand(MspFn.GET_SERIAL_SETUP)
+		}).then(onGetSerialSetup)
+}
+
+const onGetSerialSetup = (c: Command) => {
+	const d = c.data
+	if (d.length % 17 !== 0) throw ''
+	if (d.length / 17 !== ports.maxSerials) throw ''
+	for (let i = 0; i < d.length / 17; i++) {
+		const bin = d.slice(i * 17, i * 17 + 17)
+		const s: SerialPort = {
+			exists: false,
+			type: 'disabled' as 'usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled' | 'invalid',
+			baud: 0,
+			baudSet: 0,
+			txPin: 255,
+			rxPin: 255,
+			functions: 0,
+			no: i,
+			hwParam: 0,
+			modified: false,
+			initialFunctions: 0,
+		}
+		if (bin[0]) s.exists = true
+		else {
+			serials[i] = s
+			continue
+		}
+		const lut = ['usb', 'uart', 'pio', 'pio-hdx'] as ('usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled')[]
+		lut[255] = 'disabled'
+		s.type = lut[bin[1]] || 'invalid'
+		s.baud = leBytesToInt(bin, 2, 4)
+		s.baudSet = leBytesToInt(bin, 6, 4)
+		s.txPin = bin[10]
+		s.rxPin = bin[11]
+		s.functions = leBytesToInt(bin, 12, 4)
+		s.initialFunctions = s.functions
+		s.hwParam = bin[16]
+		serials[i] = s
+	}
+	// TODO fetch pad positions, labels
 }
 
 onMounted(() => {
@@ -253,7 +259,7 @@ onBeforeUnmount(() => {
 <template>
 	<div class="wrapper">
 		<div class="previews">
-			<Drone3dPreview :roll="attitude.roll" :pitch="attitude.pitch" :yaw="attitude.yaw" :size="400" />
+			<Drone3dPreview :roll="attitude.roll" :pitch="attitude.pitch" :yaw="attitude.yaw" :size="300" />
 		</div>
 		<div class="gridWrapper">
 			<div class="header">
@@ -264,7 +270,7 @@ onBeforeUnmount(() => {
 				<Imu />
 				<Dshot />
 				<template v-for="s in serials">
-					<Serial v-if="s.exists" :key="s.no" :num="s.no" />
+					<Serial v-if="s.exists" :key="s.no" :num="s.no" @update="update" />
 				</template>
 				<AddPort />
 			</div>
@@ -281,7 +287,7 @@ onBeforeUnmount(() => {
 }
 
 .previews {
-	width: 400px;
+	width: 300px;
 	flex-grow: 0;
 }
 
@@ -348,7 +354,6 @@ onBeforeUnmount(() => {
 	font-size: 1rem;
 	color: var(--text-color);
 	transition: background-color 0.2s ease-out;
-	margin-left: 1rem;
 }
 
 .updateBtn:hover {

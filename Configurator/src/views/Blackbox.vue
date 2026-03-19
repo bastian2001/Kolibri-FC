@@ -1648,7 +1648,7 @@ export default defineComponent({
 						const startTime = new Date(leBytesToInt(info, 9, 4) * 1000);
 						//append duration of log file to logNums
 						const index = this.logNums.findIndex(n => n.num == fileNum);
-						if (index == -1) continue;
+						if (index === -1) continue;
 						const duration = Math.round(leBytesToInt(info, 13, 4) / 1000);
 						this.logNums[index].text = `${this.logNums[index].num} - ${duration}s - ${startTime.toLocaleString()}`;
 						this.selected = fileNum;

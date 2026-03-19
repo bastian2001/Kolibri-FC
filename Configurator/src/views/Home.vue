@@ -23,9 +23,8 @@ const REBOOT_MODES = { FIRMWARE: 0, BOOTLOADER_ROM: 1, MSC: 2, MSC_UTC: 3, BOOTL
 export default defineComponent({
 	name: 'Home',
 	components: {
-		Drone3dPreview
-	}
-	,
+		Drone3dPreview,
+	},
 	mounted() {
 		onCommandHandler(this.onCommand);
 		this.getRotationContinuous();

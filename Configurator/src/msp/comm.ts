@@ -43,7 +43,11 @@ const commandHandlers: ((command: Command) => void)[] = []
 
 const setCommand = (cmd: Command) => {
 	const command = structuredClone(cmd)
-	commandHandlers.forEach(handler => handler(command))
+	commandHandlers.forEach(handler => {
+		try {
+			handler(command)
+		} catch {}
+	})
 	for (let i = pendingRequests.length - 1; i >= 0; i--) {
 		const p = pendingRequests[i]
 		if (p.verifyFn(p.req, command, p.callbackData)) {
@@ -534,14 +538,8 @@ export const connect = (portToOpen: string) => {
 			invoke("tcp_open", { path })
 				.then(() => {
 					connectType = "tcp"
-					cmdEnabled = true
 					console.log("TCP connected to", path)
-					readInterval = setInterval(read, 3)
-					pingInterval = setInterval(ping, 200)
-					statusInterval = setInterval(() => {
-						sendCommand(MspFn.STATUS).catch(() => {})
-					}, 1000)
-					onConnectHandlers.forEach(h => h())
+					onConnected()
 					resolve()
 				})
 				.catch(e => {
@@ -556,13 +554,7 @@ export const connect = (portToOpen: string) => {
 		invoke("serial_open", { path: portToOpen })
 			.then(() => {
 				connectType = "serial"
-				cmdEnabled = true
-				readInterval = setInterval(read, 3)
-				pingInterval = setInterval(ping, 200)
-				statusInterval = setInterval(() => {
-					sendCommand(MspFn.STATUS).catch(() => {})
-				}, 1000)
-				onConnectHandlers.forEach(h => h())
+				onConnected()
 				resolve()
 			})
 			.catch(e => {
@@ -570,6 +562,20 @@ export const connect = (portToOpen: string) => {
 				disconnect()
 				reject(e)
 			})
+	})
+}
+
+function onConnected() {
+	cmdEnabled = true
+	readInterval = setInterval(read, 3)
+	pingInterval = setInterval(ping, 200)
+	statusInterval = setInterval(() => {
+		sendCommand(MspFn.STATUS).catch(() => {})
+	}, 1000)
+	onConnectHandlers.forEach(h => {
+		try {
+			h()
+		} catch {}
 	})
 }
 
@@ -597,7 +603,11 @@ function ping() {
 }
 
 function onDisconnect() {
-	onDisconnectHandlers.forEach(h => h())
+	onDisconnectHandlers.forEach(h => {
+		try {
+			h()
+		} catch {}
+	})
 	connectType = "none"
 	cmdEnabled = false
 	fcPing = -1

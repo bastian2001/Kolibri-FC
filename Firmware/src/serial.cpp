@@ -107,7 +107,7 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 		} else if (serial.functions & SERIAL_MSP) {
 			rxFifo = 256;
 		} else if (serial.functions & SERIAL_GPS) {
-			rxFifo = 128;
+			rxFifo = GPS_BUF_LEN;
 			baud = 38400;
 			gpsSerial = &serial;
 		} else if (serial.functions & SERIAL_4WAY_HOST) {

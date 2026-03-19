@@ -77,19 +77,15 @@ void fillOpenLocationCode() {
 void gpsLoop() {
 	if (gpsSerial == nullptr) return;
 	TASK_START(TASK_GPS);
-	if (lastPvtMessage > 1000000) {
+	if (lastPvtMessage > 2000000) {
 		// no PVT message received for 1 second
 		gpsStatus.fixType = fixTypes::FIX_NONE;
 		if (gpsStatus.gpsInited) {
 			gpsStatus.gpsInited = false;
 			lastPvtMessage = 0;
-		} else if (lastPvtMessage > 30000000) {
-			// no PVT message received for 30 seconds
-			// reinit GPS
 			gpsStatus.initStep = 0;
 			gpsInitAck = false;
 			gpsInitTimer = 0;
-			gpsStatus.gpsInited = false;
 			lastPvtMessage = 0;
 		}
 	}

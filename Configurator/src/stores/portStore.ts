@@ -23,7 +23,7 @@ export type SerialPort = {
 }
 export const SERIAL_TYPE_LUT: { [key in SerialType]: string } = {
 	usb: "USB",
-	"pio-hdx": "PIO Halfduplex",
+	"pio-hdx": "PIO Half-D.",
 	disabled: "Disabled WTF",
 	invalid: "Invalid WTF",
 	pio: "PIO",

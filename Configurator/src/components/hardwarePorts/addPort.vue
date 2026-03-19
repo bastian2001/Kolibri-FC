@@ -102,6 +102,13 @@ function addPort() {
 		newPortType.value = 'none0'
 	}
 }
+
+const disabled = computed(() => {
+	if (portName.value === 'none') return true
+	if ((portName.value === 'uart' || portName.value === 'pio') && (rxPin.value === txPin.value || rxPin.value < 0 || txPin.value < 0)) return true
+	if (portName.value === 'pio-hdx' && hdxPin.value === -1) return true
+	return false
+})
 </script>
 
 <template>
@@ -151,7 +158,7 @@ function addPort() {
 					<option :value="p">{{ p }}</option>
 				</template>
 			</select>
-			<button @click="addPort">Add Port</button>
+			<button @click="addPort" :disabled="disabled">Add Port</button>
 		</div>
 	</template>
 </template>
