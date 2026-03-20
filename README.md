@@ -30,6 +30,9 @@ Practically speaking, is there any reason to choose this over Betaflight or iNav
 Home Page with a general preview of the quad's orientation, some status info and general controls
 <img alt="Home Page" src="./other/Screenshots/home.png" />
 
+The Hardware Setup Page allows you to tell the FC how you wired up everything, and how everything is attached together mechanically. You can create UARTs as much as the resources allow for it, normal or PIO based. It is all in one spot so you can quickly check whether all devices are recognized.
+<img alt="Hardware Setup" src="./other/Screenshots/hardware.png" />
+
 Blackbox viewer integrated into the configurator. You can record ELRS data, gyro rates, PID, a bunch of sensor data and much more. Size is practically unlimited (SD card logging), for me it is usually in the range of 80-150KB/s. Integrated filtering to smooth noisy data, multiple graphs and multiple traces per graph, JSON converter for external analysis, pinch to zoom (touchscreen support).
 <img alt="Blackbox Viewer" src="./other/Screenshots/blackbox.png" />
 <img alt="Blackbox Settings" src="./other/Screenshots/blackbox_settings.png" />
