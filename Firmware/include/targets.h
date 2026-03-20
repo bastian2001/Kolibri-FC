@@ -61,7 +61,6 @@
 #define PIO_SDIO pio1 // automatically assigned, claims all 4 SMs and 32 instructions
 #define PIO_LED pio2 // 1 SM, 4 instructions
 #define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
-#define AUX_PIOS {2}
 
 #define HW_MAG MAG_QMC5883L
 #define HW_BARO BARO_LPS22
@@ -116,7 +115,6 @@ inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1",
 #define PIO_ESC pio0 // uses all 4 SMs
 #define PIO_EXT_SPI_BB pio1 // 1 SM, 2 instructions, at least right now (may become more if parallel transfer is wanted in the future)
 #define PIO_LED pio1 // 1 SM, 4 instructions
-#define UART_PIOS {1, 2}
 
 #define HW_MAG MAG_QMC5883L
 #define HW_BARO BARO_LPS22
@@ -125,7 +123,7 @@ inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1",
 #define TARGET_IDENTIFIER "KD06"
 #define TARGET_FULL_NAME "Kolibri Dev v0.6"
 
-inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1", "R1", "T2", "R2", "", "", "", "", "", "", "", "", "M1", "M2", "M3", "M4", "SDA", "SCL", "Spk", "LEDx", "", ""};
+inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1", "R1", "T2", "R2", "", "", "", "", "", "", "", "", "M1", "M2", "M3", "M4", "SDA", "SCL", "Spk", "LEDx", "10V", ""};
 
 #endif
 
