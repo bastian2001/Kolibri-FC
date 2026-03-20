@@ -1,9 +1,7 @@
 #include <Arduino.h>
 #include <pico/aon_timer.h>
-#include <vector>
-using std::vector;
 
-#define GPS_BUF_LEN 1024
+#define GPS_BUF_LEN 256
 
 extern RingBuffer<u8> gpsBuffer; // GPS incoming serial buffer
 extern elapsedMicros lastPvtMessage; // time since the last PVT (position velocity time) message was received
@@ -13,6 +11,13 @@ extern fix64 gpsLatitudeFiltered, gpsLongitudeFiltered;
 extern u32 gpsUpdateRate;
 extern fix32 gpsVelocityFilterCutoff;
 extern bool gpsGoodQuality; // whether the GPS data of the last frame is good
+
+/**
+ * @brief Set the serial that the GPS uses
+ *
+ * @param g KoliSerial ptr. nullptr to disable GPS serial
+ */
+void setGpsSerial(KoliSerial *g);
 
 /**
  * @brief initialize GPS driver

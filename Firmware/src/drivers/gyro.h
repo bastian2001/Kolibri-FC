@@ -15,7 +15,7 @@ extern volatile bool imuAlignmentDone; // imu orientation done flag to save the 
 extern volatile u8 imuAlignmentStep; // 0 = normal operation, 1 = waiting for normal placement, 2 = waiting for nose down
 extern volatile i16 imuAlignmentCounter;
 
-#ifdef GYRO_BMI270
+#if HW_GYRO == GYRO_BMI270
 enum class GyroReg : u8 {
 	CHIP_ID = 0x00,
 	ERROR = 0x02,
@@ -73,7 +73,7 @@ enum class GyroReg : u8 {
 	PWR_CTRL = 0x7D,
 	CMD = 0x7E,
 };
-#elifdef GYRO_ICM42688P
+#elif HW_GYRO == GYRO_ICM42688P
 
 enum class GyroReg : u8 {
 	REG_BANK_SEL = 0x76,
@@ -157,6 +157,8 @@ extern i32 gyroAligned[3]; // after alignment, no scaling or filtering
 extern i32 accelAligned[3]; // after alignment, no scaling or filtering
 extern const fix32 *const gyroFiltered[3]; // gyro filter (currently PT1) deg/s
 extern const fix32 *const accelFiltered[3]; // PT1 filters for the accelerometer data, m/s^2
+
+extern volatile u8 gyroReadyFlags; // bit 3: do alignment, 2: accel calibration, 1: gyro calibration, 0: not initialized/not found;
 
 /// @brief Initializes the gyro (Bosch BMI270)
 /// @return 0 on success, 1 on failure

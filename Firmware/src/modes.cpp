@@ -6,7 +6,7 @@ fix32 homepointAlt;
 static File modesSettingsFile;
 
 /**
- * 0: switch in armed position for >= 10 cycles
+ * 0: switch in armed position for == 10 cycles
  * 1: throttle down
  * 2: GPS fix and >= 6 satellites
  * 3: configurator not attached (by configurator ping) -> used by Kolibri configurator
@@ -21,6 +21,7 @@ RxMode rxModes[RxModeIndex::LENGTH];
 static u32 consecutiveArmedCycles = 0; // number of cycles the switch is in the armed position, reset to 0 when disarmed
 
 void disarm(DisarmReason reason) {
+	if (!armed) return;
 	armed = false;
 	p.neoPixelSetValue(1, 0, 0, 0, true);
 	Serial.printf("Disarming for reason %d\n", (u8)reason);
@@ -30,10 +31,11 @@ void disarm(DisarmReason reason) {
 }
 
 void modesLoop() {
-	if (ELRS->newPacketFlag & (1 << 0)) {
+	if (!elrs) return disarm(DisarmReason::UNSET);
+	if (elrs->newPacketFlag & (1 << 0)) {
 		TASK_START(TASK_MODES);
 
-		ELRS->newPacketFlag &= ~(1 << 0); // clear the flag
+		elrs->newPacketFlag &= ~(1 << 0); // clear the flag
 
 		if (rxModes[RxModeIndex::ARMED].isActive()) {
 			consecutiveArmedCycles++;
@@ -46,7 +48,7 @@ void modesLoop() {
 				armingDisableFlags &= ~0x01;
 			else
 				armingDisableFlags |= 0x01;
-			if (ELRS->channels[2] < 1020)
+			if (elrs->channels[2] < 1020)
 				armingDisableFlags &= ~0x02;
 			else
 				armingDisableFlags |= 0x02;
@@ -56,7 +58,7 @@ void modesLoop() {
 				armingDisableFlags |= 0x08;
 			else
 				armingDisableFlags &= ~0x08;
-			if (ELRS->isLinkUp)
+			if (elrs->isLinkUp)
 				armingDisableFlags &= ~0x10;
 			else
 				armingDisableFlags |= 0x10;
@@ -74,7 +76,7 @@ void modesLoop() {
 				homepointLat = gpsLatitudeFiltered;
 				homepointLon = gpsLongitudeFiltered;
 				homepointAlt = combinedAltitude;
-			} else if (consecutiveArmedCycles == 10 && ELRS->isLinkUp) {
+			} else if (consecutiveArmedCycles == 10 && elrs->isLinkUp) {
 				// the user wanted to arm, but there are some errors, so play a sound
 				u8 wavSuccess = 0;
 				if (armingDisableFlags & 0x40) {
@@ -117,7 +119,7 @@ void modesLoop() {
 			setFlightMode(newFlightMode);
 		}
 		TASK_END(TASK_MODES);
-	} else if (ELRS->sinceLastRCMessage >= 500000 && armed) {
+	} else if (elrs->sinceLastRCMessage >= 500000 && armed) {
 		disarm(DisarmReason::RXLOSS);
 	}
 }
@@ -263,8 +265,8 @@ RxMode::RxMode() {
 }
 
 bool RxMode::isActive() const {
-	if (channel < 0 || channel > 15) return false; // Not configured
-	u16 value = ELRS->channels[channel];
+	if (channel < 0 || channel > 15 || !elrs) return false; // Not configured
+	u16 value = elrs->channels[channel];
 	return value >= minRange && value <= maxRange;
 }
 

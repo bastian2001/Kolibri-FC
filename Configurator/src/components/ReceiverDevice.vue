@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { addOnCommandHandler, removeOnCommandHandler, sendCommand, strToArray } from '@/msp/comm'
+import { onCommandHandler, sendCommand, strToArray } from '@/msp/comm'
 import { MspFn } from '@/msp/protocol'
 import { Command, CrsfDevice } from '@/utils/types'
 import { intToLeBytes, leBytesToInt } from '@/utils/utils'
@@ -290,7 +290,7 @@ let pollCommandInterval = -1
 let pollingFor = -1
 
 onMounted(() => {
-	addOnCommandHandler(onCommand)
+	onCommandHandler(onCommand)
 
 	watch(() => props.subbed, s => {
 		if (s) {
@@ -316,7 +316,6 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
 	stopFetching()
-	removeOnCommandHandler(onCommand)
 	clearInterval(pollCommandInterval)
 })
 

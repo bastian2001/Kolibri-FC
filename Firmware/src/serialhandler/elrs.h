@@ -40,8 +40,8 @@ public:
 	 */
 	void getSmoothChannels(fix32 smoothChannels[4]);
 
-	u32 channels[16] = {0}; // raw RC channels (1000-2000 for switches, 988-2012 for other sticks)
-	u32 lastChannels[16] = {0}; // RC channels from the last packet (1000-2000 for switches, 988-2012 for other sticks)
+	u32 channels[16] = {}; // raw RC channels (1000-2000 for switches, 988-2012 for other sticks)
+	u32 lastChannels[16] = {}; // RC channels from the last packet (1000-2000 for switches, 988-2012 for other sticks)
 	u32 newPacketFlag = 0; // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
 	u32 newLinkStatsFlag = 0; // flags for new link stats (set to 0xFFFFFFFF when a new link stats are available)
 
@@ -55,7 +55,7 @@ public:
 	u16 actualPacketRate = 0; // in Hz
 
 	// ELRS provided link stats
-	i16 uplinkRssi[2] = {0}; // RX RSSI values of both antennas (signed, more negative = worse)
+	i16 uplinkRssi[2] = {}; // RX RSSI values of both antennas (signed, more negative = worse)
 	u8 uplinkLinkQuality = 0; // RX packet success rate 0-100 [%]
 	i8 uplinkSNR = 0; // RX SNR in dB
 	u8 antennaSelection = 0; // used antenna (0 = antenna 1, 1 = antenna 2)
@@ -227,14 +227,14 @@ private:
 	// Other devices
 	std::list<CrsfDevice> deviceList;
 	u8 subscribeSrcAddress = 0;
-	u8 subscribeList[20] = {0};
+	u8 subscribeList[20] = {};
 	u8 subscribeCount = 0;
 	u8 subscribeSerialNum = 255;
 	MspVersion subscribeMspVersion = MspVersion::V2;
 
 	// MSP packets (in/out)
 	u8 mspExtSrcAddr = 0;
-	u8 mspRxPayload[512] = {0};
+	u8 mspRxPayload[512] = {};
 	u8 mspTelemSeq = 0;
 	u16 mspRxPayloadLen = 0;
 	u16 mspRxCmd = 0;

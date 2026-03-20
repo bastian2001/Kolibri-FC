@@ -98,12 +98,18 @@ export const MspFn = {
 	// 0x41A_ Motors
 	GET_MOTOR_LAYOUT: 0x41a0,
 	SET_MOTOR_LAYOUT: 0x41a1,
+	GET_MOTOR_STATE: 0x41a2,
 
 	// 0x41B_ VTX
 	GET_VTX_CURRENT_STATE: 0x41b0,
 	GET_VTX_CONFIG: 0x41b1,
 	SET_VTX_CONFIG: 0x41b2,
 	VTX_APPLY_CONFIG: 0x41b3,
+
+	// 0x41C_ Serial setup
+	GET_IO_CONSTRAINTS: 0x41c0,
+	GET_SERIAL_SETUP: 0x41c1,
+	SET_SERIAL_SETUP: 0x41c2,
 
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET: 0x41f0,

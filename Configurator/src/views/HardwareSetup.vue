@@ -1,56 +1,63 @@
 <script setup lang="ts">
-import Drone3dPreview from '@/components/Drone3dPreview.vue';
-import { sendCommand } from '@/msp/comm';
+import Drone3dPreview from '@components/Drone3dPreview.vue';
+import Imu from '@components/hardwarePorts/imu.vue'
+import Dshot from '@components/hardwarePorts/dshot.vue'
+import AddPort from '@components/hardwarePorts/addPort.vue'
+import Serial from '@components/hardwarePorts/serial.vue'
+import { onConnectHandler, sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
-import { delay, leBytesToInt } from '@/utils/utils';
+import { delay, intToLeBytes, leBytesToBigInt, leBytesToInt, runAsync } from '@/utils/utils';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { Command } from '@/utils/types';
+import { SerialPort, SerialType, usePortStore } from '@/stores/portStore';
+import { useLogStore } from '@/stores/logStore';
 
-const AXES_NAMES = ['+X', '-X', '+Y', '-Y', '+Z', '-Z']
-const imuAxes = ref([0, 2, 4])
-let lastAccelCalibState = 0
-const accelCalibState = ref(0)
-let lastImuOrientationState = 0
-const imuOrientationState = ref(0)
-const imuOrientationTimer = ref(0)
+const ports = usePortStore()
+
+const { serials, pioSetup, pins } = ports
+const log = useLogStore();
+
+// // analog OSD status
+// detectedVideoType?: 'pal' | 'ntsc',
+
+// // ADC values
+// rawVoltage: number,
+// batVoltage: number,
+// rawCurrent: number,
+// batCurrent: number,
+// cpuTemp: number,
+
+// // Baro settings
+// baroModel: number,
+// baroFound: boolean,
+// baroRaw: number,
+// baroAltitude: number,
+// baroUpdateRate: number,
+
+// // Magnetometer settings
+// magMode: number,
+// magFound: boolean,
+// magRaw: number[],
+// magAlignment: number[],
+// magCalibration: number,
+// magCalibrationState: number,
+// magCalibrationTimer: number,
+
+// // Large FS info
+// largeFsType: number,
+// largeFsTotalSpace: number,
+// largeFsFreeSpace: number,
+
+// // LED strip
+// ledColors: number[][],
+
+// // Speaker
+// speakerSoundFile: string,
+// speakerFrequency: number,
+
 
 let exiting = false
 const attitude = ref({ roll: 0, pitch: 0, yaw: 0 })
-
-const getImuSetupState = setInterval(() => {
-	sendCommand(MspFn.GET_IMU_SETUP_STATE).then(c => {
-		imuOrientationState.value = c.data[0]
-		imuOrientationTimer.value = leBytesToInt(c.data, 1, 1, true)
-		for (let i = 0; i < 3; i++) {
-			imuAxes.value[i] = c.data[i + 2]
-		}
-
-		if (imuOrientationState.value === 0 && (lastImuOrientationState === 2 || lastImuOrientationState === 3)) {
-			imuOrientationState.value = 3
-			setTimeout(() => {
-				if (imuOrientationState.value === 3) {
-					imuOrientationState.value = 0
-					lastImuOrientationState = 0
-				}
-			}, 5000)
-		}
-		if (lastImuOrientationState !== 3 || imuOrientationState.value === 0)
-			lastImuOrientationState = imuOrientationState.value
-
-		accelCalibState.value = c.data[5]
-		if (accelCalibState.value === 0 && (lastAccelCalibState === 2 || lastAccelCalibState === 3)) {
-			accelCalibState.value = 3
-			setTimeout(() => {
-				if (accelCalibState.value === 3) {
-					accelCalibState.value = 0
-					lastAccelCalibState = 0
-				}
-			}, 5000)
-		}
-		if (lastAccelCalibState !== 3 || accelCalibState.value !== 0)
-			lastAccelCalibState = accelCalibState.value
-	})
-}, 100)
-
 
 async function getRotationContinuous() {
 	while (!exiting) {
@@ -72,71 +79,208 @@ async function getRotationContinuous() {
 		}
 	}
 }
-getRotationContinuous();
+
+function ioConstraintMatcher(req: Command, res: Command) {
+	if (req.command !== res.command) return false
+	if (req.data[0] !== res.data[0]) return false
+	return true
+}
+
+function fetchSetup() {
+	ports.reset()
+	sendCommand(MspFn.GET_IO_CONSTRAINTS, {
+		data: [0],
+		verifyFn: ioConstraintMatcher,
+	})
+		.then(c => {
+			const d = c.data.slice(1)
+			if (d.length % 11 !== 0) throw ''
+			for (let i = 0; i < d.length / 11; i++) {
+				const funcs = leBytesToBigInt(d, i * 11, 6)
+				const pin = {
+					hstx: false,
+					spi: false,
+					uartTx: Array(4).fill(false),
+					uartRx: Array(4).fill(false),
+					sda: Array(3).fill(false),
+					scl: Array(3).fill(false),
+					pio: Array(4).fill(false),
+					recommended: false,
+					allowed: false,
+					label: '',
+					pads: [],
+				}
+				if (funcs & 1n << 0n) pin.hstx = true
+				if (funcs & 1n << 1n) pin.spi = true
+				for (let j = 2n; j < 10n; j++) {
+					const isTx = j % 2n === 0n
+					const serial = Number((j - 2n) / 2n)
+					if (funcs & (1n << j)) {
+						if (isTx) pin.uartTx[serial] = true
+						if (!isTx) pin.uartRx[serial] = true
+					}
+				}
+				for (let j = 10n; j < 16n; j++) {
+					const isSda = j % 2n === 0n
+					const i2c = Number((j - 10n) / 2n)
+					if (funcs & (1n << j)) {
+						if (isSda) pin.sda[i2c] = true
+						if (!isSda) pin.scl[i2c] = true
+					}
+				}
+				for (let j = 16n; j < 20; j++) {
+					const pio = Number(j) - 16
+					if (funcs & 1n << j) pin.pio[pio] = true
+				}
+				if (funcs & 1n << 46n) pin.recommended = true
+				if (funcs & 1n << 47n) pin.allowed = true
+				const str = d.slice(i * 11 + 6, i * 11 + 11);
+				let len = str.indexOf(0);
+				if (len === -1) len = 5;
+				pin.label = String.fromCharCode(...str.slice(0, len));
+				pins.push(pin)
+			}
+
+			return sendCommand(MspFn.GET_IO_CONSTRAINTS, {
+				data: [10],
+				verifyFn: ioConstraintMatcher,
+			})
+		})
+		.then(c => {
+			const d = c.data.slice(1)
+			if (d.length < 2) throw ''
+			ports.hwSerials = d[0]
+			ports.maxSerials = d[1]
+
+			return sendCommand(MspFn.GET_IO_CONSTRAINTS, {
+				data: [11],
+				verifyFn: ioConstraintMatcher,
+			})
+		})
+		.then(c => {
+			let d = c.data.slice(1)
+			if (d.length < 15 || (d.length - 15) % 5 !== 0) throw ''
+			pioSetup.version = d[0]
+			pioSetup.numPios = d[1]
+			pioSetup.hdxLength = d[2]
+			pioSetup.txLength = d[3]
+			pioSetup.rxLength = d[4]
+			d = d.slice(15)
+			for (let i = 0; i < d.length / 5; i++) {
+				pioSetup.freeSms[i] = d[i * 5 + 0]
+				pioSetup.freeInstructions[i] = leBytesToBigInt(d, i * 5 + 1, 4)
+			}
+
+			return sendCommand(MspFn.GET_SERIAL_SETUP)
+		})
+		.then(onGetSerialSetup)
+		.catch(e => {
+			console.error(e)
+		})
+}
+
+function update() {
+	const data: number[] = []
+	const lut: { [key in SerialType]: number } = {
+		usb: 0,
+		uart: 1,
+		pio: 2,
+		"pio-hdx": 3,
+		disabled: 255,
+		invalid: 255,
+	}
+	serials.forEach(ser => {
+		data.push(lut[ser.type])
+		data.push(ser.hwParam)
+		data.push(...intToLeBytes(ser.baudSet, 4))
+		data.push(...intToLeBytes(ser.functions, 4))
+		data.push(ser.txPin)
+		data.push(ser.rxPin)
+	})
+	sendCommand(MspFn.SET_SERIAL_SETUP, data)
+		.then((c): Promise<any> => {
+			if (c.data[0]) {
+				console.log('success')
+				return sendCommand(MspFn.SAVE_SETTINGS)
+			}
+			else {
+				log.push('Unable to set the serials')
+				console.log('F')
+				return runAsync()
+			}
+		}).then(() => {
+			return sendCommand(MspFn.GET_SERIAL_SETUP)
+		}).then(onGetSerialSetup)
+}
+
+const onGetSerialSetup = (c: Command) => {
+	const d = c.data
+	if (d.length % 17 !== 0) throw ''
+	if (d.length / 17 !== ports.maxSerials) throw ''
+	for (let i = 0; i < d.length / 17; i++) {
+		const bin = d.slice(i * 17, i * 17 + 17)
+		const s: SerialPort = {
+			exists: false,
+			type: 'disabled' as 'usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled' | 'invalid',
+			baud: 0,
+			baudSet: 0,
+			txPin: 255,
+			rxPin: 255,
+			functions: 0,
+			no: i,
+			hwParam: 0,
+			modified: false,
+			initialFunctions: 0,
+		}
+		if (bin[0]) s.exists = true
+		else {
+			serials[i] = s
+			continue
+		}
+		const lut = ['usb', 'uart', 'pio', 'pio-hdx'] as ('usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled')[]
+		lut[255] = 'disabled'
+		s.type = lut[bin[1]] || 'invalid'
+		s.baud = leBytesToInt(bin, 2, 4)
+		s.baudSet = leBytesToInt(bin, 6, 4)
+		s.txPin = bin[10]
+		s.rxPin = bin[11]
+		s.functions = leBytesToInt(bin, 12, 4)
+		s.initialFunctions = s.functions
+		s.hwParam = bin[16]
+		serials[i] = s
+	}
+	// TODO fetch pad positions, labels
+}
 
 onMounted(() => {
+	getRotationContinuous();
+	fetchSetup()
+	onConnectHandler(fetchSetup)
 })
 
 onBeforeUnmount(() => {
 	exiting = true
-	clearInterval(getImuSetupState)
 })
+
 </script>
 
 <template>
 	<div class="wrapper">
 		<div class="previews">
-			<Drone3dPreview :roll="attitude.roll" :pitch="attitude.pitch" :yaw="attitude.yaw" :size="400" />
+			<Drone3dPreview :roll="attitude.roll" :pitch="attitude.pitch" :yaw="attitude.yaw" :size="300" />
 		</div>
 		<div class="gridWrapper">
+			<div class="header">
+				<div class="spacer"></div>
+				<button class="updateBtn" @click="update">Save</button>
+			</div>
 			<div class="grid">
-				<div class="gyro">
-					<div class="hardwareIcon green"></div>
-					<h3>Gyro / Accelerometer</h3>
-					<div class="imuAlignment inlineblock">
-						<button @click="() => sendCommand(MspFn.START_IMU_ALIGNMENT)" :style="{
-							background: `linear-gradient(to right, #fff3 ${Math.max(imuOrientationTimer, 0)}%, transparent ${Math.max(imuOrientationTimer, 0)}%)`,
-						}">Start Gyro Alignment</button>
-						<p v-if="imuOrientationState === 0">Use this to align the gyro/accelerometer in 90° steps.</p>
-						<p v-else-if="imuOrientationState === 1">1. Put your quad in its normal orientation.</p>
-						<p v-else-if="imuOrientationState === 2">2. Pitch your quad forward so that the nose points
-							down.
-						</p>
-						<p v-else-if="imuOrientationState === 3">3. Test the alignment.</p>
-						<p>Forward: {{ AXES_NAMES[imuAxes[0]] }}, Right: {{ AXES_NAMES[imuAxes[1]] }}, Down: {{
-							AXES_NAMES[imuAxes[2]] }}</p>
-					</div>
-					<div class="accelCalib inlineblock">
-						<button @click="() => sendCommand(MspFn.ACC_CALIBRATION)">Calibrate Accelerometer</button>
-						<p v-if="accelCalibState === 0">Use this to compensate small errors.</p>
-						<p v-else-if="accelCalibState === 1">1. Rest the quad on a horizontal surface.</p>
-						<p v-else-if="accelCalibState === 2">2. Hold still.</p>
-						<p v-else-if="accelCalibState === 3">3. Calibration finished, test whether it is good.</p>
-					</div>
-				</div>
-				<div>
-					Serial Port Setup
-				</div>
-				<div>
-					Serial Port Setup
-				</div>
-				<div>
-					Serial Port Setup
-				</div>
-				<div>
-					Serial Port Setup
-				</div>
-				<!--
-				Sensor status
-				- Gyro/accel found, model
-				- Mag found, model
-				- baro found, model
-				- Large FS (SD/FCKAFD) found, size and available size, audio flashing helper
-				- GPS found, init state
-				- Other serial devices found such as RX/VTX
-				- DShot status
-				- ADC values
-			-->
+				<Imu />
+				<Dshot />
+				<template v-for="s in serials">
+					<Serial v-if="s.exists" :key="s.no" :num="s.no" @update="update" />
+				</template>
+				<AddPort />
 			</div>
 		</div>
 	</div>
@@ -151,7 +295,7 @@ onBeforeUnmount(() => {
 }
 
 .previews {
-	width: 400px;
+	width: 300px;
 	flex-grow: 0;
 }
 
@@ -169,49 +313,58 @@ onBeforeUnmount(() => {
 	gap: 2px;
 }
 
-.grid>div {
+.grid>:deep(div) {
 	box-sizing: border-box;
 	background-color: var(--background-light);
 	text-align: center;
-	padding: 0.3rem;
+	padding: .6rem 0.3rem;
 	box-shadow: 0px 0px 0px 2px var(--border-color);
 }
 
-.hardwareIcon {
+:deep(.hardwareIcon) {
 	height: 8rem;
-	background-color: #0f0;
-	-webkit-mask: url(@assets/gyroaccel_app.svg) no-repeat center;
-	mask: url(@assets/gyroaccel_app.svg) no-repeat center;
+	background-color: white;
 	-webkit-mask-size: contain;
 	mask-size: contain;
 }
 
-h3 {
-	margin-top: 6px;
-	margin-bottom: 0px;
+:deep(.hardwareIcon.green) {
+	background-color: #0f0;
 }
 
-p {
-	font-size: .85rem;
-	margin-top: 6px;
+:deep(.hardwareIcon.yellow) {
+	background-color: #ff0;
 }
 
-.inlineblock>* {
-	margin-right: 10px;
-	margin-left: 10px;
-	display: inline-block;
+:deep(.hardwareIcon.orange) {
+	background-color: #f80;
 }
 
-.imuAlignment {
-	margin-top: 8px;
+:deep(.hardwareIcon.red) {
+	background-color: #f00;
 }
 
-button {
-	color: var(--text-color);
-	font-size: .8rem;
+.header {
+	display: flex;
+	background-color: #223;
+	padding: .6rem 2rem;
+}
+
+.spacer {
+	flex-grow: 1;
+}
+
+.updateBtn {
 	background-color: transparent;
-	border: 1px solid var(--border-color);
-	border-radius: 6px;
-	padding: 5px 12px;
+	border: 1px solid var(--border-green);
+	border-radius: 5px;
+	padding: 0.5rem 1rem;
+	font-size: 1rem;
+	color: var(--text-color);
+	transition: background-color 0.2s ease-out;
+}
+
+.updateBtn:hover {
+	background-color: #fff1;
 }
 </style>

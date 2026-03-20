@@ -1,5 +1,5 @@
 <script lang="ts">
-import { addOnCommandHandler, addOnConnectHandler, removeOnCommandHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
+import { onCommandHandler, onConnectHandler, sendCommand } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
@@ -95,16 +95,13 @@ export default defineComponent({
 				this.history = parsedHistory.slice(-100);
 			}
 		}
-		addOnCommandHandler(this.onCommand);
-		addOnConnectHandler(this.onStart)
+		onCommandHandler(this.onCommand);
+		onConnectHandler(this.onStart)
 	},
 	beforeUnmount() {
 		// save last 20 commands from history to local storage
 		const history = this.history.slice(-100); // Limit to last 100 commands
 		localStorage.setItem('cliHistory', JSON.stringify(history));
-
-		removeOnCommandHandler(this.onCommand);
-		removeOnConnectHandler(this.onStart);
 	},
 	computed: {
 		filteredHistory() {

@@ -81,7 +81,7 @@ void adcLoop() {
 				enableBlinking(OSDElem::CELL_VOLTAGE);
 				batBlinkingAndBeeping = true;
 			}
-			u8 voltageStr[16] = {0};
+			u8 voltageStr[16] = {};
 			snprintf((char *)voltageStr, 16, "%.2f\x06 ", adcVoltage / 100.f);
 			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);
 			snprintf((char *)voltageStr, 16, "%.2f\x06 ", cellVoltage / 100.f);
@@ -91,7 +91,7 @@ void adcLoop() {
 			// adc_select_input(PIN_ADC_CURRENT - 26);
 			// u16 raw           = adc_read();
 			// adcCurrent             = raw * (300.f / 4096.f); // 300A full deflection
-			// u8 currentStr[16] = {0};
+			// u8 currentStr[16] = {};
 			// u8 len            = snprintf((char *)currentStr, 16, "%.2f", adcCurrent);
 			// currentStr[len]        = 0x9A;
 			// currentStr[len + 1]    = '\0';

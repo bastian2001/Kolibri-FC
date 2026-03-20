@@ -5,6 +5,8 @@
 
 extern RingBuffer<u8> trampRxBuffer;
 
+void setTrampSerial(KoliSerial *ptr);
+
 void trampInit();
 
 void trampLoop();

@@ -1,0 +1,50 @@
+; Normal UART RX (e.g. 8N1)
+; operates at 32 ticks per bit
+
+.program uart_rx
+
+.wrap_target
+wait_start:
+wait 0 pin, 0 [15]; wait for start bit and get to its center
+set x, 7 [31]; initialize counter, mov x,y could be used for more general control
+
+read_bit:
+in pins 1 [30]
+jmp x--, read_bit
+jmp pin, push_byte; only push when stop bit is set
+mov isr, null; discard byte
+jmp wait_start[29]
+push_byte:
+push block [5]; reduced delay to leave room for slight clock deviations
+.wrap
+
+% c-sdk {
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+static inline void uart_rx_program_init(PIO pio, uint sm, uint offset, uint pin, uint baud) {
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, false);
+    pio_gpio_init(pio, pin);
+    gpio_pull_up(pin);
+
+    pio_sm_config c = uart_rx_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, pin); // for WAIT, IN
+    sm_config_set_jmp_pin(&c, pin); // for JMP
+    // Shift to right, autopush disabled
+    sm_config_set_in_shift(&c, true, false, 32);
+    // Deeper FIFO as we're not doing any TX
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+    // SM transmits 1 bit per 32 execution cycles.
+    float div = (float)clock_get_hz(clk_sys) / (32 * baud);
+    sm_config_set_clkdiv(&c, div);
+    
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+static inline void uart_rx_program_end(PIO pio, uint sm, uint pin){
+	pio_sm_set_enabled(pio, sm, false);
+	pio_sm_clear_fifos(pio, sm);
+	gpio_set_function(pin, GPIO_FUNC_NULL);
+}
+
+%}

@@ -1,7 +1,7 @@
 <script lang="ts">
 import Channel from "@components/Channel.vue";
 import { defineComponent } from "vue";
-import { sendCommand, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
+import { sendCommand, onConnectHandler } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { delay, leBytesToInt } from "@utils/utils";
 import RxMode from "@/components/RxMode.vue";
@@ -73,13 +73,12 @@ export default defineComponent({
 		this.getInterval = setInterval(this.getDevices, 200)
 		this.relaxGetter()
 		this.getModes();
-		addOnConnectHandler(this.getModes, this.scanDevices, this.unsubscribe);
+		onConnectHandler(this.getModes, this.scanDevices, this.unsubscribe);
 	},
 	unmounted() {
 		clearInterval(this.channelInterval);
 		clearInterval(this.getInterval);
 		this.getInterval = -1
-		removeOnConnectHandler(this.getModes, this.scanDevices, this.unsubscribe);
 		this.exiting = true
 	},
 	methods: {

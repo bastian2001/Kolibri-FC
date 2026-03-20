@@ -85,9 +85,9 @@ static fix32 getRateInterp(fix32 stick, u8 axis) {
 static fix32 stickPos[3]; // -1...+1
 static fix32 stickThr; // 0...1024
 
-static void getStickPos() {
+static void inline getStickPos() {
 	fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000ish)
-	ELRS->getSmoothChannels(smoothChannels);
+	elrs->getSmoothChannels(smoothChannels);
 
 	stickPos[0] = (smoothChannels[0] - 1500) >> 9;
 	stickPos[1] = (smoothChannels[1] - 1500) >> 9;
@@ -96,7 +96,7 @@ static void getStickPos() {
 }
 
 /// @brief Smoothes the sticks and applies rate cuve to them
-static void runAcroMode() {
+static void inline runAcroMode() {
 	getStickPos();
 
 	// acro is the simplest: we just need to calculate the setpoints based on the sticks
@@ -126,7 +126,7 @@ static inline void runAngleMode1() {
 	// in case of angle, throttle is unchanged
 }
 
-static void setAutoThrottle() {
+static void inline setAutoThrottle() {
 	// throttle stick => vertical velocity
 	vVelSetpoint = stickToTargetVvel(stickThr);
 	if (forceZeroVvelSetpoint) {
@@ -676,7 +676,7 @@ void setFlightMode(FlightMode mode) {
 		// just switched to an altitude hold mode, make sure the quad doesn't just fall at the beginning
 		vVelErrorSum = throttle.getfix64() / pidGainsVVel[I];
 		if (mode == FlightMode::ALT_HOLD || mode == FlightMode::GPS)
-			forceZeroVvelSetpoint = ELRS->channels[2] > 1500 ? 1 : -1; // flag to force zero vVel until the stick crossed 1500
+			forceZeroVvelSetpoint = elrs->channels[2] > 1500 ? 1 : -1; // flag to force zero vVel until the stick crossed 1500
 		altSetpoint = combinedAltitude;
 	}
 	if (flightMode < FlightMode::ANGLE && mode >= FlightMode::ANGLE) {

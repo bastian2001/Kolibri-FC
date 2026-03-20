@@ -96,6 +96,7 @@ ExpressLRS::ExpressLRS(u8 serialNum)
 	interpConfig1 = interp_default_config();
 	interpConfig2 = interp_default_config();
 	interp_config_set_clamp(&interpConfig2, 1);
+	frequencyTimer = 1000000;
 }
 
 void ExpressLRS::loop() {
@@ -107,7 +108,10 @@ void ExpressLRS::loop() {
 			isLinkUp = true;
 		else
 			isLinkUp = false;
-		if (msgCount) isReceiverUp = true;
+		if (msgCount)
+			isReceiverUp = true;
+		else // force receiver to send something so that we get knowledge of its existence
+			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_RECEIVER, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
 		actualPacketRate = rcPacketRateCounter;
 		packetRateCounter = 0;
 		rcPacketRateCounter = 0;
@@ -297,7 +301,7 @@ void ExpressLRS::processMessage() {
 			ELRS_RAISE_ERROR(ERROR_INVALID_LENGTH);
 			break;
 		}
-		u32 pChannels[16] = {0};
+		u32 pChannels[16] = {};
 		switch (res) {
 		case 0b00: {
 			// 10 bits
@@ -480,7 +484,8 @@ void ExpressLRS::processMessage() {
 				break;
 			}
 		}
-		deviceList.push_back(thisDevice);
+		if (deviceList.size() < 10)
+			deviceList.push_back(thisDevice);
 	} break;
 	case FRAMETYPE_PARAMETER_SETTINGS_ENTRY:
 	case FRAMETYPE_PARAMETER_READ:
@@ -594,7 +599,7 @@ void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
 		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[3 + payloadLen] = crc;
-	serials[serialNum].stream->write(packet, 4 + payloadLen);
+	serials[serialNum]->write(packet, 4 + payloadLen);
 }
 
 void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
@@ -607,7 +612,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[5 + extPayloadLen] = crc;
-	serials[serialNum].stream->write(packet, 6 + extPayloadLen);
+	serials[serialNum]->write(packet, 6 + extPayloadLen);
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {

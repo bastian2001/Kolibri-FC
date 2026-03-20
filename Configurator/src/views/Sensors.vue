@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
+import { sendCommand, onCommandHandler } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { Command } from "@utils/types";
 import { leBytesToInt } from "@utils/utils";
@@ -52,11 +52,10 @@ export default defineComponent({
 		},
 	},
 	mounted() {
-		addOnCommandHandler(this.onCommand);
+		onCommandHandler(this.onCommand);
 	},
 	beforeUnmount() {
 		clearInterval(this.mspInterval);
-		removeOnCommandHandler(this.onCommand);
 	},
 	methods: {
 		getData() {
