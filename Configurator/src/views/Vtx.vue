@@ -5,6 +5,7 @@ import { MspFn } from '@/msp/protocol';
 import { delay, intToLeBytes, leBytesToInt } from '@/utils/utils';
 import NumericInput from '@/components/NumericInput.vue';
 import { useLogStore } from '@/stores/logStore';
+import { VTX58_FREQ_TABLE, VTX_BAND_NAMES, VTX_STATUS_NAMES } from '@/utils/constants';
 
 const configuratorLog = useLogStore()
 const trampStatus = ref(0)
@@ -27,16 +28,6 @@ const trampConfFreq = ref(5658)
 const trampConfBand = ref(4)
 const trampConfChan = ref(0)
 
-const STATUS_NAMES = ['Offline', 'Initializing', 'Online', 'Online', 'Online', 'Set Frequency', 'Set Frequency', 'Set Power', 'Set Power', 'Set Pitmode', 'Set Pitmode']
-const BAND_NAMES = ['Boscam A', 'Boscam B', 'Boscam E', 'Fatshark', 'Raceband']
-const VTX58_FREQ_TABLE = [
-	[5865, 5845, 5825, 5805, 5785, 5765, 5745, 5725], // Boscam A
-	[5733, 5752, 5771, 5790, 5809, 5828, 5847, 5866], // Boscam B
-	[5705, 5685, 5665, 5645, 5885, 5905, 5925, 5945], // Boscam E
-	[5740, 5760, 5780, 5800, 5820, 5840, 5860, 5880], // FatShark
-	[5658, 5695, 5732, 5769, 5806, 5843, 5880, 5917], // RaceBand
-]
-
 const fetchInterval = setInterval(() => {
 	sendCommand(MspFn.GET_VTX_CURRENT_STATE).then(c => {
 		const data = c.data
@@ -58,7 +49,7 @@ const fetchInterval = setInterval(() => {
 	})
 }, 200)
 
-const onCommand = () => {
+const onConnect = () => {
 	sendCommand(MspFn.GET_VTX_CONFIG).then(c => {
 		const data = c.data
 		trampUseFreq.value = data[0] > 0
@@ -70,8 +61,8 @@ const onCommand = () => {
 }
 
 onMounted(() => {
-	onCommand()
-	onConnectHandler(onCommand)
+	onConnect()
+	onConnectHandler(onConnect)
 })
 
 onBeforeUnmount(() => {
@@ -121,7 +112,7 @@ function saveSettings() {
 							</thead>
 							<tbody>
 								<tr v-for="(band, i) of VTX58_FREQ_TABLE">
-									<td>{{ BAND_NAMES[i] }}</td>
+									<td>{{ VTX_BAND_NAMES[i] }}</td>
 									<td v-for="(chan, j) of band" class="clickable"
 										@click="() => { trampConfBand = i, trampConfChan = j }"
 										:class="{ highlight: i === trampConfBand && j === trampConfChan }">{{ chan }}
@@ -146,7 +137,7 @@ function saveSettings() {
 			<h2>Status</h2>
 			<div class="statusItem">
 				<div class="updateDot" :class="{ show: trampUpdatedFields & (1 << 3) }"></div>
-				<div class="updateText hover">{{ STATUS_NAMES[trampStatus] }} <span style="display:none;">({{
+				<div class="updateText hover">{{ VTX_STATUS_NAMES[trampStatus] }} <span style="display:none;">({{
 					trampStatus }})</span></div>
 			</div>
 			<div class="statusItem">
@@ -160,7 +151,7 @@ function saveSettings() {
 			<div class="statusItem">
 				<div class="updateDot" :class="{ show: trampUpdatedFields & (1 << 1) }"></div>
 				<div class="updateText">Current Frequency: {{ trampCurFreq }} MHz<span v-if="trampCurBand < 5"> ({{
-					BAND_NAMES[trampCurBand] }} {{ trampCurChan + 1 }})</span></div>
+					VTX_BAND_NAMES[trampCurBand] }} {{ trampCurChan + 1 }})</span></div>
 			</div>
 			<div class="statusItem">
 				<div class="updateDot" :class="{ show: trampUpdatedFields & (1 << 1) }"></div>

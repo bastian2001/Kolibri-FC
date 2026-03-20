@@ -8,6 +8,7 @@ import Tooltip from '../Tooltip.vue';
 import Drone3dPreview from '../Drone3dPreview.vue';
 import NumericInput from '../NumericInput.vue';
 import Leaflet from '../Leaflet.vue';
+import { VTX58_FREQ_TABLE, VTX_BAND_NAMES, VTX_STATUS_NAMES } from '@/utils/constants';
 
 type SerialFunction = "crsf" | "msp" | "gps" | "4way" | "tramp" | "smartaudio" | "esc_telem" | "msp_dp"
 
@@ -26,6 +27,7 @@ const SERIAL_FUNCTIONS_LUT: { [key in SerialFunction]: string } = {
 }
 
 const functionToAdd = ref(0)
+const addAnother = ref(false)
 
 const functions = computed(() => {
 	const funcs: SerialFunction[] = []
@@ -99,6 +101,15 @@ const gpsSats = ref(0)
 const coords = ref([0, 0, 0])
 const FIX_TYPES = ['None', 'Dead Reckoning', '2D', '3D', 'GPS Dead Reckoning', 'Time only']
 
+
+const vtxColor = ref('white')
+const vtxUseFreq = ref(false)
+const vtxConfPower = ref(25)
+const vtxConfFreq = ref(5658)
+const vtxConfBand = ref(4)
+const vtxConfChan = ref(0)
+let vtxStatus = 0
+
 let updateInterval = -1
 function update() {
 	if (initialFunctions.value.includes('crsf')) {
@@ -149,6 +160,26 @@ function update() {
 			coords.value[2] = leBytesToInt(c.data, 8, 4, true) * 1e-3
 		}).catch(() => {
 			gpsColor.value = 'red'
+		})
+	}
+	if (initialFunctions.value.includes('tramp') || initialFunctions.value.includes('smartaudio')) {
+		sendCommand(MspFn.GET_VTX_CONFIG).then(c => {
+			const data = c.data
+			vtxUseFreq.value = data[0] > 0
+			vtxConfFreq.value = leBytesToInt(data, 1, 2)
+			vtxConfPower.value = leBytesToInt(data, 3, 2)
+			vtxConfBand.value = data[5]
+			vtxConfChan.value = data[6]
+			return sendCommand(MspFn.GET_VTX_CURRENT_STATE)
+		}).then(c => {
+			const d = c.data
+			vtxStatus = d[4]
+			return sendCommand(MspFn.MSP_BATTERY_STATE)
+		}).then(c => {
+			const batState = c.data[8]
+			if (vtxStatus >= 2) vtxColor.value = 'green'
+			else if (batState < 3) vtxColor.value = 'red'
+			else vtxColor.value = 'yellow'
 		})
 	}
 }
@@ -207,6 +238,13 @@ watch([baudSelection, customBaud], () => {
 
 function addFunction() {
 	serial.value.functions |= (1 << functionToAdd.value) >> 1
+	serial.value.modified = true
+	functionToAdd.value = 0
+}
+
+function removeFunction(i: number) {
+	serial.value.functions &= ~(1 << i)
+	serial.value.modified = true
 }
 
 // // analog VTX status
@@ -221,7 +259,7 @@ function addFunction() {
 				<div class="spacer"></div>
 				<div class="hardwareIcon crsf" :class="crsfColor" v-if="functions.includes('crsf')"></div>
 				<div class="hardwareIcon gps" :class="gpsColor" v-if="functions.includes('gps')"></div>
-				<div class="hardwareIcon analogVtx"
+				<div class="hardwareIcon analogVtx" :class="vtxColor"
 					v-if="functions.includes('tramp') || functions.includes('smartaudio')">
 				</div>
 				<div class="hardwareIcon escTelem" v-if="functions.includes('esc_telem')"></div>
@@ -229,6 +267,24 @@ function addFunction() {
 				<div class="deleteAndInfo">
 					<button class="deleteBtn" @click="del"><i class="fa-solid fa-trash"></i></button>
 					<Tooltip position="bottom-left" :text="tooltipText" style="flex-grow: 1; height: auto;" width="s" />
+					<div class="plusBtnWrapper" v-if="functions.length >= 1">
+						<button class="smallBtn" @click="addAnother = !addAnother">
+							<i class="fa-solid fa-plus"></i>
+						</button>
+						<div class="addAnother" v-if="addAnother">
+							<p>This is not recommended. Only proceed if you know what you are doing.</p>
+							<select v-model="functionToAdd">
+								<option :value="0" disabled="true">Select</option>
+								<option v-for="s in SELECTABLE_FUNCTIONS.filter(s => !functions.includes(s))"
+									:value="SERIAL_FUNCTIONS.indexOf(s) + 1">{{
+										SERIAL_FUNCTIONS_LUT[s] }}
+								</option>
+							</select>
+							<button :disabled="functionToAdd === 0" @click="addFunction">
+								Add Function
+							</button>
+						</div>
+					</div>
 				</div>
 			</div>
 			<h3>UART {{ serial.no + 1 }}{{ SERIAL_TYPE_LUT[serial.type] ? ` (${SERIAL_TYPE_LUT[serial.type]})` : '' }}
@@ -244,14 +300,22 @@ function addFunction() {
 			</h3>
 		</div>
 		<div class="line"></div>
-		<div class="settings" v-if="initialFunctions.length !== 0">
+		<div class="settings" v-if="functions.filter(f => initialFunctions.includes(f)).length">
 			<div class="crsfOptions" v-if="functions.includes('crsf') && initialFunctions.includes('crsf')">
+				<div class="functionHeader">
+					<h3>CRSF Receiver</h3>
+					<button class="smallBtn" @click="() => { removeFunction(0) }">Remove Function</button>
+				</div>
 				<p>{{ rxFound ? ('RX found' + (txFound ? ' and connected to TX' : ', but not connected to TX'))
 					: 'No RX found' }}</p>
 				<Drone3dPreview :hide-base="true" :roll="rpy.roll * 180 / Math.PI" :pitch="rpy.pitch * 180 / Math.PI"
 					:yaw="rpy.yaw * 180 / Math.PI" :size="250" @click="attiQuat = [1, 0, 0, 0]" />
 			</div>
 			<div class="gpsOptions" v-if="functions.includes('gps') && initialFunctions.includes('gps')">
+				<div class="functionHeader">
+					<h3>GPS (UBlox)</h3>
+					<button class="smallBtn" @click="() => { removeFunction(2) }">Remove Function</button>
+				</div>
 				<p>GPS module{{ gpsFound ? ' ' : ' not ' }}found</p>
 				<p>Fix: {{ FIX_TYPES[gpsFix] }}
 					<template v-if="gpsFix >= 3">✅</template>
@@ -262,6 +326,29 @@ function addFunction() {
 				<div class="map">
 					<Leaflet :lat="coords[0]" :lng="coords[1]" :zoom="17" />
 				</div>
+			</div>
+			<div class="analogVtxOptions" v-if="(functions.includes('tramp') && initialFunctions.includes('tramp')) ||
+				(functions.includes('smartaudio') && initialFunctions.includes('smartaudio'))">
+				<div class="functionHeader"
+					v-if="functions.includes('smartaudio') && initialFunctions.includes('smartaudio')">
+					<h3>VTX (SmartAudio)</h3>
+					<button class="smallBtn" @click="() => { removeFunction(5) }">Remove Function</button>
+				</div>
+				<div class="functionHeader" v-if="functions.includes('tramp') && initialFunctions.includes('tramp')">
+					<h3>VTX (Tramp)</h3>
+					<button class="smallBtn" @click="() => { removeFunction(4) }">Remove Function</button>
+				</div>
+				<p>
+					Status: {{ VTX_STATUS_NAMES[vtxStatus] }}<br>
+					<template v-if="vtxUseFreq">
+						Frequency: {{ vtxConfFreq }}MHz
+					</template>
+					<template v-else>
+						{{ VTX_BAND_NAMES[vtxConfBand] }}: {{ vtxConfChan + 1 }} <i class="fa-solid fa-arrow-right"></i>
+						{{ VTX58_FREQ_TABLE[vtxConfBand][vtxConfChan] }} MHz
+					</template> <br>
+					Power: {{ vtxConfPower }} mW
+				</p>
 			</div>
 		</div>
 		<div v-else-if="functions.length === 0">
@@ -335,14 +422,12 @@ button {
 	width: 3rem;
 	display: flex;
 	flex-direction: column;
-	gap: 1rem;
+	gap: 0.5rem;
 }
 
-.deleteBtn {
-	width: 100%;
+.deleteBtn,
+.smallBtn {
 	box-sizing: border-box;
-	flex-grow: 2;
-	padding: 0.5rem auto;
 	background-color: var(--accent-blue);
 	color: white;
 	border: none;
@@ -352,12 +437,44 @@ button {
 	transition: all 0.2s ease-out;
 }
 
-.deleteBtn:hover {
+.deleteBtn:hover,
+.smallBtn:hover {
 	background-color: #5599ff;
 }
 
-.deleteBtn:active {
+.deleteBtn:active,
+.smallBtn:hover {
 	background-color: #73abff;
+}
+
+
+.deleteBtn {
+	width: 100%;
+	flex-grow: 2;
+	padding: 0.5rem auto;
+}
+
+.plusBtnWrapper {
+	text-align: right;
+	position: relative;
+}
+
+.addAnother {
+	background-color: white;
+	border: 1px solid black;
+	border-radius: 0.4rem;
+	padding: 0.6rem;
+	font-size: 0.85rem;
+	color: black;
+	position: absolute;
+	right: 0%;
+	width: 300px;
+	text-align: left;
+}
+
+.addAnother * {
+	color: black;
+	margin: 0px;
 }
 
 h3 {
@@ -380,6 +497,18 @@ h3 {
 
 .settings p {
 	margin: 0;
+}
+
+.functionHeader {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	margin: 0rem 1rem 0.8rem 1rem;
+	align-items: center;
+}
+
+.functionHeader h3 {
+	margin: 0px;
 }
 
 .baud {
