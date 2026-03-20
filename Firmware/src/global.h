@@ -56,6 +56,7 @@
 #include "inFlightTuning.h"
 #include "modes.h"
 #include "pid.h"
+#include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
 #include "pioasm/halfduplex_uart.pio.h"
 #include "pioasm/uart_rx.pio.h"

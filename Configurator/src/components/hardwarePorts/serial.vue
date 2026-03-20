@@ -139,9 +139,7 @@ function update() {
 					attiQuat.value = quatMultiply(attiQuat.value, diffQuat)
 				}, i * 25)
 			}
-		}).catch(() => {
-			crsfColor.value = 'red'
-		})
+		}).catch(() => { })
 	}
 	if (initialFunctions.value.includes('gps')) {
 		sendCommand(MspFn.GET_GPS_STATUS).then(c => {
@@ -158,9 +156,7 @@ function update() {
 			coords.value[0] = leBytesToInt(d, 0, 4, true) * 1e-7
 			coords.value[1] = leBytesToInt(d, 4, 4, true) * 1e-7
 			coords.value[2] = leBytesToInt(c.data, 8, 4, true) * 1e-3
-		}).catch(() => {
-			gpsColor.value = 'red'
-		})
+		}).catch(() => { })
 	}
 	if (initialFunctions.value.includes('tramp') || initialFunctions.value.includes('smartaudio')) {
 		sendCommand(MspFn.GET_VTX_CONFIG).then(c => {
@@ -266,7 +262,9 @@ function removeFunction(i: number) {
 				<div class="hardwareIcon mspDp" v-if="functions.includes('msp_dp')"></div>
 				<div class="deleteAndInfo">
 					<button class="deleteBtn" @click="del"><i class="fa-solid fa-trash"></i></button>
-					<Tooltip position="bottom-left" :text="tooltipText" style="flex-grow: 1; height: auto;" width="s" />
+					<Tooltip position="bottom-left" style="flex-grow: 1; height: auto;" width="s">
+						{{ tooltipText }}
+					</Tooltip>
 					<div class="plusBtnWrapper" v-if="functions.length >= 1">
 						<button class="smallBtn" @click="addAnother = !addAnother">
 							<i class="fa-solid fa-plus"></i>
@@ -364,7 +362,7 @@ function removeFunction(i: number) {
 		</div>
 		<div v-else>
 			<h3>{{functions.map(f => SERIAL_FUNCTIONS_LUT[f]).join(', ')}}</h3><br>
-			<button class="updateBtn" @click="() => { $emit('update') }">Update and Save</button>
+			<button class="updateBtn" @click="() => { $emit('update') }">Save</button>
 		</div>
 	</div>
 </template>

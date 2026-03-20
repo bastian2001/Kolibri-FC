@@ -2,13 +2,15 @@
 const props = defineProps<{
 	position: 'bottom' | 'top' | 'left' | 'right' | 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right'
 	width?: 's' | 'm' | 'l'
-	text: string
+	tipStyle?: string
 }>()
 </script>
 
 <template>
-	<div class="infoWrapper" v-if="text">
-		<div class="info" :class="{ [position]: true, [width || 'm']: true }">{{ text }}</div>
+	<div class="infoWrapper">
+		<div class="info" :class="{ [position]: true, [width || 'm']: true }" :style="tipStyle || ''">
+			<slot></slot>
+		</div>
 		<p><i class="fa-solid fa-circle-info"></i></p>
 	</div>
 </template>

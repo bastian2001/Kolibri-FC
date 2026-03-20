@@ -55,12 +55,12 @@ export const usePortStore = defineStore("port", () => {
 			pio: boolean[]
 			recommended: boolean
 			allowed: boolean
+			label: string
 			pads: {
 				x: number
 				y: number
 				width: number
 				height: number
-				label: string
 				shape: "oval" | "rect"
 			}[]
 		}[],
@@ -123,25 +123,17 @@ export const usePortStore = defineStore("port", () => {
 				)
 				input.tasks = tasks.map(el => el.program)
 				const distributor = new PioTaskDistributor(input)
-				const result = distributor.distribute()
+				distributor.distribute()
 				// if distribute throws an error, the following part is not reached, so we can add a pio serial to the allowlist now
 				ret.serials.push({ type: "pio", hwParam: 0 }) // dummy hwParam, as it is not used here
-				console.log("Task Distribution with a sample pio uart (Index = Task, Value = PIO Block):")
-				result.forEach((block, task) => {
-					console.log(`Task ${task} (Program ${input.tasks[task]}) -> PIO Block ${block}`)
-				})
 			} catch {}
 			try {
 				const tasks = structuredClone(tasksCur)
 				tasks.push({ forSerial: serials.value.length, program: 2 })
 				input.tasks = tasks.map(el => el.program)
 				const distributor = new PioTaskDistributor(input)
-				const result = distributor.distribute()
+				distributor.distribute()
 				ret.serials.push({ type: "pio-hdx", hwParam: 0 })
-				console.log("Task Distribution with a sample pio hdx (Index = Task, Value = PIO Block):")
-				result.forEach((block, task) => {
-					console.log(`Task ${task} (Program ${input.tasks[task]}) -> PIO Block ${block}`)
-				})
 			} catch {}
 		}
 		return ret
@@ -213,15 +205,10 @@ export const usePortStore = defineStore("port", () => {
 				return false
 			}
 		} else if (type === "uart") {
-			console.log("uart", serialNum, tx, rx)
 			if (serialNum < 0 || serialNum >= hwSerials.value) return false
-			console.log(5)
 			if (serials.value[serialNum].exists) return false
-			console.log(2)
 			if (!pins.value[tx].uartTx[serialNum]) return false
-			console.log(3)
 			if (!pins.value[rx].uartRx[serialNum]) return false
-			console.log(4)
 			const s = serials.value[serialNum]
 			s.baud = 115200
 			s.baudSet = 0

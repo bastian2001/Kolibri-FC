@@ -10,55 +10,50 @@ import { delay, intToLeBytes, leBytesToBigInt, leBytesToInt, runAsync } from '@/
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { Command } from '@/utils/types';
 import { SerialPort, SerialType, usePortStore } from '@/stores/portStore';
+import { useLogStore } from '@/stores/logStore';
 
 const ports = usePortStore()
 
 const { serials, pioSetup, pins } = ports
+const log = useLogStore();
 
-type portType = 'analog-osd' | 'digital-osd' | 'analog-vtx' | 'adc' | 'dshot' | 'elrs' | 'gps' | 'baro' | 'mag' | 'large-fs' | 'ledstrip' | 'speaker' | 'imu'
-type port = {
-	type: portType,
+// // analog OSD status
+// detectedVideoType?: 'pal' | 'ntsc',
 
-	serialBaud: number,
+// // ADC values
+// rawVoltage: number,
+// batVoltage: number,
+// rawCurrent: number,
+// batCurrent: number,
+// cpuTemp: number,
 
-	// analog OSD status
-	detectedVideoType?: 'pal' | 'ntsc',
+// // Baro settings
+// baroModel: number,
+// baroFound: boolean,
+// baroRaw: number,
+// baroAltitude: number,
+// baroUpdateRate: number,
 
-	// ADC values
-	rawVoltage: number,
-	batVoltage: number,
-	rawCurrent: number,
-	batCurrent: number,
-	cpuTemp: number,
+// // Magnetometer settings
+// magMode: number,
+// magFound: boolean,
+// magRaw: number[],
+// magAlignment: number[],
+// magCalibration: number,
+// magCalibrationState: number,
+// magCalibrationTimer: number,
 
-	// Baro settings
-	baroModel: number,
-	baroFound: boolean,
-	baroRaw: number,
-	baroAltitude: number,
-	baroUpdateRate: number,
+// // Large FS info
+// largeFsType: number,
+// largeFsTotalSpace: number,
+// largeFsFreeSpace: number,
 
-	// Magnetometer settings
-	magMode: number,
-	magFound: boolean,
-	magRaw: number[],
-	magAlignment: number[],
-	magCalibration: number,
-	magCalibrationState: number,
-	magCalibrationTimer: number,
+// // LED strip
+// ledColors: number[][],
 
-	// Large FS info
-	largeFsType: number,
-	largeFsTotalSpace: number,
-	largeFsFreeSpace: number,
-
-	// LED strip
-	ledColors: number[][],
-
-	// Speaker
-	speakerSoundFile: string,
-	speakerFrequency: number,
-}
+// // Speaker
+// speakerSoundFile: string,
+// speakerFrequency: number,
 
 
 let exiting = false
@@ -99,9 +94,9 @@ function fetchSetup() {
 	})
 		.then(c => {
 			const d = c.data.slice(1)
-			if (d.length % 6 !== 0) throw ''
-			for (let i = 0; i < d.length / 6; i++) {
-				const funcs = leBytesToBigInt(d, i * 6, 6)
+			if (d.length % 11 !== 0) throw ''
+			for (let i = 0; i < d.length / 11; i++) {
+				const funcs = leBytesToBigInt(d, i * 11, 6)
 				const pin = {
 					hstx: false,
 					spi: false,
@@ -112,7 +107,8 @@ function fetchSetup() {
 					pio: Array(4).fill(false),
 					recommended: false,
 					allowed: false,
-					pads: []
+					label: '',
+					pads: [],
 				}
 				if (funcs & 1n << 0n) pin.hstx = true
 				if (funcs & 1n << 1n) pin.spi = true
@@ -138,6 +134,10 @@ function fetchSetup() {
 				}
 				if (funcs & 1n << 46n) pin.recommended = true
 				if (funcs & 1n << 47n) pin.allowed = true
+				const str = d.slice(i * 11 + 6, i * 11 + 11);
+				let len = str.indexOf(0);
+				if (len === -1) len = 5;
+				pin.label = String.fromCharCode(...str.slice(0, len));
 				pins.push(pin)
 			}
 
@@ -204,6 +204,7 @@ function update() {
 				return sendCommand(MspFn.SAVE_SETTINGS)
 			}
 			else {
+				log.push('Unable to set the serials')
 				console.log('F')
 				return runAsync()
 			}
@@ -271,7 +272,7 @@ onBeforeUnmount(() => {
 		<div class="gridWrapper">
 			<div class="header">
 				<div class="spacer"></div>
-				<button class="updateBtn" @click="update">Update and Save</button>
+				<button class="updateBtn" @click="update">Save</button>
 			</div>
 			<div class="grid">
 				<Imu />

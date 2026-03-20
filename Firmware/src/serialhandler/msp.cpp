@@ -1016,94 +1016,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::GET_IO_CONSTRAINTS: {
 			u8 page = 0;
 			if (reqLen) page = reqPayload[0];
-			switch (page) {
-			case 0: {
-				// page 0: list of pins and their functions
-				buf[0] = page;
-				for (int pin = 0; pin < 30; pin++) {
-					// exactly 6 bytes per pin, describing their capabilities
-					u64 funcs = 0;
-					// 0: HSTX
-					// 1: SPI (irrelevant what exactly)
-					// 2-9: T0/R0/T1/R1...R3 (hardware UART)
-					// 10-15: SDA0/SCL0...SCL2
-					// 16-19: PIO0...PIO3(?)
-					// 20: PWM (exactly how is up to the FC – it may fire an error)
-					// rest: reserved (more UART, PIO, whatever)
-					// 46: recommended for different use (e.g. OSD is not, but could be)
-					// 47: allowed for different use (e.g. gyro is critical => not allowed)
-					if (pin >= 12 && pin < 20) funcs |= 1 << 0;
-					funcs |= 1 << 1; // all pins have something SPI
-					if (pin % 16 == 0 || pin % 16 == 2 || pin % 16 == 12 || pin % 16 == 14) funcs |= 1 << 2;
-					if (pin % 16 == 1 || pin % 16 == 3 || pin % 16 == 13 || pin % 16 == 15) funcs |= 1 << 3;
-					if (pin % 16 == 4 || pin % 16 == 6 || pin % 16 == 8 || pin % 16 == 10) funcs |= 1 << 4;
-					if (pin % 16 == 5 || pin % 16 == 7 || pin % 16 == 9 || pin % 16 == 11) funcs |= 1 << 5;
-					// only 2 HW uarts
-					if (pin % 4 == 0) funcs |= 1 << 10;
-					if (pin % 4 == 1) funcs |= 1 << 11;
-					if (pin % 4 == 2) funcs |= 1 << 12;
-					if (pin % 4 == 3) funcs |= 1 << 13;
-					// only 2 I2Cs
-					funcs |= 1 << 16;
-					funcs |= 1 << 17;
-					funcs |= 1 << 18;
-					// only 3 PIOs
-					funcs |= 1 << 20;
-					funcs |= 1ULL << 46;
-					funcs |= 1ULL << 47;
-					memcpy(&buf[1 + pin * 6], &funcs, 6);
-				}
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1 + 30 * 6);
-			} break;
-			case 1: {
-				int ioMin = page * 32;
-				int ioMax = (page + 1) * 32;
-				buf[len++] = page;
-
-				for (int pin = ioMin; pin < ioMax; pin++) {
-					buf[len++] = pin;
-					buf[len++] = 0; // relative position on board, board side, size, shape, preferred for this pin
-					buf[len++] = 0; // relative position on board, board side, size, shape, preferred for this pin
-					buf[len++] = 0; // relative position on board, board side, size, shape, preferred for this pin
-					buf[len++] = 0; // relative position on board, board side, size, shape, preferred for this pin
-					snprintf(&buf[len], 6, pinLabels[pin]);
-					len += 5;
-				}
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
-			} break;
-			case 2:
-				// no more pages for pads
-				buf[0] = page;
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
-				break;
-			case 10:
-				// page 10: info about possible serial combinations
-				buf[0] = page;
-				buf[1] = NUM_UARTS; // hardware UARTs
-				buf[2] = SERIAL_COUNT - 1; // maximum number of externally available serials (just the software/performance limit part)
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 3);
-				break;
-			case 11:
-				// page 11: PIO parameters: available PIOs and space
-				buf[len++] = page;
-				buf[len++] = PICO_PIO_VERSION;
-				buf[len++] = NUM_PIOS;
-				buf[len++] = halfduplex_uart_program.length;
-				buf[len++] = uart_tx_program.length;
-				buf[len++] = uart_rx_program.length;
-				len = 16; // reserved
-				for (int i = 0; i < NUM_PIOS; i++) {
-					buf[len++] = getFreeSms(i);
-					u32 freeInstructions = getFreeInstructions(i);
-					memcpy(&buf[len], &freeInstructions, 4);
-					len += 4;
-				}
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
-				break;
-			default:
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-				break;
-			}
+			bool suc = sendIoConstraints(page, buf, len);
+			sendMsp(serialNum, suc ? MspMsgType::REQUEST : MspMsgType::ERROR, fn, version, buf, len);
 		} break;
 		case MspFn::GET_SERIAL_SETUP: {
 			for (int i = 1; i < SERIAL_COUNT; i++) {
@@ -1200,17 +1114,11 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 
 				// check pins
 				bool pinok = true;
-				if (i == 0) {
+				if (type == SerialType::UART) {
 					u8 pin = ser[10]; // tx
-					if (pin % 16 != 0 && pin % 16 != 2 && pin % 16 != 12 && pin % 16 != 14) pinok = false;
+					pinok &= pinHasHwUart(pin, hwParam, true);
 					pin = ser[11]; // rx
-					if (pin % 16 != 1 && pin % 16 != 3 && pin % 16 != 13 && pin % 16 != 15) pinok = false;
-				}
-				if (i == 1) {
-					u8 pin = ser[10]; // tx
-					if (pin % 16 != 4 && pin % 16 != 6 && pin % 16 != 8 && pin % 16 != 10) pinok = false;
-					pin = ser[11]; // rx
-					if (pin % 16 != 5 && pin % 16 != 7 && pin % 16 != 9 && pin % 16 != 11) pinok = false;
+					pinok &= pinHasHwUart(pin, hwParam, false);
 				}
 				if (!pinok) {
 					errorMsg += "Serial " + std::to_string(i + 1) + " cannot use one of the provided pins.\n";
@@ -1226,7 +1134,6 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			stopSerials();
 
 			for (int i = 0; i < SERIAL_COUNT - 1; i++) {
-
 				if (i >= totalSerials) {
 					// serial is unconfigured => insert DISABLED
 					newCfgs[i] = {
@@ -1240,8 +1147,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 					continue;
 				}
 
-				const char *ser = &reqPayload[i * 12];
-				if (ser[0] == -1) {
+				const u8 *ser = (const u8 *)&reqPayload[i * 12];
+				if (ser[0] == 255) {
 					// serial is disabled
 					newCfgs[i] = {
 						.type = SerialType::DISABLED,
@@ -1268,6 +1175,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			if (buf[0]) {
 				openSettingsFile();
 				getSetting(SETTING_SERIAL_CONFIGS)->updateSettingInFile();
+			} else {
+				revertSerials();
 			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 		} break;

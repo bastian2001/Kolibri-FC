@@ -26,6 +26,7 @@ typedef struct serialConfig {
 	u32 functions = 0;
 } SerialConfig;
 
+void revertSerials();
 void stopSerials();
 bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]);
 const SerialConfig &getSerialConfig(int i);

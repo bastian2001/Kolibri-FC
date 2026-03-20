@@ -76,6 +76,11 @@ static void setSerialDefaults() {
 	}
 }
 
+void revertSerials() {
+	stopSerials();
+	startSerials(&serialConfigs[1]);
+}
+
 bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 	bool success = true;
 	u8 elrsSerial = 0;
@@ -87,9 +92,6 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 		SerialConfig &cfg = newCfgs[i];
 		switch (cfg.type) {
 		case SerialType::UART: {
-			Serial.printf("Serial %d, Type %d, params %d %d %d\n", i + 1, (u8)cfg.type, cfg.hwParam);
-			Serial.flush();
-			sleep_ms(10);
 			SerialUART *ser = getSerial(cfg.hwParam);
 			if (ser == nullptr) {
 				success = false;
@@ -98,9 +100,6 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 			serials[i + 1].emplace(ser, 2048);
 		} break;
 		case SerialType::PIO: {
-			Serial.printf("Serial %d, Type %d, params %d %d %d %d\n", i + 1, (u8)cfg.type, cfg.hwParam & 0xF, cfg.hwParam >> 4);
-			Serial.flush();
-			sleep_ms(10);
 			if ((cfg.hwParam & 0xF) >= NUM_PIOS || (cfg.hwParam >> 4) >= NUM_PIOS) {
 				success = false;
 				break;
@@ -112,9 +111,6 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 			serials[i + 1].emplace(pioTx, pioRx, -1, -1, 2048);
 		} break;
 		case SerialType::PIO_HDX: {
-			Serial.printf("Serial %d, Type %d, params %d %d %d\n", i + 1, (u8)cfg.type, cfg.hwParam);
-			Serial.flush();
-			sleep_ms(10);
 			if (cfg.hwParam >= NUM_PIOS) {
 				success = false;
 				break;
@@ -123,9 +119,6 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 			serials[i + 1].emplace(pio, -1, 2048);
 		} break;
 		case SerialType::DISABLED:
-			Serial.printf("Serial %d, Type %d, params %d %d\n", i + 1, (u8)cfg.type);
-			Serial.flush();
-			sleep_ms(10);
 			continue;
 		default:
 			success = false;
@@ -166,6 +159,11 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 			baud = 115200;
 		}
 		if (cfg.baud) baud = cfg.baud;
+
+		if (!pinIsAllowed(cfg.txPin) || !pinIsAllowed(cfg.rxPin)) {
+			success = false;
+			break;
+		}
 
 		serial.setPinout(cfg.txPin, cfg.rxPin);
 		serial.setRxFifoSize(rxFifo);

@@ -129,33 +129,53 @@ const disabled = computed(() => {
 			<select name="hdxPin" v-if="newPortType.startsWith('pio-hdx')" v-model="hdxPin">
 				<option disabled="true" value="-1">RX&TX Pin</option>
 				<template v-for="p of pioPins">
-					<option :value="p">{{ p }}</option>
+					<option :value="p">
+						{{ p }}
+						<template v-if="!ports.pins[p].recommended">(NR)</template>
+						({{ ports.pins[p].label }})
+					</option>
 				</template>
 			</select>
 			<select name="txPin" v-if="newPortType.startsWith('pio') && !newPortType.startsWith('pio-hdx')"
 				v-model="txPin">
 				<option disabled="true" value="-1">TX Pin</option>
 				<template v-for="p of pioPins">
-					<option :value="p">{{ p }}</option>
+					<option :value="p">
+						{{ p }}
+						<template v-if="!ports.pins[p].recommended">(NR)</template>
+						({{ ports.pins[p].label }})
+					</option>
 				</template>
 			</select>
 			<select name="rxPin" v-if="newPortType.startsWith('pio') && !newPortType.startsWith('pio-hdx')"
 				v-model="rxPin">
 				<option disabled="true" value="-1">RX Pin</option>
 				<template v-for="p of pioPins">
-					<option :value="p">{{ p }}</option>
+					<option :value="p">
+						{{ p }}
+						<template v-if="!ports.pins[p].recommended">(NR)</template>
+						({{ ports.pins[p].label }})
+					</option>
 				</template>
 			</select>
 			<select name="txPin" v-if="newPortType.startsWith('uart')" v-model="txPin">
 				<option disabled="true" value="-1">TX Pin</option>
 				<template v-for="p of txPins">
-					<option :value="p">{{ p }}</option>
+					<option :value="p">
+						{{ p }}
+						<template v-if="!ports.pins[p].recommended">(NR)</template>
+						({{ ports.pins[p].label }})
+					</option>
 				</template>
 			</select>
 			<select name="rxPin" v-if="newPortType.startsWith('uart')" v-model="rxPin">
 				<option disabled="true" value="-1">RX Pin</option>
 				<template v-for="p of rxPins">
-					<option :value="p">{{ p }}</option>
+					<option :value="p">
+						{{ p }}
+						<template v-if="!ports.pins[p].recommended">(NR)</template>
+						({{ ports.pins[p].label }})
+					</option>
 				</template>
 			</select>
 			<button @click="addPort" :disabled="disabled">Add Port</button>
