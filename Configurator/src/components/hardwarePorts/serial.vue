@@ -364,7 +364,7 @@ function removeFunction(i: number) {
 		</div>
 		<div v-else>
 			<h3>{{functions.map(f => SERIAL_FUNCTIONS_LUT[f]).join(', ')}}</h3><br>
-			<button class="updateBtn" @click="() => { $emit('update') }">Update</button>
+			<button class="updateBtn" @click="() => { $emit('update') }">Update and Save</button>
 		</div>
 	</div>
 </template>

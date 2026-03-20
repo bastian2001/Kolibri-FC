@@ -15,12 +15,12 @@ char const serialFunctionNames[SERIAL_FUNCTION_COUNT][20] = {
 
 std::optional<KoliSerial> serials[SERIAL_COUNT];
 static SerialConfig serialConfigs[SERIAL_COUNT] = {};
+static u32 serialConfigsSettings[SERIAL_COUNT - 1][6] = {};
 static u8 currentSerial = 0;
 static u32 freeInstructions[NUM_PIOS] = {}; // we need to copy it manually, because the variable is static
 static u8 freeSms[NUM_PIOS] = {};
 
 void stopSerials() {
-	// TODO tell ELRS and so on that the serial no longer exists
 	elrs.reset();
 	setGpsSerial(nullptr);
 	end4Way();
@@ -36,6 +36,44 @@ static SerialUART *getSerial(int i) {
 	if (i == 0) return &Serial1;
 	if (i == 1) return &Serial2;
 	return nullptr;
+}
+
+static void settingsToConfigs(SerialConfig cfgs[SERIAL_COUNT - 1]) {
+	for (int i = 0; i < SERIAL_COUNT - 1; i++) {
+		SerialConfig &cfg = cfgs[i];
+		u32 *setting = serialConfigsSettings[i];
+		cfg.type = (SerialType)setting[0];
+		cfg.hwParam = setting[1];
+		cfg.txPin = setting[2];
+		cfg.rxPin = setting[3];
+		cfg.baud = setting[4];
+		cfg.functions = setting[5];
+	}
+}
+
+static void configsToSettings(const SerialConfig cfgs[SERIAL_COUNT - 1]) {
+	for (int i = 0; i < SERIAL_COUNT - 1; i++) {
+		const SerialConfig &cfg = cfgs[i];
+		u32 *setting = serialConfigsSettings[i];
+		setting[0] = (u32)cfg.type;
+		setting[1] = cfg.hwParam;
+		setting[2] = cfg.txPin;
+		setting[3] = cfg.rxPin;
+		setting[4] = cfg.baud;
+		setting[5] = cfg.functions;
+	}
+}
+
+static void setSerialDefaults() {
+	for (int i = 0; i < SERIAL_COUNT - 1; i++) {
+		u32 *setting = serialConfigsSettings[i];
+		setting[0] = 255;
+		setting[1] = 0;
+		setting[2] = 255;
+		setting[3] = 255;
+		setting[4] = 0;
+		setting[5] = 0;
+	}
 }
 
 bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
@@ -101,30 +139,30 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 		u16 config = SERIAL_8N1;
 
 		if (serial.functions & SERIAL_CRSF) {
-			rxFifo = 256;
+			if (rxFifo < 256) rxFifo = 256;
 			baud = 420000;
 			elrsSerial = i + 1;
 		} else if (serial.functions & SERIAL_MSP) {
-			rxFifo = 256;
+			if (rxFifo < 256) rxFifo = 256;
 		} else if (serial.functions & SERIAL_GPS) {
-			rxFifo = GPS_BUF_LEN;
+			if (rxFifo < GPS_BUF_LEN) rxFifo = GPS_BUF_LEN;
 			baud = 38400;
 			gpsSerial = &serial;
 		} else if (serial.functions & SERIAL_4WAY_HOST) {
-			rxFifo = 256;
+			if (rxFifo < 256) rxFifo = 256;
 		} else if (serial.functions & SERIAL_IRC_TRAMP) {
-			rxFifo = 32;
+			if (rxFifo < 32) rxFifo = 32;
 			baud = 9600;
 			trampSerial = &serial;
 		} else if (serial.functions & SERIAL_SMARTAUDIO) {
 			config = SERIAL_8N2;
-			rxFifo = 32;
+			if (rxFifo < 32) rxFifo = 32;
 			baud = 4800;
 		} else if (serial.functions & SERIAL_ESC_TELEM) {
-			rxFifo = 64;
+			if (rxFifo < 64) rxFifo = 64;
 			baud = 115200;
 		} else if (serial.functions & SERIAL_MSP_DISPLAYPORT) {
-			rxFifo = 256;
+			if (rxFifo < 256) rxFifo = 256;
 			baud = 115200;
 		}
 		if (cfg.baud) baud = cfg.baud;
@@ -150,6 +188,8 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 	for (int i = 0; i < SERIAL_COUNT - 1; i++) {
 		serialConfigs[i + 1] = newCfgs[i];
 	}
+
+	configsToSettings(&serialConfigs[1]);
 
 	KoliSerial::sinceReset = 0;
 	return true;
@@ -177,6 +217,8 @@ u32 getFreeInstructions(int pioNum) { return freeInstructions[pioNum]; }
 u8 getFreeSms(int pioNum) { return freeSms[pioNum]; }
 
 void initSerial() {
+	addArraySetting(SETTING_SERIAL_CONFIGS, serialConfigsSettings, &setSerialDefaults);
+
 	for (u32 i = 0; i < 256; i++) {
 		u32 crc = i;
 		for (u32 j = 0; j < 8; j++) {
@@ -208,12 +250,8 @@ void initSerial() {
 		.functions = SERIAL_MSP,
 	};
 
-	SerialConfig cfgs[SERIAL_COUNT - 1] = {
-		// {SerialType::DISABLED, 0, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
-		// {SerialType::UART, 1, PIN_TX1, PIN_RX1, 0, SERIAL_GPS},
-		// {SerialType::PIO, (2 << 4) | 2, PIN_TX0, PIN_RX0, 0, SERIAL_CRSF},
-		// {SerialType::PIO_HDX, 2, PIN_TX2, PIN_RX2, 0, SERIAL_IRC_TRAMP},
-	};
+	SerialConfig cfgs[SERIAL_COUNT - 1];
+	settingsToConfigs(cfgs);
 
 	startSerials(cfgs);
 }

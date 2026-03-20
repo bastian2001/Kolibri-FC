@@ -6,7 +6,7 @@ import AddPort from '@components/hardwarePorts/addPort.vue'
 import Serial from '@components/hardwarePorts/serial.vue'
 import { onConnectHandler, sendCommand } from '@/msp/comm';
 import { MspFn } from '@/msp/protocol';
-import { delay, intToLeBytes, leBytesToBigInt, leBytesToInt } from '@/utils/utils';
+import { delay, intToLeBytes, leBytesToBigInt, leBytesToInt, runAsync } from '@/utils/utils';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { Command } from '@/utils/types';
 import { SerialPort, SerialType, usePortStore } from '@/stores/portStore';
@@ -198,9 +198,16 @@ function update() {
 		data.push(ser.rxPin)
 	})
 	sendCommand(MspFn.SET_SERIAL_SETUP, data)
-		.then(c => {
-			if (c.data[0]) console.log('success')
-			else console.log('F')
+		.then((c): Promise<any> => {
+			if (c.data[0]) {
+				console.log('success')
+				return sendCommand(MspFn.SAVE_SETTINGS)
+			}
+			else {
+				console.log('F')
+				return runAsync()
+			}
+		}).then(() => {
 			return sendCommand(MspFn.GET_SERIAL_SETUP)
 		}).then(onGetSerialSetup)
 }
@@ -264,7 +271,7 @@ onBeforeUnmount(() => {
 		<div class="gridWrapper">
 			<div class="header">
 				<div class="spacer"></div>
-				<button class="updateBtn" @click="update">Update</button>
+				<button class="updateBtn" @click="update">Update and Save</button>
 			</div>
 			<div class="grid">
 				<Imu />

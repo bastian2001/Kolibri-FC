@@ -1131,7 +1131,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::SET_SERIAL_SETUP: {
 			// check new config options for validity
-			// 0: serial type (-1 = disabled)
+			// 0: serial type (255 = disabled)
 			// 1: special hw info (pio index, serial number)
 			// 2-5: baudrate
 			// 6-9: functions
@@ -1265,6 +1265,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 
 			buf[0] = startSerials(newCfgs);
+			if (buf[0]) {
+				openSettingsFile();
+				getSetting(SETTING_SERIAL_CONFIGS)->updateSettingInFile();
+			}
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 		} break;
 		case MspFn::GET_TZ_OFFSET: {
