@@ -224,7 +224,7 @@ export default defineComponent({
 	min-width: 200px;
 }
 
-button,
+button:not(.defaultBtn),
 input {
 	color: black;
 }

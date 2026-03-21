@@ -256,12 +256,14 @@ export default defineComponent({
 						{{ s.name }}
 					</option>
 				</select>
-				<button class="del" @click="delTrace(index)"><i class="fa-solid fa-trash"></i></button>
+				<button class="defaultBtn small red" @click="delTrace(index)"><i class="fa-solid fa-trash"></i></button>
 			</div>
+			<button @click="addTrace" class="defaultBtn medium plusBtn"><i class="fa-solid fa-plus"></i></button>
 			<div class="buttons">
-				<button @click="addTrace" class="graphButton"><i class="fa-solid fa-plus"></i></button>
-				<button @click="maximize" class="graphButton"><i class="fa-solid fa-arrows-left-right"></i></button>
-				<button @click="delGraph" class="graphButton" @mouseenter="() => { lowOpacity = true }"
+				<button @click="maximize" class="defaultBtn medium">
+					<i class="fa-solid fa-arrows-left-right"></i>
+				</button>
+				<button @click="delGraph" class="defaultBtn medium red" @mouseenter="() => { lowOpacity = true }"
 					@mouseleave="() => { lowOpacity = false }"><i class="fa-solid fa-trash"></i></button>
 			</div>
 		</div>
@@ -303,7 +305,7 @@ export default defineComponent({
 
 .setup {
 	height: 12rem;
-	width: 12rem;
+	width: 13rem;
 	overflow-y: auto;
 }
 
@@ -326,24 +328,20 @@ option {
 	color: black;
 }
 
-button.graphButton {
-	padding: 0.5rem 0.5rem;
-	margin: .5rem;
-	background-color: var(--accent-blue);
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	display: inline-block;
+.buttons {
+	display: flex;
+	flex-direction: row;
+	gap: 1rem;
+	margin-top: .3rem;
 }
 
-button.del {
-	margin-left: 0.5rem;
-	padding: 0.3rem;
-	background-color: var(--accent-blue);
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
+.buttons button {
+	flex-grow: 1;
+}
+
+.plusBtn {
+	width: 100%;
+	margin: .6rem 0px;
+	padding: 4px 7px 3px 7px;
 }
 </style>

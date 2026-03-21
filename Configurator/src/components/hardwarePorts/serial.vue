@@ -261,12 +261,12 @@ function removeFunction(i: number) {
 				<div class="hardwareIcon escTelem" v-if="functions.includes('esc_telem')"></div>
 				<div class="hardwareIcon mspDp" v-if="functions.includes('msp_dp')"></div>
 				<div class="deleteAndInfo">
-					<button class="deleteBtn" @click="del"><i class="fa-solid fa-trash"></i></button>
+					<button class="defaultBtn deleteBtn red" @click="del"><i class="fa-solid fa-trash"></i></button>
 					<Tooltip position="bottom-left" style="flex-grow: 1; height: auto;" width="s">
 						{{ tooltipText }}
 					</Tooltip>
 					<div class="plusBtnWrapper" v-if="functions.length >= 1">
-						<button class="smallBtn" @click="addAnother = !addAnother">
+						<button class="defaultBtn small plusBtn" @click="addAnother = !addAnother">
 							<i class="fa-solid fa-plus"></i>
 						</button>
 						<div class="addAnother" v-if="addAnother">
@@ -302,7 +302,7 @@ function removeFunction(i: number) {
 			<div class="crsfOptions" v-if="functions.includes('crsf') && initialFunctions.includes('crsf')">
 				<div class="functionHeader">
 					<h3>CRSF Receiver</h3>
-					<button class="smallBtn" @click="() => { removeFunction(0) }">Remove Function</button>
+					<button class="defaultBtn small red" @click="() => { removeFunction(0) }">Remove Function</button>
 				</div>
 				<p>{{ rxFound ? ('RX found' + (txFound ? ' and connected to TX' : ', but not connected to TX'))
 					: 'No RX found' }}</p>
@@ -312,7 +312,7 @@ function removeFunction(i: number) {
 			<div class="gpsOptions" v-if="functions.includes('gps') && initialFunctions.includes('gps')">
 				<div class="functionHeader">
 					<h3>GPS (UBlox)</h3>
-					<button class="smallBtn" @click="() => { removeFunction(2) }">Remove Function</button>
+					<button class="defaultBtn small red" @click="() => { removeFunction(2) }">Remove Function</button>
 				</div>
 				<p>GPS module{{ gpsFound ? ' ' : ' not ' }}found</p>
 				<p>Fix: {{ FIX_TYPES[gpsFix] }}
@@ -330,11 +330,11 @@ function removeFunction(i: number) {
 				<div class="functionHeader"
 					v-if="functions.includes('smartaudio') && initialFunctions.includes('smartaudio')">
 					<h3>VTX (SmartAudio)</h3>
-					<button class="smallBtn" @click="() => { removeFunction(5) }">Remove Function</button>
+					<button class="defaultBtn small red" @click="() => { removeFunction(5) }">Remove Function</button>
 				</div>
 				<div class="functionHeader" v-if="functions.includes('tramp') && initialFunctions.includes('tramp')">
 					<h3>VTX (Tramp)</h3>
-					<button class="smallBtn" @click="() => { removeFunction(4) }">Remove Function</button>
+					<button class="defaultBtn small red" @click="() => { removeFunction(4) }">Remove Function</button>
 				</div>
 				<p>
 					Status: {{ VTX_STATUS_NAMES[vtxStatus] }}<br>
@@ -369,7 +369,7 @@ function removeFunction(i: number) {
 
 <style scoped>
 select,
-button {
+button:not(.defaultBtn) {
 	color: black;
 }
 
@@ -423,38 +423,17 @@ button {
 	gap: 0.5rem;
 }
 
-.deleteBtn,
-.smallBtn {
-	box-sizing: border-box;
-	background-color: var(--accent-blue);
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	display: inline-block;
-	transition: all 0.2s ease-out;
-}
-
-.deleteBtn:hover,
-.smallBtn:hover {
-	background-color: #5599ff;
-}
-
-.deleteBtn:active,
-.smallBtn:hover {
-	background-color: #73abff;
-}
-
-
 .deleteBtn {
 	width: 100%;
 	flex-grow: 2;
-	padding: 0.5rem auto;
+	margin: 0px;
+	padding: 4px 0px 3px 0px;
 }
 
 .plusBtnWrapper {
 	text-align: right;
 	position: relative;
+	flex-grow: 0;
 }
 
 .addAnother {
