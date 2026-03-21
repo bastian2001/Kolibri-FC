@@ -217,7 +217,7 @@ export default defineComponent({
 				}">
 			</SensorGraph>
 			<div class="buttonWrapper">
-				<button @click="addGraph">Add</button>
+				<button @click="addGraph" class="defaultBtn">Add</button>
 			</div>
 		</div>
 	</div>
@@ -233,17 +233,6 @@ export default defineComponent({
 p {
 	display: inline-block;
 	margin: .5rem 1rem;
-}
-
-button {
-	margin: 1rem;
-	padding: 1rem 2rem;
-	background-color: #007BFF;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	display: inline;
 }
 
 .all {
