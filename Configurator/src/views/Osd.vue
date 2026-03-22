@@ -4,36 +4,43 @@ import { MspFn } from "@/msp/protocol";
 import { computed, onMounted, ref, useTemplateRef } from "vue";
 import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
+import TextCanvas from "@/components/TextCanvas.vue";
 
 const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
 const log = useLogStore();
 const charsDone = ref(0);
-const dragging = ref('' as '' | 'new' | 'move');
+const dragging = ref('none' as 'none' | 'copy' | 'move');
+const draggingId = ref(0);
 const filter = ref('');
-const rows = ref(13)
+const rows = ref(13);
 const cols = ref(30);
 
-const charCanvases: HTMLCanvasElement[] = []
-const osdCanvas = useTemplateRef('osdCanvas')
-const draggerCanvas = useTemplateRef('draggerCanvas')
+const charCanvases: HTMLCanvasElement[] = [];
+const draggerCanvas = useTemplateRef('draggerCanvas');
+const dragCanvasCols = ref(0);
+const draggingRow = ref(0);
+const draggingCol = ref(0);
+const dragText = ref('')
+let grabbedChar = 0;
+const previewImage = useTemplateRef('previewImage')
 
 type OsdElement = {
 	name: string,
 	len: number,
 	def: string,
-	options?: string[],
+	options?: { [key: string]: string },
 }
 const OSD_LIST: OsdElement[] = [
-	{ name: 'Test 1', len: 10, def: 'HELLOWORLD' },
+	{ name: 'Test 1', len: 10, def: 'option 1', options: { 'option 1': 'WHAT YOU\'RE', 'option 2': 'REFERRING TO AS', 'option 3': 'LINUX', 'option 4': 'IS IN FACT', 'option 5': 'GNU/LINUX' } },
 	{ name: 'Lorem', len: 3, def: 'BYEWORLD' },
-	{ name: 'Ipsum', len: 16, def: 'HELLOWORLD' },
-	{ name: 'dolor', len: 8, def: 'HELLOWORLD' },
-	{ name: 'sit amet.', len: 2, def: 'HELLOWORLD' },
+	{ name: 'Ipsum', len: 16, def: 'ITSAMI' },
+	{ name: 'dolor', len: 8, def: 'MAAARIO' },
+	{ name: 'sit amet.', len: 2, def: '22.6\u0006' },
 	{ name: 'Hwllo.', len: 2, def: 'HELLOWORLD' },
 	{ name: 'world', len: 2, def: 'HELLOWORLD' },
 	{ name: 'what the fuck', len: 2, def: 'HELLOWORLD' },
-	{ name: 'is going on', len: 2, def: 'HELLOWORLD' },
+	{ name: 'is going on', len: 2, def: 'I use Arch btw', options: { 'I use Arch btw': 'NEIN MANN', 'actually I don\'t': 'ICH WILL NOCH NICHT GEHEN', 'sudo rm -rf --no-preserve-root': 'ICH WILL NOCH EIN', 'Microslop sucks': 'BISSCHEN TANZEN' } },
 	{ name: 'Hello', len: 2, def: 'HELLOWORLD' },
 	{ name: 'it\'s me', len: 2, def: 'HELLOWORLD' },
 	{ name: 'Never gonna', len: 2, def: 'HELLOWORLD' },
@@ -47,6 +54,20 @@ const OSD_LIST: OsdElement[] = [
 	{ name: 'LQI? nah', len: 2, def: 'HELLOWORLD' },
 	{ name: 'badumm tss.', len: 2, def: 'HELLOWORLD' },
 ]
+
+type OsdPlacement = {
+	id: number,
+	posX: number,
+	posY: number,
+	option: string,
+};
+const activeElements = ref([
+	{ id: 1, posX: 10, posY: 3 },
+	{ id: 2, posX: 11, posY: 4 },
+	{ id: 3, posX: 3, posY: 5 },
+	{ id: 4, posX: 0, posY: 3 },
+	{ id: 5, posX: 10, posY: 2 },
+] as OsdPlacement[])
 
 const filteredList = computed(() => {
 	return OSD_LIST.filter(s => s.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase()));
@@ -114,41 +135,67 @@ function createCanvases() {
 	}
 }
 
-function dragStart(el: OsdElement, event: DragEvent) {
-	const canvas = draggerCanvas.value;
-	if (!canvas) return;
-	canvas.width = 48 * el.def.length;
-	canvas.height = 72;
-	const ctx = canvas.getContext('2d');
-	if (!ctx) return;
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	for (let i = 0; i < el.def.length; i++) {
-		ctx.drawImage(charCanvases[el.def.charCodeAt(i)], 48 * i, 0);
+function dragStart(el: OsdElement, event: DragEvent, type: 'copy' | 'move', gChar = 0, text = '') {
+	if (type === 'copy') {
+		if (!event.dataTransfer) return;
+		event.dataTransfer.setData('text/plain', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+		event.dataTransfer.effectAllowed = type;
+
+		const canvas = draggerCanvas.value;
+		if (!canvas) return;
+		let t = text || el.def
+		if (el.options && !text) t = el.options[el.def]
+		canvas.width = 48 * t.length;
+		dragCanvasCols.value = t.length;
+		dragText.value = t
+		canvas.height = 72;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		for (let i = 0; i < t.length; i++) {
+			ctx.drawImage(charCanvases[t.charCodeAt(i)], 48 * i, 0);
+		}
+		if (!previewImage.value) return;
+		const box = previewImage.value.getBoundingClientRect();
+		const cWidth = box.width / cols.value;
+		const cHeight = box.height / rows.value;
+		event.dataTransfer.setDragImage(canvas, cWidth * (gChar + 1 / 2), cHeight / 2);
+	} else {
+		dragText.value = text
 	}
-	if (!event.dataTransfer) return;
-	event.dataTransfer.setData('text/plain', 'dummy');
-	event.dataTransfer.setDragImage(canvas, 24, 36);
-	event.dataTransfer.effectAllowed = 'copy'
+
+	dragging.value = type
+	grabbedChar = gChar
+	draggingId.value = OSD_LIST.indexOf(el)
 }
 function dragEnd(event: DragEvent) {
 	event.preventDefault();
-	const ctx = osdCanvas.value?.getContext('2d')
-	if (!ctx || !draggerCanvas.value) return;
+	dragging.value = 'none'
 }
 const dragover = (event: DragEvent) => {
-	console.log('dragover')
 	event.preventDefault();
 	if (!event.dataTransfer) return;
-	event.dataTransfer.dropEffect = 'copy'
-	console.log(event.pageX, event.x, event.layerX, event.clientX, event.offsetX, event.screenX, event.movementX)
+	event.dataTransfer.dropEffect = dragging.value;
+
+	if (!previewImage.value || draggingId.value === -1 || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
+	const box = previewImage.value.getBoundingClientRect();
+	draggingRow.value = Math.floor(event.offsetY / box.height * rows.value);
+	draggingCol.value = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
 }
 function dropped(event: DragEvent) {
 	event.preventDefault();
-	if (!osdCanvas.value || !draggerCanvas.value) return;
-	const box = osdCanvas.value.getBoundingClientRect();
-	const ctx = osdCanvas.value.getContext('2d');
-	if (!ctx) return;
-	ctx.drawImage(draggerCanvas.value, event.offsetX * 1600 / box.width, event.offsetY * 900 / box.height);
+	if (!previewImage.value || draggingId.value === -1 || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
+	const box = previewImage.value.getBoundingClientRect();
+	const row = Math.floor(event.offsetY / box.height * rows.value);
+	const col = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
+	const el = activeElements.value.find(ae => ae.id === draggingId.value);
+	const osdEl = OSD_LIST[draggingId.value]
+	if (el) {
+		el.posX = col;
+		el.posY = row;
+	} else {
+		activeElements.value.push({ id: draggingId.value, posX: col, posY: row, option: osdEl.def });
+	}
 }
 
 onMounted(() => {
@@ -170,27 +217,54 @@ onMounted(() => {
 <template>
 	<div class="wrapper">
 		<div class="osdListWrapper">
+			<div class="activeElements" v-if="activeElements.length">
+				<h3>Enabled OSD Elements</h3>
+				<div class="activeElement" v-for="el in activeElements">
+					<div class="activeLeft">
+						<p>{{ OSD_LIST[el.id].name }}</p>
+						<div class="options" v-if="OSD_LIST[el.id].options">
+							<select v-model="el.option">
+								<option v-for="(_, i) in OSD_LIST[el.id].options" :value="i">{{ i }}</option>
+							</select>
+						</div>
+					</div>
+					<button class="defaultBtn red small"
+						@click="() => { activeElements.splice(activeElements.indexOf(el), 1) }">
+						<i class="fa-solid fa-trash"></i>
+					</button>
+				</div>
+			</div>
 			<div class="osdSearch">
 				<input type="text" v-model="filter" placeholder="Filter">
 			</div>
-			<div class="osdList" v-if="dragging !== 'move'">
-				<div class="listElem" v-for="el in filteredList" draggable="true"
-					@dragstart="(event) => { dragStart(el, event) }" @dragend="dragEnd">
+			<div class="osdList">
+				<div class="listElem"
+					v-for="el in filteredList.filter((_, i) => activeElements.findIndex(el => el.id === i) === -1)"
+					draggable="true" @dragstart="(event) => { dragStart(el, event, 'copy') }" @dragend="dragEnd">
 					<p><i class="fa-solid fa-arrow-pointer"></i> {{ el.name }}</p>
 				</div>
 			</div>
-			<div class="trash" v-else></div>
+			<div class="trash" v-if="dragging === 'move'"></div>
 		</div>
 		<div class="line"></div>
 		<div class="previewWrapper">
 			<div class="preview">
-				<div class="previewImage" @drop="dropped" @dragover="dragover">
-					<div class="grid" :style="`display: ${dragging === '' ? 'none' : 'block'}`">
+				<div class="previewImage" @drop="dropped" @dragover="dragover" ref="previewImage">
+					<img src="@assets/DJI_0124.JPG">
+					<div class="grid" :style="`display: ${dragging === 'none' ? 'none' : 'block'}`">
 						<div class="hline" v-for="i in (rows - 1)" :style="`top: ${100 * i / rows}%`"></div>
 						<div class="vline" v-for="i in (cols - 1)" :style="`left: ${100 * i / cols}%`"></div>
 					</div>
-					<canvas class="draggerCanvas" ref="draggerCanvas"></canvas>
-					<canvas ref="osdCanvas" class="osdCanvas" width="1600" height="900"></canvas>
+					<canvas class="draggerCanvas" ref="draggerCanvas"
+						:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 / rows}%;`"></canvas>
+					<TextCanvas v-for="el in activeElements"
+						:opacity="(el.id === draggingId && dragging !== 'none') ? 0 : 1" :key="el.id"
+						:text="OSD_LIST[el.id].options ? OSD_LIST[el.id].options![el.option] : OSD_LIST[el.id].def"
+						:rows="rows" :cols="cols" :row="el.posY" :col="el.posX" :chars="charCanvases"
+						@dragstart="(event, grabbedChar, text) => { dragStart(OSD_LIST[el.id], event, 'move', grabbedChar, text) }"
+						:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd" />
+					<TextCanvas v-if="dragging !== 'none'" :opacity="0.5" :rows="rows" :cols="cols"
+						:chars="charCanvases" :text="dragText" :row="draggingRow" :col="draggingCol" :poiev="'none'" />
 				</div>
 			</div>
 		</div>
@@ -202,7 +276,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
-input {
+input,
+textarea,
+button:not(.defaultBtn),
+select {
 	color: black;
 }
 
@@ -220,6 +297,35 @@ input {
 	border: 3px solid;
 	border-color: var(--border-color);
 	flex-grow: 1;
+}
+
+.activeElements {
+	padding: .6rem;
+	border-radius: .6rem;
+	box-shadow: 1px 1px 5px 0px black;
+	background-color: var(--background-highlight);
+}
+
+.activeElements h3 {
+	margin: .2rem 0px .4rem 0px;
+}
+
+.activeElement {
+	display: flex;
+	align-items: center;
+	padding: .3rem .3rem .4rem .3rem;
+}
+
+.activeElement:not(:last-child) {
+	border-bottom: 1px solid var(--border-color);
+}
+
+.activeLeft {
+	flex-grow: 1;
+}
+
+.activeLeft p {
+	margin: 0px;
 }
 
 .listElem {
@@ -248,6 +354,7 @@ input {
 .previewImage {
 	position: relative;
 	aspect-ratio: 16/9;
+	overflow: hidden;
 	min-width: 500px;
 	max-height: 70vh;
 	background-image: url('/src/assets/DJI_0124.JPG');
@@ -255,6 +362,14 @@ input {
 	background-repeat: no-repeat;
 	background-size: cover;
 	margin: 0px auto;
+}
+
+.previewImage img {
+	width: 100%;
+	height: auto;
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
 }
 
 .grid {
@@ -266,19 +381,21 @@ input {
 .hline {
 	height: 1px;
 	width: 100%;
-	background-color: grey;
+	background-color: lightgrey;
 	position: absolute;
+	pointer-events: none;
 }
 
 .vline {
 	width: 1px;
 	height: 100%;
-	background-color: grey;
+	background-color: lightgrey;
 	position: absolute;
+	pointer-events: none;
 }
 
 .draggerCanvas {
-	/* hide it away, but it needs to be in the DOM and technically on-screen to be used */
+	/* hide it away, but it needs to be in the DOM and on-screen to be used */
 	position: absolute;
 	bottom: 0px;
 	z-index: -1;
