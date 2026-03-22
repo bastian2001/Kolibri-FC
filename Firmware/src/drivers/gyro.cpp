@@ -3,28 +3,55 @@
 // driver for the BMI270 IMU https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf
 // and ICM-42688-P https://invensense.tdk.com/wp-content/uploads/2020/04/ds-000347_icm-42688-p-datasheet.pdf
 
+// gyro calibration procedure
+static volatile bool calibrateGyro = false;
 static u32 gyroCalibratedCycles = 0; // counts up the cycles for the gyro calibration, calibration is done if the value is 2000
-static i16 bmiCalibrationOffset[6] __attribute__((aligned(4))) = {0};
-static i16 *gyroCalibrationOffset = bmiCalibrationOffset + 3; // offset that gets subtracted from the gyro values
-static i16 *accelCalibrationOffset = bmiCalibrationOffset; // offset that gets subtracted from the accelerometer values
-static i32 gyroCalibrationOffsetTemp[3] = {0}; // temporary offset that gets added to the gyro values during calibration
-static i32 accelCalibrationOffsetTemp[3] = {0};
-static u16 accelCalibrationCycles = 0; // counts down the cycles for the accelerometer calibration, calibration is done if the value is 0
+static i32 gyroCalibrationOffsetTemp[3] = {}; // temporary offset that gets added to the gyro values during calibration
+// accel calibration procedure
+static volatile bool calibrateAccel = false;
+volatile u8 accelCalState = 0;
+volatile bool accelCalDone = false;
+static u16 accelCalibratedCycles = 0; // counts up the cycles for the accel calibration, calibration is done if the value is 2000
+static i32 accelCalibrationOffsetTemp[3] = {};
+// imu alignment procedure
+static volatile bool alignImu = false;
+volatile u8 imuAlignmentStep = 0;
+volatile bool imuAlignmentDone = false;
+volatile i16 imuAlignmentCounter = 0;
 
-static volatile i16 agDataRaw[6] __attribute__((aligned(4))) = {0};
-volatile i16 *gyroDataRaw = agDataRaw + 3;
-volatile i16 *accelDataRaw = agDataRaw;
+static u8 imuAlignment[3] = {0, 2, 4}; // +-X, +-Y, +-Z
 
+// calibration offset
+static i32 gyroCalibrationOffset[3]; // offset that gets subtracted from the gyro values
+static i32 accelCalibrationOffset[3]; // offset that gets subtracted from the accelerometer values
+static i32 accelCalibrationOffsetBackup[3];
+
+// IMU raw data and their copies
+static volatile i16 agDataRaw[6] __attribute__((aligned(4))) = {}; // raw register reads
+static i32 gyroDataRaw[3]; // after applying offset, but no scaling/filtering etc.
+static i32 accelDataRaw[3]; // after applying offset, but no scaling/filtering etc.
+static mutex_t agDataRawAccess;
+
+// Data
+i32 gyroAligned[3];
+fix32 gyroScaled[3];
+static PT1 gyroDataFilter[3];
+const fix32 *const gyroFiltered[3] = {&gyroDataFilter[0].getConstRef(), &gyroDataFilter[1].getConstRef(), &gyroDataFilter[2].getConstRef()};
+i32 accelAligned[3];
+fix32 accelScaled[3];
 static PT1 accelDataFilter[3];
-const fix32 *const accelDataFiltered[3] = {&accelDataFilter[0].getConstRef(), &accelDataFilter[1].getConstRef(), &accelDataFilter[2].getConstRef()};
+const fix32 *const accelFiltered[3] = {&accelDataFilter[0].getConstRef(), &accelDataFilter[1].getConstRef(), &accelDataFilter[2].getConstRef()};
 
-static volatile u8 spiSm = 0;
 static volatile u8 gyroDmaTxChannel = 0, gyroDmaRxChannel = 0;
 u32 gyroUpdateFlag = 0;
 static volatile u8 gyroInterrupts = 0;
 static elapsedMicros taskTimerGyro = 0;
 
+volatile u8 gyroReadyFlags = 0b1111;
+
+// regWrite/regRead aliases to allow identical use regardless of HW SPI / PIO SPI
 #ifdef GYRO_HALFDUPLEX_SPI
+static volatile u8 spiSm = 0;
 #define REG_WR(reg, buf, ...) regWrite(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
 #define REG_RD(reg, buf, ...) regRead(PIO_GYRO_SPI, spiSm, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
 #else
@@ -32,110 +59,222 @@ static elapsedMicros taskTimerGyro = 0;
 #define REG_RD(reg, buf, ...) regRead(SPI_GYRO, PIN_GYRO_CS, ((u8)reg), buf, __VA_ARGS__);
 #endif
 
-#ifdef GYRO_BMI270
+// IMU data fetching: DMA stuff
+#if HW_GYRO == GYRO_BMI270
 extern const u8 bmi270_config_file[8192];
 #define GYRO_SPI_SPEED 10000000
 static volatile const u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg::ACC_X_LSB) << 23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-#elifdef GYRO_ICM42688P
+#elif HW_GYRO == GYRO_ICM42688P
 #define GYRO_SPI_SPEED 24000000
 static volatile const u32 gyroDmaTxData[13] = {0x80UL | (u32)GyroReg::ACC_X_MSB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 #endif
 #define GYRO_DMA_LENGTH ARRAYLEN(gyroDmaTxData)
-static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {0};
-static elapsedMicros gyroInterruptTimer = 0;
-static void fetchGyro();
+static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {};
+
 void gyroLoop() {
-	if (gyroInterruptTimer > 300) {
-		tasks[TASK_GYROREAD].debugInfo = 2;
-		gyroInterruptTimer = 0;
-		fetchGyro();
-	}
 	if (gyroInterrupts) {
 		u32 duration = taskTimerGyro;
 		if (tasks[TASK_GYROREAD].maxGap < duration)
 			tasks[TASK_GYROREAD].maxGap = duration;
 		TASK_START(TASK_GYROREAD);
 
+		i16 agCopy[6];
+		if (!mutex_try_enter(&agDataRawAccess, nullptr)) {
+			tasks[TASK_GYROREAD].errorCount++;
+			TASK_END(TASK_GYROREAD);
+			return;
+		}
+		memcpy(agCopy, (void *)agDataRaw, 12);
+		mutex_exit(&agDataRawAccess);
+
 		gyroInterrupts--;
 		if (gyroInterrupts > 3) {
 			gyroInterrupts = 3;
 		}
 
-#if __ARM_FEATURE_SIMD32
-		// ARMv7E-M SIMD, saturated 2x16 vector subtraction => does not overflow, will clamp
-		*((int16x2_t *)agDataRaw) = __qsub16(*((int16x2_t *)agDataRaw), *((int16x2_t *)bmiCalibrationOffset));
-		*((int16x2_t *)(agDataRaw + 2)) = __qsub16(*((int16x2_t *)(agDataRaw + 2)), *((int16x2_t *)(bmiCalibrationOffset + 2)));
-		*((int16x2_t *)(agDataRaw + 4)) = __qsub16(*((int16x2_t *)(agDataRaw + 4)), *((int16x2_t *)(bmiCalibrationOffset + 4)));
-#else
-#warning overflow can occur!
-		agDataRaw[0] -= accelCalibrationOffset[0];
-		agDataRaw[1] -= accelCalibrationOffset[1];
-		agDataRaw[2] -= accelCalibrationOffset[2];
-		agDataRaw[3] -= gyroCalibrationOffset[0];
-		agDataRaw[4] -= gyroCalibrationOffset[1];
-		agDataRaw[5] -= gyroCalibrationOffset[2];
-#endif
-		gyroUpdateFlag = 0xFFFFFFFF;
-		for (int i = 0; i < 3; i++) {
-			gyroScaled[i].setRaw((i32)gyroDataRaw[i] * 4000); // gyro data in range of -.5 ... +.5 due to fixed point math,gyro data in range of -2000 ... +2000 (degrees per second)
+		i32 gyroLut[6];
+		i32 accelLut[6];
+		for (int i = 0; i < 3; i += 1) {
+			int dbl = i << 1;
+			accelDataRaw[i] = agCopy[i] - accelCalibrationOffset[i];
+			gyroLut[dbl] = gyroDataRaw[i];
+			gyroLut[dbl + 1] = -gyroLut[dbl];
+			gyroDataRaw[i] = agCopy[3 + i] - gyroCalibrationOffset[i];
+			accelLut[dbl] = accelDataRaw[i];
+			accelLut[dbl + 1] = -accelLut[dbl];
 		}
-
-		gyroScaled[AXIS_PITCH] = -gyroScaled[AXIS_PITCH];
-		gyroScaled[AXIS_YAW] = -gyroScaled[AXIS_YAW];
-
-		gyroFiltered[AXIS_ROLL].update(gyroScaled[AXIS_ROLL]);
-		gyroFiltered[AXIS_PITCH].update(gyroScaled[AXIS_PITCH]);
-		gyroFiltered[AXIS_YAW].update(gyroScaled[AXIS_YAW]);
-		accelDataFilter[0].update(accelDataRaw[0]);
-		accelDataFilter[1].update(accelDataRaw[1]);
-		accelDataFilter[2].update(accelDataRaw[2]);
+		for (int i = 0; i < 3; i++) {
+			// gyro data in range of -.5 ... +.5 due to fixed point math, convert to range of -2000 ... +2000 (dps)
+			gyroAligned[i] = gyroLut[imuAlignment[i]];
+			gyroScaled[i].setRaw(gyroAligned[i] * 4000);
+			gyroDataFilter[i].update(gyroScaled[i]);
+			// accel data in range of -.5 ... +.5 due to fixed point math, convert to range of -16g ... +16g (9.81 * 16 * 2)
+			accelAligned[i] = accelLut[imuAlignment[i]];
+			accelScaled[i].setRaw(accelAligned[i] * 314);
+			accelDataFilter[i].update(accelScaled[i]);
+		}
+		gyroUpdateFlag = 0xFFFFFFFF;
 
 		if (armingDisableFlags & 0x40) {
-			if (gyroDataRaw[0] < CALIBRATION_TOLERANCE && gyroDataRaw[0] > -CALIBRATION_TOLERANCE && gyroDataRaw[1] < CALIBRATION_TOLERANCE && gyroDataRaw[1] > -CALIBRATION_TOLERANCE && gyroDataRaw[2] < CALIBRATION_TOLERANCE && gyroDataRaw[2] > -CALIBRATION_TOLERANCE) {
-				// ignore -1 (0xFFFF), as this speaks for a communication error
-				gyroCalibratedCycles++;
-				if (gyroCalibratedCycles >= QUIET_SAMPLES) {
-					gyroCalibrationOffsetTemp[0] += gyroDataRaw[0];
-					gyroCalibrationOffsetTemp[1] += gyroDataRaw[1];
-					gyroCalibrationOffsetTemp[2] += gyroDataRaw[2];
-				}
-				if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
-					armingDisableFlags &= ~0x40;
-					// add CALIBRATION_SAMPLES / 2 to get proper rounding
-					// Since C++ doesn't always floor, it actually truncates, we need to add CALIBRATION_SAMPLES / 2 and subtract CALIBRATION_SAMPLES for negative values
-					gyroCalibrationOffset[0] = (gyroCalibrationOffsetTemp[0] + (gyroCalibrationOffset[0] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-					gyroCalibrationOffset[1] = (gyroCalibrationOffsetTemp[1] + (gyroCalibrationOffset[1] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-					gyroCalibrationOffset[2] = (gyroCalibrationOffsetTemp[2] + (gyroCalibrationOffset[2] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-					gyroCalibrationOffset[0] = constrain(gyroCalibrationOffset[0], -20, 20);
-					gyroCalibrationOffset[1] = constrain(gyroCalibrationOffset[1], -20, 20);
-					gyroCalibrationOffset[2] = constrain(gyroCalibrationOffset[2], -20, 20);
-				}
-			} else {
-				gyroCalibrationOffsetTemp[0] = 0;
-				gyroCalibrationOffsetTemp[1] = 0;
-				gyroCalibrationOffsetTemp[2] = 0;
-				gyroCalibratedCycles = 0;
+			bool isStill = true;
+			bool isVeryStill = true;
+			for (int ax = 0; ax < 3; ax++) {
+				if (abs(gyroDataRaw[ax]) >= GYRO_CALIBRATION_TOLERANCE) isVeryStill = false;
+				if (abs(gyroDataRaw[ax]) >= 5 * GYRO_CALIBRATION_TOLERANCE) isStill = false;
 			}
-			if (accelCalibrationCycles) {
-				if (accelCalibrationCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
-					accelCalibrationOffset[0] = 0;
-					accelCalibrationOffset[1] = 0;
-					accelCalibrationOffset[2] = 0;
+
+			if (calibrateGyro) {
+				if (isVeryStill) {
+					// ignore -1 (0xFFFF), as this speaks for a communication error
+					gyroCalibratedCycles++;
+					if (gyroCalibratedCycles >= QUIET_SAMPLES) {
+						gyroCalibrationOffsetTemp[0] += gyroDataRaw[0];
+						gyroCalibrationOffsetTemp[1] += gyroDataRaw[1];
+						gyroCalibrationOffsetTemp[2] += gyroDataRaw[2];
+					}
+					if (gyroCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
+						if (!alignImu && !calibrateAccel)
+							armingDisableFlags &= ~0x40;
+						// add CALIBRATION_SAMPLES / 2 to get proper rounding
+						// Since C++ doesn't always floor, it actually truncates, we need to add CALIBRATION_SAMPLES / 2 and subtract CALIBRATION_SAMPLES for negative values
+						gyroCalibrationOffset[0] = (gyroCalibrationOffsetTemp[0] + (gyroCalibrationOffset[0] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[1] = (gyroCalibrationOffsetTemp[1] + (gyroCalibrationOffset[1] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[2] = (gyroCalibrationOffsetTemp[2] + (gyroCalibrationOffset[2] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
+						gyroCalibrationOffset[0] = constrain(gyroCalibrationOffset[0], -20, 20);
+						gyroCalibrationOffset[1] = constrain(gyroCalibrationOffset[1], -20, 20);
+						gyroCalibrationOffset[2] = constrain(gyroCalibrationOffset[2], -20, 20);
+						calibrateGyro = false;
+						gyroReadyFlags &= ~(1 << 1);
+					}
+				} else {
+					gyroCalibrationOffsetTemp[0] = 0;
+					gyroCalibrationOffsetTemp[1] = 0;
+					gyroCalibrationOffsetTemp[2] = 0;
+					gyroCalibratedCycles = 0;
+				}
+			}
+			if (calibrateAccel) {
+				if (isVeryStill) {
+					accelCalibratedCycles++;
+					if (accelCalibratedCycles >= QUIET_SAMPLES) {
+						accelCalibrationOffsetTemp[0] += accelDataRaw[0];
+						accelCalibrationOffsetTemp[1] += accelDataRaw[1];
+						accelCalibrationOffsetTemp[2] += accelDataRaw[2];
+						int vertAx = imuAlignment[2] >> 1;
+						bool upIsPos = imuAlignment[2] & 1;
+						accelCalibrationOffsetTemp[vertAx] += upIsPos ? -2048 : 2048;
+						accelCalState = 2;
+					}
+					if (accelCalibratedCycles == CALIBRATION_SAMPLES + QUIET_SAMPLES) {
+						if (!alignImu && !calibrateGyro)
+							armingDisableFlags &= ~0x40;
+						i32 newCalib[3];
+						for (int i = 0; i < 3; i++) {
+							newCalib[i] = (accelCalibrationOffsetTemp[i] + (accelCalibrationOffsetTemp[i] > 0 ? CALIBRATION_SAMPLES / 2 : -CALIBRATION_SAMPLES / 2)) / CALIBRATION_SAMPLES;
+							if (newCalib[i] > ACCEL_CALIBRATION_TOLERANCE || newCalib[i] < -ACCEL_CALIBRATION_TOLERANCE) {
+								accelCalState = 255;
+								accelCalDone = true;
+								calibrateAccel = false;
+
+								for (int ax = 0; ax < 3; ax++) {
+									accelCalibrationOffset[ax] = accelCalibrationOffsetBackup[ax];
+									if (accelCalibrationOffset[ax] != 0) {
+										gyroReadyFlags &= ~(1 << 2);
+									}
+								}
+								return;
+							}
+						}
+						for (int i = 0; i < 3; i++) {
+							accelCalibrationOffset[i] = newCalib[i];
+						}
+						accelCalState = 0;
+						accelCalDone = true;
+						calibrateAccel = false;
+						gyroReadyFlags &= ~(1 << 2);
+					}
+				} else {
 					accelCalibrationOffsetTemp[0] = 0;
 					accelCalibrationOffsetTemp[1] = 0;
 					accelCalibrationOffsetTemp[2] = 0;
+					accelCalibratedCycles = 0;
 				}
-				accelCalibrationCycles--;
-				if (accelCalibrationCycles < CALIBRATION_SAMPLES) {
-					accelCalibrationOffsetTemp[0] += accelDataRaw[0];
-					accelCalibrationOffsetTemp[1] += accelDataRaw[1];
-					accelCalibrationOffsetTemp[2] += accelDataRaw[2] - 2048;
-					if (accelCalibrationCycles == 0) {
-						accelCalibrationOffset[0] = (accelCalibrationOffsetTemp[0] + (accelCalibrationOffset[0] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-						accelCalibrationOffset[1] = (accelCalibrationOffsetTemp[1] + (accelCalibrationOffset[1] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-						accelCalibrationOffset[2] = (accelCalibrationOffsetTemp[2] + (accelCalibrationOffset[2] > 0 ? CALIBRATION_SAMPLES : -CALIBRATION_SAMPLES) / 2) / CALIBRATION_SAMPLES;
-						accelCalDone = 1;
+			}
+			if (alignImu) {
+				static u8 firstAxis = 0;
+				static u8 lastAxis = 0;
+				u8 thisAxis = 255;
+				for (int i = 0; i < 3; i++) {
+					for (int j = 0; j < 2; j++) {
+						int x = abs(accelDataRaw[i] * (j ? -1 : 1) - 2048);
+						int y = abs(accelDataRaw[(i + 1) % 3]);
+						int z = abs(accelDataRaw[(i + 2) % 3]);
+						if (x < IMU_ALIGNMENT_TOLERANCE &&
+							y < IMU_ALIGNMENT_TOLERANCE &&
+							z < IMU_ALIGNMENT_TOLERANCE) {
+							thisAxis = i * 2 + j;
+							break;
+						}
 					}
+					if (thisAxis != 255) break;
+				}
+				switch (imuAlignmentStep) {
+				case 1:
+					if (!isStill) thisAxis = 255;
+
+					if (thisAxis != lastAxis || thisAxis == 255) {
+						lastAxis = thisAxis;
+						if (imuAlignmentCounter > 0) imuAlignmentCounter = 0;
+						break;
+					}
+					if (++imuAlignmentCounter >= PID_FREQ * 1) {
+						firstAxis = thisAxis;
+						imuAlignmentCounter = 0;
+						imuAlignmentStep = 2;
+					}
+					break;
+				case 2:
+					if (!isStill || (thisAxis >> 1) == (firstAxis >> 1)) thisAxis = 255;
+
+					if (thisAxis != lastAxis || thisAxis == 255) {
+						lastAxis = thisAxis;
+						imuAlignmentCounter = 0;
+						break;
+					}
+					if (++imuAlignmentCounter >= PID_FREQ * 1) {
+						// found orientation, calculate third one
+						firstAxis ^= 1; // we found up axis, but we want down axis
+						thisAxis ^= 1; // we found back axis, but we want forward axis
+						u8 a0 = thisAxis / 2;
+						u8 a1 = 0;
+						u8 a2 = firstAxis / 2;
+
+						// find missing axis (forward/backward irrelevant)
+						for (; a1 < 3; a1++) {
+							if (a1 != a0 && a1 != a2) break;
+						}
+
+						// possibly invert (to make right-handed)
+						a1 *= 2;
+						if (a2 - a0 == 1 || a0 - a2 == 2) a1 += 1;
+
+						// possibly invert again if a1 OR a0 is inverted
+						a1 ^= (thisAxis ^ firstAxis) & 1;
+
+						imuAlignment[AXIS_ROLL] = thisAxis;
+						imuAlignment[AXIS_PITCH] = a1;
+						imuAlignment[AXIS_YAW] = firstAxis;
+
+						imuAlignmentCounter = 0;
+						imuAlignmentStep = 0;
+						imuAlignmentDone = true;
+						alignImu = false;
+						if (!calibrateGyro && !calibrateAccel) {
+							gyroReadyFlags &= ~(1 << 3);
+							armingDisableFlags &= ~0x40;
+						}
+					}
+					break;
 				}
 			}
 		}
@@ -144,12 +283,7 @@ void gyroLoop() {
 	}
 }
 
-void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
-	tasks[TASK_GYROREAD].debugInfo = 1;
-	gyroInterruptTimer = 0;
-	fetchGyro();
-}
-static void fetchGyro() {
+static void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
 	// abort channels if they are not done
 	dma_channel_abort(gyroDmaRxChannel);
 	dma_channel_abort(gyroDmaTxChannel);
@@ -182,40 +316,66 @@ void gyroDmaInterrupt() {
 	if (interrupts & (1u << gyroDmaRxChannel)) {
 		gpio_put(PIN_GYRO_CS, 1);
 		dma_hw->ints1 = 1u << gyroDmaRxChannel;
+		if (!mutex_try_enter(&agDataRawAccess, nullptr)) {
+			tasks[TASK_GYROREAD].errorCount++;
+			return;
+		}
 		u8 *data = (u8 *)agDataRaw;
-#ifdef GYRO_BMI270
+#if HW_GYRO == GYRO_BMI270
 		for (int i = 0; i < GYRO_DMA_LENGTH - 2; i++) {
 			data[i] = (u8)(gyroDmaRxData[i + 2] & 0xFF);
 		}
-#elifdef GYRO_ICM42688P
+#elif HW_GYRO == GYRO_ICM42688P
 		for (int i = 0; i < GYRO_DMA_LENGTH - 1; i++) {
 			data[i] = (u8)(gyroDmaRxData[i + 1] & 0xFF);
 		}
 #endif
+		mutex_exit(&agDataRawAccess);
 		gyroInterrupts++;
-
-#if HW_VARIANT == HW_V6
-		// TODO fix janky prerotation for v6 FC
-		i16 temp = gyroDataRaw[AXIS_ROLL];
-		gyroDataRaw[AXIS_ROLL] = gyroDataRaw[AXIS_PITCH];
-		gyroDataRaw[AXIS_PITCH] = -temp;
-		temp = accelDataRaw[AXIS_ROLL];
-		accelDataRaw[AXIS_ROLL] = accelDataRaw[AXIS_PITCH];
-		accelDataRaw[AXIS_PITCH] = -temp;
-#endif
 	}
 }
 
 int gyroInit() {
 	addPointerSetting(SETTING_ACC_CAL, accelCalibrationOffset, 3);
+	addPointerSetting(SETTING_IMU_ALIGNMENT, imuAlignment, 3);
 
+	addSetting(SETTING_GYRO_FILTER_CUTOFF, &gyroFilterCutoff, 100);
 	addSetting(SETTING_ACC_FILTER_CUTOFF, &accelFilterCutoff, 100);
 
+	// if accel calibration is non-zero then assume it is calibrated, otherwise not
+	// unset calibration flag
+	for (int ax = 0; ax < 3; ax++) {
+		if (accelCalibrationOffset[ax] != 0) {
+			gyroReadyFlags &= ~(1 << 2);
+			break;
+		}
+	}
+
+	// check validity of IMU alignment
+	u8 axesCovered = 0;
+	u8 inversions = 0;
+	for (int ax = 0; ax < 3; ax++) {
+		axesCovered |= 1 << (imuAlignment[ax] >> 1);
+		inversions += imuAlignment[ax] & 1;
+	}
+	bool forward = (3 + (imuAlignment[1] >> 1) - (imuAlignment[0] >> 1)) % 3 == 1;
+	if (!forward) inversions++;
+	if (axesCovered == 0b111 && inversions % 2 == 0) {
+		// valid setup
+		gyroReadyFlags &= ~(1 << 3);
+	}
+
+	mutex_init(&agDataRawAccess);
+
+	gyroDataFilter[0] = PT1(gyroFilterCutoff, PID_FREQ);
+	gyroDataFilter[1] = PT1(gyroFilterCutoff, PID_FREQ);
+	gyroDataFilter[2] = PT1(gyroFilterCutoff, PID_FREQ);
 	accelDataFilter[0] = PT1(accelFilterCutoff, PID_FREQ);
 	accelDataFilter[1] = PT1(accelFilterCutoff, PID_FREQ);
 	accelDataFilter[2] = PT1(accelFilterCutoff, PID_FREQ);
 
 	armingDisableFlags |= 0x40;
+	calibrateGyro = true;
 
 	// set up pins
 	gpio_init(PIN_GYRO_INT1);
@@ -259,7 +419,7 @@ int gyroInit() {
 	gpio_set_function(PIN_GYRO_MOSI, GPIO_FUNC_SPI);
 #endif
 
-#ifdef GYRO_BMI270
+#if HW_GYRO == GYRO_BMI270
 	u8 data = 0xB6;
 	REG_WR(GyroReg::CMD, &data, 1, 500); // soft reset
 	for (int i = 0; i < 50 && data != 0x24; i++) {
@@ -327,7 +487,7 @@ int gyroInit() {
 	// INT_LATCH: int_latch(0)
 	data = 0x00;
 	REG_WR(GyroReg::INT_LATCH, &data, 1, 500);
-#elifdef GYRO_ICM42688P
+#elif HW_GYRO == GYRO_ICM42688P
 	// create 32 kHz clock output for gyro
 	gpio_init(PIN_GYRO_CLKIN);
 	gpio_set_dir(PIN_GYRO_CLKIN, GPIO_OUT);
@@ -443,6 +603,34 @@ int gyroInit() {
 
 	gpio_set_irq_enabled_with_callback(PIN_GYRO_INT1, GPIO_IRQ_EDGE_RISE, true, &gyroGpioInterrupt);
 
+#if HW_GYRO == GYRO_ICM42688P
+	// wait up to 50ms for gyro to release valid samples (page 75 in datasheet of ICM-42688-P)
+	elapsedMicros readyTimer = 0;
+	while (readyTimer < 50000) {
+		if (gyroInterrupts) {
+			gyroInterrupts--;
+
+			i16 agCopy[6];
+			if (!mutex_try_enter(&agDataRawAccess, nullptr)) {
+				tasks[TASK_GYROREAD].errorCount++;
+				continue;
+			}
+			memcpy(agCopy, (void *)agDataRaw, 12);
+			mutex_exit(&agDataRawAccess);
+
+			bool valid = true;
+			for (int i = 0; i < 6; i++) {
+				if (agCopy[i] == -32768) valid = false;
+			}
+			if (valid) {
+				gyroReadyFlags &= ~(1 << 0);
+				return 0;
+			}
+		}
+	}
+	return 1;
+#endif
+	gyroReadyFlags &= ~(1 << 0);
 	return 0;
 }
 
@@ -454,7 +642,9 @@ void startGyroCalibration() {
 	gyroCalibrationOffset[0] = 0;
 	gyroCalibrationOffset[1] = 0;
 	gyroCalibrationOffset[2] = 0;
-	armingDisableFlags |= 0x40; // disable arming, start calibration
+	armingDisableFlags |= 0x40;
+	calibrateGyro = true;
+	gyroReadyFlags |= 1 << 1;
 }
 
 void getGyroCalibration(i16 cal[3]) {
@@ -464,11 +654,30 @@ void getGyroCalibration(i16 cal[3]) {
 }
 
 void startAccelCalibration() {
-	accelCalibrationCycles = QUIET_SAMPLES + CALIBRATION_SAMPLES;
+	accelCalibratedCycles = 0;
+	for (int i = 0; i < 3; i++) {
+		accelCalibrationOffsetBackup[i] = accelCalibrationOffset[i];
+		accelCalibrationOffset[i] = 0;
+		accelCalibrationOffsetTemp[i] = 0;
+	}
+	accelCalState = 1;
 	armingDisableFlags |= 0x40;
+	calibrateAccel = true;
+	gyroReadyFlags |= 1 << 2;
 }
 
-#ifdef GYRO_BMI270
+void startImuAlignment() {
+	imuAlignmentStep = 1;
+	imuAlignmentCounter = -PID_FREQ * 1;
+	armingDisableFlags |= 0x40;
+	alignImu = true;
+	gyroReadyFlags |= 1 << 3;
+}
+void getImuAlignment(u8 axes[3]) {
+	memcpy(axes, imuAlignment, 3);
+}
+
+#if HW_GYRO == GYRO_BMI270
 // config file needs to be uploaded to the BMI270 before it can be used
 constexpr u8 bmi270_config_file[8192] PROGMEM = {
 	0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x3d, 0xb1, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x91, 0x03, 0x80, 0x2e, 0xbc,

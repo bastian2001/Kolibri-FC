@@ -1,6 +1,6 @@
 <script lang="ts">
 import NumericInput from "@/components/NumericInput.vue";
-import { addOnConnectHandler, removeOnConnectHandler, sendCommand } from "@/msp/comm";
+import { onConnectHandler, sendCommand } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { useLogStore } from "@/stores/logStore";
 import { intToLeBytes, leBytesToInt } from "@/utils/utils";
@@ -22,12 +22,11 @@ export default defineComponent({
 	},
 	mounted() {
 		this.getBatStateInterval = setInterval(this.getBatState, 100);
-		addOnConnectHandler(this.getBatSettings)
+		onConnectHandler(this.getBatSettings)
 		this.getBatSettings()
 	},
 	unmounted() {
 		clearInterval(this.getBatStateInterval)
-		removeOnConnectHandler(this.getBatSettings)
 	},
 	methods: {
 		getBatState() {

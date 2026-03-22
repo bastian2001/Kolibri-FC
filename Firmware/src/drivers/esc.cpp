@@ -2,15 +2,19 @@
 
 static u32 enableDShot = 0;
 
-u32 escRawTelemetry[4] = {0};
-u32 escRpm[4] = {0};
-u32 escTemp[4] = {0};
-fix32 escVoltage[4] = {0};
-u32 escCurrent[4] = {0};
+u32 escRawTelemetry[4] = {};
+u32 escRpm[4] = {};
+u32 escTemp[4] = {};
+fix32 escVoltage[4] = {};
+u32 escCurrent[4] = {};
 u8 escErpmFail = 0;
 u32 escErpmFailCounter = 0;
+static u32 escNoBidirCounter[4];
+static u32 escNoEdtCounter[4];
+bool escFound[4];
+bool escEdtFound[4];
 u16 dshotBeepTone = 1;
-static u8 motorPins[4] = {0};
+static u8 motorPins[4] = {};
 
 BidirDShotX1 *escs[4];
 
@@ -85,12 +89,14 @@ void decodeErpm() {
 	for (int m = 0; m < 4; m++) {
 		BidirDshotTelemetryType telemType = escs[m]->getTelemetryRaw((uint32_t *)&escRawTelemetry[m]);
 		u32 telemVal = BidirDShotX1::convertFromRaw(escRawTelemetry[m], telemType);
+		bool thisEscFail = false;
+		bool receivedEdt = false;
 		switch (telemType) {
 		case BidirDshotTelemetryType::ERPM:
 			if (escRpm[m] >= 0)
 				escRpm[m] = telemVal / (MOTOR_POLES / 2);
 			else
-				escErpmFail |= 1 << m;
+				thisEscFail = true;
 			break;
 		case BidirDshotTelemetryType::TEMPERATURE:
 			escTemp[m] = telemVal;
@@ -102,24 +108,41 @@ void decodeErpm() {
 			escCurrent[m] = telemVal;
 			break;
 		case BidirDshotTelemetryType::NO_PACKET:
-			tasks[TASK_ESC_RPM].errorCount++;
-			tasks[TASK_ESC_RPM].lastError = 1;
-			escErpmFail |= 1 << m;
-			escRawTelemetry[m] = 0;
-			break;
 		case BidirDshotTelemetryType::CHECKSUM_ERROR:
-			tasks[TASK_ESC_RPM].errorCount++;
-			tasks[TASK_ESC_RPM].lastError = 2;
-			escErpmFail |= 1 << m;
+			thisEscFail = true;
 			escRawTelemetry[m] = 0;
 			break;
 		case BidirDshotTelemetryType::STATUS:
+			receivedEdt = true;
+			escRawTelemetry[m] = 0;
+			break;
 		case BidirDshotTelemetryType::STRESS:
 		case BidirDshotTelemetryType::DEBUG_FRAME_1:
 		case BidirDshotTelemetryType::DEBUG_FRAME_2:
 			escRawTelemetry[m] = 0;
+			break;
 		default:
 			break;
+		}
+
+		if (thisEscFail) {
+			escErpmFail |= 1 << m;
+			tasks[TASK_ESC_RPM].errorCount++;
+			if (++escNoBidirCounter[m] >= PID_FREQ * 2) {
+				escFound[m] = false;
+			}
+		} else {
+			escNoBidirCounter[m] = 0;
+			escFound[m] = true;
+		}
+
+		if (receivedEdt) {
+			escNoEdtCounter[m] = 0;
+			escEdtFound[m] = true;
+		} else {
+			if (++escNoEdtCounter[m] >= PID_FREQ * 3) {
+				escEdtFound[m] = false;
+			}
 		}
 	}
 	if (escErpmFail)

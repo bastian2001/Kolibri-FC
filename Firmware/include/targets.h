@@ -1,10 +1,19 @@
-#include "typedefs.h"
+#pragma once
 
 #define SD_BB 0
-#define FLASH_BB 1 // not implemented yet
+#define FLASH_BB 1
 
 #define HW_V5 5
 #define HW_V6 6
+
+#define GYRO_BMI270 1
+#define GYRO_ICM42688P 2
+
+#define BARO_SPL006 1
+#define BARO_LPS22 2
+
+#define MAG_HMC5883L 1
+#define MAG_QMC5883L 2
 
 #if HW_VARIANT == HW_V5
 
@@ -41,12 +50,26 @@
 #define PIN_LEDS 27
 
 #define BLACKBOX_STORAGE SD_BB
-#define PIO_SDIO pio0 // uses 2 SMs but basically all instructions
+
 #define I2C_MAG i2c0 // I2C for magnetometer
+
 #define SPI_OSD spi1 // SPI for OSD
+
 #define GYRO_HALFDUPLEX_SPI
+
+#define PIO_ESC pio0 // uses all 4 SMs
+#define PIO_SDIO pio1 // automatically assigned, claims all 4 SMs and 32 instructions
+#define PIO_LED pio2 // 1 SM, 4 instructions
 #define PIO_GYRO_SPI pio2 // 1 SM, 5 instructions
-#define GYRO_BMI270
+
+#define HW_MAG MAG_QMC5883L
+#define HW_BARO BARO_LPS22
+#define HW_GYRO GYRO_BMI270
+
+#define TARGET_IDENTIFIER "KD05"
+#define TARGET_FULL_NAME "Kolibri Dev v0.5"
+
+inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1", "R1", "T2", "R2", "", "", "", "", "", "", "", "", "M1", "M2", "M3", "M4", "SDA", "SCL", "Spk", "LEDx", "", ""};
 
 #elif HW_VARIANT == HW_V6
 
@@ -85,11 +108,23 @@
 #define PIN_DCDC_EN 28
 
 #define BLACKBOX_STORAGE FLASH_BB
-#define PIO_EXT_SPI_BB pio0
 #define I2C_MAG i2c0 // I2C for magnetometer
 #define SPI_OSD spi1 // SPI for OSD
 #define SPI_GYRO spi0
-#define GYRO_ICM42688P
+
+#define PIO_ESC pio0 // uses all 4 SMs
+#define PIO_EXT_SPI_BB pio1 // 1 SM, 2 instructions, at least right now (may become more if parallel transfer is wanted in the future)
+#define PIO_LED pio1 // 1 SM, 4 instructions
+
+#define HW_MAG MAG_QMC5883L
+#define HW_BARO BARO_LPS22
+#define HW_GYRO GYRO_ICM42688P
+
+#define TARGET_IDENTIFIER "KD06"
+#define TARGET_FULL_NAME "Kolibri Dev v0.6"
+
+inline constexpr char pinLabels[30][6]{"T0", "R0", "", "", "", "", "", "", "T1", "R1", "T2", "R2", "", "", "", "", "", "", "", "", "M1", "M2", "M3", "M4", "SDA", "SCL", "Spk", "LEDx", "10V", ""};
+
 #endif
 
 #ifdef SPI_GYRO

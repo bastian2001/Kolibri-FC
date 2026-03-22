@@ -1,8 +1,8 @@
 
-#if BLACKBOX_STORAGE == FLASH_BB
 
 #include "global.h"
 #include "pioasm/extended_spi.pio.h"
+#if BLACKBOX_STORAGE == FLASH_BB
 
 enum FlashRegisters {
 	FLASH_CMD_RESET = 0xFF,
@@ -34,9 +34,9 @@ u8 Fckafd::singleSpiTransfer(u8 txByte) {
 	pio_sm_put_blocking(PIO_EXT_SPI_BB, blackboxSm, ((u32)txByte) << 24);
 	return pio_sm_get_blocking(PIO_EXT_SPI_BB, blackboxSm);
 }
-void Fckafd::burstSpiRead(u16 len, u8 *dst) {
-	if (dst == nullptr) return;
-	u8 *dummy = (u8 *)malloc(len);
+void Fckafd::burstSpiRead(u16 len, void *dst) {
+	void *dummy = malloc(len);
+	if (dst == nullptr || dummy == nullptr) return;
 	pio_sm_clear_fifos(PIO_EXT_SPI_BB, blackboxSm);
 	dma_channel_abort(dmaTxChannel);
 	dma_channel_abort(dmaRxChannel);
@@ -56,9 +56,9 @@ void Fckafd::burstSpiRead(u16 len, u8 *dst) {
 	}
 	free(dummy);
 }
-void Fckafd::burstSpiWrite(u16 len, const u8 *src) {
-	if (src == nullptr) return;
-	u8 *dummy = (u8 *)malloc(len);
+void Fckafd::burstSpiWrite(u16 len, const void *src) {
+	void *dummy = malloc(len);
+	if (src == nullptr || dummy == nullptr) return;
 	pio_sm_clear_fifos(PIO_EXT_SPI_BB, blackboxSm);
 	dma_channel_abort(dmaTxChannel);
 	dma_channel_abort(dmaRxChannel);

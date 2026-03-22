@@ -4,7 +4,7 @@ import { defineComponent } from "vue";
 import { MspFn } from "@/msp/protocol";
 import { intToLeBytes, leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
-import { sendCommand, addOnDisconnectHandler, removeOnDisconnectHandler } from "@/msp/comm";
+import { sendCommand, onDisconnectHandler } from "@/msp/comm";
 import RemapMotors from "@/components/RemapMotors.vue";
 
 export default defineComponent({
@@ -28,12 +28,11 @@ export default defineComponent({
 					this.motors[i] = leBytesToInt(c.data, i * 2, 2)
 			}).catch(() => { })
 		}, 100);
-		addOnDisconnectHandler(this.stopMotors);
+		onDisconnectHandler(this.stopMotors);
 	},
 	unmounted() {
 		clearInterval(this.getMotorsInterval);
 		clearInterval(this.sendInterval);
-		removeOnDisconnectHandler(this.stopMotors);
 	},
 	methods: {
 		spinMotor(motor: number) {

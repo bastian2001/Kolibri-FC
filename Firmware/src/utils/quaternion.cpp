@@ -36,8 +36,15 @@ void Quaternion_fromAxisAngle(f32 axis[3], f32 angle, Quaternion *output) {
 
 f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
-	f32 angle = acosf(q->w) * 2;
-	f32 divider = sqrtf(1 - q->w * q->w);
+	f32 w = constrain(q->w, -1, 1);
+
+	f32 angle = acosf(w) * 2;
+	f32 divider = sqrtf(1 - w * w);
+
+	// TODO evaluate accuracy, as this seems a bit faster
+	// fix32 a2 = acosFix(w);
+	// f32 divider = sinFix(a2).getf32(); // faster than sqrtf(1 - w * w)
+	// f32 angle = (a2 * 2).getf32();
 
 	if (divider > 0.0001f) {
 		// Calculate the axis
@@ -45,13 +52,13 @@ f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 		output[0] = q->v[0] * divNew;
 		output[1] = q->v[1] * divNew;
 		output[2] = q->v[2] * divNew;
-	} else {
-		// Arbitrary normalized axis
-		output[0] = 1;
-		output[1] = 0;
-		output[2] = 0;
+		return angle;
 	}
-	return angle;
+	// Arbitrary normalized axis
+	output[0] = 1;
+	output[1] = 0;
+	output[2] = 0;
+	return 0;
 }
 
 void Quaternion_fromXRotation(f32 angle, Quaternion *output) {
@@ -79,20 +86,33 @@ f32 Quaternion_norm(Quaternion *q) {
 	return sqrtf(q->w * q->w + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
 }
 
-void Quaternion_normalize(Quaternion *q, Quaternion *output) {
-
+void Quaternion_normalize(Quaternion *q) {
 	f32 len = Quaternion_norm(q);
 	if (len < 0.0001f) {
-		Quaternion_setIdentity(output);
+		Quaternion_setIdentity(q);
 		return;
 	}
 	f32 oneOverLen = 1 / len;
-	Quaternion_set(
-		q->w * oneOverLen,
-		q->v[0] * oneOverLen,
-		q->v[1] * oneOverLen,
-		q->v[2] * oneOverLen,
-		output);
+	q->w *= oneOverLen;
+	q->v[0] *= oneOverLen;
+	q->v[1] *= oneOverLen;
+	q->v[2] *= oneOverLen;
+}
+
+void Quaternion_normalize_fast(Quaternion *q) {
+	f32 magsq =
+		q->w * q->w +
+		q->v[0] * q->v[0] +
+		q->v[1] * q->v[1] +
+		q->v[2] * q->v[2];
+
+	// One Newton step toward unit length
+	f32 scale = 2.0f / (1.0f + magsq);
+
+	q->w *= scale;
+	q->v[0] *= scale;
+	q->v[1] *= scale;
+	q->v[2] *= scale;
 }
 
 void Quaternion_multiply(Quaternion *q1, Quaternion *q2, Quaternion *output) {
@@ -149,8 +169,8 @@ void Quaternion_rotate(const Quaternion *q, f32 v[3], f32 output[3]) {
 }
 
 // Calculate the dot product of two 3D vectors
-void Vector_dot(const f32 v1[3], const f32 v2[3], f32 *output) {
-	*output = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+f32 Vector_dot(const f32 v1[3], const f32 v2[3]) {
+	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
 // Calculate the cross product of two 3D vectors
@@ -161,24 +181,49 @@ void Vector_cross(const f32 v1[3], const f32 v2[3], f32 output[3]) {
 }
 
 void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *output) {
-	f32 dot;
-	Vector_dot(v0, v1, &dot);
+	f32 dot = Vector_dot(v0, v1);
+
+	// Clamp dot to avoid tiny numeric drift producing invalid acos/normalize
+	if (dot > 1) dot = 1;
+	if (dot < -1) dot = -1;
 
 	if (dot > ONE_MINUS_EPS) {
 		Quaternion_setIdentity(output);
 		return;
 	} else if (dot < -ONE_MINUS_EPS) {
-		// Rotate along any orthonormal vec to vec1 or vec2 as the axis.
+		// 180 deg rotation: choose a stable axis not parallel to v0.
+		// Pick the basis vector least aligned with v0 to avoid zero cross.
+		f32 vTemp[3];
+		if (fabsf(v0[0]) < fabsf(v0[1])) {
+			vTemp[0] = 1;
+			vTemp[1] = 0;
+			vTemp[2] = 0;
+		} else {
+			vTemp[0] = 0;
+			vTemp[1] = 1;
+			vTemp[2] = 0;
+		}
 		f32 cross[3];
-		f32 vTemp[3] = {1, 0, 0};
 		Vector_cross(vTemp, v0, cross);
+		// Normalize the axis before creating the quaternion.
+		f32 axisNorm = sqrtf(cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]);
+		if (axisNorm < 1e-6f) {
+			// Fallback axis if still degenerate (should be rare).
+			cross[0] = 0;
+			cross[1] = 0;
+			cross[2] = 1;
+			axisNorm = 1;
+		}
+		cross[0] /= axisNorm;
+		cross[1] /= axisNorm;
+		cross[2] /= axisNorm;
 		Quaternion_fromAxisAngle(cross, (f32)PI, output);
 		return;
 	}
 
 	output->w = dot + 1;
 	Vector_cross(v0, v1, output->v);
-	Quaternion_normalize(output, output);
+	Quaternion_normalize(output);
 }
 
 void Quaternion_conjugate(Quaternion *q, Quaternion *output) {

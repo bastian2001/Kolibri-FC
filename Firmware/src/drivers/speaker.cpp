@@ -63,8 +63,8 @@ const f32 WAV_SPEAKER_CLKDIV = (float)F_CPU / (256 * 44100 * 4);
 dma_channel_config speakerDmaAConfig, speakerDmaBConfig;
 u8 speakerDmaAChan, speakerDmaBChan;
 // 8KiB buffer each, thus worst case the speaker has a buffer of 1024 samples / 44.1kHz = 23ms
-u16 speakerChanAData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
-u16 speakerChanBData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {0};
+u16 speakerChanAData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {};
+u16 speakerChanBData[1 << SPEAKER_SIZE_POWER + 2] __attribute__((aligned(1 << (SPEAKER_SIZE_POWER + 1 + 2)))) = {};
 u32 totalBytes = 0;
 u8 finishedChannels = 0b00;
 u8 startSpeakerFile = true;
@@ -228,10 +228,10 @@ void speakerLoop() {
 	}
 #endif
 
-	if (!beeperOn && ((rxModes[RxModeIndex::BEEPER].isActive() && ELRS->isLinkUp) || (ELRS->sinceLastRCMessage > 240000000 && ELRS->rcMsgCount > 50))) {
+	if (!beeperOn && elrs && ((rxModes[RxModeIndex::BEEPER].isActive() && elrs->isLinkUp) || (elrs->sinceLastRCMessage > 240000000 && elrs->rcMsgCount > 50))) {
 		beeperOn = true;
 		makeSweepSound(1000, 5000, 65535, 600, 0);
-	} else if (beeperOn && (!rxModes[RxModeIndex::BEEPER].isActive() && ELRS->isLinkUp)) {
+	} else if (beeperOn && elrs && (!rxModes[RxModeIndex::BEEPER].isActive() && elrs->isLinkUp)) {
 		beeperOn = false;
 		stopSound();
 	}

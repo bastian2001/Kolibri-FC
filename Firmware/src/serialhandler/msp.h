@@ -37,7 +37,6 @@
 #include <Arduino.h>
 
 extern bool configuratorConnected; // true if the configurator is connected
-extern u8 accelCalDone; // accel calibration flag to send a message to the configurator
 extern i16 mspDebugSensors[4]; // write values here to see them in the sensors tab. +-100, +-1000, +-10000, +-256
 
 /**
@@ -125,6 +124,8 @@ enum class MspFn {
 
 	// 0x415_ Gyro/Accel
 	GET_ROTATION = 0x4150,
+	GET_IMU_SETUP_STATE = 0x4151,
+	START_IMU_ALIGNMENT = 0x4152,
 
 	// 0x416_ Barometer
 	GET_BARO_DATA = 0x4160,
@@ -136,6 +137,11 @@ enum class MspFn {
 	GET_RX_STATUS = 0x4180,
 	GET_RX_MODES = 0x4181,
 	SET_RX_MODES = 0x4182,
+	CRSF_SCAN_DEVICES = 0x4183,
+	CRSF_GET_DEVICES = 0x4184,
+	CRSF_SEND_MESSAGE = 0x4185,
+	CRSF_SUBSCRIBE = 0x4186,
+	CRSF_GOT_MESSAGE = 0x4187,
 
 	// 0x419_ Battery
 	GET_BATTERY_SETTINGS = 0x4190,
@@ -144,12 +150,18 @@ enum class MspFn {
 	// 0x41A_ Motors
 	GET_MOTOR_LAYOUT = 0x41A0,
 	SET_MOTOR_LAYOUT = 0x41A1,
+	GET_MOTOR_STATE = 0x41A2,
 
 	// 0x41B_ VTX
 	GET_VTX_CURRENT_STATE = 0x41B0,
 	GET_VTX_CONFIG = 0x41B1,
 	SET_VTX_CONFIG = 0x41B2,
 	VTX_APPLY_CONFIG = 0x41B3,
+
+	// 0x41C_ Serial setup
+	GET_IO_CONSTRAINTS = 0x41C0,
+	GET_SERIAL_SETUP = 0x41C1,
+	SET_SERIAL_SETUP = 0x41C2,
 
 	// 0x41F_ Misc (not worth a category)
 	GET_TZ_OFFSET = 0x41F0,

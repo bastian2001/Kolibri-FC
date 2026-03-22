@@ -3,6 +3,7 @@ import { MspFn, MspVersion } from "@/msp/protocol"
 import { Command } from "@utils/types"
 import { useLogStore } from "@stores/logStore"
 import { runAsync } from "@utils/utils"
+import { onBeforeUnmount } from "vue"
 
 const MspState = {
 	IDLE: 0, // waiting for $
@@ -42,7 +43,11 @@ const commandHandlers: ((command: Command) => void)[] = []
 
 const setCommand = (cmd: Command) => {
 	const command = structuredClone(cmd)
-	commandHandlers.forEach(handler => handler(command))
+	commandHandlers.forEach(handler => {
+		try {
+			handler(command)
+		} catch {}
+	})
 	for (let i = pendingRequests.length - 1; i >= 0; i--) {
 		const p = pendingRequests[i]
 		if (p.verifyFn(p.req, command, p.callbackData)) {
@@ -54,16 +59,17 @@ const setCommand = (cmd: Command) => {
 	}
 }
 
-export const addOnCommandHandler = (handler: (command: Command) => void) => {
+export function onCommandHandler(handler: (command: Command) => void, destroy = true) {
 	commandHandlers.push(handler)
+
+	if (destroy)
+		onBeforeUnmount(() => {
+			const i = commandHandlers.indexOf(handler)
+			if (i > -1) commandHandlers.splice(i, 1)
+		})
 }
 
-export const removeOnCommandHandler = (handler: (command: Command) => void) => {
-	const i = commandHandlers.indexOf(handler)
-	if (i > -1) commandHandlers.splice(i, 1)
-}
-
-addOnCommandHandler((c: Command) => {
+onCommandHandler((c: Command) => {
 	if (c.cmdType === "error") {
 		console.error(structuredClone(c))
 		configuratorLog?.push("Error, see console for details.")
@@ -72,12 +78,12 @@ addOnCommandHandler((c: Command) => {
 		console.log(structuredClone(c))
 		configuratorLog?.push("Unsupported command, see console for details.")
 	}
-})
+}, false)
 
-function arrayToStr(ar: number[] | Uint8Array) {
+export function arrayToStr(ar: number[] | Uint8Array) {
 	return String.fromCharCode(...ar)
 }
-function strToArray(str: string) {
+export function strToArray(str: string) {
 	const data = []
 	for (let i = 0; i < str.length; i++) {
 		data[i] = str.charCodeAt(i)
@@ -140,7 +146,7 @@ export async function sendCommand(
 				timeout?: number
 				verifyFn?: (req: Command, res: Command, callbackData?: any) => boolean
 				callbackData?: any
-		  } = []
+		  } = [],
 ): Promise<Command> {
 	return new Promise<Command>((resolve, reject) => {
 		// sanitize input
@@ -532,14 +538,8 @@ export const connect = (portToOpen: string) => {
 			invoke("tcp_open", { path })
 				.then(() => {
 					connectType = "tcp"
-					cmdEnabled = true
 					console.log("TCP connected to", path)
-					readInterval = setInterval(read, 3)
-					pingInterval = setInterval(ping, 200)
-					statusInterval = setInterval(() => {
-						sendCommand(MspFn.STATUS).catch(() => {})
-					}, 1000)
-					onConnectHandlers.forEach(h => h())
+					onConnected()
 					resolve()
 				})
 				.catch(e => {
@@ -554,13 +554,7 @@ export const connect = (portToOpen: string) => {
 		invoke("serial_open", { path: portToOpen })
 			.then(() => {
 				connectType = "serial"
-				cmdEnabled = true
-				readInterval = setInterval(read, 3)
-				pingInterval = setInterval(ping, 200)
-				statusInterval = setInterval(() => {
-					sendCommand(MspFn.STATUS).catch(() => {})
-				}, 1000)
-				onConnectHandlers.forEach(h => h())
+				onConnected()
 				resolve()
 			})
 			.catch(e => {
@@ -568,6 +562,20 @@ export const connect = (portToOpen: string) => {
 				disconnect()
 				reject(e)
 			})
+	})
+}
+
+function onConnected() {
+	cmdEnabled = true
+	readInterval = setInterval(read, 3)
+	pingInterval = setInterval(ping, 200)
+	statusInterval = setInterval(() => {
+		sendCommand(MspFn.STATUS).catch(() => {})
+	}, 1000)
+	onConnectHandlers.forEach(h => {
+		try {
+			h()
+		} catch {}
 	})
 }
 
@@ -595,7 +603,11 @@ function ping() {
 }
 
 function onDisconnect() {
-	onDisconnectHandlers.forEach(h => h())
+	onDisconnectHandlers.forEach(h => {
+		try {
+			h()
+		} catch {}
+	})
 	connectType = "none"
 	cmdEnabled = false
 	fcPing = -1
@@ -653,7 +665,7 @@ export const disconnect = () => {
 let serialDevices: string[] = []
 function listSerialDevices() {
 	invoke("serial_list").then((d: unknown) => {
-		serialDevices = d as string[]
+		serialDevices = (d as string[]).filter(s => !s.match(/\/dev\/ttyS\d+/))
 	})
 }
 let wifiDevices: string[][] = []
@@ -680,17 +692,23 @@ export const getWifiDevices = () => wifiDevices
 
 const onDisconnectHandlers: (() => void)[] = []
 const onConnectHandlers: (() => void)[] = []
-export const addOnDisconnectHandler = (handler: () => void) => {
-	onDisconnectHandlers.push(handler)
+export function onDisconnectHandler(...handler: (() => void)[]) {
+	onDisconnectHandlers.push(...handler)
+
+	onBeforeUnmount(() => {
+		for (const h of handler) {
+			const i = onDisconnectHandlers.indexOf(h)
+			if (i >= 0) onDisconnectHandlers.splice(i, 1)
+		}
+	})
 }
-export const removeOnDisconnectHandler = (handler: () => void) => {
-	const i = onDisconnectHandlers.indexOf(handler)
-	if (i >= 0) onDisconnectHandlers.splice(i, 1)
-}
-export const addOnConnectHandler = (handler: () => void) => {
-	onConnectHandlers.push(handler)
-}
-export const removeOnConnectHandler = (handler: () => void) => {
-	const i = onConnectHandlers.indexOf(handler)
-	if (i >= 0) onConnectHandlers.splice(i, 1)
+export function onConnectHandler(...handler: (() => void)[]) {
+	onConnectHandlers.push(...handler)
+
+	onBeforeUnmount(() => {
+		for (const h of handler) {
+			const i = onConnectHandlers.indexOf(h)
+			if (i >= 0) onConnectHandlers.splice(i, 1)
+		}
+	})
 }

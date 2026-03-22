@@ -220,3 +220,32 @@ export type Command = {
 	version: number
 	callbackData?: any
 }
+
+export type CrsfDevice = {
+	name: string
+	address: number
+	paramCount: number
+	paramVersion: number
+	serialNo: Uint8Array
+	hardwareId: Uint8Array
+	firmwareId: Uint8Array
+}
+
+export type Pin = {
+	positions: {
+		x: number
+		y: number
+	}[]
+	no: number
+	label: string
+	functions: string[]
+}
+
+export type Serial = {
+	type: "normal" | "soft" | "hdx"
+	tx: number
+	rx: number
+	baud: number
+	pio?: number
+	sm?: number[]
+}

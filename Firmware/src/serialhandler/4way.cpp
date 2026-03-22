@@ -7,7 +7,7 @@ static u32 offsetPioReceive;
 static u32 offsetPioTransmit;
 static pio_sm_config configPioReceive;
 static pio_sm_config configPioTransmit;
-static u8 serialNum4Way;
+static KoliSerial *serial4Way;
 
 static bool isTxEnabled = false;
 static std::deque<uint8_t> escRxBuf;
@@ -245,8 +245,8 @@ void begin4Way(u8 serialNum) {
 	sm_config_set_clkdiv_int_frac8(&configPioTransmit, 859, 128);
 	pio_sm_init(PIO_ESC, 0, offsetPioReceive, &configPioReceive);
 	pio_sm_set_enabled(PIO_ESC, 0, true);
-	serials[serialNum].functions |= SERIAL_4WAY;
-	serialNum4Way = serialNum;
+	serial4Way = &*serials[serialNum];
+	serial4Way->functions |= SERIAL_4WAY_HOST;
 	setup4WayDone = true;
 }
 
@@ -260,7 +260,7 @@ void end4Way() {
 		gpio_set_function(PIN_MOTORS + i, GPIO_FUNC_NULL);
 	}
 	initESCs();
-	serials[serialNum4Way].functions &= ~SERIAL_4WAY;
+	serial4Way->functions &= ~SERIAL_4WAY_HOST;
 	setup4WayDone = false;
 }
 
@@ -280,18 +280,18 @@ void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, R
 		crc = crcUpdateXmodem(crc, payload[i]);
 	}
 	crc = crcUpdateXmodem(crc, (u8)resCode);
-	serials[serialNum4Way].stream->write(header, 5);
-	serials[serialNum4Way].stream->write(payload, len);
-	serials[serialNum4Way].stream->write((u8)resCode);
-	serials[serialNum4Way].stream->write(crc >> 8);
-	serials[serialNum4Way].stream->write(crc & 0xFF);
-	serials[serialNum4Way].stream->flush();
+	serial4Way->write(header, 5);
+	serial4Way->write(payload, len);
+	serial4Way->write((u8)resCode);
+	serial4Way->write(crc >> 8);
+	serial4Way->write(crc & 0xFF);
+	serial4Way->flush();
 }
 
 uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {
 	if (addrHi == 0xFF && addrLo == 0xFF) return 1;
 	uint8_t sCmd[] = {(u8)BlCmd::SET_ADDRESS, 0x00, addrHi, addrLo};
-	uint8_t rxBuf[50] = {0};
+	uint8_t rxBuf[50] = {};
 	sendEsc(sCmd, 4);
 	delayWhileRead(5);
 	uint16_t rxSize = getEsc(rxBuf, 20);
@@ -301,7 +301,7 @@ uint8_t blSendCmdSetAddr(uint8_t addrHi, uint8_t addrLo) {
 
 uint8_t blSendCmdSetBuf(uint8_t len, uint8_t buf[256]) {
 	uint8_t sCmd[] = {(u8)BlCmd::SET_BUFFER, 0x00, len == 0, len};
-	uint8_t rxBuf[50] = {0};
+	uint8_t rxBuf[50] = {};
 	sendEsc(sCmd, 4);
 	delayWhileRead(5);
 	uint16_t rxSize = getEsc(rxBuf, 20);
@@ -316,7 +316,7 @@ uint8_t blSendCmdSetBuf(uint8_t len, uint8_t buf[256]) {
 uint8_t blVerifyFlash(uint8_t len, uint8_t buf[256], uint8_t addrHi, uint8_t addrLo) {
 	if (blSendCmdSetAddr(addrHi, addrLo)) {
 		uint8_t sCmd[] = {(u8)BlCmd::VERIFY_FLASH_ARM, 0x01};
-		uint8_t rxBuf[50] = {0};
+		uint8_t rxBuf[50] = {};
 		if (!blSendCmdSetBuf(len, buf)) return 0;
 		sendEsc(sCmd, 2);
 		delayWhileRead(5);
@@ -327,7 +327,7 @@ uint8_t blVerifyFlash(uint8_t len, uint8_t buf[256], uint8_t addrHi, uint8_t add
 }
 
 void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
-	u8 buf[300] = {0};
+	u8 buf[300] = {};
 
 	switch ((Cmd4Way)cmd) {
 	case Cmd4Way::INTERFACE_TEST_ALIVE:
@@ -491,7 +491,7 @@ void process4WayCmd(u8 cmd, u16 address, u8 *payload, u16 len) {
 
 	case Cmd4Way::DEVICE_PAGE_ERASE: {
 		u8 ack = (u8)Res4Way::ACK_OK;
-		u8 rx[250] = {0};
+		u8 rx[250] = {};
 
 		buf[0] = (u8)BlCmd::SET_ADDRESS;
 		buf[1] = 0;

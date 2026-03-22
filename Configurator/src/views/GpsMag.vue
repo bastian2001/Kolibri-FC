@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
+import { sendCommand, onCommandHandler } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { delay, leBytesToInt } from "@utils/utils";
 import { useLogStore } from "@stores/logStore";
@@ -9,7 +9,7 @@ import { Command } from "@utils/types";
 export default defineComponent({
 	name: "GpsMag",
 	mounted() {
-		addOnCommandHandler(this.onCommand);
+		onCommandHandler(this.onCommand);
 
 		this.getMagContinuous()
 		this.getGpsDataInterval = setInterval(() => {
@@ -81,7 +81,6 @@ export default defineComponent({
 		}, 100);
 	},
 	unmounted() {
-		removeOnCommandHandler(this.onCommand);
 		clearInterval(this.magPointInterval);
 		clearInterval(this.getGpsDataInterval);
 		clearInterval(this.gpsDataSlowInterval);

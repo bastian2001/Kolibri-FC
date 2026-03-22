@@ -5,9 +5,17 @@
 // a total of 2000 good samples are required, the first 1000 are ignored
 #define CALIBRATION_SAMPLES 1000
 #define QUIET_SAMPLES 1000
-#define CALIBRATION_TOLERANCE 128 // (4deg/s)
+#define GYRO_CALIBRATION_TOLERANCE 128 // (4deg/s)
+#define IMU_ALIGNMENT_TOLERANCE 600 // does not need to be exact, therefore rather big at 3m/s²
+#define ACCEL_CALIBRATION_TOLERANCE 200 // 1m/s²
 
-#ifdef GYRO_BMI270
+extern volatile bool accelCalDone; // accel calibration flag to save the data
+extern volatile u8 accelCalState; // 0 = normal operation, 1 = quiet, 2 = measuring
+extern volatile bool imuAlignmentDone; // imu orientation done flag to save the data
+extern volatile u8 imuAlignmentStep; // 0 = normal operation, 1 = waiting for normal placement, 2 = waiting for nose down
+extern volatile i16 imuAlignmentCounter;
+
+#if HW_GYRO == GYRO_BMI270
 enum class GyroReg : u8 {
 	CHIP_ID = 0x00,
 	ERROR = 0x02,
@@ -65,7 +73,7 @@ enum class GyroReg : u8 {
 	PWR_CTRL = 0x7D,
 	CMD = 0x7E,
 };
-#elifdef GYRO_ICM42688P
+#elif HW_GYRO == GYRO_ICM42688P
 
 enum class GyroReg : u8 {
 	REG_BANK_SEL = 0x76,
@@ -143,9 +151,14 @@ enum class GyroReg : u8 {
  * @details gyro data, and by extension the PID loop, is the most time-sensitive task. it gets priority, and once the data is read, the flag is set to FFFFFFFF so that other tasks know it's safe to run without impacting the gyro data or PID loop.
  */
 extern u32 gyroUpdateFlag;
-extern volatile i16 *gyroDataRaw; // raw gyro data from the BMI160 after calibration, part of agDataRaw
-extern volatile i16 *accelDataRaw; // raw accelerometer data from the BMI160 after calibration, part of agDataRaw
-extern const fix32 *const accelDataFiltered[3]; // PT1 filters for the accelerometer data, raw scaling from accel
+extern fix32 gyroScaled[3]; // gyro data in deg/s
+extern fix32 accelScaled[3]; // accel data in m/s^2
+extern i32 gyroAligned[3]; // after alignment, no scaling or filtering
+extern i32 accelAligned[3]; // after alignment, no scaling or filtering
+extern const fix32 *const gyroFiltered[3]; // gyro filter (currently PT1) deg/s
+extern const fix32 *const accelFiltered[3]; // PT1 filters for the accelerometer data, m/s^2
+
+extern volatile u8 gyroReadyFlags; // bit 3: do alignment, 2: accel calibration, 1: gyro calibration, 0: not initialized/not found;
 
 /// @brief Initializes the gyro (Bosch BMI270)
 /// @return 0 on success, 1 on failure
@@ -168,3 +181,7 @@ void startGyroCalibration();
 void getGyroCalibration(i16 cal[3]);
 
 void startAccelCalibration();
+
+void startImuAlignment();
+
+void getImuAlignment(u8 axes[3]);

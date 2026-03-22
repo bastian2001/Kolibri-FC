@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="110mm"
+   height="110mm"
+   viewBox="0 0 110 110"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.4.3 (1:1.4.3+202512261035+0d15f75042)"
+   sodipodi:docname="gps_inkscape.svg"
+   inkscape:export-filename="gyroaccel.png"
+   inkscape:export-xdpi="461.81821"
+   inkscape:export-ydpi="461.81821"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="1.829812"
+     inkscape:cx="119.13792"
+     inkscape:cy="212.8634"
+     inkscape:window-width="2560"
+     inkscape:window-height="1368"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path3"
+       style="stroke-width:3.765;stroke-linecap:round;stroke:none;stroke-dasharray:none;paint-order:markers stroke fill"
+       d="M 54.999744 3.9578979 C 38.179259 3.9578979 24.543722 17.593435 24.543722 34.41392 C 24.543722 51.234405 54.999744 87.282528 54.999744 87.282528 C 54.999744 87.282528 85.456283 51.234405 85.456283 34.41392 C 85.456283 17.593434 71.82023 3.9578973 54.999744 3.9578979 z M 54.999744 28.051518 A 5.7838368 5.7838368 0 0 1 60.783887 33.835661 A 5.7838368 5.7838368 0 0 1 54.999744 39.619287 A 5.7838368 5.7838368 0 0 1 49.216117 33.835661 A 5.7838368 5.7838368 0 0 1 54.999744 28.051518 z " />
+    <path
+       id="path5"
+       style="fill:#000000;stroke:none;stroke-width:3.76499;stroke-linecap:round"
+       d="M 43.404586 80.712386 A 33.492695 12.146057 0 0 0 21.507214 92.107556 A 33.492695 12.146057 0 0 0 54.999744 104.25358 A 33.492695 12.146057 0 0 0 88.49279 92.107556 A 33.492695 12.146057 0 0 0 66.594902 80.712386 C 66.334264 81.055712 66.077265 81.392608 65.824923 81.722144 A 27.27507 9.1095428 0 0 1 82.275081 90.08339 A 27.27507 9.1095428 0 0 1 54.999744 99.192912 A 27.27507 9.1095428 0 0 1 27.724923 90.08339 A 27.27507 9.1095428 0 0 1 44.174565 81.722144 C 43.922253 81.392602 43.665195 81.055718 43.404586 80.712386 z " />
+  </g>
+</svg>

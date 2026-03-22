@@ -175,8 +175,8 @@ public:
 
 private:
 	u8 singleSpiTransfer(u8 txByte = 0);
-	void burstSpiRead(u16 len, u8 *dst);
-	void burstSpiWrite(u16 len, const u8 *src);
+	void burstSpiRead(u16 len, void *dst);
+	void burstSpiWrite(u16 len, const void *src);
 	bool checkReadId();
 	void reset();
 	void setFeature(u8 featureRegister, u8 data);
