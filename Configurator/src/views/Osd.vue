@@ -5,12 +5,14 @@ import { computed, onMounted, ref, useTemplateRef } from "vue";
 import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 
-const file = fonts.impact;
+const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
 const log = useLogStore();
 const charsDone = ref(0);
 const dragging = ref('' as '' | 'new' | 'move');
 const filter = ref('');
+const rows = ref(13)
+const cols = ref(30);
 
 const charCanvases: HTMLCanvasElement[] = []
 const osdCanvas = useTemplateRef('osdCanvas')
@@ -95,8 +97,8 @@ function createCanvases() {
 	for (let i = 0; i < chars.value.length; i++) {
 		const can = document.createElement('canvas');
 		const c = chars.value[i]
-		can.width = 36;
-		can.height = 54;
+		can.width = 48;
+		can.height = 72;
 		const ctx = can.getContext('2d');
 		if (!ctx) continue;
 		c.forEach((b, i) => {
@@ -104,41 +106,49 @@ function createCanvases() {
 			const y = Math.floor(i / 3);
 			for (let xDiff = 3; xDiff >= 0; xDiff--) {
 				ctx.fillStyle = FILL_STYLES[b & 0b11];
-				ctx.fillRect((xStart + xDiff) * 3, y * 3, 3, 3);
+				ctx.fillRect((xStart + xDiff) * 4, y * 4, 4, 4);
 				b = b >> 2;
 			}
 		})
 		charCanvases[i] = can;
-	}
-	const ctx = osdCanvas.value?.getContext('2d')
-	if (!ctx) return
-	for (let i = 0; i < charCanvases.length; i++) {
-		const charCanvas = charCanvases[i];
-		ctx.drawImage(charCanvas, (i % 24) * 24, 20 + Math.floor(i / 24) * 36, 24, 36);
 	}
 }
 
 function dragStart(el: OsdElement, event: DragEvent) {
 	const canvas = draggerCanvas.value;
 	if (!canvas) return;
-	canvas.width = 36 * el.def.length;
-	canvas.height = 54;
+	canvas.width = 48 * el.def.length;
+	canvas.height = 72;
 	const ctx = canvas.getContext('2d');
 	if (!ctx) return;
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	for (let i = 0; i < el.def.length; i++) {
-		ctx.drawImage(charCanvases[el.def.charCodeAt(i)], 36 * i, 0);
+		ctx.drawImage(charCanvases[el.def.charCodeAt(i)], 48 * i, 0);
 	}
-	event.dataTransfer?.setDragImage(canvas, 18, 27);
+	if (!event.dataTransfer) return;
+	event.dataTransfer.setData('text/plain', 'dummy');
+	event.dataTransfer.setDragImage(canvas, 24, 36);
+	event.dataTransfer.effectAllowed = 'copy'
 }
 function dragEnd(event: DragEvent) {
 	event.preventDefault();
+	const ctx = osdCanvas.value?.getContext('2d')
+	if (!ctx || !draggerCanvas.value) return;
 }
-function dragover(event: DragEvent) {
+const dragover = (event: DragEvent) => {
+	console.log('dragover')
 	event.preventDefault();
+	if (!event.dataTransfer) return;
+	event.dataTransfer.dropEffect = 'copy'
+	console.log(event.pageX, event.x, event.layerX, event.clientX, event.offsetX, event.screenX, event.movementX)
 }
 function dropped(event: DragEvent) {
 	event.preventDefault();
+	if (!osdCanvas.value || !draggerCanvas.value) return;
+	const box = osdCanvas.value.getBoundingClientRect();
+	const ctx = osdCanvas.value.getContext('2d');
+	if (!ctx) return;
+	ctx.drawImage(draggerCanvas.value, event.offsetX * 1600 / box.width, event.offsetY * 900 / box.height);
 }
 
 onMounted(() => {
@@ -175,8 +185,12 @@ onMounted(() => {
 		<div class="previewWrapper">
 			<div class="preview">
 				<div class="previewImage" @drop="dropped" @dragover="dragover">
+					<div class="grid" :style="`display: ${dragging === '' ? 'none' : 'block'}`">
+						<div class="hline" v-for="i in (rows - 1)" :style="`top: ${100 * i / rows}%`"></div>
+						<div class="vline" v-for="i in (cols - 1)" :style="`left: ${100 * i / cols}%`"></div>
+					</div>
 					<canvas class="draggerCanvas" ref="draggerCanvas"></canvas>
-					<canvas ref="osdCanvas" width="1500" height="1000"></canvas>
+					<canvas ref="osdCanvas" class="osdCanvas" width="1600" height="900"></canvas>
 				</div>
 			</div>
 		</div>
@@ -232,6 +246,7 @@ input {
 }
 
 .previewImage {
+	position: relative;
 	aspect-ratio: 16/9;
 	min-width: 500px;
 	max-height: 70vh;
@@ -242,10 +257,37 @@ input {
 	margin: 0px auto;
 }
 
+.grid {
+	height: 100%;
+	width: 100%;
+	position: absolute;
+}
+
+.hline {
+	height: 1px;
+	width: 100%;
+	background-color: grey;
+	position: absolute;
+}
+
+.vline {
+	width: 1px;
+	height: 100%;
+	background-color: grey;
+	position: absolute;
+}
+
 .draggerCanvas {
 	/* hide it away, but it needs to be in the DOM and technically on-screen to be used */
 	position: absolute;
 	bottom: 0px;
 	z-index: -1;
+	pointer-events: none !important;
+}
+
+.osdCanvas {
+	width: 100%;
+	z-index: 1;
+	height: 100%;
 }
 </style>
