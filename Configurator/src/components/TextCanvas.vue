@@ -50,7 +50,7 @@ const style = computed(() => {
 function dragStart(event: DragEvent) {
 	if (!event.dataTransfer || !canvas.value?.parentElement) return;
 	event.dataTransfer.setData('text/plain', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-	event.dataTransfer.effectAllowed = 'move';
+	event.dataTransfer.effectAllowed = 'all';
 	const box = canvas.value.parentElement.getBoundingClientRect();
 	if (!box.width || !box.height) return;
 	const cWidth = box.width / props.cols;

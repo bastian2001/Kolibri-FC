@@ -21,9 +21,11 @@ const draggerCanvas = useTemplateRef('draggerCanvas');
 const dragCanvasCols = ref(0);
 const draggingRow = ref(0);
 const draggingCol = ref(0);
-const dragText = ref('')
+const dragText = ref('');
 let grabbedChar = 0;
-const previewImage = useTemplateRef('previewImage')
+const dragTrashHover = ref(false);
+const dragHide = ref(true);
+const previewImage = useTemplateRef('previewImage');
 
 type OsdElement = {
 	name: string,
@@ -139,7 +141,7 @@ function dragStart(el: OsdElement, event: DragEvent, type: 'copy' | 'move', gCha
 	if (type === 'copy') {
 		if (!event.dataTransfer) return;
 		event.dataTransfer.setData('text/plain', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-		event.dataTransfer.effectAllowed = type;
+		event.dataTransfer.effectAllowed = 'all';
 
 		const canvas = draggerCanvas.value;
 		if (!canvas) return;
@@ -161,14 +163,17 @@ function dragStart(el: OsdElement, event: DragEvent, type: 'copy' | 'move', gCha
 		const cHeight = box.height / rows.value;
 		event.dataTransfer.setDragImage(canvas, cWidth * (gChar + 1 / 2), cHeight / 2);
 	} else {
-		dragText.value = text
+		dragText.value = text;
 	}
 
-	dragging.value = type
-	grabbedChar = gChar
-	draggingId.value = OSD_LIST.indexOf(el)
+	dragging.value = type;
+	grabbedChar = gChar;
+	dragHide.value = true;
+	dragTrashHover.value = false;
+	draggingId.value = OSD_LIST.indexOf(el);
 }
 function dragEnd(event: DragEvent) {
+	console.log('end')
 	event.preventDefault();
 	dragging.value = 'none'
 }
@@ -181,6 +186,7 @@ const dragover = (event: DragEvent) => {
 	const box = previewImage.value.getBoundingClientRect();
 	draggingRow.value = Math.floor(event.offsetY / box.height * rows.value);
 	draggingCol.value = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
+	dragHide.value = false;
 }
 function dropped(event: DragEvent) {
 	event.preventDefault();
@@ -196,6 +202,17 @@ function dropped(event: DragEvent) {
 	} else {
 		activeElements.value.push({ id: draggingId.value, posX: col, posY: row, option: osdEl.def });
 	}
+}
+function dragoverTrash(event: DragEvent) {
+	event.preventDefault();
+	if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+	dragTrashHover.value = true;
+}
+function dropTrash(event: DragEvent) {
+	event.preventDefault();
+	const el = activeElements.value.findIndex(ae => ae.id === draggingId.value);
+	activeElements.value.splice(el, 1);
+	dragging.value = 'none'
 }
 
 onMounted(() => {
@@ -216,40 +233,44 @@ onMounted(() => {
 </script>
 <template>
 	<div class="wrapper">
-		<div class="osdListWrapper">
+		<div class="osdListWrapper" :class="{ lowOpacity: dragging === 'copy' }">
+			<div class="dragTrash" :class="{ red: dragTrashHover }" v-if="dragging === 'move'"
+				@dragenter="() => dragTrashHover = true" @dragover="dragoverTrash"
+				@dragleave="() => dragTrashHover = false" @drop="dropTrash">
+				<p class="trashText">
+					<i class="fa-solid fa-trash"></i>
+				</p>
+			</div>
 			<div class="activeElements" v-if="activeElements.length">
 				<h3>Enabled OSD Elements</h3>
 				<div class="activeElement" v-for="el in activeElements">
-					<div class="activeLeft">
-						<p>{{ OSD_LIST[el.id].name }}</p>
-						<div class="options" v-if="OSD_LIST[el.id].options">
-							<select v-model="el.option">
-								<option v-for="(_, i) in OSD_LIST[el.id].options" :value="i">{{ i }}</option>
-							</select>
-						</div>
-					</div>
+					<p>{{ OSD_LIST[el.id].name }}</p>
+					<select v-model="el.option" v-if="OSD_LIST[el.id].options">
+						<option v-for="(_, i) in OSD_LIST[el.id].options" :value="i">{{ i }}</option>
+					</select>
 					<button class="defaultBtn red small"
 						@click="() => { activeElements.splice(activeElements.indexOf(el), 1) }">
 						<i class="fa-solid fa-trash"></i>
 					</button>
 				</div>
 			</div>
-			<div class="osdSearch">
-				<input type="text" v-model="filter" placeholder="Filter">
-			</div>
 			<div class="osdList">
+				<h3>Available Elements (Drag and Drop)</h3>
+				<div class="osdSearch">
+					<input type="text" v-model="filter" placeholder="Filter">
+				</div>
 				<div class="listElem"
 					v-for="el in filteredList.filter((_, i) => activeElements.findIndex(el => el.id === i) === -1)"
 					draggable="true" @dragstart="(event) => { dragStart(el, event, 'copy') }" @dragend="dragEnd">
-					<p><i class="fa-solid fa-arrow-pointer"></i> {{ el.name }}</p>
+					<p><i class="fa-solid fa-arrow-pointer"></i>{{ el.name }}</p>
 				</div>
 			</div>
-			<div class="trash" v-if="dragging === 'move'"></div>
 		</div>
 		<div class="line"></div>
 		<div class="previewWrapper">
 			<div class="preview">
-				<div class="previewImage" @drop="dropped" @dragover="dragover" ref="previewImage">
+				<div class="previewImage" @drop="dropped" @dragover="dragover" @dragleave="() => dragHide = true"
+					ref="previewImage">
 					<img src="@assets/DJI_0124.JPG">
 					<div class="grid" :style="`display: ${dragging === 'none' ? 'none' : 'block'}`">
 						<div class="hline" v-for="i in (rows - 1)" :style="`top: ${100 * i / rows}%`"></div>
@@ -257,13 +278,13 @@ onMounted(() => {
 					</div>
 					<canvas class="draggerCanvas" ref="draggerCanvas"
 						:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 / rows}%;`"></canvas>
-					<TextCanvas v-for="el in activeElements"
-						:opacity="(el.id === draggingId && dragging !== 'none') ? 0 : 1" :key="el.id"
+					<TextCanvas v-for="el in activeElements" :key="el.id"
+						:opacity="(el.id === draggingId && dragging !== 'none') ? 0 : 1"
 						:text="OSD_LIST[el.id].options ? OSD_LIST[el.id].options![el.option] : OSD_LIST[el.id].def"
 						:rows="rows" :cols="cols" :row="el.posY" :col="el.posX" :chars="charCanvases"
-						@dragstart="(event, grabbedChar, text) => { dragStart(OSD_LIST[el.id], event, 'move', grabbedChar, text) }"
+						@dragstart="(ev, gc, txt) => { dragStart(OSD_LIST[el.id], ev, 'move', gc, txt) }"
 						:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd" />
-					<TextCanvas v-if="dragging !== 'none'" :opacity="0.5" :rows="rows" :cols="cols"
+					<TextCanvas v-if="dragging !== 'none' && !dragHide" :opacity="0.5" :rows="rows" :cols="cols"
 						:chars="charCanvases" :text="dragText" :row="draggingRow" :col="draggingCol" :poiev="'none'" />
 				</div>
 			</div>
@@ -294,45 +315,96 @@ select {
 	padding: 1rem;
 	border-radius: 1rem;
 	background-color: var(--background-light);
-	border: 3px solid;
-	border-color: var(--border-color);
+	border: 3px solid var(--border-color);
 	flex-grow: 1;
+	position: relative;
+	transition: opacity 0.3s ease-out;
 }
 
-.activeElements {
+.lowOpacity {
+	opacity: 0.5;
+}
+
+.dragTrash {
+	position: absolute;
+	top: calc(-1rem - 3px);
+	left: calc(-1rem - 3px);
+	width: calc(100% + 6px);
+	height: calc(100% + 6px);
+	background-color: var(--background-light);
+	margin: 1rem;
+	padding: 1rem;
+	border-radius: 1rem;
+	box-sizing: border-box;
+	border: 3px solid var(--border-color);
+	transition: all .2s ease-out;
+}
+
+.dragTrash.red {
+	background-color: rgb(168, 47, 47);
+	border-color: #faa;
+	/* FAA sucks, but I want this color */
+}
+
+.trashText {
+	font-size: 4rem;
+	text-align: center;
+	position: sticky;
+	top: 20vh;
+	transition: color .2s ease-out;
+}
+
+.red .trashText {
+	color: #fdd;
+}
+
+.activeElements,
+.osdList {
 	padding: .6rem;
 	border-radius: .6rem;
 	box-shadow: 1px 1px 5px 0px black;
 	background-color: var(--background-highlight);
 }
 
-.activeElements h3 {
+.activeElements {
+	margin-bottom: 1rem;
+}
+
+.osdSearch {
+	margin-bottom: .6rem;
+}
+
+.activeElements h3,
+.osdList h3 {
 	margin: .2rem 0px .4rem 0px;
 }
 
-.activeElement {
+.activeElement,
+.listElem {
 	display: flex;
 	align-items: center;
+	gap: 1rem;
 	padding: .3rem .3rem .4rem .3rem;
-}
-
-.activeElement:not(:last-child) {
-	border-bottom: 1px solid var(--border-color);
-}
-
-.activeLeft {
-	flex-grow: 1;
-}
-
-.activeLeft p {
-	margin: 0px;
+	user-select: none;
 }
 
 .listElem {
-	padding: .6rem;
-	border: 2px solid var(--border-color);
-	margin: .6rem;
-	user-select: none;
+	padding: .5rem .6rem;
+}
+
+.activeElement:not(:last-child),
+.listElem:not(:last-child) {
+	border-bottom: 1px solid var(--border-color);
+}
+
+.activeElement p,
+.listElem p {
+	flex-grow: 1;
+	margin: 0px;
+}
+
+.listElem i {
+	margin-right: .8rem;
 }
 
 .line {
@@ -357,10 +429,6 @@ select {
 	overflow: hidden;
 	min-width: 500px;
 	max-height: 70vh;
-	background-image: url('/src/assets/DJI_0124.JPG');
-	background-position: center;
-	background-repeat: no-repeat;
-	background-size: cover;
 	margin: 0px auto;
 }
 
