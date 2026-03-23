@@ -88,8 +88,16 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		openSettingsFile();
 		response = "Settings saved";
 	} else if (cmd == "reboot") {
-		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Rebooting...", 13);
-		if (serials[lastMspSerial]) serials[lastMspSerial]->flush();
+		if (lastMspSerial != nullptr) {
+			MspMsgSetup s = {
+				.fn = MspFn::CLI_COMMAND,
+				.serial = *lastMspSerial,
+				.type = MspMsgType::RESPONSE,
+				.version = lastMspVersion,
+			};
+			sendMsp(s, "Rebooting...", 13);
+			lastMspSerial->flush();
+		}
 		sleep_ms(100);
 		rp2040.reboot();
 	} else if (cmd == "status") {
@@ -104,11 +112,11 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 				char line[128];
 				if (!serials[i]) continue;
 				KoliSerial &s = *serials[i];
-				snprintf(line, 128, "Serial %d (%s):     TX: %7d bytes (%.2fKB/s),     RX: %7d bytes (%.2fKB/s),     ", i, KoliSerial::serialTypeNames[(u8)s.serialType], s.totalTx, s.totalTx / timeSinceReset, s.totalRx, s.totalRx / timeSinceReset);
+				snprintf(line, 128, "Serial %d (%s):     TX: %7d bytes (%.2fKB/s),     RX: %7d bytes (%.2fKB/s),     ", i, KoliSerial::SERIAL_TYPE_NAMES[(u8)s.serialType], s.totalTx, s.totalTx / timeSinceReset, s.totalRx, s.totalRx / timeSinceReset);
 				response += line;
 				bool firstFunction = true;
 				for (int j = 0; j < SERIAL_FUNCTION_COUNT; j++) {
-					if (s.functions & (1 << j)) {
+					if (s.functions() & (1 << j)) {
 						if (firstFunction)
 							firstFunction = false;
 						else
@@ -146,17 +154,32 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		}
 	} else if (cmd == "print") {
 		settingsFile.seek(0);
-		string line;
 		while (settingsFile.available()) {
-			line = "\n" + string(settingsFile.readStringUntil('\n').c_str());
-			sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, line.c_str(), line.length());
+			string line = "\n" + string(settingsFile.readStringUntil('\n').c_str());
+			if (lastMspSerial != nullptr) {
+				MspMsgSetup s = {
+					.fn = MspFn::CLI_COMMAND,
+					.serial = *lastMspSerial,
+					.type = MspMsgType::RESPONSE,
+					.version = lastMspVersion,
+				};
+				sendMsp(s, line.c_str(), line.length());
+			}
 		}
 	} else if (cmd == "echo") {
 		response = payload;
 	} else if (cmd == "reset") {
 		if (payload == "confirm") {
-			sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Resetting settings...", 22);
-			if (serials[lastMspSerial]) serials[lastMspSerial]->flush();
+			if (lastMspSerial != nullptr) {
+				MspMsgSetup s = {
+					.fn = MspFn::CLI_COMMAND,
+					.serial = *lastMspSerial,
+					.type = MspMsgType::RESPONSE,
+					.version = lastMspVersion,
+				};
+				sendMsp(s, "Resetting settings...", 22);
+				lastMspSerial->flush();
+			}
 			sleep_ms(100);
 			closeSettingsFile();
 			LittleFS.remove("/settings.txt");

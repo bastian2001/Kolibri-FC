@@ -5,7 +5,7 @@ DigitalOsd digitalOsd;
 void DigitalOsd::init() {
 	u8 i = 0;
 	for (auto &s : serials) {
-		if (s.functions & SERIAL_MSP_DISPLAYPORT) {
+		if (s && s->functions() & SERIAL_MSP_DISPLAYPORT) {
 			this->mspSerialId = i;
 			break;
 		}

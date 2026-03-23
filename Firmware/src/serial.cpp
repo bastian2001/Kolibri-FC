@@ -21,10 +21,13 @@ static u32 freeInstructions[NUM_PIOS] = {}; // we need to copy it manually, beca
 static u8 freeSms[NUM_PIOS] = {};
 
 void stopSerials() {
+	if (elrs) elrs->setupSubscription(0, nullptr, 0, nullptr, MspVersion::V2);
 	elrs.reset();
 	setGpsSerial(nullptr);
 	end4Way();
 	setTrampSerial(nullptr);
+	bbStopPrinting();
+	lastMspSerial = nullptr;
 
 	// destroy all the serials (end() is called in the destructor)
 	for (int i = 1; i < SERIAL_COUNT; i++) {
@@ -83,7 +86,7 @@ void revertSerials() {
 
 bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 	bool success = true;
-	u8 elrsSerial = 0;
+	KoliSerial * elrsSerial = 0;
 	KoliSerial *gpsSerial = nullptr;
 	KoliSerial *trampSerial = nullptr;
 
@@ -125,36 +128,36 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 			break;
 		}
 		KoliSerial &serial = *serials[i + 1];
-		serial.functions = cfg.functions;
+		serial.setFunctions(cfg.functions);
 
 		u32 rxFifo = 4;
 		u32 baud = 115200;
 		u16 config = SERIAL_8N1;
 
-		if (serial.functions & SERIAL_CRSF) {
+		if (cfg.functions & SERIAL_CRSF) {
 			if (rxFifo < 256) rxFifo = 256;
 			baud = 420000;
-			elrsSerial = i + 1;
-		} else if (serial.functions & SERIAL_MSP) {
+			elrsSerial = &serial;
+		} else if (cfg.functions & SERIAL_MSP) {
 			if (rxFifo < 256) rxFifo = 256;
-		} else if (serial.functions & SERIAL_GPS) {
+		} else if (cfg.functions & SERIAL_GPS) {
 			if (rxFifo < GPS_BUF_LEN) rxFifo = GPS_BUF_LEN;
 			baud = 38400;
 			gpsSerial = &serial;
-		} else if (serial.functions & SERIAL_4WAY_HOST) {
+		} else if (cfg.functions & SERIAL_4WAY_HOST) {
 			if (rxFifo < 256) rxFifo = 256;
-		} else if (serial.functions & SERIAL_IRC_TRAMP) {
+		} else if (cfg.functions & SERIAL_IRC_TRAMP) {
 			if (rxFifo < 32) rxFifo = 32;
 			baud = 9600;
 			trampSerial = &serial;
-		} else if (serial.functions & SERIAL_SMARTAUDIO) {
+		} else if (cfg.functions & SERIAL_SMARTAUDIO) {
 			config = SERIAL_8N2;
 			if (rxFifo < 32) rxFifo = 32;
 			baud = 4800;
-		} else if (serial.functions & SERIAL_ESC_TELEM) {
+		} else if (cfg.functions & SERIAL_ESC_TELEM) {
 			if (rxFifo < 64) rxFifo = 64;
 			baud = 115200;
-		} else if (serial.functions & SERIAL_MSP_DISPLAYPORT) {
+		} else if (cfg.functions & SERIAL_MSP_DISPLAYPORT) {
 			if (rxFifo < 256) rxFifo = 256;
 			baud = MSP_DP_SPEED;
 		}
@@ -241,7 +244,7 @@ void initSerial() {
 	}
 
 	serials[0].emplace(&Serial, 2048);
-	serials[0]->functions = SERIAL_MSP;
+	serials[0]->setFunctions(SERIAL_MSP);
 	// no need to begin, already begun before at boot
 	serialConfigs[0] = {
 		.type = SerialType::USB,
@@ -261,7 +264,7 @@ void serialLoop() {
 	if (!serials[currentSerial]) return;
 
 	KoliSerial &serial = *serials[currentSerial];
-	u32 &functions = serial.functions;
+	const u32 &functions = serial.functions();
 
 	if (!functions) {
 		while (serial.read() != -1) { // empty RX buf
@@ -283,7 +286,7 @@ void serialLoop() {
 		if (functions & SERIAL_MSP) {
 			rp2040.wdt_reset();
 			elapsedMicros timer = 0;
-			if (mspParsers[currentSerial] != nullptr) mspParsers[currentSerial]->mspHandleByte(c);
+			serial.mspParser().handleByte(c);
 			taskTimerTASK_SERIAL -= timer;
 		}
 		if (functions & SERIAL_GPS) {

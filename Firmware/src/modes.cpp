@@ -196,7 +196,7 @@ void modesInit() {
 	closeModesSettingsFile();
 }
 
-void mspGetRxModes(u8 serialNum, MspVersion version) {
+void mspGetRxModes(KoliSerial &serial, MspVersion version) {
 	char buf[64];
 	u8 bufIndex = 0;
 	for (int i = 0; i < RxModeIndex::LENGTH; i++) {
@@ -208,11 +208,23 @@ void mspGetRxModes(u8 serialNum, MspVersion version) {
 		buf[bufIndex++] = max;
 		buf[bufIndex++] = 0; // reserved byte
 	}
-	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::GET_RX_MODES, version, buf, bufIndex);
+	MspMsgSetup s = {
+		.fn = MspFn::GET_RX_MODES,
+		.serial = serial,
+		.type = MspMsgType::RESPONSE,
+		.version = version,
+	};
+	sendMsp(s, buf, bufIndex);
 }
 
-void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16 reqLen) {
+void mspSetRxModes(KoliSerial &serial, MspVersion version, const char *reqPayload, u16 reqLen) {
 	// Parse the incoming payload and update the Rx modes
+	MspMsgSetup s = {
+		.fn = MspFn::SET_RX_MODES,
+		.serial = serial,
+		.type = MspMsgType::ERROR,
+		.version = version,
+	};
 	if (reqLen < 4 || reqLen % 4 != 0) {
 		tasks[TASK_MODES].lastError = 3;
 		tasks[TASK_MODES].errorCount++;
@@ -225,14 +237,14 @@ void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16
 		if (channel < -1 || channel > 15) {
 			tasks[TASK_MODES].lastError = 2;
 			tasks[TASK_MODES].errorCount++;
-			sendMsp(serialNum, MspMsgType::ERROR, MspFn::SET_RX_MODES, version, "Invalid channel", 15);
+			sendMsp(s, "Invalid channel", 15);
 			return; // Invalid channel
 		}
 		if (minRange * 5 + 1500 < 900 || minRange * 5 + 1500 > 2100 ||
 			maxRange * 5 + 1500 < 900 || maxRange * 5 + 1500 > 2100) {
 			tasks[TASK_MODES].lastError = 1;
 			tasks[TASK_MODES].errorCount++;
-			sendMsp(serialNum, MspMsgType::ERROR, MspFn::SET_RX_MODES, version, "Invalid range", 13);
+			sendMsp(s, "Invalid range", 13);
 			return; // Invalid range
 		}
 	}
@@ -251,11 +263,12 @@ void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16
 	if (modesSettingsFile) {
 		setModesInFile(); // Save the updated modes to the file
 		closeModesSettingsFile();
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::SET_RX_MODES, version);
+		s.type = MspMsgType::RESPONSE;
+		sendMsp(s);
 	} else {
 		tasks[TASK_MODES].lastError = 4;
 		tasks[TASK_MODES].errorCount++;
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::SET_RX_MODES, version, "Failed to open modes file", 26);
+		sendMsp(s, "Failed to open modes file", 26);
 	}
 }
 

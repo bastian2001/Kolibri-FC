@@ -36,6 +36,7 @@
 #pragma once
 #include <Arduino.h>
 
+class KoliSerial;
 extern bool configuratorConnected; // true if the configurator is connected
 extern i16 mspDebugSensors[4]; // write values here to see them in the sensors tab. +-100, +-1000, +-10000, +-256
 
@@ -265,32 +266,35 @@ enum class MspVersion {
 	V1_OVER_CRSF,
 	V1_JUMBO_OVER_CRSF,
 };
+typedef struct mspMsgSetup {
+	MspFn fn;
+	KoliSerial &serial;
+	MspMsgType type = MspMsgType::RESPONSE;
+	MspVersion version = MspVersion::V2;
+} MspMsgSetup;
 
-extern u8 lastMspSerial;
+extern KoliSerial *lastMspSerial;
 extern MspVersion lastMspVersion;
 
 /**
  * @brief Send an MSP packet to the configurator
  *
- * @param serialNum serial port number to send the response to
- * @param type message type (request, response, error)
- * @param fn function to send
- * @param version MSP version to use
+ * @param setup MspMsgSetup with all the details for header and which serial
  * @param data data buffer, default is nullptr for no data
  * @param len length of the data buffer, default is 0
  */
-void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const char *data = nullptr, u16 len = 0);
+void sendMsp(MspMsgSetup setup, const char *data = nullptr, u16 len = 0);
 
 class MspParser {
 public:
-	MspParser(u8 serialNum) : serialNum(serialNum) {}
+	MspParser(KoliSerial &ser) : ser(ser) {}
 
 	/**
 	 * @brief Process a byte from an MSP source
 	 *
 	 * @param c data byte
 	 */
-	void mspHandleByte(u8 c);
+	void handleByte(u8 c);
 
 private:
 	char payloadBuf[2048] = {0}; // Payload buffer
@@ -303,7 +307,7 @@ private:
 	u32 crcV2 = 0; // Checksum for MSP V2 messages
 	MspState mspState = MspState::IDLE; // MSP state
 	MspVersion msgMspVer; // MSP version
-	u8 serialNum = 255;
+	KoliSerial &ser;
 };
 
 /// @brief counter for the motor override timeout
@@ -313,7 +317,7 @@ extern elapsedMillis mspOverrideMotors;
 /// @brief handles configurator pings and asynchronous operations
 void configuratorLoop();
 
-void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen);
+void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen);
 
 void printIndMessage(String msg);
 void printfIndMessage(const char *format, ...);

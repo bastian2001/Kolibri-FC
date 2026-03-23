@@ -89,8 +89,8 @@ struct __attribute__((packed)) crsf_channels_13 {
 RingBuffer<u8> elrsBuffer(ELRS_BUFFER_SIZE);
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 
-ExpressLRS::ExpressLRS(u8 serialNum)
-	: serialNum(serialNum) {
+ExpressLRS::ExpressLRS(KoliSerial *serial)
+	: serial(serial) {
 	interpConfig0 = interp_default_config();
 	interp_config_set_blend(&interpConfig0, 1);
 	interpConfig1 = interp_default_config();
@@ -242,14 +242,20 @@ void ExpressLRS::processMessage() {
 
 	if (inMsgIsExtended && (inExtDest != ADDRESS_FLIGHT_CONTROLLER && inExtDest != ADDRESS_CRSF_BROADCAST)) return;
 
-	if (inMsgIsExtended && !armed && subscribeCount) {
+	if (inMsgIsExtended && !armed && subscribeCount && subscribeSerial != nullptr) {
 		for (int i = 0; i < subscribeCount; i++) {
 			if (subscribeList[i] == inType) {
 				char buf[62];
 				buf[0] = inExtSrc;
 				buf[1] = inType;
 				memcpy(&buf[2], inPayload, inActualLen);
-				sendMsp(subscribeSerialNum, MspMsgType::REQUEST, MspFn::CRSF_GOT_MESSAGE, subscribeMspVersion, buf, inActualLen + 2);
+				MspMsgSetup s = {
+					.fn = MspFn::CRSF_GOT_MESSAGE,
+					.serial = *subscribeSerial,
+					.type = MspMsgType::REQUEST,
+					.version = subscribeMspVersion,
+				};
+				sendMsp(s, buf, inActualLen + 2);
 				break;
 			}
 		}
@@ -599,7 +605,7 @@ void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
 		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[3 + payloadLen] = crc;
-	serials[serialNum]->write(packet, 4 + payloadLen);
+	serial->write(packet, 4 + payloadLen);
 }
 
 void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
@@ -612,7 +618,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[5 + extPayloadLen] = crc;
-	serials[serialNum]->write(packet, 6 + extPayloadLen);
+	serial->write(packet, 6 + extPayloadLen);
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
@@ -649,10 +655,10 @@ void ExpressLRS::scanDevices() {
 	deviceList.clear();
 }
 
-bool ExpressLRS::setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, u8 configuratorSerial, MspVersion configuratorMspVersion) {
+bool ExpressLRS::setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, KoliSerial *serial, MspVersion configuratorMspVersion) {
 	if (subCount == 0) {
 		this->subscribeCount = 0;
-		this->subscribeSerialNum = 255;
+		this->subscribeSerial = nullptr;
 		return true;
 	}
 	if (subCount > 20) subCount = 20;
@@ -664,7 +670,7 @@ bool ExpressLRS::setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCou
 	this->subscribeSrcAddress = crsfAddress;
 	this->subscribeCount = subCount;
 	memcpy(this->subscribeList, subList, subCount);
-	this->subscribeSerialNum = configuratorSerial;
+	this->subscribeSerial = serial;
 	this->subscribeMspVersion = configuratorMspVersion;
 	return true;
 }
@@ -796,7 +802,7 @@ void ExpressLRS::processMspReq() {
 
 	// if we have a full packet
 	if (this->mspRxPos >= this->mspRxPayloadLen) {
-		processMspCmd(this->serialNum, MspMsgType::REQUEST, (MspFn)this->mspRxCmd, this->mspVersion, (char *)this->mspRxPayload, this->mspRxPayloadLen);
+		processMspCmd(*serial, MspMsgType::REQUEST, (MspFn)this->mspRxCmd, this->mspVersion, (char *)this->mspRxPayload, this->mspRxPayloadLen);
 		this->resetMsp();
 	}
 }

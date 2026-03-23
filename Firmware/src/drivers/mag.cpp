@@ -283,11 +283,20 @@ void magLoop() {
 		getSetting(SETTING_MAG_CAL_HARD)->updateSettingInFile();
 		closeSettingsFile();
 		magState = MagState::MEASURING;
-		char data = 1;
-		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::MAG_CALIBRATION, lastMspVersion, &data, 1);
-		char calString[64];
-		snprintf(calString, 64, "Offsets: %d %d %d, det: %f", magOffset[0], magOffset[1], magOffset[2], det);
-		sendMsp(lastMspSerial, MspMsgType::REQUEST, MspFn::IND_MESSAGE, lastMspVersion, (char *)calString, strlen(calString));
+		if (lastMspSerial != nullptr) {
+			char data = 1;
+			MspMsgSetup s = {
+				.fn = MspFn::MAG_CALIBRATION,
+				.serial = *lastMspSerial,
+				.type = MspMsgType::REQUEST,
+				.version = lastMspVersion,
+			};
+			sendMsp(s, &data, 1);
+			char calString[64];
+			s.fn = MspFn::IND_MESSAGE;
+			snprintf(calString, 64, "Offsets: %d %d %d, det: %f", magOffset[0], magOffset[1], magOffset[2], det);
+			sendMsp(s, (char *)calString, strlen(calString));
+		}
 	} break;
 	}
 	tasks[TASK_MAG].debugInfo = (u32)magState * 10 + magSubState;

@@ -171,12 +171,12 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum);
  *
  * @details Chunk Size is 1024 bytes
  *
- * @param serialNum serial number of the device
+ * @param serial serial to send to
  * @param mspVer MSP version to use
  * @param logNum log number to print
  * @param singleChunk chunk number to print, -1 for all
  */
-void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk);
+void printLogBin(KoliSerial &serial, MspVersion mspVer, u16 logNum, i32 singleChunk);
 
 /**
  * @brief Closes a file, if open, that is currently used to print a log to the configurator
@@ -185,5 +185,8 @@ void bbClosePrintFile(u8 serialNum, MspVersion mspVer);
 
 /// @brief Writes the prepared blackbox frames to the SD card
 void blackboxLoop();
+
+/// @brief just sets .printing to false, so that an invalid .serial pointer does not create problems
+void bbStopPrinting();
 
 #endif

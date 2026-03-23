@@ -14,7 +14,7 @@ bool configuratorConnected = false;
 
 i16 mspDebugSensors[4] = {0, 0, 0, 0};
 
-u8 lastMspSerial = 0;
+KoliSerial *lastMspSerial = nullptr;
 MspVersion lastMspVersion = MspVersion::V2;
 
 void configuratorLoop() {
@@ -26,7 +26,15 @@ void configuratorLoop() {
 			openSettingsFile();
 			getSetting(SETTING_ACC_CAL)->updateSettingInFile();
 			closeSettingsFile();
-			sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::SAVE_SETTINGS, lastMspVersion);
+			if (lastMspSerial != nullptr) {
+				MspMsgSetup s = {
+					.fn = MspFn::SAVE_SETTINGS,
+					.serial = *lastMspSerial,
+					.type = MspMsgType::RESPONSE,
+					.version = lastMspVersion,
+				};
+				sendMsp(s);
+			}
 		} else if (accelCalState >= 128) {
 			accelCalState = 0;
 			printIndMessage("ERROR: Accelerometer calibration failed. IMU alignment correct?");
@@ -41,10 +49,13 @@ void configuratorLoop() {
 	}
 }
 
-void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const char *data, u16 len) {
+void sendMsp(MspMsgSetup setup, const char *data, u16 len) {
 	if (data == nullptr && len > 0) return;
-	if (serialNum > ARRAYLEN(serials)) return;
-	if (!serials[serialNum]) return;
+
+	MspVersion &version = setup.version;
+	KoliSerial &serial = setup.serial;
+	MspFn &fn = setup.fn;
+	MspMsgType &type = setup.type;
 
 	if (version == MspVersion::V1 && len > 254) version = MspVersion::V1_JUMBO;
 	if (version == MspVersion::V2_OVER_V1 && len > 248) return;
@@ -54,7 +65,6 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 	bool versionHasV2 = version == MspVersion::V2 || version == MspVersion::V2_OVER_V1 || version == MspVersion::V2_OVER_CRSF;
 	bool versionHasCrsf = version == MspVersion::V2_OVER_CRSF || version == MspVersion::V1_OVER_CRSF || version == MspVersion::V1_JUMBO_OVER_CRSF;
 	if (!versionHasV2 && fn >= MspFn::MSP_V2_FRAME) return;
-	KoliSerial &ser = *serials[serialNum];
 
 	if (versionHasCrsf) {
 		u8 headerSize = 0;
@@ -149,43 +159,49 @@ void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const 
 				crcV1 ^= crcV2;
 			}
 		}
-		ser.write(header, pos);
-		ser.write((u8 *)data, len);
+		serial.write(header, pos);
+		serial.write((u8 *)data, len);
 		if (versionHasV2)
-			ser.write((u8)crcV2);
+			serial.write((u8)crcV2);
 		if (versionHasV1)
-			ser.write((u8)crcV1);
+			serial.write((u8)crcV1);
 	}
 }
 
-void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen) {
+void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen) {
+	MspMsgSetup msgSetup = {
+		.fn = fn,
+		.serial = serial,
+		.type = MspMsgType::RESPONSE,
+		.version = version,
+	};
 	static char buf[2048];
 	u16 len = 0;
-	if (mspType == MspMsgType::REQUEST) {
+	if (type == MspMsgType::REQUEST) {
 		switch (fn) {
 		case MspFn::API_VERSION:
 			buf[len++] = MSP_PROTOCOL_VERSION;
-			if (serials[serialNum].functions & SERIAL_MSP_DISPLAYPORT) {
+			if (serial.functions() & SERIAL_MSP_DISPLAYPORT) {
 				buf[len++] = 1; //! Betaflight Compatibility Mode ;)
 				buf[len++] = 45;
 			} else {
 				buf[len++] = API_VERSION_MAJOR;
 				buf[len++] = API_VERSION_MINOR;
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::FIRMWARE_VARIANT: // TODO remove betaflight compatibility mode
-			if (serials[serialNum].functions & SERIAL_MSP_DISPLAYPORT) {
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, "BTFL", FIRMWARE_IDENTIFIER_LENGTH); //! Betaflight Compatibility Mode ;)
+			if (serial.functions() & SERIAL_MSP_DISPLAYPORT) {
+				sendMsp(msgSetup, "BTFL", FIRMWARE_IDENTIFIER_LENGTH); //! Betaflight Compatibility Mode ;)
 			} else {
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
+				sendMsp(msgSetup, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
 			}
 			break;
 		case MspFn::FIRMWARE_VERSION:
 			buf[len++] = FIRMWARE_VERSION_MAJOR;
 			buf[len++] = FIRMWARE_VERSION_MINOR;
 			buf[len++] = FIRMWARE_VERSION_PATCH;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::BOARD_INFO: {
 			memcpy(&buf[len], targetIdentifier, TARGET_IDENTIFIER_LENGTH);
@@ -201,7 +217,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = targetNameLen;
 			memcpy(&buf[len], targetFullName, targetNameLen);
 			len += targetNameLen;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::BUILD_INFO:
 			memcpy(&buf[len], __DATE__, 11);
@@ -210,16 +226,16 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			len += 8;
 			memcpy(&buf[len], GIT_HASH, 7);
 			len += 7;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::GET_NAME: {
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, uavName.c_str(), strlen(uavName.c_str()));
+			sendMsp(msgSetup, uavName.c_str(), strlen(uavName.c_str()));
 		} break;
 		case MspFn::SET_NAME: {
 			openSettingsFile();
 			uavName = string(reqPayload, reqLen);
 			getSetting(SETTING_UAV_NAME)->updateSettingInFile();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::GET_FEATURE_CONFIG: {
 			// only exists for compatibility with BLHeliSuite32
@@ -230,25 +246,26 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			features |= 1 << 10; // FEATURE_TELEMETRY
 			features |= 1 << 18; // FEATURE_OSD
 			features |= 1 << 22; // FEATURE_AIRMODE
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)features, len);
+			sendMsp(msgSetup, (char *)features, len);
 		} break;
 		case MspFn::REBOOT:
 			switch (reqPayload[0]) {
 			case MSP_REBOOT_FIRMWARE:
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-				serials[serialNum]->flush();
+				sendMsp(msgSetup);
+				serial.flush();
 				sleep_ms(100);
 				rp2040.reboot();
 				break;
 			case MSP_REBOOT_BOOTLOADER_FLASH:
 			case MSP_REBOOT_BOOTLOADER_ROM:
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-				serials[serialNum]->flush();
+				sendMsp(msgSetup);
+				serial.flush();
 				sleep_ms(100);
 				rp2040.rebootToBootloader();
 				break;
 			default:
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version, "Invalid reboot mode");
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup, "Invalid reboot mode");
 				break;
 			}
 			break;
@@ -272,12 +289,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 0; // gyro_offset_yaw
 			buf[len++] = 0;
 			buf[len++] = 0; // checkOverflow, no overflow
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::SET_ARMING_DISABLED:
 			// not used by Kolibri configurator
 			if (reqLen < 1) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 				break;
 			}
 			if (reqPayload[0]) {
@@ -285,7 +303,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			} else {
 				armingDisableFlags &= ~0x80;
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::MSP_STATUS:
 			// only exists for compatibility with BLHeliSuite32
@@ -310,7 +328,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = armingDisableFlags >> 16;
 			buf[len++] = armingDisableFlags >> 24;
 			buf[len++] = 0; // config state flags, e.g. reboot required
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::MSP_RAW_IMU: {
 			buf[len++] = accelAligned[0] & 0xFF; // accel x
@@ -334,7 +352,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = magData[1] >> 8;
 			buf[len++] = magData[2] & 0xFF; // mag z
 			buf[len++] = magData[2] >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::GET_MOTOR: {
 			u16 motors[8];
@@ -345,14 +363,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				motors[i] = 0;
 			}
 			memcpy(buf, motors, 16);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 16);
+			sendMsp(msgSetup, buf, 16);
 		} break;
 		case MspFn::RC: {
 			u16 channels[16];
 			for (int i = 0; i < 16; i++)
 				channels[i] = elrs ? elrs->channels[i] : 0;
 			memcpy(buf, channels, 32);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 32);
+			sendMsp(msgSetup, buf, 32);
 		} break;
 		case MspFn::MSP_ATTITUDE: {
 			// not used by Kolibri configurator, that uses GET_ROTATION
@@ -365,7 +383,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = pitchInt >> 8;
 			buf[len++] = yawInt & 0xFF;
 			buf[len++] = yawInt >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::MSP_ALTITUDE: {
 			i32 altitudeInt = combinedAltitude.raw / 656; // fix32 raw (m) to cm
@@ -375,13 +393,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = altitudeInt >> 24;
 			buf[len++] = 0; // vario
 			buf[len++] = 0; // vario
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::MSP_ANALOG: {
 			u8 voltage = adcVoltage / 10; // dV
 			u16 current = adcCurrent * 100; // cA
 			u16 mAh = 0; // mW
-			u16 rssi = ELRS->uplinkLinkQuality * 10; // 0-1000, 1000 = 100%
+			u16 rssi = elrs->uplinkLinkQuality * 10; // 0-1000, 1000 = 100%
 			buf[len++] = voltage;
 			buf[len++] = current & 0xFF;
 			buf[len++] = current >> 8;
@@ -389,11 +407,11 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = mAh >> 8;
 			buf[len++] = rssi & 0xFF;
 			buf[len++] = rssi >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::BOXIDS:
 			// only exists for compatibility with BLHeliSuite32
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::GET_MOTOR_3D_CONFIG:
 			buf[len++] = 1450 & 0xFF; // deadband low
@@ -402,7 +420,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = 1550 >> 8;
 			buf[len++] = 1500 & 0xFF; // neutral
 			buf[len++] = 1500 >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::MSP_BATTERY_STATE:
 			buf[len++] = batCells;
@@ -416,7 +434,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = batState == 0 ? 4 : 0; // 4 = init, 0 = ok
 			buf[len++] = adcVoltage;
 			buf[len++] = adcVoltage >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		case MspFn::GET_MOTOR_CONFIG:
 			buf[len++] = (1000 + idlePermille) & 0xFF; // min throttle
 			buf[len++] = (1000 + idlePermille) >> 8;
@@ -428,12 +446,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = MOTOR_POLES;
 			buf[len++] = 1; // use dshot telemetry
 			buf[len++] = 0; // esc sensor
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::UID: {
 			const char *chipId = rp2040.getChipID();
 			memcpy(buf, chipId, 12);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 12);
+			sendMsp(msgSetup, buf, 12);
 		} break;
 		case MspFn::MSP_DISPLAYPORT:
 			// not happening
@@ -446,13 +464,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			break;
 		case MspFn::ACC_CALIBRATION:
 			startAccelCalibration();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			sendMsp(msgSetup, buf, 1);
 			break;
 		case MspFn::MAG_CALIBRATION:
 			magStateAfterRead = MagState::CALIBRATE;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			sendMsp(msgSetup, buf, 1);
 			snprintf(buf, 32, "Offsets: %d %d %d", magOffset[0], magOffset[1], magOffset[2]);
-			sendMsp(serialNum, MspMsgType::REQUEST, MspFn::IND_MESSAGE, version, buf, strlen(buf));
+			msgSetup.fn = MspFn::IND_MESSAGE;
+			sendMsp(msgSetup, buf, strlen(buf));
 			break;
 		case MspFn::SET_MOTOR:
 			if (!armed) {
@@ -462,16 +481,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				throttles[(u8)MOTOR::FL] = ((u16)reqPayload[6] + ((u16)reqPayload[7] << 8)) * 2 - 2000;
 			}
 			mspOverrideMotors = 0;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::ENABLE_4WAY_IF:
-			begin4Way(serialNum);
+			begin4Way(&serial);
 			buf[0] = 4; // ESC count
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			sendMsp(msgSetup, buf, 1);
 			break;
 		case MspFn::SET_RTC: {
 			if (reqLen < 6) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 				break;
 			}
 			const struct timespec t = {
@@ -479,7 +499,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				.tv_nsec = DECODE_U2((u8 *)&reqPayload[4]) * 1000000, // convert millis to nanoseconds
 			};
 			rtcSetTime(&t, TIME_QUALITY_MSP);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::GET_RTC: {
 			struct tm tm;
@@ -496,7 +516,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			u16 millis = ts.tv_nsec / 1000000;
 			buf[7] = millis & 0xFF; // millis
 			buf[8] = millis >> 8; // millis
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 9);
+			sendMsp(msgSetup, buf, 9);
 		} break;
 		case MspFn::STATUS: {
 			u16 voltage = adcVoltage;
@@ -508,28 +528,33 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = (u8)(armingDisableFlags >> 8);
 			buf[len++] = (u8)(armingDisableFlags >> 16);
 			buf[len++] = (u8)(armingDisableFlags >> 24);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::CONFIGURATOR_PING:
 			configuratorConnected = true;
 			lastConfigPingRx = 0;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, reqLen);
+			sendMsp(msgSetup, reqPayload, reqLen);
 			break;
 		case MspFn::SERIAL_PASSTHROUGH: {
-			u8 fromNum = serialNum;
-			if (reqLen > 5) fromNum = reqPayload[5];
+			u8 fromNum = 255;
+			if (reqLen > 5) {
+				fromNum = reqPayload[5];
+				if (fromNum >= SERIAL_COUNT || !serials[fromNum]) {
+					msgSetup.type = MspMsgType::ERROR;
+					return sendMsp(msgSetup);
+				}
+			}
 			if (reqPayload[0] >= SERIAL_COUNT ||
-				fromNum >= SERIAL_COUNT ||
-				!serials[fromNum] ||
-				!serials[reqPayload[0]] ||
-				armed)
-				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				!serials[reqPayload[0]] || armed) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 
-			KoliSerial &from = *serials[fromNum];
+			KoliSerial &from = fromNum == 255 ? serial : *serials[fromNum];
 			KoliSerial &to = *serials[reqPayload[0]];
 			u32 baud = DECODE_U4((u8 *)&reqPayload[1]);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)reqPayload, 5);
-			serials[serialNum]->flush();
+			sendMsp(msgSetup, (char *)reqPayload, 5);
+			serial.flush();
 
 			u8 plusCount = 0;
 			elapsedMillis breakoutCounter = 0;
@@ -559,30 +584,31 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			// send start info
 			snprintf(buf, 256, "\n" FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands\n>> ", targetIdentifier, targetFullName);
 			openSettingsFile();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
+			sendMsp(msgSetup, buf, strlen(buf));
 		} break;
 		case MspFn::CLI_COMMAND: {
 			string response = string(reqPayload, reqLen);
 			response += "\n";
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+			sendMsp(msgSetup, response.c_str(), response.length());
 			response = processCliCommand(reqPayload, reqLen);
 			response += "\n>> ";
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+			sendMsp(msgSetup, response.c_str(), response.length());
 		} break;
 		case MspFn::CLI_GET_SUGGESTION:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::SAVE_SETTINGS:
 			closeSettingsFile();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::WRITE_OSD_FONT_CHARACTER:
 			if (reqLen < 55) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 				break;
 			}
 			updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, reqPayload, 1);
+			sendMsp(msgSetup, reqPayload, 1);
 			break;
 		case MspFn::WRITE_OSD_ELEMENT: {
 			if (reqLen != 4) break;
@@ -609,9 +635,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			bbSettings[0] = bbFreqDivider;
 			bbSettings[9] = bbSyncFreq;
 			memcpy(&bbSettings[1], &bbFlags, 8);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)bbSettings, sizeof(bbSettings));
+			sendMsp(msgSetup, (char *)bbSettings, sizeof(bbSettings));
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 		} break;
 		case MspFn::SET_BB_SETTINGS: {
@@ -619,12 +646,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			bbFreqDivider = reqPayload[0];
 			bbSyncFreq = reqPayload[9];
 			memcpy(&bbFlags, &reqPayload[1], 8);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			openSettingsFile();
 			getSetting(SETTING_BB_DIV)->updateSettingInFile();
 			getSetting(SETTING_BB_FLAGS)->updateSettingInFile();
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 		} break;
 		case MspFn::BB_FILE_LIST: {
@@ -670,9 +698,9 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				}
 			}
 #endif // write nums into b
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (const char *)b, i * 2);
+			sendMsp(msgSetup, (const char *)b, i * 2);
 #else // #ifdef BLACKBOX_STORAGE
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 #endif // #ifdef BLACKBOX_STORAGE
 		} break;
 		case MspFn::BB_FILE_INFO: {
@@ -726,9 +754,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 					logFile.close();
 				}
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)buffer, index);
+			sendMsp(msgSetup, (char *)buffer, index);
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 		} break;
 		case MspFn::BB_FILE_DOWNLOAD: {
@@ -738,9 +767,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			if (reqLen >= 6) {
 				chunkNum = DECODE_I4((u8 *)&reqPayload[2]);
 			}
-			printLogBin(serialNum, version, fileNum, chunkNum);
+			printLogBin(serial, version, fileNum, chunkNum);
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 		} break;
 		case MspFn::BB_FILE_DELETE: {
@@ -754,46 +784,54 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 #elif BLACKBOX_STORAGE == FLASH_BB
 			if (bbFs.remove(fileNum))
 #endif // if (remove)
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)&fileNum, 2);
+				sendMsp(msgSetup, (char *)&fileNum, 2);
 			else
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version, (char *)&fileNum, 2);
+				msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup, (char *)&fileNum, 2);
 #else // #ifdef BLACKBOX_STORAGE
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif // #ifdef BLACKBOX_STORAGE
 		} break;
 		case MspFn::BB_FORMAT:
 #ifdef BLACKBOX_STORAGE
 			if (clearBlackbox())
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+				sendMsp(msgSetup);
 			else
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 			break;
 		case MspFn::BB_FILE_INIT: {
 #ifdef BLACKBOX_STORAGE
 			if (reqLen < 2) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 				break;
 			}
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
-			printFileInit(serialNum, version, fileNum);
+			printFileInit(serial, version, fileNum);
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 		} break;
 		case MspFn::BB_FAST_FILE_INIT: {
 #ifdef BLACKBOX_STORAGE
 			if (reqLen < 3) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 				break;
 			}
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			u8 subCmd = reqPayload[2];
-			printFastFileInit(serialNum, version, fileNum, subCmd, reqPayload + 3, reqLen - 3);
+			printFastFileInit(serial, version, fileNum, subCmd, reqPayload + 3, reqLen - 3);
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 		} break;
 		case MspFn::BB_FAST_DATA_REQ: {
@@ -809,22 +847,25 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			 *   - last sync pos before 4 byte
 			 */
 			if (reqLen < 5) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 				break;
 			}
 			u16 sequenceNum = DECODE_U2((u8 *)&reqPayload[0]);
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[2]);
 			u8 frameSize = reqPayload[4];
-			printFastDataReq(serialNum, version, sequenceNum, fileNum, frameSize, reqPayload + 5, reqLen - 5);
+			printFastDataReq(serial, version, sequenceNum, fileNum, frameSize, reqPayload + 5, reqLen - 5);
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 		} break;
 		case MspFn::BB_CLOSE_FILE: {
 #ifdef BLACKBOX_STORAGE
-			bbClosePrintFile(serialNum, version);
+			bbClosePrintFile(serial, version);
 #else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup);
 #endif
 		} break;
 		case MspFn::GET_GPS_STATUS:
@@ -837,7 +878,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[6] = gpsStatus.flags3 & 0xFF;
 			buf[7] = gpsStatus.flags3 >> 8;
 			buf[8] = gpsStatus.satCount;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 9);
+			sendMsp(msgSetup, buf, 9);
 			break;
 		case MspFn::GET_GPS_ACCURACY:
 			// through padding and compiler optimization, it is not possible to just memcpy the struct
@@ -847,7 +888,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[12], &gpsAcc.sAcc, 4);
 			memcpy(&buf[16], &gpsAcc.headAcc, 4);
 			memcpy(&buf[20], &gpsAcc.pDop, 4);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 24);
+			sendMsp(msgSetup, buf, 24);
 			break;
 		case MspFn::GET_GPS_TIME:
 			buf[0] = gpsTime.tm_year & 0xFF;
@@ -857,7 +898,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[4] = gpsTime.tm_hour;
 			buf[5] = gpsTime.tm_min;
 			buf[6] = gpsTime.tm_sec;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 7);
+			sendMsp(msgSetup, buf, 7);
 			break;
 		case MspFn::GET_GPS_MOTION: {
 			memcpy(buf, &gpsMotion.lat, 4);
@@ -870,11 +911,11 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[28], &gpsMotion.headMot, 4);
 			memcpy(&buf[32], &combinedAltitude.raw, 4);
 			memcpy(&buf[36], &vVel.raw, 4);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 40);
+			sendMsp(msgSetup, buf, 40);
 		} break;
 		case MspFn::GET_MAG_DATA: {
 			i16 raw[6] = {(i16)magData[0], (i16)magData[1], (i16)magData[2], (i16)magRight.geti32(), (i16)magFront.geti32(), (i16)(magHeading * FIX_RAD_TO_DEG).geti32()};
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, sizeof(raw));
+			sendMsp(msgSetup, (char *)raw, sizeof(raw));
 		} break;
 		case MspFn::GET_BARO_DATA: {
 			i32 raw[4] = {
@@ -882,7 +923,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				(i32)(baroPres * 1000),
 				(i32)(baroTemp * 100),
 				pressureRaw};
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)raw, sizeof(raw));
+			sendMsp(msgSetup, (char *)raw, sizeof(raw));
 		} break;
 		case MspFn::GET_ROTATION: {
 			// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
@@ -898,7 +939,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[5] = rotationYaw >> 8;
 			buf[6] = heading & 0xFF;
 			buf[7] = heading >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
+			sendMsp(msgSetup, buf, 8);
 		} break;
 		case MspFn::GET_IMU_SETUP_STATE: {
 			buf[0] = imuAlignmentStep;
@@ -907,11 +948,11 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[5] = accelCalState;
 			buf[6] = HW_GYRO;
 			buf[7] = gyroReadyFlags;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
+			sendMsp(msgSetup, buf, 8);
 		} break;
 		case MspFn::START_IMU_ALIGNMENT: {
 			startImuAlignment();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::TASK_STATUS: {
 			u32 *buf2 = (u32 *)buf;
@@ -924,14 +965,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				buf2[i * 7 + 5] = tasks[i].lastError;
 				buf2[i * 7 + 6] = tasks[i].maxGap;
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, TASK_LENGTH * 7 * 4);
+			sendMsp(msgSetup, buf, TASK_LENGTH * 7 * 4);
 			for (int i = 0; i < TASK_LENGTH; i++) {
 				tasks[i].minMaxDuration = 0x7FFF0000;
 				tasks[i].maxGap = 0;
 			}
 		} break;
 		case MspFn::GET_RX_STATUS: {
-			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (!elrs) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			buf[0] = elrs->isReceiverUp;
 			buf[1] = elrs->isLinkUp;
 			buf[2] = elrs->uplinkRssi[0];
@@ -944,24 +988,33 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			memcpy(&buf[10], &elrs->targetPacketRate, 2);
 			memcpy(&buf[12], &elrs->actualPacketRate, 2);
 			memcpy(&buf[14], &elrs->rcMsgCount, 4);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 18);
+			sendMsp(msgSetup, buf, 18);
 		} break;
 		case MspFn::GET_RX_MODES: {
-			mspGetRxModes(serialNum, version);
+			mspGetRxModes(serial, version);
 		} break;
 		case MspFn::SET_RX_MODES: {
-			mspSetRxModes(serialNum, version, reqPayload, reqLen);
+			mspSetRxModes(serial, version, reqPayload, reqLen);
 		} break;
 		case MspFn::CRSF_SCAN_DEVICES: {
-			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (!elrs) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			elrs->scanDevices();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::CRSF_GET_DEVICES: {
-			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (!elrs) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			std::list<CrsfDevice> devs = elrs->getDeviceList();
 			u32 count = devs.size();
-			if (count > 20) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (count > 20) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			char buf[47 * count];
 			u32 i = 0;
 			for (CrsfDevice dev : devs) {
@@ -977,47 +1030,63 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				memcpy(&buf[i], &dev.firmwareId, 4);
 				i += 4;
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, i);
+			sendMsp(msgSetup, buf, i);
 		} break;
 		case MspFn::CRSF_SEND_MESSAGE: {
-			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (!elrs) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			// Configurator wants to send message to a device
 			u8 len = reqLen - 1;
-			if (len > 60) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (len > 60) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			u8 cmd = reqPayload[0];
 			elrs->sendPacket(cmd, &reqPayload[1], len);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::CRSF_SUBSCRIBE: {
-			if (!elrs) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (!elrs) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			// Configurator wants to start or stop passthrough to a device
 			// => enable flags to forward any messages from said device to configurator
 			// MSP message data: device to forward from, start or stop, array of wanted commands
 			i16 subCount = reqLen - 2;
 			if (subCount > 20) subCount = 20;
-			if (subCount < 0) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (subCount < 0) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			u8 address = reqPayload[0];
 			if (subCount == 0 || reqPayload[1] == 0) {
 				// stop passthrough when receiving stop command or no functions
 				buf[0] = address;
 				buf[1] = 0;
-				elrs->setupSubscription(0, nullptr, 0, 255, MspVersion::V2);
-				return sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 2);
+				elrs->setupSubscription(0, nullptr, 0, nullptr, MspVersion::V2);
+				return sendMsp(msgSetup, buf, 2);
 			}
-			if (address == 0) return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
-			if (elrs->setupSubscription(address, (const u8 *)&reqPayload[2], subCount, serialNum, version)) {
+			if (address == 0) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
+			if (elrs->setupSubscription(address, (const u8 *)&reqPayload[2], subCount, &serial, version)) {
 				buf[0] = address;
 				buf[1] = 1;
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 2);
+				sendMsp(msgSetup, buf, 2);
 			} else {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 			}
 		} break;
 		case MspFn::GET_BATTERY_SETTINGS: {
 			buf[len++] = cellCountSetting;
 			buf[len++] = emptyVoltageSetting;
 			buf[len++] = emptyVoltageSetting >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::SET_BATTERY_SETTINGS: {
 			cellCountSetting = reqPayload[0];
@@ -1025,15 +1094,15 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			openSettingsFile();
 			getSetting(SETTING_CELL_COUNT)->updateSettingInFile();
 			getSetting(SETTING_EMPTY_VOLTAGE)->updateSettingInFile();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::GET_MOTOR_LAYOUT: {
 			getMotorPins((u8 *)buf);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 4);
+			sendMsp(msgSetup, buf, 4);
 		} break;
 		case MspFn::SET_MOTOR_LAYOUT: {
 			buf[0] = updateMotorPins((const u8 *)reqPayload);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			sendMsp(msgSetup, buf, 1);
 		} break;
 		case MspFn::GET_MOTOR_STATE: {
 			for (int m = 0; m < 4; m++) {
@@ -1046,29 +1115,30 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			for (int m = 4; m < 8; m++) {
 				buf[m] = 0;
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 8);
+			sendMsp(msgSetup, buf, 8);
 		} break;
 		case MspFn::GET_VTX_CURRENT_STATE: {
 			u8 len = sendTrampUpdateMsg(buf);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::GET_VTX_CONFIG: {
 			u8 len = sendTrampConfigMsg(buf);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::SET_VTX_CONFIG: {
 			setTrampConfig(reqPayload);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::VTX_APPLY_CONFIG: {
 			applyTrampConfig();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::GET_IO_CONSTRAINTS: {
 			u8 page = 0;
 			if (reqLen) page = reqPayload[0];
 			bool suc = sendIoConstraints(page, buf, len);
-			sendMsp(serialNum, suc ? MspMsgType::REQUEST : MspMsgType::ERROR, fn, version, buf, len);
+			if (!suc) msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::GET_SERIAL_SETUP: {
 			for (int i = 1; i < SERIAL_COUNT; i++) {
@@ -1088,11 +1158,11 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				len += 4;
 				buf[len++] = ser.getTxPin();
 				buf[len++] = ser.getRxPin();
-				memcpy(&buf[len], &ser.functions, 4);
+				memcpy(&buf[len], &ser.functions(), 4);
 				len += 4;
 				buf[len++] = cfg.hwParam;
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::SET_SERIAL_SETUP: {
 			// check new config options for validity
@@ -1105,8 +1175,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 
 			// only allow full configs per serial, and first serial (USB) cannot be reconfigured
 			int totalSerials = reqLen / 12;
-			if (reqLen % 12 != 0 || totalSerials > SERIAL_COUNT - 1 || armed)
-				return sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+			if (reqLen % 12 != 0 || totalSerials > SERIAL_COUNT - 1 || armed) {
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup);
+			}
 			bool ok = true;
 			string errorMsg = "You should not be able to even make something this incorrect. Configurator error.\n";
 			for (int i = 0; i < totalSerials; i++) {
@@ -1178,7 +1250,8 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				}
 			}
 			if (!ok) {
-				return sendMsp(serialNum, MspMsgType::ERROR, fn, version, errorMsg.c_str(), errorMsg.length());
+				msgSetup.type = MspMsgType::ERROR;
+				return sendMsp(msgSetup, errorMsg.c_str(), errorMsg.length());
 			}
 
 			SerialConfig newCfgs[SERIAL_COUNT - 1];
@@ -1229,23 +1302,24 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			} else {
 				revertSerials();
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			sendMsp(msgSetup, buf, 1);
 		} break;
 		case MspFn::GET_TZ_OFFSET: {
 			buf[0] = rtcTimezoneOffset;
 			buf[1] = rtcTimezoneOffset >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 2);
+			sendMsp(msgSetup, buf, 2);
 		} break;
 		case MspFn::SET_TZ_OFFSET: {
 			i16 offset = DECODE_I2((u8 *)reqPayload);
 			if (offset > 14 * 60 || offset < -12 * 60) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 				break;
 			}
 			rtcTimezoneOffset = offset;
 			openSettingsFile();
 			getSetting(SETTING_TIMEZONE_OFFSET)->updateSettingInFile();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::GET_PIDS: {
 			// copying just for future proofing, in case more things are added
@@ -1257,7 +1331,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				pids[i][3] = pidGainsNice[i][3];
 				pids[i][4] = pidGainsNice[i][4];
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)pids, sizeof(pids));
+			sendMsp(msgSetup, (char *)pids, sizeof(pids));
 		} break;
 		case MspFn::SET_PIDS: {
 			u16 pids[3][5];
@@ -1272,7 +1346,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			convertPidsFromNice();
 			openSettingsFile();
 			getSetting(SETTING_PID_GAINS)->updateSettingInFile();
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::GET_RATES: {
 			i16 rates[3][3];
@@ -1281,7 +1355,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				rates[ax][ACTUAL_MAX_RATE] = rateCoeffs[ax][ACTUAL_MAX_RATE].geti32();
 				rates[ax][ACTUAL_EXPO] = rateCoeffs[ax][ACTUAL_EXPO].raw >> 3; // expo, 3.13 fixed point
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, (char *)rates, sizeof(rates));
+			sendMsp(msgSetup, (char *)rates, sizeof(rates));
 		} break;
 		case MspFn::SET_RATES: {
 			i16 rates[3][3];
@@ -1294,7 +1368,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				rateCoeffs[ax][ACTUAL_MAX_RATE] = rates[ax][ACTUAL_MAX_RATE];
 				rateCoeffs[ax][ACTUAL_EXPO].raw = (i32)rates[ax][ACTUAL_EXPO] << 3; // 3.13 fixed point for expo (normally [0,1], but technically [-4,4) are allowed here)
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			openSettingsFile();
 			getSetting(SETTING_RATE_COEFFS)->updateSettingInFile();
 		} break;
@@ -1306,14 +1380,14 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = idlePermille;
 			buf[len++] = dynamicIdleRpm;
 			buf[len++] = dynamicIdleRpm >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::SET_EXT_PID: {
 			iFalloff = DECODE_U2(reqPayload);
 			useDynamicIdle = reqPayload[2];
 			idlePermille = reqPayload[3];
 			dynamicIdleRpm = DECODE_U2(&reqPayload[4]);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			openSettingsFile();
 			getSetting(SETTING_IFALLOFF)->updateSettingInFile();
 			getSetting(SETTING_DYNAMIC_IDLE_EN)->updateSettingInFile();
@@ -1352,11 +1426,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			data = (gpsVelocityFilterCutoff * 100 + 0.5f).geti32();
 			buf[len++] = data & 0xFF;
 			buf[len++] = data >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::SET_FILTER_CONFIG: {
 			if (reqLen < 22) {
-				sendMsp(serialNum, MspMsgType::ERROR, fn, version);
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
 				break;
 			}
 			openSettingsFile();
@@ -1394,17 +1469,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			gpsVelocityFilterCutoff = DECODE_U2((u8 *)&reqPayload[20]) / 100.0f;
 			getSetting(SETTING_GPS_VEL_FILTER_CUTOFF)->updateSettingInFile();
 
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::GET_CRASH_DUMP:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::CLEAR_CRASH_DUMP:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::SET_DEBUG_LED:
 			p.neoPixelSetValue(1, reqPayload[0] * 255, reqPayload[0] * 255, reqPayload[0] * 255, true);
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::PLAY_SOUND: {
 			const u16 startFreq = random(1000, 5000);
@@ -1428,25 +1503,21 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			buf[len++] = repeat;
 			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) & 0xFF;
 			buf[len++] = (((sweepDuration + pauseDuration) * repeat) - 1) >> 8;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, len);
+			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::DEBUG_SENSORS: {
 			memcpy(buf, mspDebugSensors, sizeof(mspDebugSensors));
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, sizeof(mspDebugSensors));
+			sendMsp(msgSetup, buf, sizeof(mspDebugSensors));
 		} break;
 		default:
-			sendMsp(serialNum, MspMsgType::ERROR, fn, version, "Unknown command", strlen("Unknown command"));
-			// Serial.printf("unknown command: %04X\n", (u32)fn);
-			// for (int i = 0; i < reqLen; i++) {
-			// 	Serial.printf("%02X ", reqPayload[i]);
-			// }
-			// Serial.println("\n");
+			msgSetup.type = MspMsgType::ERROR;
+			sendMsp(msgSetup, "Unknown command", strlen("Unknown command"));
 			break;
 		}
 	}
 }
 
-void MspParser::mspHandleByte(u8 c) {
+void MspParser::handleByte(u8 c) {
 	TASK_START(TASK_CONFIGURATOR);
 
 	switch (mspState) {
@@ -1572,17 +1643,30 @@ void MspParser::mspHandleByte(u8 c) {
 	case MspState::CHECKSUM_V2_OVER_V1:
 		if (c != crcV2) {
 			mspState = MspState::IDLE;
-			sendMsp(serialNum, MspMsgType::ERROR, fn, msgMspVer, "CRCv2", 5);
+			MspMsgSetup s = {
+				.fn = fn,
+				.serial = ser,
+				.type = MspMsgType::ERROR,
+				.version = msgMspVer,
+			};
+			sendMsp(s, "CRCv2", 5);
 			break;
 		}
 		crcV1 ^= c;
 		mspState = MspState::CHECKSUM_V1;
 		break;
 	case MspState::CHECKSUM_V1:
-		if (c == crcV1)
-			processMspCmd(serialNum, msgType, fn, msgMspVer, payloadBuf, payloadLen);
-		else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, msgMspVer, "CRCv1", 5);
+		if (c == crcV1) {
+			processMspCmd(ser, msgType, fn, msgMspVer, payloadBuf, payloadLen);
+		} else {
+			MspMsgSetup s = {
+				.fn = fn,
+				.serial = ser,
+				.type = MspMsgType::ERROR,
+				.version = msgMspVer,
+			};
+			sendMsp(s, "CRCv1", 5);
+		}
 		mspState = MspState::IDLE;
 		break;
 	case MspState::TYPE_V2:
@@ -1640,9 +1724,16 @@ void MspParser::mspHandleByte(u8 c) {
 		break;
 	case MspState::CHECKSUM_V2:
 		if (c == crcV2)
-			processMspCmd(serialNum, msgType, fn, msgMspVer, payloadBuf, payloadLen);
-		else
-			sendMsp(serialNum, MspMsgType::ERROR, fn, msgMspVer, "CRCv2", 5);
+			processMspCmd(ser, msgType, fn, msgMspVer, payloadBuf, payloadLen);
+		else {
+			MspMsgSetup s = {
+				.fn = fn,
+				.serial = ser,
+				.type = MspMsgType::ERROR,
+				.version = msgMspVer,
+			};
+			sendMsp(s, "CRCv2", 5);
+		}
 		mspState = MspState::IDLE;
 		break;
 	}
@@ -1650,10 +1741,17 @@ void MspParser::mspHandleByte(u8 c) {
 }
 
 void printIndMessage(String msg) {
+	if (serials[0]) return;
 	if (msg.length() > 256) {
 		msg = msg.substring(0, 256);
 	}
-	sendMsp(0, MspMsgType::REQUEST, MspFn::IND_MESSAGE, MspVersion::V2, msg.c_str(), msg.length());
+	MspMsgSetup s = {
+		.fn = MspFn::IND_MESSAGE,
+		.serial = *serials[0],
+		.type = MspMsgType::REQUEST,
+		.version = MspVersion::V2,
+	};
+	sendMsp(s, msg.c_str(), msg.length());
 }
 
 void printfIndMessage(const char *format, ...) {
