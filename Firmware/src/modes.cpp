@@ -124,6 +124,14 @@ void modesLoop() {
 	} else if (elrs->sinceLastRCMessage >= 500000 && armed) {
 		disarm(DisarmReason::RXLOSS);
 	}
+
+#ifdef PIN_DCDC_EN
+	if (rxModes[RxModeIndex::DCDC_ENABLE].isActive() || !elrs || !rxModes[RxModeIndex::DCDC_ENABLE].isConfigured()) {
+		gpio_put(PIN_DCDC_EN, true);
+	} else {
+		gpio_put(PIN_DCDC_EN, false);
+	}
+#endif
 }
 
 bool openModesSettingsFile() {
@@ -158,7 +166,7 @@ void getModesFromFile() {
 	for (int i = 0; i < 64 && modesSettingsFile.available(); i++) {
 		buf[bufIndex++] = modesSettingsFile.read();
 	}
-	mspSetRxModes(255, MspVersion::V2, buf, bufIndex);
+	mspSetRxModes(nullptr, MspVersion::V2, buf, bufIndex);
 }
 
 void setModesInFile() {
@@ -194,9 +202,15 @@ void modesInit() {
 		setModesInFile();
 	}
 	closeModesSettingsFile();
+
+#ifdef PIN_DCDC_EN
+	gpio_init(PIN_DCDC_EN);
+	gpio_set_dir(PIN_DCDC_EN, GPIO_OUT);
+	gpio_put(PIN_DCDC_EN, 0);
+#endif
 }
 
-void mspGetRxModes(KoliSerial &serial, MspVersion version) {
+void mspGetRxModes(KoliSerial *serial, MspVersion version) {
 	char buf[64];
 	u8 bufIndex = 0;
 	for (int i = 0; i < RxModeIndex::LENGTH; i++) {
@@ -210,21 +224,15 @@ void mspGetRxModes(KoliSerial &serial, MspVersion version) {
 	}
 	MspMsgSetup s = {
 		.fn = MspFn::GET_RX_MODES,
-		.serial = serial,
+		.serial = *serial,
 		.type = MspMsgType::RESPONSE,
 		.version = version,
 	};
 	sendMsp(s, buf, bufIndex);
 }
 
-void mspSetRxModes(KoliSerial &serial, MspVersion version, const char *reqPayload, u16 reqLen) {
+void mspSetRxModes(KoliSerial *serial, MspVersion version, const char *reqPayload, u16 reqLen) {
 	// Parse the incoming payload and update the Rx modes
-	MspMsgSetup s = {
-		.fn = MspFn::SET_RX_MODES,
-		.serial = serial,
-		.type = MspMsgType::ERROR,
-		.version = version,
-	};
 	if (reqLen < 4 || reqLen % 4 != 0) {
 		tasks[TASK_MODES].lastError = 3;
 		tasks[TASK_MODES].errorCount++;
@@ -237,14 +245,30 @@ void mspSetRxModes(KoliSerial &serial, MspVersion version, const char *reqPayloa
 		if (channel < -1 || channel > 15) {
 			tasks[TASK_MODES].lastError = 2;
 			tasks[TASK_MODES].errorCount++;
-			sendMsp(s, "Invalid channel", 15);
+			if (serial != nullptr) {
+				MspMsgSetup s = {
+					.fn = MspFn::SET_RX_MODES,
+					.serial = *serial,
+					.type = MspMsgType::ERROR,
+					.version = version,
+				};
+				sendMsp(s, "Invalid channel", 15);
+			}
 			return; // Invalid channel
 		}
 		if (minRange * 5 + 1500 < 900 || minRange * 5 + 1500 > 2100 ||
 			maxRange * 5 + 1500 < 900 || maxRange * 5 + 1500 > 2100) {
 			tasks[TASK_MODES].lastError = 1;
 			tasks[TASK_MODES].errorCount++;
-			sendMsp(s, "Invalid range", 13);
+			if (serial != nullptr) {
+				MspMsgSetup s = {
+					.fn = MspFn::SET_RX_MODES,
+					.serial = *serial,
+					.type = MspMsgType::ERROR,
+					.version = version,
+				};
+				sendMsp(s, "Invalid range", 13);
+			}
 			return; // Invalid range
 		}
 	}
@@ -263,12 +287,27 @@ void mspSetRxModes(KoliSerial &serial, MspVersion version, const char *reqPayloa
 	if (modesSettingsFile) {
 		setModesInFile(); // Save the updated modes to the file
 		closeModesSettingsFile();
-		s.type = MspMsgType::RESPONSE;
-		sendMsp(s);
+		if (serial != nullptr) {
+			MspMsgSetup s = {
+				.fn = MspFn::SET_RX_MODES,
+				.serial = *serial,
+				.type = MspMsgType::RESPONSE,
+				.version = version,
+			};
+			sendMsp(s);
+		}
 	} else {
 		tasks[TASK_MODES].lastError = 4;
 		tasks[TASK_MODES].errorCount++;
-		sendMsp(s, "Failed to open modes file", 26);
+		if (serial != nullptr) {
+			MspMsgSetup s = {
+				.fn = MspFn::SET_RX_MODES,
+				.serial = *serial,
+				.type = MspMsgType::ERROR,
+				.version = version,
+			};
+			sendMsp(s, "Failed to open modes file", 26);
+		}
 	}
 }
 

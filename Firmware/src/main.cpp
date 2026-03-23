@@ -30,7 +30,7 @@ void setup() {
 	initPid();
 	initControl();
 	rtcInit();
-	osdInit();
+	// osdInit();
 	inFlightTuningInit();
 	initMag();
 	imuInit();
@@ -78,8 +78,7 @@ void loop() {
 #ifdef BLACKBOX_STORAGE
 	blackboxLoop();
 #endif
-	if (elrs)
-		elrs->loop();
+	if (elrs) elrs->loop();
 	modesLoop();
 	adcLoop();
 	inFlightTuningLoop();
@@ -87,7 +86,7 @@ void loop() {
 	configuratorLoop();
 	gpsLoop();
 	magLoop();
-	osdLoop();
+	// osdLoop();
 	taskManagerLoop();
 	trampLoop();
 	rp2040.wdt_reset();

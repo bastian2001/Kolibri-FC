@@ -177,6 +177,9 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 	};
 	static char buf[2048];
 	u16 len = 0;
+	if (&serial == &*serials[2]) {
+		Serial.printf("Got message with ID %d (Type %c)from serial, using version %d\n", (u32)fn, (char)type, (u32)version);
+	}
 	if (type == MspMsgType::REQUEST) {
 		switch (fn) {
 		case MspFn::API_VERSION:
@@ -457,7 +460,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			// not happening
 			break;
 		case MspFn::MSP_SET_OSD_CANVAS:
-			onSetCanvas(reqPayload[0], reqPayload[1]);
+			// onSetCanvas(reqPayload[0], reqPayload[1]);
 			break;
 		case MspFn::MSP_GET_OSD_CANVAS:
 			// not happening
@@ -611,22 +614,22 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, reqPayload, 1);
 			break;
 		case MspFn::WRITE_OSD_ELEMENT: {
-			if (reqLen != 4) break;
-			OsdHandler::ElemConfig config;
-			config.type = static_cast<ElementType>(reqPayload[0]);
-			config.x = reqPayload[1];
-			config.y = reqPayload[2];
-			config.refreshRate = reqPayload[3];
-			OsdHandler::get().writeOrUpdateElementFromMsp(config);
+			// if (reqLen != 4) break;
+			// OsdHandler::ElemConfig config;
+			// config.type = static_cast<ElementType>(reqPayload[0]);
+			// config.x = reqPayload[1];
+			// config.y = reqPayload[2];
+			// config.refreshRate = reqPayload[3];
+			// OsdHandler::get().writeOrUpdateElementFromMsp(config);
 		} break;
 		case MspFn::READ_OSD_ELEMENT: {
 
-			int idx = OsdHandler::get().find(static_cast<ElementType>(reqPayload[0]));
-			if (idx == -1) break; // Nothing found
-			OsdHandler::get().elements[idx]->getElementType();
-			OsdHandler::get().elements[idx]->getRow();
-			OsdHandler::get().elements[idx]->getColumn();
-			OsdHandler::get().elements[idx]->getRefreshRate();
+			// int idx = OsdHandler::get().find(static_cast<ElementType>(reqPayload[0]));
+			// if (idx == -1) break; // Nothing found
+			// OsdHandler::get().elements[idx]->getElementType();
+			// OsdHandler::get().elements[idx]->getRow();
+			// OsdHandler::get().elements[idx]->getColumn();
+			// OsdHandler::get().elements[idx]->getRefreshRate();
 
 		} break;
 		case MspFn::GET_BB_SETTINGS: {
@@ -991,10 +994,10 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, 18);
 		} break;
 		case MspFn::GET_RX_MODES: {
-			mspGetRxModes(serial, version);
+			mspGetRxModes(&serial, version);
 		} break;
 		case MspFn::SET_RX_MODES: {
-			mspSetRxModes(serial, version, reqPayload, reqLen);
+			mspSetRxModes(&serial, version, reqPayload, reqLen);
 		} break;
 		case MspFn::CRSF_SCAN_DEVICES: {
 			if (!elrs) {

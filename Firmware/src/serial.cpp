@@ -86,7 +86,7 @@ void revertSerials() {
 
 bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 	bool success = true;
-	KoliSerial * elrsSerial = 0;
+	KoliSerial *elrsSerial = 0;
 	KoliSerial *gpsSerial = nullptr;
 	KoliSerial *trampSerial = nullptr;
 
@@ -159,7 +159,7 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 			baud = 115200;
 		} else if (cfg.functions & SERIAL_MSP_DISPLAYPORT) {
 			if (rxFifo < 256) rxFifo = 256;
-			baud = MSP_DP_SPEED;
+			// baud = MSP_DP_SPEED;
 		}
 		if (cfg.baud) baud = cfg.baud;
 
@@ -283,11 +283,12 @@ void serialLoop() {
 			if (!elrsBuffer.isFull())
 				elrsBuffer.push(c);
 		}
-		if (functions & SERIAL_MSP) {
+		if (functions & (SERIAL_MSP | SERIAL_MSP_DISPLAYPORT)) {
 			rp2040.wdt_reset();
 			elapsedMicros timer = 0;
 			serial.mspParser().handleByte(c);
 			taskTimerTASK_SERIAL -= timer;
+			Serial.printf("Byte on %d: %02X\n", currentSerial, c);
 		}
 		if (functions & SERIAL_GPS) {
 			if (!gpsBuffer.isFull())
@@ -304,9 +305,28 @@ void serialLoop() {
 		}
 		if (functions & SERIAL_ESC_TELEM) {
 		}
-		if (functions & SERIAL_MSP_DISPLAYPORT) {
-		}
 	}
 	serial.loop();
+	static elapsedMillis heartBeatTimer = 0;
+	if (heartBeatTimer > 200 && serials[2] && serials[3]) {
+		heartBeatTimer = 0;
+		Serial.println("Sending Heartbeat");
+		u8 data[20];
+		data[0] = 0;
+		MspMsgSetup s = {
+			.fn = MspFn::MSP_DISPLAYPORT,
+			.serial = *serials[2],
+			.type = MspMsgType::RESPONSE,
+			.version = MspVersion::V1,
+		};
+		sendMsp(s, (char *)data, 1);
+		MspMsgSetup s2 = {
+			.fn = MspFn::MSP_DISPLAYPORT,
+			.serial = *serials[3],
+			.type = MspMsgType::RESPONSE,
+			.version = MspVersion::V1,
+		};
+		sendMsp(s2, (char *)data, 1);
+	}
 	TASK_END(TASK_SERIAL);
 }

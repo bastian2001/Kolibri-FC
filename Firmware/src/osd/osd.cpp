@@ -96,7 +96,7 @@ void drawElem(u8 elem) {
 		regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::DMDI, (u8 *)&data);
 		pos++;
 	}
-	dpWriteString(elemPositions[elem][1] & 0x3F, elemPositions[elem][0] & 0x3F, blinking ? 0x40 : 0x00, (const char *)elemData[elem]);
+	// dpWriteString(elemPositions[elem][1] & 0x3F, elemPositions[elem][0] & 0x3F, blinking ? 0x40 : 0x00, (const char *)elemData[elem]);
 }
 
 void osdLoop() {
@@ -146,7 +146,7 @@ void osdLoop() {
 		osdReady = (data & 0b00000011) ? 1 : 2;
 		TASK_END(TASK_OSD);
 	}
-	mspDisplayportLoop();
+	// mspDisplayportLoop();
 }
 
 // TODO Make OSD Great again (for digital)
