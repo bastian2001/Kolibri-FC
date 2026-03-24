@@ -181,7 +181,7 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 
 	// tell ELRS etc. about new config
 
-	elrs.emplace(elrsSerial);
+	if (elrsSerial != nullptr) elrs.emplace(elrsSerial);
 	setGpsSerial(gpsSerial);
 	setTrampSerial(trampSerial);
 
