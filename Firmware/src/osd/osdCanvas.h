@@ -108,7 +108,7 @@ public:
 	void loop();
 
 	void setSize(u8 width, u8 height);
-	inline void getSize(u8 *const width, u8 *const height) const {
+	inline void getSize(u8 *width, u8 *height) const {
 		*width = this->width;
 		*height = this->height;
 	};
