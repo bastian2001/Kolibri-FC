@@ -36,6 +36,7 @@ export const MspFn = {
 
 	// 0x401_ Entering special modes
 	SERIAL_PASSTHROUGH: 0x4010,
+	SERIAL_SNIFF: 0x4011,
 
 	// 0x402_ CLI
 	CLI_INIT: 0x4020,
@@ -47,8 +48,8 @@ export const MspFn = {
 
 	// 0x411_ OSD settings
 	WRITE_OSD_FONT_CHARACTER: 0x4110,
-	WRITE_OSD_ELEMENT : 0x4111,
-	READ_OSD_ELEMENT : 0x4112,
+	WRITE_OSD_ELEMENT: 0x4111,
+	READ_OSD_ELEMENT: 0x4112,
 
 	// 0x412_ Blackbox
 	GET_BB_SETTINGS: 0x4120,

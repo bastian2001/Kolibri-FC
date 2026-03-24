@@ -87,6 +87,7 @@ enum class MspFn {
 
 	// 0x401_ Entering special modes
 	SERIAL_PASSTHROUGH = 0x4010,
+	SERIAL_SNIFF = 0x4011,
 
 	// 0x402_ CLI
 	CLI_INIT = 0x4020,

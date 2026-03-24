@@ -177,28 +177,16 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 	};
 	static char buf[2048];
 	u16 len = 0;
-	if (&serial == &*serials[2]) {
-		Serial.printf("Got message with ID %d (Type %c)from serial, using version %d\n", (u32)fn, (char)type, (u32)version);
-	}
 	if (type == MspMsgType::REQUEST) {
 		switch (fn) {
 		case MspFn::API_VERSION:
 			buf[len++] = MSP_PROTOCOL_VERSION;
-			if (serial.functions() & SERIAL_MSP_DISPLAYPORT) {
-				buf[len++] = 1; //! Betaflight Compatibility Mode ;)
-				buf[len++] = 45;
-			} else {
-				buf[len++] = API_VERSION_MAJOR;
-				buf[len++] = API_VERSION_MINOR;
-			}
+			buf[len++] = API_VERSION_MAJOR;
+			buf[len++] = API_VERSION_MINOR;
 			sendMsp(msgSetup, buf, len);
 			break;
-		case MspFn::FIRMWARE_VARIANT: // TODO remove betaflight compatibility mode
-			if (serial.functions() & SERIAL_MSP_DISPLAYPORT) {
-				sendMsp(msgSetup, "BTFL", FIRMWARE_IDENTIFIER_LENGTH); //! Betaflight Compatibility Mode ;)
-			} else {
-				sendMsp(msgSetup, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
-			}
+		case MspFn::FIRMWARE_VARIANT:
+			sendMsp(msgSetup, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
 			break;
 		case MspFn::FIRMWARE_VERSION:
 			buf[len++] = FIRMWARE_VERSION_MAJOR;
@@ -580,6 +568,47 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				}
 				from.loop();
 				to.loop();
+				rp2040.wdt_reset();
+			}
+		} break;
+		case MspFn::SERIAL_SNIFF: {
+			// sniffing forwards all bytes to the host, but does not allow communication the other way round
+			KoliSerial &to = serial;
+
+			u8 plusCount = 0;
+			elapsedMillis breakoutCounter = 0;
+
+			sendMsp(msgSetup);
+
+			while (true) {
+				if (breakoutCounter > 1000 && plusCount >= 3) break;
+				int c = to.read();
+				if (c != -1) {
+					breakoutCounter = 0;
+					if (c == '+')
+						plusCount++;
+					else
+						plusCount = 0;
+				}
+
+				for (int i = 0; i < reqLen; i++) {
+					u8 num = reqPayload[i];
+					if (num >= SERIAL_COUNT) continue; // invalid request
+					auto &from = serials[num];
+					if (!from) continue; // if disabled
+					if (!*from) continue; // if not running
+					if (&*from == &to) continue; // no feeding back
+					c = from->read();
+					if (c != -1) {
+						for (int j = 0; j < i; j++) {
+							to.print("\t\t");
+						}
+						to.printf("%3d %02X %c\n", c, c, c);
+					}
+					from->loop();
+				}
+				to.loop();
+				to.flush();
 				rp2040.wdt_reset();
 			}
 		} break;
