@@ -19,9 +19,8 @@ void AnalogOsdOutput::loop() {
 		TASK_START(TASK_OSD);
 		if (!OsdOutput::fullyTransmitted) {
 			// TODO revise, way too (unnecessarily) long transmission
-			char *line = &frameBuffer[drawingLine * width];
 			for (int i = 0; i < width; i++) {
-				u16 pos = i + drawingLine * 30;
+				u16 pos = i + drawingLine * width;
 
 				char data = frameBuffer[pos];
 				u8 posLow = pos & 0xFF;

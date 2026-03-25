@@ -654,19 +654,19 @@ void setFlightMode(FlightMode mode) {
 	// update OSD element
 	switch (mode) {
 	case FlightMode::ACRO:
-		updateElem(OSDElem::FLIGHT_MODE, "ACRO ");
+		// updateElem(OSDElem::FLIGHT_MODE, "ACRO ");
 		break;
 	case FlightMode::ANGLE:
-		updateElem(OSDElem::FLIGHT_MODE, "ANGLE");
+		// updateElem(OSDElem::FLIGHT_MODE, "ANGLE");
 		break;
 	case FlightMode::ALT_HOLD:
-		updateElem(OSDElem::FLIGHT_MODE, "ALT  ");
+		// updateElem(OSDElem::FLIGHT_MODE, "ALT  ");
 		break;
 	case FlightMode::GPS:
-		updateElem(OSDElem::FLIGHT_MODE, "GPS  ");
+		// updateElem(OSDElem::FLIGHT_MODE, "GPS  ");
 		break;
 	case FlightMode::GPS_WP:
-		updateElem(OSDElem::FLIGHT_MODE, "WAYPT");
+		// updateElem(OSDElem::FLIGHT_MODE, "WAYPT");
 		break;
 	default:
 		break;

@@ -129,10 +129,17 @@ public:
 	 * @return false if not (list is limited to 5 outputs)
 	 */
 	inline bool addOutput(OsdOutput *output) {
-		if (outputs.size() >= 5) return false;
-		outputs.push_back(output);
-		state = CanvasState::CLEAR;
-		return true;
+		for (int i = 0; i < MAX_OUTPUTS; i++) {
+			if (outputs[i] == output) return true;
+		}
+		for (int i = 0; i < MAX_OUTPUTS; i++) {
+			if (outputs[i] == nullptr) {
+				outputs[i] = output;
+				state = CanvasState::CLEAR;
+				return true;
+			}
+		}
+		return false;
 	};
 	/**
 	 * @brief Remove an OSD output
@@ -142,7 +149,9 @@ public:
 	 * @param output pointer to the output to remove
 	 */
 	inline void removeOutput(OsdOutput *output) {
-		outputs.remove(output);
+		for (int i = 0; i < MAX_OUTPUTS; i++) {
+			if (outputs[i] == output) outputs[i] = nullptr;
+		}
 		state = CanvasState::CLEAR;
 	}
 
@@ -150,6 +159,7 @@ public:
 
 private:
 	static constexpr int MAX_ELEMENTS = 256;
+	static constexpr int MAX_OUTPUTS = 5;
 
 	constexpr OsdCanvas() {};
 
@@ -174,11 +184,11 @@ private:
 	 */
 	inline char *getBufferPtr(u8 col, u8 row) {
 		if (col >= width || row >= height) return nullptr;
-		char *ret = &frameBuffer[row * width + col];
+		return &frameBuffer[row * width + col];
 	}
 	u8 width = 0;
 	u8 height = 0;
-	std::list<OsdOutput *> outputs;
+	OsdOutput *outputs[5] = {};
 	OsdElement elements[MAX_ELEMENTS] = {};
 
 	enum class CanvasState {
@@ -189,7 +199,7 @@ private:
 	};
 	CanvasState state = CanvasState::CLEAR;
 	u32 currentlyDrawing = 0;
-	std::list<OsdOutput *>::const_iterator pushIterator = outputs.cbegin();
+	u8 pushIndex = 0;
 
 	u32 updateMicros = 83000;
 	elapsedMicros updateTimer{(struct dummyStruct){}};

@@ -26,12 +26,6 @@ void initADC() {
 	adc_gpio_init(PIN_ADC_CURRENT);
 #endif
 	adc_init();
-	// enableElem(OSDElem::TOT_VOLTAGE);
-	// placeElem(OSDElem::TOT_VOLTAGE, 1, 1);
-	// enableElem(OSDElem::CELL_VOLTAGE);
-	// placeElem(OSDElem::CELL_VOLTAGE, 8, 1);
-	// enableElem(OSDElem::CURRENT);
-	// placeElem(OSDElem::CURRENT, 1, 2);
 
 	batTimer = 0;
 }
@@ -46,11 +40,6 @@ void adcLoop() {
 			adc_select_input(PIN_ADC_VOLTAGE - 26);
 			u32 raw = adc_read();
 			adcVoltage = (raw * 3630U) / 4096U; // 36.3V full deflection, voltage divider is 11:1, and 4096 is 3.3V
-			// int elemIndex = osdHandler.find(elemType::BATTERY_VOLTAGE);
-			// if (elemIndex >= 0) {
-			// 	osdHandler.elements[elemIndex]->setRawDataPtr(&adcVoltage);
-			// 	osdHandler.elements[elemIndex]->updated = true;
-			// }
 			adcFlag |= 0xFFFF;
 			switch (batState) {
 			case 0: // no battery (USB or startup)
@@ -77,20 +66,11 @@ void adcLoop() {
 			cellVoltage = adcVoltage / batCells;
 			if (batBlinkingAndBeeping && (adcVoltage >= emptyVoltage || adcVoltage < 50)) {
 				stopSound();
-				disableBlinking(OSDElem::TOT_VOLTAGE);
-				disableBlinking(OSDElem::CELL_VOLTAGE);
 				batBlinkingAndBeeping = false;
 			} else if (adcVoltage < emptyVoltage && !batBlinkingAndBeeping) {
 				makeSound(3000, 65535, 300, 300);
-				enableBlinking(OSDElem::TOT_VOLTAGE);
-				enableBlinking(OSDElem::CELL_VOLTAGE);
 				batBlinkingAndBeeping = true;
 			}
-			u8 voltageStr[16] = {};
-			snprintf((char *)voltageStr, 16, "%.2f\x06 ", adcVoltage / 100.f);
-			updateElem(OSDElem::TOT_VOLTAGE, (char *)voltageStr);
-			snprintf((char *)voltageStr, 16, "%.2f\x06 ", cellVoltage / 100.f);
-			updateElem(OSDElem::CELL_VOLTAGE, (char *)voltageStr);
 #ifdef PIN_ADC_CURRENT
 		} else {
 			// adc_select_input(PIN_ADC_CURRENT - 26);

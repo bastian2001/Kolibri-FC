@@ -32,6 +32,7 @@ void setup() {
 	initControl();
 	rtcInit();
 	OsdCanvas::get().begin();
+	AnalogOsdOutput::get().begin();
 	inFlightTuningInit();
 	initMag();
 	imuInit();
@@ -88,6 +89,7 @@ void loop() {
 	gpsLoop();
 	magLoop();
 	OsdCanvas::get().loop();
+	AnalogOsdOutput::get().loop();
 	taskManagerLoop();
 	trampLoop();
 	rp2040.wdt_reset();

@@ -29,7 +29,8 @@ void OsdCanvas::loop() {
 	case CanvasState::CLEAR:
 		memset(frameBuffer, 0, width * height);
 		state = CanvasState::DRAW;
-		pushIterator = outputs.cbegin();
+		pushIndex = 0;
+		currentlyDrawing = 0;
 		break;
 	case CanvasState::DRAW:
 		drawElement(currentlyDrawing);
@@ -40,9 +41,8 @@ void OsdCanvas::loop() {
 		if (currentlyDrawing == MAX_ELEMENTS) state = CanvasState::PUSH;
 		break;
 	case CanvasState::PUSH:
-		(*pushIterator)->sendFrame(frameBuffer, width, height);
-		pushIterator++;
-		if (pushIterator == outputs.cend()) state = CanvasState::WAIT;
+		if (outputs[pushIndex] != nullptr) outputs[pushIndex]->sendFrame(frameBuffer, width, height);
+		if (++pushIndex >= MAX_OUTPUTS) state = CanvasState::WAIT;
 		break;
 	case CanvasState::WAIT:
 		if (updateTimer >= updateMicros) {
@@ -123,7 +123,8 @@ void OsdCanvas::drawElement(u32 index) {
 		int maxLen = width - el.col;
 		if (len > 16) len = 16;
 		if (len > maxLen) len = maxLen;
-		memcpy(getBufferPtr(el.col, el.row), buf, len);
+		char *ptr = getBufferPtr(el.col, el.row);
+		if (ptr != nullptr) memcpy(ptr, buf, len);
 	} break;
 	case OsdElementType::BATTERY_CELL_VOLTAGE: {
 	} break;
@@ -215,9 +216,9 @@ bool OsdCanvas::openCanvasSettingsFile() {
 	*canvasSettingsFile = LittleFS.open("/osd.bin", "r+");
 	if (!*canvasSettingsFile) {
 		Serial.println("Failed to open OSD file, creating new one...");
-		*canvasSettingsFile = LittleFS.open("/modes.txt", "w+");
+		*canvasSettingsFile = LittleFS.open("/osd.bin", "w+");
 		if (!*canvasSettingsFile) {
-			Serial.println("Failed to create modes file.");
+			Serial.println("Failed to create OSD file.");
 			return false;
 		}
 		return true;
@@ -233,9 +234,9 @@ void OsdCanvas::closeCanvasSettingsFile() {
 }
 
 void OsdCanvas::loadElementsFromSettings() {
-	u8 buf[MAX_ELEMENTS * 4];
+	u8 buf[MAX_ELEMENTS * 8];
 	canvasSettingsFile->seek(0);
-	u32 read = canvasSettingsFile->readBytes((char *)buf, MAX_ELEMENTS * 4);
+	u32 read = canvasSettingsFile->readBytes((char *)buf, MAX_ELEMENTS * 8);
 	for (int i = 0; i < read / 8 && i < MAX_ELEMENTS; i++) {
 		u32 pos = i * 8;
 		elements[i] = {
@@ -248,13 +249,14 @@ void OsdCanvas::loadElementsFromSettings() {
 }
 
 void OsdCanvas::saveElementsToSettings() {
-	u8 buf[MAX_ELEMENTS * 4];
+	u8 buf[MAX_ELEMENTS * 8];
 	canvasSettingsFile->seek(0);
-	for (int i = 0; i < MAX_ELEMENTS; i++) {
+	for (u32 i = 0; i < MAX_ELEMENTS; i++) {
 		u32 pos = i * 8;
 		OsdElement &el = elements[i];
-		buf[pos + 0] = (u8)el.type;
-		buf[pos + 1] = (u16)el.type >> 8;
+		u16 type = (u16)el.type;
+		buf[pos + 0] = type;
+		buf[pos + 1] = (u8)(type >> 8);
 		buf[pos + 2] = el.col;
 		buf[pos + 3] = el.row;
 		memcpy(&buf[pos + 4], &el.option, 4);

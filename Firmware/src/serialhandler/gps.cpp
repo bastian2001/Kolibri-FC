@@ -35,24 +35,7 @@ void setGpsSerial(KoliSerial *g) {
 	gpsSerial = g;
 }
 
-void initGPS() {
-	placeElem(OSDElem::LATITUDE, 1, 13);
-	placeElem(OSDElem::LONGITUDE, 13, 13);
-	placeElem(OSDElem::ALTITUDE, 1, 14);
-	placeElem(OSDElem::GROUND_SPEED, 10, 14);
-	placeElem(OSDElem::HEADING, 15, 14);
-	placeElem(OSDElem::HOME_DISTANCE, 23, 14);
-	placeElem(OSDElem::GPS_STATUS, 1, 12);
-	placeElem(OSDElem::PLUS_CODE, 6, 12);
-	enableElem(OSDElem::LATITUDE);
-	enableElem(OSDElem::LONGITUDE);
-	enableElem(OSDElem::ALTITUDE);
-	enableElem(OSDElem::GROUND_SPEED);
-	enableElem(OSDElem::HEADING);
-	enableElem(OSDElem::HOME_DISTANCE);
-	enableElem(OSDElem::GPS_STATUS);
-	enableElem(OSDElem::PLUS_CODE);
-}
+void initGPS() {}
 
 void fillOpenLocationCode() {
 	u32 lat = gpsMotion.lat / 1250 + 720000;
@@ -321,37 +304,6 @@ void gpsLoop() {
 				} // else {
 				// armingDisableFlags |= 0x04;
 				// }
-
-				fix32 distN, distE;
-				startFixMath();
-				distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
-				i32 dist = sqrtFix(distN * distN + distE * distE).geti32();
-				fix32 gVel = sqrtFix(eVel * eVel + nVel * nVel) * 3.6f;
-
-				u8 buf[16];
-				snprintf((char *)buf, 16, "\x89%.7f", lat64.getf32());
-				updateElem(OSDElem::LATITUDE, (char *)buf);
-
-				snprintf((char *)buf, 16, "\x98%.7f", lon64.getf32());
-				updateElem(OSDElem::LONGITUDE, (char *)buf);
-
-				snprintf((char *)buf, 16, "\x7F%d\x0C ", combinedAltitude.geti32());
-				updateElem(OSDElem::ALTITUDE, (char *)buf);
-
-				snprintf((char *)buf, 16, "%d\x9E ", (gVel + fix32(0.5f)).geti32());
-				updateElem(OSDElem::GROUND_SPEED, (char *)buf);
-
-				snprintf((char *)buf, 16, "%dD ", (combinedHeading * FIX_RAD_TO_DEG).geti32());
-				updateElem(OSDElem::HEADING, (char *)buf);
-
-				snprintf((char *)buf, 16, "\x11%d\x0C  ", dist);
-				updateElem(OSDElem::HOME_DISTANCE, (char *)buf);
-
-				snprintf((char *)buf, 16, "\x1E\x1F%d  ", gpsStatus.satCount);
-				updateElem(OSDElem::GPS_STATUS, (char *)buf);
-
-				fillOpenLocationCode();
-				updateElem(OSDElem::PLUS_CODE, olcString);
 			} break;
 			}
 		}

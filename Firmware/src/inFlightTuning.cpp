@@ -116,16 +116,16 @@ void TunableParameter::getValueString(char *str) {
 }
 
 static void updateInFlightTuningOsd() {
-	if (!adjusting) return updateElem(OSDElem::IN_FLIGHT_TUNING, "               ");
-	char buf[16];
-	char valueString[16];
-	currentParameter->getValueString(valueString);
-	int i = snprintf(buf, 16, "%s %s", currentParameter->name, valueString);
-	for (; i < 15; i++) {
-		buf[i] = ' ';
-	}
-	buf[15] = '\0';
-	updateElem(OSDElem::IN_FLIGHT_TUNING, buf);
+	// if (!adjusting) return updateElem(OSDElem::IN_FLIGHT_TUNING, "               ");
+	// char buf[16];
+	// char valueString[16];
+	// currentParameter->getValueString(valueString);
+	// int i = snprintf(buf, 16, "%s %s", currentParameter->name, valueString);
+	// for (; i < 15; i++) {
+	// 	buf[i] = ' ';
+	// }
+	// buf[15] = '\0';
+	// updateElem(OSDElem::IN_FLIGHT_TUNING, buf);
 }
 
 void inFlightTuningInit() {

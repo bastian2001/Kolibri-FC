@@ -639,7 +639,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				sendMsp(msgSetup);
 				break;
 			}
-			updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
+			AnalogOsdOutput::get().updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
 			sendMsp(msgSetup, reqPayload, 1);
 			break;
 		case MspFn::WRITE_OSD_ELEMENT: {
