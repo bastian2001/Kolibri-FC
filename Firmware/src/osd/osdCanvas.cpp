@@ -33,10 +33,9 @@ void OsdCanvas::loop() {
 		currentlyDrawing = 0;
 		break;
 	case CanvasState::DRAW:
-		drawElement(currentlyDrawing);
-		currentlyDrawing++;
+		drawElement(currentlyDrawing++);
 		for (; currentlyDrawing < MAX_ELEMENTS; currentlyDrawing++) {
-			drawElement(currentlyDrawing);
+			if (elements[currentlyDrawing].type != OsdElementType::DISABLED) break;
 		}
 		if (currentlyDrawing == MAX_ELEMENTS) state = CanvasState::PUSH;
 		break;
