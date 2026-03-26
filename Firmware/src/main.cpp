@@ -17,7 +17,7 @@ void setup() {
 
 	runUnitTests();
 
-	Serial.println("Setup started");
+	DEBUG_PRINTLN("Setup started");
 	initLittleFs();
 	openSettingsFile();
 
@@ -61,7 +61,7 @@ void setup() {
 	rp2040.wdt_begin(200);
 	rp2040.wdt_reset();
 
-	Serial.println("Setup complete");
+	DEBUG_PRINTLN("Setup complete");
 	taskTimer0 = 0;
 	setupDone |= 0b10;
 	rom_flash_flush_cache();

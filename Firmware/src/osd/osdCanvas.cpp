@@ -214,10 +214,10 @@ bool OsdCanvas::openCanvasSettingsFile() {
 
 	*canvasSettingsFile = LittleFS.open("/osd.bin", "r+");
 	if (!*canvasSettingsFile) {
-		Serial.println("Failed to open OSD file, creating new one...");
+		DEBUG_PRINTLN("Failed to open OSD file, creating new one...");
 		*canvasSettingsFile = LittleFS.open("/osd.bin", "w+");
 		if (!*canvasSettingsFile) {
-			Serial.println("Failed to create OSD file.");
+			DEBUG_PRINTLN("Failed to create OSD file.");
 			return false;
 		}
 		return true;

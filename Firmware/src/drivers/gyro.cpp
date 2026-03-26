@@ -431,8 +431,7 @@ int gyroInit() {
 		REG_RD(GyroReg::CHIP_ID, &data, 1, true); // read chip id
 	}
 	if (data != 0x24) {
-		Serial.print("Failed to load BMI270, wrong Chip ID: "); // chip id should be 0x24
-		Serial.println(data, HEX);
+		DEBUG_PRINTF("Failed to load BMI270, wrong Chip ID: %02X\n", data); // chip id should be 0x24
 		return 1;
 	}
 	data = 0;
@@ -451,8 +450,7 @@ int gyroInit() {
 	}
 	if ((data & 0x6F) != 0x01) {
 		sleep_ms(5000);
-		Serial.print("Failed to load BMI270, wrong initialization status: "); // initialization status should be 0x01
-		Serial.println(data, HEX);
+		DEBUG_PRINTF("Failed to load BMI270, wrong initialization status: %02X\n", data); // initialization status should be 0x01
 		return 2;
 	}
 
@@ -509,8 +507,7 @@ int gyroInit() {
 		REG_RD(GyroReg::WHO_AM_I, &data, 1); // read chip id
 	}
 	if (data != 0x47) {
-		Serial.print("Failed to load ICM-42688-P, wrong Chip ID: ");
-		Serial.println(data, HEX);
+		DEBUG_PRINTF("Failed to load ICM-42688-P, wrong Chip ID: %02X\n", data);
 		return 1;
 	}
 	// interrupt config: int1 pulsed, push-pull, active high

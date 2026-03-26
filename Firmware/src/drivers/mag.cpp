@@ -255,7 +255,7 @@ void magLoop() {
 			det += xtxMatrix[0][step] * cofactor(xtxMatrix, 0, step);
 		}
 		if (det == 0) {
-			Serial.println("Determinant is 0");
+			DEBUG_PRINTLN("Determinant is 0");
 			break;
 		}
 		for (int row = 0; row < 4; row++) {

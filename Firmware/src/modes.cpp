@@ -25,7 +25,7 @@ void disarm(DisarmReason reason) {
 	if (!armed) return;
 	armed = false;
 	p.neoPixelSetValue(1, 0, 0, 0, true);
-	Serial.printf("Disarming for reason %d\n", (u8)reason);
+	DEBUG_PRINTF("Disarming for reason %d\n", (u8)reason);
 #ifdef BLACKBOX_STORAGE
 	endLogging(reason);
 #endif
@@ -141,10 +141,10 @@ bool openModesSettingsFile() {
 	}
 	modesSettingsFile = LittleFS.open("/modes.txt", "r+");
 	if (!modesSettingsFile) {
-		Serial.println("Failed to open modes file, creating new one...");
+		DEBUG_PRINTLN("Failed to open modes file, creating new one...");
 		modesSettingsFile = LittleFS.open("/modes.txt", "w+");
 		if (!modesSettingsFile) {
-			Serial.println("Failed to create modes file.");
+			DEBUG_PRINTLN("Failed to create modes file.");
 			return false;
 		}
 		return true;

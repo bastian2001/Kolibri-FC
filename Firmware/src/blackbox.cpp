@@ -350,7 +350,7 @@ void initBlackbox() {
 	if (!bbFs.exists("/blackbox")) {
 		bbFs.mkdir("/blackbox");
 	}
-	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
+	DEBUG_PRINTLN(fsReady ? "SD card ready" : "SD card not ready");
 #elif BLACKBOX_STORAGE == FLASH_BB
 
 	bool r = false;

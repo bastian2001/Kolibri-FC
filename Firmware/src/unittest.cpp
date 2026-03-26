@@ -1,6 +1,4 @@
-#include "unittest.h"
-#include "ringbuffer.h"
-#include <fixedPointInt.h>
+#include "global.h"
 
 u32 ExpectBase::failed = false;
 u32 ExpectBase::succeeded = false;
@@ -381,7 +379,7 @@ void runUnitTests() {
 		testsFailed = testRingBuffer() || testsFailed;
 		testsFailed = testFixedPoint() || testsFailed;
 		if (testsFailed) {
-			Serial.println("Unit tests failed, rerun to see results.");
+			DEBUG_PRINTLN("Unit tests failed, rerun to see results.");
 			ExpectBase::enableSilent(false);
 			if (firstRun) {
 				firstRun = false;

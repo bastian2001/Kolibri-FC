@@ -722,7 +722,7 @@ void ExpressLRS::processMspReq() {
 			this->mspVersion = MspVersion::V2_OVER_CRSF;
 			break;
 		default:
-			Serial.println("unsupported MSP version: " + String(headerVersion));
+			DEBUG_PRINTLN("unsupported MSP version: " + String(headerVersion));
 			this->resetMsp(true);
 			return;
 		}
@@ -735,7 +735,7 @@ void ExpressLRS::processMspReq() {
 		case MspVersion::V1_OVER_CRSF:
 			if (inActualLen < 3) {
 				// need at least status byte, payload len and function
-				Serial.println("Too small V1");
+				DEBUG_PRINTLN("Too small V1");
 				this->resetMsp(true);
 				return; // broken packet
 			}
@@ -746,7 +746,7 @@ void ExpressLRS::processMspReq() {
 		case MspVersion::V1_JUMBO_OVER_CRSF:
 			if (inActualLen < 5) {
 				// 1+2 payload length, 1 command
-				Serial.println("Too small V1 Jumbo");
+				DEBUG_PRINTLN("Too small V1 Jumbo");
 				this->resetMsp(true);
 				return; // broken packet
 			}
@@ -754,7 +754,7 @@ void ExpressLRS::processMspReq() {
 			this->mspRxCmd = mspData[1];
 			this->mspRxPayloadLen = mspData[2] | (mspData[3] << 8);
 			if (this->mspRxPayloadLen > 512) {
-				Serial.println("Too large V1 Jumbo");
+				DEBUG_PRINTLN("Too large V1 Jumbo");
 				this->resetMsp(true);
 				return; // invalid payload length
 			}
@@ -762,7 +762,7 @@ void ExpressLRS::processMspReq() {
 		case MspVersion::V2_OVER_CRSF:
 			if (inActualLen < 6) {
 				// 1 flags, 2 payload length, 2 command
-				Serial.println("Too small V2");
+				DEBUG_PRINTLN("Too small V2");
 				this->resetMsp(true);
 				return;
 			}
@@ -771,7 +771,7 @@ void ExpressLRS::processMspReq() {
 			this->mspRxCmd = mspData[1] | (mspData[2] << 8);
 			this->mspRxPayloadLen = mspData[3] | (mspData[4] << 8);
 			if (this->mspRxPayloadLen > 512) {
-				Serial.println("Too large V2");
+				DEBUG_PRINTLN("Too large V2");
 				this->resetMsp(true);
 				return; // invalid payload length
 			}
@@ -779,7 +779,7 @@ void ExpressLRS::processMspReq() {
 		this->mspRecording = true;
 	}
 	if (!this->mspRecording) {
-		Serial.println("MSP recording not started, but got a packet, probably packet loss");
+		DEBUG_PRINTLN("MSP recording not started, but got a packet, probably packet loss");
 		this->resetMsp(true);
 		return;
 	}
