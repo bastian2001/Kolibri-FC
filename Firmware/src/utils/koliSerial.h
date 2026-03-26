@@ -198,6 +198,8 @@ public:
 
 	static elapsedMicros sinceReset;
 	static const char SERIAL_TYPE_NAMES[4][8];
+	bool armingDisabled = false;
+	MspVersion lastMspVersion = MspVersion::V2;
 
 private:
 	RingBuffer<u8> writeBuffer;

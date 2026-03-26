@@ -37,7 +37,6 @@
 #include <Arduino.h>
 
 class KoliSerial;
-extern bool configuratorConnected; // true if the configurator is connected
 extern i16 mspDebugSensors[4]; // write values here to see them in the sensors tab. +-100, +-1000, +-10000, +-256
 
 /**
@@ -45,7 +44,7 @@ extern i16 mspDebugSensors[4]; // write values here to see them in the sensors t
  *
  * @details These commands are used to communicate with the configurator and other peripherals. For Kolibri specific functions, the space 0x4000-0x4FFF is used. More details: https://github.com/iNavFlight/inav/wiki/MSP-V2
  */
-enum class MspFn {
+enum class MspFn : u16 {
 	API_VERSION = 1,
 	FIRMWARE_VARIANT = 2,
 	FIRMWARE_VERSION = 3,
@@ -253,13 +252,13 @@ enum class McuType : u8 {
 	UNKNOWN = 255,
 };
 
-enum class MspMsgType {
+enum class MspMsgType : char {
 	REQUEST = '<',
 	RESPONSE = '>',
 	ERROR = '!',
 };
 
-enum class MspVersion {
+enum class MspVersion : char {
 	V2,
 	V1,
 	V1_JUMBO,
@@ -270,14 +269,13 @@ enum class MspVersion {
 	V1_JUMBO_OVER_CRSF,
 };
 typedef struct mspMsgSetup {
-	MspFn fn;
 	KoliSerial &serial;
+	MspFn fn;
 	MspMsgType type = MspMsgType::RESPONSE;
 	MspVersion version = MspVersion::V2;
 } MspMsgSetup;
 
 extern KoliSerial *lastMspSerial;
-extern MspVersion lastMspVersion;
 
 /**
  * @brief Send an MSP packet to the configurator

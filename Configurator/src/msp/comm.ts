@@ -569,6 +569,13 @@ function onConnected() {
 	cmdEnabled = true
 	readInterval = setInterval(read, 3)
 	pingInterval = setInterval(ping, 200)
+	sendCommand(MspFn.SET_ARMING_DISABLED, [1])
+		.then(() => {
+			configuratorLog.push("Arming disabled")
+		})
+		.catch(() => {
+			disconnect()
+		})
 	statusInterval = setInterval(() => {
 		sendCommand(MspFn.STATUS).catch(() => {})
 	}, 1000)
@@ -625,39 +632,47 @@ function onDisconnect() {
 export const disconnect = () => {
 	if (connectType === "serial" || connectType === "tcp") {
 		return new Promise((resolve: any, reject) => {
-			invoke(connectType === "serial" ? "serial_close" : "tcp_close")
-				.then(() => {
-					resolve()
-				})
-				.catch(console.error)
+			sendCommand(MspFn.SET_ARMING_DISABLED, [0])
+				.catch(() => {})
 				.finally(() => {
-					onDisconnect()
-					reject("Could not properly close connection to " + connectType)
+					invoke(connectType === "serial" ? "serial_close" : "tcp_close")
+						.then(() => {
+							resolve()
+						})
+						.catch(console.error)
+						.finally(() => {
+							onDisconnect()
+							reject("Could not properly close connection to " + connectType)
+						})
 				})
 		})
 	}
 	return new Promise((resolve: any, reject) => {
-		let closed = false
-		//just try to disconnect both
-		invoke("serial_close")
-			.then(() => {
-				closed = true
-			})
+		sendCommand(MspFn.SET_ARMING_DISABLED, [0])
 			.catch(() => {})
 			.finally(() => {
-				return invoke("tcp_close")
-			})
-			.then(() => {
-				closed = true
-			})
-			.catch(() => {})
-			.finally(() => {
-				onDisconnect()
-				if (closed) {
-					resolve()
-				} else {
-					reject("No connection to close")
-				}
+				let closed = false
+				//just try to disconnect both
+				invoke("serial_close")
+					.then(() => {
+						closed = true
+					})
+					.catch(() => {})
+					.finally(() => {
+						return invoke("tcp_close")
+					})
+					.then(() => {
+						closed = true
+					})
+					.catch(() => {})
+					.finally(() => {
+						onDisconnect()
+						if (closed) {
+							resolve()
+						} else {
+							reject("No connection to close")
+						}
+					})
 			})
 	})
 }

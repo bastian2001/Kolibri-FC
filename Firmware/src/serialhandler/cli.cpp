@@ -90,10 +90,10 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 	} else if (cmd == "reboot") {
 		if (lastMspSerial != nullptr) {
 			MspMsgSetup s = {
-				.fn = MspFn::CLI_COMMAND,
 				.serial = *lastMspSerial,
+				.fn = MspFn::CLI_COMMAND,
 				.type = MspMsgType::RESPONSE,
-				.version = lastMspVersion,
+				.version = lastMspSerial->lastMspVersion,
 			};
 			sendMsp(s, "Rebooting...", 13);
 			lastMspSerial->flush();
@@ -158,10 +158,10 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 			string line = "\n" + string(settingsFile.readStringUntil('\n').c_str());
 			if (lastMspSerial != nullptr) {
 				MspMsgSetup s = {
-					.fn = MspFn::CLI_COMMAND,
 					.serial = *lastMspSerial,
+					.fn = MspFn::CLI_COMMAND,
 					.type = MspMsgType::RESPONSE,
-					.version = lastMspVersion,
+					.version = lastMspSerial->lastMspVersion,
 				};
 				sendMsp(s, line.c_str(), line.length());
 			}
@@ -172,10 +172,10 @@ string processCliCommand(const char *reqPayload, u16 reqLen) {
 		if (payload == "confirm") {
 			if (lastMspSerial != nullptr) {
 				MspMsgSetup s = {
-					.fn = MspFn::CLI_COMMAND,
 					.serial = *lastMspSerial,
+					.fn = MspFn::CLI_COMMAND,
 					.type = MspMsgType::RESPONSE,
-					.version = lastMspVersion,
+					.version = lastMspSerial->lastMspVersion,
 				};
 				sendMsp(s, "Resetting settings...", 22);
 				lastMspSerial->flush();

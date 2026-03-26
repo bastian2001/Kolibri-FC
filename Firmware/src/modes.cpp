@@ -10,7 +10,7 @@ static File modesSettingsFile;
  * 0: switch in armed position for == 10 cycles
  * 1: throttle down
  * 2: GPS fix and >= 6 satellites
- * 3: configurator not attached (by configurator ping) -> used by Kolibri configurator
+ * 3: unused
  * 4: at least one good ELRS packet before arming
  * 5: allowed modes during arm: acro, angle
  * 6: Gyro calibrated
@@ -55,10 +55,6 @@ void modesLoop() {
 				armingDisableFlags |= 0x02;
 			// if (lastPvtMessage > 1000)
 			// 	armingDisableFlags |= 0x04;
-			if (configuratorConnected && mspOverrideMotors > 1000)
-				armingDisableFlags |= 0x08;
-			else
-				armingDisableFlags &= ~0x08;
 			if (elrs->isLinkUp)
 				armingDisableFlags &= ~0x10;
 			else
@@ -220,8 +216,8 @@ void mspGetRxModes(KoliSerial *serial, MspVersion version) {
 		buf[bufIndex++] = 0; // reserved byte
 	}
 	MspMsgSetup s = {
-		.fn = MspFn::GET_RX_MODES,
 		.serial = *serial,
+		.fn = MspFn::GET_RX_MODES,
 		.type = MspMsgType::RESPONSE,
 		.version = version,
 	};
@@ -244,8 +240,8 @@ void mspSetRxModes(KoliSerial *serial, MspVersion version, const char *reqPayloa
 			tasks[TASK_MODES].errorCount++;
 			if (serial != nullptr) {
 				MspMsgSetup s = {
-					.fn = MspFn::SET_RX_MODES,
 					.serial = *serial,
+					.fn = MspFn::SET_RX_MODES,
 					.type = MspMsgType::ERROR,
 					.version = version,
 				};
@@ -259,8 +255,8 @@ void mspSetRxModes(KoliSerial *serial, MspVersion version, const char *reqPayloa
 			tasks[TASK_MODES].errorCount++;
 			if (serial != nullptr) {
 				MspMsgSetup s = {
-					.fn = MspFn::SET_RX_MODES,
 					.serial = *serial,
+					.fn = MspFn::SET_RX_MODES,
 					.type = MspMsgType::ERROR,
 					.version = version,
 				};
@@ -286,8 +282,8 @@ void mspSetRxModes(KoliSerial *serial, MspVersion version, const char *reqPayloa
 		closeModesSettingsFile();
 		if (serial != nullptr) {
 			MspMsgSetup s = {
-				.fn = MspFn::SET_RX_MODES,
 				.serial = *serial,
+				.fn = MspFn::SET_RX_MODES,
 				.type = MspMsgType::RESPONSE,
 				.version = version,
 			};
@@ -298,8 +294,8 @@ void mspSetRxModes(KoliSerial *serial, MspVersion version, const char *reqPayloa
 		tasks[TASK_MODES].errorCount++;
 		if (serial != nullptr) {
 			MspMsgSetup s = {
-				.fn = MspFn::SET_RX_MODES,
 				.serial = *serial,
+				.fn = MspFn::SET_RX_MODES,
 				.type = MspMsgType::ERROR,
 				.version = version,
 			};

@@ -238,8 +238,8 @@ void blackboxLoop() {
 				return;
 			}
 			MspMsgSetup s = {
-				.fn = MspFn::BB_FILE_DOWNLOAD,
 				.serial = *bbPrintLog.serial,
+				.fn = MspFn::BB_FILE_DOWNLOAD,
 				.type = MspMsgType::RESPONSE,
 				.version = bbPrintLog.mspVer,
 			};
@@ -442,8 +442,8 @@ static bool openLogFileIfDiffNum(u16 logNum) {
 
 void printFastFileInit(KoliSerial &serial, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen) {
 	MspMsgSetup s = {
-		.fn = MspFn::BB_FAST_FILE_INIT,
 		.serial = serial,
+		.fn = MspFn::BB_FAST_FILE_INIT,
 		.type = MspMsgType::ERROR,
 		.version = mspVer,
 	};
@@ -818,8 +818,8 @@ void printFastFileInit(KoliSerial &serial, MspVersion mspVer, u16 logNum, u8 sub
 
 void printFastDataReq(KoliSerial &serial, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
 	MspMsgSetup s = {
-		.fn = MspFn::BB_FAST_DATA_REQ,
 		.serial = serial,
+		.fn = MspFn::BB_FAST_DATA_REQ,
 		.type = MspMsgType::ERROR,
 		.version = mspVer,
 	};
@@ -1104,8 +1104,8 @@ void printFastDataReq(KoliSerial &serial, MspVersion mspVer, u16 sequenceNum, u1
 
 void printFileInit(KoliSerial &serial, MspVersion mspVer, u16 logNum) {
 	MspMsgSetup s = {
-		.fn = MspFn::BB_FILE_INIT,
 		.serial = serial,
+		.fn = MspFn::BB_FILE_INIT,
 		.type = MspMsgType::ERROR,
 		.version = mspVer,
 	};
@@ -1140,8 +1140,8 @@ void printFileInit(KoliSerial &serial, MspVersion mspVer, u16 logNum) {
 
 void printLogBin(KoliSerial &serial, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 	MspMsgSetup s = {
-		.fn = MspFn::BB_FILE_DOWNLOAD,
 		.serial = serial,
+		.fn = MspFn::BB_FILE_DOWNLOAD,
 		.type = MspMsgType::ERROR,
 		.version = mspVer,
 	};
@@ -1183,8 +1183,8 @@ void bbStopPrinting() {
 
 void bbClosePrintFile(KoliSerial &serial, MspVersion mspVer) {
 	MspMsgSetup s = {
-		.fn = MspFn::BB_CLOSE_FILE,
 		.serial = serial,
+		.fn = MspFn::BB_CLOSE_FILE,
 		.type = MspMsgType::ERROR,
 		.version = mspVer,
 	};

@@ -250,8 +250,8 @@ void ExpressLRS::processMessage() {
 				buf[1] = inType;
 				memcpy(&buf[2], inPayload, inActualLen);
 				MspMsgSetup s = {
-					.fn = MspFn::CRSF_GOT_MESSAGE,
 					.serial = *subscribeSerial,
+					.fn = MspFn::CRSF_GOT_MESSAGE,
 					.type = MspMsgType::REQUEST,
 					.version = subscribeMspVersion,
 				};

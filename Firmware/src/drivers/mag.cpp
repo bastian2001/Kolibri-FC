@@ -286,10 +286,10 @@ void magLoop() {
 		if (lastMspSerial != nullptr) {
 			char data = 1;
 			MspMsgSetup s = {
-				.fn = MspFn::MAG_CALIBRATION,
 				.serial = *lastMspSerial,
+				.fn = MspFn::MAG_CALIBRATION,
 				.type = MspMsgType::REQUEST,
-				.version = lastMspVersion,
+				.version = lastMspSerial->lastMspVersion,
 			};
 			sendMsp(s, &data, 1);
 			char calString[64];

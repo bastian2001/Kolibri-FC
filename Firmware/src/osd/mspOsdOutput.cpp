@@ -4,10 +4,10 @@ void MspOsdOutput::loop() {
 	if (heartbeatTimer > 50000) {
 		heartbeatTimer = 0;
 		MspMsgSetup s = {
+			.serial = serial,
 			.fn = MspFn::MSP_DISPLAYPORT,
-			.serial = this->serial,
 			.type = MspMsgType::RESPONSE,
-			.version = MspVersion::V1,
+			.version = serial.lastMspVersion,
 		};
 		char data = MSP_DP_HEARTBEAT;
 		sendMsp(s, &data, 1);
@@ -15,10 +15,10 @@ void MspOsdOutput::loop() {
 	switch (state) {
 	case MspDpState::CLEAR: {
 		MspMsgSetup s = {
+			.serial = serial,
 			.fn = MspFn::MSP_DISPLAYPORT,
-			.serial = this->serial,
 			.type = MspMsgType::RESPONSE,
-			.version = MspVersion::V1,
+			.version = serial.lastMspVersion,
 		};
 		char data = MSP_DP_CLEAR_SCREEN;
 		sendMsp(s, &data, 1);
@@ -54,10 +54,10 @@ void MspOsdOutput::loop() {
 			u8 len = last + 1 - drawingChar;
 			memcpy(&data[4], &frameBuffer[drawingLine * width + drawingChar], len);
 			MspMsgSetup s = {
+				.serial = serial,
 				.fn = MspFn::MSP_DISPLAYPORT,
-				.serial = this->serial,
 				.type = MspMsgType::RESPONSE,
-				.version = MspVersion::V1,
+				.version = serial.lastMspVersion,
 			};
 			sendMsp(s, data, 4 + len);
 			drawingChar = pos;
@@ -71,10 +71,10 @@ void MspOsdOutput::loop() {
 	} break;
 	case MspDpState::DRAW: {
 		MspMsgSetup s = {
+			.serial = serial,
 			.fn = MspFn::MSP_DISPLAYPORT,
-			.serial = this->serial,
 			.type = MspMsgType::RESPONSE,
-			.version = MspVersion::V1,
+			.version = serial.lastMspVersion,
 		};
 		char data = MSP_DP_DRAW_SCREEN;
 		sendMsp(s, &data, 1);

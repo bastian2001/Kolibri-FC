@@ -10,16 +10,12 @@ static constexpr char targetIdentifier[] = TARGET_IDENTIFIER;
 static constexpr char targetFullName[] = TARGET_FULL_NAME;
 
 static elapsedMicros lastConfigPingRx = 0;
-bool configuratorConnected = false;
 
 i16 mspDebugSensors[4] = {0, 0, 0, 0};
 
 KoliSerial *lastMspSerial = nullptr;
-MspVersion lastMspVersion = MspVersion::V2;
 
 void configuratorLoop() {
-	if (lastConfigPingRx > 1000000)
-		configuratorConnected = false;
 	if (accelCalDone) {
 		accelCalDone = false;
 		if (accelCalState == 0) {
@@ -28,10 +24,10 @@ void configuratorLoop() {
 			closeSettingsFile();
 			if (lastMspSerial != nullptr) {
 				MspMsgSetup s = {
-					.fn = MspFn::SAVE_SETTINGS,
 					.serial = *lastMspSerial,
+					.fn = MspFn::SAVE_SETTINGS,
 					.type = MspMsgType::RESPONSE,
-					.version = lastMspVersion,
+					.version = lastMspSerial->lastMspVersion,
 				};
 				sendMsp(s);
 			}
@@ -52,10 +48,10 @@ void configuratorLoop() {
 void sendMsp(MspMsgSetup setup, const char *data, u16 len) {
 	if (data == nullptr && len > 0) return;
 
-	MspVersion &version = setup.version;
 	KoliSerial &serial = setup.serial;
 	MspFn &fn = setup.fn;
 	MspMsgType &type = setup.type;
+	MspVersion &version = setup.version;
 
 	if (version == MspVersion::V1 && len > 254) version = MspVersion::V1_JUMBO;
 	if (version == MspVersion::V2_OVER_V1 && len > 248) return;
@@ -169,9 +165,10 @@ void sendMsp(MspMsgSetup setup, const char *data, u16 len) {
 }
 
 void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen) {
+	serial.lastMspVersion = version;
 	MspMsgSetup msgSetup = {
-		.fn = fn,
 		.serial = serial,
+		.fn = fn,
 		.type = MspMsgType::RESPONSE,
 		.version = version,
 	};
@@ -282,20 +279,28 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			buf[len++] = 0; // checkOverflow, no overflow
 			sendMsp(msgSetup, buf, len);
 			break;
-		case MspFn::SET_ARMING_DISABLED:
-			// not used by Kolibri configurator
+		case MspFn::SET_ARMING_DISABLED: {
 			if (reqLen < 1) {
 				msgSetup.type = MspMsgType::ERROR;
 				sendMsp(msgSetup);
 				break;
 			}
 			if (reqPayload[0]) {
-				armingDisableFlags |= 0x80;
+				serial.armingDisabled = true;
 			} else {
-				armingDisableFlags &= ~0x80;
+				serial.armingDisabled = false;
 			}
+			bool disabled = false;
+			for (int i = 0; i < SERIAL_COUNT; i++) {
+				if (!serials[i]) continue;
+				disabled = disabled || serial.armingDisabled;
+			}
+			if (disabled)
+				armingDisableFlags |= 0x80;
+			else
+				armingDisableFlags &= ~0x80;
 			sendMsp(msgSetup);
-			break;
+		} break;
 		case MspFn::MSP_STATUS:
 			// only exists for compatibility with BLHeliSuite32
 			buf[len++] = (1000000 / PID_FREQ) & 0xFF;
@@ -445,13 +450,22 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, 12);
 		} break;
 		case MspFn::MSP_DISPLAYPORT:
-			// not happening
+			// MSP_DISPLAYPORT is just responses without a request
 			break;
-		case MspFn::MSP_SET_OSD_CANVAS:
-			// onSetCanvas(reqPayload[0], reqPayload[1]);
-			break;
+		case MspFn::MSP_SET_OSD_CANVAS: {
+			if (reqLen < 2 || reqPayload[0] > 192 || reqPayload[1] > 192) {
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
+			}
+			MspOsdOutput *dp = serial.getDp();
+			if (dp != nullptr) {
+				dp->setSize(reqPayload[0], reqPayload[1]);
+			}
+			sendMsp(msgSetup);
+		} break;
 		case MspFn::MSP_GET_OSD_CANVAS:
-			// not happening
+			OsdCanvas::get().getSize((u8 *)&buf[0], (u8 *)&buf[1]);
+			sendMsp(msgSetup, buf, 2);
 			break;
 		case MspFn::ACC_CALIBRATION:
 			startAccelCalibration();
@@ -522,7 +536,6 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::CONFIGURATOR_PING:
-			configuratorConnected = true;
 			lastConfigPingRx = 0;
 			sendMsp(msgSetup, reqPayload, reqLen);
 			break;
@@ -1685,8 +1698,8 @@ void MspParser::handleByte(u8 c) {
 		if (c != crcV2) {
 			mspState = MspState::IDLE;
 			MspMsgSetup s = {
-				.fn = fn,
 				.serial = ser,
+				.fn = fn,
 				.type = MspMsgType::ERROR,
 				.version = msgMspVer,
 			};
@@ -1701,8 +1714,8 @@ void MspParser::handleByte(u8 c) {
 			processMspCmd(ser, msgType, fn, msgMspVer, payloadBuf, payloadLen);
 		} else {
 			MspMsgSetup s = {
-				.fn = fn,
 				.serial = ser,
+				.fn = fn,
 				.type = MspMsgType::ERROR,
 				.version = msgMspVer,
 			};
@@ -1768,8 +1781,8 @@ void MspParser::handleByte(u8 c) {
 			processMspCmd(ser, msgType, fn, msgMspVer, payloadBuf, payloadLen);
 		else {
 			MspMsgSetup s = {
-				.fn = fn,
 				.serial = ser,
+				.fn = fn,
 				.type = MspMsgType::ERROR,
 				.version = msgMspVer,
 			};
@@ -1787,8 +1800,8 @@ void printIndMessage(String msg) {
 		msg = msg.substring(0, 256);
 	}
 	MspMsgSetup s = {
-		.fn = MspFn::IND_MESSAGE,
 		.serial = *serials[0],
+		.fn = MspFn::IND_MESSAGE,
 		.type = MspMsgType::REQUEST,
 		.version = MspVersion::V2,
 	};
