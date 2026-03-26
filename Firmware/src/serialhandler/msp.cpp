@@ -679,9 +679,37 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, 1);
 		} break;
 		case MspFn::SET_OSD_CONFIG: {
-			if (reqLen < 1) return;
+			if (reqLen < 1) {
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
+				break;
+			}
 			if (buf[0] < 2) osdCanvasSizeSrc = buf[0];
 			sendMsp(msgSetup);
+		} break;
+		case MspFn::OSD_CONTROL: {
+			if (reqLen < 1) {
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
+				break;
+			}
+			switch (reqPayload[0]) {
+			case 0:
+				// add function MSP_DP to this serial
+				serial.setFunctionBits(SERIAL_MSP_DISPLAYPORT);
+				sendMsp(msgSetup);
+				break;
+			case 1:
+				// remove function MSP_DP from this serial
+				serial.clearFunctionBits(SERIAL_MSP_DISPLAYPORT);
+				sendMsp(msgSetup);
+				break;
+			case 2:
+				// revert OSD setup to what it was before (moving tabs without saving)
+				OsdCanvas::get().revertElements();
+				sendMsp(msgSetup);
+				break;
+			}
 		} break;
 		case MspFn::GET_BB_SETTINGS: {
 #ifdef BLACKBOX_STORAGE

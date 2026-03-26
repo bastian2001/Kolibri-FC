@@ -5,6 +5,9 @@ public:
 	OsdOutput() {};
 	OsdOutput(const OsdOutput &) = delete;
 	OsdOutput &operator=(const OsdOutput &) = delete;
+	virtual ~OsdOutput() {
+		if (frameBuffer != nullptr) free(frameBuffer);
+	}
 
 	virtual void sendFrame(char *frameBuffer, u8 width, u8 height);
 	virtual void setSize(u8 width, u8 height);

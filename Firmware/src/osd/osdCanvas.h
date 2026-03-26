@@ -177,8 +177,8 @@ public:
 	inline void setUpdateRate(u8 updateHz) { updateMicros = 1000000 / updateHz; };
 
 private:
-	static constexpr int MAX_ELEMENTS = 256;
-	static constexpr int MAX_OUTPUTS = 5;
+	static constexpr u32 MAX_ELEMENTS = 256;
+	static constexpr u32 MAX_OUTPUTS = 5;
 
 	constexpr OsdCanvas() {};
 
