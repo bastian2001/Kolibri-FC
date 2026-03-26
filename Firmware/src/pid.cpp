@@ -148,10 +148,6 @@ void pidLoop() {
 	fix32 rollError = rollSetpoint - *gyroFiltered[AXIS_ROLL];
 	fix32 pitchError = pitchSetpoint - *gyroFiltered[AXIS_PITCH];
 	fix32 yawError = yawSetpoint - *gyroFiltered[AXIS_YAW];
-	static u8 counter;
-	if (++counter == 0) {
-		Serial.printf("new: %.3f %.3f %.3f\n", rollSetpoint.getf32(), pitchSetpoint.getf32(), yawSetpoint.getf32());
-	}
 
 	// I term windup prevention
 	if (elrs->channels[2] > 1020) {
