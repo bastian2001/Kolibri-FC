@@ -181,17 +181,17 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 		switch (fn) {
 		case MspFn::API_VERSION:
 			buf[len++] = MSP_PROTOCOL_VERSION;
-			buf[len++] = 1;
-			buf[len++] = 46;
+			buf[len++] = API_VERSION_MAJOR;
+			buf[len++] = API_VERSION_MINOR;
 			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::FIRMWARE_VARIANT:
-			sendMsp(msgSetup, &serial != &*serials[0] ? "BTFL" : "KOLI", FIRMWARE_IDENTIFIER_LENGTH);
+			sendMsp(msgSetup, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
 			break;
 		case MspFn::FIRMWARE_VERSION:
-			buf[len++] = 4;
-			buf[len++] = 5;
-			buf[len++] = 0;
+			buf[len++] = FIRMWARE_VERSION_MAJOR;
+			buf[len++] = FIRMWARE_VERSION_MINOR;
+			buf[len++] = FIRMWARE_VERSION_PATCH;
 			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::BOARD_INFO: {

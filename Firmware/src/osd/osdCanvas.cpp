@@ -117,11 +117,6 @@ void OsdCanvas::setDefaultElements() {
 		.col = 18,
 		.row = 1,
 	};
-	elements[4] = {
-		.type = OsdElementType::DEBUG_1,
-		.col = 18,
-		.row = 2,
-	};
 }
 
 void OsdCanvas::saveElements() {
