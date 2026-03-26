@@ -5,6 +5,9 @@
 #include <list>
 #include <optional>
 
+// 0 = analog, 1 = MSP
+extern u8 osdCanvasSizeSrc;
+
 enum class OsdElementType : u16 {
 	DISABLED = 0xFFFF,
 
@@ -62,6 +65,12 @@ enum class OsdElementType : u16 {
 	ALARM_WARNING,
 	ALARM_INFO,
 
+	// Debug
+	DEBUG_1 = 0xFFF0,
+	DEBUG_2,
+	DEBUG_3,
+	DEBUG_4,
+
 	// // HUD
 	// HUD_COMPASS_HEADING,
 	// HUD_ARTIFICIAL_HORIZON,
@@ -80,6 +89,9 @@ typedef struct osdElement {
 
 class OsdCanvas {
 public:
+	OsdCanvas(const OsdCanvas &) = delete;
+	OsdCanvas &operator=(const OsdCanvas &) = delete;
+
 	[[gnu::const]] static OsdCanvas &get() {
 		static OsdCanvas c;
 		return c;
@@ -107,7 +119,14 @@ public:
 	 */
 	void loop();
 
-	void setSize(u8 width, u8 height);
+	/**
+	 * @brief Set the size of the OSD canvas
+	 *
+	 * @param width width in chars
+	 * @param height height in chars
+	 * @param source source of the size: 0 = analog, 1 = MSP, 255 = force anyway
+	 */
+	void setSize(u8 width, u8 height, u8 source);
 	inline void getSize(u8 *width, u8 *height) const {
 		*width = this->width;
 		*height = this->height;
@@ -200,6 +219,7 @@ private:
 	CanvasState state = CanvasState::CLEAR;
 	u32 currentlyDrawing = 0;
 	u8 pushIndex = 0;
+	u8 loopIndex = 0;
 
 	u32 updateMicros = 83000;
 	elapsedMicros updateTimer{(struct dummyStruct){}};

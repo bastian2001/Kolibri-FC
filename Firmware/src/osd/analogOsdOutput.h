@@ -3,6 +3,8 @@
 
 class AnalogOsdOutput : private OsdOutput {
 public:
+	AnalogOsdOutput(const AnalogOsdOutput &) = delete;
+	AnalogOsdOutput &operator=(const AnalogOsdOutput &) = delete;
 	[[gnu::const]] static AnalogOsdOutput &get() {
 		static AnalogOsdOutput a;
 		return a;
@@ -16,7 +18,9 @@ public:
 	void setSize(u8 width, u8 height) override;
 
 private:
-	AnalogOsdOutput() {}
+	AnalogOsdOutput() {
+		setSize(30, 16);
+	}
 
 	void disableOutput();
 	void enableOutput();

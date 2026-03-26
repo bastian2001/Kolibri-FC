@@ -93,5 +93,6 @@ void AnalogOsdOutput::updateCharacter(u8 cmAddr, u8 data[54]) {
 void AnalogOsdOutput::setSize(u8 width, u8 height) {
 	fullyTransmitted = false;
 	drawingLine = 0;
+	OsdCanvas::get().setSize(width, height, 0);
 	OsdOutput::setSize(width, height);
 }

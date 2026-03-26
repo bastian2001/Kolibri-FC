@@ -6,7 +6,6 @@ static volatile u8 setupDone = 0; // lower nibble for core 0, higher nibble for 
 static elapsedMicros taskTimer0;
 
 void setup() {
-	sleep_ms(3000);
 	Serial.begin(115200);
 	vreg_disable_voltage_limit();
 	vreg_set_voltage(VREG_VOLTAGE_1_35);
@@ -89,7 +88,6 @@ void loop() {
 	gpsLoop();
 	magLoop();
 	OsdCanvas::get().loop();
-	AnalogOsdOutput::get().loop();
 	taskManagerLoop();
 	trampLoop();
 	rp2040.wdt_reset();

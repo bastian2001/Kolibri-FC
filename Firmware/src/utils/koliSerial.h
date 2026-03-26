@@ -189,6 +189,7 @@ public:
 	void setFunctionBits(u32 setBits) { setFunctions(functions() | setBits); };
 	void clearFunctionBits(u32 clearBits) { setFunctions(functions() & ~clearBits); };
 	MspParser &mspParser() { return *msp; };
+	MspOsdOutput *getDp() { return dpOutput; };
 
 	operator bool();
 
@@ -203,6 +204,7 @@ private:
 	mutex_t writeMutex;
 	u32 baudrate = 0;
 	pin_size_t txPin, rxPin;
+	MspOsdOutput *dpOutput = nullptr;
 
 	Stream *const stream;
 

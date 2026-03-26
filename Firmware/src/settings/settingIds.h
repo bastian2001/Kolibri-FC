@@ -60,6 +60,10 @@
 #define SETTING_VTX_CHAN "vtx_channel"
 #define SETTING_VTX_FREQ_DIRECT "vtx_use_freq"
 
+// OSD settings
+#define SETTING_OSD_CANVAS_SIZE_SRC "osd_canvas_size_src"
+#define SETTING_OSD_REFRESH_HZ "osd_refresh_hz"
+
 // general settings
 #define SETTING_UAV_NAME "uav_name"
 #define SETTING_TIMEZONE_OFFSET "timezone_offset_mins"

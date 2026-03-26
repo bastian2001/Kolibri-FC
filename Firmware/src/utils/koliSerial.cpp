@@ -76,6 +76,7 @@ KoliSerial::~KoliSerial() {
 	}
 
 	if (msp != nullptr) delete msp;
+	if (dpOutput != nullptr) delete dpOutput;
 }
 
 bool KoliSerial::setRxFifoSize(size_t size) {
@@ -118,6 +119,12 @@ void KoliSerial::setFunctions(u32 newFunctions) {
 	} else if (!(newFunctions & (SERIAL_MSP | SERIAL_MSP_DISPLAYPORT)) && msp != nullptr) {
 		delete msp;
 		msp = nullptr;
+	}
+	if (newFunctions & SERIAL_MSP_DISPLAYPORT && dpOutput == nullptr) {
+		dpOutput = new MspOsdOutput(*this);
+	} else if (!(newFunctions & SERIAL_MSP_DISPLAYPORT) && dpOutput != nullptr) {
+		delete dpOutput;
+		dpOutput = nullptr;
 	}
 	funcs = newFunctions;
 }

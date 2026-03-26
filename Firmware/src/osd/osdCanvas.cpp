@@ -1,10 +1,16 @@
 #include "global.h"
 
+u8 osdCanvasSizeSrc = 0;
+u8 osdRefreshRate = 12;
+
 void OsdCanvas::begin() {
+	addSetting(SETTING_OSD_CANVAS_SIZE_SRC, &osdCanvasSizeSrc, 0);
+	addSetting(SETTING_OSD_REFRESH_HZ, &osdRefreshRate, 12);
+
 	canvasSettingsFile.emplace(File());
 
-	setSize(30, 16);
-	setUpdateRate(12);
+	setSize(30, 16, 255);
+	setUpdateRate(osdRefreshRate);
 
 	bool newFile = openCanvasSettingsFile();
 	resetElements();
@@ -25,6 +31,10 @@ void OsdCanvas::begin() {
 void OsdCanvas::loop() {
 	if (frameBuffer == nullptr) return;
 	TASK_START(TASK_OSD);
+	if (outputs[loopIndex] != nullptr) {
+		outputs[loopIndex]->loop();
+	}
+	if (++loopIndex >= MAX_OUTPUTS) loopIndex = 0;
 	switch (state) {
 	case CanvasState::CLEAR:
 		memset(frameBuffer, 0, width * height);
@@ -53,7 +63,9 @@ void OsdCanvas::loop() {
 	TASK_END(TASK_OSD);
 }
 
-void OsdCanvas::setSize(u8 width, u8 height) {
+void OsdCanvas::setSize(u8 width, u8 height, u8 source) {
+	if (source != 255 && source != osdCanvasSizeSrc) return;
+	if (width > 192 || height > 192) return;
 	void *fb = malloc(width * height);
 	if (fb == nullptr) return;
 	if (frameBuffer != nullptr) free(frameBuffer);
@@ -99,6 +111,16 @@ void OsdCanvas::setDefaultElements() {
 		.type = OsdElementType::LINK_QUALITY,
 		.col = 11,
 		.row = 1,
+	};
+	elements[4] = {
+		.type = OsdElementType::RSSI_VAL,
+		.col = 18,
+		.row = 1,
+	};
+	elements[4] = {
+		.type = OsdElementType::DEBUG_1,
+		.col = 18,
+		.row = 2,
 	};
 }
 
@@ -154,8 +176,24 @@ void OsdCanvas::drawElement(u32 index) {
 	case OsdElementType::RESCUE_STATUS: {
 	} break;
 	case OsdElementType::RSSI_VAL: {
+		if (!elrs) break;
+		char buf[16];
+		int len = snprintf(buf, 16, "\x01%d", elrs->uplinkRssi[0]);
+		int maxLen = width - el.col;
+		if (len > 16) len = 16;
+		if (len > maxLen) len = maxLen;
+		char *ptr = getBufferPtr(el.col, el.row);
+		if (ptr != nullptr) memcpy(ptr, buf, len);
 	} break;
 	case OsdElementType::LINK_QUALITY: {
+		if (!elrs) break;
+		char buf[16];
+		int len = snprintf(buf, 16, "%d%%", elrs->uplinkLinkQuality);
+		int maxLen = width - el.col;
+		if (len > 16) len = 16;
+		if (len > maxLen) len = maxLen;
+		char *ptr = getBufferPtr(el.col, el.row);
+		if (ptr != nullptr) memcpy(ptr, buf, len);
 	} break;
 	case OsdElementType::ELRS_RX_STATUS: {
 	} break;
@@ -199,7 +237,25 @@ void OsdCanvas::drawElement(u32 index) {
 	} break;
 	case OsdElementType::ALARM_INFO: {
 	} break;
-
+	case OsdElementType::DEBUG_1: {
+		// https://testufo.com/frameskipping
+		static u8 row = 0;
+		static u8 col = 0;
+		char *ptr = getBufferPtr(col + el.col, row + el.row);
+		if (++col == 6) {
+			col = 0;
+			if (++row == 5) {
+				row = 0;
+			}
+		}
+		if (ptr != nullptr) *ptr = 0x9B;
+	} break;
+	case OsdElementType::DEBUG_2: {
+	} break;
+	case OsdElementType::DEBUG_3: {
+	} break;
+	case OsdElementType::DEBUG_4: {
+	} break;
 	case OsdElementType::DISABLED:
 	default:
 		break;

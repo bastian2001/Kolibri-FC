@@ -181,17 +181,17 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 		switch (fn) {
 		case MspFn::API_VERSION:
 			buf[len++] = MSP_PROTOCOL_VERSION;
-			buf[len++] = API_VERSION_MAJOR;
-			buf[len++] = API_VERSION_MINOR;
+			buf[len++] = 1;
+			buf[len++] = 46;
 			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::FIRMWARE_VARIANT:
-			sendMsp(msgSetup, KOLIBRI_IDENTIFIER, FIRMWARE_IDENTIFIER_LENGTH);
+			sendMsp(msgSetup, &serial != &*serials[0] ? "BTFL" : "KOLI", FIRMWARE_IDENTIFIER_LENGTH);
 			break;
 		case MspFn::FIRMWARE_VERSION:
-			buf[len++] = FIRMWARE_VERSION_MAJOR;
-			buf[len++] = FIRMWARE_VERSION_MINOR;
-			buf[len++] = FIRMWARE_VERSION_PATCH;
+			buf[len++] = 4;
+			buf[len++] = 5;
+			buf[len++] = 0;
 			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::BOARD_INFO: {
@@ -304,7 +304,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			buf[len++] = 0;
 			buf[len++] = 0b101111; // gyro, no rangefinder, gps, mag, baro, accel
 			buf[len++] = 0; // no other sensors
-			buf[len++] = 0; // flight mode flags
+			buf[len++] = armed ? 1 : 0; // flight mode flags
 			buf[len++] = 0;
 			buf[len++] = 0;
 			buf[len++] = 0;
@@ -312,7 +312,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			buf[len++] = 0; // CPU load (%)
 			buf[len++] = 0; // gyro cycle time
 			buf[len++] = 0;
-			buf[len++] = 0; // flight mode flags count
+			buf[len++] = 0; // how many more flight mode flags follow
 			buf[len++] = 7; // arming disable flags count
 			buf[len++] = armingDisableFlags;
 			buf[len++] = armingDisableFlags >> 8;
@@ -660,6 +660,15 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			// OsdHandler::get().elements[idx]->getColumn();
 			// OsdHandler::get().elements[idx]->getRefreshRate();
 
+		} break;
+		case MspFn::GET_OSD_CONFIG: {
+			buf[0] = osdCanvasSizeSrc;
+			sendMsp(msgSetup, buf, 1);
+		} break;
+		case MspFn::SET_OSD_CONFIG: {
+			if (reqLen < 1) return;
+			if (buf[0] < 2) osdCanvasSizeSrc = buf[0];
+			sendMsp(msgSetup);
 		} break;
 		case MspFn::GET_BB_SETTINGS: {
 #ifdef BLACKBOX_STORAGE
