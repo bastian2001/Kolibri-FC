@@ -655,24 +655,80 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			AnalogOsdOutput::get().updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
 			sendMsp(msgSetup, reqPayload, 1);
 			break;
-		case MspFn::WRITE_OSD_ELEMENT: {
-			// if (reqLen != 4) break;
-			// OsdHandler::ElemConfig config;
-			// config.type = static_cast<ElementType>(reqPayload[0]);
-			// config.x = reqPayload[1];
-			// config.y = reqPayload[2];
-			// config.refreshRate = reqPayload[3];
-			// OsdHandler::get().writeOrUpdateElementFromMsp(config);
+		case MspFn::GET_OSD_ELEMENT: {
+			if (reqLen < 1) {
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
+				break;
+			}
+			const OsdElement &el = OsdCanvas::get().getElement(reqPayload[0]);
+			buf[0] = (u16)el.type;
+			buf[1] = (u16)el.type >> 8;
+			buf[2] = el.col;
+			buf[3] = el.row;
+			memcpy(&buf[4], &el.option, 4);
+			sendMsp(msgSetup, buf, 8);
 		} break;
-		case MspFn::READ_OSD_ELEMENT: {
-
-			// int idx = OsdHandler::get().find(static_cast<ElementType>(reqPayload[0]));
-			// if (idx == -1) break; // Nothing found
-			// OsdHandler::get().elements[idx]->getElementType();
-			// OsdHandler::get().elements[idx]->getRow();
-			// OsdHandler::get().elements[idx]->getColumn();
-			// OsdHandler::get().elements[idx]->getRefreshRate();
-
+		case MspFn::SET_OSD_ELEMENT: {
+			if (reqLen < 9) {
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
+				break;
+			}
+			OsdElement el = {
+				.type = (OsdElementType)DECODE_U2(&reqPayload[0]),
+				.col = reqPayload[2],
+				.row = reqPayload[3],
+				.option = DECODE_U4((const u8 *)&reqPayload[4]),
+			};
+			OsdCanvas::get().setElement(reqPayload[8], el);
+			sendMsp(msgSetup);
+		} break;
+		case MspFn::GET_OSD_ELEMENTS: {
+			u8 initial = 0;
+			if (reqLen) initial = reqPayload[0];
+			buf[0] = initial;
+			buf[1] = OsdCanvas::MAX_ELEMENTS - initial >= 60; // whether there will be more chunks
+			for (int i = 0; i < 60; i++) {
+				const OsdElement &el = OsdCanvas::get().getElement(i + initial);
+				buf[len++] = (u16)el.type;
+				buf[len++] = (u16)el.type >> 8;
+				buf[len++] = el.col;
+				buf[len++] = el.row;
+				memcpy(&buf[len], &el.option, 4);
+				len += 4;
+			}
+			sendMsp(msgSetup, buf, len);
+		} break;
+		case MspFn::SET_OSD_ELEMENTS: {
+			if (reqLen < 2 || reqLen % 8 != 2) {
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
+				break;
+			}
+			static u32 elementIndex = 0;
+			const char *data = &reqPayload[2];
+			if (reqPayload[0] == 0) { // initial element index
+				OsdCanvas::get().resetElements();
+				elementIndex = 0;
+			}
+			for (int i = 0; i < (reqLen - 2) / 8; i++) {
+				OsdElement el = {
+					.type = (OsdElementType)DECODE_U2(&data[0]),
+					.col = data[2],
+					.row = data[3],
+					.option = DECODE_U4((const u8 *)&data[4]),
+				};
+				if (el.type != OsdElementType::DISABLED) {
+					OsdCanvas::get().setElement(elementIndex++, el);
+				}
+				data += 8;
+			}
+			if (reqPayload[1] == 0) { // indicator that there will/won't be more chunks
+				OsdCanvas::get().saveElements();
+			}
+			buf[0] = reqPayload[0];
+			sendMsp(msgSetup, buf, 1);
 		} break;
 		case MspFn::GET_OSD_CONFIG: {
 			buf[0] = osdCanvasSizeSrc;

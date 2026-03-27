@@ -33,29 +33,11 @@ type OsdElement = {
 	def: string,
 	options?: { [key: string]: string },
 }
-const OSD_LIST: OsdElement[] = [
-	{ name: 'Test 1', len: 10, def: 'option 1', options: { 'option 1': 'WHAT YOU\'RE', 'option 2': 'REFERRING TO AS', 'option 3': 'LINUX', 'option 4': 'IS IN FACT', 'option 5': 'GNU/LINUX' } },
-	{ name: 'Lorem', len: 3, def: 'BYEWORLD' },
-	{ name: 'Ipsum', len: 16, def: 'ITSAMI' },
-	{ name: 'dolor', len: 8, def: 'MAAARIO' },
-	{ name: 'sit amet.', len: 2, def: '22.6\u0006' },
-	{ name: 'Hwllo.', len: 2, def: 'HELLOWORLD' },
-	{ name: 'world', len: 2, def: 'HELLOWORLD' },
-	{ name: 'what the fuck', len: 2, def: 'HELLOWORLD' },
-	{ name: 'is going on', len: 2, def: 'I use Arch btw', options: { 'I use Arch btw': 'NEIN MANN', 'actually I don\'t': 'ICH WILL NOCH NICHT GEHEN', 'sudo rm -rf --no-preserve-root': 'ICH WILL NOCH EIN', 'Microslop sucks': 'BISSCHEN TANZEN' } },
-	{ name: 'Hello', len: 2, def: 'HELLOWORLD' },
-	{ name: 'it\'s me', len: 2, def: 'HELLOWORLD' },
-	{ name: 'Never gonna', len: 2, def: 'HELLOWORLD' },
-	{ name: 'give YOUUUU up <3', len: 2, def: 'HELLOWORLD' },
-	{ name: 'Actually', len: 2, def: 'HELLOWORLD' },
-	{ name: 'might insert', len: 2, def: 'HELLOWORLD' },
-	{ name: 'some useful', len: 2, def: 'HELLOWORLD' },
-	{ name: 'stuff here', len: 2, def: 'HELLOWORLD' },
-	{ name: 'Like Battery Voltage', len: 2, def: 'HELLOWORLD' },
-	{ name: 'You want Current? here!', len: 2, def: 'HELLOWORLD' },
-	{ name: 'LQI? nah', len: 2, def: 'HELLOWORLD' },
-	{ name: 'badumm tss.', len: 2, def: 'HELLOWORLD' },
-]
+const OSD_LIST: OsdElement[] = []
+OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', len: 5, def: '15.3\u0006' };
+OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', len: 5, def: '3.83\u0006' };
+OSD_LIST[0x0002] = { name: 'Battery Cell Count', len: 2, def: '4S' };
+// OSD_LIST[0x0003] = { name: 'Battery Current', }
 
 type OsdPlacement = {
 	id: number,

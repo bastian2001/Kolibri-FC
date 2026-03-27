@@ -76,7 +76,7 @@ void OsdCanvas::setSize(u8 width, u8 height, u8 source) {
 }
 
 void OsdCanvas::setElement(u32 index, const OsdElement &el) {
-	elements[index] = el;
+	if (index < MAX_ELEMENTS) elements[index] = el;
 }
 
 void OsdCanvas::resetElements() {
