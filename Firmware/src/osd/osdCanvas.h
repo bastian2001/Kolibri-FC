@@ -5,6 +5,29 @@
 #include <list>
 #include <optional>
 
+inline static void copyFrameBuffer(char *dest, const char *src, i32 destWidth, i32 destHeight, i32 destCol, i32 destRow, i32 width, i32 height) {
+	// if we cannot draw anything, just return
+	// vertical pure off-screen drawing is prevented by the for loop (0 iterations)
+	if (destWidth <= 0 || destHeight <= 0 || width <= 0 || height <= 0 || destCol + width <= 0 || destCol >= destWidth) return;
+	i32 maxRow = MIN(destHeight - destRow, height);
+	i32 startCopySrcCol = MAX(0, -destCol);
+	i32 startCopyDestCol = MAX(0, destCol);
+	i32 lenCopySrcCol = MIN(destWidth, width + destCol) - startCopyDestCol;
+	src += startCopySrcCol;
+	dest += startCopyDestCol;
+	for (i32 row = MAX(0, -destRow); row < maxRow; row++) {
+		memcpy(dest + row * destWidth, src + row * width, lenCopySrcCol);
+	}
+}
+inline static void copyFrameBuffer(char *dest, const char *src, i32 destWidth, i32 destHeight, i32 destCol, i32 destRow, i32 width) {
+	// if we cannot draw anything, just return
+	if (destWidth <= 0 || destHeight <= 0 || width <= 0 || destCol + width <= 0 || destCol >= destWidth || destRow < 0 || destRow >= destHeight) return;
+	i32 startCopySrcCol = MAX(0, -destCol);
+	i32 startCopyDestCol = MAX(0, destCol);
+	i32 lenCopySrcCol = MIN(destWidth, destCol + width) - startCopyDestCol;
+	memcpy(dest + destRow * destWidth + startCopyDestCol, src + startCopySrcCol, lenCopySrcCol);
+}
+
 // 0 = analog, 1 = MSP
 extern u8 osdCanvasSizeSrc;
 
@@ -52,24 +75,22 @@ enum class OsdElementType : u16 {
 	// RC sticks
 	RC_ROLL = 0x00A0,
 	RC_PITCH,
-	RC_YAW,
 	RC_THROTTLE,
+	RC_YAW,
 
 	// Timers
 	BAT_TIME = 0x00B0,
 	ARM_TIME,
-	USER_TIME,
 
 	// Warn
-	ALARM_CRITICAL = 0x00C0,
-	ALARM_WARNING,
-	ALARM_INFO,
+	WARNINGS = 0x00C0,
 
-	// Debug
+	// Debug, Drag and drop
 	DEBUG_1 = 0xFFF0,
 	DEBUG_2,
 	DEBUG_3,
 	DEBUG_4,
+	CURSOR = 0xFFFE,
 
 	// // HUD
 	// HUD_COMPASS_HEADING,
@@ -82,8 +103,8 @@ enum class OsdElementType : u16 {
 class OsdOutput;
 typedef struct osdElement {
 	OsdElementType type = OsdElementType::DISABLED;
-	u8 col = 0;
-	u8 row = 0;
+	i8 col = 0;
+	i8 row = 0;
 	u32 option = 0;
 } OsdElement;
 
@@ -134,6 +155,8 @@ public:
 
 	inline constexpr const OsdElement &getElement(u32 index) const { return elements[index]; };
 	void setElement(u32 index, const OsdElement &el);
+	void drawCursor(i8 col, i8 row);
+	void setDragNDrop(const char *data, int col, int row, int width, int height);
 
 	void resetElements();
 	void setDefaultElements();
@@ -176,7 +199,7 @@ public:
 
 	inline void setUpdateRate(u8 updateHz) { updateMicros = 1000000 / updateHz; };
 
-	static constexpr u32 MAX_ELEMENTS = 256;
+	static constexpr u32 MAX_ELEMENTS = 255;
 
 private:
 	static constexpr u32 MAX_OUTPUTS = 5;
@@ -184,6 +207,7 @@ private:
 	constexpr OsdCanvas() {};
 
 	void drawElement(u32 index);
+	void optimize();
 
 	bool openCanvasSettingsFile();
 	void closeCanvasSettingsFile();
@@ -206,18 +230,25 @@ private:
 		if (col >= width || row >= height) return nullptr;
 		return &frameBuffer[row * width + col];
 	}
-	u8 width = 0;
-	u8 height = 0;
+	i32 width = 0;
+	i32 height = 0;
 	OsdOutput *outputs[5] = {};
-	OsdElement elements[MAX_ELEMENTS] = {};
+	OsdElement elements[MAX_ELEMENTS + 1] = {};
 
 	enum class CanvasState {
 		CLEAR,
 		DRAW,
+		DRAW_DND,
 		PUSH,
 		WAIT,
 	};
 	CanvasState state = CanvasState::CLEAR;
+	bool dirty = false;
+	char dragNDropData[256] = {};
+	i32 dragNDropWidth = 0;
+	i32 dragNDropHeight = 0;
+	i32 dragNDropCol = 0;
+	i32 dragNDropRow = 0;
 	u32 currentlyDrawing = 0;
 	u8 pushIndex = 0;
 	u8 loopIndex = 0;

@@ -4,6 +4,15 @@
 #define SIGNATURE_LENGTH 32
 #define TARGET_IDENTIFIER_LENGTH 4
 
+#define SEND_BASIC_ERROR               \
+	msgSetup.type = MspMsgType::ERROR; \
+	sendMsp(msgSetup);
+#define BREAK_WITH_BASIC_ERROR_IF(cond) \
+	if (cond) {                         \
+		SEND_BASIC_ERROR                \
+		break;                          \
+	}
+
 elapsedMillis mspOverrideMotors = 1001;
 
 static constexpr char targetIdentifier[] = TARGET_IDENTIFIER;
@@ -280,11 +289,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, len);
 			break;
 		case MspFn::SET_ARMING_DISABLED: {
-			if (reqLen < 1) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 1);
 			if (reqPayload[0]) {
 				serial.armingDisabled = true;
 			} else {
@@ -453,10 +458,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			// MSP_DISPLAYPORT is just responses without a request
 			break;
 		case MspFn::MSP_SET_OSD_CANVAS: {
-			if (reqLen < 2 || reqPayload[0] > 192 || reqPayload[1] > 192) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 2 || reqPayload[0] > 192 || reqPayload[1] > 192);
 			MspOsdOutput *dp = serial.getDp();
 			if (dp != nullptr) {
 				dp->setSize(reqPayload[0], reqPayload[1]);
@@ -494,11 +496,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, 1);
 			break;
 		case MspFn::SET_RTC: {
-			if (reqLen < 6) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 6);
 			const struct timespec t = {
 				.tv_sec = DECODE_U4((u8 *)reqPayload),
 				.tv_nsec = DECODE_U2((u8 *)&reqPayload[4]) * 1000000, // convert millis to nanoseconds
@@ -543,16 +541,9 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			u8 fromNum = 255;
 			if (reqLen > 5) {
 				fromNum = reqPayload[5];
-				if (fromNum >= SERIAL_COUNT || !serials[fromNum]) {
-					msgSetup.type = MspMsgType::ERROR;
-					return sendMsp(msgSetup);
-				}
+				BREAK_WITH_BASIC_ERROR_IF(fromNum >= SERIAL_COUNT || !serials[fromNum]);
 			}
-			if (reqPayload[0] >= SERIAL_COUNT ||
-				!serials[reqPayload[0]] || armed) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqPayload[0] >= SERIAL_COUNT || !serials[reqPayload[0]] || armed);
 
 			KoliSerial &from = fromNum == 255 ? serial : *serials[fromNum];
 			KoliSerial &to = *serials[reqPayload[0]];
@@ -647,42 +638,35 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup);
 			break;
 		case MspFn::WRITE_OSD_FONT_CHARACTER:
-			if (reqLen < 55) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 55);
 			AnalogOsdOutput::get().updateCharacter(reqPayload[0], (u8 *)&reqPayload[1]);
 			sendMsp(msgSetup, reqPayload, 1);
 			break;
-		case MspFn::GET_OSD_ELEMENT: {
-			if (reqLen < 1) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
+		case MspFn::SET_OSD_ELEMENTS: {
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 2 || reqLen % 8 != 2);
+			static u32 elementIndex = 0;
+			const char *data = &reqPayload[2];
+			if (reqPayload[0] == 0) { // initial element index
+				OsdCanvas::get().resetElements();
+				elementIndex = 0;
 			}
-			const OsdElement &el = OsdCanvas::get().getElement(reqPayload[0]);
-			buf[0] = (u16)el.type;
-			buf[1] = (u16)el.type >> 8;
-			buf[2] = el.col;
-			buf[3] = el.row;
-			memcpy(&buf[4], &el.option, 4);
-			sendMsp(msgSetup, buf, 8);
-		} break;
-		case MspFn::SET_OSD_ELEMENT: {
-			if (reqLen < 9) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
+			for (int i = 0; i < (reqLen - 2) / 8; i++) {
+				OsdElement el = {
+					.type = (OsdElementType)DECODE_U2(&data[0]),
+					.col = (i8)data[2],
+					.row = (i8)data[3],
+					.option = DECODE_U4((const u8 *)&data[4]),
+				};
+				if (el.type != OsdElementType::DISABLED) {
+					OsdCanvas::get().setElement(elementIndex++, el);
+				}
+				data += 8;
 			}
-			OsdElement el = {
-				.type = (OsdElementType)DECODE_U2(&reqPayload[0]),
-				.col = reqPayload[2],
-				.row = reqPayload[3],
-				.option = DECODE_U4((const u8 *)&reqPayload[4]),
-			};
-			OsdCanvas::get().setElement(reqPayload[8], el);
-			sendMsp(msgSetup);
+			if (reqPayload[1] == 0) { // indicator that there will/won't be more chunks
+				OsdCanvas::get().saveElements();
+			}
+			buf[0] = reqPayload[0];
+			sendMsp(msgSetup, buf, 1);
 		} break;
 		case MspFn::GET_OSD_ELEMENTS: {
 			u8 initial = 0;
@@ -700,55 +684,17 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			}
 			sendMsp(msgSetup, buf, len);
 		} break;
-		case MspFn::SET_OSD_ELEMENTS: {
-			if (reqLen < 2 || reqLen % 8 != 2) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
-			static u32 elementIndex = 0;
-			const char *data = &reqPayload[2];
-			if (reqPayload[0] == 0) { // initial element index
-				OsdCanvas::get().resetElements();
-				elementIndex = 0;
-			}
-			for (int i = 0; i < (reqLen - 2) / 8; i++) {
-				OsdElement el = {
-					.type = (OsdElementType)DECODE_U2(&data[0]),
-					.col = data[2],
-					.row = data[3],
-					.option = DECODE_U4((const u8 *)&data[4]),
-				};
-				if (el.type != OsdElementType::DISABLED) {
-					OsdCanvas::get().setElement(elementIndex++, el);
-				}
-				data += 8;
-			}
-			if (reqPayload[1] == 0) { // indicator that there will/won't be more chunks
-				OsdCanvas::get().saveElements();
-			}
-			buf[0] = reqPayload[0];
-			sendMsp(msgSetup, buf, 1);
-		} break;
 		case MspFn::GET_OSD_CONFIG: {
 			buf[0] = osdCanvasSizeSrc;
 			sendMsp(msgSetup, buf, 1);
 		} break;
 		case MspFn::SET_OSD_CONFIG: {
-			if (reqLen < 1) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 1);
 			if (buf[0] < 2) osdCanvasSizeSrc = buf[0];
 			sendMsp(msgSetup);
 		} break;
 		case MspFn::OSD_CONTROL: {
-			if (reqLen < 1) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 1);
 			switch (reqPayload[0]) {
 			case 0:
 				// add function MSP_DP to this serial
@@ -765,6 +711,22 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				OsdCanvas::get().revertElements();
 				sendMsp(msgSetup);
 				break;
+			case 3:
+				// optimize and save (requires fetching the setup again)
+				OsdCanvas::get().saveElements();
+				sendMsp(msgSetup);
+				break;
+			case 4:
+				// draw cursor
+				BREAK_WITH_BASIC_ERROR_IF(reqLen < 2);
+				OsdCanvas::get().drawCursor(reqPayload[0], reqPayload[1]);
+				sendMsp(msgSetup);
+				break;
+			case 5:
+				// set drag and drop
+				BREAK_WITH_BASIC_ERROR_IF(reqLen < 5 || reqLen != reqPayload[3] * reqPayload[4] + 5);
+				OsdCanvas::get().setDragNDrop(reqPayload + 5, reqPayload[1], reqPayload[2], reqPayload[3], reqPayload[4]);
+				sendMsp(msgSetup);
 			}
 		} break;
 		case MspFn::GET_BB_SETTINGS: {
@@ -945,11 +907,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			break;
 		case MspFn::BB_FILE_INIT: {
 #ifdef BLACKBOX_STORAGE
-			if (reqLen < 2) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 2);
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			printFileInit(serial, version, fileNum);
 #else
@@ -959,11 +917,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 		} break;
 		case MspFn::BB_FAST_FILE_INIT: {
 #ifdef BLACKBOX_STORAGE
-			if (reqLen < 3) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 3);
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[0]);
 			u8 subCmd = reqPayload[2];
 			printFastFileInit(serial, version, fileNum, subCmd, reqPayload + 3, reqLen - 3);
@@ -984,11 +938,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			 *   - bitmask of what parts of that frame are wanted 1 byte
 			 *   - last sync pos before 4 byte
 			 */
-			if (reqLen < 5) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 5);
 			u16 sequenceNum = DECODE_U2((u8 *)&reqPayload[0]);
 			u16 fileNum = DECODE_U2((u8 *)&reqPayload[2]);
 			u8 frameSize = reqPayload[4];
@@ -1110,10 +1060,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			}
 		} break;
 		case MspFn::GET_RX_STATUS: {
-			if (!elrs) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(!elrs);
 			buf[0] = elrs->isReceiverUp;
 			buf[1] = elrs->isLinkUp;
 			buf[2] = elrs->uplinkRssi[0];
@@ -1135,24 +1082,15 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			mspSetRxModes(&serial, version, reqPayload, reqLen);
 		} break;
 		case MspFn::CRSF_SCAN_DEVICES: {
-			if (!elrs) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(!elrs);
 			elrs->scanDevices();
 			sendMsp(msgSetup);
 		} break;
 		case MspFn::CRSF_GET_DEVICES: {
-			if (!elrs) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(!elrs);
 			std::list<CrsfDevice> devs = elrs->getDeviceList();
 			u32 count = devs.size();
-			if (count > 20) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(count > 20);
 			char buf[47 * count];
 			u32 i = 0;
 			for (CrsfDevice dev : devs) {
@@ -1171,10 +1109,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, i);
 		} break;
 		case MspFn::CRSF_SEND_MESSAGE: {
-			if (!elrs) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(!elrs);
 			// Configurator wants to send message to a device
 			u8 len = reqLen - 1;
 			if (len > 60) {
@@ -1186,19 +1121,13 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup);
 		} break;
 		case MspFn::CRSF_SUBSCRIBE: {
-			if (!elrs) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(!elrs);
 			// Configurator wants to start or stop passthrough to a device
 			// => enable flags to forward any messages from said device to configurator
 			// MSP message data: device to forward from, start or stop, array of wanted commands
 			i16 subCount = reqLen - 2;
 			if (subCount > 20) subCount = 20;
-			if (subCount < 0) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(subCount < 0);
 			u8 address = reqPayload[0];
 			if (subCount == 0 || reqPayload[1] == 0) {
 				// stop passthrough when receiving stop command or no functions
@@ -1207,17 +1136,13 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				elrs->setupSubscription(0, nullptr, 0, nullptr, MspVersion::V2);
 				return sendMsp(msgSetup, buf, 2);
 			}
-			if (address == 0) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(address == 0);
 			if (elrs->setupSubscription(address, (const u8 *)&reqPayload[2], subCount, &serial, version)) {
 				buf[0] = address;
 				buf[1] = 1;
 				sendMsp(msgSetup, buf, 2);
 			} else {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
+				SEND_BASIC_ERROR;
 			}
 		} break;
 		case MspFn::GET_BATTERY_SETTINGS: {
@@ -1313,10 +1238,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 
 			// only allow full configs per serial, and first serial (USB) cannot be reconfigured
 			int totalSerials = reqLen / 12;
-			if (reqLen % 12 != 0 || totalSerials > SERIAL_COUNT - 1 || armed) {
-				msgSetup.type = MspMsgType::ERROR;
-				return sendMsp(msgSetup);
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen % 12 != 0 || totalSerials > SERIAL_COUNT - 1 || armed);
 			bool ok = true;
 			string errorMsg = "You should not be able to even make something this incorrect. Configurator error.\n";
 			for (int i = 0; i < totalSerials; i++) {
@@ -1449,11 +1371,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 		} break;
 		case MspFn::SET_TZ_OFFSET: {
 			i16 offset = DECODE_I2((u8 *)reqPayload);
-			if (offset > 14 * 60 || offset < -12 * 60) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(offset > 14 * 60 || offset < -12 * 60);
 			rtcTimezoneOffset = offset;
 			openSettingsFile();
 			getSetting(SETTING_TIMEZONE_OFFSET)->updateSettingInFile();
@@ -1567,11 +1485,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, len);
 		} break;
 		case MspFn::SET_FILTER_CONFIG: {
-			if (reqLen < 22) {
-				msgSetup.type = MspMsgType::ERROR;
-				sendMsp(msgSetup);
-				break;
-			}
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 22);
 			openSettingsFile();
 
 			gyroFilterCutoff = DECODE_U2((u8 *)&reqPayload[0]);

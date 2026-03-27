@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { sendCommand } from "@/msp/comm";
+import { onConnectHandler, onDisconnectHandler, sendCommand } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
-import { computed, onMounted, ref, useTemplateRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
+import { leBytesToInt } from "@/utils/utils";
 
 const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
 const log = useLogStore();
 const charsDone = ref(0);
 const dragging = ref('none' as 'none' | 'copy' | 'move');
-const draggingId = ref(0);
+const draggingIndex = ref(0);
+const draggingNew = ref(0);
 const filter = ref('');
 const rows = ref(13);
 const cols = ref(30);
+const canvasSizeSrc = ref(0)
 
 const charCanvases: HTMLCanvasElement[] = [];
 const draggerCanvas = useTemplateRef('draggerCanvas');
@@ -29,28 +32,62 @@ const previewImage = useTemplateRef('previewImage');
 
 type OsdElement = {
 	name: string,
-	len: number,
 	def: string,
-	options?: { [key: string]: string },
+	options?: { name: string, preview: string }[],
 }
 const OSD_LIST: OsdElement[] = []
-OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', len: 5, def: '15.3\u0006' };
-OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', len: 5, def: '3.83\u0006' };
-OSD_LIST[0x0002] = { name: 'Battery Cell Count', len: 2, def: '4S' };
-// OSD_LIST[0x0003] = { name: 'Battery Current', }
+OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\u0006' };
+OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', def: '3.83\u0006' };
+OSD_LIST[0x0002] = { name: 'Battery Cell Count', def: '4S' };
+OSD_LIST[0x0003] = { name: 'Battery Current', def: '109\u009a' };
+OSD_LIST[0x0004] = { name: 'Battery mAh drawn', def: '1001\u0007' };
+OSD_LIST[0x0005] = { name: 'Battery Voltage Min', def: '13.3\u0006' };
+
+OSD_LIST[0x0020] = { name: 'GPS Longitude', def: '\u0098 13.413049' };
+OSD_LIST[0x0021] = { name: 'GPS Latitude', def: '\u0089 52.526477' };
+OSD_LIST[0x0022] = { name: 'GPS Pluscode', def: '9F4MGCG7+H6' };
+OSD_LIST[0x0023] = { name: 'Speed', def: '161\u009e' };
+OSD_LIST[0x0024] = { name: 'Altitude', def: '\u007f123\u000c' };
+OSD_LIST[0x0025] = { name: 'Home Distance', def: '\u0011234\u000c' };
+OSD_LIST[0x0026] = { name: 'Home Direction', def: '\u0062' };
+
+OSD_LIST[0x0040] = { name: 'Flight Mode', def: 'ACRO' };
+OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB' };
+
+OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101' };
+OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007d100%' };
+
+OSD_LIST[0x0070] = { name: 'Baro Altitude', def: '\u007f128\u000c' };
+OSD_LIST[0x0071] = { name: 'ESC Temp 0', def: 'E\u007a69\u000e' };
+OSD_LIST[0x0072] = { name: 'ESC Temp 1', def: 'E\u007a70\u000e' };
+OSD_LIST[0x0073] = { name: 'ESC Temp 2', def: 'E\u007a71\u000e' };
+OSD_LIST[0x0074] = { name: 'ESC Temp 3', def: 'E\u007a72\u000e' };
+OSD_LIST[0x0075] = { name: 'ESC Temp Avg', def: 'E\u007a70\u000e' };
+OSD_LIST[0x0076] = { name: 'IMU Acceleration', def: '\u00761.2G' };
+OSD_LIST[0x0077] = { name: 'IMU Pitch', def: '\u0015-12.3D' };
+OSD_LIST[0x0078] = { name: 'IMU Roll', def: '\u0016-23.4D' };
+OSD_LIST[0x0079] = { name: 'IMU Yaw', def: '34.5D' };
+
+OSD_LIST[0x00A0] = { name: 'RC Roll', def: '1310' };
+OSD_LIST[0x00A1] = { name: 'RC Pitch', def: '1311' };
+OSD_LIST[0x00A2] = { name: 'RC Throttle', def: '1312' };
+OSD_LIST[0x00A3] = { name: 'RC Yaw', def: '1313' };
+
+OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00' };
+OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00' };
+
+OSD_LIST[0x00C0] = { name: 'Warnings', def: 'LOW VOLTAGE' };
 
 type OsdPlacement = {
 	id: number,
-	posX: number,
-	posY: number,
-	option: string,
+	col: number,
+	row: number,
+	option: number,
 };
 const activeElements = ref([
-	{ id: 1, posX: 10, posY: 3 },
-	{ id: 2, posX: 11, posY: 4 },
-	{ id: 3, posX: 3, posY: 5 },
-	{ id: 4, posX: 0, posY: 3 },
-	{ id: 5, posX: 10, posY: 2 },
+	{ id: 0x0000, col: 3, row: 1 },
+	{ id: 0x00C0, col: 10, row: 1 },
+	{ id: 0x0060, col: 23, row: 1 },
 ] as OsdPlacement[])
 
 const filteredList = computed(() => {
@@ -119,7 +156,7 @@ function createCanvases() {
 	}
 }
 
-function dragStart(el: OsdElement, event: DragEvent, type: 'copy' | 'move', gChar = 0, text = '') {
+function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar = 0, text = '') {
 	if (type === 'copy') {
 		if (!event.dataTransfer) return;
 		event.dataTransfer.setData('text/plain', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
@@ -127,8 +164,10 @@ function dragStart(el: OsdElement, event: DragEvent, type: 'copy' | 'move', gCha
 
 		const canvas = draggerCanvas.value;
 		if (!canvas) return;
+		const el = OSD_LIST[index]
 		let t = text || el.def
-		if (el.options && !text) t = el.options[el.def]
+		// TODO get option
+		if (el.options && !text) t = el.options[0].preview
 		canvas.width = 48 * t.length;
 		dragCanvasCols.value = t.length;
 		dragText.value = t
@@ -144,15 +183,16 @@ function dragStart(el: OsdElement, event: DragEvent, type: 'copy' | 'move', gCha
 		const cWidth = box.width / cols.value;
 		const cHeight = box.height / rows.value;
 		event.dataTransfer.setDragImage(canvas, cWidth * (gChar + 1 / 2), cHeight / 2);
+		draggingNew.value = index
 	} else {
 		dragText.value = text;
+		draggingIndex.value = index;
 	}
 
 	dragging.value = type;
 	grabbedChar = gChar;
 	dragHide.value = true;
 	dragTrashHover.value = false;
-	draggingId.value = OSD_LIST.indexOf(el);
 }
 function dragEnd(event: DragEvent) {
 	console.log('end')
@@ -164,7 +204,7 @@ const dragover = (event: DragEvent) => {
 	if (!event.dataTransfer) return;
 	event.dataTransfer.dropEffect = dragging.value;
 
-	if (!previewImage.value || draggingId.value === -1 || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
+	if (!previewImage.value || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
 	const box = previewImage.value.getBoundingClientRect();
 	draggingRow.value = Math.floor(event.offsetY / box.height * rows.value);
 	draggingCol.value = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
@@ -172,17 +212,18 @@ const dragover = (event: DragEvent) => {
 }
 function dropped(event: DragEvent) {
 	event.preventDefault();
-	if (!previewImage.value || draggingId.value === -1 || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
+	if (!previewImage.value || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
 	const box = previewImage.value.getBoundingClientRect();
 	const row = Math.floor(event.offsetY / box.height * rows.value);
 	const col = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
-	const el = activeElements.value.find(ae => ae.id === draggingId.value);
-	const osdEl = OSD_LIST[draggingId.value]
-	if (el) {
-		el.posX = col;
-		el.posY = row;
+	if (dragging.value == 'move') {
+		const el = activeElements.value[draggingIndex.value];
+		el.col = col;
+		el.row = row;
+		draggingIndex.value = -1;
 	} else {
-		activeElements.value.push({ id: draggingId.value, posX: col, posY: row, option: osdEl.def });
+		activeElements.value.push({ id: draggingNew.value, col, row, option: 0 });
+		draggingNew.value = -1;
 	}
 }
 function dragoverTrash(event: DragEvent) {
@@ -192,14 +233,48 @@ function dragoverTrash(event: DragEvent) {
 }
 function dropTrash(event: DragEvent) {
 	event.preventDefault();
-	const el = activeElements.value.findIndex(ae => ae.id === draggingId.value);
-	activeElements.value.splice(el, 1);
-	dragging.value = 'none'
+	delete activeElements.value[draggingIndex.value];
+	dragging.value = 'none';
+}
+
+function getConfig() {
+	sendCommand(MspFn.GET_OSD_ELEMENTS).then(({ data }) => {
+		const len = Math.floor((data.length - 2) / 8);
+		for (let i = 0; i < len; i++) {
+			const d = data.slice(2 + i * 8, 10 + i * 8);
+			const el: OsdPlacement = {
+				id: leBytesToInt(d, 0, 2),
+				col: d[2],
+				row: d[3],
+				option: leBytesToInt(d, 4, 4),
+			};
+			if (el.id !== 0xFFFF) activeElements.value[i] = el;
+		}
+		return sendCommand(MspFn.MSP_GET_OSD_CANVAS)
+	}).then(({ data }) => {
+		cols.value = data[0];
+		rows.value = data[1];
+		return sendCommand(MspFn.GET_OSD_CONFIG);
+	}).then(({ data }) => {
+		canvasSizeSrc.value = data[0];
+		return sendCommand(MspFn.OSD_CONTROL, [0])
+	}).then(() => {
+		return sendCommand(MspFn.OSD_CONTROL, [2])
+	}).catch(() => { })
+}
+
+function leave() {
+
 }
 
 onMounted(() => {
+	getConfig();
 	createCanvases()
+	onConnectHandler(getConfig)
+	onDisconnectHandler(leave)
 })
+
+onBeforeUnmount(leave)
 
 
 
@@ -225,16 +300,19 @@ onMounted(() => {
 			</div>
 			<div class="activeElements" v-if="activeElements.length">
 				<h3>Enabled OSD Elements</h3>
-				<div class="activeElement" v-for="el in activeElements">
-					<p>{{ OSD_LIST[el.id].name }}</p>
-					<select v-model="el.option" v-if="OSD_LIST[el.id].options">
-						<option v-for="(_, i) in OSD_LIST[el.id].options" :value="i">{{ i }}</option>
-					</select>
-					<button class="defaultBtn red small"
-						@click="() => { activeElements.splice(activeElements.indexOf(el), 1) }">
-						<i class="fa-solid fa-trash"></i>
-					</button>
-				</div>
+				<template v-for="el in activeElements">
+					{{ el.id }}
+					<!-- <div class="activeElement" v-if="el.id && OSD_LIST[el.id]">
+						<p>{{ OSD_LIST[el.id].name }}</p>
+						<select v-model="el.option" v-if="OSD_LIST[el.id].options">
+							<option v-for="(_, i) in OSD_LIST[el.id].options" :value="i">{{ i }}</option>
+						</select>
+						<button class="defaultBtn red small"
+							@click="() => { activeElements.splice(activeElements.indexOf(el), 1) }">
+							<i class="fa-solid fa-trash"></i>
+						</button>
+					</div> -->
+				</template>
 			</div>
 			<div class="osdList">
 				<h3>Available Elements (Drag and Drop)</h3>
@@ -243,7 +321,8 @@ onMounted(() => {
 				</div>
 				<div class="listElem"
 					v-for="el in filteredList.filter((_, i) => activeElements.findIndex(el => el.id === i) === -1)"
-					draggable="true" @dragstart="(event) => { dragStart(el, event, 'copy') }" @dragend="dragEnd">
+					draggable="true" @dragstart="(event) => { dragStart(OSD_LIST.indexOf(el), event, 'copy') }"
+					@dragend="dragEnd">
 					<p><i class="fa-solid fa-arrow-pointer"></i>{{ el.name }}</p>
 				</div>
 			</div>
@@ -260,11 +339,11 @@ onMounted(() => {
 					</div>
 					<canvas class="draggerCanvas" ref="draggerCanvas"
 						:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 / rows}%;`"></canvas>
-					<TextCanvas v-for="el in activeElements" :key="el.id"
-						:opacity="(el.id === draggingId && dragging !== 'none') ? 0 : 1"
-						:text="OSD_LIST[el.id].options ? OSD_LIST[el.id].options![el.option] : OSD_LIST[el.id].def"
-						:rows="rows" :cols="cols" :row="el.posY" :col="el.posX" :chars="charCanvases"
-						@dragstart="(ev, gc, txt) => { dragStart(OSD_LIST[el.id], ev, 'move', gc, txt) }"
+					<TextCanvas v-for="(el, index) in activeElements" :key="index" v-if="el"
+						:opacity="(index === draggingIndex && dragging !== 'none') ? 0 : 1"
+						:text="OSD_LIST[el.id].options ? OSD_LIST[el.id].options![el.option].preview : OSD_LIST[el.id].def"
+						:rows="rows" :cols="cols" :row="el.row" :col="el.col" :chars="charCanvases"
+						@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
 						:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd" />
 					<TextCanvas v-if="dragging !== 'none' && !dragHide" :opacity="0.5" :rows="rows" :cols="cols"
 						:chars="charCanvases" :text="dragText" :row="draggingRow" :col="draggingCol" :poiev="'none'" />

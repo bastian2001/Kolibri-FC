@@ -44,10 +44,20 @@ void OsdCanvas::loop() {
 		break;
 	case CanvasState::DRAW:
 		drawElement(currentlyDrawing++);
-		for (; currentlyDrawing < MAX_ELEMENTS; currentlyDrawing++) {
-			if (elements[currentlyDrawing].type != OsdElementType::DISABLED) break;
+		if (dirty) {
+			for (; currentlyDrawing < MAX_ELEMENTS + 1; currentlyDrawing++) {
+				if (elements[currentlyDrawing].type != OsdElementType::DISABLED) break;
+			}
+			if (currentlyDrawing == MAX_ELEMENTS + 1) state = CanvasState::DRAW_DND;
+		} else {
+			if (elements[currentlyDrawing].type == OsdElementType::DISABLED || currentlyDrawing == MAX_ELEMENTS) {
+				state = CanvasState::PUSH;
+			}
 		}
-		if (currentlyDrawing == MAX_ELEMENTS) state = CanvasState::PUSH;
+		break;
+	case CanvasState::DRAW_DND:
+		copyFrameBuffer(frameBuffer, dragNDropData, width, height, dragNDropCol, dragNDropRow, dragNDropWidth, dragNDropHeight);
+		state = CanvasState::PUSH;
 		break;
 	case CanvasState::PUSH:
 		if (outputs[pushIndex] != nullptr) outputs[pushIndex]->sendFrame(frameBuffer, width, height);
@@ -77,6 +87,21 @@ void OsdCanvas::setSize(u8 width, u8 height, u8 source) {
 
 void OsdCanvas::setElement(u32 index, const OsdElement &el) {
 	if (index < MAX_ELEMENTS) elements[index] = el;
+	dirty = true;
+}
+
+void OsdCanvas::drawCursor(i8 col, i8 row) {
+	elements[MAX_ELEMENTS] = {
+		.type = OsdElementType::CURSOR,
+		.col = col,
+		.row = row,
+		.option = 0,
+	};
+	dirty = true;
+}
+
+void OsdCanvas::setDragNDrop(const char *data, int col, int row, int width, int height) {
+	dirty = true;
 }
 
 void OsdCanvas::resetElements() {
@@ -98,36 +123,29 @@ void OsdCanvas::setDefaultElements() {
 		.row = 1,
 	};
 	elements[1] = {
-		.type = OsdElementType::ALARM_WARNING,
-		.col = 4,
-		.row = 6,
-	};
-	elements[2] = {
-		.type = OsdElementType::ALARM_CRITICAL,
-		.col = 4,
-		.row = 6,
-	};
-	elements[3] = {
-		.type = OsdElementType::LINK_QUALITY,
-		.col = 11,
+		.type = OsdElementType::WARNINGS,
+		.col = 10,
 		.row = 1,
 	};
-	elements[4] = {
+	elements[2] = {
 		.type = OsdElementType::RSSI_VAL,
-		.col = 18,
+		.col = 23,
 		.row = 1,
 	};
 }
 
 void OsdCanvas::saveElements() {
+	optimize();
 	openCanvasSettingsFile();
 	saveElementsToSettings();
 	closeCanvasSettingsFile();
 }
 void OsdCanvas::revertElements() {
-	openCanvasSettingsFile();
-	loadElementsFromSettings();
-	closeCanvasSettingsFile();
+	if (dirty) {
+		openCanvasSettingsFile();
+		loadElementsFromSettings();
+		closeCanvasSettingsFile();
+	}
 }
 
 void OsdCanvas::drawElement(u32 index) {
@@ -190,8 +208,6 @@ void OsdCanvas::drawElement(u32 index) {
 		char *ptr = getBufferPtr(el.col, el.row);
 		if (ptr != nullptr) memcpy(ptr, buf, len);
 	} break;
-	case OsdElementType::ELRS_RX_STATUS: {
-	} break;
 	case OsdElementType::BARO_ALTITUDE: {
 	} break;
 	case OsdElementType::ESC_TEMP_0: {
@@ -216,21 +232,15 @@ void OsdCanvas::drawElement(u32 index) {
 	} break;
 	case OsdElementType::RC_PITCH: {
 	} break;
-	case OsdElementType::RC_YAW: {
-	} break;
 	case OsdElementType::RC_THROTTLE: {
+	} break;
+	case OsdElementType::RC_YAW: {
 	} break;
 	case OsdElementType::BAT_TIME: {
 	} break;
 	case OsdElementType::ARM_TIME: {
 	} break;
-	case OsdElementType::USER_TIME: {
-	} break;
-	case OsdElementType::ALARM_CRITICAL: {
-	} break;
-	case OsdElementType::ALARM_WARNING: {
-	} break;
-	case OsdElementType::ALARM_INFO: {
+	case OsdElementType::WARNINGS: {
 	} break;
 	case OsdElementType::DEBUG_1: {
 		// https://testufo.com/frameskipping
@@ -255,6 +265,24 @@ void OsdCanvas::drawElement(u32 index) {
 	default:
 		break;
 	}
+}
+
+void OsdCanvas::optimize() {
+	// disabling cursor
+	elements[MAX_ELEMENTS].type = OsdElementType::DISABLED;
+
+	// remove empty slots
+	u32 putting = 0;
+	for (u32 scanning = 0; scanning < MAX_ELEMENTS; scanning++) {
+		if (elements[scanning].type != OsdElementType::DISABLED)
+			elements[putting++] = elements[scanning];
+	}
+	for (; putting < MAX_ELEMENTS; putting++) {
+		elements[putting].type = OsdElementType::DISABLED;
+	}
+
+	// clear dirty flag
+	dirty = false;
 }
 
 bool OsdCanvas::openCanvasSettingsFile() {
@@ -284,7 +312,7 @@ void OsdCanvas::closeCanvasSettingsFile() {
 }
 
 void OsdCanvas::loadElementsFromSettings() {
-	u8 buf[MAX_ELEMENTS * 8];
+	i8 buf[MAX_ELEMENTS * 8];
 	canvasSettingsFile->seek(0);
 	u32 read = canvasSettingsFile->readBytes((char *)buf, MAX_ELEMENTS * 8);
 	for (int i = 0; i < read / 8 && i < MAX_ELEMENTS; i++) {
@@ -293,7 +321,7 @@ void OsdCanvas::loadElementsFromSettings() {
 			.type = (OsdElementType)(buf[pos] | (buf[pos + 1] << 8)),
 			.col = buf[pos + 2],
 			.row = buf[pos + 3],
-			.option = DECODE_U4(&buf[pos + 4]),
+			.option = DECODE_U4((u8 *)&buf[pos + 4]),
 		};
 	}
 }
@@ -311,7 +339,7 @@ void OsdCanvas::saveElementsToSettings() {
 		buf[pos + 3] = el.row;
 		memcpy(&buf[pos + 4], &el.option, 4);
 	}
-	canvasSettingsFile->write(buf, MAX_ELEMENTS * 4);
+	canvasSettingsFile->write(buf, MAX_ELEMENTS * 8);
 	rp2040.wdt_reset();
 	canvasSettingsFile->flush();
 	rp2040.wdt_reset();
