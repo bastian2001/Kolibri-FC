@@ -14,7 +14,7 @@ inline static void copyFrameBuffer(char *dest, const char *src, i32 destWidth, i
 	i32 startCopyDestCol = MAX(0, destCol);
 	i32 lenCopySrcCol = MIN(destWidth, width + destCol) - startCopyDestCol;
 	src += startCopySrcCol;
-	dest += startCopyDestCol;
+	dest += startCopyDestCol + destRow * destWidth;
 	for (i32 row = MAX(0, -destRow); row < maxRow; row++) {
 		memcpy(dest + row * destWidth, src + row * width, lenCopySrcCol);
 	}

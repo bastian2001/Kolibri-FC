@@ -172,8 +172,8 @@ void OsdCanvas::drawElement(u32 index) {
 		//|  Battery Cell Voltage   |
 		//---------------------------
 	case OsdElementType::BATTERY_CELL_VOLTAGE: {
-		printOnBuffer(element, "%.1f\x06", (f32)adcVoltage / (100 * batCells)); //! untested @Bastian.
-
+		printOnBuffer(element, "%.2f\x06", ((f32)adcVoltage) / (100 * batCells)); //! untested @Bastian.
+		break;
 	case OsdElementType::BATTERY_CELL_COUNT: {
 		//---------------------------
 		//|  Battery Cell Voltage   |
