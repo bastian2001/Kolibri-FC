@@ -230,7 +230,7 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     Flight Mode         |
 		//---------------------------
-		char flightModeStr[] = "----";
+		char flightModeStr[5] = {};
 		switch (flightMode) {
 		case FlightMode::ACRO:
 			memcpy(flightModeStr, "ACRO", 4);
@@ -242,7 +242,7 @@ void OsdCanvas::drawElement(u32 index) {
 			memcpy(flightModeStr, "ANGL", 4);
 			break;
 		case FlightMode::GPS:
-			memcpy(flightModeStr, "GPS", 3);
+			memcpy(flightModeStr, "GPS\0", 4);
 			break;
 		case FlightMode::GPS_WP:
 			memcpy(flightModeStr, "WAYP", 4);
