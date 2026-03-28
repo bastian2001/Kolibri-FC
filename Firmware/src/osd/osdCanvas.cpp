@@ -149,76 +149,148 @@ void OsdCanvas::revertElements() {
 }
 
 void OsdCanvas::drawElement(u32 index) {
-	OsdElement &el = elements[index];
-	switch (el.type) {
+	OsdElement &element = elements[index];
+	switch (element.type) {
+		//---------------------------
+		//|     Battery Voltage     |
+		//---------------------------
 	case OsdElementType::BATTERY_VOLTAGE: {
-		char buf[16];
-		int len = snprintf(buf, 16, "%.1f\x06", (float)adcVoltage / 100);
-		int maxLen = width - el.col;
-		if (len > 16) len = 16;
-		if (len > maxLen) len = maxLen;
-		char *ptr = getBufferPtr(el.col, el.row);
-		if (ptr != nullptr) memcpy(ptr, buf, len);
+		printOnBuffer(element, "%.1f\x06", (float)adcVoltage / 100);
 	} break;
+		//---------------------------
+		//|  Battery Cell Voltage   |
+		//---------------------------
 	case OsdElementType::BATTERY_CELL_VOLTAGE: {
-	} break;
+		printOnBuffer(element, "%.1f\x06", (float)adcVoltage / 100 / batCells); //! untested @Bastian.
+
 	case OsdElementType::BATTERY_CELL_COUNT: {
+		//---------------------------
+		//|  Battery Cell Voltage   |
+		//---------------------------
+		printOnBuffer(element, "%dS", batCells); //! untested @Bastian.
 	} break;
 	case OsdElementType::BATTERY_CURRENT: {
+		//---------------------------
+		//|    Battery Current      |
+		//---------------------------
+		printOnBuffer(element, "%dA", escCurrent); //! untested @Bastian.
 	} break;
 	case OsdElementType::BATTERY_MAH_DRAWN: {
 	} break;
 	case OsdElementType::BATTERY_VOLTAGE_MIN: {
 	} break;
 	case OsdElementType::GPS_LONGITUDE: {
+		//---------------------------
+		//|     GPS Longitude       |
+		//---------------------------
+		printOnBuffer(element, "\x98%3.6f", gpsLongitudeFiltered); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_LATITUDE: {
+		//---------------------------
+		//|     GPS Latitude        |
+		//---------------------------
+		printOnBuffer(element, "\x89%3.6f", gpsLatitudeFiltered); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_PLUSCODE: {
+		//---------------------------
+		//|     GPS Plus Code       |
+		//---------------------------
+		printOnBuffer(element, "%s", "NOT IMPLEMENTED"); // todo find the plus code var
 	} break;
 	case OsdElementType::SPEED: {
+		//---------------------------
+		//|     GPS Speed           |
+		//---------------------------
+		i32 rawSpeed = gpsMotion.gSpeed;
+		if (rawSpeed < 0) rawSpeed *= -1;
+		printOnBuffer(element, "%.1f\x9E", rawSpeed * 3.6); //! untested @Bastian.
 	} break;
 	case OsdElementType::ALTITUDE: {
+		//---------------------------
+		//|     GPS Altitude        |
+		//---------------------------
+		printOnBuffer(element, "%.1fm", combinedAltitude); //! untested @Bastian.
 	} break;
 	case OsdElementType::HOME_DISTANCE: {
 	} break;
 	case OsdElementType::HOME_DIRECTION: {
 	} break;
 	case OsdElementType::FLIGHT_MODE: {
+		//---------------------------
+		//|     Flight Mode         |
+		//---------------------------
+		char *flightModeStr = "----";
+		switch (flightMode) {
+		case FlightMode::ACRO:
+			flightModeStr = "ACRO";
+			break;
+		case FlightMode::ALT_HOLD:
+			flightModeStr = "ALTH";
+			break;
+		case FlightMode::ANGLE:
+			flightModeStr = "ANGL";
+			break;
+		case FlightMode::GPS:
+			flightModeStr = "GPS";
+			break;
+		case FlightMode::GPS_WP:
+			flightModeStr = "WAYP";
+			break;
+		default:
+			flightModeStr = "ERR";
+			break;
+		}
+		printOnBuffer(element, "%s", flightModeStr); //! untested @Bastian.
 	} break;
 	case OsdElementType::RESCUE_STATUS: {
 	} break;
 	case OsdElementType::RSSI_VAL: {
 		if (!elrs) break;
-		char buf[16];
-		int len = snprintf(buf, 16, "\x01%d", elrs->uplinkRssi[0]);
-		int maxLen = width - el.col;
-		if (len > 16) len = 16;
-		if (len > maxLen) len = maxLen;
-		char *ptr = getBufferPtr(el.col, el.row);
-		if (ptr != nullptr) memcpy(ptr, buf, len);
+		//---------------------------
+		//|     RC RSSI             |
+		//---------------------------
+		printOnBuffer(element, "\x01%d", elrs ? elrs->uplinkRssi[0] : 0);
+
 	} break;
 	case OsdElementType::LINK_QUALITY: {
 		if (!elrs) break;
-		char buf[16];
-		int len = snprintf(buf, 16, "%d%%", elrs->uplinkLinkQuality);
-		int maxLen = width - el.col;
-		if (len > 16) len = 16;
-		if (len > maxLen) len = maxLen;
-		char *ptr = getBufferPtr(el.col, el.row);
-		if (ptr != nullptr) memcpy(ptr, buf, len);
+		//---------------------------
+		//|     RC Link Quality     |
+		//---------------------------
+		printOnBuffer(element, "%d%%", elrs ? elrs->uplinkLinkQuality : 0);
 	} break;
 	case OsdElementType::BARO_ALTITUDE: {
 	} break;
 	case OsdElementType::ESC_TEMP_0: {
+		//---------------------------
+		//|     ESC Temp 0          |
+		//---------------------------
+		printOnBuffer(element, "%dC", escTemp[0]); //! untested @Bastian.
 	} break;
 	case OsdElementType::ESC_TEMP_1: {
+		//---------------------------
+		//|     ESC Temp 1          |
+		//---------------------------
+		printOnBuffer(element, "%dC", escTemp[1]); //! untested @Bastian.
 	} break;
 	case OsdElementType::ESC_TEMP_2: {
+		//---------------------------
+		//|     ESC Temp 2          |
+		//---------------------------
+		printOnBuffer(element, "%dC", escTemp[2]); //! untested @Bastian.
 	} break;
 	case OsdElementType::ESC_TEMP_3: {
+		//---------------------------
+		//|     ESC Temp 3          |
+		//---------------------------
+		printOnBuffer(element, "%dC", escTemp[3]); //! untested @Bastian.
 	} break;
 	case OsdElementType::ESC_TEMP_AVG: {
+		//---------------------------
+		//|     ESC Temp Avg        |
+		//---------------------------
+		int avgTemp = (escTemp[0] + escTemp[1] + escTemp[2] + escTemp[3]) / 4;
+		printOnBuffer(element, "%dC", avgTemp); //! untested @Bastian.
 	} break;
 	case OsdElementType::IMU_ACCELERATION: {
 	} break;
@@ -246,7 +318,7 @@ void OsdCanvas::drawElement(u32 index) {
 		// https://testufo.com/frameskipping
 		static u8 row = 0;
 		static u8 col = 0;
-		char *ptr = getBufferPtr(col + el.col, row + el.row);
+		char *ptr = getBufferPtr(col + element.col, row + element.row);
 		if (++col == 6) {
 			col = 0;
 			if (++row == 5) {
@@ -265,82 +337,97 @@ void OsdCanvas::drawElement(u32 index) {
 	default:
 		break;
 	}
-}
-
-void OsdCanvas::optimize() {
-	// disabling cursor
-	elements[MAX_ELEMENTS].type = OsdElementType::DISABLED;
-
-	// remove empty slots
-	u32 putting = 0;
-	for (u32 scanning = 0; scanning < MAX_ELEMENTS; scanning++) {
-		if (elements[scanning].type != OsdElementType::DISABLED)
-			elements[putting++] = elements[scanning];
-	}
-	for (; putting < MAX_ELEMENTS; putting++) {
-		elements[putting].type = OsdElementType::DISABLED;
 	}
 
-	// clear dirty flag
-	dirty = false;
-}
-
-bool OsdCanvas::openCanvasSettingsFile() {
-	if (!littleFsReady) return false;
-	if (*canvasSettingsFile) {
-		canvasSettingsFile->close();
-	}
-
-	*canvasSettingsFile = LittleFS.open("/osd.bin", "r+");
-	if (!*canvasSettingsFile) {
-		DEBUG_PRINTLN("Failed to open OSD file, creating new one...");
-		*canvasSettingsFile = LittleFS.open("/osd.bin", "w+");
-		if (!*canvasSettingsFile) {
-			DEBUG_PRINTLN("Failed to create OSD file.");
-			return false;
+	template <typename... Types>
+	void OsdCanvas::printOnBuffer(OsdElement & element, char *str, Types... args) {
+		char buf[16];
+		int len = sniprintf(buf, 16, str, ...);
+		int leftCutoff = 0;
+		if (element.col < 0) {
+			leftCutoff = -element.col;
 		}
-		return true;
+		int maxLen = width - element.col;
+		if (len > 16) len = 16;
+		if (len > maxLen) len = maxLen;
+		char *ptr = getBufferPtr(element.col, element.row);
+		if (ptr != nullptr) memcpy(ptr, buf + leftCutoff, len - leftCutoff);
 	}
-	return false;
-}
 
-void OsdCanvas::closeCanvasSettingsFile() {
-	if (*canvasSettingsFile) {
+	void OsdCanvas::optimize() {
+		// disabling cursor
+		elements[MAX_ELEMENTS].type = OsdElementType::DISABLED;
+
+		// remove empty slots
+		u32 putting = 0;
+		for (u32 scanning = 0; scanning < MAX_ELEMENTS; scanning++) {
+			if (elements[scanning].type != OsdElementType::DISABLED)
+				elements[putting++] = elements[scanning];
+		}
+		for (; putting < MAX_ELEMENTS; putting++) {
+			elements[putting].type = OsdElementType::DISABLED;
+		}
+
+		// clear dirty flag
+		dirty = false;
+	}
+
+	bool OsdCanvas::openCanvasSettingsFile() {
+		if (!littleFsReady) return false;
+		if (*canvasSettingsFile) {
+			canvasSettingsFile->close();
+		}
+
+		*canvasSettingsFile = LittleFS.open("/osd.bin", "r+");
+		if (!*canvasSettingsFile) {
+			DEBUG_PRINTLN("Failed to open OSD file, creating new one...");
+			*canvasSettingsFile = LittleFS.open("/osd.bin", "w+");
+			if (!*canvasSettingsFile) {
+				DEBUG_PRINTLN("Failed to create OSD file.");
+				return false;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	void OsdCanvas::closeCanvasSettingsFile() {
+		if (*canvasSettingsFile) {
+			rp2040.wdt_reset();
+			canvasSettingsFile->close();
+		}
+	}
+
+	void OsdCanvas::loadElementsFromSettings() {
+		i8 buf[MAX_ELEMENTS * 8];
+		canvasSettingsFile->seek(0);
+		u32 read = canvasSettingsFile->readBytes((char *)buf, MAX_ELEMENTS * 8);
+		for (int i = 0; i < read / 8 && i < MAX_ELEMENTS; i++) {
+			u32 pos = i * 8;
+			elements[i] = {
+				.type = (OsdElementType)(buf[pos] | (buf[pos + 1] << 8)),
+				.col = buf[pos + 2],
+				.row = buf[pos + 3],
+				.option = DECODE_U4((u8 *)&buf[pos + 4]),
+			};
+		}
+	}
+
+	void OsdCanvas::saveElementsToSettings() {
+		u8 buf[MAX_ELEMENTS * 8];
+		canvasSettingsFile->seek(0);
+		for (u32 i = 0; i < MAX_ELEMENTS; i++) {
+			u32 pos = i * 8;
+			OsdElement &el = elements[i];
+			u16 type = (u16)el.type;
+			buf[pos + 0] = type;
+			buf[pos + 1] = (u8)(type >> 8);
+			buf[pos + 2] = el.col;
+			buf[pos + 3] = el.row;
+			memcpy(&buf[pos + 4], &el.option, 4);
+		}
+		canvasSettingsFile->write(buf, MAX_ELEMENTS * 8);
 		rp2040.wdt_reset();
-		canvasSettingsFile->close();
+		canvasSettingsFile->flush();
+		rp2040.wdt_reset();
 	}
-}
-
-void OsdCanvas::loadElementsFromSettings() {
-	i8 buf[MAX_ELEMENTS * 8];
-	canvasSettingsFile->seek(0);
-	u32 read = canvasSettingsFile->readBytes((char *)buf, MAX_ELEMENTS * 8);
-	for (int i = 0; i < read / 8 && i < MAX_ELEMENTS; i++) {
-		u32 pos = i * 8;
-		elements[i] = {
-			.type = (OsdElementType)(buf[pos] | (buf[pos + 1] << 8)),
-			.col = buf[pos + 2],
-			.row = buf[pos + 3],
-			.option = DECODE_U4((u8 *)&buf[pos + 4]),
-		};
-	}
-}
-
-void OsdCanvas::saveElementsToSettings() {
-	u8 buf[MAX_ELEMENTS * 8];
-	canvasSettingsFile->seek(0);
-	for (u32 i = 0; i < MAX_ELEMENTS; i++) {
-		u32 pos = i * 8;
-		OsdElement &el = elements[i];
-		u16 type = (u16)el.type;
-		buf[pos + 0] = type;
-		buf[pos + 1] = (u8)(type >> 8);
-		buf[pos + 2] = el.col;
-		buf[pos + 3] = el.row;
-		memcpy(&buf[pos + 4], &el.option, 4);
-	}
-	canvasSettingsFile->write(buf, MAX_ELEMENTS * 8);
-	rp2040.wdt_reset();
-	canvasSettingsFile->flush();
-	rp2040.wdt_reset();
-}

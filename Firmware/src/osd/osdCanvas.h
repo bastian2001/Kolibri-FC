@@ -216,6 +216,9 @@ private:
 	void loadElementsFromSettings();
 	void saveElementsToSettings();
 
+	template <typename... Types>
+	void printOnBuffer(OsdElement &element, char *str, Types... args);
+
 	char *frameBuffer = nullptr;
 	/**
 	 * @brief Gets a pointer to write an element to
