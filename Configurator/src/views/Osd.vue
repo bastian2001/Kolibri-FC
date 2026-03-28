@@ -373,7 +373,13 @@ onBeforeUnmount(leave)
 		<div class="line"></div>
 		<div class="previewWrapper">
 			<div class="preview">
-				<button @click="save">Save</button>
+				<div>
+					<button @click="save">Save</button>
+					<select v-model="canvasSizeSrc">
+						<option :value="0">Analog</option>
+						<option :value="1">MSP Displayport</option>
+					</select>
+				</div>
 				<div class="previewImage" @drop="dropped" @dragover="dragover" @dragleave="() => dragHide = true"
 					ref="previewImage">
 					<img src="@assets/DJI_0124.JPG">

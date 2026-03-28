@@ -166,13 +166,13 @@ void OsdCanvas::drawElement(u32 index) {
 		//|     Battery Voltage     |
 		//---------------------------
 	case OsdElementType::BATTERY_VOLTAGE: {
-		printOnBuffer(element, "%.1f\x06", (float)adcVoltage / 100);
+		printOnBuffer(element, "%.1f\x06", (f32)adcVoltage / 100);
 	} break;
 		//---------------------------
 		//|  Battery Cell Voltage   |
 		//---------------------------
 	case OsdElementType::BATTERY_CELL_VOLTAGE: {
-		printOnBuffer(element, "%.1f\x06", (float)adcVoltage / 100 / batCells); //! untested @Bastian.
+		printOnBuffer(element, "%.1f\x06", (f32)adcVoltage / (100 * batCells)); //! untested @Bastian.
 
 	case OsdElementType::BATTERY_CELL_COUNT: {
 		//---------------------------
@@ -184,7 +184,7 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|    Battery Current      |
 		//---------------------------
-		printOnBuffer(element, "%dA", escCurrent); //! untested @Bastian.
+		printOnBuffer(element, "%.0fA", adcCurrent); //! untested @Bastian.
 	} break;
 	case OsdElementType::BATTERY_MAH_DRAWN: {
 	} break;
@@ -194,13 +194,13 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     GPS Longitude       |
 		//---------------------------
-		printOnBuffer(element, "\x98%3.6f", gpsLongitudeFiltered); //! untested @Bastian.
+		printOnBuffer(element, "\x98%.6lf", gpsLongitudeFiltered.getf64()); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_LATITUDE: {
 		//---------------------------
 		//|     GPS Latitude        |
 		//---------------------------
-		printOnBuffer(element, "\x89%3.6f", gpsLatitudeFiltered); //! untested @Bastian.
+		printOnBuffer(element, "\x89%.6f", gpsLatitudeFiltered.getf64()); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_PLUSCODE: {
 		//---------------------------
@@ -212,15 +212,15 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     GPS Speed           |
 		//---------------------------
-		i32 rawSpeed = gpsMotion.gSpeed;
-		if (rawSpeed < 0) rawSpeed *= -1;
-		printOnBuffer(element, "%.1f\x9E", rawSpeed * 3.6); //! untested @Bastian.
+		f32 speed = gpsMotion.gSpeed * (3.6f / 1000);
+		if (speed < 0) speed *= -1;
+		printOnBuffer(element, "%.1f\x9E", speed); //! untested @Bastian.
 	} break;
 	case OsdElementType::ALTITUDE: {
 		//---------------------------
 		//|     GPS Altitude        |
 		//---------------------------
-		printOnBuffer(element, "%.1fm", combinedAltitude); //! untested @Bastian.
+		printOnBuffer(element, "%.1f\x0C", combinedAltitude.getf32()); //! untested @Bastian.
 	} break;
 	case OsdElementType::HOME_DISTANCE: {
 	} break;
@@ -230,25 +230,25 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     Flight Mode         |
 		//---------------------------
-		char *flightModeStr = "----";
+		char flightModeStr[] = "----";
 		switch (flightMode) {
 		case FlightMode::ACRO:
-			flightModeStr = "ACRO";
+			memcpy(flightModeStr, "ACRO", 4);
 			break;
 		case FlightMode::ALT_HOLD:
-			flightModeStr = "ALTH";
+			memcpy(flightModeStr, "ALTH", 4);
 			break;
 		case FlightMode::ANGLE:
-			flightModeStr = "ANGL";
+			memcpy(flightModeStr, "ANGL", 4);
 			break;
 		case FlightMode::GPS:
-			flightModeStr = "GPS";
+			memcpy(flightModeStr, "GPS", 3);
 			break;
 		case FlightMode::GPS_WP:
-			flightModeStr = "WAYP";
+			memcpy(flightModeStr, "WAYP", 4);
 			break;
 		default:
-			flightModeStr = "ERR";
+			memcpy(flightModeStr, "ERR ", 4);
 			break;
 		}
 		printOnBuffer(element, "%s", flightModeStr); //! untested @Bastian.

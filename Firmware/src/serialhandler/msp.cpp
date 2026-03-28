@@ -694,9 +694,10 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			case 0: { // analog
 				u8 width, height;
 				AnalogOsdOutput::get().getSize(&width, &height);
+				OsdCanvas::get().setSize(width, height, 0);
 			} break;
 			case 1: { // digital
-				OsdCanvas::get().setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT, 255);
+				OsdCanvas::get().setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT, 1);
 				for (auto &serial : serials) {
 					if (!serial) continue;
 					if (!serial->getDp()) continue;

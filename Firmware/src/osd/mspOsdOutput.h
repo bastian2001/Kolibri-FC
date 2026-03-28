@@ -2,10 +2,13 @@
 #include "osdCanvas.h"
 #include "osdOutput.h"
 
+#define MSP_DP_DEFAULT_WIDTH 50
+#define MSP_DP_DEFAULT_HEIGHT 23
+
 class MspOsdOutput : private OsdOutput {
 public:
 	MspOsdOutput(KoliSerial &serial) : serial(serial) {
-		setSize(50, 23);
+		setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT);
 		sizeSet = false;
 		OsdCanvas::get().addOutput(this);
 	}
