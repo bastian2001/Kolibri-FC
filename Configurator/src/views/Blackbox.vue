@@ -470,9 +470,12 @@ export default defineComponent({
 				let c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
 					data: [...intToLeBytes(logNum, 2), 0],
 					timeout: 1500,
-					verifyFn: (req, res) => {
-						return res.cmdType === 'response' && req.command === res.command && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2) && req.data[2] === res.data[2] && res.length === 288
-					}
+					verifyFn: (req, res) =>
+						res.cmdType === 'response' &&
+						req.command === res.command &&
+						leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2) &&
+						req.data[2] === res.data[2] &&
+						res.length === 288
 				})
 
 				if (leBytesToInt(c.data, 0, 2) !== logNum) {
@@ -527,13 +530,12 @@ export default defineComponent({
 					c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
 						data: [...intToLeBytes(logNum, 2), 1, ...intToLeBytes(syncStart, 4), frameSize, log.syncFrequency],
 						timeout: 1500,
-						verifyFn: (req, res) => {
-							return res.cmdType === 'response'
-								&& req.command === res.command
-								&& leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2)
-								&& req.data[2] === res.data[2]
-								&& leBytesToInt(req.data, 3, 4) === leBytesToInt(res.data, 3, 4)
-						}
+						verifyFn: (req, res) =>
+							res.cmdType === 'response'
+							&& req.command === res.command
+							&& leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2)
+							&& req.data[2] === res.data[2]
+							&& leBytesToInt(req.data, 3, 4) === leBytesToInt(res.data, 3, 4)
 					})
 
 					if (c.data.length < 16) // less than 1 sync
@@ -561,9 +563,11 @@ export default defineComponent({
 				c = await sendCommand(MspFn.BB_FAST_FILE_INIT, {
 					data: reqData,
 					timeout: 1500,
-					verifyFn: (req, res) => {
-						return res.cmdType === 'response' && req.command === res.command && leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2) && req.data[2] === res.data[2]
-					}
+					verifyFn: (req, res) =>
+						res.cmdType === 'response' &&
+						req.command === res.command &&
+						leBytesToInt(req.data, 0, 2) === leBytesToInt(res.data, 0, 2) &&
+						req.data[2] === res.data[2]
 				})
 
 				for (let i = 3; i < c.data.length;) {

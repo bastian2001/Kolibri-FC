@@ -183,9 +183,7 @@ export default defineComponent({
 			<button @click="() => {
 				enableCommands(false);
 				sendRaw([], '+++')
-					.then(() => {
-						return delay(1500)
-					})
+					.then(() => delay(1500))
 					.then(() => enableCommands(true));
 			}">Stop Serial Passthrough</button>
 			<button @click="getCrashDump">Get Crash Dump</button>

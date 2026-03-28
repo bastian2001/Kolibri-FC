@@ -6,6 +6,7 @@ class MspOsdOutput : private OsdOutput {
 public:
 	MspOsdOutput(KoliSerial &serial) : serial(serial) {
 		setSize(50, 23);
+		sizeSet = false;
 		OsdCanvas::get().addOutput(this);
 	}
 	~MspOsdOutput() {
@@ -15,6 +16,7 @@ public:
 	MspOsdOutput &operator=(const MspOsdOutput &) = delete;
 	void loop();
 	void setSize(u8 width, u8 height) override;
+	void propagateSize();
 
 private:
 	enum class MspDpState {
@@ -37,6 +39,7 @@ private:
 	KoliSerial &serial;
 	u8 drawingLine = 0;
 	u8 drawingChar = 0;
+	bool sizeSet = false;
 	elapsedMicros heartbeatTimer = 0;
 	void disableOutput() { state = MspDpState::DISABLED; }
 	void enableOutput() { state = MspDpState::CLEAR; }

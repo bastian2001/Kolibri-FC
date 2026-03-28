@@ -125,9 +125,6 @@ export default defineComponent({
 					data.push(this.idlePercent * 10)
 					data.push(...intToLeBytes(this.dynamicIdleRpm, 2))
 					return sendCommand(MspFn.SET_EXT_PID, data)
-					// this.saveTimeout = setTimeout(() => {
-					// 	console.error('Save timeout');
-					// }, 2000);
 				})
 				.then(() => {
 					const data = [];
@@ -154,9 +151,7 @@ export default defineComponent({
 					];
 					return sendCommand(MspFn.SET_FILTER_CONFIG, data);
 				})
-				.then(() => {
-					return sendCommand(MspFn.SAVE_SETTINGS);
-				})
+				.then(() => sendCommand(MspFn.SAVE_SETTINGS))
 				.catch(er => { this.configuratorLog.push('Error saving settings: ' + er) })
 		},
 		onResize() {

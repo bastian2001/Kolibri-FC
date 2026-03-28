@@ -1,23 +1,24 @@
 <script setup lang="ts">
-import { onConnectHandler, onDisconnectHandler, sendCommand } from "@/msp/comm";
+import { onConnectHandler, sendCommand } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
-import { leBytesToInt } from "@/utils/utils";
+import { intToLeBytes, leBytesToInt } from "@/utils/utils";
 
 const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
 const log = useLogStore();
 const charsDone = ref(0);
 const dragging = ref('none' as 'none' | 'copy' | 'move');
-const draggingIndex = ref(0);
-const draggingNew = ref(0);
+const draggingIndex = ref(-1);
+const draggingNew = ref(-1);
 const filter = ref('');
 const rows = ref(13);
 const cols = ref(30);
 const canvasSizeSrc = ref(0)
+const showAlreadyPlaced = ref(false);
 
 const charCanvases: HTMLCanvasElement[] = [];
 const draggerCanvas = useTemplateRef('draggerCanvas');
@@ -90,9 +91,10 @@ const activeElements = ref([
 	{ id: 0x0060, col: 23, row: 1 },
 ] as OsdPlacement[])
 
-const filteredList = computed(() => {
-	return OSD_LIST.filter(s => s.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase()));
-})
+const filteredList = computed(() =>
+	OSD_LIST.filter(
+		s => s.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase())
+	))
 
 function decode() {
 	const cs = chars.value;
@@ -225,6 +227,7 @@ function dropped(event: DragEvent) {
 		activeElements.value.push({ id: draggingNew.value, col, row, option: 0 });
 		draggingNew.value = -1;
 	}
+	pushElements();
 }
 function dragoverTrash(event: DragEvent) {
 	event.preventDefault();
@@ -233,13 +236,41 @@ function dragoverTrash(event: DragEvent) {
 }
 function dropTrash(event: DragEvent) {
 	event.preventDefault();
+	console.log('drop')
 	delete activeElements.value[draggingIndex.value];
+	collapse();
+	draggingIndex.value = -1;
 	dragging.value = 'none';
+	pushElements();
+}
+
+async function pushElements() {
+	const data = [0]; // initial index
+	for (let i = 0; i < 60; i++) {
+		const el = activeElements.value[i];
+		if (!el) continue;
+		data.push(...intToLeBytes(el.id, 2));
+		data.push(el.col, el.row);
+		data.push(...intToLeBytes(el.option, 4));
+	}
+	try {
+		await sendCommand(MspFn.SET_OSD_ELEMENTS, data);
+	} catch { }
+}
+
+function save() {
+	pushElements()
+		.then(() => sendCommand(MspFn.SET_OSD_CONFIG, [canvasSizeSrc.value]))
+		.then(() => sendCommand(MspFn.SAVE_SETTINGS))
+		.then(() => sendCommand(MspFn.OSD_CONTROL, [3]))
+		.then(getConfig)
 }
 
 function getConfig() {
 	sendCommand(MspFn.GET_OSD_ELEMENTS).then(({ data }) => {
 		const len = Math.floor((data.length - 2) / 8);
+		console.log(data)
+		activeElements.value.length = 0
 		for (let i = 0; i < len; i++) {
 			const d = data.slice(2 + i * 8, 10 + i * 8);
 			const el: OsdPlacement = {
@@ -258,20 +289,31 @@ function getConfig() {
 	}).then(({ data }) => {
 		canvasSizeSrc.value = data[0];
 		return sendCommand(MspFn.OSD_CONTROL, [0])
-	}).then(() => {
-		return sendCommand(MspFn.OSD_CONTROL, [2])
-	}).catch(() => { })
+	}).then(() => sendCommand(MspFn.OSD_CONTROL, [2]))
+		.catch(() => { })
+}
+
+function collapse() {
+	let putting = 0;
+	for (let scanning = 0; scanning < activeElements.value.length; scanning++) {
+		const el = activeElements.value[scanning];
+		if (el) {
+			activeElements.value[putting++] = activeElements.value[scanning];
+		}
+	}
+	activeElements.value.length = putting;
 }
 
 function leave() {
-
+	sendCommand(MspFn.OSD_CONTROL, [1])
+		.then(() => sendCommand(MspFn.OSD_CONTROL, [2]))
+		.catch(() => { })
 }
 
 onMounted(() => {
 	getConfig();
 	createCanvases()
 	onConnectHandler(getConfig)
-	onDisconnectHandler(leave)
 })
 
 onBeforeUnmount(leave)
@@ -298,29 +340,30 @@ onBeforeUnmount(leave)
 					<i class="fa-solid fa-trash"></i>
 				</p>
 			</div>
-			<div class="activeElements" v-if="activeElements.length">
+			<div class="activeElements" v-if="activeElements.filter(el => el).length">
 				<h3>Enabled OSD Elements</h3>
-				<template v-for="el in activeElements">
-					{{ el.id }}
-					<!-- <div class="activeElement" v-if="el.id && OSD_LIST[el.id]">
+				<template v-for="(el, index) in activeElements">
+					<div class="activeElement" v-if="OSD_LIST[el.id]">
 						<p>{{ OSD_LIST[el.id].name }}</p>
 						<select v-model="el.option" v-if="OSD_LIST[el.id].options">
 							<option v-for="(_, i) in OSD_LIST[el.id].options" :value="i">{{ i }}</option>
 						</select>
 						<button class="defaultBtn red small"
-							@click="() => { activeElements.splice(activeElements.indexOf(el), 1) }">
+							@click="() => { delete activeElements[index]; collapse(); pushElements(); }">
 							<i class="fa-solid fa-trash"></i>
 						</button>
-					</div> -->
+					</div>
 				</template>
 			</div>
 			<div class="osdList">
 				<h3>Available Elements (Drag and Drop)</h3>
 				<div class="osdSearch">
-					<input type="text" v-model="filter" placeholder="Filter">
+					<input type="text" v-model="filter" placeholder="Filter" style="margin-right: 1rem;">
+					<input type="checkbox" id="showAlreadyPlaced" v-model="showAlreadyPlaced">&nbsp;
+					<label for="showAlreadyPlaced">Show already placed</label>
 				</div>
 				<div class="listElem"
-					v-for="el in filteredList.filter((_, i) => activeElements.findIndex(el => el.id === i) === -1)"
+					v-for="el in filteredList.filter(osdEl => showAlreadyPlaced || activeElements.findIndex(actEl => OSD_LIST[actEl.id] === osdEl) === -1)"
 					draggable="true" @dragstart="(event) => { dragStart(OSD_LIST.indexOf(el), event, 'copy') }"
 					@dragend="dragEnd">
 					<p><i class="fa-solid fa-arrow-pointer"></i>{{ el.name }}</p>
@@ -330,6 +373,7 @@ onBeforeUnmount(leave)
 		<div class="line"></div>
 		<div class="previewWrapper">
 			<div class="preview">
+				<button @click="save">Save</button>
 				<div class="previewImage" @drop="dropped" @dragover="dragover" @dragleave="() => dragHide = true"
 					ref="previewImage">
 					<img src="@assets/DJI_0124.JPG">
@@ -339,12 +383,14 @@ onBeforeUnmount(leave)
 					</div>
 					<canvas class="draggerCanvas" ref="draggerCanvas"
 						:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 / rows}%;`"></canvas>
-					<TextCanvas v-for="(el, index) in activeElements" :key="index" v-if="el"
-						:opacity="(index === draggingIndex && dragging !== 'none') ? 0 : 1"
-						:text="OSD_LIST[el.id].options ? OSD_LIST[el.id].options![el.option].preview : OSD_LIST[el.id].def"
-						:rows="rows" :cols="cols" :row="el.row" :col="el.col" :chars="charCanvases"
-						@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
-						:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd" />
+					<template v-for="(el, index) in activeElements">
+						<TextCanvas :key="index" v-if="OSD_LIST[el.id]"
+							:opacity="(index === draggingIndex && dragging !== 'none') ? 0 : 1"
+							:text="OSD_LIST[el.id].options ? OSD_LIST[el.id].options![el.option].preview : OSD_LIST[el.id].def"
+							:rows="rows" :cols="cols" :row="el.row" :col="el.col" :chars="charCanvases"
+							@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
+							:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd" />
+					</template>
 					<TextCanvas v-if="dragging !== 'none' && !dragHide" :opacity="0.5" :rows="rows" :cols="cols"
 						:chars="charCanvases" :text="dragText" :row="draggingRow" :col="draggingCol" :poiev="'none'" />
 				</div>

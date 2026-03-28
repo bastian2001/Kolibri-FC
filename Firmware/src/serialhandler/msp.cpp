@@ -643,14 +643,14 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, reqPayload, 1);
 			break;
 		case MspFn::SET_OSD_ELEMENTS: {
-			BREAK_WITH_BASIC_ERROR_IF(reqLen < 2 || reqLen % 8 != 2);
+			BREAK_WITH_BASIC_ERROR_IF(reqLen < 1 || reqLen % 8 != 1);
 			static u32 elementIndex = 0;
-			const char *data = &reqPayload[2];
+			const char *data = &reqPayload[1];
 			if (reqPayload[0] == 0) { // initial element index
 				OsdCanvas::get().resetElements();
 				elementIndex = 0;
 			}
-			for (int i = 0; i < (reqLen - 2) / 8; i++) {
+			for (int i = 0; i < (reqLen - 1) / 8; i++) {
 				OsdElement el = {
 					.type = (OsdElementType)DECODE_U2(&data[0]),
 					.col = (i8)data[2],
@@ -662,21 +662,20 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				}
 				data += 8;
 			}
-			if (reqPayload[1] == 0) { // indicator that there will/won't be more chunks
-				OsdCanvas::get().saveElements();
-			}
 			buf[0] = reqPayload[0];
 			sendMsp(msgSetup, buf, 1);
 		} break;
 		case MspFn::GET_OSD_ELEMENTS: {
 			u8 initial = 0;
 			if (reqLen) initial = reqPayload[0];
-			buf[0] = initial;
-			buf[1] = OsdCanvas::MAX_ELEMENTS - initial >= 60; // whether there will be more chunks
+			buf[len++] = initial;
+			buf[len++] = OsdCanvas::MAX_ELEMENTS - initial > 60; // whether there will be more chunks
 			for (int i = 0; i < 60; i++) {
+				if (i + initial >= OsdCanvas::MAX_ELEMENTS) break;
 				const OsdElement &el = OsdCanvas::get().getElement(i + initial);
-				buf[len++] = (u16)el.type;
-				buf[len++] = (u16)el.type >> 8;
+				u16 type = (u16)el.type;
+				buf[len++] = type;
+				buf[len++] = type >> 8;
 				buf[len++] = el.col;
 				buf[len++] = el.row;
 				memcpy(&buf[len], &el.option, 4);
@@ -690,7 +689,21 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 		} break;
 		case MspFn::SET_OSD_CONFIG: {
 			BREAK_WITH_BASIC_ERROR_IF(reqLen < 1);
-			if (buf[0] < 2) osdCanvasSizeSrc = buf[0];
+			if (reqPayload[0] < 2) osdCanvasSizeSrc = reqPayload[0];
+			switch (osdCanvasSizeSrc) {
+			case 0: { // analog
+				u8 width, height;
+				AnalogOsdOutput::get().getSize(&width, &height);
+			} break;
+			case 1: { // digital
+				OsdCanvas::get().setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT, 255);
+				for (auto &serial : serials) {
+					if (!serial) continue;
+					if (!serial->getDp()) continue;
+					serial->getDp()->propagateSize();
+				}
+			} break;
+			}
 			sendMsp(msgSetup);
 		} break;
 		case MspFn::OSD_CONTROL: {
@@ -1793,7 +1806,7 @@ void MspParser::handleByte(u8 c) {
 }
 
 void printIndMessage(String msg) {
-	if (serials[0]) return;
+	if (!serials[0]) return;
 	if (msg.length() > 256) {
 		msg = msg.substring(0, 256);
 	}

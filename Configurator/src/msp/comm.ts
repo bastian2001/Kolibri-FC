@@ -98,9 +98,7 @@ export const enableCommands = (en: boolean) => {
 	cmdEnabled = en
 }
 
-const defaultVerify = (req: Command, res: Command) => {
-	return req.command === res.command
-}
+const defaultVerify = (req: Command, res: Command) => req.command === res.command
 
 type PendingRequest = {
 	timeoutIndex: number
@@ -588,9 +586,8 @@ function onConnected() {
 
 let fcPing = -1
 let pingSeq = 0
-export const getPingTime = () => {
-	return fcPing
-}
+export const getPingTime = () => fcPing
+
 function ping() {
 	if (++pingSeq >= 256) pingSeq = 0
 	sendCommand(MspFn.CONFIGURATOR_PING, {
@@ -633,6 +630,8 @@ export const disconnect = () => {
 	if (connectType === "serial" || connectType === "tcp") {
 		return new Promise((resolve: any, reject) => {
 			sendCommand(MspFn.SET_ARMING_DISABLED, [0])
+				.then(() => sendCommand(MspFn.OSD_CONTROL, [1]))
+				.then(() => sendCommand(MspFn.OSD_CONTROL, [2]))
 				.catch(() => {})
 				.finally(() => {
 					invoke(connectType === "serial" ? "serial_close" : "tcp_close")
@@ -649,6 +648,8 @@ export const disconnect = () => {
 	}
 	return new Promise((resolve: any, reject) => {
 		sendCommand(MspFn.SET_ARMING_DISABLED, [0])
+			.then(() => sendCommand(MspFn.OSD_CONTROL, [1]))
+			.then(() => sendCommand(MspFn.OSD_CONTROL, [2]))
 			.catch(() => {})
 			.finally(() => {
 				let closed = false
@@ -658,9 +659,7 @@ export const disconnect = () => {
 						closed = true
 					})
 					.catch(() => {})
-					.finally(() => {
-						return invoke("tcp_close")
-					})
+					.finally(() => invoke("tcp_close"))
 					.then(() => {
 						closed = true
 					})

@@ -96,4 +96,9 @@ void MspOsdOutput::setSize(u8 width, u8 height) {
 	state = MspDpState::CLEAR;
 	OsdCanvas::get().setSize(width, height, 1);
 	OsdOutput::setSize(width, height);
+	sizeSet = true;
+}
+
+void MspOsdOutput::propagateSize() {
+	if (sizeSet) OsdCanvas::get().setSize(width, height, 1);
 }

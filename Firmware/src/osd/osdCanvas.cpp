@@ -23,6 +23,7 @@ void OsdCanvas::begin() {
 			loadElementsFromSettings();
 		}
 	}
+
 	closeCanvasSettingsFile();
 
 	updateTimer = 0;
@@ -101,6 +102,13 @@ void OsdCanvas::drawCursor(i8 col, i8 row) {
 }
 
 void OsdCanvas::setDragNDrop(const char *data, int col, int row, int width, int height) {
+	i32 size = width * height;
+	if (size > sizeof(dragNDropData)) size = sizeof(dragNDropData);
+	memcpy(dragNDropData, data, size);
+	dragNDropCol = col;
+	dragNDropRow = row;
+	dragNDropWidth = width;
+	dragNDropHeight = height;
 	dirty = true;
 }
 
@@ -114,6 +122,7 @@ void OsdCanvas::resetElements() {
 	for (auto &el : elements) {
 		el = reset;
 	}
+	dirty = false;
 }
 
 void OsdCanvas::setDefaultElements() {
@@ -145,6 +154,8 @@ void OsdCanvas::revertElements() {
 		openCanvasSettingsFile();
 		loadElementsFromSettings();
 		closeCanvasSettingsFile();
+		elements[MAX_ELEMENTS].type = OsdElementType::DISABLED;
+		dirty = false;
 	}
 }
 
@@ -338,96 +349,97 @@ void OsdCanvas::drawElement(u32 index) {
 		break;
 	}
 	}
+}
 
-	template <typename... Types>
-	void OsdCanvas::printOnBuffer(OsdElement & element, char *str, Types... args) {
-		char buf[16];
-		int len = sniprintf(buf, 16, str, ...);
-		int leftCutoff = 0;
-		if (element.col < 0) {
-			leftCutoff = -element.col;
-		}
-		int maxLen = width - element.col;
-		if (len > 16) len = 16;
-		if (len > maxLen) len = maxLen;
-		char *ptr = getBufferPtr(element.col, element.row);
-		if (ptr != nullptr) memcpy(ptr, buf + leftCutoff, len - leftCutoff);
+template <typename... Types>
+void OsdCanvas::printOnBuffer(OsdElement &element, char *str, Types... args) {
+	char buf[16];
+	int len = sniprintf(buf, 16, str, ...);
+	int leftCutoff = 0;
+	if (element.col < 0) {
+		leftCutoff = -element.col;
+	}
+	int maxLen = width - element.col;
+	if (len > 16) len = 16;
+	if (len > maxLen) len = maxLen;
+	char *ptr = getBufferPtr(element.col, element.row);
+	if (ptr != nullptr) memcpy(ptr, buf + leftCutoff, len - leftCutoff);
+}
+
+void OsdCanvas::optimize() {
+	// disabling cursor
+	elements[MAX_ELEMENTS].type = OsdElementType::DISABLED;
+
+	// remove empty slots
+	u32 putting = 0;
+	for (u32 scanning = 0; scanning < MAX_ELEMENTS; scanning++) {
+		if (elements[scanning].type != OsdElementType::DISABLED)
+			elements[putting++] = elements[scanning];
+	}
+	for (; putting < MAX_ELEMENTS; putting++) {
+		elements[putting].type = OsdElementType::DISABLED;
 	}
 
-	void OsdCanvas::optimize() {
-		// disabling cursor
-		elements[MAX_ELEMENTS].type = OsdElementType::DISABLED;
+	// clear dirty flag
+	dirty = false;
+}
 
-		// remove empty slots
-		u32 putting = 0;
-		for (u32 scanning = 0; scanning < MAX_ELEMENTS; scanning++) {
-			if (elements[scanning].type != OsdElementType::DISABLED)
-				elements[putting++] = elements[scanning];
-		}
-		for (; putting < MAX_ELEMENTS; putting++) {
-			elements[putting].type = OsdElementType::DISABLED;
-		}
-
-		// clear dirty flag
-		dirty = false;
+bool OsdCanvas::openCanvasSettingsFile() {
+	if (!littleFsReady) return false;
+	if (*canvasSettingsFile) {
+		canvasSettingsFile->close();
 	}
 
-	bool OsdCanvas::openCanvasSettingsFile() {
-		if (!littleFsReady) return false;
-		if (*canvasSettingsFile) {
-			canvasSettingsFile->close();
-		}
-
-		*canvasSettingsFile = LittleFS.open("/osd.bin", "r+");
+	*canvasSettingsFile = LittleFS.open("/osd.bin", "r+");
+	if (!*canvasSettingsFile) {
+		DEBUG_PRINTLN("Failed to open OSD file, creating new one...");
+		*canvasSettingsFile = LittleFS.open("/osd.bin", "w+");
 		if (!*canvasSettingsFile) {
-			DEBUG_PRINTLN("Failed to open OSD file, creating new one...");
-			*canvasSettingsFile = LittleFS.open("/osd.bin", "w+");
-			if (!*canvasSettingsFile) {
-				DEBUG_PRINTLN("Failed to create OSD file.");
-				return false;
-			}
-			return true;
+			DEBUG_PRINTLN("Failed to create OSD file.");
+			return false;
 		}
-		return false;
+		return true;
 	}
+	return false;
+}
 
-	void OsdCanvas::closeCanvasSettingsFile() {
-		if (*canvasSettingsFile) {
-			rp2040.wdt_reset();
-			canvasSettingsFile->close();
-		}
-	}
-
-	void OsdCanvas::loadElementsFromSettings() {
-		i8 buf[MAX_ELEMENTS * 8];
-		canvasSettingsFile->seek(0);
-		u32 read = canvasSettingsFile->readBytes((char *)buf, MAX_ELEMENTS * 8);
-		for (int i = 0; i < read / 8 && i < MAX_ELEMENTS; i++) {
-			u32 pos = i * 8;
-			elements[i] = {
-				.type = (OsdElementType)(buf[pos] | (buf[pos + 1] << 8)),
-				.col = buf[pos + 2],
-				.row = buf[pos + 3],
-				.option = DECODE_U4((u8 *)&buf[pos + 4]),
-			};
-		}
-	}
-
-	void OsdCanvas::saveElementsToSettings() {
-		u8 buf[MAX_ELEMENTS * 8];
-		canvasSettingsFile->seek(0);
-		for (u32 i = 0; i < MAX_ELEMENTS; i++) {
-			u32 pos = i * 8;
-			OsdElement &el = elements[i];
-			u16 type = (u16)el.type;
-			buf[pos + 0] = type;
-			buf[pos + 1] = (u8)(type >> 8);
-			buf[pos + 2] = el.col;
-			buf[pos + 3] = el.row;
-			memcpy(&buf[pos + 4], &el.option, 4);
-		}
-		canvasSettingsFile->write(buf, MAX_ELEMENTS * 8);
+void OsdCanvas::closeCanvasSettingsFile() {
+	if (*canvasSettingsFile) {
 		rp2040.wdt_reset();
-		canvasSettingsFile->flush();
-		rp2040.wdt_reset();
+		canvasSettingsFile->close();
 	}
+}
+
+void OsdCanvas::loadElementsFromSettings() {
+	i8 buf[MAX_ELEMENTS * 8];
+	canvasSettingsFile->seek(0);
+	u32 read = canvasSettingsFile->readBytes((char *)buf, MAX_ELEMENTS * 8);
+	for (int i = 0; i < read / 8 && i < MAX_ELEMENTS; i++) {
+		u32 pos = i * 8;
+		elements[i] = {
+			.type = (OsdElementType)(buf[pos] | (buf[pos + 1] << 8)),
+			.col = buf[pos + 2],
+			.row = buf[pos + 3],
+			.option = DECODE_U4((u8 *)&buf[pos + 4]),
+		};
+	}
+}
+
+void OsdCanvas::saveElementsToSettings() {
+	u8 buf[MAX_ELEMENTS * 8];
+	canvasSettingsFile->seek(0);
+	for (u32 i = 0; i < MAX_ELEMENTS; i++) {
+		u32 pos = i * 8;
+		OsdElement &el = elements[i];
+		u16 type = (u16)el.type;
+		buf[pos + 0] = type;
+		buf[pos + 1] = (u8)(type >> 8);
+		buf[pos + 2] = el.col;
+		buf[pos + 3] = el.row;
+		memcpy(&buf[pos + 4], &el.option, 4);
+	}
+	canvasSettingsFile->write(buf, MAX_ELEMENTS * 8);
+	rp2040.wdt_reset();
+	canvasSettingsFile->flush();
+	rp2040.wdt_reset();
+}

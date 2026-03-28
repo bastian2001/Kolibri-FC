@@ -21,9 +21,7 @@ export const useLogStore = defineStore("log", () => {
 		logs.value = []
 	}
 
-	const getEntries = () => {
-		return logs.value
-	}
+	const getEntries = () => logs.value
 
 	return { logs, push, clearEntries, getEntries }
 })
