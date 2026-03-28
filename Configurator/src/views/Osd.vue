@@ -56,7 +56,7 @@ OSD_LIST[0x0040] = { name: 'Flight Mode', def: 'ACRO' };
 OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB' };
 
 OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101' };
-OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007d100%' };
+OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007b100%' };
 
 OSD_LIST[0x0070] = { name: 'Baro Altitude', def: '\u007f128\u000c' };
 OSD_LIST[0x0071] = { name: 'ESC Temp 0', def: 'E\u007a69\u000e' };
@@ -66,7 +66,7 @@ OSD_LIST[0x0074] = { name: 'ESC Temp 3', def: 'E\u007a72\u000e' };
 OSD_LIST[0x0075] = { name: 'ESC Temp Avg', def: 'E\u007a70\u000e' };
 OSD_LIST[0x0076] = { name: 'IMU Acceleration', def: '\u00761.2G' };
 OSD_LIST[0x0077] = { name: 'IMU Pitch', def: '\u0015-12.3D' };
-OSD_LIST[0x0078] = { name: 'IMU Roll', def: '\u0016-23.4D' };
+OSD_LIST[0x0078] = { name: 'IMU Roll', def: '\u0014-23.4D' };
 OSD_LIST[0x0079] = { name: 'IMU Yaw', def: '34.5D' };
 
 OSD_LIST[0x00A0] = { name: 'RC Roll', def: '1310' };
