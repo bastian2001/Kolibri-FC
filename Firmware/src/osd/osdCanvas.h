@@ -217,7 +217,7 @@ private:
 	void saveElementsToSettings();
 
 	template <typename... Types>
-	void printOnBuffer(const OsdElement &element, const char *str, const Types &&...args);
+	void printOnBuffer(const OsdElement &element, const char *str, const Types... args);
 
 	char *frameBuffer = nullptr;
 	/**

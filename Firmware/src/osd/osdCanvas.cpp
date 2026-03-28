@@ -352,9 +352,9 @@ void OsdCanvas::drawElement(u32 index) {
 }
 
 template <typename... Types>
-inline void OsdCanvas::printOnBuffer(const OsdElement &element, const char *str, const Types &&...args) {
+inline void OsdCanvas::printOnBuffer(const OsdElement &element, const char *str, const Types... args) {
 	char buf[16];
-	int len = snprintf(buf, 16, str, std::forward<Types>(args)...);
+	int len = snprintf(buf, 16, str, args...);
 	if (len > 16) len = 16;
 	copyFrameBuffer(frameBuffer, buf, width, height, element.col, element.row, len, 1);
 }
