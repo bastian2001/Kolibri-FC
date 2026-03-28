@@ -248,7 +248,7 @@ void OsdCanvas::drawElement(u32 index) {
 			memcpy(flightModeStr, "WAYP", 4);
 			break;
 		default:
-			memcpy(flightModeStr, "ERR ", 4);
+			memcpy(flightModeStr, "ERR\0", 4);
 			break;
 		}
 		printOnBuffer(element, "%s", flightModeStr); //! untested @Bastian.
@@ -276,32 +276,32 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     ESC Temp 0          |
 		//---------------------------
-		printOnBuffer(element, "%dC", escTemp[0]); //! untested @Bastian.
+		printOnBuffer(element, "\x7A%d\x0E", escTemp[0]); //! untested @Bastian.
 	} break;
 	case OsdElementType::ESC_TEMP_1: {
 		//---------------------------
 		//|     ESC Temp 1          |
 		//---------------------------
-		printOnBuffer(element, "%dC", escTemp[1]); //! untested @Bastian.
+		printOnBuffer(element, "\x7A%d\x0E", escTemp[1]); //! untested @Bastian.
 	} break;
 	case OsdElementType::ESC_TEMP_2: {
 		//---------------------------
 		//|     ESC Temp 2          |
 		//---------------------------
-		printOnBuffer(element, "%dC", escTemp[2]); //! untested @Bastian.
+		printOnBuffer(element, "\x7A%d\x0E", escTemp[2]); //! untested @Bastian.
 	} break;
 	case OsdElementType::ESC_TEMP_3: {
 		//---------------------------
 		//|     ESC Temp 3          |
 		//---------------------------
-		printOnBuffer(element, "%dC", escTemp[3]); //! untested @Bastian.
+		printOnBuffer(element, "\x7A%d\x0E", escTemp[3]); //! untested @Bastian.
 	} break;
 	case OsdElementType::ESC_TEMP_AVG: {
 		//---------------------------
 		//|     ESC Temp Avg        |
 		//---------------------------
 		int avgTemp = (escTemp[0] + escTemp[1] + escTemp[2] + escTemp[3]) / 4;
-		printOnBuffer(element, "%dC", avgTemp); //! untested @Bastian.
+		printOnBuffer(element, "\x7A%d\x0E", avgTemp); //! untested @Bastian.
 	} break;
 	case OsdElementType::IMU_ACCELERATION: {
 	} break;
