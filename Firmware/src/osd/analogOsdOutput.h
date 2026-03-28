@@ -1,7 +1,7 @@
 #pragma once
 #include "osdOutput.h"
 
-class AnalogOsdOutput : private OsdOutput {
+class AnalogOsdOutput : public OsdOutput {
 public:
 	AnalogOsdOutput(const AnalogOsdOutput &) = delete;
 	AnalogOsdOutput &operator=(const AnalogOsdOutput &) = delete;

@@ -5,7 +5,7 @@
 #define MSP_DP_DEFAULT_WIDTH 50
 #define MSP_DP_DEFAULT_HEIGHT 23
 
-class MspOsdOutput : private OsdOutput {
+class MspOsdOutput : public OsdOutput {
 public:
 	MspOsdOutput(KoliSerial &serial) : serial(serial) {
 		setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT);
