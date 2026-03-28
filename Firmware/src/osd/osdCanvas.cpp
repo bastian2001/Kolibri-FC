@@ -352,18 +352,11 @@ void OsdCanvas::drawElement(u32 index) {
 }
 
 template <typename... Types>
-void OsdCanvas::printOnBuffer(OsdElement &element, char *str, Types... args) {
+inline void OsdCanvas::printOnBuffer(const OsdElement &element, const char *str, const Types &&...args) {
 	char buf[16];
-	int len = sniprintf(buf, 16, str, ...);
-	int leftCutoff = 0;
-	if (element.col < 0) {
-		leftCutoff = -element.col;
-	}
-	int maxLen = width - element.col;
+	int len = snprintf(buf, 16, str, std::forward<Types>(args)...);
 	if (len > 16) len = 16;
-	if (len > maxLen) len = maxLen;
-	char *ptr = getBufferPtr(element.col, element.row);
-	if (ptr != nullptr) memcpy(ptr, buf + leftCutoff, len - leftCutoff);
+	copyFrameBuffer(frameBuffer, buf, width, height, element.col, element.row, len, 1);
 }
 
 void OsdCanvas::optimize() {
