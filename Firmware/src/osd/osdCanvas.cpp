@@ -278,14 +278,13 @@ void OsdCanvas::drawElement(u32 index) {
 		//|     RC RSSI             |
 		//---------------------------
 		printOnBuffer(element, "\x01%d", elrs ? elrs->uplinkRssi[0] : 0);
-
 	} break;
 	case OsdElementType::LINK_QUALITY: {
 		if (!elrs) break;
 		//---------------------------
 		//|     RC Link Quality     |
 		//---------------------------
-		printOnBuffer(element, "%d%%", elrs ? elrs->uplinkLinkQuality : 0);
+		printOnBuffer(element, "\x7B%d%%", elrs ? elrs->uplinkLinkQuality : 0);
 	} break;
 	case OsdElementType::BARO_ALTITUDE: {
 	} break;
@@ -421,15 +420,15 @@ void OsdCanvas::closeCanvasSettingsFile() {
 }
 
 void OsdCanvas::loadElementsFromSettings() {
-	i8 buf[MAX_ELEMENTS * 8];
+	u8 buf[MAX_ELEMENTS * 8];
 	canvasSettingsFile->seek(0);
 	u32 read = canvasSettingsFile->readBytes((char *)buf, MAX_ELEMENTS * 8);
 	for (int i = 0; i < read / 8 && i < MAX_ELEMENTS; i++) {
 		u32 pos = i * 8;
 		elements[i] = {
-			.type = (OsdElementType)(buf[pos] | (buf[pos + 1] << 8)),
-			.col = buf[pos + 2],
-			.row = buf[pos + 3],
+			.type = (OsdElementType)(((u16)buf[pos]) | (((u16)buf[pos + 1]) << 8)),
+			.col = (i8)buf[pos + 2],
+			.row = (i8)buf[pos + 3],
 			.option = DECODE_U4((u8 *)&buf[pos + 4]),
 		};
 	}
