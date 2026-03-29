@@ -194,11 +194,13 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     GPS Longitude       |
 		//---------------------------
+		printOnBuffer(element, "\x98%.6lf", gpsMotion.lon * 1E7f); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_LATITUDE: {
 		//---------------------------
 		//|     GPS Latitude        |
 		//---------------------------
+		printOnBuffer(element, "\x89%.6f", gpsMotion.lat * 1E7f); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_PLUSCODE: {
 		//---------------------------
@@ -223,6 +225,12 @@ void OsdCanvas::drawElement(u32 index) {
 	case OsdElementType::HOME_DISTANCE: {
 	} break;
 	case OsdElementType::HOME_DIRECTION: {
+	} break;
+	case OsdElementType::SAT_COUNT: {
+		//---------------------------
+		//|     GPS Sat Count       |
+		//---------------------------
+		printOnBuffer(element, "\x1E\x1F%d", gpsStatus.satCount); //! untested @Bastian.
 	} break;
 	case OsdElementType::FLIGHT_MODE: {
 		//---------------------------
@@ -252,6 +260,17 @@ void OsdCanvas::drawElement(u32 index) {
 		printOnBuffer(element, "%s", flightModeStr); //! untested @Bastian.
 	} break;
 	case OsdElementType::RESCUE_STATUS: {
+		//---------------------------
+		//|     Rescue Status       |
+		//---------------------------
+
+		// RSCOFF
+		// RSCRDY
+		// CLIMB
+		// MVTOWP
+		// DESCENT
+		// LANDING
+
 	} break;
 	case OsdElementType::RSSI_VAL: {
 		if (!elrs) break;

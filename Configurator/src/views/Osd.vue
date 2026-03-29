@@ -51,6 +51,7 @@ OSD_LIST[0x0023] = { name: 'Speed', def: '161\u009e' };
 OSD_LIST[0x0024] = { name: 'Altitude', def: '\u007f123\u000c' };
 OSD_LIST[0x0025] = { name: 'Home Distance', def: '\u0011234\u000c' };
 OSD_LIST[0x0026] = { name: 'Home Direction', def: '\u0062' };
+OSD_LIST[0x0027] = { name: 'GPS Sattelite Count', def: '\u001e\u001f12' };
 
 OSD_LIST[0x0040] = { name: 'Flight Mode', def: 'ACRO' };
 OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB' };
