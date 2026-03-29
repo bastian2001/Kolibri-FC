@@ -194,13 +194,11 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     GPS Longitude       |
 		//---------------------------
-		printOnBuffer(element, "\x98%.6lf", gpsLongitudeFiltered.getf64()); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_LATITUDE: {
 		//---------------------------
 		//|     GPS Latitude        |
 		//---------------------------
-		printOnBuffer(element, "\x89%.6f", gpsLatitudeFiltered.getf64()); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_PLUSCODE: {
 		//---------------------------
