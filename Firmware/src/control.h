@@ -35,8 +35,8 @@ extern fix32 vVelSetpoint;
  * @param lon1 longitude of first coordinate in deg
  * @param lat2 latitude of second coordinate in deg
  * @param lon2 longitude of second coordinate in deg
- * @param distNorth distance to go north from first to second coordinate
- * @param distEast distance to go east from first to second coordinate
+ * @param distNorth distance to go north from first to second coordinate in m
+ * @param distEast distance to go east from first to second coordinate in m
  */
 void distFromCoordinates(fix64 lat1, fix64 lon1, fix64 lat2, fix64 lon2, fix32 *distN, fix32 *distE);
 

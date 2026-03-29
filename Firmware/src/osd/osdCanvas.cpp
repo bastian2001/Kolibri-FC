@@ -223,7 +223,28 @@ void OsdCanvas::drawElement(u32 index) {
 		printOnBuffer(element, "%.1f\x0C", combinedAltitude.getf32()); //! untested @Bastian.
 	} break;
 	case OsdElementType::HOME_DISTANCE: {
-	} break;
+		//---------------------------
+		//|     GPS Home Distance   |
+		//---------------------------
+		fix32 distN, distE;
+		fix64 lattitude = gpsMotion.lat * 1E7f;
+		fix64 longitude = gpsMotion.lon * 1E7f;
+		distFromCoordinates(lattitude, longitude, homepointLat, homepointLon, &distN, &distE);
+		f32 dist = sqrtf(distN.getf32() * distN.getf32() + distE.getf32() * distE.getf32());
+
+		if (dist < 100) {
+			printOnBuffer(element, "%.1f\x0C", dist); // 12.3m //! untested @Bastian.
+		} else if (dist < 1000) {
+			printOnBuffer(element, "%.0f\x0C", dist); // 123m //! untested @Bastian.
+		} else if (dist < 10000) {
+			printOnBuffer(element, "%.2f\x7D", dist / 1000); // 1.23km //! untested @Bastian.
+		} else if (dist < 100000) {
+			printOnBuffer(element, "%.1f\x7D", dist / 1000); // 12.3km //! untested @Bastian.
+		} else {
+			printOnBuffer(element, "%.0f\x7D", dist / 1000); // 123km //! untested @Bastian.
+		}
+		break;
+	}
 	case OsdElementType::HOME_DIRECTION: {
 	} break;
 	case OsdElementType::SAT_COUNT: {
