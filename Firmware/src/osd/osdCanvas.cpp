@@ -349,18 +349,71 @@ void OsdCanvas::drawElement(u32 index) {
 	case OsdElementType::IMU_YAW: {
 	} break;
 	case OsdElementType::RC_ROLL: {
+		//? Wouldn't it be neat to have a dedicated Icon-Char for Roll Pich and Yaw?
+		printOnBuffer(element, "R %.0f", rollSetpoint.getf32()); //! untested @Bastian.
 	} break;
 	case OsdElementType::RC_PITCH: {
+		printOnBuffer(element, "P %.0f", pitchSetpoint.getf32()); //! untested @Bastian.
 	} break;
 	case OsdElementType::RC_THROTTLE: {
+		printOnBuffer(element, "T %.0f", (throttleSetpoint.getf32() / 10.24f)); //! untested @Bastian.
 	} break;
 	case OsdElementType::RC_YAW: {
+		printOnBuffer(element, "Y %.0f", yawSetpoint.getf32()); //! untested @Bastian.
 	} break;
 	case OsdElementType::BAT_TIME: {
 	} break;
 	case OsdElementType::ARM_TIME: {
 	} break;
 	case OsdElementType::WARNINGS: {
+		//---------------------------
+		//|        Warnings         |
+		//---------------------------
+		// Basic implementation, would be nice to have a (at least partially) event driven system
+		char warningStr[16] = {};
+		memcpy(warningStr, "               ", 15);
+		// The blinker ^~^
+		if (elapsedMillis() % 1000 >= 250) { // 1Hz 75% On 25%
+
+			// Beep
+			extern bool batBlinkingAndBeeping;
+			if (batBlinkingAndBeeping) {
+				uint32_t ms = elapsedMillis() % 1000;
+				if (ms <= 500 && ms > 250) memcpy(warningStr, "    (CHIRP)    ", 15);
+				if (ms <= 750 && ms > 500) memcpy(warningStr, "   ( CHIRP )   ", 15);
+				if (ms > 750) memcpy(warningStr, "  (  CHIRP  )  ", 15);
+			}
+
+			// Rescue mode not available
+			if (armed) {
+				if (armedTimer <= 5000) {
+					if (gpsStatus.satCount < 6) { // This needs to be a flag set by the RTX/RTH code
+						memcpy(warningStr, "  RESCUE N/A   ", 15);
+					}
+				}
+			}
+
+			// Signal low
+			if (elrs && elrs->uplinkRssi[0] < 20) {
+				memcpy(warningStr, "  WEAK SIGNAL  ", 15);
+			}
+
+			// Overheat
+			if (escTemp[0] > 80 || escTemp[1] > 80 || escTemp[2] > 80 || escTemp[3] > 80) {
+				memcpy(warningStr, "   OVERHEAT    ", 15);
+			}
+
+			// Low battery
+			if (adcVoltage < 3.5f * 100 * batCells) {
+				if (adcVoltage < 3.3f * 100 * batCells) {
+					memcpy(warningStr, "   LAND NOW    ", 15);
+				} else {
+					memcpy(warningStr, "   LOW BATT    ", 15);
+				}
+			}
+		}
+		printOnBuffer(element, "%s", warningStr); //! untested @Bastian.
+
 	} break;
 	case OsdElementType::DEBUG_1: {
 		// https://testufo.com/frameskipping
