@@ -408,7 +408,7 @@ void OsdCanvas::drawElement(u32 index) {
 				if (adcVoltage < 3.3f * 100 * batCells) {
 					memcpy(warningStr, "   LAND NOW    ", 15);
 				} else {
-					memcpy(warningStr, "   LOW BATT    ", 15);
+					memcpy(warningStr, "  LOW VOLTAGE  ", 15);
 				}
 			}
 		}

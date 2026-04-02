@@ -78,7 +78,7 @@ OSD_LIST[0x00A3] = { name: 'RC Yaw', def: '1313' };
 OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00' };
 OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00' };
 
-OSD_LIST[0x00C0] = { name: 'Warnings', def: 'LOW VOLTAGE' };
+OSD_LIST[0x00C0] = { name: 'Warnings', def: '  LOW VOLTAGE  ' };
 
 type OsdPlacement = {
 	id: number,
