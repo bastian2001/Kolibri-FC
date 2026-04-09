@@ -256,6 +256,7 @@ private:
 	u32 currentlyDrawing = 0;
 	u8 pushIndex = 0;
 	u8 loopIndex = 0;
+	bool blinkingOn = false;
 
 	u32 updateMicros = 83000;
 	elapsedMicros updateTimer{(struct dummyStruct){}};

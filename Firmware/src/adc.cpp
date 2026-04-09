@@ -1,7 +1,7 @@
 #include "global.h"
 
 u16 adcVoltage = 0, cellVoltage = 0; // centivolts
-static bool batBlinkingAndBeeping = false;
+bool batBlinkingAndBeeping = false;
 u16 emptyVoltageSetting = 0;
 static u16 emptyVoltage = 0;
 f32 adcCurrent = 0;
