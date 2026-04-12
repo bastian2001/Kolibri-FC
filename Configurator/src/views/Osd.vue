@@ -95,7 +95,9 @@ const activeElements = ref([
 const filteredList = computed(() =>
 	OSD_LIST.filter(
 		s => s.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase())
-	))
+	));
+
+const aspectStyle = computed(() => 'aspect-ratio: ' + (canvasSizeSrc.value ? '16/9;' : rows.value === 16 ? '4/3;' : '16/9;'));
 
 function decode() {
 	const cs = chars.value;
@@ -270,7 +272,6 @@ function save() {
 function getConfig() {
 	sendCommand(MspFn.GET_OSD_ELEMENTS).then(({ data }) => {
 		const len = Math.floor((data.length - 2) / 8);
-		console.log(data)
 		activeElements.value.length = 0
 		for (let i = 0; i < len; i++) {
 			const d = data.slice(2 + i * 8, 10 + i * 8);
@@ -381,8 +382,8 @@ onBeforeUnmount(leave)
 						<option :value="1">MSP Displayport</option>
 					</select>
 				</div>
-				<div class="previewImage" @drop="dropped" @dragover="dragover" @dragleave="() => dragHide = true"
-					ref="previewImage">
+				<div class="previewImage" :style="aspectStyle" @drop="dropped" @dragover="dragover"
+					@dragleave="() => dragHide = true" ref="previewImage">
 					<img src="@assets/DJI_0124.JPG">
 					<div class="grid" :style="`display: ${dragging === 'none' ? 'none' : 'block'}`">
 						<div class="hline" v-for="i in (rows - 1)" :style="`top: ${100 * i / rows}%`"></div>
@@ -539,7 +540,6 @@ select {
 
 .previewImage {
 	position: relative;
-	aspect-ratio: 16/9;
 	overflow: hidden;
 	min-width: 500px;
 	max-height: 70vh;
