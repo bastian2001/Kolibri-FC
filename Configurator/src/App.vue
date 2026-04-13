@@ -6,6 +6,7 @@ import { routes } from "./router";
 import { connect, disconnect, sendCommand, getSerialDevices, getWifiDevices, onCommandHandler, onConnectHandler, onDisconnectHandler } from "./msp/comm";
 import { useLogStore } from "@stores/logStore";
 import { Command } from "./utils/types";
+import "./main.css"
 
 export default defineComponent({
 	name: "App",
