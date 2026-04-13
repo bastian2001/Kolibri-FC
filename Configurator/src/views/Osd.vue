@@ -88,7 +88,7 @@ type OsdPlacement = {
 };
 const activeElements = ref([
 	{ id: 0x0000, col: 3, row: 1 },
-	{ id: 0x00C0, col: 10, row: 1 },
+	{ id: 0x00C0, col: 8, row: 1 },
 	{ id: 0x0060, col: 23, row: 1 },
 ] as OsdPlacement[])
 

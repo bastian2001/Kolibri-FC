@@ -42,7 +42,8 @@ void OsdCanvas::loop() {
 		state = CanvasState::DRAW;
 		pushIndex = 0;
 		currentlyDrawing = 0;
-		blinkingOn = (millis() % 600) > 300 break;
+		blinkingOn = (millis() % 600) > 300;
+		break;
 	case CanvasState::DRAW:
 		drawElement(currentlyDrawing++);
 		if (dirty) {
@@ -133,7 +134,7 @@ void OsdCanvas::setDefaultElements() {
 	};
 	elements[1] = {
 		.type = OsdElementType::WARNINGS,
-		.col = 10,
+		.col = 8,
 		.row = 1,
 	};
 	elements[2] = {
@@ -166,7 +167,7 @@ void OsdCanvas::drawElement(u32 index) {
 		//|     Battery Voltage     |
 		//---------------------------
 	case OsdElementType::BATTERY_VOLTAGE: {
-		if (!batBeepingAndBlinking || blinkingOn)
+		if (!batBlinkingAndBeeping || blinkingOn)
 			printOnBuffer(element, "%.1f\x06", (f32)adcVoltage / 100);
 	} break;
 		//---------------------------
