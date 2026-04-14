@@ -66,9 +66,11 @@ void OsdCanvas::loop() {
 		if (++pushIndex >= MAX_OUTPUTS) state = CanvasState::WAIT;
 		break;
 	case CanvasState::WAIT:
-		if (updateTimer >= updateMicros) {
+		if (updateTimer >= updateMicros || fastRedraw) {
 			updateTimer = 0;
 			state = CanvasState::CLEAR;
+			wasFastRedraw = fastRedraw;
+			fastRedraw = false;
 		}
 		break;
 	}
@@ -88,6 +90,8 @@ void OsdCanvas::setSize(u8 width, u8 height, u8 source) {
 }
 
 void OsdCanvas::setElement(u32 index, const OsdElement &el) {
+	dragNDropHeight = 0;
+	dragNDropWidth = 0;
 	if (index < MAX_ELEMENTS) elements[index] = el;
 	dirty = true;
 }
@@ -100,6 +104,7 @@ void OsdCanvas::drawCursor(i8 col, i8 row) {
 		.option = 0,
 	};
 	dirty = true;
+	fastRedraw = true;
 }
 
 void OsdCanvas::setDragNDrop(const char *data, int col, int row, int width, int height) {
@@ -111,6 +116,7 @@ void OsdCanvas::setDragNDrop(const char *data, int col, int row, int width, int 
 	dragNDropWidth = width;
 	dragNDropHeight = height;
 	dirty = true;
+	fastRedraw = true;
 }
 
 void OsdCanvas::resetElements() {
@@ -123,6 +129,8 @@ void OsdCanvas::resetElements() {
 	for (auto &el : elements) {
 		el = reset;
 	}
+	dragNDropHeight = 0;
+	dragNDropWidth = 0;
 	dirty = false;
 }
 
@@ -378,7 +386,6 @@ void OsdCanvas::drawElement(u32 index) {
 		if (elapsedMillis() % 1000 >= 250) { // 1Hz 75% On 25%
 
 			// Beep
-			extern bool batBlinkingAndBeeping;
 			if (batBlinkingAndBeeping) {
 				uint32_t ms = elapsedMillis() % 1000;
 				if (ms <= 500 && ms > 250) memcpy(warningStr, "    (CHIRP)    ", 15);
@@ -402,7 +409,7 @@ void OsdCanvas::drawElement(u32 index) {
 
 			// Overheat
 			if (escTemp[0] > 80 || escTemp[1] > 80 || escTemp[2] > 80 || escTemp[3] > 80) {
-				memcpy(warningStr, "   OVERHEAT    ", 15);
+				memcpy(warningStr, "   ESC TEMP    ", 15);
 			}
 
 			// Low battery
@@ -431,10 +438,18 @@ void OsdCanvas::drawElement(u32 index) {
 		if (ptr != nullptr) *ptr = 0x9B;
 	} break;
 	case OsdElementType::DEBUG_2: {
+		char buf[2] = {0, 0};
+		if (dirty) buf[0] = 'D';
+		if (wasFastRedraw) buf[1] = 'F';
+		copyFrameBuffer(frameBuffer, buf, width, height, element.col, element.row, 2);
 	} break;
 	case OsdElementType::DEBUG_3: {
 	} break;
 	case OsdElementType::DEBUG_4: {
+	} break;
+	case OsdElementType::CURSOR: {
+		char *ptr = getBufferPtr(element.col, element.row);
+		if (ptr != nullptr) *ptr = '\x6a';
 	} break;
 	case OsdElementType::DISABLED:
 	default:
@@ -447,12 +462,16 @@ inline void OsdCanvas::printOnBuffer(const OsdElement &element, const char *str,
 	char buf[16];
 	int len = snprintf(buf, 16, str, args...);
 	if (len > 16) len = 16;
-	copyFrameBuffer(frameBuffer, buf, width, height, element.col, element.row, len, 1);
+	copyFrameBuffer(frameBuffer, buf, width, height, element.col, element.row, len);
 }
 
 void OsdCanvas::optimize() {
 	// disabling cursor
 	elements[MAX_ELEMENTS].type = OsdElementType::DISABLED;
+
+	// disable drag an drop
+	dragNDropHeight = 0;
+	dragNDropWidth = 0;
 
 	// remove empty slots
 	u32 putting = 0;

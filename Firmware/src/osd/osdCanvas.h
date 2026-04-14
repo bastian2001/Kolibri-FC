@@ -230,8 +230,8 @@ private:
 	 * @param row the row to use
 	 * @return char* pointer to write to
 	 */
-	inline char *getBufferPtr(u8 col, u8 row) {
-		if (col >= width || row >= height) return nullptr;
+	inline char *getBufferPtr(i8 col, i8 row) {
+		if (col >= width || row >= height || col < 0 || row < 0) return nullptr;
 		return &frameBuffer[row * width + col];
 	}
 	i32 width = 0;
@@ -247,6 +247,8 @@ private:
 		WAIT,
 	};
 	CanvasState state = CanvasState::CLEAR;
+	bool fastRedraw = false;
+	bool wasFastRedraw = false;
 	bool dirty = false;
 	char dragNDropData[256] = {};
 	i32 dragNDropWidth = 0;

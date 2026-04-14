@@ -733,7 +733,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			case 4:
 				// draw cursor
 				BREAK_WITH_BASIC_ERROR_IF(reqLen < 2);
-				OsdCanvas::get().drawCursor(reqPayload[0], reqPayload[1]);
+				OsdCanvas::get().drawCursor(reqPayload[1], reqPayload[2]);
 				sendMsp(msgSetup);
 				break;
 			case 5:

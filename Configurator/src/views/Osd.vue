@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onConnectHandler, sendCommand } from "@/msp/comm";
+import { onConnectHandler, sendCommand, strToArray } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
-import { intToLeBytes, leBytesToInt } from "@/utils/utils";
+import { delay, intToLeBytes, leBytesToInt } from "@/utils/utils";
 
 const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
@@ -19,6 +19,7 @@ const rows = ref(13);
 const cols = ref(30);
 const canvasSizeSrc = ref(0)
 const showAlreadyPlaced = ref(false);
+let exiting = false;
 
 const charCanvases: HTMLCanvasElement[] = [];
 const draggerCanvas = useTemplateRef('draggerCanvas');
@@ -78,7 +79,12 @@ OSD_LIST[0x00A3] = { name: 'RC Yaw', def: '1313' };
 OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00' };
 OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00' };
 
-OSD_LIST[0x00C0] = { name: 'Warnings', def: '  LOW VOLTAGE  ' };
+OSD_LIST[0x00C0] = { name: 'Warnings', def: '##LOW VOLTAGE##' };
+
+OSD_LIST[0xFFF0] = { name: 'Debug 1', def: 'DBG 1' };
+OSD_LIST[0xFFF1] = { name: 'Debug 2', def: 'DBG 2' };
+OSD_LIST[0xFFF2] = { name: 'Debug 3', def: 'DBG 3' };
+OSD_LIST[0xFFF3] = { name: 'Debug 4', def: 'DBG 4' };
 
 type OsdPlacement = {
 	id: number,
@@ -312,13 +318,73 @@ function leave() {
 		.catch(() => { })
 }
 
+let dndText = '';
+let dndWidth = 0;
+let dndHeight = 0;
+let dndCol = 0;
+let dndRow = 0;
+let cursorEnabled = false;
+let cursorRow = 0;
+let cursorCol = 0;
+let updateCursor = true;
+async function sendDragNDrop() {
+	while (!exiting) {
+		await delay(10);
+		try {
+			const newText = (dragging.value === 'none' || dragHide.value) ? '' : dragText.value;
+			const newWidth = newText.length;
+			const newHeight = 1;
+			const newCol = draggingCol.value;
+			const newRow = draggingRow.value;
+			if (newText !== dndText || newWidth !== dndWidth || newHeight !== dndHeight || newCol !== dndCol || newRow !== dndRow) {
+				dndText = newText;
+				dndWidth = newWidth;
+				dndHeight = newHeight;
+				dndCol = newCol;
+				dndRow = newRow;
+				const data = [
+					5,
+					...intToLeBytes(dndCol, 1),
+					...intToLeBytes(dndRow, 1),
+					dndWidth,
+					dndHeight,
+					...strToArray(dndText)
+				]
+				await sendCommand(MspFn.OSD_CONTROL, data)
+			}
+			if (updateCursor) {
+				await sendCommand(MspFn.OSD_CONTROL, [4, cursorEnabled ? cursorCol : 255, cursorEnabled ? cursorRow : 255])
+				updateCursor = false;
+			}
+		} catch {
+		}
+	}
+}
+
+function setCursorPos(event: MouseEvent) {
+	if (!previewImage.value) return;
+	const box = previewImage.value.getBoundingClientRect();
+	const newRow = Math.floor((event.clientY - box.top) / box.height * rows.value);
+	const newCol = Math.floor((event.clientX - box.left) / box.width * cols.value);
+	if (newRow !== cursorRow || newCol !== cursorCol) {
+		cursorEnabled = true;
+		updateCursor = true;
+		cursorRow = newRow;
+		cursorCol = newCol;
+	}
+}
+function enableCursor() { cursorEnabled = true; updateCursor = true; }
+function disableCursor() { cursorEnabled = false; updateCursor = true; }
+
 onMounted(() => {
 	getConfig();
 	createCanvases()
 	onConnectHandler(getConfig)
+	sendDragNDrop();
 })
 
 onBeforeUnmount(leave)
+onBeforeUnmount(() => exiting = true)
 
 
 
@@ -383,7 +449,8 @@ onBeforeUnmount(leave)
 					</select>
 				</div>
 				<div class="previewImage" :style="aspectStyle" @drop="dropped" @dragover="dragover"
-					@dragleave="() => dragHide = true" ref="previewImage">
+					@dragleave="() => dragHide = true" ref="previewImage" @mouseenter="enableCursor"
+					@mouseleave="disableCursor" @mousemove="setCursorPos">
 					<img src="@assets/DJI_0124.JPG">
 					<div class="grid" :style="`display: ${dragging === 'none' ? 'none' : 'block'}`">
 						<div class="hline" v-for="i in (rows - 1)" :style="`top: ${100 * i / rows}%`"></div>
