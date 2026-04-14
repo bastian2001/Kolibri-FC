@@ -183,19 +183,19 @@ void OsdCanvas::drawElement(u32 index) {
 		//|  Battery Cell Voltage   |
 		//---------------------------
 	case OsdElementType::BATTERY_CELL_VOLTAGE:
-		printOnBuffer(element, "%.2f\x06", ((f32)adcVoltage) / (100 * batCells)); //! untested @Bastian.
+		printOnBuffer(element, "%.2f\x06", ((f32)adcVoltage) / (100 * batCells));
 		break;
 	case OsdElementType::BATTERY_CELL_COUNT: {
 		//---------------------------
 		//|  Battery Cell Voltage   |
 		//---------------------------
-		printOnBuffer(element, "%dS", batCells); //! untested @Bastian.
+		printOnBuffer(element, "%dS", batCells);
 	} break;
 	case OsdElementType::BATTERY_CURRENT: {
 		//---------------------------
 		//|    Battery Current      |
 		//---------------------------
-		printOnBuffer(element, "%.0fA", adcCurrent); //! untested @Bastian.
+		printOnBuffer(element, "%.0f\x9A", adcCurrent);
 	} break;
 	case OsdElementType::BATTERY_MAH_DRAWN: {
 	} break;
@@ -229,7 +229,7 @@ void OsdCanvas::drawElement(u32 index) {
 	} break;
 	case OsdElementType::ALTITUDE: {
 		//---------------------------
-		//|     GPS Altitude        |
+		//|     Altitude            |
 		//---------------------------
 		printOnBuffer(element, "%.1f\x0C", combinedAltitude.getf32()); //! untested @Bastian.
 	} break;
@@ -238,10 +238,9 @@ void OsdCanvas::drawElement(u32 index) {
 		//|     GPS Home Distance   |
 		//---------------------------
 		fix32 distN, distE;
-		fix64 lattitude = gpsMotion.lat * 1E7f;
-		fix64 longitude = gpsMotion.lon * 1E7f;
-		distFromCoordinates(lattitude, longitude, homepointLat, homepointLon, &distN, &distE);
-		f32 dist = sqrtf(distN.getf32() * distN.getf32() + distE.getf32() * distE.getf32());
+		distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
+		startFixMath();
+		f32 dist = sqrtFix(distN * distN + distE * distE).getf32();
 
 		if (dist < 100) {
 			printOnBuffer(element, "%.1f\x0C", dist); // 12.3m //! untested @Bastian.
@@ -262,7 +261,7 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     GPS Sat Count       |
 		//---------------------------
-		printOnBuffer(element, "\x1E\x1F%d", gpsStatus.satCount); //! untested @Bastian.
+		printOnBuffer(element, "\x1E\x1F%d", gpsStatus.satCount);
 	} break;
 	case OsdElementType::FLIGHT_MODE: {
 		//---------------------------
@@ -289,7 +288,7 @@ void OsdCanvas::drawElement(u32 index) {
 			memcpy(flightModeStr, "ERR\0", 4);
 			break;
 		}
-		printOnBuffer(element, "%s", flightModeStr); //! untested @Bastian.
+		printOnBuffer(element, "%s", flightModeStr);
 	} break;
 	case OsdElementType::RESCUE_STATUS: {
 		//---------------------------
@@ -352,12 +351,18 @@ void OsdCanvas::drawElement(u32 index) {
 		printOnBuffer(element, "\x7A%d\x0E", avgTemp); //! untested @Bastian.
 	} break;
 	case OsdElementType::IMU_ACCELERATION: {
+		startFixMath();
+		fix32 accel = sqrtFix(accelScaled[0] * accelScaled[0] + accelScaled[1] * accelScaled[1] + accelScaled[2] * accelScaled[2]) / 9.81f;
+		printOnBuffer(element, "%.1fG", accel.getf32());
 	} break;
 	case OsdElementType::IMU_PITCH: {
+		printOnBuffer(element, "\u0015%.1fD", (pitch * FIX_RAD_TO_DEG).getf32());
 	} break;
 	case OsdElementType::IMU_ROLL: {
+		printOnBuffer(element, "\u0014%.1fD", (roll * FIX_RAD_TO_DEG).getf32());
 	} break;
 	case OsdElementType::IMU_YAW: {
+		printOnBuffer(element, "%.1fD", (yaw * FIX_RAD_TO_DEG).getf32());
 	} break;
 	case OsdElementType::RC_ROLL: {
 		//? Wouldn't it be neat to have a dedicated Icon-Char for Roll Pich and Yaw?

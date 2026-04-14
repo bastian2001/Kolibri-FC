@@ -52,7 +52,7 @@ OSD_LIST[0x0023] = { name: 'Speed', def: '161\u009e' };
 OSD_LIST[0x0024] = { name: 'Altitude', def: '\u007f123\u000c' };
 OSD_LIST[0x0025] = { name: 'Home Distance', def: '\u0011234\u000c' };
 OSD_LIST[0x0026] = { name: 'Home Direction', def: '\u0062' };
-OSD_LIST[0x0027] = { name: 'GPS Sattelite Count', def: '\u001e\u001f12' };
+OSD_LIST[0x0027] = { name: 'GPS Satellite Count', def: '\u001e\u001f12' };
 
 OSD_LIST[0x0040] = { name: 'Flight Mode', def: 'ACRO' };
 OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB' };
@@ -66,7 +66,7 @@ OSD_LIST[0x0072] = { name: 'ESC Temp 1', def: 'E\u007a70\u000e' };
 OSD_LIST[0x0073] = { name: 'ESC Temp 2', def: 'E\u007a71\u000e' };
 OSD_LIST[0x0074] = { name: 'ESC Temp 3', def: 'E\u007a72\u000e' };
 OSD_LIST[0x0075] = { name: 'ESC Temp Avg', def: 'E\u007a70\u000e' };
-OSD_LIST[0x0076] = { name: 'IMU Acceleration', def: '\u00761.2G' };
+OSD_LIST[0x0076] = { name: 'IMU Acceleration', def: '1.2G' };
 OSD_LIST[0x0077] = { name: 'IMU Pitch', def: '\u0015-12.3D' };
 OSD_LIST[0x0078] = { name: 'IMU Roll', def: '\u0014-23.4D' };
 OSD_LIST[0x0079] = { name: 'IMU Yaw', def: '34.5D' };
