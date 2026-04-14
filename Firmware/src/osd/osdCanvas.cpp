@@ -114,7 +114,6 @@ void OsdCanvas::setDragNDrop(const char *data, int col, int row, int width, int 
 	if (size) memcpy(dragNDropData, data, size);
 	dragNDropCol = col;
 	dragNDropRow = row;
-	printfIndMessage("Set drag and drop with col %d row %d width %d height %d", col, row, width, height);
 	dragNDropWidth = width;
 	dragNDropHeight = height;
 	dirty = true;
