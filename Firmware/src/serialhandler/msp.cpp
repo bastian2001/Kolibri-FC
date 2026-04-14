@@ -739,7 +739,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			case 5:
 				// set drag and drop
 				BREAK_WITH_BASIC_ERROR_IF(reqLen < 5 || reqLen != reqPayload[3] * reqPayload[4] + 5);
-				OsdCanvas::get().setDragNDrop(reqPayload + 5, reqPayload[1], reqPayload[2], reqPayload[3], reqPayload[4]);
+				OsdCanvas::get().setDragNDrop(reqPayload + 5, (i8)reqPayload[1], (i8)reqPayload[2], reqPayload[3], reqPayload[4]);
 				sendMsp(msgSetup);
 			}
 		} break;

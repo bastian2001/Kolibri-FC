@@ -109,10 +109,12 @@ void OsdCanvas::drawCursor(i8 col, i8 row) {
 
 void OsdCanvas::setDragNDrop(const char *data, int col, int row, int width, int height) {
 	i32 size = width * height;
+	if (size < 0) return;
 	if (size > sizeof(dragNDropData)) size = sizeof(dragNDropData);
-	memcpy(dragNDropData, data, size);
+	if (size) memcpy(dragNDropData, data, size);
 	dragNDropCol = col;
 	dragNDropRow = row;
+	printfIndMessage("Set drag and drop with col %d row %d width %d height %d", col, row, width, height);
 	dragNDropWidth = width;
 	dragNDropHeight = height;
 	dirty = true;

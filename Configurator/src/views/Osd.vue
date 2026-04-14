@@ -259,7 +259,7 @@ async function pushElements() {
 		const el = activeElements.value[i];
 		if (!el) continue;
 		data.push(...intToLeBytes(el.id, 2));
-		data.push(el.col, el.row);
+		data.push(...intToLeBytes(el.col, 1), ...intToLeBytes(el.row, 1));
 		data.push(...intToLeBytes(el.option, 4));
 	}
 	try {
