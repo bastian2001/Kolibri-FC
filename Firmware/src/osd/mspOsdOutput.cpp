@@ -94,7 +94,7 @@ void MspOsdOutput::loop() {
 void MspOsdOutput::setSize(u8 width, u8 height) {
 	if (width > 192 || height > 192) return;
 	state = MspDpState::CLEAR;
-	OsdCanvas::get().setSize(width, height, 1);
+	OsdCanvas::get().setSize(width, height, 3);
 	OsdOutput::setSize(width, height);
 	sizeSet = true;
 }
