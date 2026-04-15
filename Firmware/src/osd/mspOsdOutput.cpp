@@ -100,5 +100,5 @@ void MspOsdOutput::setSize(u8 width, u8 height) {
 }
 
 void MspOsdOutput::propagateSize() {
-	if (sizeSet) OsdCanvas::get().setSize(width, height, 1);
+	if (sizeSet) OsdCanvas::get().setSize(width, height, 3);
 }
