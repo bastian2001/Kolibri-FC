@@ -743,6 +743,26 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				sendMsp(msgSetup);
 			}
 		} break;
+		case MspFn::GET_OSD_STATUS: {
+			// bit 0: Analog OSD module detected
+			// bit 1: Analog OSD detected PAL
+			// bit 2: Analog OSD detected NTSC
+			buf[0] = 0;
+			if (AnalogOsdOutput::get().devDetected()) buf[0] |= 1 << 0;
+			if (AnalogOsdOutput::get().isPal()) buf[0] |= 1 << 1;
+			if (AnalogOsdOutput::get().isNtsc()) buf[0] |= 1 << 2;
+			// bitmap: At least one MSP message came from a serial within the last second
+			buf[1] = 0;
+			for (int i = 0; i < SERIAL_COUNT; i++) {
+				auto &serial = serials[i];
+				if (!serial) continue;
+				if (!(serial->functions() & (SERIAL_MSP | SERIAL_MSP_DISPLAYPORT))) continue;
+				if (serial->mspParser().getMessageCounter()) {
+					buf[1] |= 1 << i;
+				}
+			}
+			sendMsp(msgSetup, buf, 2);
+		} break;
 		case MspFn::GET_BB_SETTINGS: {
 #ifdef BLACKBOX_STORAGE
 			u8 bbSettings[10];
@@ -1723,6 +1743,7 @@ void MspParser::handleByte(u8 c) {
 		break;
 	case MspState::CHECKSUM_V1:
 		if (c == crcV1) {
+			messageCounter++;
 			processMspCmd(ser, msgType, fn, msgMspVer, payloadBuf, payloadLen);
 		} else {
 			MspMsgSetup s = {
@@ -1789,9 +1810,10 @@ void MspParser::handleByte(u8 c) {
 			mspState = MspState::CHECKSUM_V2;
 		break;
 	case MspState::CHECKSUM_V2:
-		if (c == crcV2)
+		if (c == crcV2) {
+			messageCounter++;
 			processMspCmd(ser, msgType, fn, msgMspVer, payloadBuf, payloadLen);
-		else {
+		} else {
 			MspMsgSetup s = {
 				.serial = ser,
 				.fn = fn,

@@ -103,6 +103,7 @@ enum class MspFn : u16 {
 	GET_OSD_CONFIG = 0x4113,
 	SET_OSD_CONFIG = 0x4114,
 	OSD_CONTROL = 0x4115,
+	GET_OSD_STATUS = 0x4116,
 
 	// 0x412_ Blackbox
 	GET_BB_SETTINGS = 0x4120,
@@ -298,6 +299,12 @@ public:
 	 */
 	void handleByte(u8 c);
 
+	void resetMessageCounter() {
+		lastMessageCounter = messageCounter;
+		messageCounter = 0;
+	}
+	int getMessageCounter() const { return lastMessageCounter; }
+
 private:
 	char payloadBuf[2048] = {0}; // Payload buffer
 	u16 payloadBufIndex = 0; // Payload buffer index (0-2047)
@@ -310,6 +317,8 @@ private:
 	MspState mspState = MspState::IDLE; // MSP state
 	MspVersion msgMspVer; // MSP version
 	KoliSerial &ser;
+	u32 messageCounter = 0; // used to sense activity
+	u32 lastMessageCounter = 0; // used to sense activity
 };
 
 /// @brief counter for the motor override timeout

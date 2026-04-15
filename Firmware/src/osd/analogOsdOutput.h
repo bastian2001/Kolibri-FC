@@ -17,6 +17,10 @@ public:
 
 	void setSize(u8 width, u8 height) override;
 
+	bool devDetected() { return isReady > 0; }
+	bool &isPal() { return isPalOutput; }
+	bool &isNtsc() { return isNtscOutput; }
+
 private:
 	AnalogOsdOutput() {
 		setSize(30, 16);
@@ -26,6 +30,8 @@ private:
 	void enableOutput();
 
 	u8 isReady = 0;
+	bool isPalOutput = false;
+	bool isNtscOutput = false;
 	elapsedMicros checkTimer = 0;
 	u8 drawingLine = 0;
 

@@ -51,10 +51,12 @@ void AnalogOsdOutput::loop() {
 		if (data & 1) {
 			u8 data2 = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
 			setSize(30, 16);
+			isPalOutput = true;
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_VM0, &data2);
 		} else {
 			u8 data2 = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
 			setSize(30, 13);
+			isNtscOutput = true;
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_VM0, &data2);
 		}
 		isReady = (data & 0b00000011) ? 1 : 2;

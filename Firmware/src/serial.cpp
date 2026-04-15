@@ -19,6 +19,7 @@ static u32 serialConfigsSettings[SERIAL_COUNT - 1][6] = {};
 static u8 currentSerial = 0;
 static u32 freeInstructions[NUM_PIOS] = {}; // we need to copy it manually, because the variable is static
 static u8 freeSms[NUM_PIOS] = {};
+static elapsedMicros lastMspReset = 0;
 
 void stopSerials() {
 	if (elrs) elrs->setupSubscription(0, nullptr, 0, nullptr, MspVersion::V2);
@@ -306,5 +307,15 @@ void serialLoop() {
 		}
 	}
 	serial.loop();
+
+	if (lastMspReset > 1000000) {
+		for (auto &s : serials) {
+			if (!s) continue;
+			if (!(s->functions() & (SERIAL_MSP | SERIAL_MSP_DISPLAYPORT))) continue;
+			s->mspParser().resetMessageCounter();
+		}
+		lastMspReset = 0;
+	}
+
 	TASK_END(TASK_SERIAL);
 }

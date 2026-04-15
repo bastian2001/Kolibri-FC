@@ -177,7 +177,22 @@ function update() {
 			if (vtxStatus >= 2) vtxColor.value = 'green'
 			else if (batState < 3) vtxColor.value = 'red'
 			else vtxColor.value = 'yellow'
-		})
+		}).catch(() => { })
+	}
+	if (initialFunctions.value.includes('msp_dp')) {
+		sendCommand(MspFn.MSP_GET_OSD_CANVAS).then(({ data }) => {
+			canvasWidth.value = data[0];
+			canvasHeight.value = data[1];
+			return sendCommand(MspFn.GET_OSD_STATUS);
+		}).then(({ data }) => {
+			mspDpState.value = ((data[1] >> (serial.value.no + 1)) & 1) === 1;
+			return sendCommand(MspFn.MSP_BATTERY_STATE);
+		}).then(({ data }) => {
+			const batState = data[8];
+			if (mspDpState.value) mspDpColor.value = 'green';
+			else if (batState < 3) mspDpColor.value = 'red';
+			else mspDpColor.value = 'yellow';
+		}).catch(() => { })
 	}
 }
 
