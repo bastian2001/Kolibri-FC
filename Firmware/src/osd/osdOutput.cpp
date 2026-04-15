@@ -1,7 +1,7 @@
 #include "global.h"
 
 void OsdOutput::sendFrame(char *frameBuffer, u8 width, u8 height) {
-	fullyTransmitted = false;
+	newFrame = true;
 	if (width == this->width && height == this->height) {
 		memcpy(this->frameBuffer, frameBuffer, width * height);
 	} else if (width == this->width) {
@@ -25,5 +25,5 @@ void OsdOutput::setSize(u8 width, u8 height) {
 	frameBuffer = (char *)fb;
 	this->width = width;
 	this->height = height;
-	fullyTransmitted = false;
+	newFrame = true;
 }

@@ -23,6 +23,6 @@ public:
 protected:
 	u8 width = 30;
 	u8 height = 16;
-	bool fullyTransmitted = false;
+	bool newFrame = true;
 	char *frameBuffer = (char *)malloc(30 * 16);
 };

@@ -17,7 +17,11 @@ void AnalogOsdOutput::begin() {
 void AnalogOsdOutput::loop() {
 	if (isReady) {
 		TASK_START(TASK_OSD);
-		if (!OsdOutput::fullyTransmitted) {
+		if (newFrame) {
+			newFrame = false;
+			drawingLine = 0;
+		}
+		if (drawingLine < height) {
 			// TODO revise, way too (unnecessarily) long transmission
 			for (int i = 0; i < width; i++) {
 				u16 pos = i + drawingLine * width;
@@ -32,10 +36,6 @@ void AnalogOsdOutput::loop() {
 			}
 
 			drawingLine++;
-			if (drawingLine >= height) {
-				drawingLine = 0;
-				fullyTransmitted = true;
-			}
 		}
 		TASK_END(TASK_OSD);
 	}
@@ -93,7 +93,6 @@ void AnalogOsdOutput::updateCharacter(u8 cmAddr, u8 data[54]) {
 }
 
 void AnalogOsdOutput::setSize(u8 width, u8 height) {
-	fullyTransmitted = false;
 	drawingLine = 0;
 	OsdCanvas::get().setSize(width, height, 0);
 	OsdOutput::setSize(width, height);

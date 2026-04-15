@@ -78,11 +78,11 @@ void MspOsdOutput::loop() {
 		};
 		char data = MSP_DP_DRAW_SCREEN;
 		sendMsp(s, &data, 1);
-		fullyTransmitted = true;
 		state = MspDpState::IDLE;
 	} break;
 	case MspDpState::IDLE: {
-		if (!fullyTransmitted) {
+		if (newFrame) {
+			newFrame = false;
 			state = MspDpState::CLEAR;
 		}
 	} break;
