@@ -689,15 +689,21 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 		} break;
 		case MspFn::SET_OSD_CONFIG: {
 			BREAK_WITH_BASIC_ERROR_IF(reqLen < 1);
-			if (reqPayload[0] < 2) osdCanvasSizeSrc = reqPayload[0];
+			if (reqPayload[0] < 4) osdCanvasSizeSrc = reqPayload[0];
 			switch (osdCanvasSizeSrc) {
-			case 0: { // analog
+			case 0: { // analog auto
 				u8 width, height;
 				AnalogOsdOutput::get().getSize(&width, &height);
 				OsdCanvas::get().setSize(width, height, 0);
 			} break;
-			case 1: { // digital
-				OsdCanvas::get().setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT, 1);
+			case 1: { // analog PAL
+				OsdCanvas::get().setSize(30, 16, 1);
+			} break;
+			case 2: { // analog NTSC
+				OsdCanvas::get().setSize(30, 13, 2);
+			} break;
+			case 3: { // digital
+				OsdCanvas::get().setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT, 3);
 				for (auto &serial : serials) {
 					if (!serial) continue;
 					if (!serial->getDp()) continue;

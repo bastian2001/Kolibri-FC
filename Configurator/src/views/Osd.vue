@@ -104,7 +104,16 @@ const filteredList = computed(() =>
 		s => s.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase())
 	));
 
-const aspectStyle = computed(() => 'aspect-ratio: ' + (canvasSizeSrc.value ? '16/9;' : rows.value === 16 ? '4/3;' : '16/9;'));
+const aspectStyle = computed(() => {
+	let aspect = '';
+	if (canvasSizeSrc.value === 3 || canvasSizeSrc.value === 2) aspect = '16/9';
+	else if (canvasSizeSrc.value === 1) aspect = '4/3';
+	else {
+		if (rows.value === 16) aspect = '4/3';
+		else aspect = '16/9';
+	}
+	return 'aspect-ratio: ' + aspect + ';';
+});
 
 function decode() {
 	const cs = chars.value;
@@ -276,6 +285,18 @@ function save() {
 		.then(getConfig)
 }
 
+const detectedPal = ref(false);
+const detectedNtsc = ref(false);
+const detectedMax = ref(false);
+const detectedVideo = computed(() => {
+	if (canvasSizeSrc.value === 3) return '';
+	if (!detectedMax.value) return 'OSD chip not detected';
+	const signals = [];
+	if (detectedPal.value) signals.push('PAL');
+	if (detectedNtsc.value) signals.push('NTSC');
+	return `Detected ${signals.join(', ') || 'no analog'} video signal`
+})
+
 function getConfig() {
 	sendCommand(MspFn.GET_OSD_ELEMENTS).then(({ data }) => {
 		const len = Math.floor((data.length - 2) / 8);
@@ -297,6 +318,11 @@ function getConfig() {
 		return sendCommand(MspFn.GET_OSD_CONFIG);
 	}).then(({ data }) => {
 		canvasSizeSrc.value = data[0];
+		return sendCommand(MspFn.GET_OSD_STATUS);
+	}).then(({ data }) => {
+		detectedMax.value = data[0] & (1 << 0) ? true : false;
+		detectedPal.value = data[0] & (1 << 1) ? true : false;
+		detectedNtsc.value = data[0] & (1 << 2) ? true : false;
 		return sendCommand(MspFn.OSD_CONTROL, [0])
 	}).then(() => sendCommand(MspFn.OSD_CONTROL, [2]))
 		.catch(() => { })
@@ -445,10 +471,16 @@ onBeforeUnmount(() => exiting = true)
 			<div class="preview">
 				<div>
 					<button @click="save">Save</button>
-					<select v-model="canvasSizeSrc">
-						<option :value="0">Analog</option>
-						<option :value="1">MSP Displayport</option>
-					</select>
+					<p>
+						Canvas Size:
+						<select v-model="canvasSizeSrc">
+							<option :value="0">Analog Auto</option>
+							<option :value="1">Analog PAL</option>
+							<option :value="2">Analog NTSC</option>
+							<option :value="3">Digital HD</option>
+						</select>
+						{{ detectedVideo }}
+					</p>
 				</div>
 				<div class="previewImage" :style="aspectStyle" @drop="dropped" @dragover="dragover"
 					@dragleave="() => dragHide = true" ref="previewImage" @mouseenter="enableCursor"

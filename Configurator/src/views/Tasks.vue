@@ -150,7 +150,8 @@ th {
 td,
 th {
 	text-align: left;
-	padding: 3px 20px;
+	padding: 1.5px 20px;
+	font-size: 0.85rem;
 }
 
 .grey {
