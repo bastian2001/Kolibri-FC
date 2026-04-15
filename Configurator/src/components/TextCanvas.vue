@@ -12,7 +12,7 @@ const props = defineProps<{
 	opacity: number,
 	poiev: 'none' | 'initial',
 }>();
-const emit = defineEmits(['dragstart', 'dragend'])
+const emit = defineEmits(['dragstart', 'dragend', 'mouseenter', 'mouseleave'])
 
 const width = ref(0);
 const canvas = useTemplateRef('canvas');
@@ -75,7 +75,8 @@ function dragEnd(event: DragEvent) {
 
 <template>
 	<canvas ref="canvas" class="osdText" :width="width" height="72" :style="style" draggable="true"
-		@dragstart="dragStart" @dragend="dragEnd"></canvas>
+		@dragstart="dragStart" @dragend="dragEnd" @mouseenter="() => emit('mouseenter')"
+		@mouseleave="() => emit('mouseleave')"></canvas>
 </template>
 
 <style scoped>

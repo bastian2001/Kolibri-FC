@@ -20,6 +20,7 @@ const cols = ref(30);
 const canvasSizeSrc = ref(0)
 const showAlreadyPlaced = ref(false);
 let exiting = false;
+const hoverIndex = ref(-1);
 
 const charCanvases: HTMLCanvasElement[] = [];
 const draggerCanvas = useTemplateRef('draggerCanvas');
@@ -412,7 +413,8 @@ onBeforeUnmount(() => exiting = true)
 				<h3>Enabled OSD Elements</h3>
 				<template v-for="(el, index) in activeElements">
 					<div class="activeElement" v-if="OSD_LIST[el.id]">
-						<p>{{ OSD_LIST[el.id].name }}</p>
+						<p :style="`font-weight: ${index === hoverIndex ? 'bold' : 'normal'};`">{{ OSD_LIST[el.id].name
+						}}</p>
 						<select v-model="el.option" v-if="OSD_LIST[el.id].options">
 							<option v-for="(_, i) in OSD_LIST[el.id].options" :value="i">{{ i }}</option>
 						</select>
@@ -464,7 +466,9 @@ onBeforeUnmount(() => exiting = true)
 							:text="OSD_LIST[el.id].options ? OSD_LIST[el.id].options![el.option].preview : OSD_LIST[el.id].def"
 							:rows="rows" :cols="cols" :row="el.row" :col="el.col" :chars="charCanvases"
 							@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
-							:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd" />
+							:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd"
+							@mouseenter="() => hoverIndex = index"
+							@mouseleave="() => hoverIndex = hoverIndex === index ? -1 : hoverIndex" />
 					</template>
 					<TextCanvas v-if="dragging !== 'none' && !dragHide" :opacity="0.5" :rows="rows" :cols="cols"
 						:chars="charCanvases" :text="dragText" :row="draggingRow" :col="draggingCol" :poiev="'none'" />
