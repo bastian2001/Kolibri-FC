@@ -33,11 +33,26 @@ const dragTrashHover = ref(false);
 const dragHide = ref(true);
 const previewImage = useTemplateRef('previewImage');
 
+
 type OsdElement = {
 	name: string,
 	def: string,
-	options?: { name: string, preview: string, id?: number }[],
+	group?: string,
+	previewFn?: (element: OsdPlacement) => string,
+	options?: { name: string, preview?: string, id?: number }[], // Option Byte 0
+	options2?: { name: string, preview?: string, id?: number }[], // Option Byte 1
+	options3?: { name: string, preview?: string, id?: number }[], // Option Byte 2
+	options4?: { name: string, preview?: string, id?: number }[], // Option Byte 3
 }
+const OSD_GROUPS = [
+	{ name: 'Battery', expanded: true },
+	{ name: 'GPS', expanded: true },
+	{ name: 'Flight', expanded: true },
+	{ name: 'RC', expanded: true },
+	{ name: 'Sensors', expanded: true },
+	{ name: 'Time', expanded: true },
+	{ name: 'Warnings', expanded: true },
+]
 const OSD_LIST: OsdElement[] = []
 OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\u0006' };
 OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', def: '3.83\u0006' };
@@ -60,9 +75,16 @@ OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB' };
 
 OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101' };
 OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007b100%' };
+OSD_LIST[0x0062] = {
+	name: 'RC Channel Value', def: 'ROL:1312', previewFn: rcChannelTextPreview, options: [
+		{ name: "Roll" }, { name: "Pitch" }, { name: "Throttle" }, { name: "Yaw" }, { name: "Aux 1" }, { name: "Aux 2" }, { name: "Aux 3" }, { name: "Aux 4" }, { name: "Aux 5" }, { name: "Aux 6" }, { name: "Aux 7" }, { name: "Aux 8" }, { name: "Aux 9" }, { name: "Aux 10" }, { name: "Aux 11" }, { name: "Aux 12" }
+	], options2: [
+		{ name: "Without Label" }, { name: "With Label" }
+	]
+};
 
-OSD_LIST[0x0070] = { name: 'Baro Altitude', def: '\u007f128\u000c' };
-OSD_LIST[0x0071] = {
+OSD_LIST[0x0080] = { name: 'Baro Altitude', def: '\u007f128\u000c' };
+OSD_LIST[0x0081] = {
 	name: 'ESC Temperature', def: 'E\u007a69\u000e', options: [
 		{ name: "Maximum + Index", preview: 'E\u007a72\u000e@4' },
 		{ name: "Maximum", preview: 'E\u007a72\u000e' },
@@ -73,15 +95,10 @@ OSD_LIST[0x0071] = {
 		{ name: "ESC 4", preview: 'E\u007a72\u000e' }
 	]
 };
-OSD_LIST[0x0072] = { name: 'IMU Acceleration', def: '1.2G' };
-OSD_LIST[0x0073] = { name: 'IMU Pitch', def: '\u0015-12.3\u0008' };
-OSD_LIST[0x0074] = { name: 'IMU Roll', def: '\u0014-23.4\u0008' };
-OSD_LIST[0x0075] = { name: 'IMU Yaw', def: '34.5\u0008' };
-
-OSD_LIST[0x00A0] = { name: 'RC Roll', def: '1310' };
-OSD_LIST[0x00A1] = { name: 'RC Pitch', def: '1311' };
-OSD_LIST[0x00A2] = { name: 'RC Throttle', def: '1312' };
-OSD_LIST[0x00A3] = { name: 'RC Yaw', def: '1313' };
+OSD_LIST[0x0082] = { name: 'IMU Acceleration', def: '1.2G' };
+OSD_LIST[0x0083] = { name: 'IMU Pitch', def: '\u0015-12.3\u0008' };
+OSD_LIST[0x0084] = { name: 'IMU Roll', def: '\u0014-23.4\u0008' };
+OSD_LIST[0x0085] = { name: 'IMU Yaw', def: '34.5\u0008' };
 
 OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00' };
 OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00' };
@@ -93,11 +110,35 @@ OSD_LIST[0xFFF1] = { name: 'Debug 2', def: 'DBG 2' };
 OSD_LIST[0xFFF2] = { name: 'Debug 3', def: 'DBG 3' };
 OSD_LIST[0xFFF3] = { name: 'Debug 4', def: 'DBG 4' };
 
+function rcChannelTextPreview(el: OsdPlacement) {
+	console.log(el)
+	console.trace()
+	const channel = el.option || 0;
+	const withLabel = (el.option2 || 0) === 1;
+	const name = ['ROL', 'PIT', 'THR', 'YAW', 'A 1', 'A 2', 'A 3', 'A 4', 'A 5', 'A 6', 'A 7', 'A 8', 'A 9', 'A10', 'A11', 'A12'][channel] || `CH${channel + 1}`
+	return (withLabel ? (name + ':') : '') + ([1312, 1313, 1314, 1315][channel] || 1000);
+}
+
+function getPreviewText(el: OsdPlacement) {
+	const osdElement = OSD_LIST[el.id];
+	if (!osdElement) return 'Unknown Element';
+	const def = OSD_LIST[el.id].def;
+	if (osdElement.previewFn) return osdElement.previewFn(el);
+	if (osdElement.options4) return osdElement.options4[el.option4]?.preview || def;
+	if (osdElement.options3) return osdElement.options3[el.option3]?.preview || def;
+	if (osdElement.options2) return osdElement.options2[el.option2]?.preview || def;
+	if (osdElement.options) return osdElement.options[el.option]?.preview || def;
+	return def;
+}
+
 type OsdPlacement = {
 	id: number,
 	col: number,
 	row: number,
 	option: number,
+	option2: number,
+	option3: number,
+	option4: number,
 };
 const activeElements = ref([
 	{ id: 0x0000, col: 3, row: 1 },
@@ -192,9 +233,7 @@ function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar
 		const canvas = draggerCanvas.value;
 		if (!canvas) return;
 		const el = OSD_LIST[index]
-		let t = text || el.def
-		// TODO get option
-		if (el.options && !text) t = el.options[0].preview
+		let t = text || getPreviewText({ id: index, col: 0, row: 0, option: 0, option2: 0, option3: 0, option4: 0 });
 		canvas.width = 48 * t.length;
 		dragCanvasCols.value = t.length;
 		dragText.value = t
@@ -249,7 +288,7 @@ function dropped(event: DragEvent) {
 		el.row = row;
 		draggingIndex.value = -1;
 	} else {
-		activeElements.value.push({ id: draggingNew.value, col, row, option: 0 });
+		activeElements.value.push({ id: draggingNew.value, col, row, option: 0, option2: 0, option3: 0, option4: 0 });
 		draggingNew.value = -1;
 	}
 	pushElements();
@@ -275,8 +314,8 @@ async function pushElements() {
 		const el = activeElements.value[i];
 		if (!el) continue;
 		data.push(...intToLeBytes(el.id, 2));
-		data.push(...intToLeBytes(el.col, 1), ...intToLeBytes(el.row, 1));
-		data.push(...intToLeBytes(el.option, 4));
+		data.push(intToLeBytes(el.col, 1)[0], intToLeBytes(el.row, 1)[0]);
+		data.push(intToLeBytes(el.option, 1)[0], intToLeBytes(el.option2, 1)[0], intToLeBytes(el.option3, 1)[0], intToLeBytes(el.option4, 1)[0]);
 	}
 	try {
 		await sendCommand(MspFn.SET_OSD_ELEMENTS, data);
@@ -313,7 +352,10 @@ function getConfig() {
 				id: leBytesToInt(d, 0, 2),
 				col: d[2],
 				row: d[3],
-				option: leBytesToInt(d, 4, 4),
+				option: leBytesToInt(d, 4, 1),
+				option2: leBytesToInt(d, 5, 1),
+				option3: leBytesToInt(d, 6, 1),
+				option4: leBytesToInt(d, 7, 1)
 			};
 			if (el.id !== 0xFFFF) activeElements.value[i] = el;
 		}
@@ -418,18 +460,6 @@ onMounted(() => {
 
 onBeforeUnmount(leave)
 onBeforeUnmount(() => exiting = true)
-
-
-
-/**
- * Ideas:
- * - List all available OSD elements on the left (maybe grouped)
- * - Search through them
- * - Drag and drop onto canvas (center/right (no scroll))
- * - (live updates in goggles as you are dragging?)
- * - general settings at the top
- * - detailed settings can be below
- */
 </script>
 <template>
 	<div class="wrapper">
@@ -445,8 +475,22 @@ onBeforeUnmount(() => exiting = true)
 				<h3>Enabled OSD Elements</h3>
 				<template v-for="(el, index) in activeElements">
 					<div class="activeElement" v-if="OSD_LIST[el.id]">
-						<p :style="`font-weight: ${index === hoverIndex ? 'bold' : 'normal'};`">{{ OSD_LIST[el.id].name
-						}}</p>
+						<p :style="`font-weight: ${index === hoverIndex ? 'bold' : 'normal'};`"
+							:text="OSD_LIST[el.id].name">
+							{{ OSD_LIST[el.id].name }}
+						</p>
+						<select v-model="el.option4" v-if="OSD_LIST[el.id].options4" @change="pushElements">
+							<option v-for="(o, i) in OSD_LIST[el.id].options4" :value="o.id === undefined ? i : o.id">{{
+								o.name }}</option>
+						</select>
+						<select v-model="el.option3" v-if="OSD_LIST[el.id].options3" @change="pushElements">
+							<option v-for="(o, i) in OSD_LIST[el.id].options3" :value="o.id === undefined ? i : o.id">{{
+								o.name }}</option>
+						</select>
+						<select v-model="el.option2" v-if="OSD_LIST[el.id].options2" @change="pushElements">
+							<option v-for="(o, i) in OSD_LIST[el.id].options2" :value="o.id === undefined ? i : o.id">{{
+								o.name }}</option>
+						</select>
 						<select v-model="el.option" v-if="OSD_LIST[el.id].options" @change="pushElements">
 							<option v-for="(o, i) in OSD_LIST[el.id].options" :value="o.id === undefined ? i : o.id">{{
 								o.name }}</option>
@@ -470,12 +514,12 @@ onBeforeUnmount(() => exiting = true)
 			<div class="osdList">
 				<h3>Available Elements (Drag and Drop)</h3>
 				<div class="osdSearch">
-					<input type="text" v-model="filter" placeholder="Filter" style="margin-right: 1rem;">
+					<input type="text" v-model="filter" placeholder="Search" style="margin-right: 1rem;">
 					<input type="checkbox" id="showAlreadyPlaced" v-model="showAlreadyPlaced">&nbsp;
 					<label for="showAlreadyPlaced">Show already placed</label>
 				</div>
 				<div class="listElem"
-					v-for="el in filteredList.filter(osdEl => showAlreadyPlaced || activeElements.findIndex(actEl => OSD_LIST[actEl.id] === osdEl) === -1)"
+					v-for="el in filteredList.filter(osdEl => showAlreadyPlaced || filter || activeElements.findIndex(actEl => OSD_LIST[actEl.id] === osdEl) === -1)"
 					draggable="true" @dragstart="(event) => { dragStart(OSD_LIST.indexOf(el), event, 'copy') }"
 					@dragend="dragEnd">
 					<p><i class="fa-solid fa-arrow-pointer"></i>{{ el.name }}</p>
@@ -511,8 +555,8 @@ onBeforeUnmount(() => exiting = true)
 					<template v-for="(el, index) in activeElements">
 						<TextCanvas :key="index" v-if="OSD_LIST[el.id]"
 							:opacity="(index === draggingIndex && dragging !== 'none') ? 0 : 1"
-							:text="OSD_LIST[el.id].options ? OSD_LIST[el.id].options![el.option].preview : OSD_LIST[el.id].def"
-							:rows="rows" :cols="cols" :row="el.row" :col="el.col" :chars="charCanvases"
+							:text="getPreviewText(el)" :rows="rows" :cols="cols" :row="el.row" :col="el.col"
+							:chars="charCanvases"
 							@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
 							:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd"
 							@mouseenter="() => hoverIndex = index"
@@ -635,6 +679,14 @@ select {
 .listElem p {
 	flex-grow: 1;
 	margin: 0px;
+}
+
+.activeElement p::before {
+	content: attr(text);
+	visibility: hidden;
+	font-weight: bold;
+	height: 0px;
+	display: block;
 }
 
 .listElem i {
