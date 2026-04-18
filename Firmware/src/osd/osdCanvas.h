@@ -63,11 +63,7 @@ enum class OsdElementType : u16 {
 
 	// Sensors
 	BARO_ALTITUDE = 0x0070,
-	ESC_TEMP_0,
-	ESC_TEMP_1,
-	ESC_TEMP_2,
-	ESC_TEMP_3,
-	ESC_TEMP_AVG,
+	ESC_TEMP,
 	IMU_ACCELERATION,
 	IMU_PITCH,
 	IMU_ROLL,

@@ -10,6 +10,9 @@
 /// @brief Initializes the speaker
 void initSpeaker();
 
+/// @brief Plays the start sound, either from a WAV file or a fallback RTTTL string
+void playStartSound();
+
 /**
  * @brief Play a WAV file from the SD card
  *

@@ -63,6 +63,7 @@ void setup() {
 	DEBUG_PRINTLN("Setup complete");
 	taskTimer0 = 0;
 	setupDone |= 0b10;
+	playStartSound();
 	rom_flash_flush_cache();
 }
 

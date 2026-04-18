@@ -238,8 +238,8 @@ void OsdCanvas::drawElement(u32 index) {
 		//|     GPS Home Distance   |
 		//---------------------------
 		fix32 distN, distE;
-		distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
 		startFixMath();
+		distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
 		f32 dist = sqrtFix(distN * distN + distE * distE).getf32();
 
 		if (dist < 100) {
@@ -256,6 +256,19 @@ void OsdCanvas::drawElement(u32 index) {
 		break;
 	}
 	case OsdElementType::HOME_DIRECTION: {
+		//---------------------------
+		//|     GPS Home Direction  |
+		//---------------------------
+		fix32 distN, distE;
+		startFixMath();
+		distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
+		fix32 angle = FIX_PI + FIX_TWOPI + combinedHeading - atan2Fix(distE, distN); // FIX_PI for alignment, TWOPI for positive result
+		u8 arrow = '\x60';
+		arrow += (u8)((angle / FIX_TWOPI) * 16).geti32() & 0xF; // 16 arrows for a full circle
+		char *ptr = getBufferPtr(element.col, element.row);
+		if (ptr) {
+			*ptr = arrow;
+		}
 	} break;
 	case OsdElementType::SAT_COUNT: {
 		//---------------------------
@@ -319,36 +332,36 @@ void OsdCanvas::drawElement(u32 index) {
 	} break;
 	case OsdElementType::BARO_ALTITUDE: {
 	} break;
-	case OsdElementType::ESC_TEMP_0: {
+	case OsdElementType::ESC_TEMP: {
 		//---------------------------
-		//|     ESC Temp 0          |
+		//|     ESC Temp            |
 		//---------------------------
-		printOnBuffer(element, "\x7A%d\x0E", escTemp[0]); //! untested @Bastian.
-	} break;
-	case OsdElementType::ESC_TEMP_1: {
-		//---------------------------
-		//|     ESC Temp 1          |
-		//---------------------------
-		printOnBuffer(element, "\x7A%d\x0E", escTemp[1]); //! untested @Bastian.
-	} break;
-	case OsdElementType::ESC_TEMP_2: {
-		//---------------------------
-		//|     ESC Temp 2          |
-		//---------------------------
-		printOnBuffer(element, "\x7A%d\x0E", escTemp[2]); //! untested @Bastian.
-	} break;
-	case OsdElementType::ESC_TEMP_3: {
-		//---------------------------
-		//|     ESC Temp 3          |
-		//---------------------------
-		printOnBuffer(element, "\x7A%d\x0E", escTemp[3]); //! untested @Bastian.
-	} break;
-	case OsdElementType::ESC_TEMP_AVG: {
-		//---------------------------
-		//|     ESC Temp Avg        |
-		//---------------------------
-		int avgTemp = (escTemp[0] + escTemp[1] + escTemp[2] + escTemp[3]) / 4;
-		printOnBuffer(element, "\x7A%d\x0E", avgTemp); //! untested @Bastian.
+		switch (element.option) {
+		case 0:
+		case 1: { // max temp
+			int maxTemp = escTemp[0];
+			int maxIndex = 0;
+			for (int i = 1; i < 4; i++) {
+				if (escTemp[i] > maxTemp) {
+					maxTemp = escTemp[i];
+					maxIndex = i;
+				}
+			}
+			if (element.option == 0) {
+				printOnBuffer(element, "E\x7A%d\x0E@%d", maxTemp, maxIndex + 1);
+			} else {
+				printOnBuffer(element, "E\x7A%d\x0E", maxTemp);
+			}
+		} break;
+		case 2: { // avg temp
+			int avgTemp = (escTemp[0] + escTemp[1] + escTemp[2] + escTemp[3] + 2) / 4;
+			printOnBuffer(element, "E\x7A%d\x0E", avgTemp);
+		} break;
+		default: {
+			int escIndex = (element.option - 3) & 0x3;
+			printOnBuffer(element, "E\x7A%d\x0E", escTemp[escIndex]);
+		} break;
+		}
 	} break;
 	case OsdElementType::IMU_ACCELERATION: {
 		startFixMath();
@@ -356,13 +369,13 @@ void OsdCanvas::drawElement(u32 index) {
 		printOnBuffer(element, "%.1fG", accel.getf32());
 	} break;
 	case OsdElementType::IMU_PITCH: {
-		printOnBuffer(element, "\u0015%.1fD", (pitch * FIX_RAD_TO_DEG).getf32());
+		printOnBuffer(element, "\u0015%.1f\x08", (pitch * FIX_RAD_TO_DEG).getf32());
 	} break;
 	case OsdElementType::IMU_ROLL: {
-		printOnBuffer(element, "\u0014%.1fD", (roll * FIX_RAD_TO_DEG).getf32());
+		printOnBuffer(element, "\u0014%.1f\x08", (roll * FIX_RAD_TO_DEG).getf32());
 	} break;
 	case OsdElementType::IMU_YAW: {
-		printOnBuffer(element, "%.1fD", (yaw * FIX_RAD_TO_DEG).getf32());
+		printOnBuffer(element, "%.1f\x08", (yaw * FIX_RAD_TO_DEG).getf32());
 	} break;
 	case OsdElementType::RC_ROLL: {
 		//? Wouldn't it be neat to have a dedicated Icon-Char for Roll Pich and Yaw?
@@ -385,7 +398,7 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|        Warnings         |
 		//---------------------------
-		// Basic implementation, would be nice to have a (at least partially) event driven system
+		// Basic implementation, would be nice to have an (at least partially) event driven system
 		char warningStr[16] = {};
 		memcpy(warningStr, "               ", 15);
 		// The blinker ^~^

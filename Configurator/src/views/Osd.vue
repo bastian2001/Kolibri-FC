@@ -36,7 +36,7 @@ const previewImage = useTemplateRef('previewImage');
 type OsdElement = {
 	name: string,
 	def: string,
-	options?: { name: string, preview: string }[],
+	options?: { name: string, preview: string, id?: number }[],
 }
 const OSD_LIST: OsdElement[] = []
 OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\u0006' };
@@ -62,15 +62,21 @@ OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101' };
 OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007b100%' };
 
 OSD_LIST[0x0070] = { name: 'Baro Altitude', def: '\u007f128\u000c' };
-OSD_LIST[0x0071] = { name: 'ESC Temp 0', def: 'E\u007a69\u000e' };
-OSD_LIST[0x0072] = { name: 'ESC Temp 1', def: 'E\u007a70\u000e' };
-OSD_LIST[0x0073] = { name: 'ESC Temp 2', def: 'E\u007a71\u000e' };
-OSD_LIST[0x0074] = { name: 'ESC Temp 3', def: 'E\u007a72\u000e' };
-OSD_LIST[0x0075] = { name: 'ESC Temp Avg', def: 'E\u007a70\u000e' };
-OSD_LIST[0x0076] = { name: 'IMU Acceleration', def: '1.2G' };
-OSD_LIST[0x0077] = { name: 'IMU Pitch', def: '\u0015-12.3D' };
-OSD_LIST[0x0078] = { name: 'IMU Roll', def: '\u0014-23.4D' };
-OSD_LIST[0x0079] = { name: 'IMU Yaw', def: '34.5D' };
+OSD_LIST[0x0071] = {
+	name: 'ESC Temperature', def: 'E\u007a69\u000e', options: [
+		{ name: "Maximum + Index", preview: 'E\u007a72\u000e@4' },
+		{ name: "Maximum", preview: 'E\u007a72\u000e' },
+		{ name: "Average", preview: 'E\u007a71\u000e' },
+		{ name: "ESC 1", preview: 'E\u007a69\u000e' },
+		{ name: "ESC 2", preview: 'E\u007a70\u000e' },
+		{ name: "ESC 3", preview: 'E\u007a71\u000e' },
+		{ name: "ESC 4", preview: 'E\u007a72\u000e' }
+	]
+};
+OSD_LIST[0x0072] = { name: 'IMU Acceleration', def: '1.2G' };
+OSD_LIST[0x0073] = { name: 'IMU Pitch', def: '\u0015-12.3\u0008' };
+OSD_LIST[0x0074] = { name: 'IMU Roll', def: '\u0014-23.4\u0008' };
+OSD_LIST[0x0075] = { name: 'IMU Yaw', def: '34.5\u0008' };
 
 OSD_LIST[0x00A0] = { name: 'RC Roll', def: '1310' };
 OSD_LIST[0x00A1] = { name: 'RC Pitch', def: '1311' };
@@ -441,9 +447,19 @@ onBeforeUnmount(() => exiting = true)
 					<div class="activeElement" v-if="OSD_LIST[el.id]">
 						<p :style="`font-weight: ${index === hoverIndex ? 'bold' : 'normal'};`">{{ OSD_LIST[el.id].name
 						}}</p>
-						<select v-model="el.option" v-if="OSD_LIST[el.id].options">
-							<option v-for="(_, i) in OSD_LIST[el.id].options" :value="i">{{ i }}</option>
+						<select v-model="el.option" v-if="OSD_LIST[el.id].options" @change="pushElements">
+							<option v-for="(o, i) in OSD_LIST[el.id].options" :value="o.id === undefined ? i : o.id">{{
+								o.name }}</option>
 						</select>
+						<!-- SPECIAL ELEMENT OPTIONS FOR SOME ELEMENTS -->
+						<!-- SPECIAL ELEMENT OPTIONS END-->
+						<button class="defaultBtn red small"
+							@click="() => { delete activeElements[index]; collapse(); pushElements(); }">
+							<i class="fa-solid fa-trash"></i>
+						</button>
+					</div>
+					<div class="activeElement" v-else>
+						<p style="font-style: italic; color: grey;">Unknown Element {{ el.id }}</p>
 						<button class="defaultBtn red small"
 							@click="() => { delete activeElements[index]; collapse(); pushElements(); }">
 							<i class="fa-solid fa-trash"></i>
