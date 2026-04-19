@@ -36,7 +36,7 @@ let previewScreen = new Uint8Array(rows.value * cols.value);
 const previewSnippets = ref<{ text: string, x: number, y: number }[]>([])
 let gotHeartbeat = false;
 let heartbeatInterval = -1;
-const showRealPreview = ref(true);
+const showRealPreview = ref(false);
 
 watch([rows, cols], ([newRows, newCols]) => {
 	previewScreen = new Uint8Array(newRows * newCols);
