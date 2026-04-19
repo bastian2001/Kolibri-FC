@@ -6,6 +6,7 @@ import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
 import { delay, intToLeBytes, leBytesToInt } from "@/utils/utils";
+import { t } from "vue-router/dist/index-BzEKChPW.js";
 
 const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
@@ -37,53 +38,61 @@ const previewImage = useTemplateRef('previewImage');
 type OsdElement = {
 	name: string,
 	def: string,
-	group?: string,
+	group: string,
 	previewFn?: (element: OsdPlacement) => string,
 	options?: { name: string, preview?: string, id?: number }[], // Option Byte 0
 	options2?: { name: string, preview?: string, id?: number }[], // Option Byte 1
 	options3?: { name: string, preview?: string, id?: number }[], // Option Byte 2
 	options4?: { name: string, preview?: string, id?: number }[], // Option Byte 3
 }
-const OSD_GROUPS = [
-	{ name: 'Battery', expanded: true },
-	{ name: 'GPS', expanded: true },
-	{ name: 'Flight', expanded: true },
-	{ name: 'RC', expanded: true },
-	{ name: 'Sensors', expanded: true },
-	{ name: 'Time', expanded: true },
-	{ name: 'Warnings', expanded: true },
-]
+type OsdGroup = {
+	name: string,
+	short: string,
+	expanded: boolean,
+	hidden?: boolean
+}
+const groups = ref<OsdGroup[]>([
+	{ name: 'Battery', short: 'bat', expanded: true },
+	{ name: 'GPS', short: 'gps', expanded: true },
+	{ name: 'Flight', short: 'flight', expanded: true },
+	{ name: 'RC', short: 'rc', expanded: true },
+	{ name: 'Sensors', short: 'sensor', expanded: true },
+	{ name: 'Timers', short: 'timer', expanded: true },
+	{ name: 'Other', short: 'other', expanded: true },
+	{ name: 'Debug', short: 'debug', expanded: true, hidden: true }
+]);
 const OSD_LIST: OsdElement[] = []
-OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\u0006' };
-OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', def: '3.83\u0006' };
-OSD_LIST[0x0002] = { name: 'Battery Cell Count', def: '4S' };
-OSD_LIST[0x0003] = { name: 'Battery Current', def: '109\u009a' };
-OSD_LIST[0x0004] = { name: 'Battery mAh drawn', def: '1001\u0007' };
-OSD_LIST[0x0005] = { name: 'Battery Voltage Min', def: '13.3\u0006' };
+OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\u0006', group: 'bat' };
+OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', def: '3.83\u0006', group: 'bat' };
+OSD_LIST[0x0002] = { name: 'Battery Cell Count', def: '4S', group: 'bat' };
+OSD_LIST[0x0003] = { name: 'Battery Current', def: '109\u009a', group: 'bat' };
+OSD_LIST[0x0004] = { name: 'Battery mAh drawn', def: '1001\u0007', group: 'bat' };
+OSD_LIST[0x0005] = { name: 'Battery Voltage Min', def: '13.3\u0006', group: 'bat' };
 
-OSD_LIST[0x0020] = { name: 'GPS Longitude', def: '\u0098 13.413049' };
-OSD_LIST[0x0021] = { name: 'GPS Latitude', def: '\u0089 52.526477' };
-OSD_LIST[0x0022] = { name: 'GPS Pluscode', def: '9F4MGCG7+H6' };
-OSD_LIST[0x0023] = { name: 'Speed', def: '161\u009e' };
-OSD_LIST[0x0024] = { name: 'Altitude', def: '\u007f123\u000c' };
-OSD_LIST[0x0025] = { name: 'Home Distance', def: '\u0011234\u000c' };
-OSD_LIST[0x0026] = { name: 'Home Direction', def: '\u0062' };
-OSD_LIST[0x0027] = { name: 'GPS Satellite Count', def: '\u001e\u001f12' };
+OSD_LIST[0x0020] = { name: 'GPS Longitude', def: '\u0098 13.413049', group: 'gps' };
+OSD_LIST[0x0021] = { name: 'GPS Latitude', def: '\u0089 52.526477', group: 'gps' };
+OSD_LIST[0x0022] = { name: 'GPS Pluscode', def: '9F4MGCG7+H6', group: 'gps' };
+OSD_LIST[0x0023] = { name: 'Speed', def: '161\u009e', group: 'gps' };
+OSD_LIST[0x0024] = { name: 'Altitude', def: '\u007f123\u000c', group: 'gps' };
+OSD_LIST[0x0025] = { name: 'Home Distance', def: '\u0011234\u000c', group: 'gps' };
+OSD_LIST[0x0026] = { name: 'Home Direction', def: '\u0062', group: 'gps' };
+OSD_LIST[0x0027] = { name: 'GPS Satellite Count', def: '\u001e\u001f12', group: 'gps' };
 
-OSD_LIST[0x0040] = { name: 'Flight Mode', def: 'ACRO' };
-OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB' };
+OSD_LIST[0x0040] = { name: 'Flight Mode', def: 'ACRO', group: 'flight' };
+OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB', group: 'flight' };
 
-OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101' };
-OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007b100%' };
+OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101', group: 'rc' };
+OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007b100%', group: 'rc' };
 OSD_LIST[0x0062] = {
 	name: 'RC Channel Value', def: 'ROL:1312', previewFn: rcChannelTextPreview, options: [
 		{ name: "Roll" }, { name: "Pitch" }, { name: "Throttle" }, { name: "Yaw" }, { name: "Aux 1" }, { name: "Aux 2" }, { name: "Aux 3" }, { name: "Aux 4" }, { name: "Aux 5" }, { name: "Aux 6" }, { name: "Aux 7" }, { name: "Aux 8" }, { name: "Aux 9" }, { name: "Aux 10" }, { name: "Aux 11" }, { name: "Aux 12" }
 	], options2: [
 		{ name: "Without Label" }, { name: "With Label" }
-	]
+	],
+	group: 'rc'
 };
 
-OSD_LIST[0x0080] = { name: 'Baro Altitude', def: '\u007f128\u000c' };
+OSD_LIST[0x0080] = { name: 'Baro Altitude', def: '\u007f128\u000c', group: 'sensor' };
 OSD_LIST[0x0081] = {
 	name: 'ESC Temperature', def: 'E\u007a69\u000e', options: [
 		{ name: "Maximum + Index", preview: 'E\u007a72\u000e@4' },
@@ -93,22 +102,22 @@ OSD_LIST[0x0081] = {
 		{ name: "ESC 2", preview: 'E\u007a70\u000e' },
 		{ name: "ESC 3", preview: 'E\u007a71\u000e' },
 		{ name: "ESC 4", preview: 'E\u007a72\u000e' }
-	]
+	], group: 'sensor'
 };
-OSD_LIST[0x0082] = { name: 'IMU Acceleration', def: '1.2G' };
-OSD_LIST[0x0083] = { name: 'IMU Pitch', def: '\u0015-12.3\u0008' };
-OSD_LIST[0x0084] = { name: 'IMU Roll', def: '\u0014-23.4\u0008' };
-OSD_LIST[0x0085] = { name: 'IMU Yaw', def: '34.5\u0008' };
+OSD_LIST[0x0082] = { name: 'IMU Acceleration', def: '1.2G', group: 'sensor' };
+OSD_LIST[0x0083] = { name: 'IMU Pitch', def: '\u0015-12.3\u0008', group: 'sensor' };
+OSD_LIST[0x0084] = { name: 'IMU Roll', def: '\u0014-23.4\u0008', group: 'sensor' };
+OSD_LIST[0x0085] = { name: 'IMU Yaw', def: '34.5\u0008', group: 'sensor' };
 
-OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00' };
-OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00' };
+OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00', group: 'timer' };
+OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00', group: 'timer' };
 
-OSD_LIST[0x00C0] = { name: 'Warnings', def: '##LOW VOLTAGE##' };
+OSD_LIST[0x00C0] = { name: 'Warnings', def: '##LOW VOLTAGE##', group: 'other' };
 
-OSD_LIST[0xFFF0] = { name: 'Debug 1', def: 'DBG 1' };
-OSD_LIST[0xFFF1] = { name: 'Debug 2', def: 'DBG 2' };
-OSD_LIST[0xFFF2] = { name: 'Debug 3', def: 'DBG 3' };
-OSD_LIST[0xFFF3] = { name: 'Debug 4', def: 'DBG 4' };
+OSD_LIST[0xFFF0] = { name: 'Debug 1', def: 'DBG 1', group: 'debug' };
+OSD_LIST[0xFFF1] = { name: 'Debug 2', def: 'DBG 2', group: 'debug' };
+OSD_LIST[0xFFF2] = { name: 'Debug 3', def: 'DBG 3', group: 'debug' };
+OSD_LIST[0xFFF3] = { name: 'Debug 4', def: 'DBG 4', group: 'debug' };
 
 function rcChannelTextPreview(el: OsdPlacement) {
 	console.log(el)
@@ -458,6 +467,25 @@ onMounted(() => {
 	sendDragNDrop();
 })
 
+const groupedElements = computed(() => {
+	const groupList: { [key: string]: { ids: number[], group: OsdGroup } } = {};
+	const actEls = activeElements.value;
+	const hideAlreadyPlaced = !showAlreadyPlaced.value;
+	const gr = groups.value.filter(g => !g.hidden || !hideAlreadyPlaced);
+	OSD_LIST.forEach((el, i) => {
+		if (!el) return;
+		if (hideAlreadyPlaced && actEls.findIndex(actEl => actEl.id === i) !== -1) return;
+		const g = gr.find(g => g.short === el.group);
+		if (!g) return;
+		let group = groupList[g.short];
+		if (!group) {
+			group = groupList[g.short] = { ids: [], group: g };
+		}
+		group.ids.push(i);
+	})
+	return groupList;
+})
+
 onBeforeUnmount(leave)
 onBeforeUnmount(() => exiting = true)
 </script>
@@ -518,12 +546,30 @@ onBeforeUnmount(() => exiting = true)
 					<input type="checkbox" id="showAlreadyPlaced" v-model="showAlreadyPlaced">&nbsp;
 					<label for="showAlreadyPlaced">Show already placed</label>
 				</div>
-				<div class="listElem"
-					v-for="el in filteredList.filter(osdEl => showAlreadyPlaced || filter || activeElements.findIndex(actEl => OSD_LIST[actEl.id] === osdEl) === -1)"
-					draggable="true" @dragstart="(event) => { dragStart(OSD_LIST.indexOf(el), event, 'copy') }"
-					@dragend="dragEnd">
-					<p><i class="fa-solid fa-arrow-pointer"></i>{{ el.name }}</p>
-				</div>
+				<template v-if="filter">
+					<div class="listElem" v-for="el in filteredList" draggable="true"
+						@dragstart="(event) => { dragStart(OSD_LIST.indexOf(el), event, 'copy') }" @dragend="dragEnd">
+						<p><i class="fa-solid fa-arrow-pointer"></i>{{ el.name }}</p>
+					</div>
+				</template>
+				<template v-else>
+					<div class="listGroup" v-for="g in groupedElements">
+						<div class="groupHeader" :class="{ expanded: g.group.expanded }"
+							@click="() => g.group.expanded = !g.group.expanded">
+							<p>
+								<i class="fa-solid fa-angle-right"
+									:style="`transform:rotate(${g.group.expanded ? 90 : 0}deg);`"></i>
+								{{ g.group.name }}
+							</p>
+						</div>
+						<template v-if="g.group.expanded">
+							<div class="listElem" v-for="(id, i) in g.ids" draggable="true"
+								@dragstart="(event) => { dragStart(id, event, 'copy') }" :key="i" @dragend="dragEnd">
+								<p><i class="fa-solid fa-arrow-pointer"></i>{{ OSD_LIST[id].name }}</p>
+							</div>
+						</template>
+					</div>
+				</template>
 			</div>
 		</div>
 		<div class="line"></div>
@@ -616,6 +662,7 @@ select {
 	box-sizing: border-box;
 	border: 3px solid var(--border-color);
 	transition: all .2s ease-out;
+	z-index: 1;
 }
 
 .dragTrash.red {
@@ -657,6 +704,32 @@ select {
 	margin: .2rem 0px .4rem 0px;
 }
 
+.groupHeader {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	padding: .5rem .6rem;
+	user-select: none;
+}
+
+.groupHeader.expanded {
+	border-bottom: 1px solid var(--border-color);
+}
+
+.listGroup+.listGroup .groupHeader {
+	border-top: 3px solid var(--border-color);
+}
+
+.groupHeader p {
+	font-weight: bold;
+	margin: 0px;
+}
+
+.groupHeader i {
+	transition: transform 0.2s ease-out;
+	margin-right: 1rem;
+}
+
 .activeElement,
 .listElem {
 	display: flex;
@@ -668,6 +741,10 @@ select {
 
 .listElem {
 	padding: .5rem .6rem;
+}
+
+.listGroup .listElem {
+	padding-left: 2rem;
 }
 
 .activeElement:not(:last-child),
