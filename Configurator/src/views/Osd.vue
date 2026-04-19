@@ -159,11 +159,11 @@ type OsdPlacement = {
 	row: number,
 	option: number[],
 };
-const activeElements = ref([
-	{ id: 0x0000, col: 3, row: 1 },
-	{ id: 0x00C0, col: 8, row: 1 },
-	{ id: 0x0060, col: 23, row: 1 },
-] as OsdPlacement[])
+const activeElements = ref<OsdPlacement[]>([
+	{ id: 0x0000, col: 3, row: 1, option: [0, 0, 0, 0] },
+	{ id: 0x00C0, col: 8, row: 1, option: [0, 0, 0, 0] },
+	{ id: 0x0060, col: 23, row: 1, option: [0, 0, 0, 0] },
+])
 
 const filteredList = computed(() =>
 	OSD_LIST.filter(
@@ -531,8 +531,7 @@ onBeforeUnmount(() => exiting = true)
 								const text = (event.target as HTMLInputElement).value;
 								if (text.length === 1) { el.option[i] = text.charCodeAt(0); }
 								else { el.option[i] = parseInt(text) || 0; } pushElements();
-							}" style="width: 35px;" placeholder="A, 0x41..."
-								:value="'0x' + o.toString(16).padStart(2, '0')">
+							}" style="width: 35px;" placeholder="A, 0x41..." :value="'0x' + o.toString(16).padStart(2, '0')">
 						</template>
 						<!-- SPECIAL ELEMENT OPTIONS END-->
 						<button class="defaultBtn red small"
