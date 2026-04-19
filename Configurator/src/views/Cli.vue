@@ -121,7 +121,7 @@ export default defineComponent({
 <template>
 	<div class="wrapper">
 		<div class="output">
-			<p v-for="(line, index) in outputLines" :key="'cli' + index">{{ line }}</p>
+			<p v-for="(line, index) in outputLines" :key="'cli' + index">{{ line || ' ' }}</p>
 			<div class="spacer"></div>
 		</div>
 		<div class="input">

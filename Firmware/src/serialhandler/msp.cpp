@@ -533,6 +533,13 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			string response = string(reqPayload, reqLen);
 			response += "\n";
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+
+			Command test("test", "a test command", "test <main> -b <important> [args]");
+			test.addStringArg("main", 0, false, true, 12, "first argument", "string");
+			test.addIntArg("important", 'b', false, false, 0, 100, "second argument", "");
+			test.addFloatArg("useless", 'c', true, false, 0, 100, "third argument", "");
+			test.printMan(serialNum);
+
 			response = processCliCommand(reqPayload, reqLen);
 			response += "\n>> ";
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());

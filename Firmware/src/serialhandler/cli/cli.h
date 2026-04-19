@@ -1,3 +1,4 @@
+#include "command.h"
 #include "typedefs.h"
 #include <string>
 
