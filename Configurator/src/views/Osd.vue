@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onConnectHandler, sendCommand, strToArray } from "@/msp/comm";
+import { onCommandHandler, onConnectHandler, sendCommand, strToArray } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
 import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
 import { delay, intToLeBytes, leBytesToInt } from "@/utils/utils";
+import { show } from "@tauri-apps/api/app";
 
 const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
@@ -32,6 +33,15 @@ let grabbedChar = 0;
 const dragTrashHover = ref(false);
 const dragHide = ref(true);
 const previewImage = useTemplateRef('previewImage');
+let previewScreen = new Uint8Array(rows.value * cols.value);
+const previewSnippets = ref<{ text: string, x: number, y: number }[]>([])
+let gotHeartbeat = false;
+let heartbeatInterval = -1;
+const showRealPreview = ref(true);
+
+watch([rows, cols], ([newRows, newCols]) => {
+	previewScreen = new Uint8Array(newRows * newCols);
+})
 
 
 type OsdElement = {
@@ -390,9 +400,8 @@ function getConfig() {
 		detectedMax.value = data[0] & (1 << 0) ? true : false;
 		detectedPal.value = data[0] & (1 << 1) ? true : false;
 		detectedNtsc.value = data[0] & (1 << 2) ? true : false;
-		return sendCommand(MspFn.OSD_CONTROL, [0])
-	}).then(() => sendCommand(MspFn.OSD_CONTROL, [2]))
-		.catch(() => { })
+		return sendCommand(MspFn.OSD_CONTROL, [2])
+	}).catch(() => { })
 }
 
 function collapse() {
@@ -455,6 +464,15 @@ async function sendDragNDrop() {
 	}
 }
 
+function enableRealPreview() {
+	showRealPreview.value = true;
+	sendCommand(MspFn.OSD_CONTROL, [0]).catch(() => { });
+}
+function disableRealPreview() {
+	showRealPreview.value = false;
+	sendCommand(MspFn.OSD_CONTROL, [1]).catch(() => { });
+}
+
 function setCursorPos(event: MouseEvent) {
 	if (!previewImage.value) return;
 	const box = previewImage.value.getBoundingClientRect();
@@ -472,8 +490,65 @@ function disableCursor() { cursorEnabled = false; updateCursor = true; }
 
 onMounted(() => {
 	getConfig();
-	createCanvases()
-	onConnectHandler(getConfig)
+	createCanvases();
+	onConnectHandler(getConfig);
+	onCommandHandler(command => {
+		if (command.cmdType !== 'response') return;
+		if (command.command === MspFn.MSP_DISPLAYPORT) {
+			const d = command.data
+			switch (d[0]) {
+				case 0: // heartbeat
+					gotHeartbeat = true;
+					break;
+				case 2: // clear
+					previewScreen.fill(0);
+					break;
+				case 3: // write string
+					let row = d[1];
+					let col = d[2];
+					const text = d.slice(4);
+					for (let i = 0; i < text.length; i++) {
+						const c = text[i];
+						if (col >= cols.value) {
+							col = 0;
+							row++;
+							if (row >= rows.value) break;
+						}
+						previewScreen[row * cols.value + col] = c;
+						col++;
+					}
+					break;
+				case 4: // flush to snippets
+					previewSnippets.value.length = 0;
+					let writingToSnippet = false;
+					let currentSnippet = { text: '', x: 0, y: 0 };
+					for (let i = 0; i < previewScreen.length; i++) {
+						const c = previewScreen[i];
+						if (c) {
+							if (!writingToSnippet) {
+								writingToSnippet = true;
+								currentSnippet.x = i % cols.value;
+								currentSnippet.y = Math.floor(i / cols.value);
+							}
+							currentSnippet.text += String.fromCharCode(c);
+						} else {
+							if (writingToSnippet) {
+								writingToSnippet = false;
+								previewSnippets.value.push(currentSnippet);
+								currentSnippet = { text: '', x: 0, y: 0 };
+							}
+						}
+					}
+					break;
+			}
+		}
+	})
+	heartbeatInterval = setInterval(() => {
+		if (!gotHeartbeat && showRealPreview.value) {
+			sendCommand(MspFn.OSD_CONTROL, { data: [0], retries: 0 }).catch(() => { });
+		}
+		gotHeartbeat = false;
+	}, 1000)
 	sendDragNDrop();
 })
 
@@ -498,6 +573,7 @@ const groupedElements = computed(() => {
 
 onBeforeUnmount(leave)
 onBeforeUnmount(() => exiting = true)
+onBeforeUnmount(() => clearInterval(heartbeatInterval))
 </script>
 <template>
 	<div class="wrapper">
@@ -583,8 +659,9 @@ onBeforeUnmount(() => exiting = true)
 		</div>
 		<div class="line"></div>
 		<div class="previewWrapper">
-			<div class="preview">
-				<div>
+			<div class="preview"
+				:style="`grid-template-columns: ${showRealPreview ? 'repeat(auto-fit, minmax(min(100%, max(500px, calc(50% - 1rem))), 1fr))' : '1fr 0fr'};`">
+				<div style="grid-column: 1 / -1;">
 					<button @click="save">Save</button>
 					<p>
 						Canvas Size:
@@ -597,28 +674,47 @@ onBeforeUnmount(() => exiting = true)
 						{{ detectedVideo }}
 					</p>
 				</div>
-				<div class="previewImage" :style="aspectStyle" @drop="dropped" @dragover="dragover"
-					@dragleave="() => dragHide = true" ref="previewImage" @mouseenter="enableCursor"
-					@mouseleave="disableCursor" @mousemove="setCursorPos">
-					<img src="@assets/DJI_0124.JPG">
-					<div class="grid" :style="`display: ${dragging === 'none' ? 'none' : 'block'}`">
-						<div class="hline" v-for="i in (rows - 1)" :style="`top: ${100 * i / rows}%`"></div>
-						<div class="vline" v-for="i in (cols - 1)" :style="`left: ${100 * i / cols}%`"></div>
+				<div class="previewImageWrapper">
+					<div class="previewImage" :class="{ splitview: showRealPreview }" :style="aspectStyle"
+						@drop="dropped" @dragover="dragover" @dragleave="() => dragHide = true" ref="previewImage"
+						@mouseenter="enableCursor" @mouseleave="disableCursor" @mousemove="setCursorPos">
+						<img src="@assets/DJI_0124.JPG">
+						<div class="grid" :style="`display: ${dragging === 'none' ? 'none' : 'block'}`">
+							<div class="hline" v-for="i in (rows - 1)" :style="`top: ${100 * i / rows}%`"></div>
+							<div class="vline" v-for="i in (cols - 1)" :style="`left: ${100 * i / cols}%`"></div>
+						</div>
+						<canvas class="draggerCanvas" ref="draggerCanvas"
+							:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 / rows}%;`"></canvas>
+						<template v-for="(el, index) in activeElements">
+							<TextCanvas :key="index" v-if="OSD_LIST[el.id]"
+								:opacity="(index === draggingIndex && dragging !== 'none') ? 0 : 1"
+								:text="getPreviewText(el)" :rows="rows" :cols="cols" :row="el.row" :col="el.col"
+								:chars="charCanvases"
+								@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
+								:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd"
+								@mouseenter="() => hoverIndex = index"
+								@mouseleave="() => hoverIndex = hoverIndex === index ? -1 : hoverIndex" />
+						</template>
+						<TextCanvas v-if="dragging !== 'none' && !dragHide" :opacity="0.5" :rows="rows" :cols="cols"
+							:chars="charCanvases" :text="dragText" :row="draggingRow" :col="draggingCol"
+							:poiev="'none'" />
 					</div>
-					<canvas class="draggerCanvas" ref="draggerCanvas"
-						:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 / rows}%;`"></canvas>
-					<template v-for="(el, index) in activeElements">
-						<TextCanvas :key="index" v-if="OSD_LIST[el.id]"
-							:opacity="(index === draggingIndex && dragging !== 'none') ? 0 : 1"
-							:text="getPreviewText(el)" :rows="rows" :cols="cols" :row="el.row" :col="el.col"
-							:chars="charCanvases"
-							@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
-							:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd"
-							@mouseenter="() => hoverIndex = index"
-							@mouseleave="() => hoverIndex = hoverIndex === index ? -1 : hoverIndex" />
-					</template>
-					<TextCanvas v-if="dragging !== 'none' && !dragHide" :opacity="0.5" :rows="rows" :cols="cols"
-						:chars="charCanvases" :text="dragText" :row="draggingRow" :col="draggingCol" :poiev="'none'" />
+				</div>
+				<div class="previewImageWrapper" v-if="showRealPreview">
+					<div class="previewImage splitview" :style="aspectStyle">
+						<img src="@assets/DJI_0124.JPG">
+						<button style="position: absolute; right: 0px; font-size: 1.5rem;"
+							@click="disableRealPreview"><i class="fa-solid fa-close"></i></button>
+						<template v-for="s in previewSnippets" :key="s.x + '-' + s.y">
+							<TextCanvas :opacity="1" :rows="rows" :cols="cols" :row="s.y" :col="s.x" poiev="none"
+								:chars="charCanvases" :text="s.text" />
+						</template>
+					</div>
+				</div>
+				<div class="addRealPreview" v-else>
+					<button @click="enableRealPreview" class="defaultBtn">
+						<i class="fa-solid fa-eye"></i>
+					</button>
 				</div>
 			</div>
 		</div>
@@ -641,10 +737,10 @@ select {
 	display: flex;
 	flex-direction: row;
 	gap: .8rem;
+	margin: 1rem;
 }
 
 .osdListWrapper {
-	margin: 1rem;
 	padding: 1rem;
 	border-radius: 1rem;
 	background-color: var(--background-light);
@@ -782,7 +878,6 @@ select {
 .line {
 	width: 2px;
 	flex-shrink: 0;
-	margin: 1rem 0px;
 	background-color: var(--border-color);
 }
 
@@ -793,14 +888,27 @@ select {
 .preview {
 	position: sticky;
 	top: 0;
+	display: grid;
+	gap: 1rem;
+}
+
+.previewImageWrapper {
+	width: 100%;
+	max-height: 70vh;
 }
 
 .previewImage {
 	position: relative;
 	overflow: hidden;
-	min-width: 500px;
-	max-height: 70vh;
 	margin: 0px auto;
+	max-height: 70vh;
+}
+
+.splitview {
+	display: inline-block;
+	height: auto;
+	width: 100%;
+	max-width: calc(70vh * (16/9));
 }
 
 .previewImage img {
