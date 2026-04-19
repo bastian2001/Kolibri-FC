@@ -44,6 +44,7 @@ private:
 	u8 drawingChar = 0;
 	bool sizeSet = false;
 	elapsedMicros heartbeatTimer = 0;
+	elapsedMicros sinceLastFrame = 0;
 	void disableOutput() { state = MspDpState::DISABLED; }
 	void enableOutput() { state = MspDpState::CLEAR; }
 };

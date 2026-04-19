@@ -1,7 +1,8 @@
 #include "global.h"
 
 void MspOsdOutput::loop() {
-	if (heartbeatTimer > 50000) {
+	const bool isRegularMsp = serial.lastMspVersion < MspVersion::V2_OVER_CRSF;
+	if (heartbeatTimer > (isRegularMsp ? 50000 : 150000)) {
 		heartbeatTimer = 0;
 		MspMsgSetup s = {
 			.serial = serial,
@@ -83,7 +84,11 @@ void MspOsdOutput::loop() {
 	case MspDpState::IDLE: {
 		if (newFrame) {
 			newFrame = false;
-			state = MspDpState::CLEAR;
+			// for CRSF we apply light throttling because it's probably WiFi
+			if (isRegularMsp || sinceLastFrame > 120000) {
+				state = MspDpState::CLEAR;
+				sinceLastFrame = 0;
+			}
 		}
 	} break;
 	default:
