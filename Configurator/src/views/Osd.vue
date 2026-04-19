@@ -699,8 +699,9 @@ onBeforeUnmount(() => clearInterval(heartbeatInterval))
 							:poiev="'none'" />
 					</div>
 				</div>
-				<div class="previewImageWrapper" :class="{ lowOpacity: dragging !== 'none' }" v-if="showRealPreview">
-					<div class="previewImage splitview" :style="aspectStyle">
+				<div class="previewImageWrapper" v-if="showRealPreview">
+					<div class="previewImage splitview" :class="{ lowOpacity: dragging !== 'none' }"
+						:style="aspectStyle">
 						<img src="@assets/DJI_0124.JPG">
 						<button style="position: absolute; right: 0px; font-size: 1.5rem;"
 							@click="disableRealPreview"><i class="fa-solid fa-close"></i></button>
@@ -894,7 +895,6 @@ select {
 .previewImageWrapper {
 	width: 100%;
 	max-height: 70vh;
-	transition: opacity 0.3s ease-out;
 }
 
 .previewImage {
@@ -902,6 +902,7 @@ select {
 	overflow: hidden;
 	margin: 0px auto;
 	max-height: 70vh;
+	transition: opacity 0.3s ease-out;
 }
 
 .splitview {
