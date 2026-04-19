@@ -452,6 +452,12 @@ void OsdCanvas::drawElement(u32 index) {
 		printOnBuffer(element, "%s", warningStr); //! untested @Bastian.
 
 	} break;
+	case OsdElementType::CUSTOM_TEXT: {
+		//---------------------------
+		//|     Custom Text         |
+		//---------------------------
+		copyFrameBuffer(frameBuffer, (char *)&element.option, width, height, element.col, element.row, 4);
+	} break;
 	case OsdElementType::DEBUG_1: {
 		// https://testufo.com/frameskipping
 		static u8 row = 0;

@@ -76,6 +76,7 @@ enum class OsdElementType : u16 {
 
 	// Warn
 	WARNINGS = 0x00C0,
+	CUSTOM_TEXT,
 
 	// Debug, Drag and drop
 	DEBUG_1 = 0xFFF0,

@@ -39,10 +39,7 @@ type OsdElement = {
 	def: string,
 	group: string,
 	previewFn?: (element: OsdPlacement) => string,
-	options?: { name: string, preview?: string, id?: number }[], // Option Byte 0
-	options2?: { name: string, preview?: string, id?: number }[], // Option Byte 1
-	options3?: { name: string, preview?: string, id?: number }[], // Option Byte 2
-	options4?: { name: string, preview?: string, id?: number }[], // Option Byte 3
+	options?: { name: string, preview?: string, id?: number }[][], // Option Byte 0
 }
 type OsdGroup = {
 	name: string,
@@ -83,17 +80,17 @@ OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB', group: 'flight' };
 OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101', group: 'rc' };
 OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007b100%', group: 'rc' };
 OSD_LIST[0x0062] = {
-	name: 'RC Channel Value', def: 'ROL:1312', previewFn: rcChannelTextPreview, options: [
+	name: 'RC Channel Value', def: 'ROL:1312', previewFn: rcChannelTextPreview, options: [[
 		{ name: "Roll" }, { name: "Pitch" }, { name: "Throttle" }, { name: "Yaw" }, { name: "Aux 1" }, { name: "Aux 2" }, { name: "Aux 3" }, { name: "Aux 4" }, { name: "Aux 5" }, { name: "Aux 6" }, { name: "Aux 7" }, { name: "Aux 8" }, { name: "Aux 9" }, { name: "Aux 10" }, { name: "Aux 11" }, { name: "Aux 12" }
-	], options2: [
+	], [
 		{ name: "Without Label" }, { name: "With Label" }
-	],
+	]],
 	group: 'rc'
 };
 
 OSD_LIST[0x0080] = { name: 'Baro Altitude', def: '\u007f128\u000c', group: 'sensor' };
 OSD_LIST[0x0081] = {
-	name: 'ESC Temperature', def: 'E\u007a69\u000e', options: [
+	name: 'ESC Temperature', def: 'E\u007a69\u000e', options: [[
 		{ name: "Maximum + Index", preview: 'E\u007a72\u000e@4' },
 		{ name: "Maximum", preview: 'E\u007a72\u000e' },
 		{ name: "Average", preview: 'E\u007a71\u000e' },
@@ -101,7 +98,7 @@ OSD_LIST[0x0081] = {
 		{ name: "ESC 2", preview: 'E\u007a70\u000e' },
 		{ name: "ESC 3", preview: 'E\u007a71\u000e' },
 		{ name: "ESC 4", preview: 'E\u007a72\u000e' }
-	], group: 'sensor'
+	]], group: 'sensor'
 };
 OSD_LIST[0x0082] = { name: 'IMU Acceleration', def: '1.2G', group: 'sensor' };
 OSD_LIST[0x0083] = { name: 'IMU Pitch', def: '\u0015-12.3\u0008', group: 'sensor' };
@@ -112,6 +109,7 @@ OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00', group: 'timer' };
 OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00', group: 'timer' };
 
 OSD_LIST[0x00C0] = { name: 'Warnings', def: '##LOW VOLTAGE##', group: 'other' };
+OSD_LIST[0x00C1] = { name: 'Custom Text', def: 'ABCD', group: 'other', previewFn: customTextPreview };
 
 OSD_LIST[0xFFF0] = { name: 'Debug 1', def: 'DBG 1', group: 'debug' };
 OSD_LIST[0xFFF1] = { name: 'Debug 2', def: 'DBG 2', group: 'debug' };
@@ -121,10 +119,24 @@ OSD_LIST[0xFFF3] = { name: 'Debug 4', def: 'DBG 4', group: 'debug' };
 function rcChannelTextPreview(el: OsdPlacement) {
 	console.log(el)
 	console.trace()
-	const channel = el.option || 0;
-	const withLabel = (el.option2 || 0) === 1;
+	const channel = el.option[0] || 0;
+	const withLabel = (el.option[1] || 0) === 1;
 	const name = ['ROL', 'PIT', 'THR', 'YAW', 'A 1', 'A 2', 'A 3', 'A 4', 'A 5', 'A 6', 'A 7', 'A 8', 'A 9', 'A10', 'A11', 'A12'][channel] || `CH${channel + 1}`
 	return (withLabel ? (name + ':') : '') + ([1312, 1313, 1314, 1315][channel] || 1000);
+}
+function customTextPreview(el: OsdPlacement) {
+	return String.fromCharCode(...el.option);
+}
+
+function setDefaultOptions(el: OsdPlacement) {
+	switch (el.id) {
+		case 0x00C1:
+			el.option[0] = 0x41;
+			el.option[1] = 0x42;
+			el.option[2] = 0x43;
+			el.option[3] = 0x44;
+			break;
+	}
 }
 
 function getPreviewText(el: OsdPlacement) {
@@ -132,10 +144,12 @@ function getPreviewText(el: OsdPlacement) {
 	if (!osdElement) return 'Unknown Element';
 	const def = OSD_LIST[el.id].def;
 	if (osdElement.previewFn) return osdElement.previewFn(el);
-	if (osdElement.options4) return osdElement.options4[el.option4]?.preview || def;
-	if (osdElement.options3) return osdElement.options3[el.option3]?.preview || def;
-	if (osdElement.options2) return osdElement.options2[el.option2]?.preview || def;
-	if (osdElement.options) return osdElement.options[el.option]?.preview || def;
+	for (let i = 3; i >= 0; i--) {
+		const options = osdElement.options?.[i];
+		if (options && options[el.option[i]]) {
+			return options[el.option[i]].preview || def;
+		}
+	}
 	return def;
 }
 
@@ -143,10 +157,7 @@ type OsdPlacement = {
 	id: number,
 	col: number,
 	row: number,
-	option: number,
-	option2: number,
-	option3: number,
-	option4: number,
+	option: number[],
 };
 const activeElements = ref([
 	{ id: 0x0000, col: 3, row: 1 },
@@ -240,7 +251,9 @@ function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar
 
 		const canvas = draggerCanvas.value;
 		if (!canvas) return;
-		let t = text || getPreviewText({ id: index, col: 0, row: 0, option: 0, option2: 0, option3: 0, option4: 0 });
+		const newElement = { id: index, col: 0, row: 0, option: [0, 0, 0, 0] };
+		setDefaultOptions(newElement);
+		let t = text || getPreviewText(newElement);
 		canvas.width = 48 * t.length;
 		dragCanvasCols.value = t.length;
 		dragText.value = t
@@ -295,7 +308,9 @@ function dropped(event: DragEvent) {
 		el.row = row;
 		draggingIndex.value = -1;
 	} else {
-		activeElements.value.push({ id: draggingNew.value, col, row, option: 0, option2: 0, option3: 0, option4: 0 });
+		const newElement = { id: draggingNew.value, col, row, option: [0, 0, 0, 0] };
+		setDefaultOptions(newElement);
+		activeElements.value.push(newElement);
 		draggingNew.value = -1;
 	}
 	pushElements();
@@ -322,7 +337,7 @@ async function pushElements() {
 		if (!el) continue;
 		data.push(...intToLeBytes(el.id, 2));
 		data.push(intToLeBytes(el.col, 1)[0], intToLeBytes(el.row, 1)[0]);
-		data.push(intToLeBytes(el.option, 1)[0], intToLeBytes(el.option2, 1)[0], intToLeBytes(el.option3, 1)[0], intToLeBytes(el.option4, 1)[0]);
+		data.push(...el.option.slice(0, 4).map(o => intToLeBytes(o, 1)[0] || 0));
 	}
 	try {
 		await sendCommand(MspFn.SET_OSD_ELEMENTS, data);
@@ -359,10 +374,7 @@ function getConfig() {
 				id: leBytesToInt(d, 0, 2),
 				col: d[2],
 				row: d[3],
-				option: leBytesToInt(d, 4, 1),
-				option2: leBytesToInt(d, 5, 1),
-				option3: leBytesToInt(d, 6, 1),
-				option4: leBytesToInt(d, 7, 1)
+				option: [...d.slice(4, 8).map(b => leBytesToInt([b], 0, 1))]
 			};
 			if (el.id !== 0xFFFF) activeElements.value[i] = el;
 		}
@@ -505,23 +517,23 @@ onBeforeUnmount(() => exiting = true)
 							:text="OSD_LIST[el.id].name">
 							{{ OSD_LIST[el.id].name }}
 						</p>
-						<select v-model="el.option4" v-if="OSD_LIST[el.id].options4" @change="pushElements">
-							<option v-for="(o, i) in OSD_LIST[el.id].options4" :value="o.id === undefined ? i : o.id">{{
-								o.name }}</option>
-						</select>
-						<select v-model="el.option3" v-if="OSD_LIST[el.id].options3" @change="pushElements">
-							<option v-for="(o, i) in OSD_LIST[el.id].options3" :value="o.id === undefined ? i : o.id">{{
-								o.name }}</option>
-						</select>
-						<select v-model="el.option2" v-if="OSD_LIST[el.id].options2" @change="pushElements">
-							<option v-for="(o, i) in OSD_LIST[el.id].options2" :value="o.id === undefined ? i : o.id">{{
-								o.name }}</option>
-						</select>
-						<select v-model="el.option" v-if="OSD_LIST[el.id].options" @change="pushElements">
-							<option v-for="(o, i) in OSD_LIST[el.id].options" :value="o.id === undefined ? i : o.id">{{
-								o.name }}</option>
-						</select>
+						<template v-for="i in 4">
+							<select v-model="el.option[4 - i]" v-if="OSD_LIST[el.id].options?.[4 - i]"
+								@change="pushElements">
+								<option v-for="(o, j) in OSD_LIST[el.id].options?.[4 - i]"
+									:value="o.id === undefined ? j : o.id">{{
+										o.name }}</option>
+							</select>
+						</template>
 						<!-- SPECIAL ELEMENT OPTIONS FOR SOME ELEMENTS -->
+						<template v-for="(o, i) in el.option" v-if="el.id === 0x00C1">
+							<input @change="event => {
+								const text = (event.target as HTMLInputElement).value;
+								if (text.length === 1) { el.option[i] = text.charCodeAt(0); }
+								else { el.option[i] = parseInt(text) || 0; } pushElements();
+							}" style="width: 35px;" placeholder="A, 0x41..."
+								:value="'0x' + o.toString(16).padStart(2, '0')">
+						</template>
 						<!-- SPECIAL ELEMENT OPTIONS END-->
 						<button class="defaultBtn red small"
 							@click="() => { delete activeElements[index]; collapse(); pushElements(); }">
