@@ -6,7 +6,6 @@ import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
 import { delay, intToLeBytes, leBytesToInt } from "@/utils/utils";
-import { t } from "vue-router/dist/index-BzEKChPW.js";
 
 const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
@@ -241,7 +240,6 @@ function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar
 
 		const canvas = draggerCanvas.value;
 		if (!canvas) return;
-		const el = OSD_LIST[index]
 		let t = text || getPreviewText({ id: index, col: 0, row: 0, option: 0, option2: 0, option3: 0, option4: 0 });
 		canvas.width = 48 * t.length;
 		dragCanvasCols.value = t.length;
