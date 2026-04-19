@@ -6,7 +6,6 @@ import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
 import { delay, intToLeBytes, leBytesToInt } from "@/utils/utils";
-import { show } from "@tauri-apps/api/app";
 
 const file = fonts.clarity;
 const chars = ref([] as Uint8Array[]);
