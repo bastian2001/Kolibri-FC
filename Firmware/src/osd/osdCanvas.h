@@ -59,21 +59,16 @@ enum class OsdElementType : u16 {
 	// RC link info
 	RSSI_VAL = 0x0060,
 	LINK_QUALITY,
+	RC_CHANNEL,
 	ELRS_RX_STATUS,
 
 	// Sensors
-	BARO_ALTITUDE = 0x0070,
+	BARO_ALTITUDE = 0x0080,
 	ESC_TEMP,
 	IMU_ACCELERATION,
 	IMU_PITCH,
 	IMU_ROLL,
 	IMU_YAW,
-
-	// RC sticks
-	RC_ROLL = 0x00A0,
-	RC_PITCH,
-	RC_THROTTLE,
-	RC_YAW,
 
 	// Timers
 	BAT_TIME = 0x00B0,

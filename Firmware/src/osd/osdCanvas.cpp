@@ -330,7 +330,29 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		printOnBuffer(element, "\x7B%d%%", elrs ? elrs->uplinkLinkQuality : 0);
 	} break;
+	case OsdElementType::RC_CHANNEL: {
+		if (!elrs) break;
+		//---------------------------
+		//|     RC Channel Value    |
+		//---------------------------
+		u32 channel = element.option & 0xF;
+		if (element.option & 0x100) {
+			if (channel < 4) {
+				const char names[4][4] = {"ROL", "PIT", "THR", "YAW"};
+				printOnBuffer(element, "%s:%d", names[channel], elrs->channels[channel]);
+			} else {
+				printOnBuffer(element, "A%2d:%d", channel - 3, elrs->channels[channel]);
+			}
+		} else {
+			printOnBuffer(element, "%d", elrs->channels[channel]);
+		}
+
+	} break;
 	case OsdElementType::BARO_ALTITUDE: {
+		//---------------------------
+		//|     Barometric Altitude |
+		//---------------------------
+		printOnBuffer(element, "\x7F%d\x0C", baroASL.geti32());
 	} break;
 	case OsdElementType::ESC_TEMP: {
 		//---------------------------
@@ -376,19 +398,6 @@ void OsdCanvas::drawElement(u32 index) {
 	} break;
 	case OsdElementType::IMU_YAW: {
 		printOnBuffer(element, "%.1f\x08", (yaw * FIX_RAD_TO_DEG).getf32());
-	} break;
-	case OsdElementType::RC_ROLL: {
-		//? Wouldn't it be neat to have a dedicated Icon-Char for Roll Pich and Yaw?
-		printOnBuffer(element, "R %.0f", rollSetpoint.getf32()); //! untested @Bastian.
-	} break;
-	case OsdElementType::RC_PITCH: {
-		printOnBuffer(element, "P %.0f", pitchSetpoint.getf32()); //! untested @Bastian.
-	} break;
-	case OsdElementType::RC_THROTTLE: {
-		printOnBuffer(element, "T %.0f", (throttleSetpoint.getf32() / 10.24f)); //! untested @Bastian.
-	} break;
-	case OsdElementType::RC_YAW: {
-		printOnBuffer(element, "Y %.0f", yawSetpoint.getf32()); //! untested @Bastian.
 	} break;
 	case OsdElementType::BAT_TIME: {
 	} break;
