@@ -66,7 +66,6 @@
 #include "serial.h"
 #include "serialhandler/4way.h"
 #include "serialhandler/cli/cli.h"
-#include "serialhandler/cli/command.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
