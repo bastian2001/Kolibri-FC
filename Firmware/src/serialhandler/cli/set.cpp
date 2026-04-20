@@ -5,7 +5,7 @@ static std::vector<SelectionOption> options;
 void initSet() {
 	Command *cmd = new Command("set", "Set the value of a setting");
 
-	for (const auto& setting : settingsList) {
+	for (const auto &setting : settingsList) {
 		options.push_back({setting->id, ""});
 	}
 	cmd->addSelectionArg("name", 'n', false, true, &options, "Name of the setting to set");
@@ -19,10 +19,10 @@ void initSet() {
 			response = "Setting '" + string(name) + "' not found\n";
 		} else {
 			if (setting->setDataFromString(value, true)) {
-				response = "Setting updated: " + string(name) + "\n";
+				response = "Setting updated: " + string(name);
 				setting->updateSettingInFile();
 			} else {
-				response = "Invalid value for setting: " + string(name) + "\n";
+				response = "Invalid value for setting: " + string(name);
 			}
 		}
 		cmd->print(response.c_str());

@@ -36,8 +36,37 @@ export default defineComponent({
 				case MspFn.CLI_COMMAND:
 					if (command.dataStr) {
 						const lines = command.dataStr.split('\n');
+						const startEscapes = this.outputLines.length - 1;
 						this.outputLines[this.outputLines.length - 1] += lines[0]; // Add the first line to the output
 						this.outputLines.push(...lines.slice(1)); // Add the rest of the lines to the output
+						for (let i = startEscapes; i < this.outputLines.length; i++) {
+							const line = this.outputLines[i];
+							// parse \r and remove it, also overwrite the previous content of the line if \r is found
+							// parse \t and make it align to the next 8 character tab stop
+							let newLine = '';
+							// deal with \r
+							let chunks = line.split('\r');
+							console.log(chunks);
+							chunks.forEach(chunk => {
+								newLine = chunk + newLine.substring(chunk.length);
+								console.log(newLine);
+							});
+
+							// deal with \t
+							chunks = newLine.split('\t');
+							newLine = '';
+							chunks.forEach((chunk, index) => {
+								const isLastChunk = index === chunks.length - 1;
+								newLine += chunk;
+								const nextTabStop = Math.ceil((newLine.length + 1) / 8) * 8;
+								if (!isLastChunk) {
+									while (newLine.length < nextTabStop) {
+										newLine += ' ';
+									}
+								}
+							});
+							this.outputLines[i] = newLine;
+						}
 					}
 					const outputElement = document.querySelector('.output') as HTMLElement;
 					if (outputElement) {
