@@ -10,14 +10,16 @@ export default defineComponent({
 	data() {
 		return {
 			outputLines: [''], // purely controlled by the FC
-			inputText: '' as string,
+			inputText: '',
 			history: [] as string[],
-			historyIndex: -1 as number,
+			historyIndex: -1,
 			historyBackup: '',
+			commandRunning: false,
+			runningCheckInterval: -1,
 		};
 	},
 	methods: {
-		sendCommand(_e: KeyboardEvent) {
+		startCommand() {
 			if (this.inputText) {
 				const input = this.inputText.trim();
 				if (input) {
@@ -29,6 +31,7 @@ export default defineComponent({
 					this.inputText = ''; // Clear the input field
 				}
 			}
+			this.runningCheckFn();
 		},
 		onCommand(command: Command) {
 			switch (command.command) {
@@ -46,10 +49,8 @@ export default defineComponent({
 							let newLine = '';
 							// deal with \r
 							let chunks = line.split('\r');
-							console.log(chunks);
 							chunks.forEach(chunk => {
 								newLine = chunk + newLine.substring(chunk.length);
-								console.log(newLine);
 							});
 
 							// deal with \t
@@ -113,6 +114,31 @@ export default defineComponent({
 				}
 			}
 		},
+		runningCheckFn() {
+			sendCommand(MspFn.CLI_CHECK_RUNNING)
+				.then(({ data }) => {
+					this.commandRunning = data[0] === 1;
+				})
+				.catch(() => { });
+		},
+		buttonPress() {
+			if (this.commandRunning) {
+				sendCommand(MspFn.CLI_ABORT_COMMAND);
+			} else {
+				this.startCommand();
+			}
+		},
+		checkAbort(e: KeyboardEvent) {
+			if (e.ctrlKey && e.key === 'c') {
+				const input = (e.target as HTMLInputElement);
+				if (typeof input.selectionStart === 'number' && input.selectionStart !== input.selectionEnd) {
+					return; // Don't abort if there's a text selection
+				}
+				if (this.commandRunning) {
+					sendCommand(MspFn.CLI_ABORT_COMMAND);
+				}
+			}
+		},
 	},
 	mounted() {
 		this.onStart();
@@ -125,12 +151,14 @@ export default defineComponent({
 			}
 		}
 		onCommandHandler(this.onCommand);
-		onConnectHandler(this.onStart)
+		onConnectHandler(this.onStart);
+		this.runningCheckInterval = setInterval(this.runningCheckFn, 300);
 	},
 	beforeUnmount() {
 		// save last 20 commands from history to local storage
 		const history = this.history.slice(-100); // Limit to last 100 commands
 		localStorage.setItem('cliHistory', JSON.stringify(history));
+		clearInterval(this.runningCheckInterval);
 	},
 	computed: {
 		filteredHistory() {
@@ -154,8 +182,13 @@ export default defineComponent({
 			<div class="spacer"></div>
 		</div>
 		<div class="input">
-			<input type="text" id="cliInput" @keydown.enter="sendCommand" @keydown.up.prevent="navigateHistory"
-				@keydown.down.prevent="navigateHistory" autocomplete="off" v-model="inputText" ref="cliInput" />
+			<input type="text" id="cliInput" @keydown.enter="startCommand" @keydown="checkAbort"
+				@keydown.up.prevent="navigateHistory" @keydown.down.prevent="navigateHistory" autocomplete="off"
+				v-model="inputText" ref="cliInput" />
+			<button class="defaultBtn medium" :class="{ red: commandRunning }" @click="buttonPress">
+				<i class="fa-solid fa-stop" v-if="commandRunning"></i>
+				<i class="fa-solid fa-play" v-else></i>
+			</button>
 		</div>
 	</div>
 </template>
@@ -192,7 +225,9 @@ export default defineComponent({
 }
 
 .input {
-	display: flex;
+	display: grid;
+	grid-template-columns: 1fr 0fr;
+	gap: 1rem;
 }
 
 .input input {
@@ -206,6 +241,7 @@ export default defineComponent({
 	width: 100%;
 	border: none;
 	font-size: 1rem;
+	box-sizing: border-box;
 	padding: 7px 20px;
 }
 </style>

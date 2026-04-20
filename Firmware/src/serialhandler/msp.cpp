@@ -557,6 +557,17 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		case MspFn::CLI_GET_SUGGESTION:
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
 			break;
+		case MspFn::CLI_ABORT_COMMAND:
+			if (Command::activeLoopCommand) {
+				Command::activeLoopCommand->abort();
+				Command::activeLoopCommand = nullptr;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			break;
+		case MspFn::CLI_CHECK_RUNNING:
+			buf[0] = Command::activeLoopCommand ? 1 : 0;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			break;
 		case MspFn::SAVE_SETTINGS:
 			closeSettingsFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);

@@ -158,6 +158,11 @@ public:
 		// this->serial = serial;
 		this->serialNum = serialNum;
 
+		if (activeLoopCommand) {
+			print("Another command is currently running. Please wait until it's finished or abort it.");
+			return;
+		}
+
 		if (executeFunction) {
 			// Fill runtimeArgs with default values
 			std::map<string, RuntimeArg> runtimeArgs;
@@ -352,7 +357,6 @@ public:
 
 			// Finally, execute the command with the parsed arguments
 			if (executeFunction(runtimeArgs, this)) {
-				if (activeLoopCommand) activeLoopCommand->abort();
 				activeLoopCommand = this;
 			}
 		} else {
@@ -362,6 +366,7 @@ public:
 	};
 	void abort() {
 		if (abortFunction) abortFunction(this);
+		print("Command aborted.\n>> ");
 	};
 	void loop() {
 		if (loopFunction) {
