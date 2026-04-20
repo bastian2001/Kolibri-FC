@@ -10,8 +10,15 @@ bool vectorHasString(const std::vector<string> &vec, const string &str) {
 }
 
 void initGet() {
-	Command *cmd = new Command("get", "Get the value of a setting or list settings that match a name. Use 'get *' to list all settings.");
-	cmd->addStringArg("name", 'n', false, true, 30, "Name of the setting to get (can be partial name)");
+	Command *cmd = new Command("get", "Get the value of a setting or multiple settings");
+	size_t maxNameLen = 0;
+	for (auto setting : settingsList) {
+		size_t idLen = strlen(setting->id);
+		if (idLen > maxNameLen) {
+			maxNameLen = idLen;
+		}
+	}
+	cmd->addStringArg("name", 'n', false, true, maxNameLen, "Name of the setting to get (can be partial name). Use '*' to print all settings");
 	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
 		string response = "";
 		string &name = std::get<string>(args["name"].value);

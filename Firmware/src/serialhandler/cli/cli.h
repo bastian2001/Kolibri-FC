@@ -9,10 +9,16 @@ void initCli();
 
 enum class ArgType {
 	STRING,
+	SELECTION,
 	INT,
 	FLOAT,
 	FLAG,
 };
+
+typedef struct selectionOption {
+	string value;
+	string description;
+} SelectionOption;
 typedef struct commandArg {
 	string name;
 	char shorthand = 0;
@@ -31,6 +37,7 @@ typedef struct commandArg {
 			float max;
 		} floatLimits;
 		int maxStrLen; // for string arguments, the maximum length of the string (not including the null terminator)
+		const std::vector<SelectionOption> *selectionOptions; // for selection arguments, the list of valid options
 	};
 } CommandArg;
 typedef struct runtimeArg {
@@ -123,6 +130,27 @@ public:
 		arg.type = ArgType::FLAG;
 		args.push_back(arg);
 	}
+	void addSelectionArg(string name, char shorthand = 0, bool optional = false, bool anonymous = false, const std::vector<SelectionOption> *options = nullptr, string description = "", string defaultValue = "") {
+		if (anonymous) optional = false;
+		if (!anonymous && name == "") return;
+		if (name == "") {
+			int argNum = 1;
+			for (const auto &arg : args) {
+				if (arg.anonymous) argNum++;
+			}
+			name = "$" + std::to_string(argNum);
+		}
+		CommandArg arg;
+		arg.name = name;
+		arg.shorthand = shorthand;
+		arg.optional = optional;
+		arg.anonymous = anonymous;
+		arg.description = description;
+		arg.defaultValue = defaultValue;
+		arg.type = ArgType::SELECTION;
+		arg.selectionOptions = options;
+		args.push_back(arg);
+	}
 
 	void execute(string payload, u8 serialNum) {
 		// if (!serial) return;
@@ -147,6 +175,9 @@ public:
 					break;
 				case ArgType::FLOAT:
 					rArg.value = std::stof(arg.defaultValue);
+					break;
+				case ArgType::SELECTION:
+					rArg.value = arg.defaultValue;
 					break;
 				}
 			}
@@ -210,71 +241,73 @@ public:
 					rArg.provided = true;
 
 					currentArg = nullptr;
-				} else {
-					// expect argument or shorthand
-					if (token.length() < 2 || token[0] != '-') {
-						// not an argument, treat as anonymous argument token for now
-						anonArgTokens.push_back(token);
-						continue;
+					continue;
+				}
+
+				// expect argument or shorthand
+				if (token.length() < 2 || token[0] != '-') {
+					// not an argument, treat as anonymous argument token for now
+					anonArgTokens.push_back(token);
+					continue;
+				}
+				if (token[1] == '-') {
+					// longhand
+					bool found = false;
+					string name = token.substr(2);
+					for (const auto &arg : args) {
+						if (arg.name == name) {
+							found = true;
+							currentArg = &arg;
+							if (arg.type == ArgType::FLAG) {
+								// flags don't expect a value, just set them to true
+								std::get<bool>(runtimeArgs[arg.name].value) = true;
+								currentArg = nullptr;
+								runtimeArgs[arg.name].provided = true;
+							}
+							break;
+						}
 					}
-					if (token[1] == '-') {
-						// longhand
+					if (!found) {
+						// unknown argument
+						failed = true;
+						failText = "Unknown argument: \"" + name + "\"";
+						break;
+					}
+				} else {
+					// shorthand, find the corresponding argument
+					int shorthandCount = token.length() - 1;
+					string finalArgName;
+					for (int i = 0; i < shorthandCount; i++) {
+						char shorthand = token[i + 1];
 						bool found = false;
-						string name = token.substr(2);
+						bool isFinal = i == shorthandCount - 1;
 						for (const auto &arg : args) {
-							if (arg.name == name) {
+							if (arg.shorthand == shorthand) {
 								found = true;
-								currentArg = &arg;
 								if (arg.type == ArgType::FLAG) {
 									// flags don't expect a value, just set them to true
 									std::get<bool>(runtimeArgs[arg.name].value) = true;
-									currentArg = nullptr;
 									runtimeArgs[arg.name].provided = true;
-								}
-								break;
-							}
-						}
-						if (!found) {
-							// unknown argument
-							failed = true;
-							failText = "Unknown argument: \"" + name + "\"";
-							break;
-						}
-					} else {
-						// shorthand, find the corresponding argument
-						int shorthandCount = token.length() - 1;
-						string finalArgName;
-						for (int i = 0; i < shorthandCount; i++) {
-							char shorthand = token[i + 1];
-							bool found = false;
-							bool isFinal = i == shorthandCount - 1;
-							for (const auto &arg : args) {
-								if (arg.shorthand == shorthand) {
-									if (arg.type == ArgType::FLAG) {
-										// flags don't expect a value, just set them to true
-										std::get<bool>(runtimeArgs[arg.name].value) = true;
-										runtimeArgs[arg.name].provided = true;
-									} else {
-										if (!isFinal) {
-											// only the last shorthand in the token can expect a value, otherwise it's ambiguous (e.g. -abc could be -a -b -c or -a -bc or -ab -c)
-											failed = true;
-											failText = "Only the last shorthand in a token can expect a value: " + string(1, shorthand);
-											break;
-										} else {
-											currentArg = &arg;
-										}
-									}
-									found = true;
 									break;
 								}
-							}
-							if (failed) break;
-							if (!found) {
-								// unknown shorthand
-								failed = true;
-								failText = "Unknown argument shorthand: " + string(1, shorthand);
+
+								if (!isFinal) {
+									// only the last shorthand in the token can expect a value, otherwise it's ambiguous (e.g. -abc could be -a -b -c or -a -bc or -ab -c)
+									failed = true;
+									failText = "Only the last shorthand in a token can expect a value: " + string(1, shorthand);
+									break;
+								} else {
+									currentArg = &arg;
+								}
 								break;
 							}
+						}
+						if (failed) break;
+						if (!found) {
+							// unknown shorthand
+							failed = true;
+							failText = "Unknown argument shorthand: " + string(1, shorthand);
+							break;
 						}
 					}
 				}
@@ -343,14 +376,14 @@ public:
 	};
 	void printMan(u8 serialNum) {
 		// if (!serial) return;
-		string man = "NAME\n  " + name + " - " + description;
+		string man = "NAME\n    " + name + " - " + description;
 		if (!aliases.empty()) {
 			man += "\n\nALIASES\n  ";
 			for (const auto &alias : aliases) {
 				man += alias + " ";
 			}
 		}
-		man += "\n\nUSAGE\n  " + name;
+		man += "\n\nUSAGE\n    " + name;
 		bool hasOptionalArgs = false;
 		for (const auto &arg : args) {
 			if (arg.optional) {
@@ -374,20 +407,20 @@ public:
 			string argStr;
 			if (!arg.anonymous) {
 				if (arg.shorthand)
-					argStr += "   -" + string(1, arg.shorthand);
+					argStr += "    -" + string(1, arg.shorthand) + ", ";
 				else
-					argStr += "     ";
-				argStr += ", --" + arg.name;
+					argStr += "        ";
+				argStr += "--" + arg.name;
 				for (int i = 10 - arg.name.length(); i > 0; i--) {
 					argStr += " ";
 				}
 			} else {
-				argStr += "       <" + arg.name + ">";
+				argStr += "        <" + arg.name + ">";
 				for (int i = 10 - arg.name.length(); i > 0; i--) {
 					argStr += " ";
 				}
 			}
-			argStr += "   ";
+			argStr += "  ";
 			switch (arg.type) {
 			case ArgType::STRING:
 				argStr += " (string, max " + std::to_string(arg.maxStrLen) + " chars";
@@ -398,6 +431,9 @@ public:
 			case ArgType::FLOAT:
 				argStr += " (float, [" + std::to_string(arg.floatLimits.min) + ", " + std::to_string(arg.floatLimits.max);
 				break;
+			case ArgType::SELECTION:
+				argStr += " (selection";
+				break;
 			case ArgType::FLAG:
 				argStr += " (flag";
 				break;
@@ -407,11 +443,23 @@ public:
 			} else {
 				argStr += ")";
 			}
-			argStr += "\n                " + arg.description + "\n";
+			argStr += "\n            " + arg.description + "\n";
+
+			if (arg.type == ArgType::SELECTION && arg.selectionOptions && !arg.selectionOptions->empty()) {
+				for (size_t i = 0; i < arg.selectionOptions->size(); i++) {
+					auto &opt = (*arg.selectionOptions)[i];
+					argStr += "                - " + opt.value;
+					if (opt.description.length() > 0) {
+						argStr += " => " + opt.description;
+					}
+					argStr += "\n";
+				}
+			}
+
 			man += argStr;
 		}
 		if (args.empty()) {
-			man += "   - None -\n";
+			man += "    - None -\n";
 		}
 		print(man.c_str());
 	}
@@ -483,7 +531,7 @@ private:
 			rArg.value = valueToken;
 			if (std::get<string>(rArg.value).length() > arg.maxStrLen) {
 				failed = true;
-				failText = "Value for argument " + arg.name + " exceeds maximum length of " + std::to_string(arg.maxStrLen) + ": " + valueToken;
+				failText = "Value for argument \"" + arg.name + "\" exceeds maximum length of " + std::to_string(arg.maxStrLen) + ": " + valueToken;
 			}
 		} break;
 		case ArgType::INT: {
@@ -492,12 +540,12 @@ private:
 				value = std::stoi(valueToken);
 			} catch (std::exception &e) {
 				failed = true;
-				failText = "Invalid value for argument " + arg.name + ": " + valueToken;
+				failText = "Invalid value for argument \"" + arg.name + "\": " + valueToken;
 				break;
 			}
 			if (value < arg.intLimits.min || value > arg.intLimits.max) {
 				failed = true;
-				failText = "Value for argument " + arg.name + " out of range: " + valueToken;
+				failText = "Value for argument \"" + arg.name + "\" out of range: " + valueToken;
 				break;
 			}
 			rArg.value = value;
@@ -508,15 +556,32 @@ private:
 				value = std::stof(valueToken);
 			} catch (std::exception &e) {
 				failed = true;
-				failText = "Invalid value for argument " + arg.name + ": " + valueToken;
+				failText = "Invalid value for argument \"" + arg.name + "\": " + valueToken;
 				break;
 			}
 			if (value < arg.floatLimits.min || value > arg.floatLimits.max) {
 				failed = true;
-				failText = "Value for argument " + arg.name + " out of range: " + valueToken;
+				failText = "Value for argument \"" + arg.name + "\" out of range: " + valueToken;
 				break;
 			}
 			rArg.value = value;
+		} break;
+		case ArgType::SELECTION: {
+			if (arg.selectionOptions != nullptr && !arg.selectionOptions->empty()) {
+				bool found = false;
+				for (const auto &option : *arg.selectionOptions) {
+					if (option.value == valueToken) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					failed = true;
+					failText = "Invalid value for argument \"" + arg.name + "\": " + valueToken;
+					break;
+				}
+			}
+			rArg.value = valueToken;
 		} break;
 		}
 		rArg.provided = true;

@@ -2,7 +2,7 @@
 
 void initSerialStats() {
 	Command *cmd = new Command("serial_stats", "Get or reset statistics about the serial ports");
-	cmd->addFlagArg("reset", 'r', "Reset the serial statistics");
+	cmd->addFlagArg("reset", 'r', "Reset the serial statistics after printing");
 	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
 		const auto &resetArg = args["reset"];
 		bool reset = std::get<bool>(resetArg.value);

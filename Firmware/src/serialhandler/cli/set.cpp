@@ -1,8 +1,14 @@
 #include "global.h"
 
+static std::vector<SelectionOption> options;
+
 void initSet() {
 	Command *cmd = new Command("set", "Set the value of a setting");
-	cmd->addStringArg("name", 'n', false, true, 32, "Name of the setting to set");
+
+	for (const auto& setting : settingsList) {
+		options.push_back({setting->id, ""});
+	}
+	cmd->addSelectionArg("name", 'n', false, true, &options, "Name of the setting to set");
 	cmd->addStringArg("value", 'v', false, true, 256, "Value to set the setting to");
 	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
 		string response = "";

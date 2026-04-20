@@ -1,8 +1,10 @@
 #include "global.h"
 
+static std::vector<SelectionOption> options = {{"fc", "Reboot normally"}, {"bootloader", "Reboot to bootloader"}};
+
 void initReboot() {
 	Command *cmd = new Command("reboot", "Reboot the FC");
-	cmd->addStringArg("mode", 'm', true, false, 2, "Reboot mode: fc = normal reboot, bl = reboot to bootloader", "fc");
+	cmd->addSelectionArg("mode", 'm', true, false, &options, "Reboot mode", "fc");
 	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
 		string mode = std::get<string>(args["mode"].value);
 		if (mode == "fc") {

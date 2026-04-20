@@ -1,8 +1,9 @@
 #include "global.h"
+static std::vector<SelectionOption> options = {{"start", "Start the gyro calibration"}, {"get", "Print the current gyro calibration data"}};
 
 void initGyroCalibration() {
 	Command *cmd = new Command("gyro_calibration", "Start gyro calibration or get current calibration data");
-	cmd->addStringArg("action", 'a', false, true, 5, "Action to perform: 'start' or 'get'");
+	cmd->addSelectionArg("action", 'a', false, true, &options, "Action to perform");
 	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
 		string action = std::get<string>(args["action"].value);
 		if (action == "start") {

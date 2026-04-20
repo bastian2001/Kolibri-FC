@@ -16,6 +16,8 @@ void initSerialStats();
 void initSet();
 void initStatus();
 
+void finishInitMan();
+
 void initCli() {
 	initEcho();
 	initGet();
@@ -29,6 +31,8 @@ void initCli() {
 	initSerialStats();
 	initSet();
 	initStatus();
+
+	finishInitMan();
 }
 
 void cliLoop() {
