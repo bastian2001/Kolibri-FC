@@ -1,8 +1,11 @@
 #include "Arduino.h"
 #include "typedefs.h"
+#include <variant>
 #pragma once
 
 using std::string;
+
+void initCli();
 
 enum class ArgType {
 	STRING,
@@ -32,12 +35,7 @@ typedef struct commandArg {
 } CommandArg;
 typedef struct runtimeArg {
 	bool provided = false;
-	union {
-		string stringValue;
-		int intValue;
-		float floatValue;
-		bool flagValue;
-	};
+	std::variant<string, int, float, bool> value;
 } RuntimeArg;
 
 class Command {
@@ -50,6 +48,14 @@ public:
 	}
 	void addStringArg(string name, char shorthand = 0, bool optional = false, bool anonymous = false, int maxLen = 16, string description = "", string defaultValue = "") {
 		if (anonymous) optional = false;
+		if (!anonymous && name == "") return;
+		if (name == "") {
+			int argNum = 1;
+			for (const auto &arg : args) {
+				if (arg.anonymous) argNum++;
+			}
+			name = "$" + std::to_string(argNum);
+		}
 		CommandArg arg;
 		arg.name = name;
 		arg.shorthand = shorthand;
@@ -63,6 +69,14 @@ public:
 	}
 	void addIntArg(string name, char shorthand = 0, bool optional = false, bool anonymous = false, int min = 0, int max = 255, string description = "", string defaultValue = "") {
 		if (anonymous) optional = false;
+		if (!anonymous && name == "") return;
+		if (name == "") {
+			int argNum = 1;
+			for (const auto &arg : args) {
+				if (arg.anonymous) argNum++;
+			}
+			name = "$" + std::to_string(argNum);
+		}
 		CommandArg arg;
 		arg.name = name;
 		arg.shorthand = shorthand;
@@ -77,6 +91,14 @@ public:
 	}
 	void addFloatArg(string name, char shorthand = 0, bool optional = false, bool anonymous = false, float min = 0, float max = 1, string description = "", string defaultValue = "") {
 		if (anonymous) optional = false;
+		if (!anonymous && name == "") return;
+		if (name == "") {
+			int argNum = 1;
+			for (const auto &arg : args) {
+				if (arg.anonymous) argNum++;
+			}
+			name = "$" + std::to_string(argNum);
+		}
 		CommandArg arg;
 		arg.name = name;
 		arg.shorthand = shorthand;
@@ -90,6 +112,7 @@ public:
 		args.push_back(arg);
 	}
 	void addFlagArg(string name, char shorthand = 0, string description = "") {
+		if (name == "") return;
 		CommandArg arg;
 		arg.name = name;
 		arg.shorthand = shorthand;
@@ -105,14 +128,202 @@ public:
 		// if (!serial) return;
 		// this->serial = serial;
 		this->serialNum = serialNum;
+
 		if (executeFunction) {
-			if (executeFunction(payload, this)) {
+			// Fill runtimeArgs with default values
+			std::map<string, RuntimeArg> runtimeArgs;
+			for (auto &arg : args) {
+				runtimeArgs[arg.name] = (RuntimeArg){false, 0};
+				auto &rArg = runtimeArgs[arg.name];
+				switch (arg.type) {
+				case ArgType::FLAG:
+					rArg.value = false;
+					break;
+				case ArgType::STRING:
+					rArg.value = arg.defaultValue;
+					break;
+				case ArgType::INT:
+					rArg.value = std::stoi(arg.defaultValue);
+					break;
+				case ArgType::FLOAT:
+					rArg.value = std::stof(arg.defaultValue);
+					break;
+				}
+			}
+
+			// Tokenize payload
+			std::list<string> tokens;
+			string currentToken;
+			bool inQuotes = false;
+			bool escape = false;
+			for (char c : payload) {
+				if (c == '\\' && !escape) {
+					escape = true;
+					continue;
+				}
+				if (escape) {
+					switch (c) {
+					case 'n':
+						currentToken += '\n';
+						break;
+					case 't':
+						currentToken += '\t';
+						break;
+					case 'r':
+						currentToken += '\r';
+						break;
+					default:
+						currentToken += c;
+						break;
+					}
+					escape = false;
+					continue;
+				}
+				if (c == '\"') {
+					inQuotes = !inQuotes;
+				} else if (c == ' ' && !inQuotes) {
+					if (!currentToken.empty()) {
+						tokens.push_back(currentToken);
+						currentToken.clear();
+					}
+				} else {
+					currentToken += c;
+				}
+			}
+			if (!currentToken.empty()) {
+				tokens.push_back(currentToken);
+			}
+
+			// First, parse all non-anonymous arguments (identified by name/shorthand)
+			const CommandArg *currentArg = nullptr;
+			bool failed = false;
+			string failText = "";
+			std::list<string> anonArgTokens; // tokens that are not identified as arguments, to be parsed as anonymous arguments later
+			for (auto it = tokens.begin(); it != tokens.end(); it++) {
+				string token = *it;
+				if (failed) break;
+				if (currentArg) {
+					// expect value for currentArg
+					const CommandArg &arg = *currentArg;
+					RuntimeArg &rArg = runtimeArgs[arg.name];
+					parseArgument(token, arg, runtimeArgs[arg.name], failed, failText);
+					rArg.provided = true;
+
+					currentArg = nullptr;
+				} else {
+					// expect argument or shorthand
+					if (token.length() < 2 || token[0] != '-') {
+						// not an argument, treat as anonymous argument token for now
+						anonArgTokens.push_back(token);
+						continue;
+					}
+					if (token[1] == '-') {
+						// longhand
+						bool found = false;
+						string name = token.substr(2);
+						for (const auto &arg : args) {
+							if (arg.name == name) {
+								found = true;
+								currentArg = &arg;
+								if (arg.type == ArgType::FLAG) {
+									// flags don't expect a value, just set them to true
+									std::get<bool>(runtimeArgs[arg.name].value) = true;
+									currentArg = nullptr;
+									runtimeArgs[arg.name].provided = true;
+								}
+								break;
+							}
+						}
+						if (!found) {
+							// unknown argument
+							failed = true;
+							failText = "Unknown argument: \"" + name + "\"";
+							break;
+						}
+					} else {
+						// shorthand, find the corresponding argument
+						int shorthandCount = token.length() - 1;
+						string finalArgName;
+						for (int i = 0; i < shorthandCount; i++) {
+							char shorthand = token[i + 1];
+							bool found = false;
+							bool isFinal = i == shorthandCount - 1;
+							for (const auto &arg : args) {
+								if (arg.shorthand == shorthand) {
+									if (arg.type == ArgType::FLAG) {
+										// flags don't expect a value, just set them to true
+										std::get<bool>(runtimeArgs[arg.name].value) = true;
+										runtimeArgs[arg.name].provided = true;
+									} else {
+										if (!isFinal) {
+											// only the last shorthand in the token can expect a value, otherwise it's ambiguous (e.g. -abc could be -a -b -c or -a -bc or -ab -c)
+											failed = true;
+											failText = "Only the last shorthand in a token can expect a value: " + string(1, shorthand);
+											break;
+										} else {
+											currentArg = &arg;
+										}
+									}
+									found = true;
+									break;
+								}
+							}
+							if (failed) break;
+							if (!found) {
+								// unknown shorthand
+								failed = true;
+								failText = "Unknown argument shorthand: " + string(1, shorthand);
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			if (failed) return print(failText.c_str());
+
+			// Next, parse anonymous arguments
+			auto anonArgIt = anonArgTokens.begin();
+			for (const auto &arg : args) {
+				RuntimeArg &rArg = runtimeArgs[arg.name];
+				if (arg.anonymous && rArg.provided == false) {
+					if (anonArgIt == anonArgTokens.end()) {
+						if (arg.optional)
+							continue;
+						else
+							break;
+					}
+
+					parseArgument(*anonArgIt, arg, rArg, failed, failText);
+					rArg.provided = true;
+					anonArgIt++;
+				}
+			}
+			// check if any arguments are missing
+			for (const auto &arg : args) {
+				RuntimeArg &rArg = runtimeArgs[arg.name];
+				if (!arg.optional && rArg.provided == false) {
+					failed = true;
+					failText = "Missing value for argument \"" + arg.name + "\"";
+					break;
+				}
+			}
+			if (failed) return print(failText.c_str());
+
+			if (anonArgIt != anonArgTokens.end()) {
+				failed = true;
+				failText = "Too many arguments provided\n";
+			}
+			if (failed) return print(failText.c_str());
+
+			// Finally, execute the command with the parsed arguments
+			if (executeFunction(runtimeArgs, this)) {
 				if (activeLoopCommand) activeLoopCommand->abort();
 				activeLoopCommand = this;
-			} else {
-				const char *buf = "\n>> ";
-				sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, buf, strlen(buf));
 			}
+		} else {
+			const char *buf = "Command not implemented";
+			sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, buf, strlen(buf));
 		}
 	};
 	void abort() {
@@ -197,6 +408,9 @@ public:
 			argStr += "\n                " + arg.description + "\n";
 			man += argStr;
 		}
+		if (args.empty()) {
+			man += "   - None -\n";
+		}
 		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, man.c_str(), man.length());
 	}
 
@@ -208,7 +422,7 @@ public:
 	static std::vector<Command *> cliCommands;
 	static Command *activeLoopCommand;
 
-	void setExecuteFunction(bool (*fn)(string payload, Command *cmd)) {
+	void setExecuteFunction(bool (*fn)(std::map<string, RuntimeArg> &args, Command *cmd)) {
 		executeFunction = fn;
 	}
 	void setLoopFunction(bool (*fn)(Command *cmd)) {
@@ -218,17 +432,85 @@ public:
 		inputFunction = fn;
 	}
 
+	bool nameMatches(string input) {
+		if (input == name) return true;
+		for (const auto &alias : aliases) {
+			if (input == alias) return true;
+		}
+		return false;
+	}
+
+	u8 &getSerialNum() {
+		return serialNum;
+	}
+
+	static Command *getCommandByName(string &name) {
+		// extract first token as command name
+
+		for (Command *cmd : cliCommands) {
+			if (cmd->nameMatches(name)) {
+				return cmd;
+			}
+		}
+		return nullptr;
+	}
+
+	const string name;
+	const string description;
+
 private:
 	std::vector<CommandArg> args;
 	std::vector<string> aliases;
 	// KoliSerial *serial = nullptr;
 	u8 serialNum = 0;
 
-	const string name;
-	const string description;
-
-	bool (*executeFunction)(std::vector<args>, Command *cmd) = nullptr;
+	bool (*executeFunction)(std::map<string, RuntimeArg> &args, Command *cmd) = nullptr;
 	bool (*loopFunction)(Command *cmd) = nullptr;
 	bool (*inputFunction)(string input, Command *cmd) = nullptr;
 	void (*abortFunction)(Command *cmd) = nullptr;
+
+	static void parseArgument(string valueToken, const CommandArg &arg, RuntimeArg &rArg, bool &failed, string &failText) {
+		switch (arg.type) {
+		case ArgType::STRING: {
+			rArg.value = valueToken;
+			if (std::get<string>(rArg.value).length() > arg.maxStrLen) {
+				failed = true;
+				failText = "Value for argument " + arg.name + " exceeds maximum length of " + std::to_string(arg.maxStrLen) + ": " + valueToken;
+			}
+		} break;
+		case ArgType::INT: {
+			int value = 0;
+			try {
+				value = std::stoi(valueToken);
+			} catch (std::exception &e) {
+				failed = true;
+				failText = "Invalid value for argument " + arg.name + ": " + valueToken;
+				break;
+			}
+			if (value < arg.intLimits.min || value > arg.intLimits.max) {
+				failed = true;
+				failText = "Value for argument " + arg.name + " out of range: " + valueToken;
+				break;
+			}
+			rArg.value = value;
+		} break;
+		case ArgType::FLOAT: {
+			float value = 0;
+			try {
+				value = std::stof(valueToken);
+			} catch (std::exception &e) {
+				failed = true;
+				failText = "Invalid value for argument " + arg.name + ": " + valueToken;
+				break;
+			}
+			if (value < arg.floatLimits.min || value > arg.floatLimits.max) {
+				failed = true;
+				failText = "Value for argument " + arg.name + " out of range: " + valueToken;
+				break;
+			}
+			rArg.value = value;
+		} break;
+		}
+		rArg.provided = true;
+	};
 };

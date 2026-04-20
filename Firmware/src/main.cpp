@@ -43,6 +43,7 @@ void setup() {
 	initSerial();
 	trampInit();
 	initGPS();
+	initCli();
 
 	// init LEDs
 	p.recalculateClock();

@@ -530,18 +530,26 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
 		} break;
 		case MspFn::CLI_COMMAND: {
-			string response = string(reqPayload, reqLen);
-			response += "\n";
+			string response = string(reqPayload, reqLen) + "\n";
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
 
-			Command test("test", "a test command", "test <main> -b <important> [args]");
-			test.addStringArg("main", 0, false, true, 12, "first argument", "string");
-			test.addIntArg("important", 'b', false, false, 0, 100, "second argument", "");
-			test.addFloatArg("useless", 'c', true, false, 0, 100, "third argument", "");
-			test.printMan(serialNum);
+			string cmdName = string(reqPayload, reqLen);
+			string payload = "";
+			size_t spaceIndex = cmdName.find(' ');
+			if (spaceIndex != string::npos) {
+				payload = cmdName.substr(spaceIndex + 1);
+				cmdName = cmdName.substr(0, spaceIndex);
+			}
 
-			response = processCliCommand(reqPayload, reqLen);
-			response += "\n>> ";
+			Command *cmd = Command::getCommandByName(cmdName);
+			if (cmd) {
+				cmd->execute(payload, serialNum);
+			} else {
+				snprintf(buf, 256, "Unknown command: %s\n", cmdName.c_str());
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
+			}
+
+			response = "\n>> ";
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
 		} break;
 		case MspFn::CLI_GET_SUGGESTION:
