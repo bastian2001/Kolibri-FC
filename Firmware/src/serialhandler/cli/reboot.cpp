@@ -1,9 +1,4 @@
 #include "global.h"
-// 	} else if (cmd == "reboot") {
-// 		sendMsp(lastMspSerial, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, "Rebooting...", 13);
-// 		if (serials[lastMspSerial]) serials[lastMspSerial]->flush();
-// 		sleep_ms(100);
-// 		rp2040.reboot();
 
 void initReboot() {
 	Command *cmd = new Command("reboot", "Reboot the FC");

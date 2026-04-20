@@ -10,11 +10,14 @@ bool vectorHasString(const std::vector<string> &vec, const string &str) {
 }
 
 void initGet() {
-	Command *cmd = new Command("get", "Get the value of a setting");
-	cmd->addStringArg("name", 'n', false, false, 1, "Name of the setting to get (can be partial name)");
+	Command *cmd = new Command("get", "Get the value of a setting or list settings that match a name. Use 'get *' to list all settings.");
+	cmd->addStringArg("name", 'n', false, true, 30, "Name of the setting to get (can be partial name)");
 	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
 		string response = "";
 		string &name = std::get<string>(args["name"].value);
+		if (name == "*") {
+			name = "";
+		}
 		std::vector<string> ids;
 		// start with exact match
 		for (auto setting : settingsList) {
