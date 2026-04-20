@@ -91,6 +91,7 @@ void loop() {
 	osdLoop();
 	taskManagerLoop();
 	trampLoop();
+	cliLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500000) {
 		static bool on = false;

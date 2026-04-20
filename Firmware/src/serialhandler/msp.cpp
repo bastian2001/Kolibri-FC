@@ -549,8 +549,10 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
 			}
 
-			response = "\n>> ";
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+			if (!Command::activeLoopCommand) {
+				response = "\n>> ";
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+			}
 		} break;
 		case MspFn::CLI_GET_SUGGESTION:
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);

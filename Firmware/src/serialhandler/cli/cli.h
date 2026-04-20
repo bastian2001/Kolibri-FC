@@ -6,6 +6,7 @@
 using std::string;
 
 void initCli();
+void cliLoop();
 
 enum class ArgType {
 	STRING,
