@@ -8,6 +8,9 @@ using std::string;
 void initCli();
 void cliLoop();
 
+bool parseInt(const char *str, i64 &value);
+bool parseFloat(const char *str, f64 &value);
+
 enum class ArgType {
 	STRING,
 	SELECTION,
@@ -176,12 +179,20 @@ public:
 				case ArgType::STRING:
 					rArg.value = arg.defaultValue;
 					break;
-				case ArgType::INT:
-					rArg.value = std::stoi(arg.defaultValue);
-					break;
-				case ArgType::FLOAT:
-					rArg.value = std::stof(arg.defaultValue);
-					break;
+				case ArgType::INT: {
+					i64 defaultVal = 0;
+					rArg.value = (i32)0;
+					if (!parseInt(arg.defaultValue.c_str(), defaultVal)) {
+						rArg.value = (i32)defaultVal;
+					}
+				} break;
+				case ArgType::FLOAT: {
+					f64 defaultVal = 0;
+					rArg.value = (f32)0;
+					if (!parseFloat(arg.defaultValue.c_str(), defaultVal)) {
+						rArg.value = (f32)defaultVal;
+					}
+				} break;
 				case ArgType::SELECTION:
 					rArg.value = arg.defaultValue;
 					break;
@@ -243,8 +254,7 @@ public:
 					// expect value for currentArg
 					const CommandArg &arg = *currentArg;
 					RuntimeArg &rArg = runtimeArgs[arg.name];
-					parseArgument(token, arg, runtimeArgs[arg.name], failed, failText);
-					rArg.provided = true;
+					parseArgument(token, arg, rArg, failed, failText);
 
 					currentArg = nullptr;
 					continue;
@@ -334,7 +344,6 @@ public:
 					}
 
 					parseArgument(*anonArgIt, arg, rArg, failed, failText);
-					rArg.provided = true;
 					anonArgIt++;
 				}
 			}
@@ -541,36 +550,34 @@ private:
 			}
 		} break;
 		case ArgType::INT: {
-			int value = 0;
-			try {
-				value = std::stoi(valueToken);
-			} catch (std::exception &e) {
+			i64 value = 0;
+			if (parseInt(valueToken.c_str(), value)) {
+				if (value < arg.intLimits.min || value > arg.intLimits.max) {
+					failed = true;
+					failText = "Value for argument \"" + arg.name + "\" out of range: " + valueToken;
+					break;
+				}
+				rArg.value = (i32)value;
+			} else {
 				failed = true;
 				failText = "Invalid value for argument \"" + arg.name + "\": " + valueToken;
 				break;
 			}
-			if (value < arg.intLimits.min || value > arg.intLimits.max) {
-				failed = true;
-				failText = "Value for argument \"" + arg.name + "\" out of range: " + valueToken;
-				break;
-			}
-			rArg.value = value;
 		} break;
 		case ArgType::FLOAT: {
-			float value = 0;
-			try {
-				value = std::stof(valueToken);
-			} catch (std::exception &e) {
+			f64 value = 0;
+			if (parseFloat(valueToken.c_str(), value)) {
+				if (value < arg.floatLimits.min || value > arg.floatLimits.max) {
+					failed = true;
+					failText = "Value for argument \"" + arg.name + "\" out of range: " + valueToken;
+					break;
+				}
+				rArg.value = (f32)value;
+			} else {
 				failed = true;
 				failText = "Invalid value for argument \"" + arg.name + "\": " + valueToken;
 				break;
 			}
-			if (value < arg.floatLimits.min || value > arg.floatLimits.max) {
-				failed = true;
-				failText = "Value for argument \"" + arg.name + "\" out of range: " + valueToken;
-				break;
-			}
-			rArg.value = value;
 		} break;
 		case ArgType::SELECTION: {
 			if (arg.selectionOptions != nullptr && !arg.selectionOptions->empty()) {

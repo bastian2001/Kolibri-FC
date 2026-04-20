@@ -102,6 +102,8 @@ i32 DECODE_I4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit sign
 f32 DECODE_R4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit float
 i64 DECODE_I8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit signed integer
 f64 DECODE_R8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit float / double
+bool parseInt(const char *str, i64 &value); // Parse an integer from a string, return true if successful
+bool parseFloat(const char *str, f64 &value); // Parse a float from a string, return true if successful
 
 enum MspRebootMode {
 	MSP_REBOOT_FIRMWARE = 0,
