@@ -100,7 +100,7 @@ export default defineComponent({
 									// regular character, we can add multiple at once to reduce the number of calls
 									let nextSpecialCharIndex = command.dataStr.length;
 									for (let j = i + 1; j < command.dataStr.length; j++) {
-										if ('\n\r\t\b\f\v'.includes(command.dataStr[j])) {
+										if ('\n\x01\x0e\x0f\r\t\b\v'.includes(command.dataStr[j])) {
 											nextSpecialCharIndex = j;
 											break;
 										}
