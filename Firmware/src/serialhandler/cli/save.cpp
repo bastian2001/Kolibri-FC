@@ -5,7 +5,7 @@ void initSave() {
 	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
 		closeSettingsFile();
 		openSettingsFile();
-		cmd->print("Settings saved");
+		cmd->print(CLI_COLOR_GREEN "Settings saved" CLI_COLOR_WHITE);
 		return false;
 	});
 	Command::cliCommands.push_back(cmd);

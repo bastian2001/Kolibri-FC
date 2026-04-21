@@ -48,11 +48,11 @@ void initGet() {
 		}
 
 		if (ids.empty()) {
-			response = "Setting '" + string(name) + "' not found\n";
+			response = CLI_COLOR_RED "Setting '" + string(name) + "' not found\n" CLI_COLOR_WHITE;
 		} else {
 			for (const auto &id : ids) {
 				SettingBase *setting = getSetting(id.c_str());
-				response += id + ": " + setting->toString(true) + "\n";
+				response += CLI_COLOR_CYAN + id + CLI_COLOR_WHITE ": " CLI_COLOR_GREEN + setting->toString(true) + "\n";
 			}
 		}
 		cmd->print(response.c_str());

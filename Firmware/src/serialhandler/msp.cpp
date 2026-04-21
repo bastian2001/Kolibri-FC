@@ -530,7 +530,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
 		} break;
 		case MspFn::CLI_COMMAND: {
-			string response = CLI_COLOR_YELLOW + string(reqPayload, reqLen) + "\n" CLI_COLOR_WHITE;
+			string response = CLI_COLOR_WHITE + string(reqPayload, reqLen) + "\n";
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
 
 			string cmdName = string(reqPayload, reqLen);
@@ -545,7 +545,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			if (cmd) {
 				cmd->execute(payload, serialNum);
 			} else {
-				snprintf(buf, 256, "Unknown command: %s\n", cmdName.c_str());
+				snprintf(buf, 256, CLI_COLOR_RED "Unknown command: %s\n" CLI_COLOR_WHITE, cmdName.c_str());
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
 			}
 

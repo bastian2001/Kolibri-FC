@@ -348,7 +348,7 @@ public:
 				}
 			}
 
-			if (failed) return print(failText.c_str());
+			if (failed) return print((CLI_COLOR_RED + failText).c_str());
 
 			// Next, parse anonymous arguments
 			auto anonArgIt = anonArgTokens.begin();
@@ -375,13 +375,13 @@ public:
 					break;
 				}
 			}
-			if (failed) return print(failText.c_str());
+			if (failed) return print((CLI_COLOR_RED + failText).c_str());
 
 			if (anonArgIt != anonArgTokens.end()) {
 				failed = true;
 				failText = "Too many arguments provided\n";
 			}
-			if (failed) return print(failText.c_str());
+			if (failed) return print((CLI_COLOR_RED + failText).c_str());
 
 			// Finally, execute the command with the parsed arguments
 			if (executeFunction(runtimeArgs, this)) {

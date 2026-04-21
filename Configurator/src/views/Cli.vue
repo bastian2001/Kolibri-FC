@@ -5,7 +5,7 @@ import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
 import { delay } from "@/utils/utils";
 
-const TEXT_COLORS = ['white', 'red',/*green*/ '#6f6', /*yellow*/'#fd0', /*blue*/ '#55f', 'magenta', 'cyan', 'grey']
+const TEXT_COLORS = ['white', 'red',/*green*/ '#6f8', /*yellow*/'#fd0', /*blue*/ '#68f', 'magenta', 'cyan', 'grey']
 
 export default defineComponent({
 	name: "Cli",

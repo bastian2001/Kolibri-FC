@@ -16,13 +16,13 @@ void initSet() {
 		string &value = std::get<string>(args["value"].value);
 		SettingBase *setting = getSetting(name.c_str());
 		if (setting == &dummySetting) {
-			response = "Setting '" + string(name) + "' not found\n";
+			response = CLI_COLOR_RED "Setting '" + string(name) + "' not found\n" CLI_COLOR_WHITE;
 		} else {
 			if (setting->setDataFromString(value, true)) {
-				response = "Setting updated: " + string(name);
+				response = "Setting updated: " CLI_COLOR_CYAN + string(name) + CLI_COLOR_WHITE;
 				setting->updateSettingInFile();
 			} else {
-				response = "Invalid value for setting: " + string(name);
+				response = CLI_COLOR_RED "Invalid value for setting: " + string(name) + CLI_COLOR_WHITE;
 			}
 		}
 		cmd->print(response.c_str());
