@@ -16,6 +16,9 @@ export default defineComponent({
 			historyBackup: '',
 			commandRunning: false,
 			runningCheckInterval: -1,
+			cursorX: 0,
+			cursorY: 0,
+			stashedOutputLines: [] as string[][],
 		};
 	},
 	methods: {
@@ -38,44 +41,82 @@ export default defineComponent({
 				case MspFn.CLI_INIT:
 				case MspFn.CLI_COMMAND:
 					if (command.dataStr) {
-						const lines = command.dataStr.split('\n');
-						const startEscapes = this.outputLines.length - 1;
-						this.outputLines[this.outputLines.length - 1] += lines[0]; // Add the first line to the output
-						this.outputLines.push(...lines.slice(1)); // Add the rest of the lines to the output
-						for (let i = startEscapes; i < this.outputLines.length; i++) {
-							const line = this.outputLines[i];
-							// parse \r and remove it, also overwrite the previous content of the line if \r is found
-							// parse \t and make it align to the next 8 character tab stop
-							let newLine = '';
-							// deal with \r
-							let chunks = line.split('\r');
-							chunks.forEach(chunk => {
-								newLine = chunk + newLine.substring(chunk.length);
-							});
-
-							// deal with \t
-							chunks = newLine.split('\t');
-							newLine = '';
-							chunks.forEach((chunk, index) => {
-								const isLastChunk = index === chunks.length - 1;
-								newLine += chunk;
-								const nextTabStop = Math.ceil((newLine.length + 1) / 8) * 8;
-								if (!isLastChunk) {
-									while (newLine.length < nextTabStop) {
-										newLine += ' ';
+						for (let i = 0; i < command.dataStr.length; i++) {
+							const char = command.dataStr[i];
+							switch (char) {
+								case '\n':
+									this.cursorX = 0;
+									this.cursorY++;
+									if (this.cursorY >= this.outputLines.length) {
+										this.outputLines.push('');
 									}
-								}
-							});
-							this.outputLines[i] = newLine;
+									break;
+								case '\r':
+									this.cursorX = 0;
+									break;
+								case '\t':
+									const nextTabStop = Math.ceil((this.cursorX + 1) / 8) * 8;
+									this.replaceLineChars(this.cursorY, this.cursorX, ' '.repeat(nextTabStop - this.cursorX));
+									this.cursorX = nextTabStop;
+									break;
+								case '\b':
+									if (this.cursorX > 0) {
+										this.cursorX--;
+										this.replaceLineChars(this.cursorY, this.cursorX, ' ');
+									}
+									break;
+								case '\v': // vertical tab, clear the screen
+									this.outputLines = [''];
+									this.cursorX = 0;
+									this.cursorY = 0;
+									break;
+								case '\x0f': // shift in, also clear the screen but stashed
+									this.stashedOutputLines.push(this.outputLines);
+									this.outputLines = [''];
+									this.cursorX = 0;
+									this.cursorY = 0;
+									break;
+								case '\x0e': // shift out, restore stashed screen if available
+									if (this.stashedOutputLines.length > 0) {
+										this.outputLines = this.stashedOutputLines.pop()!;
+										this.cursorY = this.outputLines.length - 1;
+										this.cursorX = this.outputLines[this.cursorY].length;
+									} else {
+										this.outputLines = [''];
+										this.cursorX = 0;
+										this.cursorY = 0;
+									}
+									break;
+								default:
+									// regular character, we can add multiple at once to reduce the number of calls
+									let nextSpecialCharIndex = command.dataStr.length;
+									for (let j = i + 1; j < command.dataStr.length; j++) {
+										if ('\n\r\t\b\f\v'.includes(command.dataStr[j])) {
+											nextSpecialCharIndex = j;
+											break;
+										}
+									}
+									const charsToAdd = command.dataStr.substring(i, nextSpecialCharIndex);
+									this.replaceLineChars(this.cursorY, this.cursorX, charsToAdd);
+									this.cursorX += charsToAdd.length;
+									i += charsToAdd.length - 1; // -1 because the for loop will also increment i
+									break;
+							}
 						}
-					}
-					const outputElement = document.querySelector('.output') as HTMLElement;
-					if (outputElement) {
-						this.$nextTick(() => { outputElement.scrollTop = outputElement.scrollHeight })
+						const outputElement = document.querySelector('.output') as HTMLElement;
+						if (outputElement) {
+							this.$nextTick(() => { outputElement.scrollTop = outputElement.scrollHeight })
+						}
 					}
 					break;
 				default:
 					break;
+			}
+		},
+		replaceLineChars(lineIndex: number, charIndex: number, chars: string) {
+			if (lineIndex < this.outputLines.length) {
+				const line = this.outputLines[lineIndex];
+				this.outputLines[lineIndex] = line.substring(0, charIndex) + chars + line.substring(charIndex + chars.length);
 			}
 		},
 		onStart() {
@@ -179,7 +220,6 @@ export default defineComponent({
 	<div class="wrapper">
 		<div class="output">
 			<p v-for="(line, index) in outputLines" :key="'cli' + index">{{ line || ' ' }}</p>
-			<div class="spacer"></div>
 		</div>
 		<div class="input">
 			<input type="text" id="cliInput" @keydown.enter="startCommand" @keydown="checkAbort"

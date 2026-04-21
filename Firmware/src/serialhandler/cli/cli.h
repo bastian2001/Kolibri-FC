@@ -220,6 +220,12 @@ public:
 					case 'r':
 						currentToken += '\r';
 						break;
+					case 'b':
+						currentToken += '\b';
+						break;
+					case 'v':
+						currentToken += '\v';
+						break;
 					default:
 						currentToken += c;
 						break;
