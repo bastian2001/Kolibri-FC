@@ -19,6 +19,17 @@ enum class ArgType {
 	FLAG,
 };
 
+#define CLI_COLOR_WHITE "\x10"
+#define CLI_COLOR_RED "\x11"
+#define CLI_COLOR_GREEN "\x12"
+#define CLI_COLOR_YELLOW "\x13"
+#define CLI_COLOR_BLUE "\x14"
+#define CLI_COLOR_MAGENTA "\x15"
+#define CLI_COLOR_CYAN "\x16"
+#define CLI_COLOR_GREY "\x17"
+
+#define CLI_PROMPT "\x01" CLI_COLOR_YELLOW ">> " CLI_COLOR_WHITE
+
 typedef struct selectionOption {
 	string value;
 	string description;
@@ -383,14 +394,13 @@ public:
 	};
 	void abort() {
 		if (abortFunction) abortFunction(this);
-		print("Command aborted.\x01>> ");
+		print("Command aborted." CLI_PROMPT);
 	};
 	void loop() {
 		if (loopFunction) {
 			if (!loopFunction(this)) {
 				activeLoopCommand = nullptr;
-				const char *buf = "\x01>> ";
-				sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, buf, strlen(buf));
+				sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, CLI_PROMPT, strlen(CLI_PROMPT));
 			}
 		}
 	};
@@ -399,14 +409,14 @@ public:
 	};
 	void printMan(u8 serialNum) {
 		// if (!serial) return;
-		string man = "NAME\n\t" + name + " - " + description;
+		string man = CLI_COLOR_CYAN "NAME\n\t" CLI_COLOR_WHITE + name + " => " CLI_COLOR_GREY + description + CLI_COLOR_WHITE;
 		if (!aliases.empty()) {
-			man += "\n\nALIASES\n\t";
+			man += CLI_COLOR_CYAN "\n\nALIASES\n\t" CLI_COLOR_WHITE;
 			for (const auto &alias : aliases) {
 				man += alias + " ";
 			}
 		}
-		man += "\n\nUSAGE\n\t" + name;
+		man += CLI_COLOR_CYAN "\n\nUSAGE\n\t" CLI_COLOR_WHITE + name;
 		bool hasOptionalArgs = false;
 		for (const auto &arg : args) {
 			if (arg.optional) {
@@ -423,9 +433,9 @@ public:
 			}
 		}
 		if (hasOptionalArgs) {
-			man += " [...args]";
+			man += CLI_COLOR_GREY " [...args]" CLI_COLOR_WHITE;
 		}
-		man += "\n\nARGUMENTS\n";
+		man += CLI_COLOR_CYAN "\n\nARGUMENTS\n" CLI_COLOR_WHITE;
 		for (const auto &arg : args) {
 			string argStr;
 			if (!arg.anonymous) {
@@ -446,25 +456,25 @@ public:
 			argStr += "  ";
 			switch (arg.type) {
 			case ArgType::STRING:
-				argStr += " (string, max " + std::to_string(arg.maxStrLen) + " chars";
+				argStr += CLI_COLOR_GREY " (string, max " + std::to_string(arg.maxStrLen) + " chars";
 				break;
 			case ArgType::INT:
-				argStr += " (int, [" + std::to_string(arg.intLimits.min) + ", " + std::to_string(arg.intLimits.max) + "]";
+				argStr += CLI_COLOR_GREY " (int, [" + std::to_string(arg.intLimits.min) + ", " + std::to_string(arg.intLimits.max) + "]";
 				break;
 			case ArgType::FLOAT:
-				argStr += " (float, [" + std::to_string(arg.floatLimits.min) + ", " + std::to_string(arg.floatLimits.max);
+				argStr += CLI_COLOR_GREY " (float, [" + std::to_string(arg.floatLimits.min) + ", " + std::to_string(arg.floatLimits.max);
 				break;
 			case ArgType::SELECTION:
-				argStr += " (selection";
+				argStr += CLI_COLOR_GREY " (selection";
 				break;
 			case ArgType::FLAG:
-				argStr += " (flag";
+				argStr += CLI_COLOR_GREY " (flag";
 				break;
 			}
 			if (!arg.defaultValue.empty() && arg.optional) {
-				argStr += ", default: " + arg.defaultValue + ")";
+				argStr += ", default: " + arg.defaultValue + ")" CLI_COLOR_WHITE;
 			} else {
-				argStr += ")";
+				argStr += ")" CLI_COLOR_WHITE;
 			}
 			argStr += "\n\t\t\t" + arg.description + "\n";
 
@@ -494,7 +504,7 @@ public:
 			man += argStr;
 		}
 		if (args.empty()) {
-			man += "\t- None -\n";
+			man += CLI_COLOR_GREY "\t- None -\n" CLI_COLOR_WHITE;
 		}
 		print(man.c_str());
 	}

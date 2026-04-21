@@ -5,11 +5,13 @@ import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
 import { delay } from "@/utils/utils";
 
+const TEXT_COLORS = ['white', 'red', 'lightgreen', 'yellow', 'blue', 'magenta', 'cyan', 'grey']
+
 export default defineComponent({
 	name: "Cli",
 	data() {
 		return {
-			outputLines: [''], // purely controlled by the FC
+			outputLines: [[]] as { color: string, text: string }[][], // purely controlled by the FC
 			inputText: '',
 			history: [] as string[],
 			historyIndex: -1,
@@ -18,7 +20,9 @@ export default defineComponent({
 			runningCheckInterval: -1,
 			cursorX: 0,
 			cursorY: 0,
-			stashedOutputLines: [] as string[][],
+			stashedOutputLines: [] as { color: string, text: string }[][][],
+			colors: TEXT_COLORS,
+			currentColor: 'white',
 		};
 	},
 	methods: {
@@ -48,7 +52,7 @@ export default defineComponent({
 									this.cursorX = 0;
 									this.cursorY++;
 									if (this.cursorY >= this.outputLines.length) {
-										this.outputLines.push('');
+										this.outputLines.push([]);
 									}
 									break;
 								case '\x01': // like \n but only works if the line is not empty
@@ -56,7 +60,7 @@ export default defineComponent({
 										this.cursorX = 0;
 										this.cursorY++;
 										if (this.cursorY >= this.outputLines.length) {
-											this.outputLines.push('');
+											this.outputLines.push([]);
 										}
 									}
 									break;
@@ -75,13 +79,13 @@ export default defineComponent({
 									}
 									break;
 								case '\v': // vertical tab, clear the screen
-									this.outputLines = [''];
+									this.outputLines = [[]];
 									this.cursorX = 0;
 									this.cursorY = 0;
 									break;
 								case '\x0f': // shift in, also clear the screen but stashed
 									this.stashedOutputLines.push(this.outputLines);
-									this.outputLines = [''];
+									this.outputLines = [[]];
 									this.cursorX = 0;
 									this.cursorY = 0;
 									break;
@@ -91,16 +95,30 @@ export default defineComponent({
 										this.cursorY = this.outputLines.length - 1;
 										this.cursorX = this.outputLines[this.cursorY].length;
 									} else {
-										this.outputLines = [''];
+										this.outputLines = [[]];
 										this.cursorX = 0;
 										this.cursorY = 0;
+									}
+									break;
+								case '\x10':
+								case '\x11':
+								case '\x12':
+								case '\x13':
+								case '\x14':
+								case '\x15':
+								case '\x16':
+								case '\x17':
+									const colorIndex = char.charCodeAt(0) - 0x10;
+									if (colorIndex >= 0 && colorIndex < this.colors.length) {
+										this.currentColor = this.colors[colorIndex];
 									}
 									break;
 								default:
 									// regular character, we can add multiple at once to reduce the number of calls
 									let nextSpecialCharIndex = command.dataStr.length;
 									for (let j = i + 1; j < command.dataStr.length; j++) {
-										if ('\n\x01\x0e\x0f\r\t\b\v'.includes(command.dataStr[j])) {
+										const c = command.dataStr[j];
+										if ('\n\x01\x0e\x0f\r\t\b\v'.includes(c) || c >= '\x10' && c <= '\x17') {
 											nextSpecialCharIndex = j;
 											break;
 										}
@@ -123,13 +141,48 @@ export default defineComponent({
 			}
 		},
 		replaceLineChars(lineIndex: number, charIndex: number, chars: string) {
-			if (lineIndex < this.outputLines.length) {
-				const line = this.outputLines[lineIndex];
-				this.outputLines[lineIndex] = line.substring(0, charIndex) + chars + line.substring(charIndex + chars.length);
+			if (lineIndex >= this.outputLines.length) return;
+			const line = this.outputLines[lineIndex];
+			const lineChars: { char: string, color: string }[] = []
+			console.log('Replacing chars at line', lineIndex, 'char', charIndex, 'with', chars);
+			console.log(line, lineChars);
+			console.log('Current color:', this.currentColor);
+
+
+			// separate the line into characters with their colors
+			for (let i = 0; i < line.length; i++) {
+				for (let j = 0; j < line[i].text.length; j++) {
+					lineChars.push({ char: line[i].text[j], color: line[i].color });
+				}
 			}
+
+			// replace the characters at the specified position
+			const insert: { char: string, color: string }[] = chars.split('').map(c => ({ char: c, color: this.currentColor }));
+			lineChars.splice(charIndex, chars.length, ...insert);
+
+			// convert back to the line format with color segments
+			const newLine: { color: string, text: string }[] = [];
+			let currentColor = lineChars[0]?.color || 'white';
+			let currentText = '';
+			for (const c of lineChars) {
+				if (c.color !== currentColor) {
+					newLine.push({ color: currentColor, text: currentText });
+					currentColor = c.color;
+					currentText = c.char;
+				} else {
+					currentText += c.char;
+				}
+			}
+			if (currentText) {
+				newLine.push({ color: currentColor, text: currentText });
+			}
+			this.outputLines[lineIndex] = newLine;
 		},
 		onStart() {
-			this.outputLines = [''];
+			this.outputLines = [[]];
+			this.stashedOutputLines = [];
+			this.cursorX = 0;
+			this.cursorY = 0;
 			delay(10).then(() => { sendCommand(MspFn.CLI_INIT) });
 			(this.$refs.cliInput as HTMLInputElement).focus();
 		},
@@ -228,7 +281,10 @@ export default defineComponent({
 <template>
 	<div class="wrapper">
 		<div class="output">
-			<p v-for="(line, index) in outputLines" :key="'cli' + index">{{ line || ' ' }}</p>
+			<p v-for="(line, index) in outputLines" :key="'cli' + index">
+				<span v-for="(part, i) in line" :key="i" :style="'color: ' + part.color + ';'">{{ part.text || '\u200b'
+				}}</span>
+			</p>
 		</div>
 		<div class="input">
 			<input type="text" id="cliInput" @keydown.enter="startCommand" @keydown="checkAbort"
@@ -261,7 +317,8 @@ export default defineComponent({
 	overflow-y: auto;
 }
 
-.output p {
+.output p,
+.output span {
 	font-family: monospace;
 	font-size: 1rem;
 	font-weight: bolder;

@@ -8,7 +8,7 @@ void initSet() {
 	for (const auto &setting : settingsList) {
 		options.push_back({setting->id, ""});
 	}
-	cmd->addSelectionArg("name", 'n', false, true, &options, "Name of the setting to set");
+	cmd->addSelectionArg("name", 'n', false, true, &options, "Name of the setting to set", "", false);
 	cmd->addStringArg("value", 'v', false, true, 256, "Value to set the setting to");
 	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
 		string response = "";

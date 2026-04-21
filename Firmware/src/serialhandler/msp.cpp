@@ -525,12 +525,12 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 		} break;
 		case MspFn::CLI_INIT: {
 			// send start info
-			snprintf(buf, 256, FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands\n>> ", targetIdentifier, targetFullName);
+			snprintf(buf, 256, FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands" CLI_PROMPT, targetIdentifier, targetFullName);
 			openSettingsFile();
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
 		} break;
 		case MspFn::CLI_COMMAND: {
-			string response = string(reqPayload, reqLen) + "\n";
+			string response = CLI_COLOR_YELLOW + string(reqPayload, reqLen) + "\n" CLI_COLOR_WHITE;
 			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
 
 			string cmdName = string(reqPayload, reqLen);
@@ -550,7 +550,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 
 			if (!Command::activeLoopCommand) {
-				response = "\x01>> ";
+				response = CLI_PROMPT;
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
 			}
 		} break;

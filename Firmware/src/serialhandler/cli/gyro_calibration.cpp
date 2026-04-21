@@ -35,7 +35,7 @@ void initGyroCalibration() {
 			commandTimer = 0;
 		}
 		if (!(gyroReadyFlags & (1 << 1))) {
-			cmd->print("\rGyro calibration complete!");
+			cmd->print(CLI_COLOR_GREEN "\rGyro calibration complete!" CLI_COLOR_WHITE);
 			return false; // Return false to indicate that the command is complete
 		}
 		return true; // Return true to keep the command running
