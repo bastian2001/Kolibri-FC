@@ -64,7 +64,7 @@ export default defineComponent({
 									this.cursorX = 0;
 									break;
 								case '\t':
-									const nextTabStop = Math.ceil((this.cursorX + 1) / 8) * 8;
+									const nextTabStop = Math.ceil((this.cursorX + 1) / 4) * 4;
 									this.replaceLineChars(this.cursorY, this.cursorX, ' '.repeat(nextTabStop - this.cursorX));
 									this.cursorX = nextTabStop;
 									break;

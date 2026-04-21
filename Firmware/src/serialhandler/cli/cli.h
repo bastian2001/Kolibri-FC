@@ -43,6 +43,7 @@ typedef struct commandArg {
 		int maxStrLen; // for string arguments, the maximum length of the string (not including the null terminator)
 		const std::vector<SelectionOption> *selectionOptions; // for selection arguments, the list of valid options
 	};
+	bool manDetailedSelection = true;
 } CommandArg;
 typedef struct runtimeArg {
 	bool provided = false;
@@ -134,7 +135,7 @@ public:
 		arg.type = ArgType::FLAG;
 		args.push_back(arg);
 	}
-	void addSelectionArg(string name, char shorthand = 0, bool optional = false, bool anonymous = false, const std::vector<SelectionOption> *options = nullptr, string description = "", string defaultValue = "") {
+	void addSelectionArg(string name, char shorthand = 0, bool optional = false, bool anonymous = false, const std::vector<SelectionOption> *options = nullptr, string description = "", string defaultValue = "", bool manDetailedSelection = true) {
 		if (anonymous) optional = false;
 		if (!anonymous && name == "") return;
 		if (name == "") {
@@ -153,6 +154,7 @@ public:
 		arg.defaultValue = defaultValue;
 		arg.type = ArgType::SELECTION;
 		arg.selectionOptions = options;
+		arg.manDetailedSelection = manDetailedSelection;
 		args.push_back(arg);
 	}
 
@@ -397,14 +399,14 @@ public:
 	};
 	void printMan(u8 serialNum) {
 		// if (!serial) return;
-		string man = "NAME\n    " + name + " - " + description;
+		string man = "NAME\n\t" + name + " - " + description;
 		if (!aliases.empty()) {
-			man += "\n\nALIASES\n  ";
+			man += "\n\nALIASES\n\t";
 			for (const auto &alias : aliases) {
 				man += alias + " ";
 			}
 		}
-		man += "\n\nUSAGE\n    " + name;
+		man += "\n\nUSAGE\n\t" + name;
 		bool hasOptionalArgs = false;
 		for (const auto &arg : args) {
 			if (arg.optional) {
@@ -428,15 +430,15 @@ public:
 			string argStr;
 			if (!arg.anonymous) {
 				if (arg.shorthand)
-					argStr += "    -" + string(1, arg.shorthand) + ", ";
+					argStr += "\t-" + string(1, arg.shorthand) + ", ";
 				else
-					argStr += "        ";
+					argStr += "\t    ";
 				argStr += "--" + arg.name;
 				for (int i = 10 - arg.name.length(); i > 0; i--) {
 					argStr += " ";
 				}
 			} else {
-				argStr += "        <" + arg.name + ">";
+				argStr += "\t\t<" + arg.name + ">";
 				for (int i = 10 - arg.name.length(); i > 0; i--) {
 					argStr += " ";
 				}
@@ -464,14 +466,26 @@ public:
 			} else {
 				argStr += ")";
 			}
-			argStr += "\n            " + arg.description + "\n";
+			argStr += "\n\t\t\t" + arg.description + "\n";
 
 			if (arg.type == ArgType::SELECTION && arg.selectionOptions && !arg.selectionOptions->empty()) {
-				for (size_t i = 0; i < arg.selectionOptions->size(); i++) {
-					auto &opt = (*arg.selectionOptions)[i];
-					argStr += "                - " + opt.value;
-					if (opt.description.length() > 0) {
-						argStr += " => " + opt.description;
+				if (arg.manDetailedSelection) {
+					for (size_t i = 0; i < arg.selectionOptions->size(); i++) {
+						auto &opt = (*arg.selectionOptions)[i];
+						argStr += "\t\t\t\t- " + opt.value;
+						if (opt.description.length() > 0) {
+							argStr += " => " + opt.description;
+						}
+						argStr += "\n";
+					}
+				} else {
+					argStr += "\t\t\t\tOptions: ";
+					for (size_t i = 0; i < arg.selectionOptions->size(); i++) {
+						auto &opt = (*arg.selectionOptions)[i];
+						argStr += opt.value;
+						if (i != arg.selectionOptions->size() - 1) {
+							argStr += ", ";
+						}
 					}
 					argStr += "\n";
 				}
@@ -480,7 +494,7 @@ public:
 			man += argStr;
 		}
 		if (args.empty()) {
-			man += "    - None -\n";
+			man += "\t- None -\n";
 		}
 		print(man.c_str());
 	}
