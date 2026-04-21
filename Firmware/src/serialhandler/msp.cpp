@@ -550,7 +550,7 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 			}
 
 			if (!Command::activeLoopCommand) {
-				response = "\n>> ";
+				response = "\x01>> ";
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
 			}
 		} break;

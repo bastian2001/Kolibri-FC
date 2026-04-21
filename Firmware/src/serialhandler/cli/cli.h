@@ -381,13 +381,13 @@ public:
 	};
 	void abort() {
 		if (abortFunction) abortFunction(this);
-		print("Command aborted.\n>> ");
+		print("Command aborted.\x01>> ");
 	};
 	void loop() {
 		if (loopFunction) {
 			if (!loopFunction(this)) {
 				activeLoopCommand = nullptr;
-				const char *buf = "\n>> ";
+				const char *buf = "\x01>> ";
 				sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, buf, strlen(buf));
 			}
 		}

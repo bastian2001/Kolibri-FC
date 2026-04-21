@@ -26,7 +26,7 @@ void initMan() {
 
 void finishInitMan() {
 	for (Command *c : Command::cliCommands) {
-		cmds.push_back({c->name, c->description});
+		cmds.push_back({c->name, ""});
 	}
 	cmd.addSelectionArg("command", 'c', false, true, &cmds, "The command to print the manual for");
 }

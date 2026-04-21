@@ -51,6 +51,15 @@ export default defineComponent({
 										this.outputLines.push('');
 									}
 									break;
+								case '\x01': // like \n but only works if the line is not empty
+									if (this.outputLines[this.cursorY].length > 0) {
+										this.cursorX = 0;
+										this.cursorY++;
+										if (this.cursorY >= this.outputLines.length) {
+											this.outputLines.push('');
+										}
+									}
+									break;
 								case '\r':
 									this.cursorX = 0;
 									break;
