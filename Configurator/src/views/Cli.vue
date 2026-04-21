@@ -5,7 +5,7 @@ import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
 import { delay } from "@/utils/utils";
 
-const TEXT_COLORS = ['white', 'red', 'lightgreen', 'yellow', 'blue', 'magenta', 'cyan', 'grey']
+const TEXT_COLORS = ['white', 'red',/*green*/ '#6f6', /*yellow*/'#fd0', /*blue*/ '#55f', 'magenta', 'cyan', 'grey']
 
 export default defineComponent({
 	name: "Cli",
@@ -22,7 +22,7 @@ export default defineComponent({
 			cursorY: 0,
 			stashedOutputLines: [] as { color: string, text: string }[][][],
 			colors: TEXT_COLORS,
-			currentColor: 'white',
+			currentColor: TEXT_COLORS[0],
 		};
 	},
 	methods: {
@@ -162,7 +162,7 @@ export default defineComponent({
 
 			// convert back to the line format with color segments
 			const newLine: { color: string, text: string }[] = [];
-			let currentColor = lineChars[0]?.color || 'white';
+			let currentColor = lineChars[0]?.color || TEXT_COLORS[0];
 			let currentText = '';
 			for (const c of lineChars) {
 				if (c.color !== currentColor) {
