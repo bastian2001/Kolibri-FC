@@ -12,13 +12,11 @@ void initReboot() {
 			if (serials[cmd->getSerialNum()]) serials[cmd->getSerialNum()]->flush();
 			sleep_ms(100);
 			rp2040.reboot();
-		} else if (mode == "bl") {
+		} else if (mode == "bootloader") {
 			cmd->print("Rebooting to bootloader...");
 			if (serials[cmd->getSerialNum()]) serials[cmd->getSerialNum()]->flush();
 			sleep_ms(100);
 			rp2040.rebootToBootloader();
-		} else {
-			cmd->print(string("Invalid mode: " + mode + "").c_str());
 		}
 		return false;
 	});

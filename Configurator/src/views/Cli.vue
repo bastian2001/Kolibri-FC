@@ -23,6 +23,8 @@ export default defineComponent({
 			stashedOutputLines: [] as { color: string, text: string }[][][],
 			colors: TEXT_COLORS,
 			currentColor: TEXT_COLORS[0],
+			dataHeldBack: '',
+			holdingBack: false,
 		};
 	},
 	methods: {
@@ -47,14 +49,11 @@ export default defineComponent({
 					if (command.dataStr) {
 						for (let i = 0; i < command.dataStr.length; i++) {
 							const char = command.dataStr[i];
+							if (this.holdingBack && char !== '\x03') {
+								this.dataHeldBack += char;
+								continue;
+							}
 							switch (char) {
-								case '\n':
-									this.cursorX = 0;
-									this.cursorY++;
-									if (this.cursorY >= this.outputLines.length) {
-										this.outputLines.push([]);
-									}
-									break;
 								case '\x01': // like \n but only works if the line is not empty
 									if (this.outputLines[this.cursorY].length > 0) {
 										this.cursorX = 0;
@@ -62,6 +61,41 @@ export default defineComponent({
 										if (this.cursorY >= this.outputLines.length) {
 											this.outputLines.push([]);
 										}
+									}
+									break;
+								case '\x02': // prevents incoming characters from being processed until \x03 is seen, used to prevent screen corruption during long outputs, we can stash the incoming data in the meantime
+									this.dataHeldBack = '';
+									this.holdingBack = true;
+									break;
+								case '\x03':
+									// process the held back data by reusing this function
+									const heldBack = this.dataHeldBack;
+									this.dataHeldBack = '';
+									this.holdingBack = false;
+									this.onCommand({ command: MspFn.CLI_COMMAND, dataStr: heldBack, data: new Uint8Array(), cmdType: 'request', length: 0, flag: 0, version: 0 } as Command);
+									break;
+								case '\x0e': // shift out, restore stashed screen if available
+									if (this.stashedOutputLines.length > 0) {
+										this.outputLines = this.stashedOutputLines.pop()!;
+										this.cursorY = this.outputLines.length - 1;
+										this.cursorX = this.outputLines[this.cursorY].length;
+									} else {
+										this.outputLines = [[]];
+										this.cursorX = 0;
+										this.cursorY = 0;
+									}
+									break;
+								case '\x0f': // shift in, also clear the screen but stashed
+									this.stashedOutputLines.push(this.outputLines);
+									this.outputLines = [[]];
+									this.cursorX = 0;
+									this.cursorY = 0;
+									break;
+								case '\n':
+									this.cursorX = 0;
+									this.cursorY++;
+									if (this.cursorY >= this.outputLines.length) {
+										this.outputLines.push([]);
 									}
 									break;
 								case '\r':
@@ -83,23 +117,6 @@ export default defineComponent({
 									this.cursorX = 0;
 									this.cursorY = 0;
 									break;
-								case '\x0f': // shift in, also clear the screen but stashed
-									this.stashedOutputLines.push(this.outputLines);
-									this.outputLines = [[]];
-									this.cursorX = 0;
-									this.cursorY = 0;
-									break;
-								case '\x0e': // shift out, restore stashed screen if available
-									if (this.stashedOutputLines.length > 0) {
-										this.outputLines = this.stashedOutputLines.pop()!;
-										this.cursorY = this.outputLines.length - 1;
-										this.cursorX = this.outputLines[this.cursorY].length;
-									} else {
-										this.outputLines = [[]];
-										this.cursorX = 0;
-										this.cursorY = 0;
-									}
-									break;
 								case '\x10':
 								case '\x11':
 								case '\x12':
@@ -118,7 +135,7 @@ export default defineComponent({
 									let nextSpecialCharIndex = command.dataStr.length;
 									for (let j = i + 1; j < command.dataStr.length; j++) {
 										const c = command.dataStr[j];
-										if ('\n\x01\x0e\x0f\r\t\b\v'.includes(c) || c >= '\x10' && c <= '\x17') {
+										if ('\x01\x02\x03\x0e\x0f\n\r\t\b\v'.includes(c) || c >= '\x10' && c <= '\x17') {
 											nextSpecialCharIndex = j;
 											break;
 										}
