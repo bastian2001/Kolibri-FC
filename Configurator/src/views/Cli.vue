@@ -49,7 +49,7 @@ export default defineComponent({
 					if (command.dataStr) {
 						for (let i = 0; i < command.dataStr.length; i++) {
 							const char = command.dataStr[i];
-							if (this.holdingBack && char !== '\x03') {
+							if (this.holdingBack && char !== '\x03' && char !== '\x02') {
 								this.dataHeldBack += char;
 								continue;
 							}
