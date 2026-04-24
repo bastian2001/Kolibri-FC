@@ -1,5 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
-*.d.ts linguist-generated=true
-Configurator/src/utils/fonts.ts linguist-generated=true
-other/Info*and*Datasheet*PDFs -linguist-detectable
+
+# Exclude many files from GitHub's language stats
+*.d.ts linguist-generated
+Configurator/src/utils/fonts.ts linguist-generated
+other/** linguist-vendored
