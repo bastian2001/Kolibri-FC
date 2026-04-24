@@ -1,5 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 *.d.ts linguist-generated=true
-fonts.ts linguist-generated=true
+Configurator/src/utils/fonts.ts linguist-generated=true
 other/Info*and*Datasheet*PDFs -linguist-detectable
