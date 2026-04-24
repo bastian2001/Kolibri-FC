@@ -4,4 +4,4 @@
 # Exclude many files from GitHub's language stats
 *.d.ts linguist-generated
 Configurator/src/utils/fonts.ts linguist-generated
-other/** linguist-vendored
+other/** -linguist-detectable
