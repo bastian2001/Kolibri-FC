@@ -554,9 +554,22 @@ void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion versio
 				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
 			}
 		} break;
-		case MspFn::CLI_GET_SUGGESTION:
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
-			break;
+		case MspFn::CLI_GET_SUGGESTION: {
+			std::vector<string> suggestions;
+			getCliSuggestions(string(reqPayload, reqLen), suggestions);
+			string response;
+			for (size_t i = 0; i < suggestions.size(); i++) {
+				const string &s = suggestions[i];
+				if (response.length() + s.length() + 1 >= 480) {
+					break;
+				}
+				if (i > 0) {
+					response += '\n';
+				}
+				response += s;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+		} break;
 		case MspFn::CLI_ABORT_COMMAND:
 			if (Command::activeLoopCommand) {
 				Command::activeLoopCommand->abort();
