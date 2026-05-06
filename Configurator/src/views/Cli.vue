@@ -27,6 +27,7 @@ export default defineComponent({
 			holdingBack: false,
 			suggestions: [] as string[][],
 			selectedSuggestionIndex: -1,
+			suggestionsFor: '',
 		};
 	},
 	methods: {
@@ -205,29 +206,45 @@ export default defineComponent({
 		},
 		navigateInput(e: KeyboardEvent) {
 			if (this.suggestions.length) {
+				let selected = false;
 				if (e.key === 'ArrowUp') {
 					e.preventDefault();
 					if (this.selectedSuggestionIndex < this.suggestions.length - 1) {
 						this.selectedSuggestionIndex++;
+						selected = true;
 					} else {
-						this.selectedSuggestionIndex = 0;
+						this.selectedSuggestionIndex = -1;
 					}
 				} else if (e.key === 'ArrowDown') {
 					e.preventDefault();
-					if (this.selectedSuggestionIndex > 0) {
+					if (this.selectedSuggestionIndex >= 0) {
 						this.selectedSuggestionIndex--;
-					} else {
-						this.selectedSuggestionIndex = this.suggestions.length - 1;
 					}
+					selected = this.selectedSuggestionIndex >= 0;
 				}
-				// scroll suggestion into view
-				this.$nextTick(() => {
-					const sugs = this.$refs.suggestions as HTMLDivElement | null;
-					if (!sugs) return;
-					const selected = sugs.querySelector('.suggestion.selected') as HTMLDivElement | null;
-					if (!selected) return;
-					selected.scrollIntoView({ block: 'nearest' });
-				});
+				if (selected) {
+					this.$nextTick(() => {
+						const sugs = this.$refs.suggestions as HTMLDivElement | null;
+						if (!sugs) return;
+						const selected = sugs.querySelector('.suggestion.selected') as HTMLDivElement | null;
+						if (!selected) return;
+						selected.scrollIntoView({ block: 'nearest' });
+					});
+					const text = this.suggestions[this.selectedSuggestionIndex][0];
+					if (text) {
+						this.inputText = text;
+						const base = this.suggestionsFor;
+						if (text.startsWith(base) && text.length > base.length) {
+							this.$nextTick(() => {
+								const input = this.$refs.cliInput as HTMLInputElement | null;
+								if (!input) return;
+								input.setSelectionRange(base.length, text.length);
+							});
+						}
+					}
+				} else {
+					this.inputText = this.suggestionsFor;
+				}
 				return;
 			}
 			else {
@@ -280,17 +297,19 @@ export default defineComponent({
 			this.suggestions = [];
 			this.selectedSuggestionIndex = -1;
 		},
-		getSuggestions() {
-			sendCommand(MspFn.CLI_GET_SUGGESTION, this.inputText)
+		getSuggestions(jumpToFirst = false) {
+			const text = this.inputText;
+			sendCommand(MspFn.CLI_GET_SUGGESTION, text)
 				.then(({ dataStr }) => {
 					// the suggestions that are returned are separated by \n
 					// \r is used as a tab stop, so that when pressing the tab key on --arg \r0...99, it will only autocomplete to "--arg " and not "--arg 0...99"
 					this.suggestions = dataStr.split('\n').filter(s => s.trim().length > 0).map(s => s.split('\r'));
-					if (this.suggestions.length > 0) {
+					if (this.suggestions.length > 0 && jumpToFirst) {
 						this.selectedSuggestionIndex = 0;
 					} else {
 						this.selectedSuggestionIndex = -1;
 					}
+					this.suggestionsFor = text;
 				})
 				.catch(() => { });
 		},
@@ -311,7 +330,7 @@ export default defineComponent({
 			}
 
 			if (e.ctrlKey && e.key === ' ') {
-				this.getSuggestions();
+				this.getSuggestions(true);
 				e.preventDefault();
 				return;
 			}
@@ -332,7 +351,10 @@ export default defineComponent({
 			if (i >= 0 && i < this.suggestions.length) {
 				this.inputText = this.suggestions[i][0];
 				this.clearSuggestions();
-				(this.$refs.cliInput as HTMLInputElement).focus();
+				const input = this.$refs.cliInput as HTMLInputElement | null;
+				if (!input) return;
+				input.focus();
+				input.setSelectionRange(this.inputText.length, this.inputText.length);
 				this.getSuggestions();
 				return true;
 			}
@@ -343,7 +365,7 @@ export default defineComponent({
 			const parts: { text: string, solid: boolean }[] = [];
 			let currentIndex = 0;
 			for (let i = 0; i < suggestion.length; i++) {
-				const inputChar = this.inputText[currentIndex];
+				const inputChar = this.suggestionsFor[currentIndex];
 				const suggestionChar = suggestion[i];
 				if (inputChar && inputChar.toLowerCase() === suggestionChar.toLowerCase()) {
 					if ((parts.length > 0 && !parts[parts.length - 1].solid) || parts.length === 0) {
