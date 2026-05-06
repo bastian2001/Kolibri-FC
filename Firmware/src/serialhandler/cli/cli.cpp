@@ -478,7 +478,7 @@ bool Command::parseCommandArgs(const std::list<string> &tokens, std::map<string,
 	return true;
 }
 
-void Command::execute(string payload, u8 serialNum) {
+void Command::execute(string payload, KoliSerial &serial) {
 	// if (!serial) return;
 	// this->serial = serial;
 	this->serialNum = serialNum;
