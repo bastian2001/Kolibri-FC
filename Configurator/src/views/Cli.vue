@@ -297,7 +297,7 @@ export default defineComponent({
 			this.suggestions = [];
 			this.selectedSuggestionIndex = -1;
 		},
-		getSuggestions(jumpToFirst = false) {
+		getSuggestions(jumpToFirst = false, overrideText = true) {
 			const text = this.inputText;
 			sendCommand(MspFn.CLI_GET_SUGGESTION, text)
 				.then(({ dataStr }) => {
@@ -306,6 +306,20 @@ export default defineComponent({
 					this.suggestions = dataStr.split('\n').filter(s => s.trim().length > 0).map(s => s.split('\r'));
 					if (this.suggestions.length > 0 && jumpToFirst) {
 						this.selectedSuggestionIndex = 0;
+						if (overrideText) {
+							const s = this.suggestions[this.selectedSuggestionIndex][0];
+							if (s) {
+								const base = text;
+								if (s.startsWith(base) && s.length > base.length) {
+									this.inputText = s;
+									this.$nextTick(() => {
+										const input = this.$refs.cliInput as HTMLInputElement | null;
+										if (!input) return;
+										input.setSelectionRange(base.length, s.length);
+									});
+								}
+							}
+						}
 					} else {
 						this.selectedSuggestionIndex = -1;
 					}
@@ -313,8 +327,9 @@ export default defineComponent({
 				})
 				.catch(() => { });
 		},
-		oninput() {
-			this.getSuggestions();
+		oninput(e: InputEvent) {
+			console.log(e)
+			this.getSuggestions(true, e.isTrusted && e.inputType === 'insertText' && e.data ? true : false);
 		},
 		onkey(e: KeyboardEvent) {
 			// check for Ctrl + C to abort the running command, but only if there's no text selection to allow copying text
@@ -337,6 +352,7 @@ export default defineComponent({
 
 			if (e.key === 'Escape') {
 				this.clearSuggestions();
+				this.inputText = this.suggestionsFor;
 				return;
 			}
 
@@ -431,7 +447,7 @@ export default defineComponent({
 				<input :class="{ forceRadius: suggestions.length === 0 }" type="text" id="cliInput"
 					@keydown.enter="startCommand" @keydown="onkey" @input="oninput" @keydown.up.prevent="navigateInput"
 					@keydown.down.prevent="navigateInput" autocomplete="off" v-model="inputText" ref="cliInput"
-					placeholder="Try 'help' or press Ctrl + Space for suggestions" />
+					placeholder="Start typing or press Ctrl + Space for suggestions" />
 				<div class="suggestions" ref="suggestions">
 					<div class="suggestion" v-for="(s, i) in suggestions" @mousedown.prevent="() => { }"
 						@click="() => useSuggestion(i)" :class="{ selected: i === selectedSuggestionIndex }">
