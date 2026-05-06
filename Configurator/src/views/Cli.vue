@@ -565,7 +565,6 @@ export default defineComponent({
 
 .suggestion .fixed .solid {
 	color: black;
-	font-weight: bold;
 }
 
 .suggestion .fixed .dim {
