@@ -44,6 +44,7 @@ void setup() {
 	initSerial();
 	trampInit();
 	initGPS();
+	initCli();
 
 	// init LEDs
 	p.recalculateClock();
@@ -91,6 +92,7 @@ void loop() {
 	OsdCanvas::get().loop();
 	taskManagerLoop();
 	trampLoop();
+	cliLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500000) {
 		static bool on = false;

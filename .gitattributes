@@ -1,4 +1,12 @@
 # Auto detect text files and perform LF normalization
 * text=auto
-*.PrjPCB linguist-language=Altium
-other/Info*and*Datasheet*PDFs -linguist-detectable
+
+# Exclude many files from GitHub's language stats
+*.d.ts linguist-generated
+Configurator/src/utils/fonts.ts linguist-generated
+other/** -linguist-detectable
+Firmware/include/pioasm/*.h linguist-generated
+
+# Correct the language detection
+*.pio linguist-language=Assembly
+Firmware/src/**/*.h linguist-language=C++

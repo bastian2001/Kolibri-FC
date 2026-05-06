@@ -618,20 +618,61 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 		} break;
 		case MspFn::CLI_INIT: {
 			// send start info
-			snprintf(buf, 256, "\n" FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands\n>> ", targetIdentifier, targetFullName);
+			snprintf(buf, 256, FIRMWARE_NAME " v" FIRMWARE_VERSION_STRING "\n%s => %s\nType 'help' to get a list of commands" CLI_PROMPT, targetIdentifier, targetFullName);
 			openSettingsFile();
 			sendMsp(msgSetup, buf, strlen(buf));
 		} break;
 		case MspFn::CLI_COMMAND: {
-			string response = string(reqPayload, reqLen);
-			response += "\n";
+			string response = CLI_COLOR_WHITE + string(reqPayload, reqLen) + "\n";
 			sendMsp(msgSetup, response.c_str(), response.length());
-			response = processCliCommand(reqPayload, reqLen);
-			response += "\n>> ";
-			sendMsp(msgSetup, response.c_str(), response.length());
+
+			string cmdName = string(reqPayload, reqLen);
+			string payload = "";
+			size_t spaceIndex = cmdName.find(' ');
+			if (spaceIndex != string::npos) {
+				payload = cmdName.substr(spaceIndex + 1);
+				cmdName = cmdName.substr(0, spaceIndex);
+			}
+
+			Command *cmd = Command::getCommandByName(cmdName);
+			if (cmd) {
+				cmd->execute(payload, serialNum);
+			} else {
+				snprintf(buf, 256, CLI_COLOR_RED "Unknown command: %s\n" CLI_COLOR_WHITE, cmdName.c_str());
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
+			}
+
+			if (!Command::activeLoopCommand) {
+				response = CLI_PROMPT;
+				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+			}
 		} break;
-		case MspFn::CLI_GET_SUGGESTION:
-			sendMsp(msgSetup);
+		case MspFn::CLI_GET_SUGGESTION: {
+			std::vector<string> suggestions;
+			getCliSuggestions(string(reqPayload, reqLen), suggestions);
+			string response;
+			for (size_t i = 0; i < suggestions.size(); i++) {
+				const string &s = suggestions[i];
+				if (response.length() + s.length() + 1 >= 480) {
+					break;
+				}
+				if (i > 0) {
+					response += '\n';
+				}
+				response += s;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+		} break;
+		case MspFn::CLI_ABORT_COMMAND:
+			if (Command::activeLoopCommand) {
+				Command::activeLoopCommand->abort();
+				Command::activeLoopCommand = nullptr;
+			}
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			break;
+		case MspFn::CLI_CHECK_RUNNING:
+			buf[0] = Command::activeLoopCommand ? 1 : 0;
+			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
 			break;
 		case MspFn::SAVE_SETTINGS:
 			closeSettingsFile();

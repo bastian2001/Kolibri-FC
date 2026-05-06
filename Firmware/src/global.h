@@ -68,7 +68,7 @@
 #include "rtc.h"
 #include "serial.h"
 #include "serialhandler/4way.h"
-#include "serialhandler/cli.h"
+#include "serialhandler/cli/cli.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
@@ -130,6 +130,8 @@ static inline f64 DECODE_R8(const u8 *buf) {
 	memcpy(&result, buf, 8);
 	return result;
 }
+bool parseInt(const char *str, i64 &value); // Parse an integer from a string, return true if successful
+bool parseFloat(const char *str, f64 &value); // Parse a float from a string, return true if successful
 
 enum MspRebootMode {
 	MSP_REBOOT_FIRMWARE = 0,
