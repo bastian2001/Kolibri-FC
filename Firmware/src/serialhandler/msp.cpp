@@ -623,10 +623,8 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			sendMsp(msgSetup, buf, strlen(buf));
 		} break;
 		case MspFn::CLI_COMMAND: {
-			string response = CLI_COLOR_WHITE + string(reqPayload, reqLen) + "\n";
-			sendMsp(msgSetup, response.c_str(), response.length());
-
-			string cmdName = string(reqPayload, reqLen);
+			string total = string(reqPayload, reqLen);
+			string cmdName = total;
 			string payload = "";
 			size_t spaceIndex = cmdName.find(' ');
 			if (spaceIndex != string::npos) {
@@ -635,7 +633,12 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			}
 
 			Command *cmd = Command::getCommandByName(cmdName);
-			if (cmd) {
+			if (Command::activeLoopCommand && Command::activeLoopCommand->getSerial() == &serial) {
+				Command::activeLoopCommand->input(total);
+				break;
+			} else if (cmd) {
+				string response = CLI_COLOR_WHITE + string(reqPayload, reqLen) + "\n";
+				sendMsp(msgSetup, response.c_str(), response.length());
 				cmd->execute(payload, &serial);
 			} else {
 				snprintf(buf, 256, CLI_COLOR_RED "Unknown command: %s\n" CLI_COLOR_WHITE, cmdName.c_str());
@@ -643,7 +646,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			}
 
 			if (!Command::activeLoopCommand) {
-				response = CLI_PROMPT;
+				string response = CLI_PROMPT;
 				sendMsp(msgSetup, response.c_str(), response.length());
 			}
 		} break;
@@ -653,6 +656,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				sendMsp(msgSetup);
 				break;
 			}
+			if (Command::activeLoopCommand) return sendMsp(msgSetup, reqPayload, 1);
 			std::vector<string> suggestions;
 			getCliSuggestions(string(reqPayload + 1, reqLen - 1), suggestions);
 			string response;

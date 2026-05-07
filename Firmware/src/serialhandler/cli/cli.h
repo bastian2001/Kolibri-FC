@@ -192,7 +192,19 @@ public:
 		}
 	};
 	void input(string input) {
-		if (inputFunction) inputFunction(input, this);
+		if (inputFunction) {
+			if (!inputFunction(input, this)) {
+				activeLoopCommand = nullptr;
+				if (!serial) return;
+				MspMsgSetup setup{
+					.serial = *serial,
+					.fn = MspFn::CLI_COMMAND,
+					.type = MspMsgType::RESPONSE,
+					.version = serial->lastMspVersion,
+				};
+				sendMsp(setup, CLI_PROMPT, strlen(CLI_PROMPT));
+			}
+		}
 	};
 	void printMan(KoliSerial *serial);
 
@@ -224,6 +236,9 @@ public:
 	}
 	void setInputFunction(bool (*fn)(string input, Command *cmd)) {
 		inputFunction = fn;
+	}
+	void setAbortFunction(void (*fn)(Command *cmd)) {
+		abortFunction = fn;
 	}
 
 	bool nameMatches(string input) {

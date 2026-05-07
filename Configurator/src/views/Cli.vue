@@ -34,16 +34,13 @@ export default defineComponent({
 	methods: {
 		startCommand() {
 			if (this.inputText) {
-				const input = this.inputText.trim();
-				if (input) {
-					sendCommand(MspFn.CLI_COMMAND, this.inputText);
-					if (this.history[this.history.length - 1] !== this.inputText) {
-						this.history.push(this.inputText);
-					}
-					this.historyIndex = -1;
-					this.inputText = ''; // Clear the input field
-					this.clearSuggestions();
+				sendCommand(MspFn.CLI_COMMAND, this.inputText);
+				if (this.history[this.history.length - 1] !== this.inputText && !this.commandRunning) {
+					this.history.push(this.inputText);
 				}
+				this.historyIndex = -1;
+				this.inputText = ''; // Clear the input field
+				this.clearSuggestions();
 			}
 			this.runningCheckFn();
 		},
