@@ -8,7 +8,7 @@ void initReset() {
 		bool confirmation = std::get<bool>(confirmationArg.value);
 		if (confirmation) {
 			cmd->print("Resetting settings...");
-			if (serials[cmd->getSerialNum()]) serials[cmd->getSerialNum()]->flush();
+			if (cmd->getSerial()) cmd->getSerial()->flush();
 			sleep_ms(100);
 			closeSettingsFile();
 			LittleFS.remove("/settings.txt");

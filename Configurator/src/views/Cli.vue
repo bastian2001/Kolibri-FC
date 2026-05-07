@@ -1,5 +1,5 @@
 <script lang="ts">
-import { onCommandHandler, onConnectHandler, sendCommand } from "@/msp/comm";
+import { onCommandHandler, onConnectHandler, sendCommand, strToArray } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
@@ -28,6 +28,7 @@ export default defineComponent({
 			suggestions: [] as string[][],
 			selectedSuggestionIndex: -1,
 			suggestionsFor: '',
+			suggestionSequence: 0,
 		};
 	},
 	methods: {
@@ -299,14 +300,20 @@ export default defineComponent({
 		},
 		getSuggestions(jumpToFirst = false, overrideText = true) {
 			const text = this.inputText;
-			sendCommand(MspFn.CLI_GET_SUGGESTION, text)
+			const seq = this.suggestionSequence++;
+			if (this.suggestionSequence > 255) this.suggestionSequence = 0;
+			sendCommand(MspFn.CLI_GET_SUGGESTION, {
+				data: [seq, ...strToArray(text)],
+				verifyFn: (req, res) => res.data[0] === req.data[0]
+			})
 				.then(({ dataStr }) => {
+					dataStr = dataStr.substring(1); // remove the sequence byte at the start
 					// the suggestions that are returned are separated by \n
 					// \r is used as a tab stop, so that when pressing the tab key on --arg \r0...99, it will only autocomplete to "--arg " and not "--arg 0...99"
 					this.suggestions = dataStr.split('\n').filter(s => s.trim().length > 0).map(s => s.split('\r'));
 					if (this.suggestions.length > 0 && jumpToFirst) {
 						this.selectedSuggestionIndex = 0;
-						if (overrideText) {
+						if (overrideText && text === this.inputText) {
 							const s = this.suggestions[this.selectedSuggestionIndex][0];
 							if (s) {
 								const base = text;

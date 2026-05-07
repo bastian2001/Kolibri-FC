@@ -5,6 +5,7 @@ static std::vector<SelectionOption> cmds;
 
 void initMan() {
 	cmd.setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
+		if (!cmd->getSerial()) return false;
 		const auto &commandArg = args["command"];
 		string commandName = std::get<string>(commandArg.value);
 		Command *command = nullptr;
@@ -18,7 +19,7 @@ void initMan() {
 			cmd->print("Command not found\n");
 			return false;
 		}
-		command->printMan(cmd->getSerialNum());
+		command->printMan(cmd->getSerial());
 		return false;
 	});
 	Command::cliCommands.push_back(&cmd);

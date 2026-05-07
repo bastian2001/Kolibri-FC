@@ -636,24 +636,30 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 
 			Command *cmd = Command::getCommandByName(cmdName);
 			if (cmd) {
-				cmd->execute(payload, serialNum);
+				cmd->execute(payload, &serial);
 			} else {
 				snprintf(buf, 256, CLI_COLOR_RED "Unknown command: %s\n" CLI_COLOR_WHITE, cmdName.c_str());
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, strlen(buf));
+				sendMsp(msgSetup, buf, strlen(buf));
 			}
 
 			if (!Command::activeLoopCommand) {
 				response = CLI_PROMPT;
-				sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+				sendMsp(msgSetup, response.c_str(), response.length());
 			}
 		} break;
 		case MspFn::CLI_GET_SUGGESTION: {
+			if (reqLen == 0) {
+				msgSetup.type = MspMsgType::ERROR;
+				sendMsp(msgSetup);
+				break;
+			}
 			std::vector<string> suggestions;
-			getCliSuggestions(string(reqPayload, reqLen), suggestions);
+			getCliSuggestions(string(reqPayload + 1, reqLen - 1), suggestions);
 			string response;
+			response = reqPayload[0]; // sequence byte
 			for (size_t i = 0; i < suggestions.size(); i++) {
 				const string &s = suggestions[i];
-				if (response.length() + s.length() + 1 >= 480) {
+				if (response.length() + s.length() + 1 >= 479) {
 					break;
 				}
 				if (i > 0) {
@@ -661,18 +667,18 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				}
 				response += s;
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, response.c_str(), response.length());
+			sendMsp(msgSetup, response.c_str(), response.length());
 		} break;
 		case MspFn::CLI_ABORT_COMMAND:
 			if (Command::activeLoopCommand) {
 				Command::activeLoopCommand->abort();
 				Command::activeLoopCommand = nullptr;
 			}
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version);
+			sendMsp(msgSetup);
 			break;
 		case MspFn::CLI_CHECK_RUNNING:
 			buf[0] = Command::activeLoopCommand ? 1 : 0;
-			sendMsp(serialNum, MspMsgType::RESPONSE, fn, version, buf, 1);
+			sendMsp(msgSetup, buf, 1);
 			break;
 		case MspFn::SAVE_SETTINGS:
 			closeSettingsFile();

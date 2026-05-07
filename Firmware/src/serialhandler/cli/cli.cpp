@@ -478,10 +478,9 @@ bool Command::parseCommandArgs(const std::list<string> &tokens, std::map<string,
 	return true;
 }
 
-void Command::execute(string payload, KoliSerial &serial) {
-	// if (!serial) return;
-	// this->serial = serial;
-	this->serialNum = serialNum;
+void Command::execute(string payload, KoliSerial *serial) {
+	if (!serial) return;
+	this->serial = serial;
 
 	if (activeLoopCommand) {
 		print("Another command is currently running. Please wait until it's finished or abort it.");
@@ -505,12 +504,18 @@ void Command::execute(string payload, KoliSerial &serial) {
 		}
 	} else {
 		const char *buf = "Command not implemented";
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, buf, strlen(buf));
+		MspMsgSetup setup{
+			.serial = *serial,
+			.fn = MspFn::CLI_COMMAND,
+			.type = MspMsgType::RESPONSE,
+			.version = serial->lastMspVersion,
+		};
+		sendMsp(setup, buf, strlen(buf));
 	}
 };
 
-void Command::printMan(u8 serialNum) {
-	// if (!serial) return;
+void Command::printMan(KoliSerial *serial) {
+	if (!serial) return;
 	string man = CLI_COLOR_CYAN "NAME\n\t" CLI_COLOR_WHITE + name + " => " CLI_COLOR_GREY + description + CLI_COLOR_WHITE;
 	if (!aliases.empty()) {
 		man += CLI_COLOR_CYAN "\n\nALIASES\n\t" CLI_COLOR_WHITE;
