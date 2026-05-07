@@ -335,7 +335,6 @@ export default defineComponent({
 				.catch(() => { });
 		},
 		oninput(e: InputEvent) {
-			console.log(e)
 			this.getSuggestions(e.isTrusted && e.inputType === 'insertText' && e.data ? true : false);
 		},
 		onkey(e: KeyboardEvent) {
