@@ -317,11 +317,11 @@ export default defineComponent({
 							const s = this.suggestions[this.selectedSuggestionIndex][0];
 							if (s) {
 								const base = text;
-								if (s.startsWith(base) && s.length > base.length) {
+								const input = this.$refs.cliInput as HTMLInputElement | null;
+								if (!input) return;
+								if (s.startsWith(base) && s.length > base.length && input.selectionStart === input.selectionEnd && input.selectionStart === base.length) {
 									this.inputText = s;
 									this.$nextTick(() => {
-										const input = this.$refs.cliInput as HTMLInputElement | null;
-										if (!input) return;
 										input.setSelectionRange(base.length, s.length);
 									});
 								}
