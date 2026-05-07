@@ -516,6 +516,7 @@ void Command::execute(string payload, KoliSerial *serial) {
 
 void Command::printMan(KoliSerial *serial) {
 	if (!serial) return;
+	this->serial = serial;
 	string man = CLI_COLOR_CYAN "NAME\n\t" CLI_COLOR_WHITE + name + " => " CLI_COLOR_GREY + description + CLI_COLOR_WHITE;
 	if (!aliases.empty()) {
 		man += CLI_COLOR_CYAN "\n\nALIASES\n\t" CLI_COLOR_WHITE;
