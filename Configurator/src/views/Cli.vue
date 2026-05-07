@@ -298,7 +298,7 @@ export default defineComponent({
 			this.suggestions = [];
 			this.selectedSuggestionIndex = -1;
 		},
-		getSuggestions(jumpToFirst = false, overrideText = true) {
+		getSuggestions(overrideText = true) {
 			const text = this.inputText;
 			const seq = this.suggestionSequence++;
 			if (this.suggestionSequence > 255) this.suggestionSequence = 0;
@@ -311,7 +311,7 @@ export default defineComponent({
 					// the suggestions that are returned are separated by \n
 					// \r is used as a tab stop, so that when pressing the tab key on --arg \r0...99, it will only autocomplete to "--arg " and not "--arg 0...99"
 					this.suggestions = dataStr.split('\n').filter(s => s.trim().length > 0).map(s => s.split('\r'));
-					if (this.suggestions.length > 0 && jumpToFirst) {
+					if (this.suggestions.length > 0) {
 						this.selectedSuggestionIndex = 0;
 						if (overrideText && text === this.inputText) {
 							const s = this.suggestions[this.selectedSuggestionIndex][0];
@@ -336,7 +336,7 @@ export default defineComponent({
 		},
 		oninput(e: InputEvent) {
 			console.log(e)
-			this.getSuggestions(true, e.isTrusted && e.inputType === 'insertText' && e.data ? true : false);
+			this.getSuggestions(e.isTrusted && e.inputType === 'insertText' && e.data ? true : false);
 		},
 		onkey(e: KeyboardEvent) {
 			// check for Ctrl + C to abort the running command, but only if there's no text selection to allow copying text
@@ -352,7 +352,7 @@ export default defineComponent({
 			}
 
 			if (e.ctrlKey && e.key === ' ') {
-				this.getSuggestions(true);
+				this.getSuggestions();
 				e.preventDefault();
 				return;
 			}
