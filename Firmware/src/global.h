@@ -17,15 +17,14 @@
 #include <hardware/resets.h>
 #include <hardware/spi.h>
 #include <hardware/watchdog.h>
-#include <pico/stdlib.h>
 #include <pico/mutex.h>
+#include <pico/stdlib.h>
 
 // Arduino
 #ifdef USE_TINYUSB
 #include <Adafruit_TinyUSB.h>
 #endif
 #include <Arduino.h>
-#include <EEPROM.h>
 #include <LittleFS.h>
 #if BLACKBOX_STORAGE == SD_BB
 #include <SdFat.h>
@@ -50,19 +49,23 @@
 #include "drivers/i2c.h"
 #include "drivers/mag.h"
 #include "drivers/osd.h"
+#include "drivers/pioUart.h"
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
 #include "imu.h"
 #include "inFlightTuning.h"
 #include "modes.h"
 #include "pid.h"
+#include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
 #include "pioasm/halfduplex_uart.pio.h"
+#include "pioasm/uart_rx.pio.h"
+#include "pioasm/uart_tx.pio.h"
 #include "ringbuffer.h"
 #include "rtc.h"
 #include "serial.h"
 #include "serialhandler/4way.h"
-#include "serialhandler/cli.h"
+#include "serialhandler/cli/cli.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
@@ -75,28 +78,23 @@
 #include "taskManager.h"
 #include "typedefs.h"
 #include "unittest.h"
-#include "utils/bufferedWriter.h"
 #include "utils/filters.h"
+#include "utils/koliSerial.h"
 #include "utils/quaternion.h"
 
 #ifdef BARO_SPL06
 #define SPI_BARO spi0 // SPI for baro
 #endif
 
-#ifdef BARO_LPS22
+#if HW_BARO == BARO_LPS22
 #define I2C_BARO i2c0 // I2C for baro
 #endif
-
-#define PIO_ESC pio1 // uses all 4 SMs
-#define PIO_LED pio2 // 1 SM, 4 instructions
-#define PIO_HALFDUPLEX_UART pio2 // 1 SM, 19 instructions
-// Total usage of pio2: 3 SMs (assuming one UART) and 28 of 32 instructions
 
 #define PROPS_OUT
 
 #define ARRAYLEN(arr) (sizeof(arr) / sizeof(arr[0])) // Get the length of an array
 
-extern ExpressLRS *ELRS; // global ELRS instance
+extern std::optional<ExpressLRS> elrs; // global ELRS instance
 #define DECODE_U2(buf) ((*(buf) & 0xFF) + ((u16)(*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit unsigned integer
 #define DECODE_I2(buf) ((*(buf) & 0xFF) + ((i16)(*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer
 u32 DECODE_U4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit unsigned integer
@@ -104,13 +102,9 @@ i32 DECODE_I4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit sign
 f32 DECODE_R4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit float
 i64 DECODE_I8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit signed integer
 f64 DECODE_R8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit float / double
+bool parseInt(const char *str, i64 &value); // Parse an integer from a string, return true if successful
+bool parseFloat(const char *str, f64 &value); // Parse a float from a string, return true if successful
 
-enum class BootReason {
-	POR, // Power-on reset
-	CMD_REBOOT,
-	CMD_BOOTLOADER,
-	WATCHDOG
-};
 enum MspRebootMode {
 	MSP_REBOOT_FIRMWARE = 0,
 	MSP_REBOOT_BOOTLOADER_ROM,
@@ -118,11 +112,6 @@ enum MspRebootMode {
 	MSP_REBOOT_MSC_UTC,
 	MSP_REBOOT_BOOTLOADER_FLASH
 };
-
-extern volatile u32 crashInfo[256]; // Crash info buffer (arbitrary data to be saved to EEPROM in case of a crash)
-extern BootReason bootReason; // Reason for booting
-extern BootReason rebootReason; // Reason for rebooting (can be set right before an intentional reboot, WATCHDOG otherwise)
-extern u64 powerOnResetMagicNumber; // Magic number to detect power-on reset (0xdeadbeefdeadbeef)
 
 extern NeoPixelConnect p;
 extern std::string uavName;

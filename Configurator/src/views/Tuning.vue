@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import { MspFn } from "@/msp/protocol";
 import { delay, getSetpointActual, intToLeBytes, leBytesToInt } from "@utils/utils";
-import { sendCommand, addOnConnectHandler, removeOnConnectHandler } from "@/msp/comm";
+import { sendCommand, onConnectHandler } from "@/msp/comm";
 import NumericInput from "@/components/NumericInput.vue";
 import { useLogStore } from "@/stores/logStore";
 
@@ -45,7 +45,7 @@ export default defineComponent({
 	},
 	mounted() {
 		this.getRcContinuous()
-		addOnConnectHandler(this.getSettings);
+		onConnectHandler(this.getSettings);
 		window.addEventListener('resize', this.onResize);
 		this.onResize();
 		this.getSettings();
@@ -53,7 +53,6 @@ export default defineComponent({
 	},
 	unmounted() {
 		this.exiting = true
-		removeOnConnectHandler(this.getSettings);
 		window.removeEventListener('resize', this.onResize);
 	},
 	methods: {

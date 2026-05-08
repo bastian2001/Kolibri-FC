@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="110mm"
+   height="110mm"
+   viewBox="0 0 110 110"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.4.3 (1:1.4.3+202512261035+0d15f75042)"
+   sodipodi:docname="RC_inkscape.svg"
+   inkscape:export-filename="gyroaccel.png"
+   inkscape:export-xdpi="461.81821"
+   inkscape:export-ydpi="461.81821"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="1.829812"
+     inkscape:cx="118.59142"
+     inkscape:cy="212.86339"
+     inkscape:window-width="2560"
+     inkscape:window-height="1368"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path1"
+       style="fill:none;stroke:#000000;stroke-width:3.765;stroke-dasharray:none"
+       d="m 25.136415,27.810391 c -8.531341,0 -10.520355,6.964067 -11.746325,11.703391 -2.195276,8.486443 -3.7675542,16.126372 -5.094404,28.854257 -1.1468895,11.0016 -3.319542,28.853521 7.195828,32.398071 5.316383,1.79205 9.487558,-4.37288 12.871236,-10.815061 4.136036,-7.874592 4.562555,-13.517879 10.098456,-20.741774 3.030004,-3.953907 7.172754,-4.77019 16.53856,-4.77019 V 27.810391 Z m 6.247435,8.975779 c 6.865088,1.58e-4 12.43009,5.545101 12.430248,12.385444 2.1e-4,6.840601 -5.564901,12.385881 -12.430248,12.38604 -6.865609,2.08e-4 -12.431055,-5.54518 -12.430846,-12.38604 1.59e-4,-6.840604 5.565499,-12.385653 12.430846,-12.385444 z m -2.52e-4,10.441594 c 1.07759,2.4e-5 1.95111,0.870396 1.951134,1.944103 3.3e-5,1.073744 -0.873504,1.944169 -1.951134,1.944193 -1.077671,3.3e-5 -1.951261,-0.870407 -1.951227,-1.944193 2.4e-5,-1.073747 0.873597,-1.944135 1.951227,-1.944103 z"
+       sodipodi:nodetypes="ssssssccscccccccccc" />
+    <use
+       x="0"
+       y="0"
+       xlink:href="#path1"
+       id="use1"
+       transform="matrix(-1,0,0,1,109.99953,1.0865317e-8)" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:3.765;stroke-linecap:round;stroke-dasharray:none"
+       d="m 54.999764,27.810391 2e-6,-14.225883 h -33.54142"
+       id="path2"
+       sodipodi:nodetypes="ccc" />
+    <use
+       x="0"
+       y="0"
+       xlink:href="#path2"
+       id="use2"
+       transform="matrix(-1,0,0,1,109.99953,1.0865317e-8)"
+       style="fill:none" />
+  </g>
+</svg>

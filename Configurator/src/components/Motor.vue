@@ -61,10 +61,19 @@ export default defineComponent({
 </script>
 
 <template>
-	<div class="motor" :style="`clip-path: ${cp}`"></div>
+	<div class="wrapper">
+		<div class="motor" :style="`clip-path: ${cp}`"></div>
+	</div>
 </template>
 
 <style scoped>
+.wrapper {
+	border: 2px solid white;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+}
+
 .motor {
 	width: 100%;
 	height: 100%;

@@ -5,7 +5,7 @@
 /**
  * @brief start the 4way interface to the ESCs
  *
- * @param serialNum Serial number that should get the SERIAL_4WAY role
+ * @param serialNum Serial number that should get the SERIAL_4WAY_HOST role
  */
 void begin4Way(u8 serialNum);
 

@@ -3,13 +3,22 @@
 #include "msp.h"
 #include <Arduino.h>
 #include <elapsedMillis.h>
-#include <vector>
-using std::vector;
+#include <list>
 
 // protocol wiki of CRSF, made by ExpressLRS
 // https://github.com/crsf-wg/crsf/wiki
 
 extern RingBuffer<u8> elrsBuffer;
+
+typedef struct crsfDevice {
+	char name[32];
+	u8 address = 0;
+	u32 serialNo = 0;
+	u32 hardwareId = 0;
+	u32 firmwareId = 0;
+	u8 paramCount = 0;
+	u8 paramVersion = 0;
+} CrsfDevice;
 
 class ExpressLRS {
 public:
@@ -31,8 +40,8 @@ public:
 	 */
 	void getSmoothChannels(fix32 smoothChannels[4]);
 
-	u32 channels[16] = {0}; // raw RC channels (1000-2000 for switches, 988-2012 for other sticks)
-	u32 lastChannels[16] = {0}; // RC channels from the last packet (1000-2000 for switches, 988-2012 for other sticks)
+	u32 channels[16] = {}; // raw RC channels (1000-2000 for switches, 988-2012 for other sticks)
+	u32 lastChannels[16] = {}; // RC channels from the last packet (1000-2000 for switches, 988-2012 for other sticks)
 	u32 newPacketFlag = 0; // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
 	u32 newLinkStatsFlag = 0; // flags for new link stats (set to 0xFFFFFFFF when a new link stats are available)
 
@@ -46,7 +55,7 @@ public:
 	u16 actualPacketRate = 0; // in Hz
 
 	// ELRS provided link stats
-	i16 uplinkRssi[2] = {0}; // RX RSSI values of both antennas (signed, more negative = worse)
+	i16 uplinkRssi[2] = {}; // RX RSSI values of both antennas (signed, more negative = worse)
 	u8 uplinkLinkQuality = 0; // RX packet success rate 0-100 [%]
 	i8 uplinkSNR = 0; // RX SNR in dB
 	u8 antennaSelection = 0; // used antenna (0 = antenna 1, 1 = antenna 2)
@@ -103,6 +112,34 @@ public:
 	 */
 	void sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen);
 
+	/**
+	 * @brief send a broadcast ping to discover attached devices
+	 *
+	 * clears current device tree and creates a new one, filled with all the replied DEVICE_INFO frames
+	 */
+	void scanDevices();
+
+	/**
+	 * @brief Get a list of all currently found devices
+	 *
+	 * Call scanDevices first, then call getDeviceList periodically to get all devices
+	 *
+	 * @return std::list<CrsfDevice> list of all devices
+	 */
+	std::list<CrsfDevice> getDeviceList() { return deviceList; };
+
+	/**
+	 * @brief sets up passthrough from a CRSF device to a configurator (MSP) host
+	 *
+	 * @param crsfAddress the requested device to forward from
+	 * @param subList array of up to 20 functions to forward, only extended functions allowed
+	 * @param subCount 0-20, the amount of functions. 0 to disable
+	 * @param configuratorSerial serialNum of the configurator
+	 * @param configuratorMspVersion MspVersion:: of the outgoing MSP message
+	 * @return true for success, false for invalid parameters (not extended functions and similar)
+	 */
+	bool setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, u8 configuratorSerial, MspVersion configuratorMspVersion);
+
 	// possible frametypes
 	static constexpr u8 FRAMETYPE_GPS = 0x02;
 	static constexpr u8 FRAMETYPE_VARIO = 0x07;
@@ -137,12 +174,17 @@ public:
 	static constexpr u8 ADDRESS_RADIO_TRANSMITTER = 0xEA;
 	static constexpr u8 ADDRESS_CRSF_RECEIVER = 0xEC;
 	static constexpr u8 ADDRESS_CRSF_TRANSMITTER = 0xEE;
+	static constexpr u8 ADDRESS_CRSF_BROADCAST = 0x00;
 
 private:
 	// constants needed for encoding/decoding packets
 	static constexpr u16 powerStates[9] = {0, 10, 25, 100, 500, 1000, 2000, 250, 50};
-	static constexpr u16 packetRates[20] = {
-		4, 25, 50, 100, 100, 150, 200, 250, 333, 500, 250, 500, 500, 1000, 50, 200, 500, 1000, 1000, 1000};
+	static constexpr u16 packetRates900[20] = {
+		25, 50, 100, 100, 150, 200, 200, 250, 333, 500, 50, 1000};
+	static constexpr u16 packetRates2400[20] = {
+		25, 50, 100, 100, 150, 200, 200, 250, 333, 500, 250, 500, 500, 1000, 250, 500, 1000};
+	static constexpr u16 packetRatesX[20] = {
+		100, 150};
 	static constexpr u8 CRSF_SYNC_BYTE = 0xC8;
 
 	// incoming packets
@@ -181,11 +223,18 @@ private:
 	elapsedMicros heartbeatTimer;
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter = 0;
-	bool pinged = false;
+
+	// Other devices
+	std::list<CrsfDevice> deviceList;
+	u8 subscribeSrcAddress = 0;
+	u8 subscribeList[20] = {};
+	u8 subscribeCount = 0;
+	u8 subscribeSerialNum = 255;
+	MspVersion subscribeMspVersion = MspVersion::V2;
 
 	// MSP packets (in/out)
 	u8 mspExtSrcAddr = 0;
-	u8 mspRxPayload[512] = {0};
+	u8 mspRxPayload[512] = {};
 	u8 mspTelemSeq = 0;
 	u16 mspRxPayloadLen = 0;
 	u16 mspRxCmd = 0;

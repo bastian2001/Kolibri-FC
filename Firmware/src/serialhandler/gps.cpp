@@ -14,7 +14,7 @@ u8 currentPvtMsg[92];
 u32 newPvtMessageFlag = 0;
 u32 gpsUpdateRate;
 fix32 gpsVelocityFilterCutoff;
-static BufferedWriter *gpsSerial = nullptr;
+static KoliSerial *gpsSerial = nullptr;
 bool gpsGoodQuality = false;
 static bool firstGoodQuality = true;
 
@@ -31,14 +31,11 @@ void gpsChecksum(const u8 *buf, int len, u8 *ck_a, u8 *ck_b) {
 	}
 }
 
-void initGPS() {
-	for (auto &serial : serials) {
-		if (serial.functions & SERIAL_GPS) {
-			gpsSerial = serial.stream;
-			break;
-		}
-	}
+void setGpsSerial(KoliSerial *g) {
+	gpsSerial = g;
+}
 
+void initGPS() {
 	placeElem(OSDElem::LATITUDE, 1, 13);
 	placeElem(OSDElem::LONGITUDE, 13, 13);
 	placeElem(OSDElem::ALTITUDE, 1, 14);
@@ -78,21 +75,17 @@ void fillOpenLocationCode() {
 }
 
 void gpsLoop() {
-	if (!gpsSerial) return;
+	if (gpsSerial == nullptr) return;
 	TASK_START(TASK_GPS);
-	if (lastPvtMessage > 1000000) {
+	if (lastPvtMessage > 2000000) {
 		// no PVT message received for 1 second
 		gpsStatus.fixType = fixTypes::FIX_NONE;
 		if (gpsStatus.gpsInited) {
 			gpsStatus.gpsInited = false;
 			lastPvtMessage = 0;
-		} else if (lastPvtMessage > 30000000) {
-			// no PVT message received for 30 seconds
-			// reinit GPS
 			gpsStatus.initStep = 0;
 			gpsInitAck = false;
 			gpsInitTimer = 0;
-			gpsStatus.gpsInited = false;
 			lastPvtMessage = 0;
 		}
 	}

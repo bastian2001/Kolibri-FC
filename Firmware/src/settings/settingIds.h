@@ -66,3 +66,4 @@
 #define SETTING_TIMEZONE_OFFSET "timezone_offset_mins"
 #define SETTING_START_SOUND "start_wav"
 #define SETTING_START_FALLBACK_RTTTL "start_sound_fallback"
+#define SETTING_SERIAL_CONFIGS "serial_configs"

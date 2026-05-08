@@ -19,6 +19,10 @@ export default defineComponent({
 			type: String as PropType<'low' | 'medium' | 'high'>,
 			default: 'medium',
 		},
+		disableDragScrollArrow: {
+			type: Boolean,
+			default: false,
+		},
 		step: {
 			type: Number,
 			default: 1,
@@ -37,6 +41,7 @@ export default defineComponent({
 		},
 		allowOnlyInts: {
 			type: Boolean,
+			default: undefined
 		},
 		fixToSteps: {
 			type: Boolean,
@@ -49,6 +54,10 @@ export default defineComponent({
 		disabled: {
 			type: Boolean,
 			default: false
+		},
+		ioDivider: {
+			type: Number,
+			default: 1
 		}
 	},
 	data() {
@@ -79,7 +88,7 @@ export default defineComponent({
 		},
 		displayNumber() {
 			const n = new Intl.NumberFormat(undefined, { minimumFractionDigits: this.displayDecimals })
-			return n.format(this.val)
+			return n.format(this.val / this.ioDivider)
 		},
 		isNumber() {
 			let str = this.editText
@@ -94,26 +103,33 @@ export default defineComponent({
 			if (this.entered) return;
 			if (this.disabled) return;
 			e.preventDefault();
-			w.requestPointerLock().then(() => {
-				w.onmousemove = this.onMouseMove;
-				this.movement = 0;
-			})
+			if (!this.disableDragScrollArrow) {
+				w.requestPointerLock().then(() => {
+					w.onmousemove = this.onMouseMove;
+					this.movement = 0;
+				})
+			}
 		};
 		w.onmouseup = (e) => {
 			if (e.button !== 0) return;
 			if (this.entered) return;
 			if (this.disabled) return;
-			document.exitPointerLock();
-			w.onmousemove = null;
+			if (!this.disableDragScrollArrow) {
+				document.exitPointerLock();
+				w.onmousemove = null;
+			}
 			if (!this.moved) {
 				this.entered = true;
-				this.editText = this.val.toString();
+				this.editText = (this.val / this.ioDivider).toString();
 				this.$nextTick(() => {
 					const input = this.$refs.input as HTMLInputElement;
 					input.focus();
 					input.select();
 				});
 			} else {
+				if (!this.disableDragScrollArrow) {
+					this.$emit('change', this.val)
+				}
 				this.moved = false;
 			}
 		};
@@ -121,7 +137,7 @@ export default defineComponent({
 			if (this.entered) return;
 			if (this.disabled) return;
 			this.entered = true;
-			this.editText = this.val.toString();
+			this.editText = (this.val / this.ioDivider).toString();
 			this.$nextTick(() => {
 				const input = this.$refs.input as HTMLInputElement;
 				input.focus();
@@ -135,72 +151,81 @@ export default defineComponent({
 		},
 		onWheel(e: WheelEvent) {
 			e.preventDefault();
-			if (e.timeStamp - this.lastWheel < 3) return; // Prevents double wheel events
-			this.lastWheel = e.timeStamp
-			if (this.isNumber) {
-				this.makeNumberGood();
-				let val = parseFloat(this.editText)
-				if (e.deltaY > 0) {
-					val -= this.step;
-				} else {
-					val += this.step;
+			// TODO investigate
+			// if (e.timeStamp - this.lastWheel < 3) return; // Prevents double wheel events
+			// this.lastWheel = e.timeStamp
+			if (!this.disableDragScrollArrow) {
+				if (this.isNumber) {
+					this.makeNumberGood();
+					let val = parseFloat(this.editText) * this.ioDivider
+					if (e.deltaY > 0) {
+						val -= this.step;
+					} else {
+						val += this.step;
+					}
+					if (val < this.min) val = this.min;
+					if (val > this.max) val = this.max;
+					val = roundToDecimal(val, this.precision);
+					this.editText = (val / this.ioDivider).toString()
 				}
-				if (val < this.min) val = this.min;
-				if (val > this.max) val = this.max;
-				val = roundToDecimal(val, this.precision);
-				this.editText = val.toString()
 			}
 		},
 		onMouseMove(e: MouseEvent) {
-			const sens = sensitivityMap[this.sensitivity];
-			this.movement += e.movementX;
-			while (this.movement > sens) {
-				this.val += this.step;
-				this.movement -= sens;
-				this.moved = true;
-				if (this.val > this.max) {
-					this.val = this.max;
-					this.movement = 0;
+			if (!this.disableDragScrollArrow) {
+				const sens = sensitivityMap[this.sensitivity];
+				this.movement += e.movementX;
+				while (this.movement > sens) {
+					this.val += this.step;
+					this.movement -= sens;
+					this.moved = true;
+					if (this.val > this.max) {
+						this.val = this.max;
+						this.movement = 0;
+					}
 				}
-			}
-			while (this.movement < -sens) {
-				this.val -= this.step;
-				this.movement += sens;
-				this.moved = true;
-				if (this.val < this.min) {
-					this.val = this.min;
-					this.movement = 0;
+				while (this.movement < -sens) {
+					this.val -= this.step;
+					this.movement += sens;
+					this.moved = true;
+					if (this.val < this.min) {
+						this.val = this.min;
+						this.movement = 0;
+					}
 				}
+				this.val = roundToDecimal(this.val, this.precision);
 			}
-			this.val = roundToDecimal(this.val, this.precision);
 		},
 		onKeyDown(e: KeyboardEvent) {
 			if (e.key === 'Enter') {
 				this.saveAndExit();
 			} else if (e.key === 'Escape') {
-				this.editText = this.val.toString();
+				this.editText = (this.val / this.ioDivider).toString();
 				this.entered = false;
 			} else if (e.key === 'ArrowUp') {
-				e.preventDefault();
-				if (this.isNumber) {
-					this.makeNumberGood();
-					let val = parseFloat(this.editText)
-					val += this.step;
-					if (val < this.min) val = this.min;
-					if (val > this.max) val = this.max;
-					val = roundToDecimal(val, this.precision);
-					this.editText = val.toString()
+				if (!this.disableDragScrollArrow) {
+					e.preventDefault();
+					if (this.isNumber) {
+						this.makeNumberGood();
+						let val = parseFloat(this.editText) * this.ioDivider
+						val += this.step;
+						if (val < this.min) val = this.min;
+						if (val > this.max) val = this.max;
+						val = roundToDecimal(val, this.precision);
+						this.editText = (val / this.ioDivider).toString()
+					}
 				}
 			} else if (e.key === 'ArrowDown') {
-				e.preventDefault();
-				if (this.isNumber) {
-					this.makeNumberGood();
-					let val = parseFloat(this.editText)
-					val -= this.step;
-					if (val < this.min) val = this.min;
-					if (val > this.max) val = this.max;
-					val = roundToDecimal(val, this.precision);
-					this.editText = val.toString()
+				if (!this.disableDragScrollArrow) {
+					e.preventDefault();
+					if (this.isNumber) {
+						this.makeNumberGood();
+						let val = parseFloat(this.editText) * this.ioDivider
+						val -= this.step;
+						if (val < this.min) val = this.min;
+						if (val > this.max) val = this.max;
+						val = roundToDecimal(val, this.precision);
+						this.editText = (val / this.ioDivider).toString()
+					}
 				}
 			}
 		},
@@ -208,7 +233,7 @@ export default defineComponent({
 			this.entered = false;
 			let num
 			try {
-				num = mathEval(this.editText)
+				num = mathEval(this.editText) * this.ioDivider
 			} catch (e) {
 				num = this.val
 			}
@@ -224,6 +249,7 @@ export default defineComponent({
 			}
 			if (this.val < this.min) this.val = this.min;
 			if (this.val > this.max) this.val = this.max;
+			this.$nextTick().then(() => { this.$emit('change', this.val) })
 		},
 	},
 	watch: {
@@ -231,13 +257,13 @@ export default defineComponent({
 			immediate: true,
 			handler(newVal) {
 				this.val = newVal;
-				this.editText = newVal.toString();
+				this.editText = (newVal / this.ioDivider).toString();
 			},
 		},
 		val: {
 			immediate: true,
 			handler(newVal) {
-				this.editText = newVal.toString();
+				this.editText = (newVal / this.ioDivider).toString();
 				this.$emit('update:modelValue', newVal);
 			},
 		},
@@ -245,7 +271,7 @@ export default defineComponent({
 			immediate: true,
 			handler(newDis) {
 				if (newDis) {
-					this.editText = this.modelValue.toString()
+					this.editText = (this.modelValue / this.ioDivider).toString()
 					this.val = this.modelValue
 					document.exitPointerLock();
 					if (this.$refs.wrapper) (this.$refs.wrapper as HTMLDivElement).onmousemove = null;
@@ -260,7 +286,7 @@ export default defineComponent({
 
 <template>
 	<div class="numericInputWrapper" :class="{ entered, disabled }" ref="wrapper" :tabindex="entered ? -1 : 0">
-		<div class="numericInputDisplay" v-if="!entered">
+		<div class="numericInputDisplay" :class="{ noadjust: disableDragScrollArrow || false }" v-if="!entered">
 			{{ displayNumber }}&thinsp;{{ unit }}
 		</div>
 		<div v-else class="numericInputEdit" @wheel="onWheel">
@@ -285,6 +311,10 @@ export default defineComponent({
 	cursor: ew-resize;
 	padding: 6px 8px 5px 8px;
 	box-sizing: border-box;
+}
+
+.numericInputDisplay.noadjust {
+	cursor: text
 }
 
 .numericInputWrapper.disabled .numericInputDisplay {

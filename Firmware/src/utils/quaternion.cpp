@@ -37,8 +37,14 @@ void Quaternion_fromAxisAngle(f32 axis[3], f32 angle, Quaternion *output) {
 f32 Quaternion_toAxisAngle(Quaternion *q, f32 output[3]) {
 	// Formula from http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
 	f32 w = constrain(q->w, -1, 1);
+
 	f32 angle = acosf(w) * 2;
 	f32 divider = sqrtf(1 - w * w);
+
+	// TODO evaluate accuracy, as this seems a bit faster
+	// fix32 a2 = acosFix(w);
+	// f32 divider = sinFix(a2).getf32(); // faster than sqrtf(1 - w * w)
+	// f32 angle = (a2 * 2).getf32();
 
 	if (divider > 0.0001f) {
 		// Calculate the axis
@@ -163,8 +169,8 @@ void Quaternion_rotate(const Quaternion *q, f32 v[3], f32 output[3]) {
 }
 
 // Calculate the dot product of two 3D vectors
-void Vector_dot(const f32 v1[3], const f32 v2[3], f32 *output) {
-	*output = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+f32 Vector_dot(const f32 v1[3], const f32 v2[3]) {
+	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
 // Calculate the cross product of two 3D vectors
@@ -175,8 +181,7 @@ void Vector_cross(const f32 v1[3], const f32 v2[3], f32 output[3]) {
 }
 
 void Quaternion_from_unit_vecs(const f32 v0[3], const f32 v1[3], Quaternion *output) {
-	f32 dot;
-	Vector_dot(v0, v1, &dot);
+	f32 dot = Vector_dot(v0, v1);
 
 	// Clamp dot to avoid tiny numeric drift producing invalid acos/normalize
 	if (dot > 1) dot = 1;

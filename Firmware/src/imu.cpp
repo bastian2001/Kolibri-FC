@@ -50,7 +50,7 @@ void imuInit() {
 	q.v[2] = 0;
 	eVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
 	nVelFilter = PT1(gpsVelocityFilterCutoff, gpsUpdateRate);
-	magHeadingCorrection = PT1(magFilterCutoff, MAG_HARDWARE == MAG_HMC5883L ? 75 : 200);
+	magHeadingCorrection = PT1(magFilterCutoff, HW_MAG == MAG_HMC5883L ? 75 : 200);
 	magHeadingCorrection.setRolloverParams(-FIX_PI, FIX_PI);
 
 	combinedAltitudeFilter.set(baroASL);

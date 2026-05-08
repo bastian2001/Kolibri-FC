@@ -1,10 +1,11 @@
 <script setup lang="ts">
-const props = defineProps({
-	roll: Number,
-	pitch: Number,
-	yaw: Number,
-	size: Number,
-})
+defineProps<{
+	roll: number,
+	pitch: number,
+	yaw: number,
+	size?: number,
+	hideBase?: boolean,
+}>()
 </script>
 
 <template>
@@ -13,7 +14,7 @@ const props = defineProps({
 		height: (size || 500) + 'px',
 		perspective: ((size || 500) * 1.2) + 'px'
 	}">
-		<div class="droneBase droneAxes" :style="{
+		<div class="droneBase droneAxes" :class="{ hidden: hideBase }" :style="{
 			transform: `rotateX(60deg) translateZ(${(size || 500) * -180 / 500}px)`,
 			border: (size || 500) / 100 + 'px solid black',
 		}">
@@ -61,6 +62,13 @@ const props = defineProps({
 	top: -34%;
 	background-image: url("/src/assets/grid.svg");
 	background-size: 35px 35px;
+	box-sizing: border-box;
+}
+
+.hidden {
+	border: none;
+	background-image: none;
+	border: none !important;
 }
 
 .droneAxes {

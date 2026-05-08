@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from "vue";
-import { sendCommand, addOnCommandHandler, removeOnCommandHandler } from "@/msp/comm";
+import { sendCommand, onCommandHandler } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { Command } from "@utils/types";
 import { leBytesToInt } from "@utils/utils";
@@ -52,11 +52,10 @@ export default defineComponent({
 		},
 	},
 	mounted() {
-		addOnCommandHandler(this.onCommand);
+		onCommandHandler(this.onCommand);
 	},
 	beforeUnmount() {
 		clearInterval(this.mspInterval);
-		removeOnCommandHandler(this.onCommand);
 	},
 	methods: {
 		getData() {
@@ -218,7 +217,7 @@ export default defineComponent({
 				}">
 			</SensorGraph>
 			<div class="buttonWrapper">
-				<button @click="addGraph">Add</button>
+				<button @click="addGraph" class="defaultBtn">Add</button>
 			</div>
 		</div>
 	</div>
@@ -234,17 +233,6 @@ export default defineComponent({
 p {
 	display: inline-block;
 	margin: .5rem 1rem;
-}
-
-button {
-	margin: 1rem;
-	padding: 1rem 2rem;
-	background-color: #007BFF;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	display: inline;
 }
 
 .all {

@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { addOnCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, removeOnCommandHandler, enableCommands } from '@/msp/comm';
+import { onCommandHandler, getPingTime, sendCommand, sendRaw, disconnect, enableCommands } from '@/msp/comm';
 import { useLogStore } from '@stores/logStore';
 import { leBytesToInt, delay, intToLeBytes } from '@utils/utils';
 import { MspFn } from '@/msp/protocol';
@@ -23,11 +23,10 @@ const REBOOT_MODES = { FIRMWARE: 0, BOOTLOADER_ROM: 1, MSC: 2, MSC_UTC: 3, BOOTL
 export default defineComponent({
 	name: 'Home',
 	components: {
-		Drone3dPreview
-	}
-	,
+		Drone3dPreview,
+	},
 	mounted() {
-		addOnCommandHandler(this.onCommand);
+		onCommandHandler(this.onCommand);
 		this.getRotationContinuous();
 
 		this.pingInterval = setInterval(() => {
@@ -45,7 +44,6 @@ export default defineComponent({
 		}, 1000);
 	},
 	unmounted() {
-		removeOnCommandHandler(this.onCommand);
 		clearInterval(this.getRotationInterval);
 		clearInterval(this.pingInterval);
 		clearInterval(this.rtcInterval);
@@ -117,10 +115,6 @@ export default defineComponent({
 						this.flightMode = command.data[3];
 						this.armingDisableFlags = leBytesToInt(command.data, 4, 4);
 						break;
-					case MspFn.REBOOT:
-						this.configuratorLog.push('Rebooting');
-						disconnect();
-						break;
 				}
 			}
 		},
@@ -158,10 +152,10 @@ export default defineComponent({
 			})
 		},
 		reboot() {
-			sendCommand(MspFn.REBOOT, [REBOOT_MODES.FIRMWARE])
+			sendCommand(MspFn.REBOOT, [REBOOT_MODES.FIRMWARE]).then(disconnect)
 		},
 		rebootBootloader() {
-			sendCommand(MspFn.REBOOT, [REBOOT_MODES.BOOTLOADER_FLASH])
+			sendCommand(MspFn.REBOOT, [REBOOT_MODES.BOOTLOADER_FLASH]).then(disconnect)
 		},
 	},
 })
@@ -230,7 +224,7 @@ export default defineComponent({
 	min-width: 200px;
 }
 
-button,
+button:not(.defaultBtn),
 input {
 	color: black;
 }

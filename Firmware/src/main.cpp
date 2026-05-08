@@ -2,7 +2,7 @@
 #include "hardware/structs/qmi.h"
 #include "hardware/vreg.h"
 
-static volatile u8 setupDone = 0b00;
+static volatile u8 setupDone = 0; // lower nibble for core 0, higher nibble for core 1
 static elapsedMicros taskTimer0;
 
 void setup() {
@@ -16,30 +16,16 @@ void setup() {
 
 	runUnitTests();
 
-	if (powerOnResetMagicNumber == 0xdeadbeefdeadbeef)
-		bootReason = rebootReason;
-	else
-		bootReason = BootReason::POR;
-	powerOnResetMagicNumber = 0xdeadbeefdeadbeef;
-	rebootReason = BootReason::WATCHDOG;
-
 	Serial.println("Setup started");
 	initLittleFs();
 	openSettingsFile();
-	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
 
-	EEPROM.begin(4096);
-	// save crash info to EEPROM
-	if (crashInfo[0] == 255) {
-		Serial.println("Crash detected");
-		for (int i = 0; i < 256; i++) {
-			EEPROM.write(4096 - 256 + i, (u8)crashInfo[i]);
-		}
-		EEPROM.commit();
+	setupDone |= 0b1;
+	while (!(setupDone & 0b10000)) {
+		tight_loop_contents();
 	}
-	for (int i = 0; i < 256; i++) {
-		crashInfo[i] = 0;
-	}
+
+	addSetting(SETTING_UAV_NAME, &uavName, "Kolibri UAV");
 
 	initPid();
 	initControl();
@@ -49,19 +35,15 @@ void setup() {
 	initMag();
 	imuInit();
 	initADC();
+#ifdef BLACKBOX_STORAGE
+	initBlackbox();
+#endif
+	initSpeaker();
 	modesInit();
 	initSerial();
 	trampInit();
 	initGPS();
-
-	u8 elrsNum = 0;
-	for (int i = 0; i < SERIAL_COUNT; i++) {
-		if (serials[i].functions & SERIAL_CRSF) {
-			elrsNum = i;
-			break;
-		}
-	}
-	ELRS = new ExpressLRS(elrsNum);
+	initCli();
 
 	// init LEDs
 	p.recalculateClock();
@@ -73,20 +55,14 @@ void setup() {
 		sleep_ms(30);
 	}
 
-#ifdef BLACKBOX_STORAGE
-	initBlackbox();
-#endif
-	initSpeaker();
+	closeSettingsFile();
 
 	rp2040.wdt_begin(200);
+	rp2040.wdt_reset();
 
 	Serial.println("Setup complete");
 	taskTimer0 = 0;
-	setupDone |= 0b01;
-	while (!(setupDone & 0b10)) {
-		rp2040.wdt_reset();
-	}
-	closeSettingsFile();
+	setupDone |= 0b10;
 	rom_flash_flush_cache();
 }
 
@@ -103,7 +79,8 @@ void loop() {
 #ifdef BLACKBOX_STORAGE
 	blackboxLoop();
 #endif
-	ELRS->loop();
+	if (elrs)
+		elrs->loop();
 	modesLoop();
 	adcLoop();
 	inFlightTuningLoop();
@@ -114,6 +91,7 @@ void loop() {
 	osdLoop();
 	taskManagerLoop();
 	trampLoop();
+	cliLoop();
 	rp2040.wdt_reset();
 	if (activityTimer >= 500000) {
 		static bool on = false;
@@ -131,12 +109,14 @@ void loop() {
 }
 
 void setup1() {
-	while (!(setupDone & 0b01)) {
+	while (!(setupDone & 0b1)) {
+		tight_loop_contents();
 	}
 	initESCs();
 	gyroInit();
-	setupDone |= 0b10;
-	while (!(setupDone & 0b01)) {
+	setupDone |= 0b10000;
+	while (!(setupDone & 0b10)) {
+		tight_loop_contents();
 	}
 }
 static elapsedMicros taskTimer = 0;

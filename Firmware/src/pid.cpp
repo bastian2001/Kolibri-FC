@@ -13,7 +13,7 @@
 i16 throttles[4] __attribute__((aligned(4)));
 
 // PID controller config
-u16 pidGainsNice[3][5] = {0};
+u16 pidGainsNice[3][5] = {};
 static fix32 pidGains[3][5]; // PID gains (raw, calculated) for the acro PID controller, 0 = roll, 1 = pitch, 2 = yaw
 fix32 iFalloff;
 u16 dFilterCutoff;
@@ -39,7 +39,7 @@ static PT1 ffFilter[3];
 u8 idlePermille;
 bool useDynamicIdle = true;
 u16 dynamicIdleRpm = 3000;
-static fix32 dynamicIdlePids[4][3] = {0}; // [motor][P, I, D]
+static fix32 dynamicIdlePids[4][3] = {}; // [motor][P, I, D]
 static fix32 dynamicIdlePidGains[3] = {.2, 0.0015, .07};
 static fix32 throttleScale;
 static interp_config dynIdleInterpConfig;
@@ -142,6 +142,7 @@ void initPid() {
 static u32 takeoffCounter = 0;
 static elapsedMicros taskTimerPid;
 void pidLoop() {
+	if (!elrs) return pidDisarmedLoop();
 	u32 duration = taskTimerPid;
 	if (tasks[TASK_PID].maxGap < duration)
 		tasks[TASK_PID].maxGap = duration;
@@ -160,7 +161,7 @@ void pidLoop() {
 	}
 
 	// I term windup prevention
-	if (ELRS->channels[2] > 1020) {
+	if (elrs->channels[2] > 1020) {
 		takeoffCounter++;
 	} else if (takeoffCounter < 1000) { // 1000 = ca. 0.3s
 		takeoffCounter = 0;
@@ -262,7 +263,7 @@ void pidLoop() {
 
 	// apply idling / throttle clamping
 	if (runDynIdle) {
-		static i32 lastRpm[4] = {0};
+		static i32 lastRpm[4] = {};
 		i32 minIncrease = INT32_MIN; // typically negative, but >0 when one channels wants to lift
 		i32 tryDecrease = 0;
 		startDynIdleInterp();
@@ -382,11 +383,32 @@ void pidDisarmedLoop() {
 
 	// Quad disarmed
 	// all motors off
-	if (mspOverrideMotors > 1000)
+	bool customThrottles = true;
+	if (mspOverrideMotors > 1000) {
+		customThrottles = false;
 		for (int i = 0; i < 4; i++)
 			throttles[i] = 0;
+	}
 	if (!rxModes[RxModeIndex::BEEPER].isActive()) {
-		sendThrottles(throttles);
+
+		static elapsedMillis enableEdtTimer;
+		static u32 enableEdtCounter = 0;
+		if (enableEdtTimer > 3000) {
+			enableEdtTimer = 0;
+			for (int i = 0; i < 4; i++) {
+				if (!escEdtFound[i]) enableEdtCounter = 1;
+			}
+		}
+
+		if (enableEdtCounter && enableEdtCounter++ <= 10 && !customThrottles) {
+			if (enableEdtCounter == 11) {
+				enableEdtCounter = 0;
+			}
+			u16 motors[4] = {DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE, DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE, DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE, DSHOT_CMD_EXTENDED_TELEMETRY_ENABLE};
+			sendRaw11Bit(motors);
+		} else {
+			sendThrottles(throttles);
+		}
 	} else {
 		static elapsedMillis motorBeepTimer;
 		if (motorBeepTimer > 500)
