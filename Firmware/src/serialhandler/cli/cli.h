@@ -217,14 +217,6 @@ public:
 		if (inputFunction) {
 			if (!inputFunction(input, this)) {
 				activeLoopCommand = nullptr;
-				if (!serial) return;
-				MspMsgSetup setup{
-					.serial = *serial,
-					.fn = MspFn::CLI_COMMAND,
-					.type = MspMsgType::RESPONSE,
-					.version = serial->lastMspVersion,
-				};
-				sendMsp(setup, CLI_PROMPT, strlen(CLI_PROMPT));
 			}
 		}
 	};

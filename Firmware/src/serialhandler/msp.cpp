@@ -657,14 +657,15 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			Command *cmd = Command::getCommandByName(cmdName);
 			if (Command::activeLoopCommand && Command::activeLoopCommand->getSerial() == &serial) {
 				Command::activeLoopCommand->input(total);
-				break;
-			} else if (cmd) {
+			} else {
 				string response = CLI_COLOR_WHITE + string(reqPayload, reqLen) + "\n";
 				sendMsp(msgSetup, response.c_str(), response.length());
-				cmd->execute(payload, &serial);
-			} else {
-				snprintf(buf, 256, CLI_COLOR_RED "Unknown command: %s\n" CLI_COLOR_WHITE, cmdName.c_str());
-				sendMsp(msgSetup, buf, strlen(buf));
+				if (cmd) {
+					cmd->execute(payload, &serial);
+				} else {
+					snprintf(buf, 256, CLI_COLOR_RED "Unknown command: %s\n" CLI_COLOR_WHITE, cmdName.c_str());
+					sendMsp(msgSetup, buf, strlen(buf));
+				}
 			}
 
 			if (!Command::activeLoopCommand) {
