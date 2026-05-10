@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import { onCommandHandler, onConnectHandler, sendCommand, strToArray } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
 import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
@@ -44,10 +44,11 @@ const hoverIndex = ref(-1);
 const charCanvases: HTMLCanvasElement[] = [];
 const draggerCanvas = useTemplateRef('draggerCanvas');
 const dragCanvasCols = ref(0);
+const dragCanvasRows = ref(0);
 const draggingRow = ref(0);
 const draggingCol = ref(0);
-const dragText = ref('');
-let grabbedChar = 0;
+const dragText = ref('' as string | (string[]));
+let grabbedPos = [0, 0];
 const dragTrashHover = ref(false);
 const dragHide = ref(true);
 const previewImage = useTemplateRef('previewImage');
@@ -64,10 +65,10 @@ watch([rows, cols], ([newRows, newCols]) => {
 
 type OsdElement = {
 	name: string,
-	def: string,
+	def: string | (string[]),
 	group: string,
 	previewFn?: (element: OsdPlacement) => string,
-	options?: { name: string, preview?: string, id?: number }[][], // Option Byte 0
+	options?: { name: string, preview?: string | (string[]), id?: number }[][], // Option Byte 0
 }
 type OsdGroup = {
 	name: string,
@@ -271,7 +272,7 @@ function createCanvases() {
 	}
 }
 
-function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar = 0, text = '') {
+function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', grabbed: number[] = [0, 0], text = '') {
 	if (type === 'copy') {
 		if (!event.dataTransfer) return;
 		event.dataTransfer.setData('text/plain', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
@@ -282,21 +283,27 @@ function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar
 		const newElement = { id: index, col: 0, row: 0, option: [0, 0, 0, 0] };
 		setDefaultOptions(newElement);
 		let t = text || getPreviewText(newElement);
-		canvas.width = 48 * t.length;
-		dragCanvasCols.value = t.length;
+		if (typeof t === 'string') t = [t];
+		const width = t.reduce((a, b) => Math.max(a, b.length), 0);
+		canvas.width = 48 * width;
+		dragCanvasCols.value = width;
+		dragCanvasRows.value = t.length;
 		dragText.value = t
-		canvas.height = 72;
+		canvas.height = t.length * 72;
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		for (let i = 0; i < t.length; i++) {
-			ctx.drawImage(charCanvases[t.charCodeAt(i)], 48 * i, 0);
+		for (let l = 0; l < t.length; l++) {
+			const line = t[l];
+			for (let i = 0; i < line.length; i++) {
+				ctx.drawImage(charCanvases[line.charCodeAt(i)], 48 * i, l * 72);
+			}
 		}
 		if (!previewImage.value) return;
 		const box = previewImage.value.getBoundingClientRect();
 		const cWidth = box.width / cols.value;
 		const cHeight = box.height / rows.value;
-		event.dataTransfer.setDragImage(canvas, cWidth * (gChar + 1 / 2), cHeight / 2);
+		event.dataTransfer.setDragImage(canvas, cWidth * (grabbed[0] + 1 / 2), cHeight * (grabbed[1] + 1 / 2));
 		draggingNew.value = index
 	} else {
 		dragText.value = text;
@@ -304,7 +311,7 @@ function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar
 	}
 
 	dragging.value = type;
-	grabbedChar = gChar;
+	grabbedPos = grabbed;
 	dragHide.value = true;
 	dragTrashHover.value = false;
 }
@@ -320,16 +327,16 @@ const dragover = (event: DragEvent) => {
 
 	if (!previewImage.value || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
 	const box = previewImage.value.getBoundingClientRect();
-	draggingRow.value = Math.floor(event.offsetY / box.height * rows.value);
-	draggingCol.value = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
+	draggingRow.value = Math.floor(event.offsetY / box.height * rows.value) - grabbedPos[1];
+	draggingCol.value = Math.floor(event.offsetX / box.width * cols.value) - grabbedPos[0];
 	dragHide.value = false;
 }
 function dropped(event: DragEvent) {
 	event.preventDefault();
 	if (!previewImage.value || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
 	const box = previewImage.value.getBoundingClientRect();
-	const row = Math.floor(event.offsetY / box.height * rows.value);
-	const col = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
+	const row = Math.floor(event.offsetY / box.height * rows.value) - grabbedPos[1];
+	const col = Math.floor(event.offsetX / box.width * cols.value) - grabbedPos[0];
 	if (dragging.value == 'move') {
 		const el = activeElements.value[draggingIndex.value];
 		el.col = col;
@@ -452,11 +459,16 @@ async function sendDragNDrop() {
 	while (!exiting) {
 		await delay(10);
 		try {
-			const newText = (dragging.value === 'none' || dragHide.value) ? '' : dragText.value;
-			const newWidth = newText.length;
-			const newHeight = 1;
+			let newText = (dragging.value === 'none' || dragHide.value) ? '' : dragText.value;
+			if (typeof newText === 'string') newText = [newText];
+			const newWidth = newText.reduce((a, b) => Math.max(a, b.length), 0);
+			const newHeight = newText.length;
 			const newCol = draggingCol.value;
 			const newRow = draggingRow.value;
+			for (let i = 0; i < newText.length; i++) {
+				while (newText[i].length < newWidth) newText[i] += '\0';
+			}
+			newText = newText.join('');
 			if (newText !== dndText || newWidth !== dndWidth || newHeight !== dndHeight || newCol !== dndCol || newRow !== dndRow) {
 				dndText = newText;
 				dndWidth = newWidth;
@@ -702,13 +714,13 @@ onBeforeUnmount(() => clearInterval(heartbeatInterval))
 							<div class="vline" v-for="i in (cols - 1)" :style="`left: ${100 * i / cols}%`"></div>
 						</div>
 						<canvas class="draggerCanvas" ref="draggerCanvas"
-							:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 / rows}%;`"></canvas>
+							:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 * dragCanvasRows / rows}%;`"></canvas>
 						<template v-for="(el, index) in activeElements">
 							<TextCanvas :key="index" v-if="OSD_LIST[el.id]"
 								:opacity="(index === draggingIndex && dragging !== 'none') ? 0 : 1"
 								:text="getPreviewText(el)" :rows="rows" :cols="cols" :row="el.row" :col="el.col"
 								:chars="charCanvases"
-								@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
+								@dragstart="(ev, grabbed, txt) => { dragStart(index, ev, 'move', grabbed, txt) }"
 								:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd"
 								@mouseenter="() => hoverIndex = index"
 								@mouseleave="() => hoverIndex = hoverIndex === index ? -1 : hoverIndex" />
