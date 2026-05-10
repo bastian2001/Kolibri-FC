@@ -87,27 +87,27 @@ const groups = ref<OsdGroup[]>([
 	{ name: 'Debug', short: 'debug', expanded: true, hidden: true }
 ]);
 const OSD_LIST: OsdElement[] = []
-OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\u0006', group: 'bat' };
-OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', def: '3.83\u0006', group: 'bat' };
+OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\x06', group: 'bat' };
+OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', def: '3.83\x06', group: 'bat' };
 OSD_LIST[0x0002] = { name: 'Battery Cell Count', def: '4S', group: 'bat' };
-OSD_LIST[0x0003] = { name: 'Battery Current', def: '109\u009a', group: 'bat' };
-OSD_LIST[0x0004] = { name: 'Battery mAh drawn', def: '1001\u0007', group: 'bat' };
-OSD_LIST[0x0005] = { name: 'Battery Voltage Min', def: '13.3\u0006', group: 'bat' };
+OSD_LIST[0x0003] = { name: 'Battery Current', def: '109\x09a', group: 'bat' };
+OSD_LIST[0x0004] = { name: 'Battery mAh drawn', def: '1001\x07', group: 'bat' };
+OSD_LIST[0x0005] = { name: 'Battery Voltage Min', def: '13.3\x06', group: 'bat' };
 
-OSD_LIST[0x0020] = { name: 'GPS Longitude', def: '\u0098 13.413049', group: 'gps' };
-OSD_LIST[0x0021] = { name: 'GPS Latitude', def: '\u0089 52.526477', group: 'gps' };
+OSD_LIST[0x0020] = { name: 'GPS Longitude', def: '\x98 13.413049', group: 'gps' };
+OSD_LIST[0x0021] = { name: 'GPS Latitude', def: '\x89 52.526477', group: 'gps' };
 OSD_LIST[0x0022] = { name: 'GPS Pluscode', def: '9F4MGCG7+H6', group: 'gps' };
-OSD_LIST[0x0023] = { name: 'Speed', def: '161\u009e', group: 'gps' };
-OSD_LIST[0x0024] = { name: 'Altitude', def: '\u007f123\u000c', group: 'gps' };
-OSD_LIST[0x0025] = { name: 'Home Distance', def: '\u0011234\u000c', group: 'gps' };
-OSD_LIST[0x0026] = { name: 'Home Direction', def: '\u0062', group: 'gps' };
-OSD_LIST[0x0027] = { name: 'GPS Satellite Count', def: '\u001e\u001f12', group: 'gps' };
+OSD_LIST[0x0023] = { name: 'Speed', def: '161\x9e', group: 'gps' };
+OSD_LIST[0x0024] = { name: 'Altitude', def: '\x7f123\x0c', group: 'gps' };
+OSD_LIST[0x0025] = { name: 'Home Distance', def: '\x11234\x0c', group: 'gps' };
+OSD_LIST[0x0026] = { name: 'Home Direction', def: '\x62', group: 'gps' };
+OSD_LIST[0x0027] = { name: 'GPS Satellite Count', def: '\x1e\x1f12', group: 'gps' };
 
 OSD_LIST[0x0040] = { name: 'Flight Mode', def: 'ACRO', group: 'flight' };
 OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB', group: 'flight' };
 
-OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101', group: 'rc' };
-OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007b100%', group: 'rc' };
+OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\x01-101', group: 'rc' };
+OSD_LIST[0x0061] = { name: 'Link Quality', def: '\x7b100%', group: 'rc' };
 OSD_LIST[0x0062] = {
 	name: 'RC Channel Value', def: 'ROL:1312', previewFn: rcChannelTextPreview, options: [[
 		{ name: "Roll" }, { name: "Pitch" }, { name: "Throttle" }, { name: "Yaw" }, { name: "Aux 1" }, { name: "Aux 2" }, { name: "Aux 3" }, { name: "Aux 4" }, { name: "Aux 5" }, { name: "Aux 6" }, { name: "Aux 7" }, { name: "Aux 8" }, { name: "Aux 9" }, { name: "Aux 10" }, { name: "Aux 11" }, { name: "Aux 12" }
@@ -117,25 +117,25 @@ OSD_LIST[0x0062] = {
 	group: 'rc'
 };
 
-OSD_LIST[0x0080] = { name: 'Baro Altitude', def: '\u007f128\u000c', group: 'sensor' };
+OSD_LIST[0x0080] = { name: 'Baro Altitude', def: '\x7f128\x0c', group: 'sensor' };
 OSD_LIST[0x0081] = {
-	name: 'ESC Temperature', def: 'E\u007a69\u000e', options: [[
-		{ name: "Maximum + Index", preview: 'E\u007a72\u000e@4' },
-		{ name: "Maximum", preview: 'E\u007a72\u000e' },
-		{ name: "Average", preview: 'E\u007a71\u000e' },
-		{ name: "ESC 1", preview: 'E\u007a69\u000e' },
-		{ name: "ESC 2", preview: 'E\u007a70\u000e' },
-		{ name: "ESC 3", preview: 'E\u007a71\u000e' },
-		{ name: "ESC 4", preview: 'E\u007a72\u000e' }
+	name: 'ESC Temperature', def: 'E\x7a69\x0e', options: [[
+		{ name: "Maximum + Index", preview: 'E\x7a72\x0e@4' },
+		{ name: "Maximum", preview: 'E\x7a72\x0e' },
+		{ name: "Average", preview: 'E\x7a71\x0e' },
+		{ name: "ESC 1", preview: 'E\x7a69\x0e' },
+		{ name: "ESC 2", preview: 'E\x7a70\x0e' },
+		{ name: "ESC 3", preview: 'E\x7a71\x0e' },
+		{ name: "ESC 4", preview: 'E\x7a72\x0e' }
 	]], group: 'sensor'
 };
 OSD_LIST[0x0082] = { name: 'IMU Acceleration', def: '1.2G', group: 'sensor' };
-OSD_LIST[0x0083] = { name: 'IMU Pitch', def: '\u0015-12.3\u0008', group: 'sensor' };
-OSD_LIST[0x0084] = { name: 'IMU Roll', def: '\u0014-23.4\u0008', group: 'sensor' };
-OSD_LIST[0x0085] = { name: 'IMU Yaw', def: '34.5\u0008', group: 'sensor' };
+OSD_LIST[0x0083] = { name: 'IMU Pitch', def: '\x15-12.3\x08', group: 'sensor' };
+OSD_LIST[0x0084] = { name: 'IMU Roll', def: '\x14-23.4\x08', group: 'sensor' };
+OSD_LIST[0x0085] = { name: 'IMU Yaw', def: '34.5\x08', group: 'sensor' };
 
-OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00', group: 'timer' };
-OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00', group: 'timer' };
+OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\x9b0:00', group: 'timer' };
+OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\x9c0:00', group: 'timer' };
 
 OSD_LIST[0x00C0] = { name: 'Warnings', def: '##LOW VOLTAGE##', group: 'other' };
 OSD_LIST[0x00C1] = { name: 'Custom Text', def: 'ABCD', group: 'other', previewFn: customTextPreview };
