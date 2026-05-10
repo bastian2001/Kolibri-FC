@@ -494,13 +494,25 @@ async function sendDragNDrop() {
 	}
 }
 
+function forceRedrawAll() {
+	// this function should not have to exist.
+	// It forces all elements to be redrawn. It is needed because when enabling or disabling the preview, somehow the browser (at least webkit on Linux via Tauri) hides all the current elements until a redraw...
+	const backup = activeElements.value;
+	activeElements.value = [];
+	nextTick(() => {
+		activeElements.value = backup;
+	})
+}
+
 function enableRealPreview() {
 	showRealPreview.value = true;
 	sendCommand(MspFn.OSD_CONTROL, [0]).catch(() => { });
+	forceRedrawAll();
 }
 function disableRealPreview() {
 	showRealPreview.value = false;
 	sendCommand(MspFn.OSD_CONTROL, [1]).catch(() => { });
+	forceRedrawAll();
 }
 
 function setCursorPos(event: MouseEvent) {
