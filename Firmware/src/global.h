@@ -167,9 +167,3 @@ enum class MOTOR : u8 {
 	RL,
 	FL,
 };
-
-#if HW_VARIANT == HW_V5
-#define PID_FREQ 3200
-#elif HW_VARIANT == HW_V6
-#define PID_FREQ 8000
-#endif

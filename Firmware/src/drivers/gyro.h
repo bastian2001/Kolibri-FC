@@ -165,6 +165,35 @@ enum class GyroReg : u8 {
 	OFFSET_USER7,
 	OFFSET_USER8,
 };
+#elif HW_GYRO == GYRO_LSM6DSV
+enum class GyroReg : u8 {
+	FUNC_CFG_ACCESS = 0x01,
+	INT1_CTRL = 0x0D,
+	INT2_CTRL = 0x0E,
+	WHO_AM_I = 0x0F,
+	CTRL1 = 0x10,
+	CTRL2 = 0x11,
+	CTRL3 = 0x12,
+	CTRL4 = 0x13,
+	CTRL5 = 0x14,
+	CTRL6 = 0x15,
+	CTRL7 = 0x16,
+	CTRL8 = 0x17,
+	CTRL9 = 0x18,
+	CTRL10 = 0x19,
+	GYR_X_LSB = 0x22,
+	GYR_X_MSB,
+	GYR_Y_LSB,
+	GYR_Y_MSB,
+	GYR_Z_LSB,
+	GYR_Z_MSB,
+	ACC_X_LSB = 0x28,
+	ACC_X_MSB,
+	ACC_Y_LSB,
+	ACC_Y_MSB,
+	ACC_Z_LSB,
+	ACC_Z_MSB,
+};
 #endif
 
 /**

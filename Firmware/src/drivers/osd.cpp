@@ -33,6 +33,7 @@ u8 elemPositions[(u8)OSDElem::LENGTH][2] = {}; // up to LENGTH elements can be s
 u8 elemData[(u8)OSDElem::LENGTH][16] = {}; // up to LENGTH elements can be shown, each element has 16 bytes for data
 
 void osdInit() {
+	return;
 	spi_init(SPI_OSD, 8000000);
 
 	spi_set_format(SPI_OSD, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
@@ -46,6 +47,7 @@ void osdInit() {
 }
 
 void disableOSD() {
+	return;
 	u8 data;
 	regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data, 1, 0);
 	data &= ~0b00001000;
@@ -53,6 +55,7 @@ void disableOSD() {
 }
 
 void enableOSD() {
+	return;
 	u8 data;
 	regRead(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::VM0, &data, 1, 0);
 	data |= 0b00001000;
@@ -60,6 +63,7 @@ void enableOSD() {
 }
 
 void updateCharacter(u8 cmAddr, u8 data[54]) {
+	return;
 	disableOSD();
 	sleep_us(100);
 	regWrite(SPI_OSD, PIN_OSD_CS, (u8)OSDReg::CMAH, &cmAddr);
@@ -74,18 +78,22 @@ void updateCharacter(u8 cmAddr, u8 data[54]) {
 }
 
 void placeElem(OSDElem elem, u8 x, u8 y) {
+	return;
 	elemPositions[(u8)elem][0] = (elemPositions[(u8)elem][0] & 0xC0) | (x & 0x3F);
 	elemPositions[(u8)elem][1] = (elemPositions[(u8)elem][1] & 0xC0) | (y & 0x3F);
 }
 
 void enableBlinking(OSDElem elem) {
+	return;
 	elemPositions[(u8)elem][1] |= 0x40;
 }
 void disableBlinking(OSDElem elem) {
+	return;
 	elemPositions[(u8)elem][1] &= ~0x40;
 }
 
 void updateElem(OSDElem elem, const char *str) {
+	return;
 	u8 len = strlen(str);
 	if (len > 16)
 		len = 16;
@@ -94,13 +102,16 @@ void updateElem(OSDElem elem, const char *str) {
 }
 
 void enableElem(OSDElem elem) {
+	return;
 	elemPositions[(u8)elem][1] |= 0x80;
 }
 void disableElem(OSDElem elem) {
+	return;
 	elemPositions[(u8)elem][1] &= ~0x80;
 }
 
 void drawElem(u8 elem) {
+	return;
 	elemPositions[elem][0] &= ~0x80; // clear updated flag
 	// draw element using the elemData array
 	u16 pos = (u16)(elemPositions[elem][0] & 0x3F) + (u16)(elemPositions[elem][1] & 0x3F) * OSD_WIDTH;
@@ -122,6 +133,7 @@ void drawElem(u8 elem) {
 }
 
 void osdLoop() {
+	return;
 	static bool lastPbActive = false;
 	if (pidBoostActive != lastPbActive) {
 		lastPbActive = !lastPbActive;

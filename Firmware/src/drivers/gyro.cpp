@@ -89,6 +89,9 @@ static volatile const u32 gyroDmaTxData[14] = {(0x100UL | 0x80UL | (u32)GyroReg:
 #elif HW_GYRO == GYRO_ICM42688P
 #define GYRO_SPI_SPEED 24000000
 static volatile const u32 gyroDmaTxData[13] = {0x80UL | (u32)GyroReg::ACC_X_MSB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+#elif HW_GYRO == GYRO_LSM6DSV
+#define GYRO_SPI_SPEED 10000000
+static volatile const u32 gyroDmaTxData[13] = {0x80UL | (u32)GyroReg::GYR_X_LSB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 #endif
 #define GYRO_DMA_LENGTH ARRAYLEN(gyroDmaTxData)
 static volatile u32 gyroDmaRxData[GYRO_DMA_LENGTH] = {};
@@ -333,6 +336,8 @@ static void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
 	dma_start_channel_mask((1u << gyroDmaRxChannel) | (1u << gyroDmaTxChannel));
 }
 
+u16 counter = 0;
+
 void gyroDmaInterrupt() {
 	u32 interrupts = dma_hw->intr;
 	if (interrupts & (1u << gyroDmaRxChannel)) {
@@ -350,6 +355,13 @@ void gyroDmaInterrupt() {
 #elif HW_GYRO == GYRO_ICM42688P
 		for (int i = 0; i < GYRO_DMA_LENGTH - 1; i++) {
 			data[i] = (u8)(gyroDmaRxData[i + 1] & 0xFF);
+		}
+#elif HW_GYRO == GYRO_LSM6DSV
+#define GYRO_DMA_HALF ((GYRO_DMA_LENGTH - 1) / 2)
+		// IMU as gyro first, but the compute chain needs accel first
+		for (int i = 0; i < GYRO_DMA_HALF; i++) {
+			data[GYRO_DMA_HALF + i] = (u8)(gyroDmaRxData[i + 1] & 0xFF);
+			data[i] = (u8)(gyroDmaRxData[i + 1 + GYRO_DMA_HALF] & 0xFF);
 		}
 #endif
 		mutex_exit(&agDataRawAccess);
@@ -588,6 +600,38 @@ int gyroInit() {
 	// enable gyro/accel in low noise mode, keep temp sensor enabled, needs to be the last step, do not write any other registers for 200us afterwards
 	data = 0b00001111;
 	REG_WR(GyroReg::PWR_MGMT0, &data, 1, 200);
+
+#elif HW_GYRO == GYRO_LSM6DSV
+	// reset device
+	u8 data = 0x01;
+	REG_WR(GyroReg::CTRL3, &data, 1);
+
+	for (int i = 0; i < 50 && data != 0x47; i++) {
+		sleep_ms(2);
+		data = 0;
+		REG_RD(GyroReg::WHO_AM_I, &data, 1);
+		if (data == 0x70) break;
+	}
+	if (data != 0x70) {
+		Serial.print("Failed to load LSM6DSV, wrong Chip ID: ");
+		Serial.println(data, HEX);
+		return 1;
+	}
+
+	data = 0x02;
+	REG_WR(GyroReg::INT1_CTRL, &data, 1);
+	data = 0x0C; // 7.68kHz, high performance accel
+	REG_WR(GyroReg::CTRL1, &data, 1);
+	data = 0x0C; // 7.68kHz, high performance gyro
+	REG_WR(GyroReg::CTRL2, &data, 1);
+	data = 0x02; // pulsed DRDY on INT1
+	REG_WR(GyroReg::CTRL4, &data, 1);
+	data = 0x04; // gyro 2000 deg/s, 281Hz LPF
+	REG_WR(GyroReg::CTRL6, &data, 1);
+	data = 0x01; // enable LPF on gyro
+	REG_WR(GyroReg::CTRL7, &data, 1);
+	data = 0x63; // +-16g, accel LPF 160ish Hz
+	REG_WR(GyroReg::CTRL8, &data, 1);
 
 #endif
 
