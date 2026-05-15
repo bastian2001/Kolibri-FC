@@ -122,7 +122,6 @@ ExpressLRS::ExpressLRS(u8 serialNum)
 }
 
 void ExpressLRS::loop() {
-	return;
 	TASK_START(TASK_ELRS);
 
 	// maintain link state
@@ -158,7 +157,6 @@ void ExpressLRS::loop() {
 		// if there is no data to read and the last sensor was transmitted more than 15ms ago, send one telemetry sensor at a time
 		telemetryTimer = 0;
 		u8 telemBuffer[30];
-		return;
 		switch (currentTelemSensor++) {
 		case 0: {
 			// GPS (0x02)

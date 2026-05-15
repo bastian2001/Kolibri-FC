@@ -336,8 +336,6 @@ static void gyroGpioInterrupt(uint _gpio, uint32_t _events) {
 	dma_start_channel_mask((1u << gyroDmaRxChannel) | (1u << gyroDmaTxChannel));
 }
 
-u16 counter = 0;
-
 void gyroDmaInterrupt() {
 	u32 interrupts = dma_hw->intr;
 	if (interrupts & (1u << gyroDmaRxChannel)) {

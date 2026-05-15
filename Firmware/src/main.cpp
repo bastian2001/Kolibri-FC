@@ -21,14 +21,12 @@
  */
 
 #include "global.h"
-#include "hardware/structs/qmi.h"
 #include "hardware/vreg.h"
 
 static volatile u8 setupDone = 0; // lower nibble for core 0, higher nibble for core 1
 static elapsedMicros taskTimer0;
 
 void setup() {
-	sleep_ms(3000);
 	Serial.begin(115200);
 	vreg_disable_voltage_limit();
 	vreg_set_voltage(VREG_VOLTAGE_1_35);
@@ -40,7 +38,6 @@ void setup() {
 	runUnitTests();
 
 	Serial.println("Setup started");
-	Serial.flush();
 	initLittleFs();
 	openSettingsFile();
 
@@ -87,7 +84,6 @@ void setup() {
 	Serial.println("Setup complete");
 	taskTimer0 = 0;
 	setupDone |= 0b10;
-	rom_flash_flush_cache();
 }
 
 static elapsedMicros activityTimer;
