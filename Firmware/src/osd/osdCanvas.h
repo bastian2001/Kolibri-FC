@@ -51,6 +51,7 @@ enum class OsdElementType : u16 {
 	HOME_DISTANCE,
 	HOME_DIRECTION,
 	SAT_COUNT,
+	COMPASS_HEADING,
 
 	// Flight info
 	FLIGHT_MODE = 0x0040,
