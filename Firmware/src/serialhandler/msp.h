@@ -1,4 +1,26 @@
 /**
+ * @file msp.h
+ * @brief MSP command list, other enums, parsing and handler function declarations
+ *
+ * Copyright (c) 2026 Kolibri-FC contributors
+ *
+ * This file is part of Kolibri-FC (https://github.com/bastian2001/Kolibri-FC).
+ *
+ * Kolibri-FC is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Kolibri-FC is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Kolibri-FC. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
  * MSP Guidelines, emphasis is used to clarify.
  *
  * Each FlightController (FC, Server) MUST change the API version when any MSP command is added, deleted, or changed.
@@ -92,6 +114,8 @@ enum class MspFn : u16 {
 	CLI_INIT = 0x4020,
 	CLI_COMMAND = 0x4021,
 	CLI_GET_SUGGESTION = 0x4022,
+	CLI_ABORT_COMMAND = 0x4023,
+	CLI_CHECK_RUNNING = 0x4024,
 
 	// 0x410_ Settings Meta commands
 	SAVE_SETTINGS = 0x4100,

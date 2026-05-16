@@ -1,3 +1,25 @@
+/**
+ * @file global.h
+ * @brief Global includes, defines, variables and helper functions
+ *
+ * Copyright (c) 2026 Kolibri-FC contributors
+ *
+ * This file is part of Kolibri-FC (https://github.com/bastian2001/Kolibri-FC).
+ *
+ * Kolibri-FC is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Kolibri-FC is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Kolibri-FC. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 // general C/C++ includes
@@ -68,7 +90,7 @@
 #include "rtc.h"
 #include "serial.h"
 #include "serialhandler/4way.h"
-#include "serialhandler/cli.h"
+#include "serialhandler/cli/cli.h"
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
@@ -130,6 +152,8 @@ static inline f64 DECODE_R8(const u8 *buf) {
 	memcpy(&result, buf, 8);
 	return result;
 }
+bool parseInt(const char *str, i64 &value); // Parse an integer from a string, return true if successful
+bool parseFloat(const char *str, f64 &value); // Parse a float from a string, return true if successful
 
 enum MspRebootMode {
 	MSP_REBOOT_FIRMWARE = 0,

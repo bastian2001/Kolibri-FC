@@ -1,7 +1,26 @@
+<!--
+ + Copyright (c) 2026 Kolibri-FC contributors
+ + 
+ + This file is part of Kolibri-FC (https://github.com/bastian2001/Kolibri-FC).
+ + 
+ + Kolibri-FC is free software: you can redistribute it and/or modify
+ + it under the terms of the GNU General Public License as published by
+ + the Free Software Foundation, either version 3 of the License, or
+ + (at your option) any later version.
+ + 
+ + Kolibri-FC is distributed in the hope that it will be useful,
+ + but WITHOUT ANY WARRANTY; without even the implied warranty of
+ + MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ + GNU General Public License for more details.
+ + 
+ + You should have received a copy of the GNU General Public License
+ + along with Kolibri-FC. If not, see <http://www.gnu.org/licenses/>.
+-->
+
 <script setup lang="ts">
 import { onCommandHandler, onConnectHandler, sendCommand, strToArray } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
 import fonts from "@/utils/fonts";
 import { useLogStore } from "@/stores/logStore";
 import TextCanvas from "@/components/TextCanvas.vue";
@@ -25,10 +44,11 @@ const hoverIndex = ref(-1);
 const charCanvases: HTMLCanvasElement[] = [];
 const draggerCanvas = useTemplateRef('draggerCanvas');
 const dragCanvasCols = ref(0);
+const dragCanvasRows = ref(0);
 const draggingRow = ref(0);
 const draggingCol = ref(0);
-const dragText = ref('');
-let grabbedChar = 0;
+const dragText = ref('' as string | (string[]));
+let grabbedPos = [0, 0];
 const dragTrashHover = ref(false);
 const dragHide = ref(true);
 const previewImage = useTemplateRef('previewImage');
@@ -45,10 +65,10 @@ watch([rows, cols], ([newRows, newCols]) => {
 
 type OsdElement = {
 	name: string,
-	def: string,
+	def: string | (string[]),
 	group: string,
 	previewFn?: (element: OsdPlacement) => string,
-	options?: { name: string, preview?: string, id?: number }[][], // Option Byte 0
+	options?: { name: string, preview?: string | (string[]), id?: number }[][], // Option Byte 0
 }
 type OsdGroup = {
 	name: string,
@@ -67,27 +87,27 @@ const groups = ref<OsdGroup[]>([
 	{ name: 'Debug', short: 'debug', expanded: true, hidden: true }
 ]);
 const OSD_LIST: OsdElement[] = []
-OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\u0006', group: 'bat' };
-OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', def: '3.83\u0006', group: 'bat' };
+OSD_LIST[0x0000] = { name: 'Battery Pack Voltage', def: '15.3\x06', group: 'bat' };
+OSD_LIST[0x0001] = { name: 'Battery Cell Voltage', def: '3.83\x06', group: 'bat' };
 OSD_LIST[0x0002] = { name: 'Battery Cell Count', def: '4S', group: 'bat' };
-OSD_LIST[0x0003] = { name: 'Battery Current', def: '109\u009a', group: 'bat' };
-OSD_LIST[0x0004] = { name: 'Battery mAh drawn', def: '1001\u0007', group: 'bat' };
-OSD_LIST[0x0005] = { name: 'Battery Voltage Min', def: '13.3\u0006', group: 'bat' };
+OSD_LIST[0x0003] = { name: 'Battery Current', def: '109\x09a', group: 'bat' };
+OSD_LIST[0x0004] = { name: 'Battery mAh drawn', def: '1001\x07', group: 'bat' };
+OSD_LIST[0x0005] = { name: 'Battery Voltage Min', def: '13.3\x06', group: 'bat' };
 
-OSD_LIST[0x0020] = { name: 'GPS Longitude', def: '\u0098 13.413049', group: 'gps' };
-OSD_LIST[0x0021] = { name: 'GPS Latitude', def: '\u0089 52.526477', group: 'gps' };
+OSD_LIST[0x0020] = { name: 'GPS Longitude', def: '\x98 13.413049', group: 'gps' };
+OSD_LIST[0x0021] = { name: 'GPS Latitude', def: '\x89 52.526477', group: 'gps' };
 OSD_LIST[0x0022] = { name: 'GPS Pluscode', def: '9F4MGCG7+H6', group: 'gps' };
-OSD_LIST[0x0023] = { name: 'Speed', def: '161\u009e', group: 'gps' };
-OSD_LIST[0x0024] = { name: 'Altitude', def: '\u007f123\u000c', group: 'gps' };
-OSD_LIST[0x0025] = { name: 'Home Distance', def: '\u0011234\u000c', group: 'gps' };
-OSD_LIST[0x0026] = { name: 'Home Direction', def: '\u0062', group: 'gps' };
-OSD_LIST[0x0027] = { name: 'GPS Satellite Count', def: '\u001e\u001f12', group: 'gps' };
+OSD_LIST[0x0023] = { name: 'Speed', def: '161\x9e', group: 'gps' };
+OSD_LIST[0x0024] = { name: 'Altitude', def: '\x7f123\x0c', group: 'gps' };
+OSD_LIST[0x0025] = { name: 'Home Distance', def: '\x11234\x0c', group: 'gps' };
+OSD_LIST[0x0026] = { name: 'Home Direction', def: '\x62', group: 'gps' };
+OSD_LIST[0x0027] = { name: 'GPS Satellite Count', def: '\x1e\x1f12', group: 'gps' };
 
 OSD_LIST[0x0040] = { name: 'Flight Mode', def: 'ACRO', group: 'flight' };
 OSD_LIST[0x0041] = { name: 'Rescue Status', def: 'CLIMB', group: 'flight' };
 
-OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\u0001-101', group: 'rc' };
-OSD_LIST[0x0061] = { name: 'Link Quality', def: '\u007b100%', group: 'rc' };
+OSD_LIST[0x0060] = { name: 'RSSI Value', def: '\x01-101', group: 'rc' };
+OSD_LIST[0x0061] = { name: 'Link Quality', def: '\x7b100%', group: 'rc' };
 OSD_LIST[0x0062] = {
 	name: 'RC Channel Value', def: 'ROL:1312', previewFn: rcChannelTextPreview, options: [[
 		{ name: "Roll" }, { name: "Pitch" }, { name: "Throttle" }, { name: "Yaw" }, { name: "Aux 1" }, { name: "Aux 2" }, { name: "Aux 3" }, { name: "Aux 4" }, { name: "Aux 5" }, { name: "Aux 6" }, { name: "Aux 7" }, { name: "Aux 8" }, { name: "Aux 9" }, { name: "Aux 10" }, { name: "Aux 11" }, { name: "Aux 12" }
@@ -97,25 +117,25 @@ OSD_LIST[0x0062] = {
 	group: 'rc'
 };
 
-OSD_LIST[0x0080] = { name: 'Baro Altitude', def: '\u007f128\u000c', group: 'sensor' };
+OSD_LIST[0x0080] = { name: 'Baro Altitude', def: '\x7f128\x0c', group: 'sensor' };
 OSD_LIST[0x0081] = {
-	name: 'ESC Temperature', def: 'E\u007a69\u000e', options: [[
-		{ name: "Maximum + Index", preview: 'E\u007a72\u000e@4' },
-		{ name: "Maximum", preview: 'E\u007a72\u000e' },
-		{ name: "Average", preview: 'E\u007a71\u000e' },
-		{ name: "ESC 1", preview: 'E\u007a69\u000e' },
-		{ name: "ESC 2", preview: 'E\u007a70\u000e' },
-		{ name: "ESC 3", preview: 'E\u007a71\u000e' },
-		{ name: "ESC 4", preview: 'E\u007a72\u000e' }
+	name: 'ESC Temperature', def: 'E\x7a69\x0e', options: [[
+		{ name: "Maximum + Index", preview: 'E\x7a72\x0e@4' },
+		{ name: "Maximum", preview: 'E\x7a72\x0e' },
+		{ name: "Average", preview: 'E\x7a71\x0e' },
+		{ name: "ESC 1", preview: 'E\x7a69\x0e' },
+		{ name: "ESC 2", preview: 'E\x7a70\x0e' },
+		{ name: "ESC 3", preview: 'E\x7a71\x0e' },
+		{ name: "ESC 4", preview: 'E\x7a72\x0e' }
 	]], group: 'sensor'
 };
 OSD_LIST[0x0082] = { name: 'IMU Acceleration', def: '1.2G', group: 'sensor' };
-OSD_LIST[0x0083] = { name: 'IMU Pitch', def: '\u0015-12.3\u0008', group: 'sensor' };
-OSD_LIST[0x0084] = { name: 'IMU Roll', def: '\u0014-23.4\u0008', group: 'sensor' };
-OSD_LIST[0x0085] = { name: 'IMU Yaw', def: '34.5\u0008', group: 'sensor' };
+OSD_LIST[0x0083] = { name: 'IMU Pitch', def: '\x15-12.3\x08', group: 'sensor' };
+OSD_LIST[0x0084] = { name: 'IMU Roll', def: '\x14-23.4\x08', group: 'sensor' };
+OSD_LIST[0x0085] = { name: 'IMU Yaw', def: '34.5\x08', group: 'sensor' };
 
-OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\u009b0:00', group: 'timer' };
-OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\u009c0:00', group: 'timer' };
+OSD_LIST[0x00B0] = { name: 'Battery Time', def: '\x9b0:00', group: 'timer' };
+OSD_LIST[0x00B1] = { name: 'Arm Time', def: '\x9c0:00', group: 'timer' };
 
 OSD_LIST[0x00C0] = { name: 'Warnings', def: '##LOW VOLTAGE##', group: 'other' };
 OSD_LIST[0x00C1] = { name: 'Custom Text', def: 'ABCD', group: 'other', previewFn: customTextPreview };
@@ -252,7 +272,7 @@ function createCanvases() {
 	}
 }
 
-function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar = 0, text = '') {
+function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', grabbed: number[] = [0, 0], text = '') {
 	if (type === 'copy') {
 		if (!event.dataTransfer) return;
 		event.dataTransfer.setData('text/plain', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
@@ -263,21 +283,27 @@ function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar
 		const newElement = { id: index, col: 0, row: 0, option: [0, 0, 0, 0] };
 		setDefaultOptions(newElement);
 		let t = text || getPreviewText(newElement);
-		canvas.width = 48 * t.length;
-		dragCanvasCols.value = t.length;
+		if (typeof t === 'string') t = [t];
+		const width = t.reduce((a, b) => Math.max(a, b.length), 0);
+		canvas.width = 48 * width;
+		dragCanvasCols.value = width;
+		dragCanvasRows.value = t.length;
 		dragText.value = t
-		canvas.height = 72;
+		canvas.height = t.length * 72;
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		for (let i = 0; i < t.length; i++) {
-			ctx.drawImage(charCanvases[t.charCodeAt(i)], 48 * i, 0);
+		for (let l = 0; l < t.length; l++) {
+			const line = t[l];
+			for (let i = 0; i < line.length; i++) {
+				ctx.drawImage(charCanvases[line.charCodeAt(i)], 48 * i, l * 72);
+			}
 		}
 		if (!previewImage.value) return;
 		const box = previewImage.value.getBoundingClientRect();
 		const cWidth = box.width / cols.value;
 		const cHeight = box.height / rows.value;
-		event.dataTransfer.setDragImage(canvas, cWidth * (gChar + 1 / 2), cHeight / 2);
+		event.dataTransfer.setDragImage(canvas, cWidth * (grabbed[0] + 1 / 2), cHeight * (grabbed[1] + 1 / 2));
 		draggingNew.value = index
 	} else {
 		dragText.value = text;
@@ -285,7 +311,7 @@ function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', gChar
 	}
 
 	dragging.value = type;
-	grabbedChar = gChar;
+	grabbedPos = grabbed;
 	dragHide.value = true;
 	dragTrashHover.value = false;
 }
@@ -301,16 +327,16 @@ const dragover = (event: DragEvent) => {
 
 	if (!previewImage.value || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
 	const box = previewImage.value.getBoundingClientRect();
-	draggingRow.value = Math.floor(event.offsetY / box.height * rows.value);
-	draggingCol.value = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
+	draggingRow.value = Math.floor(event.offsetY / box.height * rows.value) - grabbedPos[1];
+	draggingCol.value = Math.floor(event.offsetX / box.width * cols.value) - grabbedPos[0];
 	dragHide.value = false;
 }
 function dropped(event: DragEvent) {
 	event.preventDefault();
 	if (!previewImage.value || (dragging.value !== 'copy' && dragging.value !== 'move')) return;
 	const box = previewImage.value.getBoundingClientRect();
-	const row = Math.floor(event.offsetY / box.height * rows.value);
-	const col = Math.floor(event.offsetX / box.width * cols.value) - grabbedChar;
+	const row = Math.floor(event.offsetY / box.height * rows.value) - grabbedPos[1];
+	const col = Math.floor(event.offsetX / box.width * cols.value) - grabbedPos[0];
 	if (dragging.value == 'move') {
 		const el = activeElements.value[draggingIndex.value];
 		el.col = col;
@@ -433,11 +459,16 @@ async function sendDragNDrop() {
 	while (!exiting) {
 		await delay(10);
 		try {
-			const newText = (dragging.value === 'none' || dragHide.value) ? '' : dragText.value;
-			const newWidth = newText.length;
-			const newHeight = 1;
+			let newText = (dragging.value === 'none' || dragHide.value) ? '' : dragText.value;
+			if (typeof newText === 'string') newText = [newText];
+			const newWidth = newText.reduce((a, b) => Math.max(a, b.length), 0);
+			const newHeight = newText.length;
 			const newCol = draggingCol.value;
 			const newRow = draggingRow.value;
+			for (let i = 0; i < newText.length; i++) {
+				while (newText[i].length < newWidth) newText[i] += '\0';
+			}
+			newText = newText.join('');
 			if (newText !== dndText || newWidth !== dndWidth || newHeight !== dndHeight || newCol !== dndCol || newRow !== dndRow) {
 				dndText = newText;
 				dndWidth = newWidth;
@@ -463,13 +494,25 @@ async function sendDragNDrop() {
 	}
 }
 
+function forceRedrawAll() {
+	// this function should not have to exist.
+	// It forces all elements to be redrawn. It is needed because when enabling or disabling the preview, somehow the browser (at least webkit on Linux via Tauri) hides all the current elements until a redraw...
+	const backup = activeElements.value;
+	activeElements.value = [];
+	nextTick(() => {
+		activeElements.value = backup;
+	})
+}
+
 function enableRealPreview() {
 	showRealPreview.value = true;
 	sendCommand(MspFn.OSD_CONTROL, [0]).catch(() => { });
+	forceRedrawAll();
 }
 function disableRealPreview() {
 	showRealPreview.value = false;
 	sendCommand(MspFn.OSD_CONTROL, [1]).catch(() => { });
+	forceRedrawAll();
 }
 
 function setCursorPos(event: MouseEvent) {
@@ -683,13 +726,13 @@ onBeforeUnmount(() => clearInterval(heartbeatInterval))
 							<div class="vline" v-for="i in (cols - 1)" :style="`left: ${100 * i / cols}%`"></div>
 						</div>
 						<canvas class="draggerCanvas" ref="draggerCanvas"
-							:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 / rows}%;`"></canvas>
+							:style="`width: ${100 * dragCanvasCols / cols}%; height: ${100 * dragCanvasRows / rows}%;`"></canvas>
 						<template v-for="(el, index) in activeElements">
 							<TextCanvas :key="index" v-if="OSD_LIST[el.id]"
 								:opacity="(index === draggingIndex && dragging !== 'none') ? 0 : 1"
 								:text="getPreviewText(el)" :rows="rows" :cols="cols" :row="el.row" :col="el.col"
 								:chars="charCanvases"
-								@dragstart="(ev, gc, txt) => { dragStart(index, ev, 'move', gc, txt) }"
+								@dragstart="(ev, grabbed, txt) => { dragStart(index, ev, 'move', grabbed, txt) }"
 								:poiev="dragging !== 'none' ? 'none' : 'initial'" @dragend="dragEnd"
 								@mouseenter="() => hoverIndex = index"
 								@mouseleave="() => hoverIndex = hoverIndex === index ? -1 : hoverIndex" />
