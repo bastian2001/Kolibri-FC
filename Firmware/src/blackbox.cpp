@@ -1440,6 +1440,7 @@ u32 writeSingleFrame() {
 	}
 	if (flags.c0 & LOG_FRAMETIME) {
 		u16 ft = frametime;
+		frametime -= ft;
 		*bbBuffer.u16p++ = ft;
 	}
 	if (flags.c0 & LOG_ALTITUDE) {
