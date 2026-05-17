@@ -72,7 +72,6 @@ static DualPT1 iRelaxFilterEVel;
 static PT1 pushNorth;
 static PT1 pushEast;
 
-static void startRateInterp();
 static fix32 calcThrottle(fix32 targetVvel);
 static fix32 stickToTargetVvel(fix32 stickPos);
 static void autopilotNavigate(fix64 toLat, fix64 toLon, fix32 toAlt, fix32 *eVelSetpoint, fix32 *nVelSetpoint, fix32 *targetVvel);
@@ -82,6 +81,14 @@ static fix32 smoothFromThrottle, smoothToThrottle, newThrottle;
 static fix32 smoothFromRoll, smoothToRoll, newRoll;
 static fix32 smoothFromPitch, smoothToPitch, newPitch;
 static fix32 smoothFromYaw, smoothToYaw, newYaw;
+
+static inline void startRateInterp() {
+	interp_set_config(interp0, 0, &rateInterpConfig0);
+	interp_set_config(interp0, 1, &rateInterpConfig1);
+	interp_set_config(interp1, 0, &rateInterpConfig2);
+	interp1->base[0] = -1 << 15;
+	interp1->base[1] = 1 << 15;
+}
 
 /**
  * @brief Get the target rotational rate for a given stick value and axis.
@@ -747,14 +754,6 @@ static fix32 calculateActual(fix32 stick, u8 axis) {
 	fix32 linPart = stick * center;
 	fix32 expoPart = (expo * stick6 + (fix32(1) - expo) * stick2) * (maxRate - center) * stick.sign();
 	return linPart + expoPart;
-}
-
-static void startRateInterp() {
-	interp_set_config(interp0, 0, &rateInterpConfig0);
-	interp_set_config(interp0, 1, &rateInterpConfig1);
-	interp_set_config(interp1, 0, &rateInterpConfig2);
-	interp1->base[0] = -1 << 15;
-	interp1->base[1] = 1 << 15;
 }
 
 static void initRateInterp() {

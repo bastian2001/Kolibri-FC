@@ -154,36 +154,7 @@ void loop1() {
 	if (gyroUpdateFlag & 0x01) {
 		gyroUpdateFlag &= ~0x01;
 
-		static u8 imuUpdateCycle = 0;
-		TASK_START(TASK_IMU);
-		TASK_START(TASK_IMU_GYRO);
-		imuGyroUpdate();
-		TASK_END(TASK_IMU_GYRO);
-
-		switch (imuUpdateCycle) {
-		case 0: {
-			TASK_START(TASK_IMU_ACCEL1);
-			imuAccelUpdate1();
-			TASK_END(TASK_IMU_ACCEL1);
-		} break;
-		case 1: {
-			TASK_START(TASK_IMU_ACCEL2);
-			imuAccelUpdate2();
-			TASK_END(TASK_IMU_ACCEL2);
-		} break;
-		case 2: {
-			TASK_START(TASK_IMU_ANGLE);
-			imuUpdatePitchRoll();
-			TASK_END(TASK_IMU_ANGLE);
-		} break;
-		case 3: {
-			TASK_START(TASK_IMU_SPEEDS);
-			imuUpdateSpeeds();
-			TASK_END(TASK_IMU_SPEEDS);
-		} break;
-		}
-		if (++imuUpdateCycle >= 8) imuUpdateCycle = 0;
-		TASK_END(TASK_IMU);
+		imuLoop();
 
 		if (armed) {
 			controlLoop();
