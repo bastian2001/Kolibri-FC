@@ -1342,7 +1342,7 @@ u32 writeSingleFrame() {
 	BlackboxPackPtr bbBuffer;
 	bbBuffer.u8p = bbBufferStart + 8; // 5 bytes + padding to a 4-alignment
 
-	// 4-wide elements
+	// 4-aligned elements
 	if (currentBBFlags & LOG_HVEL) {
 		// same as vvel: 8.8 fixed point in m/s, +-128m/s max, 4mm/s resolution
 		// first nVel (north positive), then eVel (east positive)
@@ -1355,34 +1355,7 @@ u32 writeSingleFrame() {
 		*bbBuffer.u32p++ = bbDebug2;
 	}
 
-	// 6-wide elements
-	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
-		u64 throttles64 = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
-		*bbBuffer.u32p++ = throttles64;
-		*bbBuffer.u16p++ = throttles64 >> 32;
-	}
-	if (currentBBFlags & LOG_MOTOR_RPM) {
-		u64 rpmPacket = escRawTelemetry[(u8)MOTOR::RR] | escRawTelemetry[(u8)MOTOR::FR] << 12 | (u64)escRawTelemetry[(u8)MOTOR::RL] << 24 | (u64)escRawTelemetry[(u8)MOTOR::FL] << 36;
-		*bbBuffer.u32p++ = rpmPacket;
-		*bbBuffer.u16p++ = rpmPacket >> 32;
-	}
-	if (currentBBFlags & LOG_ACCEL_RAW) {
-		*bbBuffer.i16p++ = accelAligned[AXIS_ROLL];
-		*bbBuffer.i16p++ = accelAligned[AXIS_PITCH];
-		*bbBuffer.i16p++ = accelAligned[AXIS_YAW];
-	}
-	if (currentBBFlags & LOG_ACCEL_FILTERED) {
-		*bbBuffer.i16p++ = accelFiltered[AXIS_ROLL]->geti32();
-		*bbBuffer.i16p++ = accelFiltered[AXIS_PITCH]->geti32();
-		*bbBuffer.i16p++ = accelFiltered[AXIS_YAW]->geti32();
-	}
-	if (currentBBFlags & LOG_PID_SUM) {
-		*bbBuffer.i16p++ = rollSum.geti32();
-		*bbBuffer.i16p++ = pitchSum.geti32();
-		*bbBuffer.i16p++ = yawSum.geti32();
-	}
-
-	// 2-wide elements
+	// 2-aligned elements
 	if (currentBBFlags & LOG_ROLL_SETPOINT) {
 		*bbBuffer.i16p++ = (i16)(rollSetpoint.raw >> 12);
 	}
@@ -1449,6 +1422,11 @@ u32 writeSingleFrame() {
 	if (currentBBFlags & LOG_YAW_PID_S) {
 		*bbBuffer.i16p++ = yawS.geti32();
 	}
+	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
+		u64 throttles64 = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
+		*bbBuffer.u32p++ = throttles64;
+		*bbBuffer.u16p++ = throttles64 >> 32;
+	}
 	if (currentBBFlags & LOG_FRAMETIME) {
 		u16 ft = frametime;
 		*bbBuffer.u16p++ = ft;
@@ -1469,6 +1447,21 @@ u32 writeSingleFrame() {
 	if (currentBBFlags & LOG_ATT_YAW) {
 		*bbBuffer.i16p++ = yaw.raw >> 8;
 	}
+	if (currentBBFlags & LOG_MOTOR_RPM) {
+		u64 rpmPacket = escRawTelemetry[(u8)MOTOR::RR] | escRawTelemetry[(u8)MOTOR::FR] << 12 | (u64)escRawTelemetry[(u8)MOTOR::RL] << 24 | (u64)escRawTelemetry[(u8)MOTOR::FL] << 36;
+		*bbBuffer.u32p++ = rpmPacket;
+		*bbBuffer.u16p++ = rpmPacket >> 32;
+	}
+	if (currentBBFlags & LOG_ACCEL_RAW) {
+		*bbBuffer.i16p++ = accelAligned[AXIS_ROLL];
+		*bbBuffer.i16p++ = accelAligned[AXIS_PITCH];
+		*bbBuffer.i16p++ = accelAligned[AXIS_YAW];
+	}
+	if (currentBBFlags & LOG_ACCEL_FILTERED) {
+		*bbBuffer.i16p++ = accelFiltered[AXIS_ROLL]->geti32();
+		*bbBuffer.i16p++ = accelFiltered[AXIS_PITCH]->geti32();
+		*bbBuffer.i16p++ = accelFiltered[AXIS_YAW]->geti32();
+	}
 	if (currentBBFlags & LOG_VERTICAL_ACCEL) {
 		*bbBuffer.i16p++ = vAccel.raw >> 9;
 	}
@@ -1487,16 +1480,18 @@ u32 writeSingleFrame() {
 	if (currentBBFlags & LOG_DEBUG_4) {
 		*bbBuffer.u16p++ = bbDebug4;
 	}
+	if (currentBBFlags & LOG_PID_SUM) {
+		*bbBuffer.i16p++ = rollSum.geti32();
+		*bbBuffer.i16p++ = pitchSum.geti32();
+		*bbBuffer.i16p++ = yawSum.geti32();
+	}
 
-	// 3-wide-elements
+	// 1-aligned elements
 	if (currentBBFlags & LOG_BARO) {
 		i32 val = blackboxPres;
 		*bbBuffer.i16p++ = val;
 		*bbBuffer.u8p++ = val >> 16;
 	}
-
-	// 1-wide-elements
-	// -- none --
 
 	bbBufferStart[3] = (bbBuffer.u8p - bbBufferStart) - 8;
 	memcpy(bbBufferStart + 4, &bbFrameNum, 4);
