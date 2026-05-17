@@ -219,9 +219,7 @@ static void inline runAngleMode4() {
 	Quaternion_conjugate(&q, &currentQuatInv);
 	Quaternion_multiply(&targetQuat, &currentQuatInv, &diffQuat);
 	Quaternion_normalize(&diffQuat);
-}
 
-static void inline runAngleMode5() {
 	// Ensure shortest rotation path by checking w component
 	if (diffQuat.w < 0) {
 		diffQuat.w = -diffQuat.w;
@@ -229,7 +227,9 @@ static void inline runAngleMode5() {
 		diffQuat.v[1] = -diffQuat.v[1];
 		diffQuat.v[2] = -diffQuat.v[2];
 	}
+}
 
+static void inline runAngleMode5() {
 	// extract roll, pitch and yaw from diffQuat
 	fix32 axis[3];
 	// fix32 angle = Quaternion_toAxisAngle(&diffQuat, axis);
