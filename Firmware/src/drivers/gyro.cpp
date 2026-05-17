@@ -604,7 +604,7 @@ int gyroInit() {
 	u8 data = 0x01;
 	REG_WR(GyroReg::CTRL3, &data, 1);
 
-	for (int i = 0; i < 50 && data != 0x47; i++) {
+	for (int i = 0; i < 50 && data != 0x70; i++) {
 		sleep_ms(2);
 		data = 0;
 		REG_RD(GyroReg::WHO_AM_I, &data, 1);

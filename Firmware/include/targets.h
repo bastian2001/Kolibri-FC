@@ -27,6 +27,7 @@
 
 #define HW_V5 5
 #define HW_V6 6
+#define HW_OPENFC_ECO -1
 
 #define GYRO_BMI270 1
 #define GYRO_ICM42688P 2

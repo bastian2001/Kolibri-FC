@@ -33,7 +33,8 @@
 // Applied in the order yaw -> pitch -> roll
 // (rotate in horizontal plane -> how much to look up -> then roll right)
 
-static constexpr f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
+static constexpr f32 RAW_TO_RAD_PER_SEC = 70 * .001 * M_PI / 180; // LSM6DSV has a weird sensitivity
+// static constexpr f32 RAW_TO_RAD_PER_SEC = PI * 4000 / 65536 / 180; // 2000deg per second, but raw is only +/-.5
 static constexpr f32 FRAME_TIME = 1. / PID_FREQ;
 static constexpr f32 RAW_TO_HALF_ANGLE = RAW_TO_RAD_PER_SEC * FRAME_TIME / 2;
 static constexpr f32 ANGLE_CHANGE_LIMIT = 0.2 * (8 * FRAME_TIME); // 0.2 rad per second
