@@ -41,7 +41,7 @@ static FILE_CLASS blackboxFile;
 #define BLACKBOX_WRITE_BUFFER_SIZE 8192
 
 u64 bbFlags = 0;
-static u64 currentBBFlags = 0;
+static volatile u64 currentBBFlags = 0;
 
 static volatile bool bbLogging = false;
 volatile bool fsReady = false;
@@ -61,6 +61,13 @@ union BlackboxPackPtr {
 	i16 *i16p;
 	i32 *i32p;
 	u32 *u32p;
+};
+union BbFlagMask {
+	u64 c64;
+	struct {
+		u32 c0;
+		u32 c1;
+	};
 };
 
 typedef struct bbPrintConfig {
@@ -322,23 +329,25 @@ void blackboxLoop() {
 		fmHighlightFlag |= 0b01;
 	}
 
+	const BbFlagMask bbFlagsCopy = {.c64 = currentBBFlags};
+
 	// save GPS PVT message
-	if (newPvtMessageFlag & (1 << 0) && currentBBFlags & LOG_GPS && BB_WR_BUF_HAS_FREE(92 * 4 / 3 + 1)) {
+	if (newPvtMessageFlag & (1 << 0) && bbFlagsCopy.c0 & LOG_GPS && BB_WR_BUF_HAS_FREE(92 * 4 / 3 + 1)) {
 		writeGpsToBlackbox();
 	}
 
 	// save ELRS joysticks
-	if (elrs && elrs->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
+	if (elrs && elrs->newPacketFlag & (1 << 1) && bbFlagsCopy.c0 & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
 		writeElrsToBlackbox();
 	}
 
 	// save VBat to Blackbox
-	if (adcFlag & (1 << 0) && currentBBFlags & LOG_VBAT && BB_WR_BUF_HAS_FREE(2 + 1)) {
+	if (adcFlag & (1 << 0) && bbFlagsCopy.c1 & (LOG_VBAT >> 32) && BB_WR_BUF_HAS_FREE(2 + 1)) {
 		writeVbatToBlackbox();
 	}
 
 	// save ELRS link statistics
-	if (elrs && elrs->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
+	if (elrs && elrs->newLinkStatsFlag & (1 << 0) && bbFlagsCopy.c1 & (LOG_LINK_STATS >> 32) && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
 		writeElrsLinkToBlackbox();
 	}
 
@@ -1342,152 +1351,154 @@ u32 writeSingleFrame() {
 	BlackboxPackPtr bbBuffer;
 	bbBuffer.u8p = bbBufferStart + 8; // 5 bytes + padding to a 4-alignment
 
+	BbFlagMask flags = {.c64 = currentBBFlags};
+
 	// 4-aligned elements
-	if (currentBBFlags & LOG_HVEL) {
+	if (flags.c1 & (LOG_HVEL >> 32)) {
 		// same as vvel: 8.8 fixed point in m/s, +-128m/s max, 4mm/s resolution
 		// first nVel (north positive), then eVel (east positive)
 		*bbBuffer.i32p++ = ((u16)(nVel.raw >> 8)) | (((u16)(eVel.raw >> 8)) << 16);
 	}
-	if (currentBBFlags & LOG_DEBUG_1) {
+	if (flags.c1 & (LOG_DEBUG_1 >> 32)) {
 		*bbBuffer.u32p++ = bbDebug1;
 	}
-	if (currentBBFlags & LOG_DEBUG_2) {
+	if (flags.c1 & (LOG_DEBUG_2 >> 32)) {
 		*bbBuffer.u32p++ = bbDebug2;
 	}
 
 	// 2-aligned elements
-	if (currentBBFlags & LOG_ROLL_SETPOINT) {
+	if (flags.c0 & LOG_ROLL_SETPOINT) {
 		*bbBuffer.i16p++ = (i16)(rollSetpoint.raw >> 12);
 	}
-	if (currentBBFlags & LOG_PITCH_SETPOINT) {
+	if (flags.c0 & LOG_PITCH_SETPOINT) {
 		*bbBuffer.i16p++ = (i16)(pitchSetpoint.raw >> 12);
 	}
-	if (currentBBFlags & LOG_THROTTLE_SETPOINT) {
+	if (flags.c0 & LOG_THROTTLE_SETPOINT) {
 		*bbBuffer.i16p++ = (i16)(throttle.raw >> 12);
 	}
-	if (currentBBFlags & LOG_YAW_SETPOINT) {
+	if (flags.c0 & LOG_YAW_SETPOINT) {
 		*bbBuffer.i16p++ = (i16)(yawSetpoint.raw >> 12);
 	}
-	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
+	if (flags.c0 & LOG_ROLL_GYRO_RAW) {
 		*bbBuffer.i16p++ = gyroScaled[AXIS_ROLL].raw >> 12;
 	}
-	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
+	if (flags.c0 & LOG_PITCH_GYRO_RAW) {
 		*bbBuffer.i16p++ = gyroScaled[AXIS_PITCH].raw >> 12;
 	}
-	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
+	if (flags.c0 & LOG_YAW_GYRO_RAW) {
 		*bbBuffer.i16p++ = gyroScaled[AXIS_YAW].raw >> 12;
 	}
-	if (currentBBFlags & LOG_ROLL_PID_P) {
+	if (flags.c0 & LOG_ROLL_PID_P) {
 		*bbBuffer.i16p++ = rollP.geti32();
 	}
-	if (currentBBFlags & LOG_ROLL_PID_I) {
+	if (flags.c0 & LOG_ROLL_PID_I) {
 		*bbBuffer.i16p++ = rollI.geti32();
 	}
-	if (currentBBFlags & LOG_ROLL_PID_D) {
+	if (flags.c0 & LOG_ROLL_PID_D) {
 		*bbBuffer.i16p++ = rollD.geti32();
 	}
-	if (currentBBFlags & LOG_ROLL_PID_FF) {
+	if (flags.c0 & LOG_ROLL_PID_FF) {
 		*bbBuffer.i16p++ = rollFF.geti32();
 	}
-	if (currentBBFlags & LOG_ROLL_PID_S) {
+	if (flags.c0 & LOG_ROLL_PID_S) {
 		*bbBuffer.i16p++ = rollS.geti32();
 	}
-	if (currentBBFlags & LOG_PITCH_PID_P) {
+	if (flags.c0 & LOG_PITCH_PID_P) {
 		*bbBuffer.i16p++ = pitchP.geti32();
 	}
-	if (currentBBFlags & LOG_PITCH_PID_I) {
+	if (flags.c0 & LOG_PITCH_PID_I) {
 		*bbBuffer.i16p++ = pitchI.geti32();
 	}
-	if (currentBBFlags & LOG_PITCH_PID_D) {
+	if (flags.c0 & LOG_PITCH_PID_D) {
 		*bbBuffer.i16p++ = pitchD.geti32();
 	}
-	if (currentBBFlags & LOG_PITCH_PID_FF) {
+	if (flags.c0 & LOG_PITCH_PID_FF) {
 		*bbBuffer.i16p++ = pitchFF.geti32();
 	}
-	if (currentBBFlags & LOG_PITCH_PID_S) {
+	if (flags.c0 & LOG_PITCH_PID_S) {
 		*bbBuffer.i16p++ = pitchS.geti32();
 	}
-	if (currentBBFlags & LOG_YAW_PID_P) {
+	if (flags.c0 & LOG_YAW_PID_P) {
 		*bbBuffer.i16p++ = yawP.geti32();
 	}
-	if (currentBBFlags & LOG_YAW_PID_I) {
+	if (flags.c0 & LOG_YAW_PID_I) {
 		*bbBuffer.i16p++ = yawI.geti32();
 	}
-	if (currentBBFlags & LOG_YAW_PID_D) {
+	if (flags.c0 & LOG_YAW_PID_D) {
 		*bbBuffer.i16p++ = yawD.geti32();
 	}
-	if (currentBBFlags & LOG_YAW_PID_FF) {
+	if (flags.c0 & LOG_YAW_PID_FF) {
 		*bbBuffer.i16p++ = yawFF.geti32();
 	}
-	if (currentBBFlags & LOG_YAW_PID_S) {
+	if (flags.c0 & LOG_YAW_PID_S) {
 		*bbBuffer.i16p++ = yawS.geti32();
 	}
-	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
+	if (flags.c0 & LOG_MOTOR_OUTPUTS) {
 		u64 throttles64 = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
 		*bbBuffer.u32p++ = throttles64;
 		*bbBuffer.u16p++ = throttles64 >> 32;
 	}
-	if (currentBBFlags & LOG_FRAMETIME) {
+	if (flags.c0 & LOG_FRAMETIME) {
 		u16 ft = frametime;
 		*bbBuffer.u16p++ = ft;
 	}
-	if (currentBBFlags & LOG_ALTITUDE) {
+	if (flags.c0 & LOG_ALTITUDE) {
 		const u16 height = combinedAltitude.raw >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
 		*bbBuffer.u16p++ = height;
 	}
-	if (currentBBFlags & LOG_VVEL) {
+	if (flags.c0 & LOG_VVEL) {
 		*bbBuffer.i16p++ = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
 	}
-	if (currentBBFlags & LOG_ATT_ROLL) {
+	if (flags.c0 & LOG_ATT_ROLL) {
 		*bbBuffer.i16p++ = roll.raw >> 8;
 	}
-	if (currentBBFlags & LOG_ATT_PITCH) {
+	if (flags.c0 & LOG_ATT_PITCH) {
 		*bbBuffer.i16p++ = pitch.raw >> 8;
 	}
-	if (currentBBFlags & LOG_ATT_YAW) {
+	if (flags.c0 & LOG_ATT_YAW) {
 		*bbBuffer.i16p++ = yaw.raw >> 8;
 	}
-	if (currentBBFlags & LOG_MOTOR_RPM) {
+	if (flags.c0 & LOG_MOTOR_RPM) {
 		u64 rpmPacket = escRawTelemetry[(u8)MOTOR::RR] | escRawTelemetry[(u8)MOTOR::FR] << 12 | (u64)escRawTelemetry[(u8)MOTOR::RL] << 24 | (u64)escRawTelemetry[(u8)MOTOR::FL] << 36;
 		*bbBuffer.u32p++ = rpmPacket;
 		*bbBuffer.u16p++ = rpmPacket >> 32;
 	}
-	if (currentBBFlags & LOG_ACCEL_RAW) {
+	if (flags.c1 & (LOG_ACCEL_RAW >> 32)) {
 		*bbBuffer.i16p++ = accelAligned[AXIS_ROLL];
 		*bbBuffer.i16p++ = accelAligned[AXIS_PITCH];
 		*bbBuffer.i16p++ = accelAligned[AXIS_YAW];
 	}
-	if (currentBBFlags & LOG_ACCEL_FILTERED) {
+	if (flags.c1 & (LOG_ACCEL_FILTERED >> 32)) {
 		*bbBuffer.i16p++ = accelFiltered[AXIS_ROLL]->geti32();
 		*bbBuffer.i16p++ = accelFiltered[AXIS_PITCH]->geti32();
 		*bbBuffer.i16p++ = accelFiltered[AXIS_YAW]->geti32();
 	}
-	if (currentBBFlags & LOG_VERTICAL_ACCEL) {
+	if (flags.c1 & (LOG_VERTICAL_ACCEL >> 32)) {
 		*bbBuffer.i16p++ = vAccel.raw >> 9;
 	}
-	if (currentBBFlags & LOG_VVEL_SETPOINT) {
+	if (flags.c1 & (LOG_VVEL_SETPOINT >> 32)) {
 		*bbBuffer.i16p++ = (i16)(vVelSetpoint.raw >> 4) * ((u32)flightMode >= 2);
 	}
-	if (currentBBFlags & LOG_MAG_HEADING) {
+	if (flags.c1 & (LOG_MAG_HEADING >> 32)) {
 		*bbBuffer.i16p++ = magHeading.raw >> 3;
 	}
-	if (currentBBFlags & LOG_COMBINED_HEADING) {
+	if (flags.c1 & (LOG_COMBINED_HEADING >> 32)) {
 		*bbBuffer.i16p++ = combinedHeading.raw >> 3;
 	}
-	if (currentBBFlags & LOG_DEBUG_3) {
+	if (flags.c1 & (LOG_DEBUG_3 >> 32)) {
 		*bbBuffer.u16p++ = bbDebug3;
 	}
-	if (currentBBFlags & LOG_DEBUG_4) {
+	if (flags.c1 & (LOG_DEBUG_4 >> 32)) {
 		*bbBuffer.u16p++ = bbDebug4;
 	}
-	if (currentBBFlags & LOG_PID_SUM) {
+	if (flags.c1 & (LOG_PID_SUM >> 32)) {
 		*bbBuffer.i16p++ = rollSum.geti32();
 		*bbBuffer.i16p++ = pitchSum.geti32();
 		*bbBuffer.i16p++ = yawSum.geti32();
 	}
 
 	// 1-aligned elements
-	if (currentBBFlags & LOG_BARO) {
+	if (flags.c1 & (LOG_BARO >> 32)) {
 		i32 val = blackboxPres;
 		*bbBuffer.i16p++ = val;
 		*bbBuffer.u8p++ = val >> 16;
