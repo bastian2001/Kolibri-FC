@@ -299,64 +299,62 @@ void OsdCanvas::drawElement(u32 index) {
 		printOnBuffer(element, "\x1E\x1F%d", gpsStatus.satCount);
 	} break;
 	case OsdElementType::COMPASS_HEADING: {
-		//---------------------------
-		//|     Compass Heading	    /
-		//---------------------------
+		// //---------------------------
+		// //|     Compass Heading	    /
+		// //---------------------------
 
-				fix32 distN, distE;
-		startFixMath();
-		distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
-		fix32 angle = FIX_PI + FIX_TWOPI + combinedHeading - atan2Fix(distE, distN); // FIX_PI for alignment, TWOPI for positive result
-		u8 arrow = '\x60';
-		fix32 hDir += ((angle / FIX_TWOPI) * 360).geti32()
-		//?Assuming 0 = north 90 = east, 180 = south, 270 = west
-		//!hDir is home direction NOT NORTH, otherwise you'll have some fun
+		// 		fix32 distN, distE;
+		// startFixMath();
+		// distFromCoordinates(gpsLatitudeFiltered, gpsLongitudeFiltered, homepointLat, homepointLon, &distN, &distE);
+		// fix32 angle = FIX_PI + FIX_TWOPI + combinedHeading - atan2Fix(distE, distN); // FIX_PI for alignment, TWOPI for positive result
+		// u8 arrow = '\x60';
+		// fix32 hDir += ((angle / FIX_TWOPI) * 360).geti32()
+		// //?Assuming 0 = north 90 = east, 180 = south, 270 = west
+		// //!hDir is home direction NOT NORTH, otherwise you'll have some fun
 
-		fix32 heading = 0.0; //TODO get value
+		// fix32 heading = 0.0; //TODO get value
 
-		switch(element.option &0xF){ //we only need the last 4 bits for compass selection, leave the rest for other settings maybe
-			
-			case 0:{
-			//Tiny compass
-				char tcStr[3]
-				u8 octantHeading = static_cast<u16>(heading)/45;
-				switch (octantHeading)
-				{
-					case 0: {tcStr = "N "}break;
-					case 1: {tcStr = "NE"}break;
-					case 2: {tcStr = "E "}break;
-					case 3: {tcStr = "SE"}break;
-					case 4: {tcStr = "S "}break;
-					case 5: {tcStr = "SW"}break;
-					case 6: {tcStr = "W "}break;
-					case 7: {tcStr = "NW"}break;
-					case 8: {tcStr = "N "}break;
-					printOnBuffer(element, tcStr);
-				}
-			}break;
-			case 1:{
-			//Heading in degrees
-				//? this may need to be filtered to be human readable, but we'll see
-				printOnBuffer(element, "%3.0f,  heading");
-			}break;
-			case 2:{
-			//Compass with needle
-			/*
-			
-			\ N /  W | N 
-			W ↑ E  - ↑ -  
-			/ S \  S | E  
-			
-			*/
-			//? rotate the needle or rotate the rose, why not both?
+		// switch(element.option &0xF){ //we only need the last 4 bits for compass selection, leave the rest for other settings maybe
 
-			snprintf(buf, 16, "\\N/W%cE/S\\", arrow + static_cast<u8>(heading/22.5));
-			copyFrameBuffer(frameBuffer, buf, width, height, element.col, element.row, 3);
-			}break;
+		// 	case 0:{
+		// 	//Tiny compass
+		// 		char tcStr[3]
+		// 		u8 octantHeading = static_cast<u16>(heading)/45;
+		// 		switch (octantHeading)
+		// 		{
+		// 			case 0: {tcStr = "N "}break;
+		// 			case 1: {tcStr = "NE"}break;
+		// 			case 2: {tcStr = "E "}break;
+		// 			case 3: {tcStr = "SE"}break;
+		// 			case 4: {tcStr = "S "}break;
+		// 			case 5: {tcStr = "SW"}break;
+		// 			case 6: {tcStr = "W "}break;
+		// 			case 7: {tcStr = "NW"}break;
+		// 			case 8: {tcStr = "N "}break;
+		// 			printOnBuffer(element, tcStr);
+		// 		}
+		// 	}break;
+		// 	case 1:{
+		// 	//Heading in degrees
+		// 		//? this may need to be filtered to be human readable, but we'll see
+		// 		printOnBuffer(element, "%3.0f,  heading");
+		// 	}break;
+		// 	case 2:{
+		// 	//Compass with needle
+		// 	/*
 
-		}
+		// 	\ N /  W | N
+		// 	W ↑ E  - ↑ -
+		// 	/ S \  S | E
 
+		// 	*/
+		// 	//? rotate the needle or rotate the rose, why not both?
 
+		// 	snprintf(buf, 16, "\\N/W%cE/S\\", arrow + static_cast<u8>(heading/22.5));
+		// 	copyFrameBuffer(frameBuffer, buf, width, height, element.col, element.row, 3);
+		// 	}break;
+
+		// }
 
 	} break;
 	case OsdElementType::FLIGHT_MODE: {
