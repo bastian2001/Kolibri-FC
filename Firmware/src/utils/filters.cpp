@@ -53,10 +53,6 @@ fix32 PT1::rollover() {
 	return y;
 }
 
-void PT1::set(fix32 value) {
-	y = value;
-}
-
 DualPT1::DualPT1(fix32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
 	firstRatio = sqrtf(sampleFreq / cutoffFreq.getf32());
 	pt1a = PT1(sampleFreq / firstRatio, sampleFreq);
@@ -93,11 +89,6 @@ fix32 PT2::rollover() {
 	return y;
 }
 
-void PT2::set(fix32 value) {
-	y = value;
-	y1 = value;
-}
-
 PT3::PT3(fix32 cutoffFreq, u32 sampleFreq) : sampleFreq(sampleFreq) {
 	fix32 omega = FIX_PI * 2 * 1.9615f * cutoffFreq / sampleFreq;
 	alpha = omega / (omega + 1);
@@ -125,10 +116,4 @@ fix32 PT3::rollover() {
 		y -= boundDiff;
 	}
 	return y;
-}
-
-void PT3::set(fix32 value) {
-	y = value;
-	y1 = value;
-	y2 = value;
 }

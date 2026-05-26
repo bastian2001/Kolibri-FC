@@ -22,8 +22,8 @@
 
 #include "global.h"
 
+// ======================== MAGNETOMETER DRIVER IMPLEMENTATION =======================
 // on drone: x = right, y = backward, z = down
-
 static MagState magState = MagState::NOT_INIT;
 static u8 magSubState = 0;
 static elapsedMicros magTimer;
@@ -33,17 +33,45 @@ i32 magData[3] = {};
 
 i16 magOffset[3] = {};
 fix32 magRight = 0, magFront = 0;
+fix32 hardMagHeading = 0;
 
+// ========================= SOFT MAGNETOMETER IMPLEMENTATION =======================
+static SoftMagState softMagState = SoftMagState::WAITING;
+static elapsedMicros softMagTimer;
+static PT1 thrustDirection(0.5f, 20); // direction of the thrust in the horizontal plane, calculated from the IMU (roll/pitch/yaw, no heading), between -pi and pi with respect to the non-corrected IMU heading. Therefore this varies with yaw drift, vibration, etc.
+static fix32 thrustMagnitude = 0; // strength of the thrust, calculated from the IMU (roll/pitch), between 0 and 1
+static PT1 softMagCorrection(0.2f, 20); // correction to apply to the IMU-based heading to get the soft mag heading, calculated from the GPS and the IMU-based thrust direction, between -pi and pi
+static fix32 gpsHeadingOfMotion = 0;
+static i32 gpsQuality = 0;
+static i32 softMagTrust = 0; // how good the data of the soft mag probably is. Fast continuous motion increases this value, standing still decreases it. From 10000 points up, the soft heading is considered valid. Caps at 20000 points.
+fix32 softMagHeading = 0;
+
+// ========================= MAGNETOMETER INTERFACE IMPLEMENTATION =======================
+
+static bool enableHardMag = true;
+static bool enableSoftMag = false;
+static u8 magSource = 0;
 fix32 magHeading = 0;
 
-void initMag() {
+void initMags() {
 	addArraySetting(SETTING_MAG_CAL_HARD, magOffset);
+	addSetting(SETTING_MAG_ENABLE, &enableHardMag, true);
+	addSetting(SETTING_SOFT_MAG_ENABLE, &enableSoftMag, false);
+	addSetting(SETTING_MAG_SOURCE, &magSource, 0);
 
-	i2c_init(I2C_MAG, 400000);
-	gpio_set_function(PIN_SDA0, GPIO_FUNC_I2C);
-	gpio_set_function(PIN_SCL0, GPIO_FUNC_I2C);
-	gpio_pull_up(PIN_SDA0);
-	gpio_pull_up(PIN_SCL0);
+	if (enableHardMag) {
+		i2c_init(I2C_MAG, 400000);
+		gpio_set_function(PIN_SDA0, GPIO_FUNC_I2C);
+		gpio_set_function(PIN_SCL0, GPIO_FUNC_I2C);
+		gpio_pull_up(PIN_SDA0);
+		gpio_pull_up(PIN_SCL0);
+	} else {
+		magState = MagState::DISABLED;
+	}
+
+	if (!enableSoftMag) {
+		softMagState = SoftMagState::DISABLED;
+	}
 }
 
 MagState magStateAfterRead = MagState::PROCESS_DATA;
@@ -72,6 +100,8 @@ float cofactor(float matrix[4][4], i32 row, i32 col) {
 void magLoop() {
 	TASK_START(TASK_MAG);
 	switch (magState) {
+	case MagState::DISABLED:
+		break;
 	case MagState::NOT_INIT:
 		if (magTimer < 5000) break;
 		if (i2c0blocker) break;
@@ -223,15 +253,18 @@ void magLoop() {
 		magRight = cosRoll * magData[1] - sinRoll * magData[2];
 		magFront = cosPitch * magData[0] + sinPitch * sinRoll * magData[1] + sinPitch * cosRoll * magData[2];
 		startFixMath();
-		magHeading = atan2Fix(-magRight, magFront) + 0.05643f; // 3.25° magnetic declination in radians
-		fix32 updateVal = magHeading - yaw;
-		if (updateVal - magHeadingCorrection > FIX_PI) {
-			updateVal -= FIX_PI * 2;
-		} else if (updateVal - magHeadingCorrection < -FIX_PI) {
-			updateVal += FIX_PI * 2;
+		hardMagHeading = atan2Fix(-magRight, magFront) + 0.05643f; // 3.25° magnetic declination in radians
+		if (magSource == 0) {
+			magHeading = hardMagHeading;
+			fix32 updateVal = hardMagHeading - yaw;
+			if (updateVal - magHeadingCorrection > FIX_PI) {
+				updateVal -= FIX_PI * 2;
+			} else if (updateVal - magHeadingCorrection < -FIX_PI) {
+				updateVal += FIX_PI * 2;
+			}
+			magHeadingCorrection.update(updateVal);
+			magHeadingCorrection.rollover();
 		}
-		magHeadingCorrection.update(updateVal);
-		magHeadingCorrection.rollover();
 		magState = MagState::MEASURING;
 		TASK_END(TASK_MAG_EVAL);
 	} break;
@@ -323,4 +356,83 @@ void magLoop() {
 	}
 	tasks[TASK_MAG].debugInfo = (u32)magState * 10 + magSubState;
 	TASK_END(TASK_MAG);
+}
+
+void softMagLoop() {
+	switch (softMagState) {
+	case SoftMagState::DISABLED:
+		break;
+	case SoftMagState::WAITING:
+		if (softMagTimer > 50000 && armed) {
+			softMagTimer = 0;
+			softMagState = SoftMagState::UPDATE_FROM_IMU;
+		}
+		break;
+	case SoftMagState::UPDATE_FROM_IMU: {
+		// calculate the thrust direction and magnitude from the IMU data
+		fix32 absRoll = roll.abs();
+		fix32 absPitch = pitch.abs();
+		if (absRoll > 80 || absPitch > 80 || (absRoll < 10 && absPitch < 10)) {
+			// if the drone is almost upside down, or almost straight, the thrust direction is at least untrustworthy, so don't update it
+			softMagState = SoftMagState::BAD_SAMPLE;
+			break;
+		}
+		fix32 fwdThrust = -sinPitch * cosRoll;
+		fix32 rightThrust = sinRoll;
+		thrustMagnitude = fwdThrust * fwdThrust + rightThrust * rightThrust;
+		startFixMath();
+		fix32 thrustUpdate = atan2Fix(rightThrust, fwdThrust);
+		if (thrustUpdate - thrustDirection > FIX_PI) {
+			thrustUpdate -= FIX_PI * 2;
+		} else if (thrustUpdate - thrustDirection < -FIX_PI) {
+			thrustUpdate += FIX_PI * 2;
+		}
+		thrustDirection.update(thrustUpdate);
+		thrustDirection.rollover();
+		softMagState = SoftMagState::UPDATE_FROM_GPS;
+	} break;
+	case SoftMagState::UPDATE_FROM_GPS: {
+		if (gpsStatus.fixType < 3 || gpsAcc.sAcc > 5000 || gpsMotion.gSpeed < 5000 || gpsStatus.satCount < 6 || gpsAcc.headAcc > 3000000) {
+			// if the GPS doesn't have a 3D fix or the speed or speed accuracy is worse than 5 m/s, heading acc > 30deg, or less than 6 sats, the GPS heading is untrustworthy, so don't update it
+			softMagState = SoftMagState::BAD_SAMPLE;
+			break;
+		}
+		gpsHeadingOfMotion = gpsMotion.headMot * (0.00001f * (float)DEG_TO_RAD);
+		// up to 20 points from sAcc, 5 points per sat, 3 points for every 1m/s above 5m/s (up to 20m/s total), up to 20 points from headAcc, max 100 points
+		// these values are a bit arbitrary, I know
+		u32 speed = gpsMotion.gSpeed - 5000;
+		if (speed > 15000) speed = 15000;
+		gpsQuality = (5000 - gpsAcc.sAcc) / 250 + speed / 333 + 5 * (gpsStatus.satCount - 6) + (3000000 - gpsAcc.headAcc) / 150000;
+		softMagState = SoftMagState::PROCESS_UPDATE;
+	} break;
+	case SoftMagState::PROCESS_UPDATE: {
+		// calculate an update to the softMagCorrection based on the difference between the GPS heading and the IMU-based thrust direction, weighted by the thrust magnitude and the GPS speed accuracy
+		softMagCorrection.update(gpsHeadingOfMotion - thrustDirection);
+		if (gpsQuality < 0) gpsQuality = 0;
+		if (gpsQuality > 100) gpsQuality = 100;
+		if (thrustMagnitude > 1) thrustMagnitude = 1;
+		// up to 200 points of trust added per frame => gain up to 4000 trust per second, trust as quick as 2.5 seconds with full trust after min. 5 seconds
+		softMagTrust += (gpsQuality * (thrustMagnitude * 100).geti32()) / 50;
+		if (softMagTrust > 20000) softMagTrust = 20000;
+		softMagState = SoftMagState::APPLY_UPDATE;
+	} break;
+	case SoftMagState::BAD_SAMPLE:
+		// 20 updates per second => lose up to 500 trust points per second => lose trust after 20 seconds of bad data, be at 0 trust after 40 seconds of bad data
+		softMagTrust -= 25;
+		if (softMagTrust < 0) softMagTrust = 0;
+		softMagState = SoftMagState::APPLY_UPDATE;
+		break;
+	case SoftMagState::APPLY_UPDATE:
+		softMagHeading = yaw + softMagCorrection;
+		if (softMagHeading > FIX_PI) {
+			softMagHeading -= FIX_PI * 2;
+		} else if (softMagHeading < -FIX_PI) {
+			softMagHeading += FIX_PI * 2;
+		}
+		if (magSource == 1) {
+			magHeading = softMagHeading;
+			magHeadingCorrection.set(softMagCorrection);
+		}
+		break;
+	}
 }

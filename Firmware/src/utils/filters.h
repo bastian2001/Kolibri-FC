@@ -80,7 +80,9 @@ public:
 	 * @param alpha The new alpha value
 	 */
 	void updateAlpha(fix32 alpha);
-	void set(fix32 value);
+	void set(fix32 value) {
+		y = value;
+	}
 	void add(fix32 value) {
 		y += value;
 	}
@@ -162,7 +164,10 @@ public:
 	void setRolloverParams(fix32 lowerBound, fix32 upperBound);
 	void updateCutoffFreq(fix32 cutoffFreq);
 	void updateAlpha(fix32 alpha);
-	void set(fix32 value);
+	void set(fix32 value) {
+		y1 = value;
+		y = value;
+	}
 	inline operator fix32() const { return y; }
 	const fix32 &getConstRef() const { return y; }
 
@@ -191,7 +196,11 @@ public:
 	void setRolloverParams(fix32 lowerBound, fix32 upperBound);
 	void updateCutoffFreq(fix32 cutoffFreq);
 	void updateAlpha(fix32 alpha);
-	void set(fix32 value);
+	void set(fix32 value) {
+		y2 = value;
+		y1 = value;
+		y = value;
+	}
 	inline operator fix32() const { return y; };
 	const fix32 &getConstRef() const { return y; }
 

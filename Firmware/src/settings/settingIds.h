@@ -37,6 +37,9 @@
 // magnetometer settings
 #define SETTING_MAG_CAL_HARD "compass_calibration_hard"
 #define SETTING_MAG_FILTER_CUTOFF "compass_filter_cutoff"
+#define SETTING_MAG_ENABLE "compass_enable"
+#define SETTING_SOFT_MAG_ENABLE "soft_compass_enable"
+#define SETTING_MAG_SOURCE "compass_source"
 
 // motor and ESC settings
 #define SETTING_BEEP_TONE "dshot_beep_tone"

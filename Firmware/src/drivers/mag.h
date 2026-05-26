@@ -107,6 +107,7 @@ enum class MAG_REG {
 
 #endif
 enum class MagState {
+	DISABLED = -1,
 	NOT_INIT = 0,
 	INITIALIZING,
 	MEASURING,
@@ -117,8 +118,18 @@ enum class MagState {
 	PROCESS_CALIBRATION
 };
 
-/// @brief Initializes the magnetometer
-void initMag();
+enum class SoftMagState {
+	DISABLED = -1,
+	WAITING = 0,
+	UPDATE_FROM_IMU,
+	UPDATE_FROM_GPS,
+	PROCESS_UPDATE,
+	BAD_SAMPLE,
+	APPLY_UPDATE
+};
+
+/// @brief Initializes the magnetometer, soft and hard
+void initMags();
 
 /**
  * @brief Magnetometer state machine
@@ -126,6 +137,13 @@ void initMag();
  * @details Called periodically, this function checks if new data is available from the magnetometer, then reads and processes it
  */
 void magLoop();
+
+/**
+ * @brief Soft magnetometer state machine
+ *
+ * Called periodically, this function updates the soft magnetometer state based on the IMU and GPS data, then processes it to update the software compass
+ */
+void softMagLoop();
 
 extern MagState magStateAfterRead; // set to MagState::CALIBRATE or MagState::PROCESS_DATA to start calibration or run the normal operation
 extern i16 magOffset[3]; // offset that gets subtracted from the magnetometer values
