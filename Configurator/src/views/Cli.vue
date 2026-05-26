@@ -18,7 +18,7 @@
 -->
 
 <script lang="ts">
-import { onCommandHandler, onConnectHandler, sendCommand } from "@/msp/comm";
+import { onCommandHandler, onConnectHandler, sendCommand, strToArray } from "@/msp/comm";
 import { MspFn } from "@/msp/protocol";
 import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
@@ -47,21 +47,19 @@ export default defineComponent({
 			suggestions: [] as string[][],
 			selectedSuggestionIndex: -1,
 			suggestionsFor: '',
+			suggestionSequence: 0,
 		};
 	},
 	methods: {
 		startCommand() {
 			if (this.inputText) {
-				const input = this.inputText.trim();
-				if (input) {
-					sendCommand(MspFn.CLI_COMMAND, this.inputText);
-					if (this.history[this.history.length - 1] !== this.inputText) {
-						this.history.push(this.inputText);
-					}
-					this.historyIndex = -1;
-					this.inputText = ''; // Clear the input field
-					this.clearSuggestions();
+				sendCommand(MspFn.CLI_COMMAND, this.inputText);
+				if (this.history[this.history.length - 1] !== this.inputText && !this.commandRunning) {
+					this.history.push(this.inputText);
 				}
+				this.historyIndex = -1;
+				this.inputText = ''; // Clear the input field
+				this.clearSuggestions();
 			}
 			this.runningCheckFn();
 		},
@@ -316,24 +314,30 @@ export default defineComponent({
 			this.suggestions = [];
 			this.selectedSuggestionIndex = -1;
 		},
-		getSuggestions(jumpToFirst = false, overrideText = true) {
+		getSuggestions(overrideText = true) {
 			const text = this.inputText;
-			sendCommand(MspFn.CLI_GET_SUGGESTION, text)
+			const seq = this.suggestionSequence++;
+			if (this.suggestionSequence > 255) this.suggestionSequence = 0;
+			sendCommand(MspFn.CLI_GET_SUGGESTION, {
+				data: [seq, ...strToArray(text)],
+				verifyFn: (req, res) => res.data[0] === req.data[0]
+			})
 				.then(({ dataStr }) => {
+					dataStr = dataStr.substring(1); // remove the sequence byte at the start
 					// the suggestions that are returned are separated by \n
 					// \r is used as a tab stop, so that when pressing the tab key on --arg \r0...99, it will only autocomplete to "--arg " and not "--arg 0...99"
 					this.suggestions = dataStr.split('\n').filter(s => s.trim().length > 0).map(s => s.split('\r'));
-					if (this.suggestions.length > 0 && jumpToFirst) {
+					if (this.suggestions.length > 0) {
 						this.selectedSuggestionIndex = 0;
-						if (overrideText) {
+						if (overrideText && text === this.inputText) {
 							const s = this.suggestions[this.selectedSuggestionIndex][0];
 							if (s) {
 								const base = text;
-								if (s.startsWith(base) && s.length > base.length) {
+								const input = this.$refs.cliInput as HTMLInputElement | null;
+								if (!input) return;
+								if (s.startsWith(base) && s.length > base.length && input.selectionStart === input.selectionEnd && input.selectionStart === base.length) {
 									this.inputText = s;
 									this.$nextTick(() => {
-										const input = this.$refs.cliInput as HTMLInputElement | null;
-										if (!input) return;
 										input.setSelectionRange(base.length, s.length);
 									});
 								}
@@ -347,8 +351,7 @@ export default defineComponent({
 				.catch(() => { });
 		},
 		oninput(e: InputEvent) {
-			console.log(e)
-			this.getSuggestions(true, e.isTrusted && e.inputType === 'insertText' && e.data ? true : false);
+			this.getSuggestions(e.isTrusted && e.inputType === 'insertText' && e.data ? true : false);
 		},
 		onkey(e: KeyboardEvent) {
 			// check for Ctrl + C to abort the running command, but only if there's no text selection to allow copying text
@@ -364,7 +367,7 @@ export default defineComponent({
 			}
 
 			if (e.ctrlKey && e.key === ' ') {
-				this.getSuggestions(true);
+				this.getSuggestions();
 				e.preventDefault();
 				return;
 			}

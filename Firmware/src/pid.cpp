@@ -152,9 +152,6 @@ void initPid() {
 	setpointDiff[AXIS_YAW] = PT1(setpointDiffCutoff, PID_FREQ);
 
 	pidBoostFilter = PT1(pidBoostCutoff, PID_FREQ);
-
-	placeElem(OSDElem::PIDBOOST_INDICATOR, 25, 12);
-	enableElem(OSDElem::PIDBOOST_INDICATOR);
 }
 
 static u32 takeoffCounter = 0;
@@ -173,10 +170,6 @@ void pidLoop() {
 	fix32 rollError = rollSetpoint - *gyroFiltered[AXIS_ROLL];
 	fix32 pitchError = pitchSetpoint - *gyroFiltered[AXIS_PITCH];
 	fix32 yawError = yawSetpoint - *gyroFiltered[AXIS_YAW];
-	static u8 counter;
-	if (++counter == 0) {
-		Serial.printf("new: %.3f %.3f %.3f\n", rollSetpoint.getf32(), pitchSetpoint.getf32(), yawSetpoint.getf32());
-	}
 
 	// I term windup prevention
 	if (elrs->channels[2] > 1020) {

@@ -47,12 +47,15 @@ static inline uint32_t micros32() {
 	return PICO_DEFAULT_TIMER_INSTANCE()->timerawl;
 }
 
+struct dummyStruct {};
+
 class elapsedMicros {
 private:
 	unsigned long us;
 
 public:
 	elapsedMicros(void) { us = micros32(); }
+	constexpr elapsedMicros(struct dummyStruct unused) : us(0) {}
 	elapsedMicros(unsigned long val) { us = micros32() - val; }
 	elapsedMicros(const elapsedMicros &orig) { us = orig.us; }
 	operator unsigned long() const { return micros32() - us; }

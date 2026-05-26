@@ -227,9 +227,9 @@ function update() {
 				console.log('F')
 				return runAsync()
 			}
-		}).then(() => {
-			return sendCommand(MspFn.GET_SERIAL_SETUP)
-		}).then(onGetSerialSetup)
+		})
+		.then(() => sendCommand(MspFn.GET_SERIAL_SETUP))
+		.then(onGetSerialSetup)
 }
 
 const onGetSerialSetup = (c: Command) => {

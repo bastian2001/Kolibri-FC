@@ -24,6 +24,7 @@
 volatile bool armed = false;
 fix64 homepointLat, homepointLon;
 fix32 homepointAlt;
+elapsedMillis armedTimer;
 
 static File modesSettingsFile;
 
@@ -31,7 +32,7 @@ static File modesSettingsFile;
  * 0: switch in armed position for == 10 cycles
  * 1: throttle down
  * 2: GPS fix and >= 6 satellites
- * 3: configurator not attached (by configurator ping) -> used by Kolibri configurator
+ * 3: unused
  * 4: at least one good ELRS packet before arming
  * 5: allowed modes during arm: acro, angle
  * 6: Gyro calibrated
@@ -46,7 +47,7 @@ void disarm(DisarmReason reason) {
 	if (!armed) return;
 	armed = false;
 	p.neoPixelSetValue(1, 0, 0, 0, true);
-	Serial.printf("Disarming for reason %d\n", (u8)reason);
+	DEBUG_PRINTF("Disarming for reason %d\n", (u8)reason);
 #ifdef BLACKBOX_STORAGE
 	endLogging(reason);
 #endif
@@ -76,10 +77,6 @@ void modesLoop() {
 				armingDisableFlags |= 0x02;
 			// if (lastPvtMessage > 1000)
 			// 	armingDisableFlags |= 0x04;
-			if (configuratorConnected && mspOverrideMotors > 1000)
-				armingDisableFlags |= 0x08;
-			else
-				armingDisableFlags &= ~0x08;
 			if (elrs->isLinkUp)
 				armingDisableFlags &= ~0x10;
 			else
@@ -94,6 +91,7 @@ void modesLoop() {
 				startLogging();
 #endif
 				armed = true;
+				armedTimer = 0;
 				p.neoPixelSetValue(1, 255, 255, 255, true);
 				homepointLat = gpsLatitudeFiltered;
 				homepointLon = gpsLongitudeFiltered;
@@ -144,6 +142,14 @@ void modesLoop() {
 	} else if (elrs->sinceLastRCMessage >= 500000 && armed) {
 		disarm(DisarmReason::RXLOSS);
 	}
+
+#ifdef PIN_DCDC_EN
+	if (rxModes[RxModeIndex::DCDC_ENABLE].isActive() || !elrs || !rxModes[RxModeIndex::DCDC_ENABLE].isConfigured()) {
+		gpio_put(PIN_DCDC_EN, true);
+	} else {
+		gpio_put(PIN_DCDC_EN, false);
+	}
+#endif
 }
 
 bool openModesSettingsFile() {
@@ -153,10 +159,10 @@ bool openModesSettingsFile() {
 	}
 	modesSettingsFile = LittleFS.open("/modes.txt", "r+");
 	if (!modesSettingsFile) {
-		Serial.println("Failed to open modes file, creating new one...");
+		DEBUG_PRINTLN("Failed to open modes file, creating new one...");
 		modesSettingsFile = LittleFS.open("/modes.txt", "w+");
 		if (!modesSettingsFile) {
-			Serial.println("Failed to create modes file.");
+			DEBUG_PRINTLN("Failed to create modes file.");
 			return false;
 		}
 		return true;
@@ -178,7 +184,7 @@ void getModesFromFile() {
 	for (int i = 0; i < 64 && modesSettingsFile.available(); i++) {
 		buf[bufIndex++] = modesSettingsFile.read();
 	}
-	mspSetRxModes(255, MspVersion::V2, buf, bufIndex);
+	mspSetRxModes(nullptr, MspVersion::V2, buf, bufIndex);
 }
 
 void setModesInFile() {
@@ -196,9 +202,6 @@ void setModesInFile() {
 }
 
 void modesInit() {
-	placeElem(OSDElem::FLIGHT_MODE, 1, 2);
-	enableElem(OSDElem::FLIGHT_MODE);
-
 	rp2040.wdt_reset();
 
 	bool newFile = openModesSettingsFile();
@@ -214,9 +217,15 @@ void modesInit() {
 		setModesInFile();
 	}
 	closeModesSettingsFile();
+
+#ifdef PIN_DCDC_EN
+	gpio_init(PIN_DCDC_EN);
+	gpio_set_dir(PIN_DCDC_EN, GPIO_OUT);
+	gpio_put(PIN_DCDC_EN, 0);
+#endif
 }
 
-void mspGetRxModes(u8 serialNum, MspVersion version) {
+void mspGetRxModes(KoliSerial *serial, MspVersion version) {
 	char buf[64];
 	u8 bufIndex = 0;
 	for (int i = 0; i < RxModeIndex::LENGTH; i++) {
@@ -228,10 +237,16 @@ void mspGetRxModes(u8 serialNum, MspVersion version) {
 		buf[bufIndex++] = max;
 		buf[bufIndex++] = 0; // reserved byte
 	}
-	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::GET_RX_MODES, version, buf, bufIndex);
+	MspMsgSetup s = {
+		.serial = *serial,
+		.fn = MspFn::GET_RX_MODES,
+		.type = MspMsgType::RESPONSE,
+		.version = version,
+	};
+	sendMsp(s, buf, bufIndex);
 }
 
-void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16 reqLen) {
+void mspSetRxModes(KoliSerial *serial, MspVersion version, const char *reqPayload, u16 reqLen) {
 	// Parse the incoming payload and update the Rx modes
 	if (reqLen < 4 || reqLen % 4 != 0) {
 		tasks[TASK_MODES].lastError = 3;
@@ -245,14 +260,30 @@ void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16
 		if (channel < -1 || channel > 15) {
 			tasks[TASK_MODES].lastError = 2;
 			tasks[TASK_MODES].errorCount++;
-			sendMsp(serialNum, MspMsgType::ERROR, MspFn::SET_RX_MODES, version, "Invalid channel", 15);
+			if (serial != nullptr) {
+				MspMsgSetup s = {
+					.serial = *serial,
+					.fn = MspFn::SET_RX_MODES,
+					.type = MspMsgType::ERROR,
+					.version = version,
+				};
+				sendMsp(s, "Invalid channel", 15);
+			}
 			return; // Invalid channel
 		}
 		if (minRange * 5 + 1500 < 900 || minRange * 5 + 1500 > 2100 ||
 			maxRange * 5 + 1500 < 900 || maxRange * 5 + 1500 > 2100) {
 			tasks[TASK_MODES].lastError = 1;
 			tasks[TASK_MODES].errorCount++;
-			sendMsp(serialNum, MspMsgType::ERROR, MspFn::SET_RX_MODES, version, "Invalid range", 13);
+			if (serial != nullptr) {
+				MspMsgSetup s = {
+					.serial = *serial,
+					.fn = MspFn::SET_RX_MODES,
+					.type = MspMsgType::ERROR,
+					.version = version,
+				};
+				sendMsp(s, "Invalid range", 13);
+			}
 			return; // Invalid range
 		}
 	}
@@ -271,11 +302,27 @@ void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16
 	if (modesSettingsFile) {
 		setModesInFile(); // Save the updated modes to the file
 		closeModesSettingsFile();
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::SET_RX_MODES, version);
+		if (serial != nullptr) {
+			MspMsgSetup s = {
+				.serial = *serial,
+				.fn = MspFn::SET_RX_MODES,
+				.type = MspMsgType::RESPONSE,
+				.version = version,
+			};
+			sendMsp(s);
+		}
 	} else {
 		tasks[TASK_MODES].lastError = 4;
 		tasks[TASK_MODES].errorCount++;
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::SET_RX_MODES, version, "Failed to open modes file", 26);
+		if (serial != nullptr) {
+			MspMsgSetup s = {
+				.serial = *serial,
+				.fn = MspFn::SET_RX_MODES,
+				.type = MspMsgType::ERROR,
+				.version = version,
+			};
+			sendMsp(s, "Failed to open modes file", 26);
+		}
 	}
 }
 

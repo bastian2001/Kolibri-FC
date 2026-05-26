@@ -36,11 +36,11 @@ void initSerialStats() {
 			char line[128];
 			if (!serials[i]) continue;
 			KoliSerial &s = *serials[i];
-			snprintf(line, 128, CLI_COLOR_CYAN "Serial %d" CLI_COLOR_MAGENTA " (%s)" CLI_COLOR_WHITE ":" CLI_COLOR_BLUE "     TX: %7d bytes (%.2fKB/s)" CLI_COLOR_WHITE "," CLI_COLOR_BLUE "     RX: %7d bytes (%.2fKB/s)" CLI_COLOR_WHITE ",     " CLI_COLOR_YELLOW, i, KoliSerial::serialTypeNames[(u8)s.serialType], s.totalTx, s.totalTx / timeSinceReset, s.totalRx, s.totalRx / timeSinceReset);
+			snprintf(line, 128, CLI_COLOR_CYAN "Serial %d" CLI_COLOR_MAGENTA " (%s)" CLI_COLOR_WHITE ":" CLI_COLOR_BLUE "     TX: %7d bytes (%.2fKB/s)" CLI_COLOR_WHITE "," CLI_COLOR_BLUE "     RX: %7d bytes (%.2fKB/s)" CLI_COLOR_WHITE ",     " CLI_COLOR_YELLOW, i, KoliSerial::SERIAL_TYPE_NAMES[(u8)s.serialType], s.totalTx, s.totalTx / timeSinceReset, s.totalRx, s.totalRx / timeSinceReset);
 			response += line;
 			bool firstFunction = true;
 			for (int j = 0; j < SERIAL_FUNCTION_COUNT; j++) {
-				if (s.functions & (1 << j)) {
+				if (s.functions() & (1 << j)) {
 					if (firstFunction)
 						firstFunction = false;
 					else
