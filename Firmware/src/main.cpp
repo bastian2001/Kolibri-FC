@@ -111,6 +111,7 @@ void loop() {
 	configuratorLoop();
 	gpsLoop();
 	magLoop();
+	softMagLoop();
 	OsdCanvas::get().loop();
 	taskManagerLoop();
 	trampLoop();

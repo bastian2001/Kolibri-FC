@@ -359,6 +359,7 @@ void magLoop() {
 }
 
 void softMagLoop() {
+	TASK_START(TASK_SOFT_MAG);
 	switch (softMagState) {
 	case SoftMagState::DISABLED:
 		break;
@@ -435,4 +436,5 @@ void softMagLoop() {
 		}
 		break;
 	}
+	TASK_END(TASK_SOFT_MAG);
 }

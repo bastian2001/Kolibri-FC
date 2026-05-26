@@ -43,6 +43,7 @@ const TASK_NAMES = [
 	'        - Mag Check',
 	'        - Mag Read',
 	'        - Mag Eval',
+	'    - Soft Magnetometer',
 	'    - OSD',
 	'    - VTX',
 	'    - Task Manager',
