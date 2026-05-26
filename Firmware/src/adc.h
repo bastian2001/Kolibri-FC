@@ -21,6 +21,7 @@
  */
 
 #include "typedefs.h"
+extern bool batBlinkingAndBeeping;
 extern u16 adcVoltage;
 extern f32 adcCurrent;
 

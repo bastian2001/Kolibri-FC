@@ -57,6 +57,7 @@ export default defineComponent({
 				{ name: "Tuning: Previous Parameter", min: -50, max: 50, channel: 10 },
 				{ name: "Tuning: Increase Value", min: -50, max: 50, channel: 10 },
 				{ name: "Tuning: Decrease Value", min: -50, max: 50, channel: 10 },
+				{ name: 'DCDC enabled', min: -50, max: 50, channel: 11 },
 			],
 			crsfDevices: [] as CrsfDevice[],
 			subbedTo: 0,

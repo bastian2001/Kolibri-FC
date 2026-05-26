@@ -76,14 +76,10 @@ export default defineComponent({
 	},
 	computed: {
 		availableFlagNames(): string[] {
-			return this.loadedLog.flags.filter(f => {
-				return f.startsWith('LOG_');
-			})
+			return this.loadedLog.flags.filter(f => f.startsWith('LOG_'))
 		},
 		availableGenFlagNames(): string[] {
-			return this.loadedLog.flags.filter(f => {
-				return f.startsWith('GEN_');
-			})
+			return this.loadedLog.flags.filter(f => f.startsWith('GEN_'))
 		},
 		currentFlag(): FlagProps | GenFlagProps | undefined {
 			if (this.flagName.startsWith('LOG_')) {

@@ -111,8 +111,8 @@ struct __attribute__((packed)) crsf_channels_13 {
 RingBuffer<u8> elrsBuffer(ELRS_BUFFER_SIZE);
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 
-ExpressLRS::ExpressLRS(u8 serialNum)
-	: serialNum(serialNum) {
+ExpressLRS::ExpressLRS(KoliSerial *serial)
+	: serial(serial) {
 	interpConfig0 = interp_default_config();
 	interp_config_set_blend(&interpConfig0, 1);
 	interpConfig1 = interp_default_config();
@@ -264,14 +264,20 @@ void ExpressLRS::processMessage() {
 
 	if (inMsgIsExtended && (inExtDest != ADDRESS_FLIGHT_CONTROLLER && inExtDest != ADDRESS_CRSF_BROADCAST)) return;
 
-	if (inMsgIsExtended && !armed && subscribeCount) {
+	if (inMsgIsExtended && !armed && subscribeCount && subscribeSerial != nullptr) {
 		for (int i = 0; i < subscribeCount; i++) {
 			if (subscribeList[i] == inType) {
 				char buf[62];
 				buf[0] = inExtSrc;
 				buf[1] = inType;
 				memcpy(&buf[2], inPayload, inActualLen);
-				sendMsp(subscribeSerialNum, MspMsgType::REQUEST, MspFn::CRSF_GOT_MESSAGE, subscribeMspVersion, buf, inActualLen + 2);
+				MspMsgSetup s = {
+					.serial = *subscribeSerial,
+					.fn = MspFn::CRSF_GOT_MESSAGE,
+					.type = MspMsgType::REQUEST,
+					.version = subscribeMspVersion,
+				};
+				sendMsp(s, buf, inActualLen + 2);
 				break;
 			}
 		}
@@ -621,7 +627,7 @@ void ExpressLRS::sendPacket(u8 cmd, const char *payload, u8 payloadLen) {
 		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[3 + payloadLen] = crc;
-	serials[serialNum]->write(packet, 4 + payloadLen);
+	serial->write(packet, 4 + payloadLen);
 }
 
 void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extPayload, u8 extPayloadLen) {
@@ -634,7 +640,7 @@ void ExpressLRS::sendExtPacket(u8 cmd, u8 destAddr, u8 srcAddr, const char *extP
 		CRC_LUT_D5_APPLY(crc, packet[i]);
 	}
 	packet[5 + extPayloadLen] = crc;
-	serials[serialNum]->write(packet, 6 + extPayloadLen);
+	serial->write(packet, 6 + extPayloadLen);
 }
 
 void ExpressLRS::sendMspMsg(MspMsgType type, u8 mspVersion, const char *payload, u16 payloadLen) {
@@ -671,10 +677,10 @@ void ExpressLRS::scanDevices() {
 	deviceList.clear();
 }
 
-bool ExpressLRS::setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, u8 configuratorSerial, MspVersion configuratorMspVersion) {
+bool ExpressLRS::setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, KoliSerial *serial, MspVersion configuratorMspVersion) {
 	if (subCount == 0) {
 		this->subscribeCount = 0;
-		this->subscribeSerialNum = 255;
+		this->subscribeSerial = nullptr;
 		return true;
 	}
 	if (subCount > 20) subCount = 20;
@@ -686,7 +692,7 @@ bool ExpressLRS::setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCou
 	this->subscribeSrcAddress = crsfAddress;
 	this->subscribeCount = subCount;
 	memcpy(this->subscribeList, subList, subCount);
-	this->subscribeSerialNum = configuratorSerial;
+	this->subscribeSerial = serial;
 	this->subscribeMspVersion = configuratorMspVersion;
 	return true;
 }
@@ -738,7 +744,7 @@ void ExpressLRS::processMspReq() {
 			this->mspVersion = MspVersion::V2_OVER_CRSF;
 			break;
 		default:
-			Serial.println("unsupported MSP version: " + String(headerVersion));
+			DEBUG_PRINTLN("unsupported MSP version: " + String(headerVersion));
 			this->resetMsp(true);
 			return;
 		}
@@ -751,7 +757,7 @@ void ExpressLRS::processMspReq() {
 		case MspVersion::V1_OVER_CRSF:
 			if (inActualLen < 3) {
 				// need at least status byte, payload len and function
-				Serial.println("Too small V1");
+				DEBUG_PRINTLN("Too small V1");
 				this->resetMsp(true);
 				return; // broken packet
 			}
@@ -762,7 +768,7 @@ void ExpressLRS::processMspReq() {
 		case MspVersion::V1_JUMBO_OVER_CRSF:
 			if (inActualLen < 5) {
 				// 1+2 payload length, 1 command
-				Serial.println("Too small V1 Jumbo");
+				DEBUG_PRINTLN("Too small V1 Jumbo");
 				this->resetMsp(true);
 				return; // broken packet
 			}
@@ -770,7 +776,7 @@ void ExpressLRS::processMspReq() {
 			this->mspRxCmd = mspData[1];
 			this->mspRxPayloadLen = mspData[2] | (mspData[3] << 8);
 			if (this->mspRxPayloadLen > 512) {
-				Serial.println("Too large V1 Jumbo");
+				DEBUG_PRINTLN("Too large V1 Jumbo");
 				this->resetMsp(true);
 				return; // invalid payload length
 			}
@@ -778,7 +784,7 @@ void ExpressLRS::processMspReq() {
 		case MspVersion::V2_OVER_CRSF:
 			if (inActualLen < 6) {
 				// 1 flags, 2 payload length, 2 command
-				Serial.println("Too small V2");
+				DEBUG_PRINTLN("Too small V2");
 				this->resetMsp(true);
 				return;
 			}
@@ -787,7 +793,7 @@ void ExpressLRS::processMspReq() {
 			this->mspRxCmd = mspData[1] | (mspData[2] << 8);
 			this->mspRxPayloadLen = mspData[3] | (mspData[4] << 8);
 			if (this->mspRxPayloadLen > 512) {
-				Serial.println("Too large V2");
+				DEBUG_PRINTLN("Too large V2");
 				this->resetMsp(true);
 				return; // invalid payload length
 			}
@@ -795,7 +801,7 @@ void ExpressLRS::processMspReq() {
 		this->mspRecording = true;
 	}
 	if (!this->mspRecording) {
-		Serial.println("MSP recording not started, but got a packet, probably packet loss");
+		DEBUG_PRINTLN("MSP recording not started, but got a packet, probably packet loss");
 		this->resetMsp(true);
 		return;
 	}
@@ -818,7 +824,7 @@ void ExpressLRS::processMspReq() {
 
 	// if we have a full packet
 	if (this->mspRxPos >= this->mspRxPayloadLen) {
-		processMspCmd(this->serialNum, MspMsgType::REQUEST, (MspFn)this->mspRxCmd, this->mspVersion, (char *)this->mspRxPayload, this->mspRxPayloadLen);
+		processMspCmd(*serial, MspMsgType::REQUEST, (MspFn)this->mspRxCmd, this->mspVersion, (char *)this->mspRxPayload, this->mspRxPayloadLen);
 		this->resetMsp();
 	}
 }

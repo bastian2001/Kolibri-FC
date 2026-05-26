@@ -152,9 +152,6 @@ void initPid() {
 	setpointDiff[AXIS_YAW] = PT1(setpointDiffCutoff, PID_FREQ);
 
 	pidBoostFilter = PT1(pidBoostCutoff, PID_FREQ);
-
-	placeElem(OSDElem::PIDBOOST_INDICATOR, 25, 12);
-	enableElem(OSDElem::PIDBOOST_INDICATOR);
 }
 
 static u32 takeoffCounter = 0;

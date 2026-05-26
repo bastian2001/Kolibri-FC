@@ -193,7 +193,7 @@ public:
 		args.push_back(arg);
 	}
 
-	void execute(string payload, u8 serialNum);
+	void execute(string payload, KoliSerial *serial);
 	void abort() {
 		if (abortFunction) abortFunction(this);
 		print("Command aborted." CLI_PROMPT);
@@ -202,22 +202,39 @@ public:
 		if (loopFunction) {
 			if (!loopFunction(this)) {
 				activeLoopCommand = nullptr;
-				sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, CLI_PROMPT, strlen(CLI_PROMPT));
+				if (!serial) return;
+				MspMsgSetup setup{
+					.serial = *serial,
+					.fn = MspFn::CLI_COMMAND,
+					.type = MspMsgType::RESPONSE,
+					.version = serial->lastMspVersion,
+				};
+				sendMsp(setup, CLI_PROMPT, strlen(CLI_PROMPT));
 			}
 		}
 	};
 	void input(string input) {
-		if (inputFunction) inputFunction(input, this);
+		if (inputFunction) {
+			if (!inputFunction(input, this)) {
+				activeLoopCommand = nullptr;
+			}
+		}
 	};
-	void printMan(u8 serialNum);
+	void printMan(KoliSerial *serial);
 
 	void print(const char *str) {
-		// if (!serial) return;
+		if (!serial) return;
 		size_t len = strlen(str);
 		size_t offset = 0;
 		while (offset < len) {
 			size_t chunkSize = min((size_t)480, len - offset);
-			sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::CLI_COMMAND, lastMspVersion, str + offset, chunkSize);
+			MspMsgSetup setup{
+				.serial = *serial,
+				.fn = MspFn::CLI_COMMAND,
+				.type = MspMsgType::RESPONSE,
+				.version = serial->lastMspVersion,
+			};
+			sendMsp(setup, str + offset, chunkSize);
 			offset += chunkSize;
 		}
 	}
@@ -234,6 +251,9 @@ public:
 	void setInputFunction(bool (*fn)(string input, Command *cmd)) {
 		inputFunction = fn;
 	}
+	void setAbortFunction(void (*fn)(Command *cmd)) {
+		abortFunction = fn;
+	}
 
 	bool nameMatches(string input) {
 		if (input == name) return true;
@@ -243,8 +263,8 @@ public:
 		return false;
 	}
 
-	u8 &getSerialNum() {
-		return serialNum;
+	KoliSerial *getSerial() {
+		return serial;
 	}
 
 	static Command *getCommandByName(string &name) {
@@ -269,8 +289,7 @@ public:
 private:
 	std::vector<CommandArg> args;
 	std::vector<string> aliases;
-	// KoliSerial *serial = nullptr;
-	u8 serialNum = 0;
+	KoliSerial *serial = nullptr;
 
 	bool (*executeFunction)(std::map<string, RuntimeArg> &args, Command *cmd) = nullptr;
 	bool (*loopFunction)(Command *cmd) = nullptr;

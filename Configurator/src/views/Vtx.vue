@@ -88,15 +88,13 @@ onBeforeUnmount(() => {
 	clearInterval(fetchInterval)
 })
 
-const setCmd = computed<number[]>(() => {
-	return [
-		trampUseFreq.value ? 1 : 0,
-		...intToLeBytes(trampConfFreq.value, 2),
-		...intToLeBytes(trampConfPower.value, 2),
-		trampConfBand.value,
-		trampConfChan.value
-	]
-})
+const setCmd = computed<number[]>(() => [
+	trampUseFreq.value ? 1 : 0,
+	...intToLeBytes(trampConfFreq.value, 2),
+	...intToLeBytes(trampConfPower.value, 2),
+	trampConfBand.value,
+	trampConfChan.value
+])
 
 let sendingConfig = false // as mutex to slow down requests
 watch(setCmd, async () => {

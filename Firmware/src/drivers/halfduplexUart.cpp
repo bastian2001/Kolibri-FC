@@ -97,20 +97,20 @@ int SerialPioHdx::availableForWrite() {
 void SerialPioHdx::begin() {
 	if (running) return;
 	if (!pio || !baudrate || pin == 255 || rxBuf == nullptr || rxDmaChan == 255) {
-		Serial.println("Assign values to halfduplex UART first");
+		DEBUG_PRINTLN("Assign values to halfduplex UART first");
 		return;
 	}
 
 	pioIndex = pio_get_index(pio);
 	if (pioIndex >= NUM_PIOS) {
-		Serial.println("Invalid PIO instance");
+		DEBUG_PRINTLN("Invalid PIO instance");
 		return;
 	}
 
 	// 23 ticks per bit
 	float clkdiv = (float)clock_get_hz(clk_sys) / (baudrate * 23);
 	if (clkdiv < 1 || clkdiv >= 65536) {
-		Serial.println("Invalid baudrate");
+		DEBUG_PRINTLN("Invalid baudrate");
 		return;
 	}
 
@@ -118,12 +118,12 @@ void SerialPioHdx::begin() {
 	if (beginSm < 0) {
 		sm = pio_claim_unused_sm(pio, false);
 		if (sm < 0) {
-			Serial.println("No free state machine available");
+			DEBUG_PRINTLN("No free state machine available");
 			return;
 		}
 	} else {
 		if (pio_sm_is_claimed(pio, beginSm)) {
-			Serial.println("State machine already claimed");
+			DEBUG_PRINTLN("State machine already claimed");
 			return;
 		}
 		pio_sm_claim(pio, beginSm);
@@ -133,7 +133,7 @@ void SerialPioHdx::begin() {
 	// check and load program
 	if (programOffsets[pioIndex] == 255) {
 		if (!pio_can_add_program(pio, &halfduplex_uart_program)) {
-			Serial.println("No free instruction memory available");
+			DEBUG_PRINTLN("No free instruction memory available");
 			return;
 		}
 		programOffsets[pioIndex] = pio_add_program(pio, &halfduplex_uart_program);
