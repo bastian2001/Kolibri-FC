@@ -434,6 +434,7 @@ void softMagLoop() {
 			magHeading = softMagHeading;
 			magHeadingCorrection.set(softMagCorrection);
 		}
+		softMagState = SoftMagState::WAITING;
 		break;
 	}
 	TASK_END(TASK_SOFT_MAG);
