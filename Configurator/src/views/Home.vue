@@ -93,6 +93,7 @@ export default defineComponent({
 			prefixZeros,
 			intToLeBytes,
 			exiting: false,
+			sniffs: '1,2'
 		};
 	},
 	methods: {
@@ -159,6 +160,14 @@ export default defineComponent({
 				disconnect();
 			})
 		},
+		startSniffing() {
+			sendCommand(MspFn.SERIAL_SNIFF, [
+				...this.sniffs.split(',').map(s => parseInt(s)).filter(n => !Number.isNaN(n))
+			]).then(() => {
+				this.configuratorLog.push('sniffing')
+				disconnect();
+			})
+		},
 		getCrashDump() {
 			sendCommand(MspFn.GET_CRASH_DUMP).then(c => {
 				this.configuratorLog.push('See console for crash dump');
@@ -188,12 +197,12 @@ export default defineComponent({
 			<input type="number" step="1" min="1" max="4" placeholder="Serial Number" v-model="serialNum" />
 			<input type="number" step="1" min="9600" max="115200" placeholder="Baud Rate" v-model="baudRate" />
 			<button @click="startPassthrough">Start Serial Passthrough</button>
+			<input type="text" placeholder="Sniff UARTs" v-model="sniffs" />
+			<button @click="startSniffing">Start Sniffing</button>
 			<button @click="() => {
 				enableCommands(false);
 				sendRaw([], '+++')
-					.then(() => {
-						return delay(1500)
-					})
+					.then(() => delay(1500))
 					.then(() => enableCommands(true));
 			}">Stop Serial Passthrough</button>
 			<button @click="getCrashDump">Get Crash Dump</button>

@@ -47,9 +47,9 @@ public:
 	/**
 	 * @brief New ExpressLRS instance
 	 *
-	 * @param serialNum serial number to use for sending
+	 * @param serial serial pointer to use for sending
 	 */
-	ExpressLRS(u8 serialNum);
+	ExpressLRS(KoliSerial *serial);
 
 	/// @brief Called regularly to process incoming bytes and send telemetry
 	void loop();
@@ -156,11 +156,11 @@ public:
 	 * @param crsfAddress the requested device to forward from
 	 * @param subList array of up to 20 functions to forward, only extended functions allowed
 	 * @param subCount 0-20, the amount of functions. 0 to disable
-	 * @param configuratorSerial serialNum of the configurator
+	 * @param configuratorSerial serial pointer of the configurator serial
 	 * @param configuratorMspVersion MspVersion:: of the outgoing MSP message
 	 * @return true for success, false for invalid parameters (not extended functions and similar)
 	 */
-	bool setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, u8 configuratorSerial, MspVersion configuratorMspVersion);
+	bool setupSubscription(u8 crsfAddress, const u8 subList[], u8 subCount, KoliSerial *configuratorSerial, MspVersion configuratorMspVersion);
 
 	// possible frametypes
 	static constexpr u8 FRAMETYPE_GPS = 0x02;
@@ -239,7 +239,7 @@ private:
 
 	// telemetry and link maintenance
 	u32 currentTelemSensor = 0;
-	const u8 serialNum;
+	KoliSerial *const serial;
 	elapsedMicros frequencyTimer;
 	elapsedMicros telemetryTimer;
 	elapsedMicros heartbeatTimer;
@@ -251,7 +251,7 @@ private:
 	u8 subscribeSrcAddress = 0;
 	u8 subscribeList[20] = {};
 	u8 subscribeCount = 0;
-	u8 subscribeSerialNum = 255;
+	KoliSerial *subscribeSerial = nullptr;
 	MspVersion subscribeMspVersion = MspVersion::V2;
 
 	// MSP packets (in/out)

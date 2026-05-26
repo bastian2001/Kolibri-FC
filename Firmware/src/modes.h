@@ -23,6 +23,7 @@
 #pragma once
 
 #include "serialhandler/msp.h"
+#include "targets.h"
 #include "typedefs.h"
 #include <Arduino.h>
 
@@ -45,9 +46,10 @@ extern u32 armingDisableFlags; // each flag is 1 to prevent arming, or 0 to allo
 extern volatile bool armed; // true if the drone is armed
 extern fix64 homepointLat, homepointLon; // GPS coordinates of the drone when it was armed
 extern fix32 homepointAlt; // altitude of the drone when it was armed
+extern elapsedMillis armedTimer; // time since arm, unspecified during disarmed
 
-void mspGetRxModes(u8 serialNum, MspVersion version);
-void mspSetRxModes(u8 serialNum, MspVersion version, const char *reqPayload, u16 reqLen);
+void mspGetRxModes(KoliSerial *serial, MspVersion version);
+void mspSetRxModes(KoliSerial *serial, MspVersion version, const char *reqPayload, u16 reqLen);
 
 // explicitly numerated in case an option is being dropped => no need to change MSP command then
 namespace RxModeIndex {
@@ -63,7 +65,8 @@ namespace RxModeIndex {
 		TUNING_PREV_VAR = 8,
 		TUNING_INC_VAL = 9,
 		TUNING_DEC_VAL = 10,
-		LENGTH
+		DCDC_ENABLE = 11,
+		LENGTH,
 	};
 };
 

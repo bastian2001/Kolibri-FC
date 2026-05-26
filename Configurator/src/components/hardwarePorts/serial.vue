@@ -74,10 +74,6 @@ const $emit = defineEmits<{
 const ports = usePortStore()
 const serial = computed(() => ports.serials[props.num])
 
-// Digital OSD Status
-// - canvas size
-// - recognized/state
-
 // ELRS Status
 const rxFound = ref(false)
 const txFound = ref(false)
@@ -128,6 +124,11 @@ const vtxConfFreq = ref(5658)
 const vtxConfBand = ref(4)
 const vtxConfChan = ref(0)
 let vtxStatus = 0
+
+const mspDpColor = ref('white');
+const mspDpState = ref(false);
+const canvasWidth = ref(0);
+const canvasHeight = ref(0);
 
 let updateInterval = -1
 function update() {
@@ -195,7 +196,22 @@ function update() {
 			if (vtxStatus >= 2) vtxColor.value = 'green'
 			else if (batState < 3) vtxColor.value = 'red'
 			else vtxColor.value = 'yellow'
-		})
+		}).catch(() => { })
+	}
+	if (initialFunctions.value.includes('msp_dp')) {
+		sendCommand(MspFn.MSP_GET_OSD_CANVAS).then(({ data }) => {
+			canvasWidth.value = data[0];
+			canvasHeight.value = data[1];
+			return sendCommand(MspFn.GET_OSD_STATUS);
+		}).then(({ data }) => {
+			mspDpState.value = ((data[1] >> (serial.value.no + 1)) & 1) === 1;
+			return sendCommand(MspFn.MSP_BATTERY_STATE);
+		}).then(({ data }) => {
+			const batState = data[8];
+			if (mspDpState.value) mspDpColor.value = 'green';
+			else if (batState < 3) mspDpColor.value = 'red';
+			else mspDpColor.value = 'yellow';
+		}).catch(() => { })
 	}
 }
 
@@ -261,10 +277,6 @@ function removeFunction(i: number) {
 	serial.value.functions &= ~(1 << i)
 	serial.value.modified = true
 }
-
-// // analog VTX status
-// analogVtxOnline?: boolean,
-// analogVtxFreq?: number,
 </script>
 
 <template>
@@ -278,7 +290,7 @@ function removeFunction(i: number) {
 					v-if="functions.includes('tramp') || functions.includes('smartaudio')">
 				</div>
 				<div class="hardwareIcon escTelem" v-if="functions.includes('esc_telem')"></div>
-				<div class="hardwareIcon mspDp" v-if="functions.includes('msp_dp')"></div>
+				<div class="hardwareIcon mspDp" :class="mspDpColor" v-if="functions.includes('msp_dp')"></div>
 				<div class="deleteAndInfo">
 					<button class="defaultBtn deleteBtn red" @click="del"><i class="fa-solid fa-trash"></i></button>
 					<Tooltip position="bottom-left" style="flex-grow: 1; height: auto;" width="s">
@@ -367,6 +379,16 @@ function removeFunction(i: number) {
 					Power: {{ vtxConfPower }} mW
 				</p>
 			</div>
+			<div class="digitalVtxOptions" v-if="functions.includes('msp_dp') && initialFunctions.includes('msp_dp')">
+				<div class="functionHeader">
+					<h3>MSP + DisplayPort</h3>
+					<button class="defaultBtn small red" @click="() => { removeFunction(7) }">Remove Function</button>
+				</div>
+				<p>
+					{{ mspDpState ? 'Online' : 'Offline' }} <br>
+					Canvas Size: {{ canvasWidth }} x {{ canvasHeight }}
+				</p>
+			</div>
 		</div>
 		<div v-else-if="functions.length === 0">
 			<select v-model="functionToAdd">
@@ -429,7 +451,8 @@ button:not(.defaultBtn) {
 	mask: url(@assets/gps_app.svg) no-repeat center;
 }
 
-.analogVtx {
+.analogVtx,
+.mspDp {
 	-webkit-mask: url(@assets/vtx_app.svg) no-repeat center;
 	mask: url(@assets/vtx_app.svg) no-repeat center;
 }
@@ -534,7 +557,7 @@ input {
 	border-radius: 5px;
 	padding: 0.5rem 1rem;
 	font-size: 1rem;
-	color: var(--text-color);
+	color: var(--text-color) !important;
 	transition: background-color 0.2s ease-out;
 }
 

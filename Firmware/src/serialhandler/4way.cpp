@@ -245,7 +245,7 @@ uint16_t getEsc(uint8_t rx_buf[], uint16_t wait_ms) {
 	return i;
 }
 
-void begin4Way(u8 serialNum) {
+void begin4Way(KoliSerial *serial) {
 	if (setup4WayDone) return;
 	deinitESCs();
 	for (int i = 0; i < 4; i++) {
@@ -267,8 +267,8 @@ void begin4Way(u8 serialNum) {
 	sm_config_set_clkdiv_int_frac8(&configPioTransmit, 859, 128);
 	pio_sm_init(PIO_ESC, 0, offsetPioReceive, &configPioReceive);
 	pio_sm_set_enabled(PIO_ESC, 0, true);
-	serial4Way = &*serials[serialNum];
-	serial4Way->functions |= SERIAL_4WAY_HOST;
+	serial4Way = serial;
+	serial4Way->setFunctionBits(SERIAL_4WAY_HOST);
 	setup4WayDone = true;
 }
 
@@ -282,11 +282,13 @@ void end4Way() {
 		gpio_set_function(PIN_MOTORS + i, GPIO_FUNC_NULL);
 	}
 	initESCs();
-	serial4Way->functions &= ~SERIAL_4WAY_HOST;
+	serial4Way->clearFunctionBits(SERIAL_4WAY_HOST);
+	serial4Way = nullptr;
 	setup4WayDone = false;
 }
 
 void send4WayResponse(u8 cmd, u16 address, u8 *payload = nullptr, u16 len = 1, Res4Way resCode = Res4Way::ACK_OK) {
+	if (serial4Way == nullptr) return;
 	u8 dummy = 0;
 	if (payload == nullptr && len != 1)
 		return;

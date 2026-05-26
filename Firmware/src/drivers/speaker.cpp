@@ -147,17 +147,18 @@ void initSpeaker() {
 	dma_channel_set_irq0_enabled(speakerDmaBChan, true);
 	dma_channel_set_read_addr(speakerDmaBChan, speakerChanBData, false);
 	dma_channel_set_write_addr(speakerDmaBChan, &pwm_hw->slice[sliceNum].cc, false);
+	irq_set_exclusive_handler(DMA_IRQ_0, dmaIrqHandler);
+	irq_set_enabled(DMA_IRQ_0, true);
 #endif
+}
+
+void playStartSound() {
 	if (playWav(startSoundFile.c_str())) {
 		soundState = 0b110;
 	} else {
 		soundState = 0b001;
 		makeRtttlSound(fallbackRtttl.c_str());
 	}
-#if BLACKBOX_STORAGE == SD_BB
-	irq_set_exclusive_handler(DMA_IRQ_0, dmaIrqHandler);
-	irq_set_enabled(DMA_IRQ_0, true);
-#endif
 }
 
 u8 beeperOn = 0;

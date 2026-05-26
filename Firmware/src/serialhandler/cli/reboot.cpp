@@ -31,12 +31,12 @@ void initReboot() {
 		string mode = std::get<string>(args["mode"].value);
 		if (mode == "fc") {
 			cmd->print("Rebooting...");
-			if (serials[cmd->getSerialNum()]) serials[cmd->getSerialNum()]->flush();
+			if (cmd->getSerial()) cmd->getSerial()->flush();
 			sleep_ms(100);
 			rp2040.reboot();
 		} else if (mode == "bootloader") {
 			cmd->print("Rebooting to bootloader...");
-			if (serials[cmd->getSerialNum()]) serials[cmd->getSerialNum()]->flush();
+			if (cmd->getSerial()) cmd->getSerial()->flush();
 			sleep_ms(100);
 			rp2040.rebootToBootloader();
 		}

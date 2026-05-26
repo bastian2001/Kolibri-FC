@@ -1,6 +1,6 @@
 /**
- * @file 4way.h
- * @brief Function declarations for 4-way interface
+ * @file osdOutput.cpp
+ * @brief Declaration of the OsdOutput base class, which defines the interface for OSD outputs and some common functionality
  *
  * Copyright (c) 2026 Kolibri-FC contributors
  *
@@ -21,16 +21,30 @@
  */
 
 #pragma once
-#include "typedefs.h"
-#include <Arduino.h>
 
-/**
- * @brief start the 4way interface to the ESCs
- *
- * @param serial Serial that should get the SERIAL_4WAY_HOST role
- */
-void begin4Way(KoliSerial *serial);
+class OsdOutput {
+public:
+	OsdOutput() {};
+	OsdOutput(const OsdOutput &) = delete;
+	OsdOutput &operator=(const OsdOutput &) = delete;
+	virtual ~OsdOutput() {
+		if (frameBuffer != nullptr) free(frameBuffer);
+	}
 
-void process4Way(u8 c);
+	virtual void sendFrame(char *frameBuffer, u8 width, u8 height);
+	virtual void setSize(u8 width, u8 height);
+	inline void getSize(u8 *width, u8 *height) const {
+		*width = this->width;
+		*height = this->height;
+	}
+	virtual void loop() = 0;
 
-void end4Way();
+	virtual void disableOutput() = 0;
+	virtual void enableOutput() = 0;
+
+protected:
+	u8 width = 30;
+	u8 height = 16;
+	bool newFrame = true;
+	char *frameBuffer = (char *)malloc(30 * 16);
+};
