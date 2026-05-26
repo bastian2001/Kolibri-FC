@@ -34,6 +34,7 @@ static bool stopWavFlag = false;
 static u8 startNewPwmSound = 0; // 1 = start new static sound, 2 = start new sweep sound
 static std::string startSoundFile; // name of the file to play
 static std::string fallbackRtttl; // fallback RTTTL string if the file is not found
+static elapsedMicros speakerTimer;
 
 struct newPwmSound {
 	u16 startFrequency;
@@ -163,7 +164,11 @@ void playStartSound() {
 
 u8 beeperOn = 0;
 void speakerLoop() {
+	if (speakerTimer < 10000) return;
+
 	TASK_START(TASK_SPEAKER);
+	speakerTimer = 0;
+
 #if BLACKBOX_STORAGE == SD_BB
 	if (soundState & 0b110) {
 		if (stopWavFlag) {
