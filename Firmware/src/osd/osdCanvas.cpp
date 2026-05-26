@@ -559,6 +559,7 @@ void OsdCanvas::drawElement(u32 index) {
 		copyFrameBuffer(frameBuffer, buf, width, height, element.col, element.row, 2);
 	} break;
 	case OsdElementType::DEBUG_3: {
+		printOnBuffer(element, "HW:%d SW:%d", magHeading, softMagHeading);
 	} break;
 	case OsdElementType::DEBUG_4: {
 	} break;

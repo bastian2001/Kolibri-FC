@@ -147,6 +147,8 @@ void softMagLoop();
 
 extern MagState magStateAfterRead; // set to MagState::CALIBRATE or MagState::PROCESS_DATA to start calibration or run the normal operation
 extern i16 magOffset[3]; // offset that gets subtracted from the magnetometer values
-extern fix32 magHeading; // heading in radians
+extern fix32 hardMagHeading; // heading calculated from the magnetometer in radians
 extern i32 magData[3]; // raw magnetometer data after subtracting offset
 extern fix32 magRight, magFront; // magnetometer in earth's right and rearward direction
+extern fix32 softMagHeading; // heading calculated from the soft mag in radians
+extern fix32 magHeading; // heading in radians
