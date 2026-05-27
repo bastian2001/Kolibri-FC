@@ -371,8 +371,8 @@ void softMagLoop() {
 		break;
 	case SoftMagState::UPDATE_FROM_IMU: {
 		// calculate the thrust direction and magnitude from the IMU data
-		fix32 absRoll = roll.abs();
-		fix32 absPitch = pitch.abs();
+		fix32 absRoll = roll.abs() * FIX_RAD_TO_DEG;
+		fix32 absPitch = pitch.abs() * FIX_RAD_TO_DEG;
 		if (absRoll > 80 || absPitch > 80 || (absRoll < 10 && absPitch < 10)) {
 			// if the drone is almost upside down, or almost straight, the thrust direction is at least untrustworthy, so don't update it
 			softMagState = SoftMagState::BAD_SAMPLE;
@@ -382,7 +382,7 @@ void softMagLoop() {
 		fix32 rightThrust = sinRoll;
 		thrustMagnitude = fwdThrust * fwdThrust + rightThrust * rightThrust;
 		startFixMath();
-		fix32 thrustUpdate = atan2Fix(rightThrust, fwdThrust);
+		fix32 thrustUpdate = yaw + atan2Fix(rightThrust, fwdThrust);
 		if (thrustUpdate - thrustDirection > FIX_PI) {
 			thrustUpdate -= FIX_PI * 2;
 		} else if (thrustUpdate - thrustDirection < -FIX_PI) {
