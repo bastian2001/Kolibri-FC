@@ -205,7 +205,7 @@ public:
 	pin_size_t getRxPin() { return rxPin; };
 	pin_size_t getTxPin() { return txPin; };
 	bool setBaudrate(u32 baud);
-	const u32 &getBaurate() { return baudrate; };
+	const u32 &getBaudrate() { return baudrate; };
 	const u32 &functions() { return funcs; };
 	void setFunctions(u32 newFunctions);
 	void setFunctionBits(u32 setBits) { setFunctions(functions() | setBits); };

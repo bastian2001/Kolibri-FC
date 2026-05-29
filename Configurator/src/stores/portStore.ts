@@ -1,18 +1,18 @@
 /*
  * Copyright (c) 2026 Kolibri-FC contributors
- * 
+ *
  * This file is part of Kolibri-FC (https://github.com/bastian2001/Kolibri-FC).
- * 
+ *
  * Kolibri-FC is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * Kolibri-FC is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with Kolibri-FC. If not, see <http://www.gnu.org/licenses/>.
  */
@@ -39,6 +39,10 @@ export type SerialPort = {
 	hwParam: number
 	modified: boolean
 	initialFunctions: number
+	mspDp: {
+		type: number
+		resolution: number
+	}
 }
 export const SERIAL_TYPE_LUT: { [key in SerialType]: string } = {
 	usb: "USB",
@@ -206,6 +210,7 @@ export const usePortStore = defineStore("port", () => {
 					rxPin: rx,
 					txPin: tx,
 					type: type,
+					mspDp: { type: 0, resolution: 0 },
 				}
 				serials.value.forEach(s => {
 					if (s.type === "pio" || s.type === "pio-hdx") s.hwParam = 0xff
@@ -239,6 +244,7 @@ export const usePortStore = defineStore("port", () => {
 			s.rxPin = rx
 			s.txPin = tx
 			s.type = "uart"
+			s.mspDp = { type: 0, resolution: 0 }
 			return true
 		}
 		return false
