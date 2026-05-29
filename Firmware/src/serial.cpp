@@ -37,7 +37,7 @@ char const serialFunctionNames[SERIAL_FUNCTION_COUNT][20] = {
 
 std::optional<KoliSerial> serials[SERIAL_COUNT];
 static SerialConfig serialConfigs[SERIAL_COUNT] = {};
-static u32 serialConfigsSettings[SERIAL_COUNT - 1][6] = {};
+static u32 serialConfigsSettings[SERIAL_COUNT - 1][16] = {};
 static u8 currentSerial = 0;
 static u32 freeInstructions[NUM_PIOS] = {}; // we need to copy it manually, because the variable is static
 static u8 freeSms[NUM_PIOS] = {};
@@ -74,6 +74,7 @@ static void settingsToConfigs(SerialConfig cfgs[SERIAL_COUNT - 1]) {
 		cfg.rxPin = setting[3];
 		cfg.baud = setting[4];
 		cfg.functions = setting[5];
+		cfg.mspDpSettings = setting[6];
 	}
 }
 
@@ -87,6 +88,7 @@ static void configsToSettings(const SerialConfig cfgs[SERIAL_COUNT - 1]) {
 		setting[3] = cfg.rxPin;
 		setting[4] = cfg.baud;
 		setting[5] = cfg.functions;
+		setting[6] = cfg.mspDpSettings;
 	}
 }
 
@@ -99,6 +101,7 @@ static void setSerialDefaults() {
 		setting[3] = 255;
 		setting[4] = 0;
 		setting[5] = 0;
+		setting[6] = 0;
 	}
 }
 
@@ -183,6 +186,7 @@ bool startSerials(SerialConfig newCfgs[SERIAL_COUNT - 1]) {
 		} else if (cfg.functions & SERIAL_MSP_DISPLAYPORT) {
 			if (rxFifo < 256) rxFifo = 256;
 			// baud = MSP_DP_SPEED;
+			serial.getDp()->setSettings(cfg.mspDpSettings);
 		}
 		if (cfg.baud) baud = cfg.baud;
 
