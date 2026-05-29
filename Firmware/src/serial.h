@@ -46,6 +46,7 @@ typedef struct serialConfig {
 	pin_size_t rxPin = 255;
 	u32 baud = 0;
 	u32 functions = 0;
+	u8 mspDpSettings = 0;
 } SerialConfig;
 
 void revertSerials();

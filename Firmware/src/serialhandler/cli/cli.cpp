@@ -41,6 +41,8 @@ void initSerialStats();
 void initSet();
 void initStatus();
 
+void initMspDp();
+
 void finishInitMan();
 
 void initCli() {
@@ -59,6 +61,8 @@ void initCli() {
 	initSerialStats();
 	initSet();
 	initStatus();
+
+	initMspDp();
 
 	finishInitMan();
 }
