@@ -71,6 +71,8 @@ void initMags() {
 
 	if (!enableSoftMag) {
 		softMagState = SoftMagState::DISABLED;
+		thrustDirection.setRolloverParams(-FIX_PI, FIX_PI);
+		softMagCorrection.setRolloverParams(-FIX_PI, FIX_PI);
 	}
 }
 
@@ -409,6 +411,7 @@ void softMagLoop() {
 	case SoftMagState::PROCESS_UPDATE: {
 		// calculate an update to the softMagCorrection based on the difference between the GPS heading and the IMU-based thrust direction, weighted by the thrust magnitude and the GPS speed accuracy
 		softMagCorrection.update(gpsHeadingOfMotion - thrustDirection);
+		softMagCorrection.rollover();
 		if (gpsQuality < 0) gpsQuality = 0;
 		if (gpsQuality > 100) gpsQuality = 100;
 		if (thrustMagnitude > 1) thrustMagnitude = 1;
