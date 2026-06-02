@@ -24,8 +24,8 @@
 #include "osdCanvas.h"
 #include "osdOutput.h"
 
-#define MSP_DP_DEFAULT_WIDTH 50
-#define MSP_DP_DEFAULT_HEIGHT 23
+#define MSP_DP_DEFAULT_WIDTH 53
+#define MSP_DP_DEFAULT_HEIGHT 20
 
 class MspOsdOutput : public OsdOutput {
 public:
@@ -42,10 +42,12 @@ public:
 	void loop();
 	void setSize(u8 width, u8 height) override;
 	void propagateSize();
+	void setSettings(u32 settings);
 
 private:
 	enum class MspDpState {
 		CLEAR,
+		CHECK_OPTIONS,
 		WRITE,
 		DRAW,
 		IDLE,
@@ -67,6 +69,10 @@ private:
 	bool sizeSet = false;
 	elapsedMicros heartbeatTimer = 0;
 	elapsedMicros sinceLastFrame = 0;
+	bool sentOptions = false;
+	bool sendOptionsFrame = false;
+	elapsedMicros sinceLastOptions = 0;
+	u8 resolutionSetting = 0;
 	void disableOutput() { state = MspDpState::DISABLED; }
 	void enableOutput() { state = MspDpState::CLEAR; }
 };

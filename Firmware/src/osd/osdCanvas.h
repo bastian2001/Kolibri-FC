@@ -161,7 +161,7 @@ public:
 	 *
 	 * @param width width in chars
 	 * @param height height in chars
-	 * @param source source of the size: 0 = analog, 1 = MSP, 255 = force anyway
+	 * @param source source of the size: 0-2 = analog, 3 = MSP, 255 = force anyway
 	 */
 	void setSize(u8 width, u8 height, u8 source);
 	inline void getSize(u8 *width, u8 *height) const {
