@@ -79,7 +79,7 @@ void imuInit() {
 	Quaternion_setIdentity(&q);
 }
 
-void imuGyroUpdate() {
+static inline void imuGyroUpdate() {
 	f32 dq[] = {gyroAligned[0] * RAW_TO_HALF_ANGLE, gyroAligned[1] * RAW_TO_HALF_ANGLE, gyroAligned[2] * RAW_TO_HALF_ANGLE};
 	Quaternion temp = q;
 
@@ -98,7 +98,7 @@ void imuGyroUpdate() {
 }
 
 static Quaternion shortest_path = {0, 0, 0, 1};
-void imuAccelUpdate1() {
+static inline void imuAccelUpdate1() {
 	// Formula from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/transforms/index.htm
 	// p2.x = w*w*p1.x + 2*y*w*p1.z - 2*z*w*p1.y + x*x*p1.x + 2*y*x*p1.y + 2*z*x*p1.z - z*z*p1.x - y*y*p1.x;
 	// p2.y = 2*x*y*p1.x + y*y*p1.y + 2*z*y*p1.z + 2*w*z*p1.x - z*z*p1.y + w*w*p1.y - 2*x*w*p1.z - x*x*p1.y;
@@ -135,7 +135,7 @@ void imuAccelUpdate1() {
 	Quaternion_from_unit_vecs(accelVector, upBody, &shortest_path);
 }
 
-void imuAccelUpdate2() {
+static inline void imuAccelUpdate2() {
 	// We limit the correction angle so the accel can only slowly correct the attitude over time
 	f32 axis[3];
 	f32 accAngle = Quaternion_toAxisAngle(&shortest_path, axis) / 128;
@@ -163,7 +163,7 @@ void imuAccelUpdate2() {
 	Quaternion_normalize_fast(&q);
 }
 
-void imuUpdatePitchRoll() {
+static inline void imuUpdatePitchRoll() {
 	roll = atan2f(2 * (q.w * q.v[0] + q.v[1] * q.v[2]), 1 - 2 * (q.v[0] * q.v[0] + q.v[1] * q.v[1]));
 	pitch = asinf(constrain(2 * (q.w * q.v[1] - q.v[2] * q.v[0]), -1, 1));
 	yaw = atan2f(2 * (q.w * q.v[2] + q.v[0] * q.v[1]), 1 - 2 * (q.v[1] * q.v[1] + q.v[2] * q.v[2]));
@@ -180,7 +180,7 @@ static fix32 rAccel, fAccel;
 static fix32 nAccel, eAccel;
 static u8 lastAltInitState = 0;
 
-void imuUpdateSpeeds() {
+static inline void imuUpdateSpeeds() {
 	startFixMath();
 	sinCosFix(roll, sinRoll, cosRoll);
 	sinCosFix(pitch, sinPitch, cosPitch);
@@ -219,4 +219,37 @@ void imuUpdateSpeeds() {
 
 	eVelFilter.add(eastAccel / (PID_FREQ / 8));
 	nVelFilter.add(northAccel / (PID_FREQ / 8));
+}
+
+void __not_in_flash_func(imuLoop)() {
+	static u8 imuUpdateCycle = 0;
+	TASK_START(TASK_IMU);
+	TASK_START(TASK_IMU_GYRO);
+	imuGyroUpdate();
+	TASK_END(TASK_IMU_GYRO);
+
+	switch (imuUpdateCycle) {
+	case 0: {
+		TASK_START(TASK_IMU_ACCEL1);
+		imuAccelUpdate1();
+		TASK_END(TASK_IMU_ACCEL1);
+	} break;
+	case 1: {
+		TASK_START(TASK_IMU_ACCEL2);
+		imuAccelUpdate2();
+		TASK_END(TASK_IMU_ACCEL2);
+	} break;
+	case 2: {
+		TASK_START(TASK_IMU_ANGLE);
+		imuUpdatePitchRoll();
+		TASK_END(TASK_IMU_ANGLE);
+	} break;
+	case 3: {
+		TASK_START(TASK_IMU_SPEEDS);
+		imuUpdateSpeeds();
+		TASK_END(TASK_IMU_SPEEDS);
+	} break;
+	}
+	if (++imuUpdateCycle >= 8) imuUpdateCycle = 0;
+	TASK_END(TASK_IMU);
 }

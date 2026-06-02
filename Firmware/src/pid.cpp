@@ -156,7 +156,7 @@ void initPid() {
 
 static u32 takeoffCounter = 0;
 static elapsedMicros taskTimerPid;
-void pidLoop() {
+void __not_in_flash_func(pidLoop)() {
 	if (!elrs) return pidDisarmedLoop();
 	u32 duration = taskTimerPid;
 	if (tasks[TASK_PID].maxGap < duration)

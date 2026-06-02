@@ -144,7 +144,7 @@ void baroLoop() {
 	case BaroState::CHECK_READY: {
 		TASK_START(TASK_BARO_CHECK);
 #if HW_BARO == BARO_SPL006
-		baroState = 4;
+		baroState = BaroState::READ_DATA;
 #elif HW_BARO == BARO_LPS22
 		switch (baroSubState) {
 		case 0:
