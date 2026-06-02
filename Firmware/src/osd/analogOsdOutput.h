@@ -55,7 +55,7 @@ private:
 	bool isPalOutput = false;
 	bool isNtscOutput = false;
 	elapsedMicros checkTimer = 0;
-	u8 drawingLine = 0;
+	u16 drawingPos = 0;
 
 	enum {
 		REG_VM0,

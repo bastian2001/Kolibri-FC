@@ -38,34 +38,28 @@ void AnalogOsdOutput::begin() {
 
 void AnalogOsdOutput::loop() {
 	if (isReady) {
-		TASK_START(TASK_OSD);
 		if (newFrame) {
 			newFrame = false;
-			drawingLine = 0;
+			drawingPos = 0;
+			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAH, (u8[]){0});
+			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAL, (u8[]){0});
+			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMM, (u8[]){0x01}); // autoincrement
 		}
-		if (drawingLine < height) {
-			// TODO revise, way too (unnecessarily) long transmission
-			for (int i = 0; i < width; i++) {
-				u16 pos = i + drawingLine * width;
-
-				char data = frameBuffer[pos];
-				u8 posLow = pos & 0xFF;
-				u8 posHigh = (pos >> 8) & 0x01;
-				regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAH, &posHigh);
-				regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAL, &posLow);
-				regWrite(SPI_OSD, PIN_OSD_CS, REG_DMDI, (u8 *)&data);
-				pos++;
-			}
-
-			drawingLine++;
+		if (drawingPos < pixelCount) {
+			// I could rant about this forever, but yeah, we need one transfer per byte for auto-increment...
+			// one could implement a bulk transfer, but that would require sending 16 bits per char (both in 8 bit and in 16 bit mode), wtf
+			// Either way, we handle one byte at a time to keep each function call short
+			spiSingleWrite(SPI_OSD, PIN_OSD_CS, frameBuffer[drawingPos]);
+			drawingPos++;
+		} else if (drawingPos == pixelCount) {
+			spiSingleWrite(SPI_OSD, PIN_OSD_CS, 0xFF); // end auto-increment
+			drawingPos++;
 		}
-		TASK_END(TASK_OSD);
 	}
 	if (checkTimer > 1000000 && isReady != 1) {
-		TASK_START(TASK_OSD);
 		u8 data = 0;
 		checkTimer = 0;
-		regRead(SPI_OSD, PIN_OSD_CS, REG_STAT, &data, 1, 0);
+		regRead(SPI_OSD, PIN_OSD_CS, REG_STAT, &data);
 		if (data && !(data & 0b01100000)) {
 			isReady = 2;
 		}
@@ -82,7 +76,6 @@ void AnalogOsdOutput::loop() {
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_VM0, &data2);
 		}
 		isReady = (data & 0b00000011) ? 1 : 2;
-		TASK_END(TASK_OSD);
 	}
 }
 
@@ -115,7 +108,7 @@ void AnalogOsdOutput::updateCharacter(u8 cmAddr, u8 data[54]) {
 }
 
 void AnalogOsdOutput::setSize(u8 width, u8 height) {
-	drawingLine = 0;
+	drawingPos = 0;
 	OsdCanvas::get().setSize(width, height, 0);
 	OsdOutput::setSize(width, height);
 }

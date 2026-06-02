@@ -47,5 +47,6 @@ void OsdOutput::setSize(u8 width, u8 height) {
 	frameBuffer = (char *)fb;
 	this->width = width;
 	this->height = height;
+	this->pixelCount = width * height;
 	newFrame = true;
 }

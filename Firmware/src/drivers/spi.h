@@ -49,6 +49,14 @@ int regRead(spi_inst_t *spi, const uint cs, const u8 reg, u8 *buf, const u16 nby
  */
 int regRead(PIO pio, u8 sm, const uint cs, const u8 reg, u8 *buf, const u16 nbytes = 1, u8 dummy = false);
 /**
+ * @brief Writes literally one byte to an SPI device. CS low => write => CS high
+ *
+ * @param spi SPI instance, spi0 or spi1
+ * @param cs Chip select pin
+ * @param data Byte to write
+ */
+void spiSingleWrite(spi_inst_t *spi, const uint cs, const u8 data);
+/**
  * @brief Write a register to a SPI device
  *
  * @param spi SPI instance, spi0 or spi1
