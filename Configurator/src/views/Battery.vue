@@ -72,9 +72,7 @@ export default defineComponent({
 				...intToLeBytes(this.emptyVoltage * 100, 2)
 			]
 			sendCommand(MspFn.SET_BATTERY_SETTINGS, data)
-				.then(() => {
-					return sendCommand(MspFn.SAVE_SETTINGS)
-				})
+				.then(() => sendCommand(MspFn.SAVE_SETTINGS))
 				.then(this.getBatSettings)
 				.catch(() => {
 					useLogStore().push('Failed to write battery settings')

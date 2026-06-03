@@ -1,18 +1,18 @@
 /*
  * Copyright (c) 2026 Kolibri-FC contributors
- * 
+ *
  * This file is part of Kolibri-FC (https://github.com/bastian2001/Kolibri-FC).
- * 
+ *
  * Kolibri-FC is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * Kolibri-FC is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with Kolibri-FC. If not, see <http://www.gnu.org/licenses/>.
  */
@@ -31,6 +31,48 @@ export function resizeTypedArrays(obj: { [key: string]: TypedArray }, newLength:
 		const ctor = arr.constructor as { new (length: number): TypedArray }
 		obj[key] = new ctor(newLength)
 	}
+}
+
+function getBlackboxFieldSize(index: number) {
+	switch (index) {
+		case 23:
+		case 31:
+		case 32:
+		case 33:
+		case 44:
+			return 6
+		case 38:
+		case 40:
+		case 41:
+			return 4
+		case 39:
+			return 3
+		case 0: // ELRS_RAW
+		case 27: // GPS
+		case 45: // VBAT
+		case 46: // LINK_STATS
+			return 0
+		default:
+			return 2
+	}
+}
+
+function getAlignedFields(itemCount: number, alignment: 8 | 4 | 2 | 1 | 0) {
+	const fields: number[] = []
+	if (alignment === 0) {
+		for (let i = 0; i < itemCount; i++) {
+			if (getBlackboxFieldSize(i) === 0) fields.push(i)
+		}
+		return fields
+	}
+	const next = alignment * 2
+	for (let i = 0; i < itemCount; i++) {
+		const size = getBlackboxFieldSize(i)
+		if (size % alignment === 0 && size % next !== 0) {
+			fields.push(i)
+		}
+	}
+	return fields
 }
 
 export function parseBlackboxHeader(header: Uint8Array): BBLog | string {
@@ -94,42 +136,21 @@ export function parseBlackboxHeader(header: Uint8Array): BBLog | string {
 		}
 	}
 
-	const flagSlice = header.slice(142, 150)
-	let offset = 0
-	const flags = bbLog.flags
-	for (let j = 0; j < 64; j++) {
-		const byteNum = Math.floor(j / 8)
-		const bitNum = j % 8
-		const flagIsSet = flagSlice[byteNum] & (1 << bitNum)
-		if (!flagIsSet || !Object.keys(BB_ALL_FLAGS)[j]) continue
-		flags.push(Object.keys(BB_ALL_FLAGS)[j])
-		bbLog.offsets[Object.keys(BB_ALL_FLAGS)[j]] = offset
-		switch (j) {
-			case 23:
-			case 31:
-			case 32:
-			case 33:
-			case 44:
-				offset += 6
-				break
-			case 38:
-			case 40:
-			case 41:
-				offset += 4
-				break
-			case 39:
-				offset += 3
-				break
-			case 0: // ELRS_RAW
-			case 27: // GPS
-			case 45: // VBAT
-			case 46: // LINK_STATS
-				break
-			default:
-				offset += 2
-				break
-		}
+	const allFlagNames = Object.keys(BB_ALL_FLAGS)
+	let flagOrder: number[] = []
+	const flagMask = leBytesToBigInt(header, 142, 8, false)
+	for (let alignment of [8, 4, 2, 1, 0] as (8 | 4 | 2 | 1 | 0)[]) {
+		flagOrder.push(...getAlignedFields(allFlagNames.length, alignment))
 	}
+	flagOrder = flagOrder.filter(flagNo => ((flagMask >> BigInt(flagNo)) & 1n) !== 0n)
+	bbLog.flags = allFlagNames.filter((_, index) => flagOrder.includes(index))
+	let offset = 0
+	flagOrder.forEach(flagNo => {
+		bbLog.offsets[allFlagNames[flagNo]] = offset
+		offset += getBlackboxFieldSize(flagNo)
+	})
+
+	const flags = bbLog.flags
 
 	bbLog.motorPoles = header[150]
 	bbLog.disarmReason = header[151]
@@ -507,7 +528,7 @@ export function parseBlackbox(binFile: Uint8Array): BBLog | string {
 		frameSize,
 		flags,
 		bbLog.framesPerSecond,
-		bbLog.motorPoles
+		bbLog.motorPoles,
 	)
 
 	bbLog.rawFile = binFile
@@ -613,7 +634,7 @@ export function parseFrames(
 	frameSize: number,
 	flags: string[],
 	framesPerSecond: number,
-	motorPoles: number
+	motorPoles: number,
 ) {
 	if (flags.includes("LOG_ROLL_SETPOINT")) {
 		const o = offsets["LOG_ROLL_SETPOINT"]
@@ -974,7 +995,7 @@ export function parseElrs(
 	frameLoadingStatus: Uint8Array,
 	elrsData: Uint8Array,
 	elrsFromFrame: Uint32Array,
-	elrsToFrame: Uint32Array
+	elrsToFrame: Uint32Array,
 ) {
 	for (let i = 0; i < elrsFromFrame.length; i++) {
 		let f = elrsFromFrame[i]
@@ -1002,7 +1023,7 @@ export function parseVbat(
 	frameLoadingStatus: Uint8Array,
 	vData: Uint8Array,
 	vFromFrame: Uint32Array,
-	vToFrame: Uint32Array
+	vToFrame: Uint32Array,
 ) {
 	for (let i = 0; i < vFromFrame.length; i++) {
 		let f = vFromFrame[i]
@@ -1020,7 +1041,7 @@ export function parseLinkStats(
 	frameLoadingStatus: Uint8Array,
 	lData: Uint8Array,
 	lFromFrame: Uint32Array,
-	lToFrame: Uint32Array
+	lToFrame: Uint32Array,
 ) {
 	for (let i = 0; i < lFromFrame.length; i++) {
 		let f = lFromFrame[i]
@@ -1053,7 +1074,7 @@ export function parseGps(
 	frameLoadingStatus: Uint8Array,
 	gpsData: Uint8Array,
 	gpsFromFrame: Uint32Array,
-	gpsToFrame: Uint32Array
+	gpsToFrame: Uint32Array,
 ) {
 	for (let i = 0; i < gpsFromFrame.length; i++) {
 		let f = gpsFromFrame[i]

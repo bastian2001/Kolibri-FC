@@ -271,7 +271,7 @@ bool Fckafd::begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool 
 	gpio_set_slew_rate(sckPin, GPIO_SLEW_RATE_FAST);
 	gpio_set_slew_rate(ioBase, GPIO_SLEW_RATE_FAST);
 	blackboxSm = pio_claim_unused_sm(PIO_EXT_SPI_BB, true);
-	Serial.printf("Got blackbox SM %d\n", blackboxSm);
+	DEBUG_PRINTF("Got blackbox SM %d\n", blackboxSm);
 	blackboxOffset = pio_add_program(PIO_EXT_SPI_BB, &extended_spi_program);
 	pio_spi_init(PIO_EXT_SPI_BB, blackboxSm, blackboxOffset, 8, 1, sckPin, ioBase, ioBase + 1);
 
@@ -305,13 +305,13 @@ bool Fckafd::begin(pin_size_t ioBase, pin_size_t sckPin, pin_size_t csPin, bool 
 		if (i == 49) return false;
 		sleep_ms(2);
 	}
-	Serial.println("Found flash chip");
+	DEBUG_PRINTLN("Found flash chip");
 
 	// prepare flash chip
 	setFeature(0xA0, 0x00); // disable block lock
 	setFeature(0xB0, 0x50); // ECC enabled, access OTP/Parameter/UID
 	setFeature(0xD0, 0x00); // default, just make sure we have selected die 0
-	Serial.println("Disabled block lock, flash chip is functional");
+	DEBUG_PRINTLN("Disabled block lock, flash chip is functional");
 
 	// read parameter page
 	pageRead(0, 1, true);

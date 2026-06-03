@@ -70,13 +70,16 @@
 #include "drivers/halfduplexUart.h"
 #include "drivers/i2c.h"
 #include "drivers/mag.h"
-#include "drivers/osd.h"
 #include "drivers/pioUart.h"
 #include "drivers/speaker.h"
 #include "drivers/spi.h"
 #include "imu.h"
 #include "inFlightTuning.h"
 #include "modes.h"
+#include "osd/analogOsdOutput.h"
+#include "osd/mspOsdOutput.h"
+#include "osd/osdCanvas.h"
+#include "osd/osdOutput.h"
 #include "pid.h"
 #include "pins.h"
 #include "pioasm/halfduplex_spi.pio.h"
@@ -119,11 +122,36 @@
 extern std::optional<ExpressLRS> elrs; // global ELRS instance
 #define DECODE_U2(buf) ((*(buf) & 0xFF) + ((u16)(*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit unsigned integer
 #define DECODE_I2(buf) ((*(buf) & 0xFF) + ((i16)(*((u8 *)(buf) + 1)) << 8)) // Decode 2 bytes from a buffer into a 16-bit signed integer
-u32 DECODE_U4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit unsigned integer
-i32 DECODE_I4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit signed integer
-f32 DECODE_R4(const u8 *buf); // Decode 4 bytes from a buffer into a 32-bit float
-i64 DECODE_I8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit signed integer
-f64 DECODE_R8(const u8 *buf); // Decode 8 bytes from a buffer into a 64-bit float / double
+// Decode 4 bytes from a buffer into a 32-bit unsigned integer
+static inline u32 DECODE_U4(const u8 *buf) {
+	u32 result;
+	memcpy(&result, buf, 4); // memcpy needed because of 4-byte-alignment
+	return result;
+}
+// Decode 4 bytes from a buffer into a 32-bit signed integer
+static inline i32 DECODE_I4(const u8 *buf) {
+	i32 result;
+	memcpy(&result, buf, 4);
+	return result;
+}
+// Decode 4 bytes from a buffer into a 32-bit float
+static inline f32 DECODE_R4(const u8 *buf) {
+	f32 result;
+	memcpy(&result, buf, 4);
+	return result;
+}
+// Decode 8 bytes from a buffer into a 64-bit signed integer
+static inline i64 DECODE_I8(const u8 *buf) {
+	i64 result;
+	memcpy(&result, buf, 8);
+	return result;
+}
+// Decode 8 bytes from a buffer into a 64-bit float / double
+static inline f64 DECODE_R8(const u8 *buf) {
+	f64 result;
+	memcpy(&result, buf, 8);
+	return result;
+}
 bool parseInt(const char *str, i64 &value); // Parse an integer from a string, return true if successful
 bool parseFloat(const char *str, f64 &value); // Parse a float from a string, return true if successful
 

@@ -34,6 +34,7 @@ static bool stopWavFlag = false;
 static u8 startNewPwmSound = 0; // 1 = start new static sound, 2 = start new sweep sound
 static std::string startSoundFile; // name of the file to play
 static std::string fallbackRtttl; // fallback RTTTL string if the file is not found
+static elapsedMicros speakerTimer;
 
 struct newPwmSound {
 	u16 startFrequency;
@@ -146,22 +147,27 @@ void initSpeaker() {
 	dma_channel_set_irq0_enabled(speakerDmaBChan, true);
 	dma_channel_set_read_addr(speakerDmaBChan, speakerChanBData, false);
 	dma_channel_set_write_addr(speakerDmaBChan, &pwm_hw->slice[sliceNum].cc, false);
+	irq_set_exclusive_handler(DMA_IRQ_0, dmaIrqHandler);
+	irq_set_enabled(DMA_IRQ_0, true);
 #endif
+}
+
+void playStartSound() {
 	if (playWav(startSoundFile.c_str())) {
 		soundState = 0b110;
 	} else {
 		soundState = 0b001;
 		makeRtttlSound(fallbackRtttl.c_str());
 	}
-#if BLACKBOX_STORAGE == SD_BB
-	irq_set_exclusive_handler(DMA_IRQ_0, dmaIrqHandler);
-	irq_set_enabled(DMA_IRQ_0, true);
-#endif
 }
 
 u8 beeperOn = 0;
 void speakerLoop() {
+	if (speakerTimer < 10000) return;
+
 	TASK_START(TASK_SPEAKER);
+	speakerTimer = 0;
+
 #if BLACKBOX_STORAGE == SD_BB
 	if (soundState & 0b110) {
 		if (stopWavFlag) {

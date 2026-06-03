@@ -24,10 +24,11 @@
 #include "drivers/halfduplexUart.h"
 #include "elapsedMillis.h"
 #include "ringbuffer.h"
+#include "serialhandler/msp.h"
 #include "typedefs.h"
 #include <Arduino.h>
 
-//! When updating this, also update the serialTypeNames array
+//! When updating this, also update the SERIAL_TYPE_NAMES array
 enum class SerialType {
 	USB,
 	UART,
@@ -204,7 +205,13 @@ public:
 	pin_size_t getRxPin() { return rxPin; };
 	pin_size_t getTxPin() { return txPin; };
 	bool setBaudrate(u32 baud);
-	const u32 &getBaurate() { return baudrate; };
+	const u32 &getBaudrate() { return baudrate; };
+	const u32 &functions() { return funcs; };
+	void setFunctions(u32 newFunctions);
+	void setFunctionBits(u32 setBits) { setFunctions(functions() | setBits); };
+	void clearFunctionBits(u32 clearBits) { setFunctions(functions() & ~clearBits); };
+	MspParser &mspParser() { return *msp; };
+	MspOsdOutput *getDp() { return dpOutput; };
 
 	operator bool();
 
@@ -212,14 +219,19 @@ public:
 	volatile u32 totalTx = 0;
 
 	static elapsedMicros sinceReset;
-	u32 functions = 0; // OR of SERIAL_ defines, e.g. SERIAL_MSP
-	static char serialTypeNames[4][8];
+	static const char SERIAL_TYPE_NAMES[4][8];
+	bool armingDisabled = false;
+	MspVersion lastMspVersion = MspVersion::V2;
 
 private:
 	RingBuffer<u8> writeBuffer;
 	mutex_t writeMutex;
 	u32 baudrate = 0;
 	pin_size_t txPin, rxPin;
+	MspOsdOutput *dpOutput = nullptr;
 
 	Stream *const stream;
+
+	MspParser *msp = nullptr;
+	u32 funcs = 0; // OR of SERIAL_ defines, e.g. SERIAL_MSP
 };

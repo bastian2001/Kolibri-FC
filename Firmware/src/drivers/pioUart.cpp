@@ -105,14 +105,14 @@ int SerialPio::availableForWrite() {
 void SerialPio::begin() {
 	if (running) return;
 	if (!pioTx || !pioRx || !baudrate || pinRx == 255 || pinTx == 255 || rxBuf == nullptr || rxDmaChan == 255) {
-		Serial.println("Assign values to UART first");
+		DEBUG_PRINTLN("Assign values to UART first");
 		return;
 	}
 
 	pioIndexTx = pio_get_index(pioTx);
 	pioIndexRx = pio_get_index(pioRx);
 	if (pioIndexTx >= NUM_PIOS || pioIndexRx >= NUM_PIOS) {
-		Serial.println("Invalid PIO instance");
+		DEBUG_PRINTLN("Invalid PIO instance");
 		return;
 	}
 
@@ -120,12 +120,12 @@ void SerialPio::begin() {
 	if (beginSmTx < 0) {
 		smTx = pio_claim_unused_sm(pioTx, false);
 		if (smTx < 0) {
-			Serial.println("No free TX state machine available");
+			DEBUG_PRINTLN("No free TX state machine available");
 			return;
 		}
 	} else {
 		if (pio_sm_is_claimed(pioTx, beginSmTx)) {
-			Serial.println("TX state machine already claimed");
+			DEBUG_PRINTLN("TX state machine already claimed");
 			return;
 		}
 		pio_sm_claim(pioTx, beginSmTx);
@@ -134,13 +134,13 @@ void SerialPio::begin() {
 	if (beginSmRx < 0) {
 		smRx = pio_claim_unused_sm(pioRx, false);
 		if (smRx < 0) {
-			Serial.println("No free RX state machine available");
+			DEBUG_PRINTLN("No free RX state machine available");
 			pio_sm_unclaim(pioTx, smTx);
 			return;
 		}
 	} else {
 		if (pio_sm_is_claimed(pioRx, beginSmRx)) {
-			Serial.println("RX state machine already claimed");
+			DEBUG_PRINTLN("RX state machine already claimed");
 			pio_sm_unclaim(pioTx, smTx);
 			return;
 		}
@@ -153,7 +153,7 @@ void SerialPio::begin() {
 	bool addRx = false;
 	if (programOffsetsTx[pioIndexTx] == 255) {
 		if (!pio_can_add_program(pioTx, &uart_tx_program)) {
-			Serial.println("TX instruction memory");
+			DEBUG_PRINTLN("TX instruction memory");
 			pio_sm_unclaim(pioTx, smTx);
 			pio_sm_unclaim(pioRx, smRx);
 			return;
@@ -162,7 +162,7 @@ void SerialPio::begin() {
 	}
 	if (programOffsetsRx[pioIndexRx] == 255) {
 		if (!pio_can_add_program(pioRx, &uart_rx_program)) {
-			Serial.println("RX instruction memory");
+			DEBUG_PRINTLN("RX instruction memory");
 			pio_sm_unclaim(pioTx, smTx);
 			pio_sm_unclaim(pioRx, smRx);
 			return;

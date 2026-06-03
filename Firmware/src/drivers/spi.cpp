@@ -69,6 +69,20 @@ int regRead(PIO pio, u8 sm, const uint cs, const u8 reg, u8 *buf, const u16 nbyt
 	return nbytes;
 }
 
+void spiWriteByte(spi_inst_t *spi, const uint cs, const u8 data) {
+	gpio_put(cs, 0);
+	spi_write_blocking(spi, &data, 1);
+	gpio_put(cs, 1);
+}
+
+void spiWriteSingleBytes(spi_inst_t *spi, const uint cs, const u8 *data, size_t count) {
+	for (int i = 0; i < count; i++) {
+		gpio_put(cs, 0);
+		spi_write_blocking(spi, data + i, 1);
+		gpio_put(cs, 1);
+	}
+}
+
 int regWrite(spi_inst_t *spi, const uint cs, const u8 reg, const u8 *buf, const u16 nbytes, const u16 delay) {
 	// Write to register
 	gpio_put(cs, 0);

@@ -58,7 +58,7 @@
 #pragma once
 #include <Arduino.h>
 
-extern bool configuratorConnected; // true if the configurator is connected
+class KoliSerial;
 extern i16 mspDebugSensors[4]; // write values here to see them in the sensors tab. +-100, +-1000, +-10000, +-256
 
 /**
@@ -66,7 +66,7 @@ extern i16 mspDebugSensors[4]; // write values here to see them in the sensors t
  *
  * @details These commands are used to communicate with the configurator and other peripherals. For Kolibri specific functions, the space 0x4000-0x4FFF is used. More details: https://github.com/iNavFlight/inav/wiki/MSP-V2
  */
-enum class MspFn {
+enum class MspFn : u16 {
 	API_VERSION = 1,
 	FIRMWARE_VARIANT = 2,
 	FIRMWARE_VERSION = 3,
@@ -84,11 +84,15 @@ enum class MspFn {
 	RC = 105,
 	MSP_ATTITUDE = 108,
 	MSP_ALTITUDE = 109,
+	MSP_ANALOG = 110,
 	BOXIDS = 119,
 	GET_MOTOR_3D_CONFIG = 124,
 	MSP_BATTERY_STATE = 130,
 	GET_MOTOR_CONFIG = 131,
 	UID = 160,
+	MSP_DISPLAYPORT = 182,
+	MSP_SET_OSD_CANVAS = 188,
+	MSP_GET_OSD_CANVAS = 189,
 	ACC_CALIBRATION = 205,
 	MAG_CALIBRATION = 206,
 	SET_MOTOR = 214,
@@ -104,6 +108,7 @@ enum class MspFn {
 
 	// 0x401_ Entering special modes
 	SERIAL_PASSTHROUGH = 0x4010,
+	SERIAL_SNIFF = 0x4011,
 
 	// 0x402_ CLI
 	CLI_INIT = 0x4020,
@@ -117,6 +122,12 @@ enum class MspFn {
 
 	// 0x411_ OSD settings
 	WRITE_OSD_FONT_CHARACTER = 0x4110,
+	GET_OSD_ELEMENTS = 0x4111,
+	SET_OSD_ELEMENTS = 0x4112,
+	GET_OSD_CONFIG = 0x4113,
+	SET_OSD_CONFIG = 0x4114,
+	OSD_CONTROL = 0x4115,
+	GET_OSD_STATUS = 0x4116,
 
 	// 0x412_ Blackbox
 	GET_BB_SETTINGS = 0x4120,
@@ -267,13 +278,13 @@ enum class McuType : u8 {
 	UNKNOWN = 255,
 };
 
-enum class MspMsgType {
+enum class MspMsgType : char {
 	REQUEST = '<',
 	RESPONSE = '>',
 	ERROR = '!',
 };
 
-enum class MspVersion {
+enum class MspVersion : char {
 	V2,
 	V1,
 	V1_JUMBO,
@@ -283,29 +294,56 @@ enum class MspVersion {
 	V1_OVER_CRSF,
 	V1_JUMBO_OVER_CRSF,
 };
+typedef struct mspMsgSetup {
+	KoliSerial &serial;
+	MspFn fn;
+	MspMsgType type = MspMsgType::RESPONSE;
+	MspVersion version = MspVersion::V2;
+} MspMsgSetup;
 
-extern u8 lastMspSerial;
-extern MspVersion lastMspVersion;
+extern KoliSerial *lastMspSerial;
 
 /**
  * @brief Send an MSP packet to the configurator
  *
- * @param serialNum serial port number to send the response to
- * @param type message type (request, response, error)
- * @param fn function to send
- * @param version MSP version to use
+ * @param setup MspMsgSetup with all the details for header and which serial
  * @param data data buffer, default is nullptr for no data
  * @param len length of the data buffer, default is 0
  */
-void sendMsp(u8 serialNum, MspMsgType type, MspFn fn, MspVersion version, const char *data = nullptr, u16 len = 0);
+void sendMsp(MspMsgSetup setup, const char *data = nullptr, u16 len = 0);
 
-/**
- * @brief Process a byte from the configurator
- *
- * @param c data byte
- * @param serialNum serial port number to send the response to
- */
-void mspHandleByte(u8 c, u8 serialNum);
+class MspParser {
+public:
+	MspParser(KoliSerial &ser) : ser(ser) {}
+
+	/**
+	 * @brief Process a byte from an MSP source
+	 *
+	 * @param c data byte
+	 */
+	void handleByte(u8 c);
+
+	void resetMessageCounter() {
+		lastMessageCounter = messageCounter;
+		messageCounter = 0;
+	}
+	int getMessageCounter() const { return lastMessageCounter; }
+
+private:
+	char payloadBuf[2048] = {0}; // Payload buffer
+	u16 payloadBufIndex = 0; // Payload buffer index (0-2047)
+	u16 payloadLen = 0; // Payload Lenght
+	MspFn fn = MspFn::API_VERSION; // MSP function
+	MspMsgType msgType = MspMsgType::ERROR; // Message type
+	u8 msgFlag = 0; // Message flag
+	u32 crcV1 = 0; // Checksum for MSP V1 messages
+	u32 crcV2 = 0; // Checksum for MSP V2 messages
+	MspState mspState = MspState::IDLE; // MSP state
+	MspVersion msgMspVer; // MSP version
+	KoliSerial &ser;
+	u32 messageCounter = 0; // used to sense activity
+	u32 lastMessageCounter = 0; // used to sense activity
+};
 
 /// @brief counter for the motor override timeout
 /// @details If the configurator is connected, it can override the motor values when this is < 1000, and it is possible to arm with an attached configurator
@@ -314,7 +352,7 @@ extern elapsedMillis mspOverrideMotors;
 /// @brief handles configurator pings and asynchronous operations
 void configuratorLoop();
 
-void processMspCmd(u8 serialNum, MspMsgType mspType, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen);
+void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion version, const char *reqPayload, u16 reqLen);
 
 void printIndMessage(String msg);
 void printfIndMessage(const char *format, ...);

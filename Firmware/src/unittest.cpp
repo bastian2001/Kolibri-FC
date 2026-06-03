@@ -20,9 +20,7 @@
  * along with Kolibri-FC. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "unittest.h"
-#include "ringbuffer.h"
-#include <fixedPointInt.h>
+#include "global.h"
 
 u32 ExpectBase::failed = false;
 u32 ExpectBase::succeeded = false;
@@ -92,9 +90,12 @@ bool testRingBuffer() {
 	rb.erase(3);
 	Expect(rb.itemCount()).withIndex(22).toEqual(7);
 	u32 output[10];
+	for (int i = 0; i < 10; i++) {
+		output[i] = 123 + i;
+	}
 	rb.copyToArray(output, 0, 10);
-	Expect(output[0]).withIndex(23).toEqual(4);
-	Expect(output[6]).withIndex(24).toEqual(10);
+	Expect(output[0]).withIndex(23).toEqual(123);
+	Expect(output[6]).withIndex(24).toEqual(129);
 	rb.resize(5);
 	Expect(rb.itemCount()).withIndex(25).toEqual(5);
 	Expect(rb.isFull()).withIndex(26).toEqual(true);
@@ -403,7 +404,7 @@ void runUnitTests() {
 		testsFailed = testRingBuffer() || testsFailed;
 		testsFailed = testFixedPoint() || testsFailed;
 		if (testsFailed) {
-			Serial.println("Unit tests failed, rerun to see results.");
+			DEBUG_PRINTLN("Unit tests failed, rerun to see results.");
 			ExpectBase::enableSilent(false);
 			if (firstRun) {
 				firstRun = false;

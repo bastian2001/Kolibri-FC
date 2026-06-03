@@ -22,7 +22,7 @@
 
 #include "global.h"
 
-char KoliSerial::serialTypeNames[4][8] = {
+const char KoliSerial::SERIAL_TYPE_NAMES[4][8] = {
 	"USB    ",
 	"UART   ",
 	"PIO    ",
@@ -96,6 +96,9 @@ KoliSerial::~KoliSerial() {
 		delete static_cast<SerialPioHdx *>(stream);
 		break;
 	}
+
+	if (msp != nullptr) delete msp;
+	if (dpOutput != nullptr) delete dpOutput;
 }
 
 bool KoliSerial::setRxFifoSize(size_t size) {
@@ -130,4 +133,20 @@ bool KoliSerial::setPinout(pin_size_t tx, pin_size_t rx) {
 		return static_cast<SerialPioHdx *>(stream)->setPinout(tx, tx);
 	}
 	return false;
+}
+
+void KoliSerial::setFunctions(u32 newFunctions) {
+	if (newFunctions & (SERIAL_MSP | SERIAL_MSP_DISPLAYPORT) && msp == nullptr) {
+		msp = new MspParser(*this);
+	} else if (!(newFunctions & (SERIAL_MSP | SERIAL_MSP_DISPLAYPORT)) && msp != nullptr) {
+		delete msp;
+		msp = nullptr;
+	}
+	if (newFunctions & SERIAL_MSP_DISPLAYPORT && dpOutput == nullptr) {
+		dpOutput = new MspOsdOutput(*this);
+	} else if (!(newFunctions & SERIAL_MSP_DISPLAYPORT) && dpOutput != nullptr) {
+		delete dpOutput;
+		dpOutput = nullptr;
+	}
+	funcs = newFunctions;
 }

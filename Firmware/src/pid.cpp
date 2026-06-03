@@ -156,14 +156,11 @@ void initPid() {
 	ffFilter[2] = PT1(ffCutoff, PID_FREQ);
 
 	pidBoostFilter = PT1(pidBoostCutoff, PID_FREQ);
-
-	placeElem(OSDElem::PIDBOOST_INDICATOR, 25, 12);
-	enableElem(OSDElem::PIDBOOST_INDICATOR);
 }
 
 static u32 takeoffCounter = 0;
 static elapsedMicros taskTimerPid;
-void pidLoop() {
+void __not_in_flash_func(pidLoop)() {
 	if (!elrs) return pidDisarmedLoop();
 	u32 duration = taskTimerPid;
 	if (tasks[TASK_PID].maxGap < duration)
@@ -177,10 +174,6 @@ void pidLoop() {
 	fix32 rollError = rollSetpoint - *gyroFiltered[AXIS_ROLL];
 	fix32 pitchError = pitchSetpoint - *gyroFiltered[AXIS_PITCH];
 	fix32 yawError = yawSetpoint - *gyroFiltered[AXIS_YAW];
-	static u8 counter;
-	if (++counter == 0) {
-		Serial.printf("new: %.3f %.3f %.3f\n", rollSetpoint.getf32(), pitchSetpoint.getf32(), yawSetpoint.getf32());
-	}
 
 	// I term windup prevention
 	if (elrs->channels[2] > 1020) {
