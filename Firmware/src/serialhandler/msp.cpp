@@ -772,10 +772,10 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				OsdCanvas::get().setSize(width, height, 0);
 			} break;
 			case 1: { // analog PAL
-				OsdCanvas::get().setSize(30, 16, 1);
+				OsdCanvas::get().setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_PAL, 1);
 			} break;
 			case 2: { // analog NTSC
-				OsdCanvas::get().setSize(30, 13, 2);
+				OsdCanvas::get().setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_NTSC, 2);
 			} break;
 			case 3: { // digital
 				OsdCanvas::get().setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT, 3);
