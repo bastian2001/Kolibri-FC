@@ -37,45 +37,49 @@ void AnalogOsdOutput::begin() {
 }
 
 void AnalogOsdOutput::loop() {
-	if (isReady) {
-		if (newFrame) {
+	if (chipDetected) {
+		TASK_START(TASK_ANALOG_OSD);
+		if (drawingPos > charCount) {
+			if (!newFrame) return;
 			newFrame = false;
 			drawingPos = 0;
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAH, (u8[]){0});
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAL, (u8[]){0});
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMM, (u8[]){0x01}); // autoincrement
-		}
-		if (drawingPos < pixelCount) {
+		} else if (drawingPos < charCount) {
 			// I could rant about this forever, but yeah, we need one transfer per byte for auto-increment...
 			// one could implement a bulk transfer, but that would require sending 16 bits per char (both in 8 bit and in 16 bit mode), wtf
-			// Either way, we handle one byte at a time to keep each function call short
-			spiSingleWrite(SPI_OSD, PIN_OSD_CS, frameBuffer[drawingPos]);
-			drawingPos++;
-		} else if (drawingPos == pixelCount) {
-			spiSingleWrite(SPI_OSD, PIN_OSD_CS, 0xFF); // end auto-increment
+			// Either way, we handle a few bytes at a time to keep each function call short
+			// the resolution is always a multiple of 30, so also always a multiple of 6
+			spiWriteSingleBytes(SPI_OSD, PIN_OSD_CS, (u8 *)(frameBuffer + drawingPos), min((size_t)(charCount - drawingPos), 6));
+			drawingPos += 6;
+		} else {
+			spiWriteByte(SPI_OSD, PIN_OSD_CS, 0xFF); // end auto-increment
 			drawingPos++;
 		}
+		TASK_END(TASK_ANALOG_OSD);
 	}
-	if (checkTimer > 1000000 && isReady != 1) {
+	if (checkTimer > 1000000 && !hasVideoIn) {
 		u8 data = 0;
 		checkTimer = 0;
+		spiWriteByte(SPI_OSD, PIN_OSD_CS, 0xFF); // end auto-increment, could be enabled from before a reboot
 		regRead(SPI_OSD, PIN_OSD_CS, REG_STAT, &data);
-		if (data && !(data & 0b01100000)) {
-			isReady = 2;
-		}
-		if (!isReady) return;
+		if (data && !(data & 0b01100000))
+			chipDetected = true;
+		else
+			return;
 		if (data & 1) {
 			u8 data2 = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
-			setSize(30, 16);
+			setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_PAL);
 			isPalOutput = true;
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_VM0, &data2);
 		} else if (data & (1 << 1)) {
 			u8 data2 = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
-			setSize(30, 13);
+			setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_NTSC);
 			isNtscOutput = true;
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_VM0, &data2);
 		}
-		isReady = (data & 0b00000011) ? 1 : 2;
+		hasVideoIn = isNtscOutput || isPalOutput;
 	}
 }
 

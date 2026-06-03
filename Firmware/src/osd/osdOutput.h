@@ -22,6 +22,11 @@
 
 #pragma once
 
+#define OSD_WIDTH_PAL_NTSC 30
+#define OSD_HEIGHT_PAL 16
+#define OSD_HEIGHT_NTSC 13
+#define MAX_OSD_HEIGHT_PAL_NTSC 16
+
 class OsdOutput {
 public:
 	OsdOutput() {};
@@ -43,9 +48,9 @@ public:
 	virtual void enableOutput() = 0;
 
 protected:
-	u8 width = 30;
-	u8 height = 16;
-	u16 pixelCount = 480;
+	u8 width = OSD_WIDTH_PAL_NTSC;
+	u8 height = OSD_HEIGHT_PAL;
+	u16 charCount = OSD_WIDTH_PAL_NTSC * OSD_HEIGHT_PAL;
 	bool newFrame = true;
-	char *frameBuffer = (char *)malloc(30 * 16);
+	char *frameBuffer = (char *)malloc(OSD_WIDTH_PAL_NTSC * OSD_HEIGHT_PAL);
 };
