@@ -80,7 +80,7 @@ void baroLoop() {
 		gpio_put(PIN_BARO_CS, 1);
 		regRead(SPI_BARO, PIN_BARO_CS, 0x0D, baroBuffer, 1, 0, false); // read ID register
 		if (baroBuffer[0] != 0x10) {
-			Serial.println("Baro not found");
+			DEBUG_PRINTLN("Baro not found");
 			return;
 		}
 #elif HW_BARO == BARO_LPS22
@@ -144,7 +144,7 @@ void baroLoop() {
 	case BaroState::CHECK_READY: {
 		TASK_START(TASK_BARO_CHECK);
 #if HW_BARO == BARO_SPL006
-		baroState = 4;
+		baroState = BaroState::READ_DATA;
 #elif HW_BARO == BARO_LPS22
 		switch (baroSubState) {
 		case 0:

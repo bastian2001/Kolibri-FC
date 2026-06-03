@@ -38,9 +38,7 @@ const portNum = computed(() => {
 		return -1
 	}
 })
-const portName = computed(() => {
-	return newPortType.value.replace(/\d/g, '')
-})
+const portName = computed(() => newPortType.value.replace(/\d/g, ''))
 
 const pioPins = computed(() => {
 	const pins: number[] = []

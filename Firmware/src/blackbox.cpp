@@ -41,7 +41,7 @@ static FILE_CLASS blackboxFile;
 #define BLACKBOX_WRITE_BUFFER_SIZE 8192
 
 u64 bbFlags = 0;
-static u64 currentBBFlags = 0;
+static volatile u64 currentBBFlags = 0;
 
 static volatile bool bbLogging = false;
 volatile bool fsReady = false;
@@ -54,8 +54,24 @@ u16 bbDebug3, bbDebug4;
 
 static RingBuffer<u8 *> bbFramePtrBuffer(64);
 
+union BlackboxPackPtr {
+	u8 *u8p;
+	i8 *i8p;
+	u16 *u16p;
+	i16 *i16p;
+	i32 *i32p;
+	u32 *u32p;
+};
+union BbFlagMask {
+	u64 c64;
+	struct {
+		u32 c0;
+		u32 c1;
+	};
+};
+
 typedef struct bbPrintConfig {
-	u8 serialNum;
+	KoliSerial *serial;
 	bool open;
 	bool printing;
 	MspVersion mspVer;
@@ -65,7 +81,7 @@ typedef struct bbPrintConfig {
 	u16 logNum;
 } BbPrintConfig;
 static BbPrintConfig bbPrintLog = {
-	.serialNum = 255,
+	.serial = &*serials[0],
 	.open = false,
 	.printing = false,
 	.mspVer = MspVersion::V2,
@@ -108,16 +124,14 @@ static void writeToBlackboxWithEscape(const u8 *buf, size_t len) {
 	}
 	if (foundSyn) {
 		int i = 0;
-		for (; i < maxScan;) {
+		for (; i < maxScan; i++) {
 			if (buf[i] != 'S' || buf[i + 1] != 'Y' || buf[i + 2] != 'N') {
-				bbWriteBuffer[bbWriteBufferPos++] = buf[i++];
+				bbWriteBuffer[bbWriteBufferPos++] = buf[i];
 			} else {
 				// SYN detected, write SYN!
-				bbWriteBuffer[bbWriteBufferPos++] = 'S';
-				bbWriteBuffer[bbWriteBufferPos++] = 'Y';
-				bbWriteBuffer[bbWriteBufferPos++] = 'N';
-				bbWriteBuffer[bbWriteBufferPos++] = '!';
-				i += 3;
+				memcpy(bbWriteBuffer + bbWriteBufferPos, "SYN!", 4);
+				bbWriteBufferPos += 4;
+				i += 2;
 			}
 		}
 		for (; i < len; i++) {
@@ -255,16 +269,19 @@ void blackboxLoop() {
 			bbPrintLog.logFile.seek(bbPrintLog.currentChunk * bbPrintLog.chunkSize);
 			u32 bytesRead = bbPrintLog.logFile.read(buffer + 6, bbPrintLog.chunkSize);
 			if (bytesRead <= 0) {
-				bbPrintLog.printing = false;
+				bbStopPrinting();
 				TASK_END(TASK_CONFIGURATOR);
 				return;
 			}
-			sendMsp(bbPrintLog.serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, bbPrintLog.mspVer, (char *)buffer, bytesRead + 6);
+			MspMsgSetup s = {
+				.serial = *bbPrintLog.serial,
+				.fn = MspFn::BB_FILE_DOWNLOAD,
+				.type = MspMsgType::RESPONSE,
+				.version = bbPrintLog.mspVer,
+			};
+			sendMsp(s, (char *)buffer, bytesRead + 6);
 			bbPrintLog.currentChunk++;
-			if (serials[bbPrintLog.serialNum])
-				serials[bbPrintLog.serialNum]->flush();
-			else
-				bbPrintLog.printing = false;
+			bbPrintLog.serial->flush();
 
 			TASK_END(TASK_CONFIGURATOR);
 		}
@@ -275,16 +292,14 @@ void blackboxLoop() {
 	// write a normal blackbox frame
 	if (rp2040.fifo.available()) {
 		u8 *frame = (u8 *)rp2040.fifo.pop();
-		u8 &len = frame[0];
+		u8 &len = frame[3];
 		bool needsSync = (writtenFrameNum % bbSyncFreq) == 0;
 		size_t spaceNeeded = (len + (needsSync ? 10 : 1)) * 4 / 3;
 		if (BB_WR_BUF_HAS_FREE(spaceNeeded)) {
 			if (needsSync) {
 				u32 thisSyncPos = blackboxFile.position() + bbWriteBufferPos;
-				bbWriteBuffer[bbWriteBufferPos++] = 'S';
-				bbWriteBuffer[bbWriteBufferPos++] = 'Y';
-				bbWriteBuffer[bbWriteBufferPos++] = 'N';
-				bbWriteBuffer[bbWriteBufferPos++] = 'C';
+				memcpy(bbWriteBuffer + bbWriteBufferPos, "SYNC", 4);
+				bbWriteBufferPos += 4;
 				u8 buf[9];
 				buf[0] = fmHighlightFlag;
 				fmHighlightFlag = 0;
@@ -294,7 +309,7 @@ void blackboxLoop() {
 				writeToBlackboxWithEscape(buf, 9);
 			}
 			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_NORMAL;
-			writeToBlackboxWithEscape(frame + 5, len);
+			writeToBlackboxWithEscape(frame + 8, len);
 			writtenFrameNum++;
 		}
 		free(frame);
@@ -317,23 +332,25 @@ void blackboxLoop() {
 		fmHighlightFlag |= 0b01;
 	}
 
+	const BbFlagMask bbFlagsCopy = {.c64 = currentBBFlags};
+
 	// save GPS PVT message
-	if (newPvtMessageFlag & (1 << 0) && currentBBFlags & LOG_GPS && BB_WR_BUF_HAS_FREE(92 * 4 / 3 + 1)) {
+	if (newPvtMessageFlag & (1 << 0) && bbFlagsCopy.c0 & LOG_GPS && BB_WR_BUF_HAS_FREE(92 * 4 / 3 + 1)) {
 		writeGpsToBlackbox();
 	}
 
 	// save ELRS joysticks
-	if (elrs && elrs->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
+	if (elrs && elrs->newPacketFlag & (1 << 1) && bbFlagsCopy.c0 & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
 		writeElrsToBlackbox();
 	}
 
 	// save VBat to Blackbox
-	if (adcFlag & (1 << 0) && currentBBFlags & LOG_VBAT && BB_WR_BUF_HAS_FREE(2 + 1)) {
+	if (adcFlag & (1 << 0) && bbFlagsCopy.c1 & (LOG_VBAT >> 32) && BB_WR_BUF_HAS_FREE(2 + 1)) {
 		writeVbatToBlackbox();
 	}
 
 	// save ELRS link statistics
-	if (elrs && elrs->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
+	if (elrs && elrs->newLinkStatsFlag & (1 << 0) && bbFlagsCopy.c1 & (LOG_LINK_STATS >> 32) && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
 		writeElrsLinkToBlackbox();
 	}
 
@@ -369,7 +386,7 @@ void initBlackbox() {
 	if (!bbFs.exists("/blackbox")) {
 		bbFs.mkdir("/blackbox");
 	}
-	Serial.println(fsReady ? "SD card ready" : "SD card not ready");
+	DEBUG_PRINTLN(fsReady ? "SD card ready" : "SD card not ready");
 #elif BLACKBOX_STORAGE == FLASH_BB
 
 	bool r = false;
@@ -436,7 +453,7 @@ u32 getBlackboxChunkSize(MspVersion v) {
  */
 static bool openLogFileIfDiffNum(u16 logNum) {
 	if (bbPrintLog.open && bbPrintLog.logNum != logNum) {
-		bbPrintLog.printing = false;
+		bbStopPrinting();
 		bbPrintLog.open = false;
 		bbPrintLog.logFile.close();
 	}
@@ -459,20 +476,23 @@ static bool openLogFileIfDiffNum(u16 logNum) {
 	return true;
 }
 
-void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen) {
+void printFastFileInit(KoliSerial &serial, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen) {
+	MspMsgSetup s = {
+		.serial = serial,
+		.fn = MspFn::BB_FAST_FILE_INIT,
+		.type = MspMsgType::ERROR,
+		.version = mspVer,
+	};
 	if (!fsReady || bbLogging) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		sendMsp(s, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
 	}
 	if (!openLogFileIfDiffNum(logNum)) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "File not found", strlen("File not found"));
+		sendMsp(s, "File not found", strlen("File not found"));
 		return;
 	}
 	u32 chunkSize = getBlackboxChunkSize(mspVer);
-	bbPrintLog.printing = false;
-	bbPrintLog.currentChunk = 0;
-	bbPrintLog.mspVer = mspVer;
-	bbPrintLog.serialNum = serialNum;
+	bbStopPrinting();
 	bbPrintLog.chunkSize = chunkSize;
 
 	switch (subCmd) {
@@ -617,11 +637,12 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			readPos++;
 		}
 		memcpy(&b[11], &frameCount, 4);
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_FILE_INIT, mspVer, (char *)b, 288);
+		s.type = MspMsgType::RESPONSE;
+		sendMsp(s, (char *)b, 288);
 	} break;
 	case 1: {
 		if (reqLen != 6)
-			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Incorrect usage of fast file init subCmd 1", strlen("Incorrect usage of fast file init subCmd 1"));
+			return sendMsp(s, "Incorrect usage of fast file init subCmd 1", strlen("Incorrect usage of fast file init subCmd 1"));
 		FILE_CLASS &file = bbPrintLog.logFile;
 		u32 startPos = DECODE_U4((u8 *)reqPayload);
 		u8 frameSize = reqPayload[4];
@@ -638,7 +659,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 		file.seek(startPos);
 		i32 maxReadNext = file.read(inBuf + 512, 512);
 		if (maxReadNext < 0) {
-			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
+			return sendMsp(s, "Error reading file", strlen("Error reading file"));
 		}
 
 		u32 jumpToNextSync = 0;
@@ -664,7 +685,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			memcpy(inBuf, inBuf + 512, 512);
 			maxReadNext = file.read(inBuf + 512, 512);
 			if (maxReadNext < 0) {
-				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
+				return sendMsp(s, "Error reading file", strlen("Error reading file"));
 			}
 			// overwrite leftover data with 0 to prevent accidental SYNC finding, once end of file is reached
 			for (int i = 512 + maxReadNext; i < 1024; i++) {
@@ -694,11 +715,12 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			}
 		}
 
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_FILE_INIT, mspVer, (char *)buf, syncCount * 9 + 7);
+		s.type = MspMsgType::RESPONSE;
+		sendMsp(s, (char *)buf, syncCount * 9 + 7);
 	} break;
 	case 2: {
 		if (reqLen < 1)
-			return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Improper use of fast file init subCmd 2", strlen("Improper use of fast file init subCmd 2"));
+			return sendMsp(s, "Improper use of fast file init subCmd 2", strlen("Improper use of fast file init subCmd 2"));
 		u8 frameSize = reqPayload[0];
 		u8 b[1024];
 		b[0] = logNum & 0xFF;
@@ -726,7 +748,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			u32 lastFlag = 0xFFFFFFFFUL;
 			u8 dummy[256];
 			if (readable < 0) {
-				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error reading file", strlen("Error reading file"));
+				return sendMsp(s, "Error reading file", strlen("Error reading file"));
 			}
 
 			u32 bufPosBackup = bufPos;
@@ -754,7 +776,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, frameSize, &used);
 					if (act != frameSize) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(s, "Could not unescape successfully", strlen("Could not unescape successfully"));
 					}
 					readPos += used;
 				} break;
@@ -783,7 +805,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_GPS - 1, &used);
 					if (act != BB_FRAMESIZE_GPS - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(s, "Could not unescape successfully", strlen("Could not unescape successfully"));
 					}
 					readPos += used;
 				} break;
@@ -791,7 +813,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_RC - 1, &used);
 					if (act != BB_FRAMESIZE_RC - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(s, "Could not unescape successfully", strlen("Could not unescape successfully"));
 					}
 					readPos += used;
 				} break;
@@ -802,7 +824,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_LINK_STATS - 1, &used);
 					if (act != BB_FRAMESIZE_LINK_STATS - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(s, "Could not unescape successfully", strlen("Could not unescape successfully"));
 					}
 					readPos += used;
 				} break;
@@ -810,7 +832,7 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_SYNC - 1, &used);
 					if (act != BB_FRAMESIZE_SYNC - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully", strlen("Could not unescape successfully"));
+						return sendMsp(s, "Could not unescape successfully", strlen("Could not unescape successfully"));
 					}
 					foundNextSync++;
 					frameNum = DECODE_U4(&dummy[4]);
@@ -821,25 +843,32 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
 			b[bufPosBackup] = finding;
 			if (bufPos > chunkSize - 5) break;
 		}
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_FILE_INIT, mspVer, (char *)b, bufPos);
+		s.type = MspMsgType::RESPONSE;
+		sendMsp(s, (char *)b, bufPos);
 	} break;
 	default:
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "invalid subCmd", strlen("invalid subCmd"));
+		sendMsp(s, "invalid subCmd", strlen("invalid subCmd"));
 		break;
 	}
 }
 
-void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
+void printFastDataReq(KoliSerial &serial, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen) {
+	MspMsgSetup s = {
+		.serial = serial,
+		.fn = MspFn::BB_FAST_DATA_REQ,
+		.type = MspMsgType::ERROR,
+		.version = mspVer,
+	};
 	if (!fsReady || bbLogging) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		sendMsp(s, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
 	}
 	if (!openLogFileIfDiffNum(logNum)) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "File not found", strlen("File not found"));
+		sendMsp(s, "File not found", strlen("File not found"));
 		return;
 	}
 	if (reqLen % 9 != 0) {
-		return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_DATA_REQ, mspVer, "Incorrect Fast Data Request parameters", strlen("Incorrect Fast Data Request parameters"));
+		return sendMsp(s, "Incorrect Fast Data Request parameters", strlen("Incorrect Fast Data Request parameters"));
 	}
 
 	u8 elrsBuffer[8 + BB_FRAMESIZE_RC - 1];
@@ -895,7 +924,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 		while (elrsReq != elrsCompleted || gpsReq != gpsCompleted || vbatReq != vbatCompleted || linkStatsReq != linkStatsCompleted || (framePos == 0 && frameReq)) {
 			rp2040.wdt_reset();
 			if (nextSyncPos == 0xFFFFFFFFUL)
-				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 1 while reading file", strlen("Error 1 while reading file"));
+				return sendMsp(s, "Error 1 while reading file", strlen("Error 1 while reading file"));
 			if (nextSyncPos == 0) {
 				nextSyncPos = 256;
 				frameNum = 0;
@@ -905,7 +934,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 
 			i32 readable = file.read(inBuf, 1024);
 			if (readable < 0) {
-				return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 2 while reading file", strlen("Error 2 while reading file"));
+				return sendMsp(s, "Error 2 while reading file", strlen("Error 2 while reading file"));
 			}
 			u32 readPos = 0;
 
@@ -922,11 +951,11 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					readable -= readPos;
 					readPos = 0;
 					if (newBytes < 0)
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 3 while reading file", strlen("Error 3 while reading file"));
+						return sendMsp(s, "Error 3 while reading file", strlen("Error 3 while reading file"));
 					readable += newBytes;
 					if (readable <= 0) {
 						if (searchingBackwards) {
-							return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Error 4 while reading file", strlen("Error 4 while reading file"));
+							return sendMsp(s, "Error 4 while reading file", strlen("Error 4 while reading file"));
 						}
 						elrsCompleted = elrsReq;
 						gpsCompleted = gpsReq;
@@ -965,7 +994,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					}
 					if (act != frameSize) {
 						printfIndMessage("act %d frameSize %d bw %d frame %d reqFrame %d framePos %d goBack %d fileSize %d readable %d readPos %d file position %d, flags %d", act, frameSize, searchingBackwards, frameNum, reqFrame, framePos, goBack, file.size(), readable, readPos, file.position(), flags);
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 0", strlen("Could not unescape successfully 0"));
+						return sendMsp(s, "Could not unescape successfully 0", strlen("Could not unescape successfully 0"));
 					}
 					frameNum++;
 					readPos += used;
@@ -993,7 +1022,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					}
 					if (act != BB_FRAMESIZE_GPS - 1) {
 						printfIndMessage("%d %d %d", act, used, readable - readPos);
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 3", strlen("Could not unescape successfully 3"));
+						return sendMsp(s, "Could not unescape successfully 3", strlen("Could not unescape successfully 3"));
 					}
 					readPos += used;
 				} break;
@@ -1014,7 +1043,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 						}
 					}
 					if (act != BB_FRAMESIZE_RC - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 4", strlen("Could not unescape successfully 4"));
+						return sendMsp(s, "Could not unescape successfully 4", strlen("Could not unescape successfully 4"));
 					}
 					readPos += used;
 				} break;
@@ -1050,7 +1079,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 						}
 					}
 					if (act != BB_FRAMESIZE_LINK_STATS - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 6", strlen("Could not unescape successfully 6"));
+						return sendMsp(s, "Could not unescape successfully 6", strlen("Could not unescape successfully 6"));
 					}
 					readPos += used;
 				} break;
@@ -1058,7 +1087,7 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 					u32 used = 0;
 					u32 act = unescapeBytes(&inBuf[readPos], dummy, readable - readPos, BB_FRAMESIZE_SYNC - 1, &used);
 					if (act != BB_FRAMESIZE_SYNC - 1) {
-						return sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FAST_FILE_INIT, mspVer, "Could not unescape successfully 83", strlen("Could not unescape successfully 83"));
+						return sendMsp(s, "Could not unescape successfully 83", strlen("Could not unescape successfully 83"));
 					}
 					frameNum = DECODE_U4(&dummy[4]);
 
@@ -1105,16 +1134,23 @@ void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logN
 			bufPos += sizeof(linkStatsBuffer);
 		}
 	}
-	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FAST_DATA_REQ, mspVer, (char *)buf, bufPos);
+	s.type = MspMsgType::RESPONSE;
+	sendMsp(s, (char *)buf, bufPos);
 }
 
-void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
+void printFileInit(KoliSerial &serial, MspVersion mspVer, u16 logNum) {
+	MspMsgSetup s = {
+		.serial = serial,
+		.fn = MspFn::BB_FILE_INIT,
+		.type = MspMsgType::ERROR,
+		.version = mspVer,
+	};
 	if (!fsReady || bbLogging) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_INIT, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		sendMsp(s, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
 	}
 	if (!openLogFileIfDiffNum(logNum)) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_INIT, mspVer, "File not found", strlen("File not found"));
+		sendMsp(s, "File not found", strlen("File not found"));
 		return;
 	}
 
@@ -1132,22 +1168,25 @@ void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum) {
 	b[7] = (chunkSize >> 8) & 0xFF;
 	b[8] = (chunkSize >> 16) & 0xFF;
 	b[9] = (chunkSize >> 24) & 0xFF;
-	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_INIT, mspVer, (char *)b, 10);
+	s.type = MspMsgType::RESPONSE;
+	sendMsp(s, (char *)b, 10);
 
-	bbPrintLog.printing = false;
-	bbPrintLog.currentChunk = 0;
-	bbPrintLog.mspVer = mspVer;
-	bbPrintLog.serialNum = serialNum;
-	bbPrintLog.chunkSize = chunkSize;
+	bbStopPrinting();
 }
 
-void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
+void printLogBin(KoliSerial &serial, MspVersion mspVer, u16 logNum, i32 singleChunk) {
+	MspMsgSetup s = {
+		.serial = serial,
+		.fn = MspFn::BB_FILE_DOWNLOAD,
+		.type = MspMsgType::ERROR,
+		.version = mspVer,
+	};
 	if (!fsReady || bbLogging) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		sendMsp(s, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
 	}
 	if (!openLogFileIfDiffNum(logNum)) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_FILE_DOWNLOAD, mspVer, "File not found", strlen("File not found"));
+		sendMsp(s, "File not found", strlen("File not found"));
 		return;
 	}
 
@@ -1162,28 +1201,40 @@ void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk) {
 		buffer[5] = singleChunk >> 24;
 		bbPrintLog.logFile.seek(singleChunk * chunkSize);
 		u32 bytesRead = bbPrintLog.logFile.read(buffer + 6, chunkSize);
-		sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_FILE_DOWNLOAD, mspVer, (char *)buffer, bytesRead + 6);
+		s.type = MspMsgType::RESPONSE;
+		sendMsp(s, (char *)buffer, bytesRead + 6);
 		return;
 	}
 
 	bbPrintLog.printing = true;
 	bbPrintLog.currentChunk = 0;
 	bbPrintLog.mspVer = mspVer;
-	bbPrintLog.serialNum = serialNum;
+	bbPrintLog.serial = &serial;
 	bbPrintLog.chunkSize = chunkSize;
 }
 
-void bbClosePrintFile(u8 serialNum, MspVersion mspVer) {
+void bbStopPrinting() {
+	bbPrintLog.printing = false;
+}
+
+void bbClosePrintFile(KoliSerial &serial, MspVersion mspVer) {
+	MspMsgSetup s = {
+		.serial = serial,
+		.fn = MspFn::BB_CLOSE_FILE,
+		.type = MspMsgType::ERROR,
+		.version = mspVer,
+	};
 	if (!fsReady || bbLogging) {
-		sendMsp(serialNum, MspMsgType::ERROR, MspFn::BB_CLOSE_FILE, mspVer, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
+		sendMsp(s, "Cannot read blackbox during logging", strlen("Cannot read blackbox during logging"));
 		return;
 	}
 	if (bbPrintLog.open) {
+		bbStopPrinting();
 		bbPrintLog.open = false;
-		bbPrintLog.printing = false;
 		bbPrintLog.logFile.close();
 	}
-	sendMsp(serialNum, MspMsgType::RESPONSE, MspFn::BB_CLOSE_FILE, mspVer);
+	s.type = MspMsgType::RESPONSE;
+	sendMsp(s);
 }
 
 static u8 getFrameSizeFromFlags() {
@@ -1225,7 +1276,7 @@ void startLogging() {
 	if (!bbFlags || !fsReady || bbLogging || !bbFreqDivider)
 		return;
 	if (bbPrintLog.open) {
-		bbPrintLog.printing = false;
+		bbStopPrinting();
 		bbPrintLog.open = false;
 		bbPrintLog.logFile.close();
 	}
@@ -1328,252 +1379,178 @@ void endLogging(DisarmReason reason) {
 }
 
 u32 writeSingleFrame() {
-	size_t bufferPos = 5;
 	if (!fsReady || !bbLogging) {
 		return 0;
 	}
 	TASK_START(TASK_BLACKBOX);
-	u8 *bbBuffer = (u8 *)malloc(128);
-	if (bbBuffer == nullptr) return 0;
-	if (currentBBFlags & LOG_ROLL_SETPOINT) {
-		i16 setpoint = (i16)(rollSetpoint.raw >> 12);
-		bbBuffer[bufferPos++] = setpoint;
-		bbBuffer[bufferPos++] = setpoint >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_SETPOINT) {
-		i16 setpoint = (i16)(pitchSetpoint.raw >> 12);
-		bbBuffer[bufferPos++] = setpoint;
-		bbBuffer[bufferPos++] = setpoint >> 8;
-	}
-	if (currentBBFlags & LOG_THROTTLE_SETPOINT) {
-		i16 t = (i16)(throttle.raw >> 12);
-		bbBuffer[bufferPos++] = t;
-		bbBuffer[bufferPos++] = t >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_SETPOINT) {
-		i16 setpoint = (i16)(yawSetpoint.raw >> 12);
-		bbBuffer[bufferPos++] = setpoint;
-		bbBuffer[bufferPos++] = setpoint >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
-		i16 i = (gyroScaled[AXIS_ROLL].raw >> 12);
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
-		i16 i = (gyroScaled[AXIS_PITCH].raw >> 12);
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
-		i16 i = (gyroScaled[AXIS_YAW].raw >> 12);
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_P) {
-		bbBuffer[bufferPos++] = rollP.geti32();
-		bbBuffer[bufferPos++] = rollP.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_I) {
-		bbBuffer[bufferPos++] = rollI.geti32();
-		bbBuffer[bufferPos++] = rollI.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_D) {
-		bbBuffer[bufferPos++] = rollD.geti32();
-		bbBuffer[bufferPos++] = rollD.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_FF) {
-		bbBuffer[bufferPos++] = rollFF.geti32();
-		bbBuffer[bufferPos++] = rollFF.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_S) {
-		bbBuffer[bufferPos++] = rollS.geti32();
-		bbBuffer[bufferPos++] = rollS.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_P) {
-		bbBuffer[bufferPos++] = pitchP.geti32();
-		bbBuffer[bufferPos++] = pitchP.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_I) {
-		bbBuffer[bufferPos++] = pitchI.geti32();
-		bbBuffer[bufferPos++] = pitchI.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_D) {
-		bbBuffer[bufferPos++] = pitchD.geti32();
-		bbBuffer[bufferPos++] = pitchD.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_FF) {
-		bbBuffer[bufferPos++] = pitchFF.geti32();
-		bbBuffer[bufferPos++] = pitchFF.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_S) {
-		bbBuffer[bufferPos++] = pitchS.geti32();
-		bbBuffer[bufferPos++] = pitchS.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_P) {
-		bbBuffer[bufferPos++] = yawP.geti32();
-		bbBuffer[bufferPos++] = yawP.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_I) {
-		bbBuffer[bufferPos++] = yawI.geti32();
-		bbBuffer[bufferPos++] = yawI.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_D) {
-		bbBuffer[bufferPos++] = yawD.geti32();
-		bbBuffer[bufferPos++] = yawD.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_FF) {
-		bbBuffer[bufferPos++] = yawFF.geti32();
-		bbBuffer[bufferPos++] = yawFF.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_S) {
-		bbBuffer[bufferPos++] = yawS.geti32();
-		bbBuffer[bufferPos++] = yawS.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
-		u64 throttles64 = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
-		bbBuffer[bufferPos++] = throttles64;
-		bbBuffer[bufferPos++] = throttles64 >> 8;
-		bbBuffer[bufferPos++] = throttles64 >> 16;
-		bbBuffer[bufferPos++] = throttles64 >> 24;
-		bbBuffer[bufferPos++] = throttles64 >> 32;
-		bbBuffer[bufferPos++] = throttles64 >> 40;
-	}
-	if (currentBBFlags & LOG_FRAMETIME) {
-		u16 ft = frametime;
-		frametime -= ft;
-		bbBuffer[bufferPos++] = ft;
-		bbBuffer[bufferPos++] = ft >> 8;
-	}
-	if (currentBBFlags & LOG_ALTITUDE) {
-		const u32 height = combinedAltitude.raw >> 10; // 10.6 fixed point, approx. 6cm resolution, 4km altitude
-		bbBuffer[bufferPos++] = height;
-		bbBuffer[bufferPos++] = height >> 8;
-	}
-	if (currentBBFlags & LOG_VVEL) {
-		const i32 vvel = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
-		bbBuffer[bufferPos++] = vvel;
-		bbBuffer[bufferPos++] = vvel >> 8;
-	}
-	if (currentBBFlags & LOG_ATT_ROLL) {
-		i16 r = (roll * 10000).geti32();
-		bbBuffer[bufferPos++] = r;
-		bbBuffer[bufferPos++] = r >> 8;
-	}
-	if (currentBBFlags & LOG_ATT_PITCH) {
-		i16 p = (pitch * 10000).geti32();
-		bbBuffer[bufferPos++] = p;
-		bbBuffer[bufferPos++] = p >> 8;
-	}
-	if (currentBBFlags & LOG_ATT_YAW) {
-		i16 y = (yaw * 10000).geti32();
-		bbBuffer[bufferPos++] = y;
-		bbBuffer[bufferPos++] = y >> 8;
-	}
-	if (currentBBFlags & LOG_MOTOR_RPM) {
-		u64 rpmPacket = escRawTelemetry[(u8)MOTOR::RR] | escRawTelemetry[(u8)MOTOR::FR] << 12 | (u64)escRawTelemetry[(u8)MOTOR::RL] << 24 | (u64)escRawTelemetry[(u8)MOTOR::FL] << 36;
-		bbBuffer[bufferPos++] = rpmPacket;
-		bbBuffer[bufferPos++] = rpmPacket >> 8;
-		bbBuffer[bufferPos++] = rpmPacket >> 16;
-		bbBuffer[bufferPos++] = rpmPacket >> 24;
-		bbBuffer[bufferPos++] = rpmPacket >> 32;
-		bbBuffer[bufferPos++] = rpmPacket >> 40;
-	}
-	if (currentBBFlags & LOG_ACCEL_RAW) {
-		bbBuffer[bufferPos++] = accelAligned[0];
-		bbBuffer[bufferPos++] = accelAligned[0] >> 8;
-		bbBuffer[bufferPos++] = accelAligned[1];
-		bbBuffer[bufferPos++] = accelAligned[1] >> 8;
-		bbBuffer[bufferPos++] = accelAligned[2];
-		bbBuffer[bufferPos++] = accelAligned[2] >> 8;
-	}
-	if (currentBBFlags & LOG_ACCEL_FILTERED) {
-		i16 i = accelFiltered[AXIS_ROLL]->geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-		i = accelFiltered[AXIS_PITCH]->geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-		i = accelFiltered[AXIS_YAW]->geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	if (currentBBFlags & LOG_VERTICAL_ACCEL) {
-		i16 a = (i16)(vAccel.raw >> 9);
-		bbBuffer[bufferPos++] = a;
-		bbBuffer[bufferPos++] = a >> 8;
-	}
-	if (currentBBFlags & LOG_VVEL_SETPOINT) {
-		i16 v = (i16)(vVelSetpoint.raw >> 4) * ((u32)flightMode >= 2);
-		bbBuffer[bufferPos++] = v;
-		bbBuffer[bufferPos++] = v >> 8;
-	}
-	if (currentBBFlags & LOG_MAG_HEADING) {
-		i16 h = (i16)(magHeading.raw >> 3);
-		bbBuffer[bufferPos++] = h;
-		bbBuffer[bufferPos++] = h >> 8;
-	}
-	if (currentBBFlags & LOG_COMBINED_HEADING) {
-		int h = combinedHeading.raw >> 3;
-		bbBuffer[bufferPos++] = h;
-		bbBuffer[bufferPos++] = h >> 8;
-	}
-	if (currentBBFlags & LOG_HVEL) {
+	u8 *bbBufferStart = (u8 *)aligned_alloc(4, 128);
+	if (bbBufferStart == nullptr) return 0;
+	BlackboxPackPtr bbBuffer;
+	bbBuffer.u8p = bbBufferStart + 8; // 5 bytes + padding to a 4-alignment
+
+	BbFlagMask flags = {.c64 = currentBBFlags};
+
+	// 4-aligned elements
+	if (flags.c1 & (LOG_HVEL >> 32)) {
 		// same as vvel: 8.8 fixed point in m/s, +-128m/s max, 4mm/s resolution
 		// first nVel (north positive), then eVel (east positive)
-		i32 v = nVel.raw >> 8;
-		bbBuffer[bufferPos++] = v;
-		bbBuffer[bufferPos++] = v >> 8;
-		v = eVel.raw >> 8;
-		bbBuffer[bufferPos++] = v;
-		bbBuffer[bufferPos++] = v >> 8;
+		*bbBuffer.i32p++ = ((u16)(nVel.raw >> 8)) | (((u16)(eVel.raw >> 8)) << 16);
 	}
-	if (currentBBFlags & LOG_BARO) {
+	if (flags.c1 & (LOG_DEBUG_1 >> 32)) {
+		*bbBuffer.u32p++ = bbDebug1;
+	}
+	if (flags.c1 & (LOG_DEBUG_2 >> 32)) {
+		*bbBuffer.u32p++ = bbDebug2;
+	}
+
+	// 2-aligned elements
+	if (flags.c0 & LOG_ROLL_SETPOINT) {
+		*bbBuffer.i16p++ = (i16)(rollSetpoint.raw >> 12);
+	}
+	if (flags.c0 & LOG_PITCH_SETPOINT) {
+		*bbBuffer.i16p++ = (i16)(pitchSetpoint.raw >> 12);
+	}
+	if (flags.c0 & LOG_THROTTLE_SETPOINT) {
+		*bbBuffer.i16p++ = (i16)(throttle.raw >> 12);
+	}
+	if (flags.c0 & LOG_YAW_SETPOINT) {
+		*bbBuffer.i16p++ = (i16)(yawSetpoint.raw >> 12);
+	}
+	if (flags.c0 & LOG_ROLL_GYRO_RAW) {
+		*bbBuffer.i16p++ = gyroScaled[AXIS_ROLL].raw >> 12;
+	}
+	if (flags.c0 & LOG_PITCH_GYRO_RAW) {
+		*bbBuffer.i16p++ = gyroScaled[AXIS_PITCH].raw >> 12;
+	}
+	if (flags.c0 & LOG_YAW_GYRO_RAW) {
+		*bbBuffer.i16p++ = gyroScaled[AXIS_YAW].raw >> 12;
+	}
+	if (flags.c0 & LOG_ROLL_PID_P) {
+		*bbBuffer.i16p++ = rollP.geti32();
+	}
+	if (flags.c0 & LOG_ROLL_PID_I) {
+		*bbBuffer.i16p++ = rollI.geti32();
+	}
+	if (flags.c0 & LOG_ROLL_PID_D) {
+		*bbBuffer.i16p++ = rollD.geti32();
+	}
+	if (flags.c0 & LOG_ROLL_PID_FF) {
+		*bbBuffer.i16p++ = rollFF.geti32();
+	}
+	if (flags.c0 & LOG_ROLL_PID_S) {
+		*bbBuffer.i16p++ = rollS.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_P) {
+		*bbBuffer.i16p++ = pitchP.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_I) {
+		*bbBuffer.i16p++ = pitchI.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_D) {
+		*bbBuffer.i16p++ = pitchD.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_FF) {
+		*bbBuffer.i16p++ = pitchFF.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_S) {
+		*bbBuffer.i16p++ = pitchS.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_P) {
+		*bbBuffer.i16p++ = yawP.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_I) {
+		*bbBuffer.i16p++ = yawI.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_D) {
+		*bbBuffer.i16p++ = yawD.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_FF) {
+		*bbBuffer.i16p++ = yawFF.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_S) {
+		*bbBuffer.i16p++ = yawS.geti32();
+	}
+	if (flags.c0 & LOG_MOTOR_OUTPUTS) {
+		u64 throttles64 = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
+		*bbBuffer.u32p++ = throttles64;
+		*bbBuffer.u16p++ = throttles64 >> 32;
+	}
+	if (flags.c0 & LOG_FRAMETIME) {
+		u16 ft = frametime;
+		frametime -= ft;
+		*bbBuffer.u16p++ = ft;
+	}
+	if (flags.c0 & LOG_ALTITUDE) {
+		const u16 height = combinedAltitude.raw >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
+		*bbBuffer.u16p++ = height;
+	}
+	if (flags.c0 & LOG_VVEL) {
+		*bbBuffer.i16p++ = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
+	}
+	if (flags.c0 & LOG_ATT_ROLL) {
+		*bbBuffer.i16p++ = roll.raw >> 8;
+	}
+	if (flags.c0 & LOG_ATT_PITCH) {
+		*bbBuffer.i16p++ = pitch.raw >> 8;
+	}
+	if (flags.c0 & LOG_ATT_YAW) {
+		*bbBuffer.i16p++ = yaw.raw >> 8;
+	}
+	if (flags.c0 & LOG_MOTOR_RPM) {
+		u64 rpmPacket = escRawTelemetry[(u8)MOTOR::RR] | escRawTelemetry[(u8)MOTOR::FR] << 12 | (u64)escRawTelemetry[(u8)MOTOR::RL] << 24 | (u64)escRawTelemetry[(u8)MOTOR::FL] << 36;
+		*bbBuffer.u32p++ = rpmPacket;
+		*bbBuffer.u16p++ = rpmPacket >> 32;
+	}
+	if (flags.c1 & (LOG_ACCEL_RAW >> 32)) {
+		*bbBuffer.i16p++ = accelAligned[AXIS_ROLL];
+		*bbBuffer.i16p++ = accelAligned[AXIS_PITCH];
+		*bbBuffer.i16p++ = accelAligned[AXIS_YAW];
+	}
+	if (flags.c1 & (LOG_ACCEL_FILTERED >> 32)) {
+		*bbBuffer.i16p++ = accelFiltered[AXIS_ROLL]->geti32();
+		*bbBuffer.i16p++ = accelFiltered[AXIS_PITCH]->geti32();
+		*bbBuffer.i16p++ = accelFiltered[AXIS_YAW]->geti32();
+	}
+	if (flags.c1 & (LOG_VERTICAL_ACCEL >> 32)) {
+		*bbBuffer.i16p++ = vAccel.raw >> 9;
+	}
+	if (flags.c1 & (LOG_VVEL_SETPOINT >> 32)) {
+		*bbBuffer.i16p++ = (i16)(vVelSetpoint.raw >> 4) * ((u32)flightMode >= 2);
+	}
+	if (flags.c1 & (LOG_MAG_HEADING >> 32)) {
+		*bbBuffer.i16p++ = magHeading.raw >> 3;
+	}
+	if (flags.c1 & (LOG_COMBINED_HEADING >> 32)) {
+		*bbBuffer.i16p++ = combinedHeading.raw >> 3;
+	}
+	if (flags.c1 & (LOG_DEBUG_3 >> 32)) {
+		*bbBuffer.u16p++ = bbDebug3;
+	}
+	if (flags.c1 & (LOG_DEBUG_4 >> 32)) {
+		*bbBuffer.u16p++ = bbDebug4;
+	}
+	if (flags.c1 & (LOG_PID_SUM >> 32)) {
+		*bbBuffer.i16p++ = rollSum.geti32();
+		*bbBuffer.i16p++ = pitchSum.geti32();
+		*bbBuffer.i16p++ = yawSum.geti32();
+	}
+
+	// 1-aligned elements
+	if (flags.c1 & (LOG_BARO >> 32)) {
 		i32 val = blackboxPres;
-		bbBuffer[bufferPos++] = val;
-		bbBuffer[bufferPos++] = val >> 8;
-		bbBuffer[bufferPos++] = val >> 16;
+		*bbBuffer.i16p++ = val;
+		*bbBuffer.u8p++ = val >> 16;
 	}
-	if (currentBBFlags & LOG_DEBUG_1) {
-		bbBuffer[bufferPos++] = bbDebug1;
-		bbBuffer[bufferPos++] = bbDebug1 >> 8;
-		bbBuffer[bufferPos++] = bbDebug1 >> 16;
-		bbBuffer[bufferPos++] = bbDebug1 >> 24;
-	}
-	if (currentBBFlags & LOG_DEBUG_2) {
-		bbBuffer[bufferPos++] = bbDebug2;
-		bbBuffer[bufferPos++] = bbDebug2 >> 8;
-		bbBuffer[bufferPos++] = bbDebug2 >> 16;
-		bbBuffer[bufferPos++] = bbDebug2 >> 24;
-	}
-	if (currentBBFlags & LOG_DEBUG_3) {
-		bbBuffer[bufferPos++] = bbDebug3;
-		bbBuffer[bufferPos++] = bbDebug3 >> 8;
-	}
-	if (currentBBFlags & LOG_DEBUG_4) {
-		bbBuffer[bufferPos++] = bbDebug4;
-		bbBuffer[bufferPos++] = bbDebug4 >> 8;
-	}
-	if (currentBBFlags & LOG_PID_SUM) {
-		i16 i = rollSum.geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-		i = pitchSum.geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-		i = yawSum.geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	bbBuffer[0] = bufferPos - 5;
-	memcpy(&bbBuffer[1], &bbFrameNum, 4);
+
+	bbBufferStart[3] = (bbBuffer.u8p - bbBufferStart) - 8;
+	memcpy(bbBufferStart + 4, &bbFrameNum, 4);
 	bbFrameNum++;
 	if (bbFramePtrBuffer.isEmpty()) {
-		if (!rp2040.fifo.push_nb((u32)bbBuffer)) {
-			bbFramePtrBuffer.push(bbBuffer);
+		if (!rp2040.fifo.push_nb((u32)bbBufferStart)) {
+			bbFramePtrBuffer.push(bbBufferStart);
 		}
 	} else if (!bbFramePtrBuffer.isFull()) {
-		bbFramePtrBuffer.push(bbBuffer);
+		bbFramePtrBuffer.push(bbBufferStart);
 		for (u32 i = bbFramePtrBuffer.itemCount(); i; i--) {
 			u8 *frame = bbFramePtrBuffer[0];
 			if (rp2040.fifo.push_nb((u32)frame)) {
@@ -1586,7 +1563,7 @@ u32 writeSingleFrame() {
 		u8 *frame = bbFramePtrBuffer[0];
 		if (rp2040.fifo.push_nb((u32)frame)) {
 			bbFramePtrBuffer.pop();
-			bbFramePtrBuffer.push(bbBuffer);
+			bbFramePtrBuffer.push(bbBufferStart);
 			for (u32 i = bbFramePtrBuffer.itemCount(); i; i--) {
 				u8 *frame = bbFramePtrBuffer[0];
 				if (rp2040.fifo.push_nb((u32)frame)) {
@@ -1596,7 +1573,7 @@ u32 writeSingleFrame() {
 				}
 			}
 		} else {
-			free(bbBuffer);
+			free(bbBufferStart);
 			bbFrameNum--;
 			// Both FIFOs are full, we can't keep up with the logging, dropping newest frame
 		}

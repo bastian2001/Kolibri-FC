@@ -157,19 +157,19 @@ u32 writeSingleFrame();
 /**
  * @brief sends init data out to a connected MSP device
  *
- * @param serialNum MSP device port to send data to
+ * @param serial MSP device port to send data to
  * @param mspVer MSP version to use
  * @param logNum file to open and use
  * @param subCmd 0 = get header + info, 1 = get syncs (param startpos), 2 = get HL + FM (param prev sync)
  * @param reqPayload depends on subcmd: none; 4 byte startpos in file; 4 byte sync pos in file => search from there to next sync and send out all HL and FM changes
  * @param reqLen 0 for subcmd 0, 4 for sumcmd 1 and 2
  */
-void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen);
+void printFastFileInit(KoliSerial &serial, MspVersion mspVer, u16 logNum, u8 subCmd, const char *reqPayload, u16 reqLen);
 
 /**
  * @brief sends data of frames to a connected MSP device
  *
- * @param serialNum MSP device port to send data to
+ * @param serial MSP device port to send data to
  * @param mspVer MSP version to use
  * @param sequenceNum 2 byte incrementing number that is just echoed to the PC to know what the response holds
  * @param logNum file to open and use
@@ -177,35 +177,38 @@ void printFastFileInit(u8 serialNum, MspVersion mspVer, u16 logNum, u8 subCmd, c
  * @param reqPayload requested data
  * @param reqLen length of data request, multiple of 9
  */
-void printFastDataReq(u8 serialNum, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen);
+void printFastDataReq(KoliSerial &serial, MspVersion mspVer, u16 sequenceNum, u16 logNum, u8 frameSize, const char *reqPayload, u16 reqLen);
 
 /**
  * @brief Print the file number, the file size and the chunk size
  *
- * @param serialNum serial number of the device
+ * @param serial serial of the device
  * @param mspVer MSP version to use
  * @param logNum log number to print
  */
-void printFileInit(u8 serialNum, MspVersion mspVer, u16 logNum);
+void printFileInit(KoliSerial &serial, MspVersion mspVer, u16 logNum);
 
 /**
  * @brief Print a log file to the configurator using MspFn::BB_FILE_DOWNLOAD
  *
  * @details Chunk Size is 1024 bytes
  *
- * @param serialNum serial number of the device
+ * @param serial serial to send to
  * @param mspVer MSP version to use
  * @param logNum log number to print
  * @param singleChunk chunk number to print, -1 for all
  */
-void printLogBin(u8 serialNum, MspVersion mspVer, u16 logNum, i32 singleChunk);
+void printLogBin(KoliSerial &serial, MspVersion mspVer, u16 logNum, i32 singleChunk);
 
 /**
  * @brief Closes a file, if open, that is currently used to print a log to the configurator
  */
-void bbClosePrintFile(u8 serialNum, MspVersion mspVer);
+void bbClosePrintFile(KoliSerial &serial, MspVersion mspVer);
 
 /// @brief Writes the prepared blackbox frames to the SD card
 void blackboxLoop();
+
+/// @brief just sets .printing to false, so that an invalid .serial pointer does not create problems
+void bbStopPrinting();
 
 #endif

@@ -44,6 +44,7 @@ const TASK_NAMES = [
 	'        - Mag Read',
 	'        - Mag Eval',
 	'    - OSD',
+	'        - Analog OSD',
 	'    - VTX',
 	'    - Task Manager',
 	'Loop 1',
@@ -169,7 +170,8 @@ th {
 td,
 th {
 	text-align: left;
-	padding: 3px 20px;
+	padding: 1.5px 20px;
+	font-size: 0.85rem;
 }
 
 .grey {

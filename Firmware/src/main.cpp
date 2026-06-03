@@ -38,7 +38,7 @@ void setup() {
 
 	runUnitTests();
 
-	Serial.println("Setup started");
+	DEBUG_PRINTLN("Setup started");
 	initLittleFs();
 	openSettingsFile();
 
@@ -52,7 +52,8 @@ void setup() {
 	initPid();
 	initControl();
 	rtcInit();
-	osdInit();
+	OsdCanvas::get().begin();
+	AnalogOsdOutput::get().begin();
 	inFlightTuningInit();
 	initMag();
 	imuInit();
@@ -82,9 +83,10 @@ void setup() {
 	rp2040.wdt_begin(200);
 	rp2040.wdt_reset();
 
-	Serial.println("Setup complete");
+	DEBUG_PRINTLN("Setup complete");
 	taskTimer0 = 0;
 	setupDone |= 0b10;
+	playStartSound();
 	rom_flash_flush_cache();
 }
 
@@ -101,8 +103,7 @@ void loop() {
 #ifdef BLACKBOX_STORAGE
 	blackboxLoop();
 #endif
-	if (elrs)
-		elrs->loop();
+	if (elrs) elrs->loop();
 	modesLoop();
 	adcLoop();
 	inFlightTuningLoop();
@@ -110,7 +111,7 @@ void loop() {
 	configuratorLoop();
 	gpsLoop();
 	magLoop();
-	osdLoop();
+	OsdCanvas::get().loop();
 	taskManagerLoop();
 	trampLoop();
 	cliLoop();
@@ -154,36 +155,7 @@ void loop1() {
 	if (gyroUpdateFlag & 0x01) {
 		gyroUpdateFlag &= ~0x01;
 
-		static u8 imuUpdateCycle = 0;
-		TASK_START(TASK_IMU);
-		TASK_START(TASK_IMU_GYRO);
-		imuGyroUpdate();
-		TASK_END(TASK_IMU_GYRO);
-
-		switch (imuUpdateCycle) {
-		case 0: {
-			TASK_START(TASK_IMU_ACCEL1);
-			imuAccelUpdate1();
-			TASK_END(TASK_IMU_ACCEL1);
-		} break;
-		case 1: {
-			TASK_START(TASK_IMU_ACCEL2);
-			imuAccelUpdate2();
-			TASK_END(TASK_IMU_ACCEL2);
-		} break;
-		case 2: {
-			TASK_START(TASK_IMU_ANGLE);
-			imuUpdatePitchRoll();
-			TASK_END(TASK_IMU_ANGLE);
-		} break;
-		case 3: {
-			TASK_START(TASK_IMU_SPEEDS);
-			imuUpdateSpeeds();
-			TASK_END(TASK_IMU_SPEEDS);
-		} break;
-		}
-		if (++imuUpdateCycle >= 8) imuUpdateCycle = 0;
-		TASK_END(TASK_IMU);
+		imuLoop();
 
 		if (armed) {
 			controlLoop();

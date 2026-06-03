@@ -44,41 +44,14 @@ extern volatile u8 altInitState; // monotonically increasing, 0 = neither baro n
 
 /**
  * @brief initialize the IMU
- * @details setting start values for quaternion, attitude angles and mag filter rollover
+ *
+ * setting start values for quaternion, attitude angles and mag filter rollover
  */
 void imuInit();
 
 /**
- * @brief feeds gyro data into the attitude quaternion
+ * @brief main IMU loop, read sensors, do sensor fusion and update attitude angles and heading
  *
- * Called at 3200Hz
+ * This function takes the gyro/accel data and fuses the data points together. It generates the Euler orientation and the heading, as well as vertical/east/north velocity and altitude estimates. Called on each IMU read (e.g. 3.2kHz, 8kHz)
  */
-void imuGyroUpdate();
-
-/**
- * @brief Feeds accel data into the quaternion to prevent drift
- *
- * Called at 400Hz
- */
-void imuAccelUpdate1();
-
-/**
- * @brief Feeds accel data into the quaternion to prevent drift
- *
- * Called at 400Hz
- */
-void imuAccelUpdate2();
-
-/**
- * @brief updates roll, pitch and yaw values, as well as combined heading via the filtered data
- *
- * Called at 400Hz
- */
-void imuUpdatePitchRoll();
-
-/**
- * @brief updates altitude, vVel and horizontal velocities from accelerometer (and barometer) data
- *
- * Called at 400Hz
- */
-void imuUpdateSpeeds();
+void imuLoop();

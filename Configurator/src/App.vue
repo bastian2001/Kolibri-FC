@@ -297,6 +297,10 @@ export default defineComponent({
 	padding: 0;
 }
 
+.log p::selection {
+	background-color: var(--border-blue);
+}
+
 .navigator {
 	display: flex;
 	flex-direction: row;
