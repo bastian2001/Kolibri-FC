@@ -41,7 +41,7 @@ static FILE_CLASS blackboxFile;
 #define BLACKBOX_WRITE_BUFFER_SIZE 8192
 
 u64 bbFlags = 0;
-static u64 currentBBFlags = 0;
+static volatile u64 currentBBFlags = 0;
 
 static volatile bool bbLogging = false;
 volatile bool fsReady = false;
@@ -53,6 +53,22 @@ u32 bbDebug1, bbDebug2;
 u16 bbDebug3, bbDebug4;
 
 static RingBuffer<u8 *> bbFramePtrBuffer(64);
+
+union BlackboxPackPtr {
+	u8 *u8p;
+	i8 *i8p;
+	u16 *u16p;
+	i16 *i16p;
+	i32 *i32p;
+	u32 *u32p;
+};
+union BbFlagMask {
+	u64 c64;
+	struct {
+		u32 c0;
+		u32 c1;
+	};
+};
 
 typedef struct bbPrintConfig {
 	KoliSerial *serial;
@@ -108,16 +124,14 @@ static void writeToBlackboxWithEscape(const u8 *buf, size_t len) {
 	}
 	if (foundSyn) {
 		int i = 0;
-		for (; i < maxScan;) {
+		for (; i < maxScan; i++) {
 			if (buf[i] != 'S' || buf[i + 1] != 'Y' || buf[i + 2] != 'N') {
-				bbWriteBuffer[bbWriteBufferPos++] = buf[i++];
+				bbWriteBuffer[bbWriteBufferPos++] = buf[i];
 			} else {
 				// SYN detected, write SYN!
-				bbWriteBuffer[bbWriteBufferPos++] = 'S';
-				bbWriteBuffer[bbWriteBufferPos++] = 'Y';
-				bbWriteBuffer[bbWriteBufferPos++] = 'N';
-				bbWriteBuffer[bbWriteBufferPos++] = '!';
-				i += 3;
+				memcpy(bbWriteBuffer + bbWriteBufferPos, "SYN!", 4);
+				bbWriteBufferPos += 4;
+				i += 2;
 			}
 		}
 		for (; i < len; i++) {
@@ -278,16 +292,14 @@ void blackboxLoop() {
 	// write a normal blackbox frame
 	if (rp2040.fifo.available()) {
 		u8 *frame = (u8 *)rp2040.fifo.pop();
-		u8 &len = frame[0];
+		u8 &len = frame[3];
 		bool needsSync = (writtenFrameNum % bbSyncFreq) == 0;
 		size_t spaceNeeded = (len + (needsSync ? 10 : 1)) * 4 / 3;
 		if (BB_WR_BUF_HAS_FREE(spaceNeeded)) {
 			if (needsSync) {
 				u32 thisSyncPos = blackboxFile.position() + bbWriteBufferPos;
-				bbWriteBuffer[bbWriteBufferPos++] = 'S';
-				bbWriteBuffer[bbWriteBufferPos++] = 'Y';
-				bbWriteBuffer[bbWriteBufferPos++] = 'N';
-				bbWriteBuffer[bbWriteBufferPos++] = 'C';
+				memcpy(bbWriteBuffer + bbWriteBufferPos, "SYNC", 4);
+				bbWriteBufferPos += 4;
 				u8 buf[9];
 				buf[0] = fmHighlightFlag;
 				fmHighlightFlag = 0;
@@ -297,7 +309,7 @@ void blackboxLoop() {
 				writeToBlackboxWithEscape(buf, 9);
 			}
 			bbWriteBuffer[bbWriteBufferPos++] = BB_FRAME_NORMAL;
-			writeToBlackboxWithEscape(frame + 5, len);
+			writeToBlackboxWithEscape(frame + 8, len);
 			writtenFrameNum++;
 		}
 		free(frame);
@@ -320,23 +332,25 @@ void blackboxLoop() {
 		fmHighlightFlag |= 0b01;
 	}
 
+	const BbFlagMask bbFlagsCopy = {.c64 = currentBBFlags};
+
 	// save GPS PVT message
-	if (newPvtMessageFlag & (1 << 0) && currentBBFlags & LOG_GPS && BB_WR_BUF_HAS_FREE(92 * 4 / 3 + 1)) {
+	if (newPvtMessageFlag & (1 << 0) && bbFlagsCopy.c0 & LOG_GPS && BB_WR_BUF_HAS_FREE(92 * 4 / 3 + 1)) {
 		writeGpsToBlackbox();
 	}
 
 	// save ELRS joysticks
-	if (elrs && elrs->newPacketFlag & (1 << 1) && currentBBFlags & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
+	if (elrs && elrs->newPacketFlag & (1 << 1) && bbFlagsCopy.c0 & LOG_ELRS_RAW && BB_WR_BUF_HAS_FREE(6 * 4 / 3 + 1)) {
 		writeElrsToBlackbox();
 	}
 
 	// save VBat to Blackbox
-	if (adcFlag & (1 << 0) && currentBBFlags & LOG_VBAT && BB_WR_BUF_HAS_FREE(2 + 1)) {
+	if (adcFlag & (1 << 0) && bbFlagsCopy.c1 & (LOG_VBAT >> 32) && BB_WR_BUF_HAS_FREE(2 + 1)) {
 		writeVbatToBlackbox();
 	}
 
 	// save ELRS link statistics
-	if (elrs && elrs->newLinkStatsFlag & (1 << 0) && currentBBFlags & LOG_LINK_STATS && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
+	if (elrs && elrs->newLinkStatsFlag & (1 << 0) && bbFlagsCopy.c1 & (LOG_LINK_STATS >> 32) && BB_WR_BUF_HAS_FREE(11 * 4 / 3 + 1)) {
 		writeElrsLinkToBlackbox();
 	}
 
@@ -1365,252 +1379,178 @@ void endLogging(DisarmReason reason) {
 }
 
 u32 writeSingleFrame() {
-	size_t bufferPos = 5;
 	if (!fsReady || !bbLogging) {
 		return 0;
 	}
 	TASK_START(TASK_BLACKBOX);
-	u8 *bbBuffer = (u8 *)malloc(128);
-	if (bbBuffer == nullptr) return 0;
-	if (currentBBFlags & LOG_ROLL_SETPOINT) {
-		i16 setpoint = (i16)(rollSetpoint.raw >> 12);
-		bbBuffer[bufferPos++] = setpoint;
-		bbBuffer[bufferPos++] = setpoint >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_SETPOINT) {
-		i16 setpoint = (i16)(pitchSetpoint.raw >> 12);
-		bbBuffer[bufferPos++] = setpoint;
-		bbBuffer[bufferPos++] = setpoint >> 8;
-	}
-	if (currentBBFlags & LOG_THROTTLE_SETPOINT) {
-		i16 t = (i16)(throttle.raw >> 12);
-		bbBuffer[bufferPos++] = t;
-		bbBuffer[bufferPos++] = t >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_SETPOINT) {
-		i16 setpoint = (i16)(yawSetpoint.raw >> 12);
-		bbBuffer[bufferPos++] = setpoint;
-		bbBuffer[bufferPos++] = setpoint >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_GYRO_RAW) {
-		i16 i = (gyroScaled[AXIS_ROLL].raw >> 12);
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_GYRO_RAW) {
-		i16 i = (gyroScaled[AXIS_PITCH].raw >> 12);
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_GYRO_RAW) {
-		i16 i = (gyroScaled[AXIS_YAW].raw >> 12);
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_P) {
-		bbBuffer[bufferPos++] = rollP.geti32();
-		bbBuffer[bufferPos++] = rollP.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_I) {
-		bbBuffer[bufferPos++] = rollI.geti32();
-		bbBuffer[bufferPos++] = rollI.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_D) {
-		bbBuffer[bufferPos++] = rollD.geti32();
-		bbBuffer[bufferPos++] = rollD.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_FF) {
-		bbBuffer[bufferPos++] = rollFF.geti32();
-		bbBuffer[bufferPos++] = rollFF.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_ROLL_PID_S) {
-		bbBuffer[bufferPos++] = rollS.geti32();
-		bbBuffer[bufferPos++] = rollS.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_P) {
-		bbBuffer[bufferPos++] = pitchP.geti32();
-		bbBuffer[bufferPos++] = pitchP.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_I) {
-		bbBuffer[bufferPos++] = pitchI.geti32();
-		bbBuffer[bufferPos++] = pitchI.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_D) {
-		bbBuffer[bufferPos++] = pitchD.geti32();
-		bbBuffer[bufferPos++] = pitchD.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_FF) {
-		bbBuffer[bufferPos++] = pitchFF.geti32();
-		bbBuffer[bufferPos++] = pitchFF.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_PITCH_PID_S) {
-		bbBuffer[bufferPos++] = pitchS.geti32();
-		bbBuffer[bufferPos++] = pitchS.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_P) {
-		bbBuffer[bufferPos++] = yawP.geti32();
-		bbBuffer[bufferPos++] = yawP.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_I) {
-		bbBuffer[bufferPos++] = yawI.geti32();
-		bbBuffer[bufferPos++] = yawI.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_D) {
-		bbBuffer[bufferPos++] = yawD.geti32();
-		bbBuffer[bufferPos++] = yawD.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_FF) {
-		bbBuffer[bufferPos++] = yawFF.geti32();
-		bbBuffer[bufferPos++] = yawFF.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_YAW_PID_S) {
-		bbBuffer[bufferPos++] = yawS.geti32();
-		bbBuffer[bufferPos++] = yawS.geti32() >> 8;
-	}
-	if (currentBBFlags & LOG_MOTOR_OUTPUTS) {
-		u64 throttles64 = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
-		bbBuffer[bufferPos++] = throttles64;
-		bbBuffer[bufferPos++] = throttles64 >> 8;
-		bbBuffer[bufferPos++] = throttles64 >> 16;
-		bbBuffer[bufferPos++] = throttles64 >> 24;
-		bbBuffer[bufferPos++] = throttles64 >> 32;
-		bbBuffer[bufferPos++] = throttles64 >> 40;
-	}
-	if (currentBBFlags & LOG_FRAMETIME) {
-		u16 ft = frametime;
-		frametime -= ft;
-		bbBuffer[bufferPos++] = ft;
-		bbBuffer[bufferPos++] = ft >> 8;
-	}
-	if (currentBBFlags & LOG_ALTITUDE) {
-		const u32 height = combinedAltitude.raw >> 10; // 10.6 fixed point, approx. 6cm resolution, 4km altitude
-		bbBuffer[bufferPos++] = height;
-		bbBuffer[bufferPos++] = height >> 8;
-	}
-	if (currentBBFlags & LOG_VVEL) {
-		const i32 vvel = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
-		bbBuffer[bufferPos++] = vvel;
-		bbBuffer[bufferPos++] = vvel >> 8;
-	}
-	if (currentBBFlags & LOG_ATT_ROLL) {
-		i16 r = (roll * 10000).geti32();
-		bbBuffer[bufferPos++] = r;
-		bbBuffer[bufferPos++] = r >> 8;
-	}
-	if (currentBBFlags & LOG_ATT_PITCH) {
-		i16 p = (pitch * 10000).geti32();
-		bbBuffer[bufferPos++] = p;
-		bbBuffer[bufferPos++] = p >> 8;
-	}
-	if (currentBBFlags & LOG_ATT_YAW) {
-		i16 y = (yaw * 10000).geti32();
-		bbBuffer[bufferPos++] = y;
-		bbBuffer[bufferPos++] = y >> 8;
-	}
-	if (currentBBFlags & LOG_MOTOR_RPM) {
-		u64 rpmPacket = escRawTelemetry[(u8)MOTOR::RR] | escRawTelemetry[(u8)MOTOR::FR] << 12 | (u64)escRawTelemetry[(u8)MOTOR::RL] << 24 | (u64)escRawTelemetry[(u8)MOTOR::FL] << 36;
-		bbBuffer[bufferPos++] = rpmPacket;
-		bbBuffer[bufferPos++] = rpmPacket >> 8;
-		bbBuffer[bufferPos++] = rpmPacket >> 16;
-		bbBuffer[bufferPos++] = rpmPacket >> 24;
-		bbBuffer[bufferPos++] = rpmPacket >> 32;
-		bbBuffer[bufferPos++] = rpmPacket >> 40;
-	}
-	if (currentBBFlags & LOG_ACCEL_RAW) {
-		bbBuffer[bufferPos++] = accelAligned[0];
-		bbBuffer[bufferPos++] = accelAligned[0] >> 8;
-		bbBuffer[bufferPos++] = accelAligned[1];
-		bbBuffer[bufferPos++] = accelAligned[1] >> 8;
-		bbBuffer[bufferPos++] = accelAligned[2];
-		bbBuffer[bufferPos++] = accelAligned[2] >> 8;
-	}
-	if (currentBBFlags & LOG_ACCEL_FILTERED) {
-		i16 i = accelFiltered[AXIS_ROLL]->geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-		i = accelFiltered[AXIS_PITCH]->geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-		i = accelFiltered[AXIS_YAW]->geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	if (currentBBFlags & LOG_VERTICAL_ACCEL) {
-		i16 a = (i16)(vAccel.raw >> 9);
-		bbBuffer[bufferPos++] = a;
-		bbBuffer[bufferPos++] = a >> 8;
-	}
-	if (currentBBFlags & LOG_VVEL_SETPOINT) {
-		i16 v = (i16)(vVelSetpoint.raw >> 4) * ((u32)flightMode >= 2);
-		bbBuffer[bufferPos++] = v;
-		bbBuffer[bufferPos++] = v >> 8;
-	}
-	if (currentBBFlags & LOG_MAG_HEADING) {
-		i16 h = (i16)(magHeading.raw >> 3);
-		bbBuffer[bufferPos++] = h;
-		bbBuffer[bufferPos++] = h >> 8;
-	}
-	if (currentBBFlags & LOG_COMBINED_HEADING) {
-		int h = combinedHeading.raw >> 3;
-		bbBuffer[bufferPos++] = h;
-		bbBuffer[bufferPos++] = h >> 8;
-	}
-	if (currentBBFlags & LOG_HVEL) {
+	u8 *bbBufferStart = (u8 *)aligned_alloc(4, 128);
+	if (bbBufferStart == nullptr) return 0;
+	BlackboxPackPtr bbBuffer;
+	bbBuffer.u8p = bbBufferStart + 8; // 5 bytes + padding to a 4-alignment
+
+	BbFlagMask flags = {.c64 = currentBBFlags};
+
+	// 4-aligned elements
+	if (flags.c1 & (LOG_HVEL >> 32)) {
 		// same as vvel: 8.8 fixed point in m/s, +-128m/s max, 4mm/s resolution
 		// first nVel (north positive), then eVel (east positive)
-		i32 v = nVel.raw >> 8;
-		bbBuffer[bufferPos++] = v;
-		bbBuffer[bufferPos++] = v >> 8;
-		v = eVel.raw >> 8;
-		bbBuffer[bufferPos++] = v;
-		bbBuffer[bufferPos++] = v >> 8;
+		*bbBuffer.i32p++ = ((u16)(nVel.raw >> 8)) | (((u16)(eVel.raw >> 8)) << 16);
 	}
-	if (currentBBFlags & LOG_BARO) {
+	if (flags.c1 & (LOG_DEBUG_1 >> 32)) {
+		*bbBuffer.u32p++ = bbDebug1;
+	}
+	if (flags.c1 & (LOG_DEBUG_2 >> 32)) {
+		*bbBuffer.u32p++ = bbDebug2;
+	}
+
+	// 2-aligned elements
+	if (flags.c0 & LOG_ROLL_SETPOINT) {
+		*bbBuffer.i16p++ = (i16)(rollSetpoint.raw >> 12);
+	}
+	if (flags.c0 & LOG_PITCH_SETPOINT) {
+		*bbBuffer.i16p++ = (i16)(pitchSetpoint.raw >> 12);
+	}
+	if (flags.c0 & LOG_THROTTLE_SETPOINT) {
+		*bbBuffer.i16p++ = (i16)(throttle.raw >> 12);
+	}
+	if (flags.c0 & LOG_YAW_SETPOINT) {
+		*bbBuffer.i16p++ = (i16)(yawSetpoint.raw >> 12);
+	}
+	if (flags.c0 & LOG_ROLL_GYRO_RAW) {
+		*bbBuffer.i16p++ = gyroScaled[AXIS_ROLL].raw >> 12;
+	}
+	if (flags.c0 & LOG_PITCH_GYRO_RAW) {
+		*bbBuffer.i16p++ = gyroScaled[AXIS_PITCH].raw >> 12;
+	}
+	if (flags.c0 & LOG_YAW_GYRO_RAW) {
+		*bbBuffer.i16p++ = gyroScaled[AXIS_YAW].raw >> 12;
+	}
+	if (flags.c0 & LOG_ROLL_PID_P) {
+		*bbBuffer.i16p++ = rollP.geti32();
+	}
+	if (flags.c0 & LOG_ROLL_PID_I) {
+		*bbBuffer.i16p++ = rollI.geti32();
+	}
+	if (flags.c0 & LOG_ROLL_PID_D) {
+		*bbBuffer.i16p++ = rollD.geti32();
+	}
+	if (flags.c0 & LOG_ROLL_PID_FF) {
+		*bbBuffer.i16p++ = rollFF.geti32();
+	}
+	if (flags.c0 & LOG_ROLL_PID_S) {
+		*bbBuffer.i16p++ = rollS.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_P) {
+		*bbBuffer.i16p++ = pitchP.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_I) {
+		*bbBuffer.i16p++ = pitchI.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_D) {
+		*bbBuffer.i16p++ = pitchD.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_FF) {
+		*bbBuffer.i16p++ = pitchFF.geti32();
+	}
+	if (flags.c0 & LOG_PITCH_PID_S) {
+		*bbBuffer.i16p++ = pitchS.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_P) {
+		*bbBuffer.i16p++ = yawP.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_I) {
+		*bbBuffer.i16p++ = yawI.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_D) {
+		*bbBuffer.i16p++ = yawD.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_FF) {
+		*bbBuffer.i16p++ = yawFF.geti32();
+	}
+	if (flags.c0 & LOG_YAW_PID_S) {
+		*bbBuffer.i16p++ = yawS.geti32();
+	}
+	if (flags.c0 & LOG_MOTOR_OUTPUTS) {
+		u64 throttles64 = throttles[(u8)MOTOR::RR] | (u64)throttles[(u8)MOTOR::FR] << 12 | (u64)throttles[(u8)MOTOR::RL] << 24 | (u64)throttles[(u8)MOTOR::FL] << 36;
+		*bbBuffer.u32p++ = throttles64;
+		*bbBuffer.u16p++ = throttles64 >> 32;
+	}
+	if (flags.c0 & LOG_FRAMETIME) {
+		u16 ft = frametime;
+		frametime -= ft;
+		*bbBuffer.u16p++ = ft;
+	}
+	if (flags.c0 & LOG_ALTITUDE) {
+		const u16 height = combinedAltitude.raw >> 12; // 12.4 fixed point, approx. 6cm resolution, 4km altitude
+		*bbBuffer.u16p++ = height;
+	}
+	if (flags.c0 & LOG_VVEL) {
+		*bbBuffer.i16p++ = vVel.raw >> 8; // 8.8 fixed point, approx. 4mm/s resolution, +-128m/s max
+	}
+	if (flags.c0 & LOG_ATT_ROLL) {
+		*bbBuffer.i16p++ = roll.raw >> 8;
+	}
+	if (flags.c0 & LOG_ATT_PITCH) {
+		*bbBuffer.i16p++ = pitch.raw >> 8;
+	}
+	if (flags.c0 & LOG_ATT_YAW) {
+		*bbBuffer.i16p++ = yaw.raw >> 8;
+	}
+	if (flags.c0 & LOG_MOTOR_RPM) {
+		u64 rpmPacket = escRawTelemetry[(u8)MOTOR::RR] | escRawTelemetry[(u8)MOTOR::FR] << 12 | (u64)escRawTelemetry[(u8)MOTOR::RL] << 24 | (u64)escRawTelemetry[(u8)MOTOR::FL] << 36;
+		*bbBuffer.u32p++ = rpmPacket;
+		*bbBuffer.u16p++ = rpmPacket >> 32;
+	}
+	if (flags.c1 & (LOG_ACCEL_RAW >> 32)) {
+		*bbBuffer.i16p++ = accelAligned[AXIS_ROLL];
+		*bbBuffer.i16p++ = accelAligned[AXIS_PITCH];
+		*bbBuffer.i16p++ = accelAligned[AXIS_YAW];
+	}
+	if (flags.c1 & (LOG_ACCEL_FILTERED >> 32)) {
+		*bbBuffer.i16p++ = accelFiltered[AXIS_ROLL]->geti32();
+		*bbBuffer.i16p++ = accelFiltered[AXIS_PITCH]->geti32();
+		*bbBuffer.i16p++ = accelFiltered[AXIS_YAW]->geti32();
+	}
+	if (flags.c1 & (LOG_VERTICAL_ACCEL >> 32)) {
+		*bbBuffer.i16p++ = vAccel.raw >> 9;
+	}
+	if (flags.c1 & (LOG_VVEL_SETPOINT >> 32)) {
+		*bbBuffer.i16p++ = (i16)(vVelSetpoint.raw >> 4) * ((u32)flightMode >= 2);
+	}
+	if (flags.c1 & (LOG_MAG_HEADING >> 32)) {
+		*bbBuffer.i16p++ = magHeading.raw >> 3;
+	}
+	if (flags.c1 & (LOG_COMBINED_HEADING >> 32)) {
+		*bbBuffer.i16p++ = combinedHeading.raw >> 3;
+	}
+	if (flags.c1 & (LOG_DEBUG_3 >> 32)) {
+		*bbBuffer.u16p++ = bbDebug3;
+	}
+	if (flags.c1 & (LOG_DEBUG_4 >> 32)) {
+		*bbBuffer.u16p++ = bbDebug4;
+	}
+	if (flags.c1 & (LOG_PID_SUM >> 32)) {
+		*bbBuffer.i16p++ = rollSum.geti32();
+		*bbBuffer.i16p++ = pitchSum.geti32();
+		*bbBuffer.i16p++ = yawSum.geti32();
+	}
+
+	// 1-aligned elements
+	if (flags.c1 & (LOG_BARO >> 32)) {
 		i32 val = blackboxPres;
-		bbBuffer[bufferPos++] = val;
-		bbBuffer[bufferPos++] = val >> 8;
-		bbBuffer[bufferPos++] = val >> 16;
+		*bbBuffer.i16p++ = val;
+		*bbBuffer.u8p++ = val >> 16;
 	}
-	if (currentBBFlags & LOG_DEBUG_1) {
-		bbBuffer[bufferPos++] = bbDebug1;
-		bbBuffer[bufferPos++] = bbDebug1 >> 8;
-		bbBuffer[bufferPos++] = bbDebug1 >> 16;
-		bbBuffer[bufferPos++] = bbDebug1 >> 24;
-	}
-	if (currentBBFlags & LOG_DEBUG_2) {
-		bbBuffer[bufferPos++] = bbDebug2;
-		bbBuffer[bufferPos++] = bbDebug2 >> 8;
-		bbBuffer[bufferPos++] = bbDebug2 >> 16;
-		bbBuffer[bufferPos++] = bbDebug2 >> 24;
-	}
-	if (currentBBFlags & LOG_DEBUG_3) {
-		bbBuffer[bufferPos++] = bbDebug3;
-		bbBuffer[bufferPos++] = bbDebug3 >> 8;
-	}
-	if (currentBBFlags & LOG_DEBUG_4) {
-		bbBuffer[bufferPos++] = bbDebug4;
-		bbBuffer[bufferPos++] = bbDebug4 >> 8;
-	}
-	if (currentBBFlags & LOG_PID_SUM) {
-		i16 i = rollSum.geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-		i = pitchSum.geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-		i = yawSum.geti32();
-		bbBuffer[bufferPos++] = i;
-		bbBuffer[bufferPos++] = i >> 8;
-	}
-	bbBuffer[0] = bufferPos - 5;
-	memcpy(&bbBuffer[1], &bbFrameNum, 4);
+
+	bbBufferStart[3] = (bbBuffer.u8p - bbBufferStart) - 8;
+	memcpy(bbBufferStart + 4, &bbFrameNum, 4);
 	bbFrameNum++;
 	if (bbFramePtrBuffer.isEmpty()) {
-		if (!rp2040.fifo.push_nb((u32)bbBuffer)) {
-			bbFramePtrBuffer.push(bbBuffer);
+		if (!rp2040.fifo.push_nb((u32)bbBufferStart)) {
+			bbFramePtrBuffer.push(bbBufferStart);
 		}
 	} else if (!bbFramePtrBuffer.isFull()) {
-		bbFramePtrBuffer.push(bbBuffer);
+		bbFramePtrBuffer.push(bbBufferStart);
 		for (u32 i = bbFramePtrBuffer.itemCount(); i; i--) {
 			u8 *frame = bbFramePtrBuffer[0];
 			if (rp2040.fifo.push_nb((u32)frame)) {
@@ -1623,7 +1563,7 @@ u32 writeSingleFrame() {
 		u8 *frame = bbFramePtrBuffer[0];
 		if (rp2040.fifo.push_nb((u32)frame)) {
 			bbFramePtrBuffer.pop();
-			bbFramePtrBuffer.push(bbBuffer);
+			bbFramePtrBuffer.push(bbBufferStart);
 			for (u32 i = bbFramePtrBuffer.itemCount(); i; i--) {
 				u8 *frame = bbFramePtrBuffer[0];
 				if (rp2040.fifo.push_nb((u32)frame)) {
@@ -1633,7 +1573,7 @@ u32 writeSingleFrame() {
 				}
 			}
 		} else {
-			free(bbBuffer);
+			free(bbBufferStart);
 			bbFrameNum--;
 			// Both FIFOs are full, we can't keep up with the logging, dropping newest frame
 		}

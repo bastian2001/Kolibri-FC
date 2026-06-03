@@ -26,12 +26,12 @@ class RingBuffer {
 private:
 	size_t size; // logical size (in items)
 	size_t pSize; // physical size (in items)
-	size_t wrPtr;
-	size_t rdPtr;
+	size_t wrPtr = 0;
+	size_t rdPtr = 0;
 	T *buffer;
 
 public:
-	RingBuffer(size_t size) : size(size), wrPtr(0), rdPtr(0), pSize(size + 1) {
+	RingBuffer(size_t size) : size(size), pSize(size + 1) {
 		buffer = new T[size + 1];
 	}
 
@@ -44,9 +44,9 @@ public:
 	 *
 	 * @param value The new value to be pushed
 	 */
-	void push(T value) {
+	inline void push(T value) {
 		buffer[wrPtr++] = value;
-		if (wrPtr == pSize) wrPtr = 0;
+		if (wrPtr >= pSize) wrPtr = 0;
 
 		if (wrPtr == rdPtr) {
 			rdPtr++; // Overwrite the oldest value
@@ -59,37 +59,37 @@ public:
 	 *
 	 * @return T The oldest value in the buffer
 	 */
-	T pop() {
+	inline T pop() {
 		if (wrPtr == rdPtr) {
 			return T(); // Buffer is empty
 		}
 
-		T value = buffer[rdPtr++];
-		if (rdPtr == pSize) rdPtr = 0;
-		return value;
+		size_t oldRdPtr = rdPtr;
+		if (++rdPtr >= pSize) rdPtr = 0;
+		return buffer[oldRdPtr];
 	}
 
 	/// @brief check if the buffer is empty
 	/// @return true if the buffer is empty
-	bool isEmpty() const {
+	inline bool isEmpty() const {
 		return wrPtr == rdPtr;
 	}
 
 	/// @brief check if the buffer is full
 	/// @return true if the buffer is full
-	bool isFull() const {
+	inline bool isFull() const {
 		return (wrPtr + 1) % pSize == rdPtr;
 	}
 	/// @brief get the number of items in the buffer
 	/// @return size_t the number of items in the buffer
-	size_t itemCount() const {
+	inline size_t itemCount() const {
 		if (wrPtr >= rdPtr)
 			return wrPtr - rdPtr;
 		else
 			return pSize - rdPtr + wrPtr;
 	}
 	/// @brief get the number of free spaces in the buffer
-	size_t freeSpace() const {
+	inline size_t freeSpace() const {
 		return size - itemCount();
 	}
 	/**
@@ -98,7 +98,7 @@ public:
 	 * @param newSize
 	 * @return u8
 	 */
-	u8 resize(size_t newSize) {
+	inline u8 resize(size_t newSize) {
 		T *newBuffer = new T[newSize + 1];
 		if (newBuffer == nullptr) return 1;
 		size_t i = 0;
@@ -114,38 +114,63 @@ public:
 		return 0;
 	}
 	/// @brief get (peek at) the item at index index, does not pop
-	T &operator[](size_t index) {
+	inline T &operator[](size_t index) {
 		return buffer[(index + rdPtr) % pSize];
 	}
 	/// @brief clear the buffer
-	void clear() {
+	inline void clear() {
 		wrPtr = 0;
 		rdPtr = 0;
 	}
 	/// @brief erase all items before index (0 inclusive to index exclusive)
-	void erase(size_t index) {
+	inline void erase(size_t index) {
 		if (index > itemCount()) index = itemCount();
 		rdPtr = (rdPtr + index) % pSize;
 	}
+
 	/**
 	 * @brief copy the buffer to an array
+	 *
+	 * leaves the buffer unchanged, does not pop any items
+	 *
+	 * if too many items are requested, nothing will be copied
 	 *
 	 * @param array pointer where to copy
 	 * @param start skip the first start items
 	 * @param arraySize number of items to copy
 	 */
-	void copyToArray(T *array, size_t start, size_t arraySize) {
-		if (start >= itemCount()) return;
-		if (start + arraySize > itemCount()) arraySize = itemCount() - start;
+	inline void copyToArray(T *array, size_t start, size_t arraySize) const {
+		if (start + arraySize > itemCount()) return;
 		// use memcpy for speed
-		if (rdPtr + start + arraySize < pSize) { // no wrap
-			memcpy(array, buffer + rdPtr + start, arraySize * sizeof(T));
-		} else if (rdPtr + start >= pSize) { // fully wrapped
-			memcpy(array, buffer + rdPtr + start - pSize, arraySize * sizeof(T));
-		} else { // partially wrapped
-			size_t itemsInFirstPart = pSize - rdPtr - start;
-			memcpy(array, buffer + rdPtr + start, itemsInFirstPart * sizeof(T));
+		size_t actualStart = rdPtr + start;
+		if (actualStart >= pSize) actualStart -= pSize;
+		if (actualStart + arraySize < pSize) { // no wrap
+			memcpy(array, buffer + actualStart, arraySize * sizeof(T));
+		} else { // split up
+			size_t itemsInFirstPart = pSize - actualStart;
+			memcpy(array, buffer + actualStart, itemsInFirstPart * sizeof(T));
 			memcpy(array + itemsInFirstPart, buffer, (arraySize - itemsInFirstPart) * sizeof(T));
+		}
+	}
+
+	/**
+	 * @brief fill the buffer from an array
+	 *
+	 * does not overwrite any data if the array is too big
+	 *
+	 * @param array pointer to the array to copy from
+	 * @param arraySize number of items to copy
+	 */
+	inline void fillFromArray(const T *array, size_t arraySize) {
+		if (arraySize > freeSpace()) return;
+		if (wrPtr + arraySize < pSize) { // no wrap
+			memcpy(buffer + wrPtr, array, arraySize * sizeof(T));
+			wrPtr += arraySize;
+		} else { // split up
+			size_t itemsInFirstPart = pSize - wrPtr;
+			memcpy(buffer + wrPtr, array, itemsInFirstPart * sizeof(T));
+			memcpy(buffer, array + itemsInFirstPart, (arraySize - itemsInFirstPart) * sizeof(T));
+			wrPtr = arraySize - itemsInFirstPart;
 		}
 	}
 };
