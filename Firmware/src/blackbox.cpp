@@ -1507,9 +1507,9 @@ u32 writeSingleFrame() {
 		*bbBuffer.i16p++ = accelAligned[AXIS_YAW];
 	}
 	if (flags.c1 & (LOG_ACCEL_FILTERED >> 32)) {
-		*bbBuffer.i16p++ = accelFiltered[AXIS_ROLL]->geti32();
-		*bbBuffer.i16p++ = accelFiltered[AXIS_PITCH]->geti32();
-		*bbBuffer.i16p++ = accelFiltered[AXIS_YAW]->geti32();
+		*bbBuffer.i16p++ = (*accelFiltered[AXIS_ROLL] * 200).geti32();
+		*bbBuffer.i16p++ = (*accelFiltered[AXIS_PITCH] * 200).geti32();
+		*bbBuffer.i16p++ = (*accelFiltered[AXIS_YAW] * 200).geti32();
 	}
 	if (flags.c1 & (LOG_VERTICAL_ACCEL >> 32)) {
 		*bbBuffer.i16p++ = vAccel.raw >> 9;
