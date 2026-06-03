@@ -388,6 +388,19 @@ function removeFunction(i: number) {
 					{{ mspDpState ? 'Online' : 'Offline' }} <br>
 					Canvas Size: {{ canvasWidth }} x {{ canvasHeight }}
 				</p>
+				<select v-model="serial.mspDp.type">
+					<option :value="-1" disabled>Flavor</option>
+					<option :value="0">WTFOS</option>
+					<option :value="1">Other</option>
+					<option :value="2">Other (manual)</option>
+				</select>
+				<select v-model="serial.mspDp.resolution" v-if="serial.mspDp.type === 2">
+					<option :value="-1" disabled>OSD resolution</option>
+					<option :value="0">30x16 (SD)</option>
+					<option :value="1">50x18 (HD)</option>
+					<option :value="2">30x16 in 50x18 (Fake HD)</option>
+					<option :value="3">60x22 (WTFOS)</option>
+				</select>
 			</div>
 		</div>
 		<div v-else-if="functions.length === 0">

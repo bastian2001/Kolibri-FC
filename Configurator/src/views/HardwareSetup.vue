@@ -215,7 +215,10 @@ function update() {
 		data.push(...intToLeBytes(ser.functions, 4))
 		data.push(ser.txPin)
 		data.push(ser.rxPin)
+		data.push(ser.mspDp.type | (ser.mspDp.resolution << 4))
+		data.push(...Array(9).fill(0)) // reserved
 	})
+	console.log(data)
 	sendCommand(MspFn.SET_SERIAL_SETUP, data)
 		.then((c): Promise<any> => {
 			if (c.data[0]) {
@@ -234,10 +237,10 @@ function update() {
 
 const onGetSerialSetup = (c: Command) => {
 	const d = c.data
-	if (d.length % 17 !== 0) throw ''
-	if (d.length / 17 !== ports.maxSerials) throw ''
-	for (let i = 0; i < d.length / 17; i++) {
-		const bin = d.slice(i * 17, i * 17 + 17)
+	if (d.length % 27 !== 0) throw ''
+	if (d.length / 27 !== ports.maxSerials) throw ''
+	for (let i = 0; i < d.length / 27; i++) {
+		const bin = d.slice(i * 27, i * 27 + 27)
 		const s: SerialPort = {
 			exists: false,
 			type: 'disabled' as 'usb' | 'uart' | 'pio' | 'pio-hdx' | 'disabled' | 'invalid',
@@ -250,6 +253,7 @@ const onGetSerialSetup = (c: Command) => {
 			hwParam: 0,
 			modified: false,
 			initialFunctions: 0,
+			mspDp: { type: 0, resolution: 0 },
 		}
 		if (bin[0]) s.exists = true
 		else {
@@ -266,6 +270,8 @@ const onGetSerialSetup = (c: Command) => {
 		s.functions = leBytesToInt(bin, 12, 4)
 		s.initialFunctions = s.functions
 		s.hwParam = bin[16]
+		s.mspDp.type = bin[17] & 0xF
+		s.mspDp.resolution = bin[17] >> 4
 		serials[i] = s
 	}
 	// TODO fetch pad positions, labels

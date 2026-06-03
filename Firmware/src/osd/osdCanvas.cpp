@@ -31,7 +31,7 @@ void OsdCanvas::begin() {
 
 	canvasSettingsFile.emplace(File());
 
-	setSize(30, 16, 255);
+	setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_PAL, 255);
 	setUpdateRate(osdRefreshRate);
 
 	bool newFile = openCanvasSettingsFile();
@@ -227,13 +227,13 @@ void OsdCanvas::drawElement(u32 index) {
 		//---------------------------
 		//|     GPS Longitude       |
 		//---------------------------
-		printOnBuffer(element, "\x98%.6lf", gpsMotion.lon * 1E7f); //! untested @Bastian.
+		printOnBuffer(element, "\x98%.6lf", gpsMotion.lon * 1E-7f); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_LATITUDE: {
 		//---------------------------
 		//|     GPS Latitude        |
 		//---------------------------
-		printOnBuffer(element, "\x89%.6f", gpsMotion.lat * 1E7f); //! untested @Bastian.
+		printOnBuffer(element, "\x89%.6f", gpsMotion.lat * 1E-7f); //! untested @Bastian.
 	} break;
 	case OsdElementType::GPS_PLUSCODE: {
 		//---------------------------

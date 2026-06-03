@@ -37,52 +37,49 @@ void AnalogOsdOutput::begin() {
 }
 
 void AnalogOsdOutput::loop() {
-	if (isReady) {
-		TASK_START(TASK_OSD);
-		if (newFrame) {
+	if (chipDetected) {
+		TASK_START(TASK_ANALOG_OSD);
+		if (drawingPos > charCount) {
+			if (!newFrame) return;
 			newFrame = false;
-			drawingLine = 0;
+			drawingPos = 0;
+			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAH, (u8[]){0});
+			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAL, (u8[]){0});
+			regWrite(SPI_OSD, PIN_OSD_CS, REG_DMM, (u8[]){0x01}); // autoincrement
+		} else if (drawingPos < charCount) {
+			// I could rant about this forever, but yeah, we need one transfer per byte for auto-increment...
+			// one could implement a bulk transfer, but that would require sending 16 bits per char (both in 8 bit and in 16 bit mode), wtf
+			// Either way, we handle a few bytes at a time to keep each function call short
+			// the resolution is always a multiple of 30, so also always a multiple of 6
+			spiWriteSingleBytes(SPI_OSD, PIN_OSD_CS, (u8 *)(frameBuffer + drawingPos), min((size_t)(charCount - drawingPos), 6));
+			drawingPos += 6;
+		} else {
+			spiWriteByte(SPI_OSD, PIN_OSD_CS, 0xFF); // end auto-increment
+			drawingPos++;
 		}
-		if (drawingLine < height) {
-			// TODO revise, way too (unnecessarily) long transmission
-			for (int i = 0; i < width; i++) {
-				u16 pos = i + drawingLine * width;
-
-				char data = frameBuffer[pos];
-				u8 posLow = pos & 0xFF;
-				u8 posHigh = (pos >> 8) & 0x01;
-				regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAH, &posHigh);
-				regWrite(SPI_OSD, PIN_OSD_CS, REG_DMAL, &posLow);
-				regWrite(SPI_OSD, PIN_OSD_CS, REG_DMDI, (u8 *)&data);
-				pos++;
-			}
-
-			drawingLine++;
-		}
-		TASK_END(TASK_OSD);
+		TASK_END(TASK_ANALOG_OSD);
 	}
-	if (checkTimer > 1000000 && isReady != 1) {
-		TASK_START(TASK_OSD);
+	if (checkTimer > 1000000 && !hasVideoIn) {
 		u8 data = 0;
 		checkTimer = 0;
-		regRead(SPI_OSD, PIN_OSD_CS, REG_STAT, &data, 1, 0);
-		if (data && !(data & 0b01100000)) {
-			isReady = 2;
-		}
-		if (!isReady) return;
+		spiWriteByte(SPI_OSD, PIN_OSD_CS, 0xFF); // end auto-increment, could be enabled from before a reboot
+		regRead(SPI_OSD, PIN_OSD_CS, REG_STAT, &data);
+		if (data && !(data & 0b01100000))
+			chipDetected = true;
+		else
+			return;
 		if (data & 1) {
 			u8 data2 = 0b01001100; // dont care, pal, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
-			setSize(30, 16);
+			setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_PAL);
 			isPalOutput = true;
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_VM0, &data2);
 		} else if (data & (1 << 1)) {
 			u8 data2 = 0b00001100; // dont care, ntsc, autosync (2 bits), enable osd, sync at next vsync, don't reset, enable output
-			setSize(30, 13);
+			setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_NTSC);
 			isNtscOutput = true;
 			regWrite(SPI_OSD, PIN_OSD_CS, REG_VM0, &data2);
 		}
-		isReady = (data & 0b00000011) ? 1 : 2;
-		TASK_END(TASK_OSD);
+		hasVideoIn = isNtscOutput || isPalOutput;
 	}
 }
 
@@ -115,7 +112,7 @@ void AnalogOsdOutput::updateCharacter(u8 cmAddr, u8 data[54]) {
 }
 
 void AnalogOsdOutput::setSize(u8 width, u8 height) {
-	drawingLine = 0;
+	drawingPos = 0;
 	OsdCanvas::get().setSize(width, height, 0);
 	OsdOutput::setSize(width, height);
 }

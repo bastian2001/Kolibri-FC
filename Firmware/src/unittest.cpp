@@ -90,9 +90,12 @@ bool testRingBuffer() {
 	rb.erase(3);
 	Expect(rb.itemCount()).withIndex(22).toEqual(7);
 	u32 output[10];
+	for (int i = 0; i < 10; i++) {
+		output[i] = 123 + i;
+	}
 	rb.copyToArray(output, 0, 10);
-	Expect(output[0]).withIndex(23).toEqual(4);
-	Expect(output[6]).withIndex(24).toEqual(10);
+	Expect(output[0]).withIndex(23).toEqual(123);
+	Expect(output[6]).withIndex(24).toEqual(129);
 	rb.resize(5);
 	Expect(rb.itemCount()).withIndex(25).toEqual(5);
 	Expect(rb.isFull()).withIndex(26).toEqual(true);

@@ -764,6 +764,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 		case MspFn::SET_OSD_CONFIG: {
 			BREAK_WITH_BASIC_ERROR_IF(reqLen < 1);
 			if (reqPayload[0] < 4) osdCanvasSizeSrc = reqPayload[0];
+			getSetting(SETTING_OSD_CANVAS_SIZE_SRC)->updateSettingInFile();
 			switch (osdCanvasSizeSrc) {
 			case 0: { // analog auto
 				u8 width, height;
@@ -771,10 +772,10 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				OsdCanvas::get().setSize(width, height, 0);
 			} break;
 			case 1: { // analog PAL
-				OsdCanvas::get().setSize(30, 16, 1);
+				OsdCanvas::get().setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_PAL, 1);
 			} break;
 			case 2: { // analog NTSC
-				OsdCanvas::get().setSize(30, 13, 2);
+				OsdCanvas::get().setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_NTSC, 2);
 			} break;
 			case 3: { // digital
 				OsdCanvas::get().setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT, 3);
@@ -1323,13 +1324,13 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				const SerialConfig &cfg = getSerialConfig(i);
 				buf[len] = 0;
 				if (!serial) {
-					len += 17; // TODO
+					len += 27; // TODO
 					continue;
 				}
 				KoliSerial &ser = *serial;
 				buf[len++] = 1; // serial exists
 				buf[len++] = (u8)ser.serialType;
-				memcpy(&buf[len], &ser.getBaurate(), 4);
+				memcpy(&buf[len], &ser.getBaudrate(), 4);
 				len += 4;
 				memcpy(&buf[len], &cfg.baud, 4);
 				len += 4;
@@ -1338,6 +1339,8 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				memcpy(&buf[len], &ser.functions(), 4);
 				len += 4;
 				buf[len++] = cfg.hwParam;
+				buf[len++] = cfg.mspDpSettings;
+				len += 9; // reserved
 			}
 			sendMsp(msgSetup, buf, len);
 		} break;
@@ -1349,14 +1352,16 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			// 6-9: functions
 			// 10: tx pin
 			// 11: rx pin
+			// 12: msp dp settings
+			// 13-21: reserved for future use, should be 0
 
 			// only allow full configs per serial, and first serial (USB) cannot be reconfigured
-			int totalSerials = reqLen / 12;
-			BREAK_WITH_BASIC_ERROR_IF(reqLen % 12 != 0 || totalSerials > SERIAL_COUNT - 1 || armed);
+			int totalSerials = reqLen / 22;
+			BREAK_WITH_BASIC_ERROR_IF(reqLen % 22 != 0 || totalSerials > SERIAL_COUNT - 1 || armed);
 			bool ok = true;
 			string errorMsg = "You should not be able to even make something this incorrect. Configurator error.\n";
 			for (int i = 0; i < totalSerials; i++) {
-				const char *ser = &reqPayload[i * 12];
+				const char *ser = &reqPayload[i * 22];
 				SerialType type = (SerialType)ser[0];
 				u8 hwParam = ser[1];
 				if (type == SerialType::DISABLED) continue; // serial disabled
@@ -1445,7 +1450,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 					continue;
 				}
 
-				const u8 *ser = (const u8 *)&reqPayload[i * 12];
+				const u8 *ser = (const u8 *)&reqPayload[i * 22];
 				if (ser[0] == 255) {
 					// serial is disabled
 					newCfgs[i] = {
@@ -1464,6 +1469,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 					.hwParam = (u8)ser[1],
 					.txPin = (u8)ser[10],
 					.rxPin = (u8)ser[11],
+					.mspDpSettings = ser[12],
 				};
 				memcpy(&newCfgs[i].baud, &ser[2], 4);
 				memcpy(&newCfgs[i].functions, &ser[6], 4);

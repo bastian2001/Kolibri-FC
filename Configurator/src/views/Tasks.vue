@@ -44,6 +44,7 @@ const TASK_NAMES = [
 	'        - Mag Read',
 	'        - Mag Eval',
 	'    - OSD',
+	'        - Analog OSD',
 	'    - VTX',
 	'    - Task Manager',
 	'Loop 1',
