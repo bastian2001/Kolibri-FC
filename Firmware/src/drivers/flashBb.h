@@ -84,7 +84,7 @@ private:
 	u8 currentPage = 0;
 	u8 writeBuf[512];
 	u32 currentFilePos = 0;
-	u16 currentPagePos = 0;
+	size_t currentPagePos = 0;
 
 	u8 metaPage = 0xFF;
 	u8 metaPagePart = 0;
