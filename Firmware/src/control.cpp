@@ -116,7 +116,13 @@ static fix32 stickThr; // 0...1024
 
 static void inline getStickPos() {
 	fix32 smoothChannels[4]; // smoothed RC channel values (1000ish to 2000ish)
+	bool entered = mutex_try_enter(&elrs->channelMutex, nullptr);
+	if (!entered) entered = mutex_enter_timeout_us(&elrs->channelMutex, 20);
+	// if we did not get the mutex, we can still compute the values, worst case there is some jitter on this frame, but this is a much lower problem than blocking for too long and causing a delayed reaction to the pilot's input
 	elrs->getSmoothChannels(smoothChannels);
+	if (entered) {
+		mutex_exit(&elrs->channelMutex);
+	}
 
 	stickPos[0] = (smoothChannels[0] - 1500) >> 9;
 	stickPos[1] = (smoothChannels[1] - 1500) >> 9;

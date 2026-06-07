@@ -110,6 +110,7 @@ struct __attribute__((packed)) crsf_channels_13 {
 
 RingBuffer<u8> elrsBuffer(ELRS_BUFFER_SIZE);
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
+mutex_t ExpressLRS::channelMutex;
 
 ExpressLRS::ExpressLRS(KoliSerial *serial)
 	: serial(serial) {
@@ -119,6 +120,8 @@ ExpressLRS::ExpressLRS(KoliSerial *serial)
 	interpConfig2 = interp_default_config();
 	interp_config_set_clamp(&interpConfig2, 1);
 	frequencyTimer = 1000000;
+	if (!mutex_is_initialized(&channelMutex))
+		mutex_init(&channelMutex);
 }
 
 void ExpressLRS::loop() {
@@ -311,11 +314,16 @@ void ExpressLRS::processMessage() {
 		for (int i = 0; i < 4; i++) {
 			smooth2[i] = smooth[i].geti32();
 		}
-		memcpy(lastChannels, smooth2, 4 * sizeof(u32));
-		memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
-		sinceLastRCMessage = 0;
-		memcpy(channels, pChannels, 16 * sizeof(u32));
-		newPacketFlag = 0xFFFFFFFF;
+		bool entered = mutex_try_enter(&channelMutex, nullptr);
+		if (!entered) entered = mutex_enter_timeout_us(&channelMutex, 100);
+		if (entered) {
+			memcpy(lastChannels, smooth2, 4 * sizeof(u32));
+			memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
+			sinceLastRCMessage = 0;
+			memcpy(channels, pChannels, 16 * sizeof(u32));
+			mutex_exit(&channelMutex);
+			newPacketFlag = 0xFFFFFFFF;
+		}
 		rcPacketRateCounter++;
 		rcMsgCount++;
 	} break;
@@ -441,11 +449,16 @@ void ExpressLRS::processMessage() {
 		for (int i = 0; i < 4; i++) {
 			smooth2[i] = smooth[i].geti32();
 		}
-		memcpy(lastChannels, smooth2, 4 * sizeof(u32));
-		memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
-		sinceLastRCMessage = 0;
-		memcpy(channels, pChannels, 16 * sizeof(u32));
-		newPacketFlag = 0xFFFFFFFF;
+		bool entered = mutex_try_enter(&channelMutex, nullptr);
+		if (!entered) entered = mutex_enter_timeout_us(&channelMutex, 100);
+		if (entered) {
+			memcpy(lastChannels, smooth2, 4 * sizeof(u32));
+			memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
+			sinceLastRCMessage = 0;
+			memcpy(channels, pChannels, 16 * sizeof(u32));
+			mutex_exit(&channelMutex);
+			newPacketFlag = 0xFFFFFFFF;
+		}
 		rcPacketRateCounter++;
 		rcMsgCount++;
 	} break;
