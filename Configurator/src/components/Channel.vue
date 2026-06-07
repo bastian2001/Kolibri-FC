@@ -27,6 +27,10 @@ export default defineComponent({
 		value: {
 			type: Number,
 			required: true,
+		},
+		title: {
+			type: String,
+			required: false,
 		}
 	},
 	data() {
@@ -42,7 +46,7 @@ export default defineComponent({
 	<div class="channelOuter">
 		<div class="channelProgress" :style="`width: ${map(constrain(value, 800, 2200), 800, 2200, 0, 100)}%`"></div>
 		<div class="channelValue">
-			{{ Math.round(value) }}
+			{{ (title + ': ' || '') + Math.round(value) }}
 		</div>
 	</div>
 </template>
@@ -69,6 +73,7 @@ export default defineComponent({
 	text-align: center;
 	color: white;
 	font-weight: bold;
+	font-size: 0.9rem;
 }
 
 .channelProgress {
