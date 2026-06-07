@@ -85,6 +85,7 @@ export function parseBlackboxHeader(header: Uint8Array): BBLog | string {
 		frameCount: 0,
 		usedFastDownload: false,
 		frameLoadingStatus: new Uint8Array(0),
+		possibleFrameTypes: 1,
 		frameSize: 0,
 		framesPerSecond: 0,
 		frequencyDivider: 0,
@@ -151,6 +152,11 @@ export function parseBlackboxHeader(header: Uint8Array): BBLog | string {
 	})
 
 	const flags = bbLog.flags
+
+	if (flags.includes("LOG_ELRS_RAW")) bbLog.possibleFrameTypes |= 0b00010
+	if (flags.includes("LOG_GPS")) bbLog.possibleFrameTypes |= 0b00100
+	if (flags.includes("LOG_VBAT")) bbLog.possibleFrameTypes |= 0b01000
+	if (flags.includes("LOG_LINK_STATS")) bbLog.possibleFrameTypes |= 0b10000
 
 	bbLog.motorPoles = header[150]
 	bbLog.disarmReason = header[151]

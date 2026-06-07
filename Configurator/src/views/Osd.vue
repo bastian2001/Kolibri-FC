@@ -316,7 +316,6 @@ function dragStart(index: number, event: DragEvent, type: 'copy' | 'move', grabb
 	dragTrashHover.value = false;
 }
 function dragEnd(event: DragEvent) {
-	console.log('end')
 	event.preventDefault();
 	dragging.value = 'none'
 }
@@ -357,7 +356,6 @@ function dragoverTrash(event: DragEvent) {
 }
 function dropTrash(event: DragEvent) {
 	event.preventDefault();
-	console.log('drop')
 	delete activeElements.value[draggingIndex.value];
 	collapse();
 	draggingIndex.value = -1;
