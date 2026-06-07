@@ -111,6 +111,12 @@ struct __attribute__((packed)) crsf_channels_13 {
 RingBuffer<u8> elrsBuffer(ELRS_BUFFER_SIZE);
 interp_config ExpressLRS::interpConfig0, ExpressLRS::interpConfig1, ExpressLRS::interpConfig2;
 mutex_t ExpressLRS::channelMutex;
+u32 ExpressLRS::connectionLostUs = 400000;
+
+void initElrs() {
+	mutex_init(&ExpressLRS::channelMutex);
+	addSetting(SETTING_RX_LOST_US, &ExpressLRS::connectionLostUs, 500000);
+}
 
 ExpressLRS::ExpressLRS(KoliSerial *serial)
 	: serial(serial) {
@@ -120,32 +126,36 @@ ExpressLRS::ExpressLRS(KoliSerial *serial)
 	interpConfig2 = interp_default_config();
 	interp_config_set_clamp(&interpConfig2, 1);
 	frequencyTimer = 1000000;
-	if (!mutex_is_initialized(&channelMutex))
-		mutex_init(&channelMutex);
+	applyDefaultChannels();
 }
 
 void ExpressLRS::loop() {
 	TASK_START(TASK_ELRS);
 
 	// maintain link state
-	if (frequencyTimer >= 1000000) {
-		if (rcPacketRateCounter > 20 && rcMsgCount > 300)
-			isLinkUp = true;
-		else
-			isLinkUp = false;
+	if (frequencyTimer >= 50000) {
+		frequencyTimer = 0;
+		isLinkUp = sinceLastRcMessage < connectionLostUs;
+		if (!isLinkUp) {
+			applyDefaultChannels();
+		}
 		if (msgCount)
 			isReceiverUp = true;
 		else // force receiver to send something so that we get knowledge of its existence
 			this->sendExtPacket(FRAMETYPE_DEVICE_PING, ADDRESS_CRSF_RECEIVER, ADDRESS_FLIGHT_CONTROLLER, nullptr, 0);
-		actualPacketRate = rcPacketRateCounter;
-		packetRateCounter = 0;
-		rcPacketRateCounter = 0;
-		frequencyTimer = 0;
+
+		if (++maintenanceCounter >= 20) {
+			maintenanceCounter = 0;
+			actualPacketRate = rcPacketRateCounter;
+			packetRateCounter = 0;
+			rcPacketRateCounter = 0;
+		}
 	}
 
 	int inBufAvail = elrsBuffer.itemCount();
 	if (inBufAvail >= ELRS_BUFFER_SIZE) {
 		ELRS_RAISE_ERROR(ERROR_BUFFER_OVERFLOW);
+		elrsBuffer.clear();
 		TASK_END(TASK_ELRS);
 		return;
 	}
@@ -319,9 +329,10 @@ void ExpressLRS::processMessage() {
 		if (entered) {
 			memcpy(lastChannels, smooth2, 4 * sizeof(u32));
 			memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
-			sinceLastRCMessage = 0;
+			sinceLastRcMessage = 0;
 			memcpy(channels, pChannels, 16 * sizeof(u32));
 			mutex_exit(&channelMutex);
+			if (!isLinkUp) memcpy(lastChannels, channels, 16 * sizeof(u32)); // if the link was down, set lastChannels to prevent incorrect smoothing
 			newPacketFlag = 0xFFFFFFFF;
 		}
 		rcPacketRateCounter++;
@@ -454,8 +465,9 @@ void ExpressLRS::processMessage() {
 		if (entered) {
 			memcpy(lastChannels, smooth2, 4 * sizeof(u32));
 			memcpy(&lastChannels[4], &channels[4], 12 * sizeof(u32));
-			sinceLastRCMessage = 0;
+			sinceLastRcMessage = 0;
 			memcpy(channels, pChannels, 16 * sizeof(u32));
+			if (!isLinkUp) memcpy(lastChannels, channels, 16 * sizeof(u32)); // if the link was down, set lastChannels to prevent incorrect smoothing
 			mutex_exit(&channelMutex);
 			newPacketFlag = 0xFFFFFFFF;
 		}
@@ -470,7 +482,7 @@ void ExpressLRS::processMessage() {
 		uplinkRssi[0] = -inPayload[0];
 		uplinkRssi[1] = -inPayload[1];
 		uplinkLinkQuality = inPayload[2];
-		uplinkSNR = inPayload[3];
+		uplinkSnr = inPayload[3];
 		antennaSelection = inPayload[4];
 		packetRateIdx = inPayload[5];
 		if (packetRateIdx < 20)
@@ -482,7 +494,7 @@ void ExpressLRS::processMessage() {
 		txPower = powerStates[inPayload[6]];
 		downlinkRssi = -inPayload[7];
 		downlinkLinkQuality = inPayload[8];
-		downlinkSNR = inPayload[9];
+		downlinkSnr = inPayload[9];
 		newLinkStatsFlag = 0xFFFFFFFF;
 	} break;
 	case FRAMETYPE_DEVICE_PING: {
@@ -611,7 +623,7 @@ bool ExpressLRS::parseChar(u8 c) {
 
 void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 	// one new RC message every 4ms = 4000µs, ELRS 250Hz
-	int sinceLast = sinceLastRCMessage;
+	int sinceLast = sinceLastRcMessage;
 	if (sinceLast > 8000) {
 		sinceLast = 8000;
 	}
@@ -626,7 +638,7 @@ void ExpressLRS::getSmoothChannels(fix32 smoothChannels[4]) {
 		interp0->base[0] = lastChannels[i] << 16;
 		interp0->base[1] = (channels[i] * 2 - lastChannels[i]) << 16;
 		interp1->accum[0] = interp0->peek[1];
-		smoothChannels[i].setRaw(interp1->peek[0]);
+		smoothChannels[i].raw = interp1->peek[0];
 	}
 }
 
@@ -840,4 +852,18 @@ void ExpressLRS::processMspReq() {
 		processMspCmd(*serial, MspMsgType::REQUEST, (MspFn)this->mspRxCmd, this->mspVersion, (char *)this->mspRxPayload, this->mspRxPayloadLen);
 		this->resetMsp();
 	}
+}
+
+void ExpressLRS::applyDefaultChannels() {
+	for (int i = 0; i < 16; i++) {
+		switch (i) {
+		case 2:
+			channels[i] = 989;
+			break;
+		default:
+			channels[i] = 1500;
+			break;
+		}
+	}
+	memcpy(lastChannels, channels, 16 * sizeof(u32));
 }

@@ -241,7 +241,7 @@ static inline void writeElrsLinkToBlackbox() {
 	buf[0] = -elrs->uplinkRssi[0];
 	buf[1] = -elrs->uplinkRssi[1];
 	buf[2] = elrs->uplinkLinkQuality;
-	buf[3] = elrs->uplinkSNR;
+	buf[3] = elrs->uplinkSnr;
 	buf[4] = elrs->antennaSelection;
 	buf[5] = elrs->targetPacketRate;
 	buf[6] = elrs->targetPacketRate >> 8;

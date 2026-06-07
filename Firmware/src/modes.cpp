@@ -139,7 +139,7 @@ void modesLoop() {
 			setFlightMode(newFlightMode);
 		}
 		TASK_END(TASK_MODES);
-	} else if (elrs->sinceLastRCMessage >= 500000 && armed) {
+	} else if (elrs->isLinkUp && armed) {
 		disarm(DisarmReason::RXLOSS);
 	}
 

@@ -31,6 +31,7 @@
 // https://github.com/crsf-wg/crsf/wiki
 
 extern RingBuffer<u8> elrsBuffer;
+void initElrs();
 
 typedef struct crsfDevice {
 	char name[32];
@@ -69,9 +70,9 @@ public:
 	static mutex_t channelMutex; // core 0 reserves for writing, core 1 for reading, to prevent incorrect smoothing
 
 	// custom link info
-	elapsedMicros sinceLastRCMessage; // time (µs) since the last valid RC message was received
+	elapsedMicros sinceLastRcMessage; // time (µs) since the last valid RC message was received
 	elapsedMicros sinceLastMessage; // time (µs) since the last valid message was received
-	bool isLinkUp = false; // true if the link is up (300 RC messages received and 20 in the last second)
+	bool isLinkUp = false; // true if the link is up (sinceLastRcMessage < connectionLostUs)
 	bool isReceiverUp = false; // true if the receiver recognized (1 message in the last second)
 	u32 msgCount = 0; // total count of any received message
 	u32 rcMsgCount = 0; // total count of received RC messages
@@ -80,13 +81,13 @@ public:
 	// ELRS provided link stats
 	i16 uplinkRssi[2] = {}; // RX RSSI values of both antennas (signed, more negative = worse)
 	u8 uplinkLinkQuality = 0; // RX packet success rate 0-100 [%]
-	i8 uplinkSNR = 0; // RX SNR in dB
+	i8 uplinkSnr = 0; // RX SNR in dB
 	u8 antennaSelection = 0; // used antenna (0 = antenna 1, 1 = antenna 2)
 	u8 packetRateIdx = 0; // packet rate index
 	u16 txPower = 0; // current TX power in mW
 	i16 downlinkRssi = 0; // telemetry RSSI (signed, more negative = worse)
 	u8 downlinkLinkQuality = 0; // telemetry packet success rate 0-100 [%]
-	i8 downlinkSNR = 0; // telemetry SNR in dB
+	i8 downlinkSnr = 0; // telemetry SNR in dB
 	u16 targetPacketRate = 0; // in Hz
 
 	// communication errors
@@ -199,6 +200,8 @@ public:
 	static constexpr u8 ADDRESS_CRSF_TRANSMITTER = 0xEE;
 	static constexpr u8 ADDRESS_CRSF_BROADCAST = 0x00;
 
+	static u32 connectionLostUs; // time (µs) after which the connection is considered lost if no valid RC message is received
+
 private:
 	// constants needed for encoding/decoding packets
 	static constexpr u16 powerStates[9] = {0, 10, 25, 100, 500, 1000, 2000, 250, 50};
@@ -246,6 +249,7 @@ private:
 	elapsedMicros heartbeatTimer;
 	u32 rcPacketRateCounter = 0;
 	u32 packetRateCounter = 0;
+	u32 maintenanceCounter = 0;
 
 	// Other devices
 	std::list<CrsfDevice> deviceList;
@@ -268,4 +272,5 @@ private:
 	MspVersion mspVersion = MspVersion::V2_OVER_CRSF;
 	void resetMsp(bool setError = false);
 	void processMspReq();
+	void applyDefaultChannels();
 };
