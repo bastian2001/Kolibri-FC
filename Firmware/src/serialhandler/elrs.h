@@ -66,6 +66,7 @@ public:
 	u32 lastChannels[16] = {}; // RC channels from the last packet (1000-2000 for switches, 988-2012 for other sticks)
 	u32 newPacketFlag = 0; // flags for new RC packets (set to 0xFFFFFFFF when a new packet is received)
 	u32 newLinkStatsFlag = 0; // flags for new link stats (set to 0xFFFFFFFF when a new link stats are available)
+	static mutex_t channelMutex; // core 0 reserves for writing, core 1 for reading, to prevent incorrect smoothing
 
 	// custom link info
 	elapsedMicros sinceLastRCMessage; // time (µs) since the last valid RC message was received
