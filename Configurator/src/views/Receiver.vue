@@ -167,12 +167,11 @@ export default defineComponent({
 				try {
 					const c = await sendCommand(MspFn.RC)
 					const channelCount = c.data.length / 2;
-					if (channelCount !== this.channels.length) {
-						this.channels = new Array(channelCount).fill(1500);
+					const newChannels: number[] = [];
+					for (let i = 0; i < channelCount; i++) {
+						newChannels.push(leBytesToInt(c.data, i * 2, 2));
 					}
-					for (let i = 0; i < 16; i++) {
-						this.channels[i] = leBytesToInt(c.data, i * 2, 2);
-					}
+					this.channels = newChannels;
 				} catch (_) {
 					await delay(10) // avoid hung program if sendCommand rejects immediately
 				}
