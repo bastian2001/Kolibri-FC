@@ -497,10 +497,6 @@ export default defineComponent({
 						res.length === 288
 				})
 
-				if (leBytesToInt(c.data, 0, 2) !== logNum) {
-					this.configuratorLog.push("got invalid response when asking for log")
-					return
-				}
 				const header = c.data.slice(32)
 				const meta = c.data.slice(0, 32)
 				const fileSize = leBytesToInt(meta, 3, 4)

@@ -75,7 +75,7 @@ export default defineComponent({
 				bytes[byte] |= 1 << bit;
 			}
 
-			sendCommand(MspFn.SET_BB_SETTINGS, [this.divider, ...bytes])
+			sendCommand(MspFn.SET_BB_SETTINGS, [this.divider, ...bytes, this.syncFreq])
 				.then(() => { return sendCommand(MspFn.SAVE_SETTINGS) })
 				.then(() => { return this.$emit('close') })
 				.catch(() => {

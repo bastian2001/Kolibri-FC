@@ -865,6 +865,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			openSettingsFile();
 			getSetting(SETTING_BB_DIV)->updateSettingInFile();
 			getSetting(SETTING_BB_FLAGS)->updateSettingInFile();
+			getSetting(SETTING_BB_SYNC)->updateSettingInFile();
 #else
 			msgSetup.type = MspMsgType::ERROR;
 			sendMsp(msgSetup);
