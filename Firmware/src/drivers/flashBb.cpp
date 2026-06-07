@@ -430,9 +430,7 @@ bool Fckafd::exists(u16 num) {
 }
 
 FlashFile Fckafd::open(u16 num, oflag_t oflag) {
-	printfIndMessage("Open %d", num);
 	if (!fsReady) return FlashFile();
-	printIndMessage("FS ready");
 	if (oflag == O_RDONLY) {
 		return FlashFile(0, num, false, *this);
 	}
@@ -559,7 +557,6 @@ FlashFile::FlashFile(u8 partition, u16 fileNum, bool forWrite, Fckafd &fs) : fck
 						fileSize = DECODE_U4(&buf[3]);
 						foundFile = true;
 						fck->getData(0, page, offset + 512 + 126, 130, buf);
-						printfIndMessage("Opening file %d for read on page %d with offset %d. First block %d, last block %d, total file size %d. Start time %d", fileNum, page, offset, firstBlock, lastBlock, fileSize, startTime);
 						for (int i = 0; i < 26; i++) {
 							int pos = i * 5;
 							u32 bytePos = DECODE_U4(&buf[pos]);
