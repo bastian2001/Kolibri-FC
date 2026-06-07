@@ -137,6 +137,13 @@ export default defineComponent({
 						this.handleFileChunk(command.data);
 						break;
 				}
+			} else if (command.cmdType === 'error') {
+				switch (command.command) {
+					case MspFn.BB_FAST_DATA_REQ:
+						if (this.stopFetchingFrames) this.stopFetchingFrames()
+						this.configuratorLog.push('Failed to download file: ' + command.dataStr);
+						break;
+				}
 			}
 		},
 		getFileList() {
@@ -344,7 +351,7 @@ export default defineComponent({
 			let resSize = 2
 			for (; i < maxReqCount; i++) {
 				const fr = frames[i]
-				const fl = 0x1F ^ log.frameLoadingStatus[fr]
+				const fl = (0x1F ^ log.frameLoadingStatus[fr]) & log.possibleFrameTypes
 				const resFrameLength =
 					((fl & 0b00001) ? log.frameSize : 0) +
 					((fl & 0b00010) ? 14 : 0) +
@@ -372,7 +379,7 @@ export default defineComponent({
 			for (; i < reqCount; i++) {
 				const pos = 5 + i * 9
 				const fr = frames[i]
-				const fl = 0x1F ^ log.frameLoadingStatus[fr]
+				const fl = (0x1F ^ log.frameLoadingStatus[fr]) & log.possibleFrameTypes
 
 				reqData.set(intToLeBytes(fr, 4), pos)
 				reqData[pos + 4] = fl
@@ -664,10 +671,7 @@ export default defineComponent({
 			}
 
 			const spawnFetcherInstance = async () => {
-				while (true) {
-					if (stop) {
-						return
-					}
+				while (!stop) {
 					if (!this.loadedLog) {
 						await delay(20)
 						continue
