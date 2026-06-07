@@ -907,6 +907,7 @@ void printFastDataReq(KoliSerial &serial, MspVersion mspVer, u16 sequenceNum, u1
 		u32 framePos = 0;
 		bool searchingBackwards = true;
 		u32 frameNum = 0;
+		bool seekedToStart = false;
 		memset(frameBuffer, 0, frameSize);
 
 		/*
@@ -926,8 +927,12 @@ void printFastDataReq(KoliSerial &serial, MspVersion mspVer, u16 sequenceNum, u1
 			if (nextSyncPos == 0xFFFFFFFFUL)
 				return sendMsp(s, "Error 1 while reading file", strlen("Error 1 while reading file"));
 			if (nextSyncPos == 0) {
+				if (seekedToStart) {
+					return sendMsp(s, "Error 0 while reading file", strlen("Error 0 while reading file"));
+				}
 				nextSyncPos = 256;
 				frameNum = 0;
+				seekedToStart = true;
 			}
 			file.seek(nextSyncPos);
 			nextSyncPos = 0xFFFFFFFFUL;

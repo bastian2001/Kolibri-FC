@@ -160,7 +160,7 @@ void Fckafd::invalidateCaches() {
 }
 
 u16 Fckafd::getData(u16 block, u8 page, u16 start, u16 length, u8 *buf) {
-	if ((u32)start + (u32)length > 2176) return 0;
+	if ((u32)start + (u32)length > 2176 || length == 0) return 0;
 	// TODO caching
 	// if (start < 2048) {
 	// 	u8 needSecs = 0b0000;
@@ -196,7 +196,7 @@ void Fckafd::pageRead(u16 block, u8 page, bool getFeatureWait) {
 }
 
 u16 Fckafd::readFromCache(u16 block, u16 start, u16 length, u8 *buf) {
-	if ((u32)start + (u32)length > 2176) return 0;
+	if ((u32)start + (u32)length > 2176 || length == 0) return 0;
 	start |= (block & 0b1) << 12;
 	const u16 lenBackup = length;
 	gpio_put(PIN_FLASH_CS, false);
@@ -430,9 +430,7 @@ bool Fckafd::exists(u16 num) {
 }
 
 FlashFile Fckafd::open(u16 num, oflag_t oflag) {
-	printfIndMessage("Open %d", num);
 	if (!fsReady) return FlashFile();
-	printIndMessage("FS ready");
 	if (oflag == O_RDONLY) {
 		return FlashFile(0, num, false, *this);
 	}
@@ -559,7 +557,6 @@ FlashFile::FlashFile(u8 partition, u16 fileNum, bool forWrite, Fckafd &fs) : fck
 						fileSize = DECODE_U4(&buf[3]);
 						foundFile = true;
 						fck->getData(0, page, offset + 512 + 126, 130, buf);
-						printfIndMessage("Opening file %d for read on page %d with offset %d. First block %d, last block %d, total file size %d. Start time %d", fileNum, page, offset, firstBlock, lastBlock, fileSize, startTime);
 						for (int i = 0; i < 26; i++) {
 							int pos = i * 5;
 							u32 bytePos = DECODE_U4(&buf[pos]);
@@ -585,9 +582,11 @@ bool FlashFile::seek(u32 newPos) {
 		privateFlush();
 	}
 
-	currentBlock = firstBlock + newPos / (fck->pageCount * fck->pageSize);
-	currentPage = (newPos % (fck->pageCount * fck->pageSize)) / fck->pageSize;
-	currentPagePos = newPos % fck->pageSize;
+	const size_t blockSize = fck->pageSize * fck->pageCount;
+	currentBlock = firstBlock + newPos / blockSize;
+	const size_t blockOffset = newPos % blockSize;
+	currentPage = blockOffset / fck->pageSize;
+	currentPagePos = blockOffset % fck->pageSize;
 	currentFilePos = newPos;
 	return true;
 }
@@ -629,37 +628,31 @@ i32 FlashFile::read(u8 *buffer, size_t length) {
 	const u32 startFPos = currentFilePos;
 
 	// simplest read: no page boundary
-	if (currentPagePos + length <= 2048) {
+	if (currentPagePos + length <= fck->pageSize) {
 		fck->getData(currentBlock, currentPage, currentPagePos, length, buffer);
-		for (auto &cb : corrBytes) {
-			if (cb.pos >= startFPos && cb.pos < endExcl) {
-				buffer[cb.pos - startFPos] = cb.byte;
-			}
-		}
 		moveCursorFwd(length);
-		return length;
-	}
-
-	// else read first (part) page
-	u16 thisLength = 2048 - currentPagePos;
-	size_t bufPos = 0;
-	fck->getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
-	bufPos += thisLength;
-	moveCursorFwd(thisLength);
-
-	// as long as we can still read full pages
-	thisLength = fck->pageSize;
-	while (bufPos + thisLength < length) {
-		fck->getData(currentBlock, currentPage, 0, thisLength, buffer + bufPos);
+	} else {
+		// else read first (part) page
+		size_t thisLength = fck->pageSize - currentPagePos;
+		size_t bufPos = 0;
+		fck->getData(currentBlock, currentPage, currentPagePos, thisLength, buffer);
 		bufPos += thisLength;
 		moveCursorFwd(thisLength);
-	}
 
-	// read remaining bytes
-	thisLength = length - bufPos;
-	fck->getData(currentBlock, currentPage, 0, thisLength, buffer + bufPos);
-	bufPos += thisLength;
-	moveCursorFwd(thisLength);
+		// as long as we can still read full pages
+		thisLength = fck->pageSize;
+		while (length - bufPos > fck->pageSize) {
+			fck->getData(currentBlock, currentPage, 0, thisLength, buffer + bufPos);
+			bufPos += thisLength;
+			moveCursorFwd(thisLength);
+		}
+
+		// read remaining bytes
+		thisLength = length - bufPos;
+		fck->getData(currentBlock, currentPage, 0, thisLength, buffer + bufPos);
+		// bufPos += thisLength;
+		moveCursorFwd(thisLength);
+	}
 
 	for (auto &cb : corrBytes) {
 		if (cb.pos >= startFPos && cb.pos < endExcl) {
