@@ -35,7 +35,7 @@
 #include "serialhandler/elrs.h"
 #include "serialhandler/gps.h"
 #include "serialhandler/msp.h"
-#include "settings/arraySetting.h"
+// #include "settings/arraySetting.h"
 #include "settings/littleFs.h"
 #include "settings/setting.h"
 #include "settings/settingIds.h"

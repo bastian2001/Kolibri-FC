@@ -1,3 +1,24 @@
+#pragma once
+#include global.h
+
+#define KiB (1024U)
+
+#define DEFINE_REALM(NAME, START, LENGTH)       \
+	constexpr bool REALM_##NAME = true;         \
+	constexpr u32 REALM_##NAME##_START = START; \
+	constexpr size_t REALM_##NAME##_END = START + LENGTH - 1;
+
+#define ADD_SETTING(NAME, POS, LENGTH, REALM)                                                                           \
+	static_assert(REALM_##REALM, "Realm " #REALM " is not defined for setting " #NAME);                                 \
+	static_assert(POS >= REALM_##REALM##_START && (POS + LENGTH - 1) <= REALM_##REALM##_END,                            \
+				  "Setting " #NAME " at position " #POS " with length " #LENGTH " is out of bounds for realm " #REALM); \
+	constexpr uint16_t SETTING_##NAME##_POS = POS;                                                                      \
+	constexpr uint16_t SETTING_##NAME##_LENGTH = LENGTH;
+
+DEFINE_REALM(TEST, 0, 500)
+
+ADD_SETTING(TEST, 0, 24, TEST);
+
 // accelerometer settings
 #define SETTING_ACC_CAL "accel_calibration"
 #define SETTING_ACC_FILTER_CUTOFF "accel_filter_cutoff"
@@ -50,3 +71,5 @@
 #define SETTING_TIMEZONE_OFFSET "timezone_offset_mins"
 #define SETTING_START_SOUND "start_wav"
 #define SETTING_START_FALLBACK_RTTTL "start_sound_fallback"
+
+#undef KiB
