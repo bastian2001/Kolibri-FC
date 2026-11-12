@@ -250,7 +250,7 @@ export default defineComponent({
 					RSSI: {{ uplinkRssi[0] }}dBm, {{ uplinkRssi[1] }}dBm<br />
 					LQI: {{ uplinkLinkQuality }}%<br />
 					SNR: {{ uplinkSnr }}dB<br />
-					Antenna {{ antennaSelection }} is used<br />
+					Antenna {{ String.fromCharCode(0x41 + antennaSelection) }} is used<br />
 					Packet Rate index {{ packetRateIdx }} ({{ targetPacketRate }}Hz) => actual {{ actualPacketRate
 					}}Hz<br />
 					TX Power: {{ txPower }}mW<br />
