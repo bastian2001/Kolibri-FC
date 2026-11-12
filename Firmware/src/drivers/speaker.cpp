@@ -256,7 +256,7 @@ void speakerLoop() {
 	}
 #endif
 
-	if (!beeperOn && elrs && ((rxModes[RxModeIndex::BEEPER].isActive() && elrs->isLinkUp) || (elrs->sinceLastRCMessage > 240000000 && elrs->rcMsgCount > 50))) {
+	if (!beeperOn && elrs && ((rxModes[RxModeIndex::BEEPER].isActive() && elrs->isLinkUp) || (elrs->sinceLastRcMessage > 240000000 && elrs->rcMsgCount > 50))) {
 		beeperOn = true;
 		makeSweepSound(1000, 5000, 65535, 600, 0);
 	} else if (beeperOn && elrs && (!rxModes[RxModeIndex::BEEPER].isActive() && elrs->isLinkUp)) {

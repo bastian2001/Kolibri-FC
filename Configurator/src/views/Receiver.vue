@@ -42,7 +42,7 @@ export default defineComponent({
 			actualPacketRate: 0,
 			txPower: 0,
 			rcMsgCount: 0,
-			channels: new Array(16).fill(1500),
+			channels: new Array(16).fill(1500) as number[],
 			channelInterval: -1,
 			exiting: false,
 			rxModes: [
@@ -62,6 +62,8 @@ export default defineComponent({
 			crsfDevices: [] as CrsfDevice[],
 			subbedTo: 0,
 			getInterval: -1,
+			rcPreviewType: 'mode2' as 'mode2' | 'mode1',
+			channelNames: ['Roll', 'Pitch', 'Throttle', 'Yaw'],
 		};
 	},
 	components: {
@@ -88,7 +90,7 @@ export default defineComponent({
 					this.rcMsgCount = leBytesToInt(c.data, 14, 4);
 				})
 				.catch(() => { });
-		}, 1000);
+		}, 100);
 		this.scanDevices()
 		this.getInterval = setInterval(this.getDevices, 200)
 		this.relaxGetter()
@@ -165,12 +167,11 @@ export default defineComponent({
 				try {
 					const c = await sendCommand(MspFn.RC)
 					const channelCount = c.data.length / 2;
-					if (channelCount !== this.channels.length) {
-						this.channels = new Array(channelCount).fill(1500);
+					const newChannels: number[] = [];
+					for (let i = 0; i < channelCount; i++) {
+						newChannels.push(leBytesToInt(c.data, i * 2, 2));
 					}
-					for (let i = 0; i < 16; i++) {
-						this.channels[i] = leBytesToInt(c.data, i * 2, 2);
-					}
+					this.channels = newChannels;
 				} catch (_) {
 					await delay(10) // avoid hung program if sendCommand rejects immediately
 				}
@@ -202,6 +203,16 @@ export default defineComponent({
 				.then(this.getModes)
 				.catch(() => { });
 		},
+		getStick(gimbal: number, axis: 'x' | 'y') {
+			if (axis == 'x') {
+				return (this.channels[gimbal ? 0 : 3] - 989) / 1024
+			}
+			if (this.rcPreviewType === 'mode2') {
+				return (this.channels[gimbal ? 1 : 2] - 989) / 1024
+			} else {
+				return (this.channels[gimbal ? 2 : 1] - 989) / 1024
+			}
+		}
 	}
 })
 </script>
@@ -212,7 +223,24 @@ export default defineComponent({
 		</div>
 		<div id="rxFlex">
 			<div id="rxChannels">
-				<Channel v-for="ch in channels" :value="ch" />
+				<Channel v-for="(ch, index) in channels" :value="ch"
+					:title="channelNames[index] || ('Aux ' + (index - 3))" />
+				<div class="rcPreview">
+					Preview Type:&nbsp;&nbsp;
+					<input type="radio" value="mode2" id="previewMode2" v-model="rcPreviewType">
+					<label for="previewMode2">Mode 2</label>&nbsp;&nbsp;&nbsp;
+					<input type="radio" value="mode1" id="previewMode1" v-model="rcPreviewType">
+					<label for="previewMode1">Mode 1</label>
+					<div class="gimbals">
+						<template v-for="i in [0, 1]">
+							<div class="gimbal">
+								<div class="stickDot" :style="`left:calc(85% * ${getStick(i, 'x')});
+									bottom: calc(85% * ${getStick(i, 'y')});`">
+								</div>
+							</div>
+						</template>
+					</div>
+				</div>
 			</div>
 			<div id="rxSettings">
 				<div id="rxStatus">
@@ -222,7 +250,7 @@ export default defineComponent({
 					RSSI: {{ uplinkRssi[0] }}dBm, {{ uplinkRssi[1] }}dBm<br />
 					LQI: {{ uplinkLinkQuality }}%<br />
 					SNR: {{ uplinkSnr }}dB<br />
-					Antenna {{ antennaSelection }} is used<br />
+					Antenna {{ String.fromCharCode(0x41 + antennaSelection) }} is used<br />
 					Packet Rate index {{ packetRateIdx }} ({{ targetPacketRate }}Hz) => actual {{ actualPacketRate
 					}}Hz<br />
 					TX Power: {{ txPower }}mW<br />
@@ -294,6 +322,28 @@ export default defineComponent({
 	min-width: 300px;
 	flex-grow: 1;
 	box-sizing: border-box;
+}
+
+.gimbals {
+	display: flex;
+	justify-content: space-around;
+	margin-top: 1rem;
+}
+
+.gimbal {
+	width: 40%;
+	max-width: 15rem;
+	aspect-ratio: 1;
+	border: 2px solid white;
+	position: relative;
+}
+
+.stickDot {
+	width: 15%;
+	aspect-ratio: 1;
+	background-color: #f44;
+	border-radius: 50%;
+	position: absolute;
 }
 
 #rxSettings {

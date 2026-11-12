@@ -75,6 +75,9 @@
 #define SETTING_ANGLE_BURST_COOLDOWN "poshold_angle_cooldown_time"
 #define SETTING_HVEL_STICK_DEADBAND "poshold_hvel_stick_deadband"
 
+// Receiver Settings
+#define SETTING_RX_LOST_US "rx_lost_timeout_us"
+
 // VTX settings
 #define SETTING_VTX_FREQ "vtx_frequency"
 #define SETTING_VTX_POWER "vtx_power_mw"

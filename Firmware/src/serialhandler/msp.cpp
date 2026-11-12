@@ -1182,7 +1182,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			buf[2] = elrs->uplinkRssi[0];
 			buf[3] = elrs->uplinkRssi[1];
 			buf[4] = elrs->uplinkLinkQuality;
-			buf[5] = elrs->uplinkSNR;
+			buf[5] = elrs->uplinkSnr;
 			buf[6] = elrs->antennaSelection;
 			buf[7] = elrs->packetRateIdx;
 			memcpy(&buf[8], &elrs->txPower, 2);
