@@ -67,6 +67,7 @@ void setup() {
 	trampInit();
 	initGPS();
 	initCli();
+	initElrs();
 
 	// init LEDs
 	p.recalculateClock();

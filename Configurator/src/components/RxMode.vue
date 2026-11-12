@@ -55,6 +55,7 @@ export default defineComponent({
 			mouseX: 0, // closest -120...120 position from range start grab
 			startMin: 0, // initial min value when range grab starts
 			displaySteps: [900, 1000, 1250, 1500, 1750, 2000, 2100],
+			autoTimeout: -1,
 		};
 	},
 	methods: {
@@ -204,20 +205,31 @@ export default defineComponent({
 			return channelValue >= this.minValue && channelValue <= this.maxValue;
 		}
 	},
+	onBeforeUnmount() {
+		clearTimeout(this.autoTimeout);
+	},
 	watch: {
 		rc: {
-			handler: function (newValue) {
+			handler: function (newValue, oldValue) {
 				if (this.auto) {
 					for (let i = 4; i < newValue.length && i < 14; i++) { // chan 14 and 15 are RSSI, 0-3 are sticks
 						if (Math.abs(newValue[i] - this.channelBackup[i]) > 100) {
 							this.$emit('update:channel', i);
-							let val = Math.round((newValue[i] - 1500) / 5);
-							val = Math.round(val / 10) * 10; // snap to 10
-							let min = val - 20;
-							let max = val + 20;
-							if (min < -120) min = -120;
-							if (max > 120) max = 120;
-							this.$emit('update:range', min, max);
+							clearTimeout(this.autoTimeout);
+							const oldV = oldValue[i];
+							const newV = newValue[i];
+							console.log(oldV, newV)
+							this.autoTimeout = setTimeout(() => {
+								// If the switch is moved back into its original position (oldV), we take the intermediate value (newV), but if it changed to a third position(this.rc[i]), we take the third position (delay for 3 pos switches, but no delay for momentaries)
+								let autoVal = oldV === this.rc[i] ? newV : this.rc[i];
+								let val = Math.round((autoVal - 1500) / 5);
+								val = Math.round(val / 10) * 10; // snap to 10
+								let min = val - 20;
+								let max = val + 20;
+								if (min < -120) min = -120;
+								if (max > 120) max = 120;
+								this.$emit('update:range', min, max);
+							}, 200)
 							this.auto = false;
 							break;
 						}

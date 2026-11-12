@@ -241,7 +241,7 @@ static inline void writeElrsLinkToBlackbox() {
 	buf[0] = -elrs->uplinkRssi[0];
 	buf[1] = -elrs->uplinkRssi[1];
 	buf[2] = elrs->uplinkLinkQuality;
-	buf[3] = elrs->uplinkSNR;
+	buf[3] = elrs->uplinkSnr;
 	buf[4] = elrs->antennaSelection;
 	buf[5] = elrs->targetPacketRate;
 	buf[6] = elrs->targetPacketRate >> 8;
@@ -907,6 +907,7 @@ void printFastDataReq(KoliSerial &serial, MspVersion mspVer, u16 sequenceNum, u1
 		u32 framePos = 0;
 		bool searchingBackwards = true;
 		u32 frameNum = 0;
+		bool seekedToStart = false;
 		memset(frameBuffer, 0, frameSize);
 
 		/*
@@ -926,8 +927,12 @@ void printFastDataReq(KoliSerial &serial, MspVersion mspVer, u16 sequenceNum, u1
 			if (nextSyncPos == 0xFFFFFFFFUL)
 				return sendMsp(s, "Error 1 while reading file", strlen("Error 1 while reading file"));
 			if (nextSyncPos == 0) {
+				if (seekedToStart) {
+					return sendMsp(s, "Error 0 while reading file", strlen("Error 0 while reading file"));
+				}
 				nextSyncPos = 256;
 				frameNum = 0;
+				seekedToStart = true;
 			}
 			file.seek(nextSyncPos);
 			nextSyncPos = 0xFFFFFFFFUL;

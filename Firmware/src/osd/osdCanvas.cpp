@@ -31,7 +31,7 @@ void OsdCanvas::begin() {
 
 	canvasSettingsFile.emplace(File());
 
-	setSize(30, 16, 255);
+	setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_PAL, 255);
 	setUpdateRate(osdRefreshRate);
 
 	bool newFile = openCanvasSettingsFile();

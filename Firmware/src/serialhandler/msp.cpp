@@ -772,10 +772,10 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 				OsdCanvas::get().setSize(width, height, 0);
 			} break;
 			case 1: { // analog PAL
-				OsdCanvas::get().setSize(30, 16, 1);
+				OsdCanvas::get().setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_PAL, 1);
 			} break;
 			case 2: { // analog NTSC
-				OsdCanvas::get().setSize(30, 13, 2);
+				OsdCanvas::get().setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_NTSC, 2);
 			} break;
 			case 3: { // digital
 				OsdCanvas::get().setSize(MSP_DP_DEFAULT_WIDTH, MSP_DP_DEFAULT_HEIGHT, 3);
@@ -865,6 +865,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			openSettingsFile();
 			getSetting(SETTING_BB_DIV)->updateSettingInFile();
 			getSetting(SETTING_BB_FLAGS)->updateSettingInFile();
+			getSetting(SETTING_BB_SYNC)->updateSettingInFile();
 #else
 			msgSetup.type = MspMsgType::ERROR;
 			sendMsp(msgSetup);
@@ -1181,7 +1182,7 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			buf[2] = elrs->uplinkRssi[0];
 			buf[3] = elrs->uplinkRssi[1];
 			buf[4] = elrs->uplinkLinkQuality;
-			buf[5] = elrs->uplinkSNR;
+			buf[5] = elrs->uplinkSnr;
 			buf[6] = elrs->antennaSelection;
 			buf[7] = elrs->packetRateIdx;
 			memcpy(&buf[8], &elrs->txPower, 2);

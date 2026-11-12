@@ -45,6 +45,7 @@ const TASK_NAMES = [
 	'        - Mag Eval',
 	'    - Soft Magnetometer',
 	'    - OSD',
+	'        - Analog OSD',
 	'    - VTX',
 	'    - Task Manager',
 	'Loop 1',

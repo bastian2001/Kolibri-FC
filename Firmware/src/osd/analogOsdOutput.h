@@ -39,23 +39,24 @@ public:
 
 	void setSize(u8 width, u8 height) override;
 
-	bool devDetected() { return isReady > 0; }
-	bool &isPal() { return isPalOutput; }
-	bool &isNtsc() { return isNtscOutput; }
+	bool devDetected() { return chipDetected; }
+	bool isPal() { return isPalOutput; }
+	bool isNtsc() { return isNtscOutput; }
 
 private:
 	AnalogOsdOutput() {
-		setSize(30, 16);
+		setSize(OSD_WIDTH_PAL_NTSC, OSD_HEIGHT_PAL);
 	}
 
 	void disableOutput();
 	void enableOutput();
 
-	u8 isReady = 0;
+	bool chipDetected = false;
+	bool hasVideoIn = false;
 	bool isPalOutput = false;
 	bool isNtscOutput = false;
 	elapsedMicros checkTimer = 0;
-	u8 drawingLine = 0;
+	u16 drawingPos = 0;
 
 	enum {
 		REG_VM0,

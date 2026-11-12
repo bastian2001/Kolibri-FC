@@ -218,7 +218,6 @@ function update() {
 		data.push(ser.mspDp.type | (ser.mspDp.resolution << 4))
 		data.push(...Array(9).fill(0)) // reserved
 	})
-	console.log(data)
 	sendCommand(MspFn.SET_SERIAL_SETUP, data)
 		.then((c): Promise<any> => {
 			if (c.data[0]) {
