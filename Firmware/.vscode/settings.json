@@ -93,5 +93,6 @@
 		"variant": "cpp",
 		"tusb_option.h": "c"
 	},
-	"files.insertFinalNewline": true
+	"files.insertFinalNewline": true,
+	"editor.stickyScroll.defaultModel": "foldingProviderModel"
 }

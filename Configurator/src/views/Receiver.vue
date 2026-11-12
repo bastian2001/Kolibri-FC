@@ -90,7 +90,7 @@ export default defineComponent({
 					this.rcMsgCount = leBytesToInt(c.data, 14, 4);
 				})
 				.catch(() => { });
-		}, 1000);
+		}, 100);
 		this.scanDevices()
 		this.getInterval = setInterval(this.getDevices, 200)
 		this.relaxGetter()
