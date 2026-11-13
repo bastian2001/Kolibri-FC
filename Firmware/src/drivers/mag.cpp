@@ -69,10 +69,11 @@ void initMags() {
 		magState = MagState::DISABLED;
 	}
 
-	if (!enableSoftMag) {
-		softMagState = SoftMagState::DISABLED;
+	if (enableSoftMag) {
 		thrustDirection.setRolloverParams(-FIX_PI, FIX_PI);
 		softMagCorrection.setRolloverParams(-FIX_PI, FIX_PI);
+	} else {
+		softMagState = SoftMagState::DISABLED;
 	}
 }
 
@@ -382,15 +383,15 @@ void softMagLoop() {
 		}
 		fix32 fwdThrust = -sinPitch * cosRoll;
 		fix32 rightThrust = sinRoll;
-		thrustMagnitude = fwdThrust * fwdThrust + rightThrust * rightThrust;
 		startFixMath();
-		fix32 thrustUpdate = yaw + atan2Fix(rightThrust, fwdThrust);
+		thrustMagnitude = sqrtFix(fwdThrust * fwdThrust + rightThrust * rightThrust);
+		fix32 thrustUpdate = yaw + atan2Fix(rightThrust, fwdThrust); //+- 2*PI - +- 1*PI -> +- 1*PI
 		if (thrustUpdate - thrustDirection > FIX_PI) {
 			thrustUpdate -= FIX_PI * 2;
 		} else if (thrustUpdate - thrustDirection < -FIX_PI) {
 			thrustUpdate += FIX_PI * 2;
 		}
-		thrustDirection.update(thrustUpdate);
+		thrustDirection.update(thrustUpdate); // apply LPF to thrustUpdate (-> thrustDirection)
 		thrustDirection.rollover();
 		softMagState = SoftMagState::UPDATE_FROM_GPS;
 	} break;
