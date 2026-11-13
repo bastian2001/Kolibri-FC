@@ -37,6 +37,12 @@ void PT1::updateCutoffFreq(fix32 cutoffFreq) {
 	alpha = omega / (omega + 1);
 }
 void PT1::updateAlpha(fix32 alpha) { this->alpha = alpha; }
+void PT1::updateAlpha(fix32 cutoffFreq, u32 sampleFreq) {
+	if (sampleFreq <= 0 || cutoffFreq <= 0) return;
+	this->sampleFreq = sampleFreq;
+	fix32 omega = FIX_PI * 2 * cutoffFreq / sampleFreq;
+	alpha = omega / (omega + 1);
+}
 
 void PT1::setRolloverParams(fix32 lowerBound, fix32 upperBound) {
 	this->lowerBound = lowerBound;

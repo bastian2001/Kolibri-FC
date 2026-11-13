@@ -53,6 +53,7 @@ static bool enableSoftMag = false;
 static u8 magSource = 0;
 fix32 magHeading = 0;
 
+// depends on imuInit
 void initMags() {
 	addArraySetting(SETTING_MAG_CAL_HARD, magOffset);
 	addSetting(SETTING_MAG_ENABLE, &enableHardMag, true);
@@ -72,6 +73,7 @@ void initMags() {
 	if (enableSoftMag) {
 		thrustDirection.setRolloverParams(-FIX_PI, FIX_PI);
 		softMagCorrection.setRolloverParams(-FIX_PI, FIX_PI);
+		magHeadingCorrection.updateAlpha(magFilterCutoff, 20);
 	} else {
 		softMagState = SoftMagState::DISABLED;
 	}
@@ -436,7 +438,7 @@ void softMagLoop() {
 		}
 		if (magSource == 1) {
 			magHeading = softMagHeading;
-			magHeadingCorrection.set(softMagCorrection);
+			magHeadingCorrection.update(softMagCorrection);
 		}
 		softMagState = SoftMagState::WAITING;
 		break;

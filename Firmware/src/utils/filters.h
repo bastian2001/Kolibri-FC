@@ -80,6 +80,13 @@ public:
 	 * @param alpha The new alpha value
 	 */
 	void updateAlpha(fix32 alpha);
+	/**
+	 * @brief Set a new alpha value for the filter, by supplying everything new
+	 *
+	 * @param cutoffFreq Cutoff frequency of the filter
+	 * @param sampleFreq Sample frequency of the filter (rate at which .update() is called)
+	 */
+	void updateAlpha(fix32 cutoffFreq, u32 sampleFreq);
 	void set(fix32 value) {
 		y = value;
 	}

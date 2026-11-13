@@ -58,6 +58,7 @@ volatile u8 altInitState = 0;
 
 Quaternion q;
 
+// dependent: initMags
 void imuInit() {
 	addSetting(SETTING_GPS_VEL_FILTER_CUTOFF, &gpsVelocityFilterCutoff, 0.2f);
 	addSetting(SETTING_GPS_UPDATE_RATE, &gpsUpdateRate, 20);

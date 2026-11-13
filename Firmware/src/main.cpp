@@ -55,8 +55,8 @@ void setup() {
 	OsdCanvas::get().begin();
 	AnalogOsdOutput::get().begin();
 	inFlightTuningInit();
-	initMags();
 	imuInit();
+	initMags();
 	initADC();
 #ifdef BLACKBOX_STORAGE
 	initBlackbox();
