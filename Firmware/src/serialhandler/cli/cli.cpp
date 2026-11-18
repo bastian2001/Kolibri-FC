@@ -24,6 +24,7 @@
 
 std::vector<Command *> Command::cliCommands;
 Command *Command::activeLoopCommand;
+u32 Command::width = 50, Command::height = 30;
 
 void initClear();
 void initEcho();
@@ -66,6 +67,16 @@ void initCli() {
 void cliLoop() {
 	if (Command::activeLoopCommand) {
 		Command::activeLoopCommand->loop();
+	}
+}
+
+void Command::setSize(u32 w, u32 h) {
+	if (!w) w = 1;
+	if (!h) h = 1;
+	width = w;
+	height = h;
+	if (activeLoopCommand) {
+		activeLoopCommand->resize();
 	}
 }
 

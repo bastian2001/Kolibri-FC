@@ -116,6 +116,7 @@ enum class MspFn : u16 {
 	CLI_GET_SUGGESTION = 0x4022,
 	CLI_ABORT_COMMAND = 0x4023,
 	CLI_CHECK_RUNNING = 0x4024,
+	CLI_SET_SIZE = 0x4025,
 
 	// 0x410_ Settings Meta commands
 	SAVE_SETTINGS = 0x4100,
