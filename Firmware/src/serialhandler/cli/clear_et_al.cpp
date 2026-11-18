@@ -41,54 +41,6 @@ void initScreen() {
 	Command::cliCommands.push_back(cmd);
 }
 
-static u8 phase = 0;
-static elapsedMillis timer = 0;
-void initTest() {
-	Command *cmd = new Command("test", "test spinner");
-	cmd->setExecuteFunction([](std::map<string, RuntimeArg> &args, Command *cmd) {
-		cmd->print("\x0f"); // SI character starts a new session in our terminal emulator
-		return true;
-	});
-	cmd->setAbortFunction([](Command *cmd) {
-		cmd->print("\x0e");
-	});
-	cmd->setLoopFunction([](Command *cmd) {
-		if (timer < 100) return true;
-		timer = 0;
-		string s = "\v";
-		for (int i = 0; i < (cmd->getHeight() - 3) / 2; i++) {
-			s += " \n";
-		}
-		u32 empty = (cmd->getWidth() - 3) / 2;
-		if (phase > 2) s += " \n";
-		if (phase > 3 && phase < 7) s += " \n";
-		switch (phase) {
-		case 0:
-		case 6:
-		case 7:
-			break;
-		case 1:
-		case 5:
-			empty++;
-			break;
-		case 2:
-		case 3:
-		case 4:
-			empty += 2;
-			break;
-		}
-		for (int i = 0; i < empty; i++) {
-			s += " ";
-		}
-		phase++;
-		if (phase == 8) phase = 0;
-		s += "#";
-		cmd->print(s.c_str());
-		return true;
-	});
-	Command::cliCommands.push_back(cmd);
-}
-
 void initExit() {
 	Command *cmd = new Command("exit", "Exit the current shell session, returning to the previous session if screen command was used");
 	cmd->addAlias("quit");
@@ -97,6 +49,4 @@ void initExit() {
 		return false;
 	});
 	Command::cliCommands.push_back(cmd);
-
-	initTest();
 }

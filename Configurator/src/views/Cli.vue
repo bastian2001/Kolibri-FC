@@ -435,10 +435,10 @@ export default defineComponent({
 			const testElement = this.$refs.cliTest as HTMLElement | null;
 			if (!outputElement || !testElement) return;
 
-			height = Math.floor((outputElement.clientHeight - 14) / 22); // height is easy
+			height = Math.floor((outputElement.clientHeight - 14) / 28);
 			let w = outputElement.clientWidth - 40;
-			this.testStyle = "display:inline-block;"; // make the test element visible to measure its width
-			await this.$nextTick(); // wait for the DOM to update
+			this.testStyle = "display:inline-block;";
+			await this.$nextTick();
 			width = Math.floor(w / testElement.clientWidth * 100);
 			this.testStyle = "display:none;"; // hide the test element again
 			sendCommand(MspFn.CLI_SET_SIZE, { data: [...intToLeBytes(width, 2), ...intToLeBytes(height, 2)], timeout: 200 })
@@ -446,6 +446,7 @@ export default defineComponent({
 				.catch(this.freeResize)
 			this.resizeScheduled = false;
 			this.canResize = false;
+			console.log(height, outputElement.clientHeight)
 		},
 		freeResize() {
 			this.canResize = true;
@@ -555,10 +556,6 @@ export default defineComponent({
 	font-weight: bold;
 	margin: 3px 0px;
 	white-space: pre-wrap;
-}
-
-.spacer {
-	height: 15rem;
 }
 
 .input {

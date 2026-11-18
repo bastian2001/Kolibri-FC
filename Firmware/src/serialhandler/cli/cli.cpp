@@ -40,6 +40,7 @@ void initSave();
 void initScreen();
 void initSerialStats();
 void initSet();
+void initSl();
 void initStatus();
 
 void finishInitMan();
@@ -59,6 +60,7 @@ void initCli() {
 	initScreen();
 	initSerialStats();
 	initSet();
+	initSl();
 	initStatus();
 
 	finishInitMan();
