@@ -103,12 +103,14 @@ static char *frameBuf = nullptr;
 static u32 slWidth = 50;
 static u32 slHeight = 30;
 static elapsedMicros slTimer = 0;
+static char setColor[2] = "\0";
 
 static bool cleanup(Command *cmd) {
 	add_smoke(0, 0, 2);
 	cmd->print("\x0e");
 	if (frameBuf) free(frameBuf);
 	frameBuf = nullptr;
+	setColor[0] = 0;
 	return false;
 }
 static void cleanup2(Command *cmd) {
@@ -156,11 +158,11 @@ void initSl() {
 		if (std::get<bool>(args["c51"].value))
 			C51 = 1;
 		if (std::get<bool>(args["disco"].value))
-			DISCO = 0;
+			DISCO = 1;
 		if (std::get<bool>(args["fly"].value))
 			FLY = 1;
 		if (std::get<bool>(args["TGV"].value))
-			TGV = 0;
+			TGV = 1;
 		if (std::get<bool>(args["little"].value))
 			LOGO = 1;
 		if (std::get<bool>(args["windy"].value))
@@ -196,6 +198,7 @@ void initSl() {
 			if (add_D51(x) == 1) return cleanup(cmd);
 		}
 		cmd->print("\x03\x02\v");
+		if (setColor[0] != 0) cmd->print(setColor);
 		char s[slWidth + 2];
 		s[slWidth] = '\n';
 		s[slWidth + 1] = '\0';
@@ -337,12 +340,12 @@ int add_TGV(int x) {
 		y = (x / 7) + slHeight - (slWidth / 7) - TGVHEIGHT;
 		dy = 1;
 	}
-	// attron(COLOR_PAIR(2));
+
+	setColor[0] = CLI_COLOR_RED[0];
 	for (i = 0; i <= TGVHEIGHT; ++i) {
 		my_mvaddstr(y + i, x, tgv[((TGVLENGTH + x) / 2) % TGVPATTERNS][i]);
 		my_mvaddstr(y + i + dy, x + 55, vagoon[i]);
 	}
-	// attroff(COLOR_PAIR(2));
 
 	if (ACCIDENT == 1) {
 		add_man(y + 2, x + 14);
@@ -450,9 +453,13 @@ void add_smoke(int y, int x, int action)
 							   2, 2, 2, 3, 3, 3};
 	int i;
 
-	if (DISCO && (x + INT_MAX / 2) % 4 == 2) {
+	if (DISCO && x % 6 == 0) {
+		if (setColor[0] == 0)
+			setColor[0] = 0x11;
+		else
+			setColor[0]++;
+		if (setColor[0] == 0x17) setColor[0] = 0x11;
 	}
-	// attron(COLOR_PAIR((x + INT_MAX / 2) / 16 % 4 + 1));
 	if (x % 4 == 0) {
 		for (i = 0; i < sum; ++i) {
 			my_mvaddstr(S[i].y, S[i].x, Eraser[S[i].ptrn]);
