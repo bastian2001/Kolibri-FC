@@ -73,7 +73,7 @@ export default defineComponent({
 					if (command.dataStr) {
 						for (let i = 0; i < command.dataStr.length; i++) {
 							const char = command.dataStr[i];
-							if (this.holdingBack && char !== '\x03' && char !== '\x02') {
+							if (this.holdingBack && char !== '\x03' && char !== '\x02' && char !== '\x0e') {
 								this.dataHeldBack += char;
 								continue;
 							}
@@ -99,6 +99,8 @@ export default defineComponent({
 									this.onCommand({ command: MspFn.CLI_COMMAND, dataStr: heldBack, data: new Uint8Array(), cmdType: 'request', length: 0, flag: 0, version: 0 } as Command);
 									break;
 								case '\x0e': // shift out, restore stashed screen if available
+									this.dataHeldBack = '';
+									this.holdingBack = false;
 									if (this.stashedOutputLines.length > 0) {
 										this.outputLines = this.stashedOutputLines.pop()!;
 										this.cursorY = this.outputLines.length - 1;
@@ -110,6 +112,8 @@ export default defineComponent({
 									}
 									break;
 								case '\x0f': // shift in, also clear the screen but stashed
+									this.dataHeldBack = '';
+									this.holdingBack = false;
 									this.stashedOutputLines.push(this.outputLines);
 									this.outputLines = [[]];
 									this.cursorX = 0;
@@ -435,7 +439,7 @@ export default defineComponent({
 			const testElement = this.$refs.cliTest as HTMLElement | null;
 			if (!outputElement || !testElement) return;
 
-			height = Math.floor((outputElement.clientHeight - 14) / 28);
+			height = Math.floor((outputElement.clientHeight - 14) / 25);
 			let w = outputElement.clientWidth - 40;
 			this.testStyle = "display:inline-block;";
 			await this.$nextTick();

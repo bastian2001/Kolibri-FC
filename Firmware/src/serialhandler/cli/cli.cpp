@@ -737,14 +737,14 @@ void Command::fillRuntimeArgsDefault(std::map<string, RuntimeArg> &runtimeArgs) 
 		case ArgType::INT: {
 			i64 defaultVal = 0;
 			rArg.value = (i32)0;
-			if (!parseInt(arg.defaultValue.c_str(), defaultVal)) {
+			if (parseInt(arg.defaultValue.c_str(), defaultVal)) {
 				rArg.value = (i32)defaultVal;
 			}
 		} break;
 		case ArgType::FLOAT: {
 			f64 defaultVal = 0;
 			rArg.value = (f32)0;
-			if (!parseFloat(arg.defaultValue.c_str(), defaultVal)) {
+			if (parseFloat(arg.defaultValue.c_str(), defaultVal)) {
 				rArg.value = (f32)defaultVal;
 			}
 		} break;
