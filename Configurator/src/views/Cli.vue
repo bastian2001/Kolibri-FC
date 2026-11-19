@@ -22,7 +22,7 @@ import { onCommandHandler, onConnectHandler, sendCommand, strToArray } from "@/m
 import { MspFn } from "@/msp/protocol";
 import { Command } from "@/utils/types";
 import { defineComponent } from "vue";
-import { delay } from "@/utils/utils";
+import { delay, intToLeBytes } from "@/utils/utils";
 
 const TEXT_COLORS = ['white', 'red',/*green*/ '#6f8', /*yellow*/'#fd0', /*blue*/ '#68f', 'magenta', 'cyan', 'grey']
 
@@ -48,6 +48,9 @@ export default defineComponent({
 			selectedSuggestionIndex: -1,
 			suggestionsFor: '',
 			suggestionSequence: 0,
+			testStyle: "display:none;",
+			resizeScheduled: false,
+			canResize: true,
 		};
 	},
 	methods: {
@@ -70,7 +73,7 @@ export default defineComponent({
 					if (command.dataStr) {
 						for (let i = 0; i < command.dataStr.length; i++) {
 							const char = command.dataStr[i];
-							if (this.holdingBack && char !== '\x03' && char !== '\x02') {
+							if (this.holdingBack && char !== '\x03' && char !== '\x02' && char !== '\x0e') {
 								this.dataHeldBack += char;
 								continue;
 							}
@@ -96,6 +99,8 @@ export default defineComponent({
 									this.onCommand({ command: MspFn.CLI_COMMAND, dataStr: heldBack, data: new Uint8Array(), cmdType: 'request', length: 0, flag: 0, version: 0 } as Command);
 									break;
 								case '\x0e': // shift out, restore stashed screen if available
+									this.dataHeldBack = '';
+									this.holdingBack = false;
 									if (this.stashedOutputLines.length > 0) {
 										this.outputLines = this.stashedOutputLines.pop()!;
 										this.cursorY = this.outputLines.length - 1;
@@ -107,6 +112,8 @@ export default defineComponent({
 									}
 									break;
 								case '\x0f': // shift in, also clear the screen but stashed
+									this.dataHeldBack = '';
+									this.holdingBack = false;
 									this.stashedOutputLines.push(this.outputLines);
 									this.outputLines = [[]];
 									this.cursorX = 0;
@@ -419,6 +426,35 @@ export default defineComponent({
 				}
 			}
 			return parts;
+		},
+		async resize() {
+			if (!this.canResize) {
+				this.resizeScheduled = true;
+				return;
+			}
+			let height = 0;
+			let width = 0;
+
+			const outputElement = this.$refs.cliOutput as HTMLElement | null;
+			const testElement = this.$refs.cliTest as HTMLElement | null;
+			if (!outputElement || !testElement) return;
+
+			height = Math.floor((outputElement.clientHeight - 14) / 25);
+			let w = outputElement.clientWidth - 40;
+			this.testStyle = "display:inline-block;";
+			await this.$nextTick();
+			width = Math.floor(w / testElement.clientWidth * 100);
+			this.testStyle = "display:none;"; // hide the test element again
+			sendCommand(MspFn.CLI_SET_SIZE, { data: [...intToLeBytes(width, 2), ...intToLeBytes(height, 2)], timeout: 200 })
+				.then(this.freeResize)
+				.catch(this.freeResize)
+			this.resizeScheduled = false;
+			this.canResize = false;
+			console.log(height, outputElement.clientHeight)
+		},
+		freeResize() {
+			this.canResize = true;
+			if (this.resizeScheduled) this.resize();
 		}
 	},
 	mounted() {
@@ -432,14 +468,17 @@ export default defineComponent({
 			}
 		}
 		onCommandHandler(this.onCommand);
-		onConnectHandler(this.onStart);
+		onConnectHandler(this.onStart, this.resize);
 		this.runningCheckInterval = setInterval(this.runningCheckFn, 300);
+		this.resize()
+		window.addEventListener('resize', this.resize);
 	},
 	beforeUnmount() {
 		// save last 20 commands from history to local storage
 		const history = this.history.slice(-100); // Limit to last 100 commands
 		localStorage.setItem('cliHistory', JSON.stringify(history));
 		clearInterval(this.runningCheckInterval);
+		window.removeEventListener('resize', this.resize);
 	},
 	computed: {
 		filteredHistory() {
@@ -458,7 +497,9 @@ export default defineComponent({
 
 <template>
 	<div class="wrapper">
-		<div class="output">
+		<div class="output" :ref="'cliOutput'">
+			<p :style="testStyle" :ref="'cliTest'">
+				XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</p>
 			<p v-for="(line, index) in outputLines" :key="'cli' + index">
 				<span v-for="(part, i) in line" :key="i" :style="'color: ' + part.color + ';'">{{ part.text || '\u200b'
 				}}</span>
@@ -519,10 +560,6 @@ export default defineComponent({
 	font-weight: bold;
 	margin: 3px 0px;
 	white-space: pre-wrap;
-}
-
-.spacer {
-	height: 15rem;
 }
 
 .input {

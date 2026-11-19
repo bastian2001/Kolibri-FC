@@ -24,6 +24,7 @@
 
 std::vector<Command *> Command::cliCommands;
 Command *Command::activeLoopCommand;
+u32 Command::width = 50, Command::height = 30;
 
 void initClear();
 void initEcho();
@@ -39,6 +40,7 @@ void initSave();
 void initScreen();
 void initSerialStats();
 void initSet();
+void initSl();
 void initStatus();
 
 void finishInitMan();
@@ -58,6 +60,7 @@ void initCli() {
 	initScreen();
 	initSerialStats();
 	initSet();
+	initSl();
 	initStatus();
 
 	finishInitMan();
@@ -66,6 +69,16 @@ void initCli() {
 void cliLoop() {
 	if (Command::activeLoopCommand) {
 		Command::activeLoopCommand->loop();
+	}
+}
+
+void Command::setSize(u32 w, u32 h) {
+	if (!w) w = 1;
+	if (!h) h = 1;
+	width = w;
+	height = h;
+	if (activeLoopCommand) {
+		activeLoopCommand->resize();
 	}
 }
 
@@ -724,14 +737,14 @@ void Command::fillRuntimeArgsDefault(std::map<string, RuntimeArg> &runtimeArgs) 
 		case ArgType::INT: {
 			i64 defaultVal = 0;
 			rArg.value = (i32)0;
-			if (!parseInt(arg.defaultValue.c_str(), defaultVal)) {
+			if (parseInt(arg.defaultValue.c_str(), defaultVal)) {
 				rArg.value = (i32)defaultVal;
 			}
 		} break;
 		case ArgType::FLOAT: {
 			f64 defaultVal = 0;
 			rArg.value = (f32)0;
-			if (!parseFloat(arg.defaultValue.c_str(), defaultVal)) {
+			if (parseFloat(arg.defaultValue.c_str(), defaultVal)) {
 				rArg.value = (f32)defaultVal;
 			}
 		} break;

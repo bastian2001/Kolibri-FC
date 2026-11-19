@@ -286,15 +286,29 @@ public:
 	const string name;
 	const string description;
 
+	static void setSize(u32 w, u32 h);
+	static u32 getWidth() { return width; }
+	static u32 getHeight() { return height; }
+
+	void resize() {
+		if (resizeFn) resizeFn(this);
+	}
+	void setResizeFunction(void (*fn)(Command *cmd)) {
+		resizeFn = fn;
+	}
+
 private:
 	std::vector<CommandArg> args;
 	std::vector<string> aliases;
+	static u32 width;
+	static u32 height;
 	KoliSerial *serial = nullptr;
 
 	bool (*executeFunction)(std::map<string, RuntimeArg> &args, Command *cmd) = nullptr;
 	bool (*loopFunction)(Command *cmd) = nullptr;
 	bool (*inputFunction)(string input, Command *cmd) = nullptr;
 	void (*abortFunction)(Command *cmd) = nullptr;
+	void (*resizeFn)(Command *cmd) = nullptr;
 
 	void fillRuntimeArgsDefault(std::map<string, RuntimeArg> &runtimeArgs);
 	bool parseCommandArgs(const std::list<string> &tokens, std::map<string, RuntimeArg> &runtimeArgs, bool endsWithSpace, bool suggestMode, std::vector<string> *suggestions, string &failText);

@@ -707,6 +707,10 @@ void processMspCmd(KoliSerial &serial, MspMsgType type, MspFn fn, MspVersion ver
 			buf[0] = Command::activeLoopCommand ? 1 : 0;
 			sendMsp(msgSetup, buf, 1);
 			break;
+		case MspFn::CLI_SET_SIZE:
+			Command::setSize(DECODE_U2(reqPayload), DECODE_U2(reqPayload + 2));
+			sendMsp(msgSetup);
+			break;
 		case MspFn::SAVE_SETTINGS:
 			closeSettingsFile();
 			sendMsp(msgSetup);
