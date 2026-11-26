@@ -100,9 +100,10 @@ Debugging can be done in a few ways:
 I was urged by some friends to implement a style guide, so here it is (incomplete, I'm writing things down as I think about them):
 
 - variables, functions and files `camelCase`, class names `PascalCase`, `#define` and `const`: `SCREAMING_SNAKE_CASE`
+- Functions and variables that are not part of a class must be either `static` (file-local) or exposed via the header file.
 - Treat acronyms like words, e.g. `OsdCanvas`. Yes, OSD is an acronym, and it may look weird at first glance. But you do get used to it quite quickly (trust me, I thought too that this would not work), and it helps get rid of any ambiguity in naming and generally makes words look more similar and identifiable.
-- Use formatting from the `.vscode/settings.json` formatter string
-- `if` with a single statement afterwards may be used without brackets, for and while loops must not
+- Use formatting from the `.vscode/settings.json` formatter string.
+- `if` with a single statement afterwards may be used without brackets, for and while loops must not.
 - Keep comments limited, just don't write completely f'ed up code. Make sure your code is understandable without them.
 - Doxygen comments are mandatory for all functions that may be used globally\*. Doxygen comments must be written into the header file, unless the function only exists in the cpp.
     - Doxygen comments for functions must have the following fields: @brief, regular description, @return, @param. In case numbers have units, add them!
